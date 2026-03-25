@@ -83,7 +83,7 @@ export default function RolesScreen() {
         gap: 16,
       }}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: C.text }]}>{t("admin.roles")}</Text>
+          <Text style={[styles.title, { color: C.text }]}>{t("admin.settings")}</Text>
           <Button title={`+ ${t("admin.assignRole")}`} onPress={() => setShowAssign(true)} variant="primary" size="sm" />
         </View>
 
