@@ -43,15 +43,20 @@ router.get(
       .from(transactionLogsTable)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    // Compute COGS from line items
+    // Compute COGS from line items (per-tx map for accurate group-level breakdowns)
     const txIds = txRows.map((r) => r.id);
     let cogsCop = 0;
+    const cogsByTxId = new Map<string, number>();
     if (txIds.length > 0) {
       const lineItemRows = await db
         .select()
         .from(transactionLineItemsTable)
         .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map(id => sql`${id}`), sql`, `)}]::text[])`);
-      cogsCop = lineItemRows.reduce((s, li) => s + li.unitCostSnapshot * li.quantity, 0);
+      for (const li of lineItemRows) {
+        const txCogs = (cogsByTxId.get(li.transactionLogId) ?? 0) + li.unitCostSnapshot * li.quantity;
+        cogsByTxId.set(li.transactionLogId, txCogs);
+      }
+      cogsCop = [...cogsByTxId.values()].reduce((s, c) => s + c, 0);
     }
 
     const grossSalesCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
@@ -136,11 +141,12 @@ router.get(
       const gross = rows.reduce((s, r) => s + r.grossAmountCop, 0);
       const comm = rows.reduce((s, r) => s + r.commissionAmountCop, 0);
       const net = rows.reduce((s, r) => s + r.netAmountCop, 0);
-      const profit = gross; // COGS not split per group for performance
-      const margin = gross > 0 ? 0 : 0;
+      const groupCogs = rows.reduce((s, r) => s + (cogsByTxId.get(r.id) ?? 0), 0);
+      const profit = gross - groupCogs;
+      const margin = gross > 0 ? Math.round((profit / gross) * 10000) / 100 : 0;
       return {
         grossSalesCop: gross,
-        cogsCop: 0,
+        cogsCop: groupCogs,
         grossProfitCop: profit,
         profitMarginPercent: margin,
         commissionCop: comm,

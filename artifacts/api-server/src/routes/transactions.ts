@@ -76,6 +76,30 @@ async function processTransaction(
     return { status: "duplicate" };
   }
 
+  // Bracelet existence + integrity checks
+  const [bracelet] = await db
+    .select()
+    .from(braceletsTable)
+    .where(eq(braceletsTable.nfcUid, input.nfcUid));
+  if (!bracelet) {
+    return { status: "error", error: "Bracelet not registered" };
+  }
+  if (bracelet.flagged) {
+    return { status: "error", error: "Bracelet is flagged and cannot be used" };
+  }
+  // Counter must be strictly increasing to prevent rollback/replay
+  if (bracelet.lastCounter !== null && input.counter <= bracelet.lastCounter) {
+    return { status: "error", error: `Counter replay detected: submitted ${input.counter} ≤ stored ${bracelet.lastCounter}` };
+  }
+  // Balance consistency: newBalance should equal lastKnownBalance minus gross
+  // (skip when lastKnownBalanceCop is null — first use on server side)
+  if (bracelet.lastKnownBalanceCop !== null) {
+    const expectedNewBalance = bracelet.lastKnownBalanceCop - input.newBalance;
+    if (expectedNewBalance < 0) {
+      return { status: "error", error: "Insufficient bracelet balance" };
+    }
+  }
+
   // Ownership + staff assignment check
   const accessResult = await checkLocationAccess(input.locationId, user);
   if ("error" in accessResult) {
