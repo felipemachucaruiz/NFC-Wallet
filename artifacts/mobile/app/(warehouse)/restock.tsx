@@ -45,7 +45,7 @@ export default function RestockOrdersScreen() {
   const handleUpdate = async (orderId: string, status: "approved" | "rejected") => {
     Alert.alert(
       status === "approved" ? t("warehouse.approveRestock") : t("warehouse.rejectRestock"),
-      "¿Confirmar?",
+      t("warehouse.confirmAction"),
       [
         { text: t("common.cancel"), style: "cancel" },
         {
