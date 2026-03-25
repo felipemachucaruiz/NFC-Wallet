@@ -114,7 +114,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     .from(usersTable)
     .where(or(
       eq(usersTable.email, lower),
-      eq(usersTable.username, trimmed),
+      eq(usersTable.username, lower),
     ));
 
   if (!user || !user.passwordHash) {
@@ -181,7 +181,7 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
   }
 
   const normalizedEmail = email ? email.toLowerCase().trim() : null;
-  const normalizedUsername = username ? username.trim() : null;
+  const normalizedUsername = username ? username.trim().toLowerCase() : null;
 
   if (normalizedEmail) {
     const [dup] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, normalizedEmail));

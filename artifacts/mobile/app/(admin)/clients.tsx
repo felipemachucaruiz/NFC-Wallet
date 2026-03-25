@@ -512,8 +512,8 @@ export default function ClientsScreen() {
                 <Input label={t("admin.lastName")} value={form.lastName} onChangeText={(v) => setForm((f) => ({ ...f, lastName: v }))} placeholder="García" autoCapitalize="words" />
               </View>
             </View>
-            <Input label={t("admin.clientEmail")} value={form.email} onChangeText={(v) => setForm((f) => ({ ...f, email: v }))} placeholder="ana@festivalapp.com" keyboardType="email-address" autoCapitalize="none" />
-            <Input label={t("admin.clientUsername")} value={form.username} onChangeText={(v) => setForm((f) => ({ ...f, username: v }))} placeholder={t("admin.clientUsernamePlaceholder")} autoCapitalize="none" />
+            <Input label={t("admin.clientEmail")} value={form.email} onChangeText={(v) => setForm((f) => ({ ...f, email: v.toLowerCase() }))} placeholder="ana@festivalapp.com" keyboardType="email-address" autoCapitalize="none" />
+            <Input label={t("admin.clientUsername")} value={form.username} onChangeText={(v) => setForm((f) => ({ ...f, username: v.toLowerCase() }))} placeholder={t("admin.clientUsernamePlaceholder")} autoCapitalize="none" />
             <Input label={t("admin.clientPassword")} value={form.password} onChangeText={(v) => setForm((f) => ({ ...f, password: v }))} placeholder={t("admin.passwordMinLengthHint")} secureTextEntry />
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.assignToEvent")}</Text>
             <Pressable onPress={() => setForm((f) => ({ ...f, eventId: "" }))} style={[styles.eventOption, { backgroundColor: !form.eventId ? C.primary + "18" : C.inputBg, borderColor: !form.eventId ? C.primary : C.border }]}>

@@ -96,7 +96,7 @@ export default function LoginScreen() {
             <Input
               label={t("auth.identifier")}
               value={identifier}
-              onChangeText={(v) => { setIdentifier(v); setError(null); }}
+              onChangeText={(v) => { setIdentifier(v.toLowerCase()); setError(null); }}
               placeholder={t("auth.identifierPlaceholder")}
               autoCapitalize="none"
               autoCorrect={false}
