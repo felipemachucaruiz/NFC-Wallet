@@ -352,9 +352,21 @@
     "lowStockCount": "Products with low stock",
     "unitsSoldToday": "Units sold (today)",
     "userIdRequired": "User ID required",
+    "userId": "User ID",
     "availableRoles": "Available roles",
     "selectRole": "Select role",
     "userIdPlaceholder": "User ID",
-    "assignRoleConfirm": "Assign role \"{{role}}\" to user {{userId}}?"
+    "assignRoleConfirm": "Assign role \"{{role}}\" to user {{userId}}?",
+    "eventStatus": {
+      "active": "Active",
+      "upcoming": "Upcoming",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "common_notfound": {
+    "title": "Page not found",
+    "message": "This screen doesn't exist.",
+    "goHome": "Go to home screen"
   }
 }

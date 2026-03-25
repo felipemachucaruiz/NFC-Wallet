@@ -352,9 +352,21 @@
     "lowStockCount": "Productos con bajo stock",
     "unitsSoldToday": "Unidades vendidas (hoy)",
     "userIdRequired": "User ID requerido",
+    "userId": "ID de usuario",
     "availableRoles": "Roles disponibles",
     "selectRole": "Seleccionar rol",
     "userIdPlaceholder": "ID del usuario",
-    "assignRoleConfirm": "¿Asignar rol \"{{role}}\" al usuario {{userId}}?"
+    "assignRoleConfirm": "¿Asignar rol \"{{role}}\" al usuario {{userId}}?",
+    "eventStatus": {
+      "active": "Activo",
+      "upcoming": "Próximo",
+      "completed": "Finalizado",
+      "cancelled": "Cancelado"
+    }
+  },
+  "common_notfound": {
+    "title": "Página no encontrada",
+    "message": "Esta pantalla no existe.",
+    "goHome": "Ir al inicio"
   }
 }

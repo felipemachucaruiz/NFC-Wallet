@@ -108,7 +108,7 @@ export default function RolesScreen() {
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <View style={[styles.sheet, { backgroundColor: C.card }]}>
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.assignRole")}</Text>
-            <Input label="User ID" value={userId} onChangeText={setUserId} placeholder={t("admin.userIdPlaceholder")} />
+            <Input label={t("admin.userId")} value={userId} onChangeText={setUserId} placeholder={t("admin.userIdPlaceholder")} />
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.selectRole")}</Text>
             <View style={styles.roleGrid}>
               {ROLES.map((role) => (

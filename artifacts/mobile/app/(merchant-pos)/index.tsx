@@ -159,7 +159,7 @@ export default function MerchantPosScreen() {
                       ) : lowStock ? (
                         <Badge label={`${item.quantityAvailable} ${t("pos.stock")}`} variant="warning" size="sm" />
                       ) : (
-                        <Text style={[styles.stockText, { color: C.textMuted }]}>{item.quantityAvailable} u.</Text>
+                        <Text style={[styles.stockText, { color: C.textMuted }]}>{item.quantityAvailable} {t("warehouse.units")}</Text>
                       )}
                     </View>
                     {!outOfStock && (

@@ -6,24 +6,27 @@ import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 
 function NativeTabLayout() {
+  const { t } = useTranslation();
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "creditcard", selected: "creditcard.fill" }} />
-        <Label>Saldo</Label>
+        <Label>{t("attendee.balance")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="history">
         <Icon sf={{ default: "list.bullet", selected: "list.bullet" }} />
-        <Label>Historial</Label>
+        <Label>{t("attendee.history")}</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
 
 function ClassicTabLayout() {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const isIOS = Platform.OS === "ios";
@@ -62,7 +65,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Saldo",
+          title: t("attendee.balance"),
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="creditcard.fill" tintColor={color} size={22} /> : <Feather name="credit-card" size={22} color={color} />,
         }}
@@ -70,7 +73,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: "Historial",
+          title: t("attendee.history"),
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="list.bullet" tintColor={color} size={22} /> : <Feather name="list" size={22} color={color} />,
         }}

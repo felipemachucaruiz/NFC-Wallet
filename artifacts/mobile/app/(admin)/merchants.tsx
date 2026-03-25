@@ -116,7 +116,7 @@ export default function MerchantsScreen() {
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 <Text style={[styles.commRate, { color: C.primary }]}>{item.commissionRatePercent}%</Text>
-                <Text style={[styles.locCount, { color: C.textMuted }]}>{item.locationCount ?? 0} locs.</Text>
+                <Text style={[styles.locCount, { color: C.textMuted }]}>{t("admin.locationCount", { count: item.locationCount ?? 0 })}</Text>
               </View>
             </View>
           </Card>

@@ -137,7 +137,7 @@ export default function BankLookupScreen() {
                   <Text style={[styles.uidLabel, { color: C.textMuted }]}>UID</Text>
                   <Text style={[styles.uid, { color: C.text }]}>{bracelet.uid}</Text>
                 </View>
-                {isFlagged && <Badge label="Flagged" variant="danger" />}
+                {isFlagged && <Badge label={t("bank.flagged")} variant="danger" />}
               </View>
 
               <View style={[styles.divider, { backgroundColor: C.separator }]} />

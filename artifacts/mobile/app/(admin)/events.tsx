@@ -24,11 +24,11 @@ import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { formatDate } from "@/utils/format";
 
-const STATUS_BADGE: Record<string, "success" | "warning" | "muted" | "info"> = {
+const STATUS_BADGE: Record<string, "success" | "warning" | "muted" | "info" | "danger"> = {
   active: "success",
   upcoming: "info",
   completed: "muted",
-  cancelled: "danger" as unknown as "muted",
+  cancelled: "danger",
 };
 
 export default function EventsScreen() {
@@ -113,7 +113,7 @@ export default function EventsScreen() {
                 {item.venue ? <Text style={[styles.venue, { color: C.textSecondary }]}>{item.venue}</Text> : null}
                 <Text style={[styles.dates, { color: C.textMuted }]}>{formatDate(item.startsAt)} → {formatDate(item.endsAt)}</Text>
               </View>
-              <Badge label={item.status} variant={STATUS_BADGE[item.status] ?? "muted"} size="sm" />
+              <Badge label={t(`admin.eventStatus.${item.status}`, { defaultValue: item.status })} variant={STATUS_BADGE[item.status] ?? "muted"} size="sm" />
             </View>
           </Card>
         )}

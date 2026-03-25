@@ -2,9 +2,11 @@ import { Stack, router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, useColorScheme } from "react-native";
+import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 
 export default function MerchantPosLayout() {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
@@ -21,8 +23,8 @@ export default function MerchantPosLayout() {
         ),
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Punto de Venta", headerShown: true }} />
-      <Stack.Screen name="charge" options={{ title: "Cobrar", headerShown: true, presentation: "modal" }} />
+      <Stack.Screen name="index" options={{ title: t("pos.title"), headerShown: true }} />
+      <Stack.Screen name="charge" options={{ title: t("pos.chargeTitle"), headerShown: true, presentation: "modal" }} />
     </Stack>
   );
 }

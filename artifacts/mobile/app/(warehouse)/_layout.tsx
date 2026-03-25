@@ -6,32 +6,35 @@ import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 
 function NativeTabLayout() {
+  const { t } = useTranslation();
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "cube.box", selected: "cube.box.fill" }} />
-        <Label>Stock</Label>
+        <Label>{t("warehouse.stock")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="dispatch">
         <Icon sf={{ default: "arrow.up.circle", selected: "arrow.up.circle.fill" }} />
-        <Label>Despachar</Label>
+        <Label>{t("warehouse.dispatch")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="restock">
         <Icon sf={{ default: "cart.badge.plus", selected: "cart.badge.plus" }} />
-        <Label>Reabastec.</Label>
+        <Label>{t("warehouse.restock")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="movements">
         <Icon sf={{ default: "list.bullet.rectangle", selected: "list.bullet.rectangle.fill" }} />
-        <Label>Movimientos</Label>
+        <Label>{t("warehouse.movements")}</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
 
 function ClassicTabLayout() {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const isIOS = Platform.OS === "ios";
@@ -67,10 +70,10 @@ function ClassicTabLayout() {
           ) : null,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Stock", tabBarIcon: ({ color }) => isIOS ? <SymbolView name="cube.box.fill" tintColor={color} size={22} /> : <Feather name="package" size={22} color={color} /> }} />
-      <Tabs.Screen name="dispatch" options={{ title: "Despachar", tabBarIcon: ({ color }) => isIOS ? <SymbolView name="arrow.up.circle.fill" tintColor={color} size={22} /> : <Feather name="upload" size={22} color={color} /> }} />
-      <Tabs.Screen name="restock" options={{ title: "Reabastec.", tabBarIcon: ({ color }) => isIOS ? <SymbolView name="cart.badge.plus" tintColor={color} size={22} /> : <Feather name="shopping-cart" size={22} color={color} /> }} />
-      <Tabs.Screen name="movements" options={{ title: "Movimientos", tabBarIcon: ({ color }) => isIOS ? <SymbolView name="list.bullet.rectangle.fill" tintColor={color} size={22} /> : <Feather name="list" size={22} color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: t("warehouse.stock"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="cube.box.fill" tintColor={color} size={22} /> : <Feather name="package" size={22} color={color} /> }} />
+      <Tabs.Screen name="dispatch" options={{ title: t("warehouse.dispatch"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="arrow.up.circle.fill" tintColor={color} size={22} /> : <Feather name="upload" size={22} color={color} /> }} />
+      <Tabs.Screen name="restock" options={{ title: t("warehouse.restock"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="cart.badge.plus" tintColor={color} size={22} /> : <Feather name="shopping-cart" size={22} color={color} /> }} />
+      <Tabs.Screen name="movements" options={{ title: t("warehouse.movements"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="list.bullet.rectangle.fill" tintColor={color} size={22} /> : <Feather name="list" size={22} color={color} /> }} />
     </Tabs>
   );
 }
