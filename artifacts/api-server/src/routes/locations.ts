@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, locationsTable, userLocationAssignmentsTable } from "@workspace/db";
+import { db, locationsTable, userLocationAssignmentsTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
@@ -38,6 +38,19 @@ router.get("/locations", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
+  if (user.role === "event_admin") {
+    if (!user.eventId) {
+      res.json({ locations: [] });
+      return;
+    }
+    const { merchantId } = req.query as { merchantId?: string };
+    const conditions = [eq(locationsTable.eventId, user.eventId)];
+    if (merchantId) conditions.push(eq(locationsTable.merchantId, merchantId));
+    const locations = await db.select().from(locationsTable).where(and(...conditions));
+    res.json({ locations });
+    return;
+  }
+
   const { merchantId, eventId } = req.query as { merchantId?: string; eventId?: string };
   const conditions = [];
   if (merchantId) conditions.push(eq(locationsTable.merchantId, merchantId));
@@ -51,7 +64,7 @@ router.get("/locations", requireAuth, async (req: Request, res: Response) => {
 
 router.post(
   "/locations",
-  requireRole("admin", "merchant_admin"),
+  requireRole("admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const parsed = createLocationSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -63,6 +76,13 @@ router.post(
     if (user.role === "merchant_admin") {
       if (!user.merchantId || parsed.data.merchantId !== user.merchantId) {
         res.status(403).json({ error: "Access denied: can only create locations for your own merchant" });
+        return;
+      }
+    }
+
+    if (user.role === "event_admin") {
+      if (!user.eventId || parsed.data.eventId !== user.eventId) {
+        res.status(403).json({ error: "Access denied: can only create locations for your event" });
         return;
       }
     }
@@ -97,12 +117,21 @@ router.get("/locations/:locationId", requireAuth, async (req: Request, res: Resp
     res.status(404).json({ error: "Location not found" });
     return;
   }
+
+  // event_admin: verify location belongs to their event
+  if (user.role === "event_admin") {
+    if (!user.eventId || location.eventId !== user.eventId) {
+      res.status(403).json({ error: "Location does not belong to your event" });
+      return;
+    }
+  }
+
   res.json(location);
 });
 
 router.patch(
   "/locations/:locationId",
-  requireRole("admin", "merchant_admin"),
+  requireRole("admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const parsed = updateLocationSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -117,6 +146,22 @@ router.patch(
       const result = await assertLocationAccess(locationId, user);
       if ("error" in result) {
         res.status(result.status).json({ error: result.error });
+        return;
+      }
+    }
+
+    // event_admin: verify location belongs to their event
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [loc] = await db
+        .select({ id: locationsTable.id, eventId: locationsTable.eventId })
+        .from(locationsTable)
+        .where(eq(locationsTable.id, locationId));
+      if (!loc || loc.eventId !== user.eventId) {
+        res.status(403).json({ error: "Location does not belong to your event" });
         return;
       }
     }
@@ -136,7 +181,7 @@ router.patch(
 
 router.post(
   "/locations/:locationId/staff",
-  requireRole("admin", "merchant_admin"),
+  requireRole("admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const parsed = assignUserSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -151,6 +196,31 @@ router.post(
       const result = await assertLocationAccess(locationId, user);
       if ("error" in result) {
         res.status(result.status).json({ error: result.error });
+        return;
+      }
+    }
+
+    // event_admin: verify location belongs to their event AND target user belongs to their event
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [loc] = await db
+        .select({ id: locationsTable.id, eventId: locationsTable.eventId })
+        .from(locationsTable)
+        .where(eq(locationsTable.id, locationId));
+      if (!loc || loc.eventId !== user.eventId) {
+        res.status(403).json({ error: "Location does not belong to your event" });
+        return;
+      }
+      // Validate the target user belongs to this event
+      const [targetUser] = await db
+        .select({ id: usersTable.id, eventId: usersTable.eventId })
+        .from(usersTable)
+        .where(eq(usersTable.id, parsed.data.userId));
+      if (!targetUser || targetUser.eventId !== user.eventId) {
+        res.status(403).json({ error: "User does not belong to your event" });
         return;
       }
     }
@@ -176,7 +246,7 @@ router.post(
 
 router.delete(
   "/locations/:locationId/staff",
-  requireRole("admin", "merchant_admin"),
+  requireRole("admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const parsed = assignUserSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -191,6 +261,31 @@ router.delete(
       const result = await assertLocationAccess(locationId, user);
       if ("error" in result) {
         res.status(result.status).json({ error: result.error });
+        return;
+      }
+    }
+
+    // event_admin: verify location belongs to their event AND target user belongs to their event
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [loc] = await db
+        .select({ id: locationsTable.id, eventId: locationsTable.eventId })
+        .from(locationsTable)
+        .where(eq(locationsTable.id, locationId));
+      if (!loc || loc.eventId !== user.eventId) {
+        res.status(403).json({ error: "Location does not belong to your event" });
+        return;
+      }
+      // Validate the target user belongs to this event
+      const [targetUser] = await db
+        .select({ id: usersTable.id, eventId: usersTable.eventId })
+        .from(usersTable)
+        .where(eq(usersTable.id, parsed.data.userId));
+      if (!targetUser || targetUser.eventId !== user.eventId) {
+        res.status(403).json({ error: "User does not belong to your event" });
         return;
       }
     }

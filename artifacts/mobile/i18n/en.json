@@ -263,6 +263,28 @@
     "additionalNote": "Additional note",
     "confirmAction": "Confirm?"
   },
+  "eventAdmin": {
+    "dashboard": "Dashboard",
+    "merchants": "Merchants",
+    "users": "Users",
+    "reports": "Reports",
+    "yourEvent": "Your Event",
+    "noEvent": "No event associated with your account",
+    "createUser": "Create user",
+    "userCreated": "User created successfully",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "firstNamePlaceholder": "e.g. Maria",
+    "lastNamePlaceholder": "e.g. Garcia",
+    "platformCommission": "Platform commission (%)",
+    "platformCommissionPlaceholder": "e.g. 5",
+    "eventAdminEmail": "Event admin email",
+    "eventAdminPassword": "Event admin password",
+    "eventAdminSection": "Event administrator",
+    "eventAdminOptional": "Optional: create event admin now",
+    "selectMerchant": "Assign to merchant",
+    "selectMerchantForRole": "Please select a merchant for this role"
+  },
   "admin": {
     "title": "Admin Panel",
     "dashboard": "Dashboard",
@@ -314,6 +336,7 @@
       "merchant_staff": "Merchant Staff",
       "merchant_admin": "Merchant Admin",
       "warehouse_admin": "Warehouse Admin",
+      "event_admin": "Event Admin",
       "admin": "Administrator"
     },
     "activeEvent": "Active event",
@@ -370,7 +393,10 @@
       "upcoming": "Upcoming",
       "completed": "Completed",
       "cancelled": "Cancelled"
-    }
+    },
+    "billing": "Billing",
+    "billingHint": "Platform commission earned per event (total sales × commission rate)",
+    "platformCommissionEarned": "Commission earned"
   },
   "common_notfound": {
     "title": "Page not found",

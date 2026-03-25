@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Platform,
   Pressable,
@@ -18,56 +18,32 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
 
-type ReportTab = "revenue" | "topups" | "inventory" | "billing";
+type ReportTab = "revenue" | "topups" | "inventory";
 
-type BillingRow = {
-  eventId: string;
-  eventName: string;
-  platformCommissionRate: number;
-  totalSalesCop: number;
-  platformCommissionEarnedCop: number;
-};
-
-const getApiBase = (): string => `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
-
-export default function ReportsScreen() {
+export default function EventAdminReportsScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { token } = useAuth();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<ReportTab>("revenue");
-  const [billing, setBilling] = useState<BillingRow[]>([]);
-  const [billingLoading, setBillingLoading] = useState(false);
 
-  const { data: revenueData, isLoading: revLoading } = useGetRevenueReport({});
+  const eventId = user?.eventId ?? undefined;
+
+  const { data: revenueData, isLoading: revLoading } = useGetRevenueReport(eventId ? { eventId } : {});
   const { data: topUpData, isLoading: topUpLoading } = useGetTopUpReport({});
-  const { data: inventoryData, isLoading: invLoading } = useGetInventoryReport({});
+  const { data: inventoryData, isLoading: invLoading } = useGetInventoryReport(eventId ? { eventId } : {});
 
   const revenue = revenueData as Record<string, number | undefined> | undefined;
   const topUps = topUpData as Record<string, number | string | Array<Record<string, unknown>> | undefined> | undefined;
   const inventory = inventoryData as Record<string, number | Array<Record<string, unknown>> | undefined> | undefined;
 
-  useEffect(() => {
-    if (activeTab === "billing" && token) {
-      setBillingLoading(true);
-      fetch(`${getApiBase()}/api/reports/billing`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((r) => r.json())
-        .then((data: { billing: BillingRow[] }) => { setBilling(data.billing ?? []); })
-        .catch(() => {})
-        .finally(() => setBillingLoading(false));
-    }
-  }, [activeTab, token]);
-
   const tabs: { key: ReportTab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
     { key: "revenue", label: t("admin.revenueReport"), icon: "trending-up" },
     { key: "topups", label: t("admin.topUpReport"), icon: "plus-circle" },
     { key: "inventory", label: t("admin.inventoryReport"), icon: "package" },
-    { key: "billing", label: t("admin.billing"), icon: "dollar-sign" },
   ];
 
   const isLoading = revLoading || topUpLoading || invLoading;
@@ -83,24 +59,22 @@ export default function ReportsScreen() {
       }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Text style={[styles.title, { color: C.text }]}>{t("admin.reports")}</Text>
+      <Text style={[styles.title, { color: C.text }]}>{t("eventAdmin.reports")}</Text>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ gap: 2, paddingHorizontal: 20 }}>
-        <View style={[styles.tabRow, { backgroundColor: C.inputBg }]}>
-          {tabs.map((tab) => (
-            <Pressable
-              key={tab.key}
-              onPress={() => setActiveTab(tab.key)}
-              style={[styles.tabBtn, activeTab === tab.key && { backgroundColor: C.card, borderRadius: 10, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }]}
-            >
-              <Feather name={tab.icon} size={16} color={activeTab === tab.key ? C.primary : C.textMuted} />
-              <Text style={[styles.tabLabel, { color: activeTab === tab.key ? C.primary : C.textMuted }]}>{tab.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
+      <View style={[styles.tabRow, { backgroundColor: C.inputBg }]}>
+        {tabs.map((tab) => (
+          <Pressable
+            key={tab.key}
+            onPress={() => setActiveTab(tab.key)}
+            style={[styles.tabBtn, activeTab === tab.key && { backgroundColor: C.card, borderRadius: 10, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }]}
+          >
+            <Feather name={tab.icon} size={16} color={activeTab === tab.key ? C.primary : C.textMuted} />
+            <Text style={[styles.tabLabel, { color: activeTab === tab.key ? C.primary : C.textMuted }]}>{tab.label}</Text>
+          </Pressable>
+        ))}
+      </View>
 
-      {isLoading && activeTab !== "billing" ? <Loading label={t("common.loading")} /> : (
+      {isLoading ? <Loading label={t("common.loading")} /> : (
         <>
           {activeTab === "revenue" && (
             <View style={{ gap: 12 }}>
@@ -110,7 +84,6 @@ export default function ReportsScreen() {
                 { label: t("admin.totalCogs"), value: revenue?.totalCogsCop, positive: false },
                 { label: t("admin.grossProfit"), value: revenue?.grossProfitCop, positive: true },
                 { label: t("admin.totalCommissions"), value: revenue?.totalCommissionsCop, positive: false },
-                { label: t("admin.platformRevenue"), value: revenue?.platformRevenueCop, positive: true },
                 { label: t("admin.netOwedToMerchants"), value: revenue?.netOwedToMerchantsCop, positive: false },
               ].map((row) => (
                 <Card key={row.label} padding={16}>
@@ -166,35 +139,6 @@ export default function ReportsScreen() {
               ))}
             </View>
           )}
-
-          {activeTab === "billing" && (
-            billingLoading ? <Loading label={t("common.loading")} /> : (
-              <View style={{ gap: 12 }}>
-                <Text style={[styles.billingHint, { color: C.textSecondary }]}>{t("admin.billingHint")}</Text>
-                {billing.length === 0 ? (
-                  <Card padding={16}>
-                    <Text style={{ color: C.textMuted, textAlign: "center", fontFamily: "Inter_400Regular" }}>{t("admin.noEvents")}</Text>
-                  </Card>
-                ) : billing.map((row) => (
-                  <Card key={row.eventId} padding={16}>
-                    <Text style={[styles.eventBillingName, { color: C.text }]}>{row.eventName}</Text>
-                    <View style={styles.reportRow}>
-                      <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("admin.totalSales")}</Text>
-                      <CopAmount amount={row.totalSalesCop} size={16} />
-                    </View>
-                    <View style={styles.reportRow}>
-                      <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("eventAdmin.platformCommission")}</Text>
-                      <Text style={[styles.commissionRate, { color: C.warning }]}>{row.platformCommissionRate}%</Text>
-                    </View>
-                    <View style={[styles.reportRow, styles.billingTotal, { borderTopColor: C.border }]}>
-                      <Text style={[styles.reportLabel, { color: C.text, fontFamily: "Inter_600SemiBold" }]}>{t("admin.platformCommissionEarned")}</Text>
-                      <CopAmount amount={row.platformCommissionEarnedCop} size={18} color={C.primary} />
-                    </View>
-                  </Card>
-                ))}
-              </View>
-            )
-          )}
         </>
       )}
     </ScrollView>
@@ -204,13 +148,9 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   title: { fontSize: 26, fontFamily: "Inter_700Bold" },
   tabRow: { flexDirection: "row", borderRadius: 12, padding: 4, gap: 2 },
-  tabBtn: { flex: 1, alignItems: "center", paddingVertical: 10, paddingHorizontal: 8, gap: 4, minWidth: 70 },
-  tabLabel: { fontSize: 10, fontFamily: "Inter_500Medium", textAlign: "center" },
-  reportRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
+  tabBtn: { flex: 1, alignItems: "center", paddingVertical: 10, paddingHorizontal: 6, gap: 4 },
+  tabLabel: { fontSize: 11, fontFamily: "Inter_500Medium", textAlign: "center" },
+  reportRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   reportLabel: { fontSize: 14, fontFamily: "Inter_500Medium", flex: 1 },
   countValue: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  billingHint: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  eventBillingName: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 8 },
-  commissionRate: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  billingTotal: { marginTop: 12, paddingTop: 12, borderTopWidth: 1 },
 });

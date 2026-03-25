@@ -22,9 +22,9 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Empty } from "@/components/ui/Empty";
 
-type Role = "attendee" | "bank" | "merchant_staff" | "merchant_admin" | "warehouse_admin" | "admin";
+type Role = "attendee" | "bank" | "merchant_staff" | "merchant_admin" | "warehouse_admin" | "event_admin" | "admin";
 
-const ROLES: Role[] = ["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin", "admin"];
+const ROLES: Role[] = ["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"];
 
 const ROLE_COLORS: Record<Role, "success" | "info" | "warning" | "muted" | "danger"> = {
   attendee: "muted",
@@ -32,6 +32,7 @@ const ROLE_COLORS: Record<Role, "success" | "info" | "warning" | "muted" | "dang
   merchant_staff: "success",
   merchant_admin: "warning",
   warehouse_admin: "info",
+  event_admin: "info",
   admin: "danger",
 };
 

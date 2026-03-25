@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, productsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, productsTable, merchantsTable } from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertProductAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
@@ -39,6 +39,39 @@ router.get("/products", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
+  // event_admin: scope to merchants of their event
+  if (user.role === "event_admin") {
+    if (!user.eventId) {
+      res.json({ products: [] });
+      return;
+    }
+    const eventMerchants = await db
+      .select({ id: merchantsTable.id })
+      .from(merchantsTable)
+      .where(eq(merchantsTable.eventId, user.eventId));
+    const merchantIds = eventMerchants.map((m) => m.id);
+    if (merchantIds.length === 0) {
+      res.json({ products: [] });
+      return;
+    }
+    const { merchantId: queryMerchantId } = req.query as { merchantId?: string };
+    // If a specific merchantId is requested, validate it belongs to the event
+    if (queryMerchantId && !merchantIds.includes(queryMerchantId)) {
+      res.status(403).json({ error: "Merchant does not belong to your event" });
+      return;
+    }
+    const products = await db
+      .select()
+      .from(productsTable)
+      .where(
+        queryMerchantId
+          ? eq(productsTable.merchantId, queryMerchantId)
+          : inArray(productsTable.merchantId, merchantIds),
+      );
+    res.json({ products });
+    return;
+  }
+
   const { merchantId } = req.query as { merchantId?: string };
   const products = await db
     .select()
@@ -49,7 +82,7 @@ router.get("/products", requireAuth, async (req: Request, res: Response) => {
 
 router.post(
   "/products",
-  requireRole("admin", "merchant_admin"),
+  requireRole("admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const parsed = createProductSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -61,6 +94,22 @@ router.post(
     if (user.role === "merchant_admin") {
       if (!user.merchantId || parsed.data.merchantId !== user.merchantId) {
         res.status(403).json({ error: "Access denied: can only create products for your own merchant" });
+        return;
+      }
+    }
+
+    // event_admin: verify merchant belongs to their event
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [merchant] = await db
+        .select({ id: merchantsTable.id, eventId: merchantsTable.eventId })
+        .from(merchantsTable)
+        .where(eq(merchantsTable.id, parsed.data.merchantId));
+      if (!merchant || merchant.eventId !== user.eventId) {
+        res.status(403).json({ error: "Merchant does not belong to your event" });
         return;
       }
     }
@@ -95,12 +144,29 @@ router.get("/products/:productId", requireAuth, async (req: Request, res: Respon
     res.status(404).json({ error: "Product not found" });
     return;
   }
+
+  // event_admin: verify product's merchant belongs to their event
+  if (user.role === "event_admin") {
+    if (!user.eventId) {
+      res.status(403).json({ error: "No event associated with your account" });
+      return;
+    }
+    const [merchant] = await db
+      .select({ id: merchantsTable.id, eventId: merchantsTable.eventId })
+      .from(merchantsTable)
+      .where(eq(merchantsTable.id, product.merchantId));
+    if (!merchant || merchant.eventId !== user.eventId) {
+      res.status(403).json({ error: "Product does not belong to your event" });
+      return;
+    }
+  }
+
   res.json(product);
 });
 
 router.patch(
   "/products/:productId",
-  requireRole("admin", "merchant_admin"),
+  requireRole("admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const parsed = updateProductSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -115,6 +181,30 @@ router.patch(
       const result = await assertProductAccess(productId, user);
       if ("error" in result) {
         res.status(result.status).json({ error: result.error });
+        return;
+      }
+    }
+
+    // event_admin: verify product's merchant belongs to their event
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [product] = await db
+        .select()
+        .from(productsTable)
+        .where(eq(productsTable.id, productId));
+      if (!product) {
+        res.status(404).json({ error: "Product not found" });
+        return;
+      }
+      const [merchant] = await db
+        .select({ id: merchantsTable.id, eventId: merchantsTable.eventId })
+        .from(merchantsTable)
+        .where(eq(merchantsTable.id, product.merchantId));
+      if (!merchant || merchant.eventId !== user.eventId) {
+        res.status(403).json({ error: "Product does not belong to your event" });
         return;
       }
     }

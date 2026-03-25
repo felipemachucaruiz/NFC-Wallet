@@ -22,9 +22,10 @@ const updateMerchantSchema = z.object({
 
 router.get("/merchants", requireAuth, async (req: Request, res: Response) => {
   const { eventId } = req.query as { eventId?: string };
+  const user = req.user!;
 
-  if (req.user!.role === "merchant_admin") {
-    if (!req.user!.merchantId) {
+  if (user.role === "merchant_admin") {
+    if (!user.merchantId) {
       res.json({ merchants: [] });
       return;
     }
@@ -33,10 +34,23 @@ router.get("/merchants", requireAuth, async (req: Request, res: Response) => {
       .from(merchantsTable)
       .where(
         and(
-          eq(merchantsTable.id, req.user!.merchantId),
+          eq(merchantsTable.id, user.merchantId),
           eventId ? eq(merchantsTable.eventId, eventId) : undefined,
         ),
       );
+    res.json({ merchants });
+    return;
+  }
+
+  if (user.role === "event_admin") {
+    if (!user.eventId) {
+      res.json({ merchants: [] });
+      return;
+    }
+    const merchants = await db
+      .select()
+      .from(merchantsTable)
+      .where(eq(merchantsTable.eventId, user.eventId));
     res.json({ merchants });
     return;
   }
@@ -48,12 +62,21 @@ router.get("/merchants", requireAuth, async (req: Request, res: Response) => {
   res.json({ merchants });
 });
 
-router.post("/merchants", requireRole("admin"), async (req: Request, res: Response) => {
+router.post("/merchants", requireRole("admin", "event_admin"), async (req: Request, res: Response) => {
   const parsed = createMerchantSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
+  const user = req.user!;
+  if (user.role === "event_admin") {
+    if (!user.eventId || parsed.data.eventId !== user.eventId) {
+      res.status(403).json({ error: "You can only create merchants for your event" });
+      return;
+    }
+  }
+
   const [merchant] = await db
     .insert(merchantsTable)
     .values(parsed.data)
@@ -63,8 +86,9 @@ router.post("/merchants", requireRole("admin"), async (req: Request, res: Respon
 
 router.get("/merchants/:merchantId", requireAuth, async (req: Request, res: Response) => {
   const merchantId = req.params.merchantId as string;
+  const user = req.user!;
 
-  if (req.user!.role === "merchant_admin" && req.user!.merchantId !== merchantId) {
+  if (user.role === "merchant_admin" && user.merchantId !== merchantId) {
     res.status(403).json({ error: "Access denied" });
     return;
   }
@@ -77,18 +101,33 @@ router.get("/merchants/:merchantId", requireAuth, async (req: Request, res: Resp
     res.status(404).json({ error: "Merchant not found" });
     return;
   }
+
+  if (user.role === "event_admin" && merchant.eventId !== user.eventId) {
+    res.status(403).json({ error: "Access denied" });
+    return;
+  }
+
   res.json(merchant);
 });
 
 router.patch(
   "/merchants/:merchantId",
-  requireRole("admin", "merchant_admin"),
+  requireRole("admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const merchantId = req.params.merchantId as string;
+    const user = req.user!;
 
-    if (req.user!.role === "merchant_admin" && req.user!.merchantId !== merchantId) {
+    if (user.role === "merchant_admin" && user.merchantId !== merchantId) {
       res.status(403).json({ error: "Access denied" });
       return;
+    }
+
+    if (user.role === "event_admin") {
+      const [merchant] = await db.select().from(merchantsTable).where(eq(merchantsTable.id, merchantId));
+      if (!merchant || merchant.eventId !== user.eventId) {
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
     }
 
     const parsed = updateMerchantSchema.safeParse(req.body);

@@ -23,4 +23,9 @@ export interface AuthUser {
    * @nullable
    */
   merchantId?: string | null;
+  /**
+   * Set for event_admin users; determines which event they manage
+   * @nullable
+   */
+  eventId?: string | null;
 }

@@ -25,6 +25,8 @@ export default function IndexScreen() {
       router.replace("/(merchant-admin)/");
     } else if (role === "warehouse_admin") {
       router.replace("/(warehouse)/");
+    } else if (role === "event_admin") {
+      router.replace("/(event-admin)/");
     } else if (role === "admin") {
       router.replace("/(admin)/");
     } else {

@@ -8,7 +8,7 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, merchantsTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import {
   clearSession,
@@ -137,6 +137,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
       profileImageUrl: user.profileImageUrl,
       role: user.role,
       merchantId: user.merchantId ?? null,
+      eventId: user.eventId ?? null,
     },
   };
 
@@ -150,7 +151,9 @@ const CreateAccountBody = z.object({
   password: z.string().min(6),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
-  role: z.enum(["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin", "admin"]).optional(),
+  role: z.enum(["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"]).optional(),
+  merchantId: z.string().optional(),
+  eventId: z.string().optional(),
 }).refine((d) => d.email || d.username, {
   message: "Either email or username is required",
 });
@@ -165,7 +168,17 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
   const { email, username, password, firstName, lastName } = parsed.data;
   const requestedRole = parsed.data.role ?? "attendee";
   const isAdmin = req.isAuthenticated() && req.user?.role === "admin";
-  const allowedRole = isAdmin ? requestedRole : "attendee";
+  const isEventAdmin = req.isAuthenticated() && req.user?.role === "event_admin";
+
+  let allowedRole: typeof requestedRole = "attendee";
+  if (isAdmin) {
+    allowedRole = requestedRole;
+  } else if (isEventAdmin) {
+    const allowedForEventAdmin = ["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin"] as const;
+    allowedRole = (allowedForEventAdmin as readonly string[]).includes(requestedRole)
+      ? (requestedRole as typeof allowedRole)
+      : "attendee";
+  }
 
   const normalizedEmail = email ? email.toLowerCase().trim() : null;
   const normalizedUsername = username ? username.trim() : null;
@@ -181,6 +194,28 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
+  let assignedEventId: string | null = null;
+  let assignedMerchantId: string | null = null;
+  if (isAdmin) {
+    assignedEventId = parsed.data.eventId ?? null;
+    assignedMerchantId = parsed.data.merchantId ?? null;
+  } else if (isEventAdmin) {
+    assignedEventId = req.user!.eventId ?? null;
+    const requestedMerchantId = parsed.data.merchantId ?? null;
+    if (requestedMerchantId) {
+      // Validate the merchant belongs to the event_admin's event
+      const [merchant] = await db
+        .select({ id: merchantsTable.id, eventId: merchantsTable.eventId })
+        .from(merchantsTable)
+        .where(eq(merchantsTable.id, requestedMerchantId));
+      if (!merchant || merchant.eventId !== assignedEventId) {
+        res.status(403).json({ error: "Merchant does not belong to your event" });
+        return;
+      }
+      assignedMerchantId = requestedMerchantId;
+    }
+  }
+
   const [newUser] = await db
     .insert(usersTable)
     .values({
@@ -190,6 +225,8 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
       firstName: firstName ?? null,
       lastName: lastName ?? null,
       role: allowedRole,
+      eventId: assignedEventId,
+      merchantId: assignedMerchantId,
     })
     .returning();
 
@@ -339,6 +376,7 @@ router.get("/callback", async (req: Request, res: Response) => {
       profileImageUrl: dbUser.profileImageUrl,
       role: dbUser.role,
       merchantId: dbUser.merchantId ?? null,
+      eventId: dbUser.eventId ?? null,
     },
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
@@ -411,6 +449,7 @@ router.post(
           profileImageUrl: dbUser.profileImageUrl,
           role: dbUser.role,
           merchantId: dbUser.merchantId ?? null,
+          eventId: dbUser.eventId ?? null,
         },
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,

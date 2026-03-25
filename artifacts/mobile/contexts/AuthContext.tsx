@@ -19,6 +19,7 @@ export type UserRole =
   | "merchant_staff"
   | "merchant_admin"
   | "warehouse_admin"
+  | "event_admin"
   | "admin";
 
 export interface AuthUser {
@@ -29,6 +30,7 @@ export interface AuthUser {
   profileImageUrl: string | null;
   role: UserRole;
   merchantId: string | null;
+  eventId?: string | null;
 }
 
 interface AuthContextValue {

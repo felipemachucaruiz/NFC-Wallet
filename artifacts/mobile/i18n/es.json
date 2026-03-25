@@ -263,6 +263,28 @@
     "additionalNote": "Nota adicional",
     "confirmAction": "¿Confirmar?"
   },
+  "eventAdmin": {
+    "dashboard": "Dashboard",
+    "merchants": "Merchants",
+    "users": "Usuarios",
+    "reports": "Reportes",
+    "yourEvent": "Tu Evento",
+    "noEvent": "No hay evento asociado a tu cuenta",
+    "createUser": "Crear usuario",
+    "userCreated": "Usuario creado exitosamente",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "firstNamePlaceholder": "Ej. María",
+    "lastNamePlaceholder": "Ej. García",
+    "platformCommission": "Comisión de plataforma (%)",
+    "platformCommissionPlaceholder": "Ej. 5",
+    "eventAdminEmail": "Correo del admin del evento",
+    "eventAdminPassword": "Contraseña del admin del evento",
+    "eventAdminSection": "Administrador del evento",
+    "eventAdminOptional": "Opcional: crear admin del evento ahora",
+    "selectMerchant": "Asignar a merchant",
+    "selectMerchantForRole": "Por favor selecciona un merchant para este rol"
+  },
   "admin": {
     "title": "Panel Admin",
     "dashboard": "Dashboard",
@@ -314,6 +336,7 @@
       "merchant_staff": "Staff Merchant",
       "merchant_admin": "Admin Merchant",
       "warehouse_admin": "Admin Almacén",
+      "event_admin": "Admin Evento",
       "admin": "Administrador"
     },
     "activeEvent": "Evento activo",
@@ -365,6 +388,9 @@
     "selectRole": "Seleccionar rol",
     "userIdPlaceholder": "ID del usuario",
     "assignRoleConfirm": "¿Asignar rol \"{{role}}\" al usuario {{userId}}?",
+    "billing": "Facturación",
+    "billingHint": "Comisión de plataforma ganada por evento (ventas totales × tasa de comisión)",
+    "platformCommissionEarned": "Comisión ganada",
     "eventStatus": {
       "active": "Activo",
       "upcoming": "Próximo",

@@ -1,4 +1,4 @@
-import { pgTable, varchar, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, varchar, text, timestamp, boolean, integer, numeric } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const eventsTable = pgTable("events", {
@@ -9,6 +9,7 @@ export const eventsTable = pgTable("events", {
   startsAt: timestamp("starts_at", { withTimezone: true }),
   endsAt: timestamp("ends_at", { withTimezone: true }),
   active: boolean("active").notNull().default(true),
+  platformCommissionRate: numeric("platform_commission_rate", { precision: 5, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

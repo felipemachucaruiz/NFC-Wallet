@@ -7,6 +7,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "merchant_staff",
   "merchant_admin",
   "warehouse_admin",
+  "event_admin",
   "admin",
 ]);
 
@@ -31,6 +32,7 @@ export const usersTable = pgTable("users", {
   passwordHash: varchar("password_hash"),
   role: userRoleEnum("role").notNull().default("attendee"),
   merchantId: varchar("merchant_id"),
+  eventId: varchar("event_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

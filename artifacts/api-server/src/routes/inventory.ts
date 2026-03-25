@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable, stockMovementsTable } from "@workspace/db";
+import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable, stockMovementsTable, locationsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
@@ -11,6 +11,22 @@ const router: IRouter = Router();
 
 router.get("/warehouses", requireAuth, async (req: Request, res: Response) => {
   const { eventId } = req.query as { eventId?: string };
+  const user = req.user!;
+
+  // event_admin: always scope to their event
+  if (user.role === "event_admin") {
+    if (!user.eventId) {
+      res.json({ warehouses: [] });
+      return;
+    }
+    const warehouses = await db
+      .select()
+      .from(warehousesTable)
+      .where(eq(warehousesTable.eventId, user.eventId));
+    res.json({ warehouses });
+    return;
+  }
+
   const warehouses = await db
     .select()
     .from(warehousesTable)
@@ -20,7 +36,7 @@ router.get("/warehouses", requireAuth, async (req: Request, res: Response) => {
 
 router.post(
   "/warehouses",
-  requireRole("admin", "warehouse_admin"),
+  requireRole("admin", "warehouse_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const schema = z.object({
       eventId: z.string().min(1),
@@ -32,6 +48,15 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+
+    const user = req.user!;
+    if (user.role === "event_admin") {
+      if (!user.eventId || parsed.data.eventId !== user.eventId) {
+        res.status(403).json({ error: "You can only create warehouses for your event" });
+        return;
+      }
+    }
+
     const [warehouse] = await db
       .insert(warehousesTable)
       .values(parsed.data)
@@ -44,8 +69,27 @@ router.post(
 
 router.get(
   "/inventory/warehouses/:warehouseId",
-  requireRole("admin", "warehouse_admin"),
+  requireRole("admin", "warehouse_admin", "event_admin"),
   async (req: Request, res: Response) => {
+    const user = req.user!;
+    const { warehouseId } = req.params as { warehouseId: string };
+
+    // event_admin: verify warehouse belongs to their event
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.json({ inventory: [] });
+        return;
+      }
+      const [warehouse] = await db
+        .select({ id: warehousesTable.id, eventId: warehousesTable.eventId })
+        .from(warehousesTable)
+        .where(eq(warehousesTable.id, warehouseId));
+      if (!warehouse || warehouse.eventId !== user.eventId) {
+        res.status(403).json({ error: "Warehouse does not belong to your event" });
+        return;
+      }
+    }
+
     const items = await db
       .select({
         id: warehouseInventoryTable.id,
@@ -56,14 +100,14 @@ router.get(
       })
       .from(warehouseInventoryTable)
       .leftJoin(productsTable, eq(warehouseInventoryTable.productId, productsTable.id))
-      .where(eq(warehouseInventoryTable.warehouseId, req.params.warehouseId as string));
+      .where(eq(warehouseInventoryTable.warehouseId, warehouseId));
     res.json({ inventory: items });
   },
 );
 
 router.patch(
   "/inventory/warehouses/:warehouseId",
-  requireRole("admin", "warehouse_admin"),
+  requireRole("admin", "warehouse_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const schema = z.object({
       productId: z.string().min(1),
@@ -77,6 +121,23 @@ router.patch(
     }
     const { productId, quantityDelta, notes } = parsed.data;
     const { warehouseId } = req.params as { warehouseId: string };
+    const user = req.user!;
+
+    // event_admin: verify warehouse belongs to their event
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [warehouse] = await db
+        .select({ id: warehousesTable.id, eventId: warehousesTable.eventId })
+        .from(warehousesTable)
+        .where(eq(warehousesTable.id, warehouseId));
+      if (!warehouse || warehouse.eventId !== user.eventId) {
+        res.status(403).json({ error: "Warehouse does not belong to your event" });
+        return;
+      }
+    }
 
     const result = await db.transaction(async (tx) => {
       const existing = await tx
@@ -148,6 +209,22 @@ router.get(
       }
     }
 
+    // event_admin: verify location belongs to their event
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.json({ inventory: [] });
+        return;
+      }
+      const [location] = await db
+        .select({ id: locationsTable.id, eventId: locationsTable.eventId })
+        .from(locationsTable)
+        .where(eq(locationsTable.id, locationId));
+      if (!location || location.eventId !== user.eventId) {
+        res.status(403).json({ error: "Location does not belong to your event" });
+        return;
+      }
+    }
+
     const items = await db
       .select({
         id: locationInventoryTable.id,
@@ -167,7 +244,7 @@ router.get(
 
 router.patch(
   "/inventory/locations/:locationId",
-  requireRole("admin", "merchant_admin", "warehouse_admin"),
+  requireRole("admin", "merchant_admin", "warehouse_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const schema = z.object({
       productId: z.string().min(1),
@@ -188,6 +265,22 @@ router.patch(
       const access = await assertLocationAccess(locationId, user);
       if ("error" in access) {
         res.status(access.status).json({ error: access.error });
+        return;
+      }
+    }
+
+    // event_admin: verify location belongs to their event
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [location] = await db
+        .select({ id: locationsTable.id, eventId: locationsTable.eventId })
+        .from(locationsTable)
+        .where(eq(locationsTable.id, locationId));
+      if (!location || location.eventId !== user.eventId) {
+        res.status(403).json({ error: "Location does not belong to your event" });
         return;
       }
     }

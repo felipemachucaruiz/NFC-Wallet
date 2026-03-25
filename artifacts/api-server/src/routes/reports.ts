@@ -8,19 +8,27 @@ const router: IRouter = Router();
 
 router.get(
   "/reports/revenue",
-  requireRole("admin", "merchant_admin"),
+  requireRole("admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const { eventId, merchantId, locationId, from, to } = req.query as Record<string, string | undefined>;
     const user = req.user!;
 
     const conditions = [];
-    if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
 
-    if (user.role === "merchant_admin") {
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
+        return;
+      }
+      conditions.push(eq(transactionLogsTable.eventId, user.eventId));
+      if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
+      if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
+    } else if (user.role === "merchant_admin") {
       if (!user.merchantId) {
         res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
         return;
       }
+      if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
       conditions.push(eq(transactionLogsTable.merchantId, user.merchantId));
       if (locationId) {
         const [loc] = await db.select().from(locationsTable).where(eq(locationsTable.id, locationId));
@@ -31,6 +39,7 @@ router.get(
         conditions.push(eq(transactionLogsTable.locationId, locationId));
       }
     } else {
+      if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
       if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
       if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
     }
@@ -172,9 +181,54 @@ router.get(
 
 router.get(
   "/reports/topups",
-  requireRole("admin"),
+  requireRole("admin", "event_admin"),
   async (req: Request, res: Response) => {
     const { from, to } = req.query as { from?: string; to?: string };
+    const user = req.user!;
+
+    // event_admin: scope top-ups to their event via bracelet.eventId
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [] });
+        return;
+      }
+      const eventBracelets = await db
+        .select({ nfcUid: braceletsTable.nfcUid })
+        .from(braceletsTable)
+        .where(eq(braceletsTable.eventId, user.eventId));
+      const braceletUids = eventBracelets.map((b) => b.nfcUid);
+      if (braceletUids.length === 0) {
+        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [] });
+        return;
+      }
+      const topUpConditions = [
+        inArray(topUpsTable.braceletUid, braceletUids),
+      ];
+      if (from) topUpConditions.push(gte(topUpsTable.createdAt, new Date(from)));
+      if (to) topUpConditions.push(lte(topUpsTable.createdAt, new Date(to)));
+      const topUps = await db.select().from(topUpsTable).where(and(...topUpConditions));
+      const totalCop = topUps.reduce((s, t) => s + t.amountCop, 0);
+      const byPaymentMethod: Record<string, number> = {};
+      const byUserMap = new Map<string, { totalCop: number; count: number }>();
+      for (const t of topUps) {
+        byPaymentMethod[t.paymentMethod] = (byPaymentMethod[t.paymentMethod] ?? 0) + t.amountCop;
+        if (!byUserMap.has(t.performedByUserId)) byUserMap.set(t.performedByUserId, { totalCop: 0, count: 0 });
+        const u = byUserMap.get(t.performedByUserId)!;
+        u.totalCop += t.amountCop; u.count += 1;
+      }
+      const userIds = [...byUserMap.keys()];
+      const users = userIds.length > 0
+        ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds))
+        : [];
+      const byUser = userIds.map((uid) => {
+        const usr = users.find((u) => u.id === uid);
+        const data = byUserMap.get(uid)!;
+        return { userId: uid, firstName: usr?.firstName ?? null, lastName: usr?.lastName ?? null, totalCop: data.totalCop, count: data.count };
+      });
+      res.json({ totalCop, byPaymentMethod, byUser });
+      return;
+    }
+
     const conditions = [];
     if (from) conditions.push(gte(topUpsTable.createdAt, new Date(from)));
     if (to) conditions.push(lte(topUpsTable.createdAt, new Date(to)));
@@ -223,10 +277,42 @@ router.get(
 
 router.get(
   "/reports/inventory",
-  requireRole("admin", "warehouse_admin", "merchant_admin"),
+  requireRole("admin", "warehouse_admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
     const { eventId, locationId } = req.query as { eventId?: string; locationId?: string };
     const user = req.user!;
+
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.json({ items: [] });
+        return;
+      }
+      const scopedEventId = user.eventId;
+      const eventMerchants = await db.select({ id: merchantsTable.id }).from(merchantsTable).where(eq(merchantsTable.eventId, scopedEventId));
+      const merchantIds = eventMerchants.map((m) => m.id);
+      if (merchantIds.length === 0) { res.json({ items: [] }); return; }
+      const eventLocations = await db.select({ id: locationsTable.id, name: locationsTable.name }).from(locationsTable).where(eq(locationsTable.eventId, scopedEventId));
+      const locationIds = eventLocations.map((l) => l.id);
+      if (locationIds.length === 0) { res.json({ items: [] }); return; }
+      const filteredLocationIds = locationId ? locationIds.filter((id) => id === locationId) : locationIds;
+      if (filteredLocationIds.length === 0) { res.json({ items: [] }); return; }
+      const items = await db.select({
+        id: locationInventoryTable.id,
+        locationId: locationInventoryTable.locationId,
+        productId: locationInventoryTable.productId,
+        quantityOnHand: locationInventoryTable.quantityOnHand,
+        restockTrigger: locationInventoryTable.restockTrigger,
+      }).from(locationInventoryTable).where(inArray(locationInventoryTable.locationId, filteredLocationIds));
+      const productIds = [...new Set(items.map((i) => i.productId))];
+      const products = productIds.length > 0 ? await db.select().from(productsTable).where(inArray(productsTable.id, productIds)) : [];
+      const report = items.map((item) => {
+        const loc = eventLocations.find((l) => l.id === item.locationId);
+        const prod = products.find((p) => p.id === item.productId);
+        return { locationId: item.locationId, locationName: loc?.name ?? item.locationId, productId: item.productId, productName: prod?.name ?? item.productId, quantityOnHand: item.quantityOnHand, restockTrigger: item.restockTrigger, isLowStock: item.quantityOnHand <= item.restockTrigger };
+      });
+      res.json({ items: report });
+      return;
+    }
 
     if (user.role === "merchant_admin") {
       if (!user.merchantId) {
@@ -360,6 +446,37 @@ router.get(
       topUps,
       payouts,
     });
+  },
+);
+
+router.get(
+  "/reports/billing",
+  requireRole("admin"),
+  async (_req: Request, res: Response) => {
+    const events = await db.select().from(eventsTable);
+
+    const billingRows = await Promise.all(
+      events.map(async (event) => {
+        const txRows = await db
+          .select()
+          .from(transactionLogsTable)
+          .where(eq(transactionLogsTable.eventId, event.id));
+
+        const totalSalesCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
+        const commissionRate = parseFloat(event.platformCommissionRate as unknown as string) || 0;
+        const platformCommissionEarnedCop = Math.round(totalSalesCop * (commissionRate / 100));
+
+        return {
+          eventId: event.id,
+          eventName: event.name,
+          platformCommissionRate: commissionRate,
+          totalSalesCop,
+          platformCommissionEarnedCop,
+        };
+      }),
+    );
+
+    res.json({ billing: billingRows });
   },
 );
 
