@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable } from "@workspace/db";
+import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable, stockMovementsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
@@ -68,49 +68,66 @@ router.patch(
     const schema = z.object({
       productId: z.string().min(1),
       quantityDelta: z.number().int(),
+      notes: z.string().optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { productId, quantityDelta } = parsed.data;
+    const { productId, quantityDelta, notes } = parsed.data;
     const { warehouseId } = req.params as { warehouseId: string };
 
-    const existing = await db
-      .select()
-      .from(warehouseInventoryTable)
-      .where(
-        and(
-          eq(warehouseInventoryTable.warehouseId, warehouseId),
-          eq(warehouseInventoryTable.productId, productId),
-        ),
-      );
+    const result = await db.transaction(async (tx) => {
+      const existing = await tx
+        .select()
+        .from(warehouseInventoryTable)
+        .where(
+          and(
+            eq(warehouseInventoryTable.warehouseId, warehouseId),
+            eq(warehouseInventoryTable.productId, productId),
+          ),
+        );
 
-    let item;
-    if (existing.length === 0) {
-      if (quantityDelta < 0) {
-        res.status(400).json({ error: "Cannot subtract from non-existent inventory" });
-        return;
+      let item;
+      if (existing.length === 0) {
+        if (quantityDelta < 0) throw new Error("Cannot subtract from non-existent inventory");
+        [item] = await tx
+          .insert(warehouseInventoryTable)
+          .values({ warehouseId, productId, quantityOnHand: quantityDelta })
+          .returning();
+      } else {
+        const newQty = existing[0].quantityOnHand + quantityDelta;
+        if (newQty < 0) throw new Error("Insufficient warehouse inventory");
+        [item] = await tx
+          .update(warehouseInventoryTable)
+          .set({ quantityOnHand: newQty, updatedAt: new Date() })
+          .where(eq(warehouseInventoryTable.id, existing[0].id))
+          .returning();
       }
-      [item] = await db
-        .insert(warehouseInventoryTable)
-        .values({ warehouseId, productId, quantityOnHand: quantityDelta })
-        .returning();
-    } else {
-      const newQty = existing[0].quantityOnHand + quantityDelta;
-      if (newQty < 0) {
-        res.status(400).json({ error: "Insufficient warehouse inventory" });
-        return;
-      }
-      [item] = await db
-        .update(warehouseInventoryTable)
-        .set({ quantityOnHand: newQty, updatedAt: new Date() })
-        .where(eq(warehouseInventoryTable.id, existing[0].id))
-        .returning();
+
+      await tx.insert(stockMovementsTable).values({
+        movementType: "warehouse_load",
+        productId,
+        quantity: quantityDelta,
+        toWarehouseId: warehouseId,
+        performedByUserId: req.user?.id,
+        notes,
+      });
+
+      return item;
+    }).catch((err: Error) => {
+      const knownErrors = ["Cannot subtract from non-existent inventory", "Insufficient warehouse inventory"];
+      if (knownErrors.includes(err.message)) return { __error: err.message };
+      throw err;
+    });
+
+    if (result && "__error" in result) {
+      res.status(400).json({ error: result.__error });
+      return;
     }
 
-    res.json(item);
+    res.json(result);
   },
 );
 

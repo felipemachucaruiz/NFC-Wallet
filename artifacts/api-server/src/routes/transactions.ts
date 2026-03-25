@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, transactionLogsTable, transactionLineItemsTable, productsTable, locationInventoryTable, braceletsTable, merchantsTable, locationsTable, restockOrdersTable, userLocationAssignmentsTable } from "@workspace/db";
+import { db, transactionLogsTable, transactionLineItemsTable, productsTable, locationInventoryTable, braceletsTable, merchantsTable, locationsTable, restockOrdersTable, userLocationAssignmentsTable, stockMovementsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthUser } from "@workspace/api-zod";
@@ -181,6 +181,16 @@ async function processTransaction(
         .update(locationInventoryTable)
         .set({ quantityOnHand: newQty, updatedAt: new Date() })
         .where(eq(locationInventoryTable.id, locInv.id));
+
+      // Record sale stock movement for full audit trail
+      await db.insert(stockMovementsTable).values({
+        movementType: "sale",
+        productId: item.productId,
+        quantity: item.quantity,
+        fromLocationId: input.locationId,
+        performedByUserId: user.id,
+        transactionLogId: txLog.id,
+      });
 
       // Auto-create restock order if below threshold
       if (newQty <= locInv.restockTrigger) {

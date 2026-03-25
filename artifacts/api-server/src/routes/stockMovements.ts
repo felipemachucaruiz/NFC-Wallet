@@ -106,69 +106,80 @@ router.post(
     }
     const { warehouseId, locationId, productId, quantity, restockOrderId, notes } = parsed.data;
 
-    const [whInv] = await db
-      .select()
-      .from(warehouseInventoryTable)
-      .where(
-        and(
-          eq(warehouseInventoryTable.warehouseId, warehouseId),
-          eq(warehouseInventoryTable.productId, productId),
-        ),
-      );
+    const movement = await db.transaction(async (tx) => {
+      const [whInv] = await tx
+        .select()
+        .from(warehouseInventoryTable)
+        .where(
+          and(
+            eq(warehouseInventoryTable.warehouseId, warehouseId),
+            eq(warehouseInventoryTable.productId, productId),
+          ),
+        );
 
-    if (!whInv || whInv.quantityOnHand < quantity) {
+      if (!whInv || whInv.quantityOnHand < quantity) {
+        throw new Error("Insufficient warehouse inventory");
+      }
+
+      await tx
+        .update(warehouseInventoryTable)
+        .set({ quantityOnHand: whInv.quantityOnHand - quantity, updatedAt: new Date() })
+        .where(eq(warehouseInventoryTable.id, whInv.id));
+
+      const locInvRows = await tx
+        .select()
+        .from(locationInventoryTable)
+        .where(
+          and(
+            eq(locationInventoryTable.locationId, locationId),
+            eq(locationInventoryTable.productId, productId),
+          ),
+        );
+
+      if (locInvRows.length === 0) {
+        await tx.insert(locationInventoryTable).values({
+          locationId,
+          productId,
+          quantityOnHand: quantity,
+        });
+      } else {
+        await tx
+          .update(locationInventoryTable)
+          .set({ quantityOnHand: locInvRows[0].quantityOnHand + quantity, updatedAt: new Date() })
+          .where(eq(locationInventoryTable.id, locInvRows[0].id));
+      }
+
+      if (restockOrderId) {
+        await tx
+          .update(restockOrdersTable)
+          .set({ status: "dispatched", dispatchedAt: new Date() })
+          .where(eq(restockOrdersTable.id, restockOrderId));
+      }
+
+      const [mov] = await tx
+        .insert(stockMovementsTable)
+        .values({
+          movementType: "warehouse_dispatch",
+          productId,
+          quantity,
+          fromWarehouseId: warehouseId,
+          toLocationId: locationId,
+          performedByUserId: req.user.id,
+          restockOrderId,
+          notes,
+        })
+        .returning();
+
+      return mov;
+    }).catch((err: Error) => {
+      if (err.message === "Insufficient warehouse inventory") return null;
+      throw err;
+    });
+
+    if (!movement) {
       res.status(400).json({ error: "Insufficient warehouse inventory" });
       return;
     }
-
-    await db
-      .update(warehouseInventoryTable)
-      .set({ quantityOnHand: whInv.quantityOnHand - quantity, updatedAt: new Date() })
-      .where(eq(warehouseInventoryTable.id, whInv.id));
-
-    const locInvRows = await db
-      .select()
-      .from(locationInventoryTable)
-      .where(
-        and(
-          eq(locationInventoryTable.locationId, locationId),
-          eq(locationInventoryTable.productId, productId),
-        ),
-      );
-
-    if (locInvRows.length === 0) {
-      await db.insert(locationInventoryTable).values({
-        locationId,
-        productId,
-        quantityOnHand: quantity,
-      });
-    } else {
-      await db
-        .update(locationInventoryTable)
-        .set({ quantityOnHand: locInvRows[0].quantityOnHand + quantity, updatedAt: new Date() })
-        .where(eq(locationInventoryTable.id, locInvRows[0].id));
-    }
-
-    if (restockOrderId) {
-      await db
-        .update(restockOrdersTable)
-        .set({ status: "dispatched", dispatchedAt: new Date() })
-        .where(eq(restockOrdersTable.id, restockOrderId));
-    }
-
-    const [movement] = await db
-      .insert(stockMovementsTable)
-      .values({
-        movementType: "warehouse_dispatch",
-        productId,
-        quantity,
-        fromWarehouseId: warehouseId,
-        toLocationId: locationId,
-        performedByUserId: req.user.id,
-        restockOrderId,
-        notes,
-      })
-      .returning();
 
     res.status(201).json(movement);
   },
@@ -211,76 +222,87 @@ router.post(
       }
     }
 
-    const [fromInv] = await db
-      .select()
-      .from(locationInventoryTable)
-      .where(
-        and(
-          eq(locationInventoryTable.locationId, fromLocationId),
-          eq(locationInventoryTable.productId, productId),
-        ),
-      );
+    const result = await db.transaction(async (tx) => {
+      const [fromInv] = await tx
+        .select()
+        .from(locationInventoryTable)
+        .where(
+          and(
+            eq(locationInventoryTable.locationId, fromLocationId),
+            eq(locationInventoryTable.productId, productId),
+          ),
+        );
 
-    if (!fromInv || fromInv.quantityOnHand < quantity) {
+      if (!fromInv || fromInv.quantityOnHand < quantity) {
+        throw new Error("Insufficient inventory at source location");
+      }
+
+      await tx
+        .update(locationInventoryTable)
+        .set({ quantityOnHand: fromInv.quantityOnHand - quantity, updatedAt: new Date() })
+        .where(eq(locationInventoryTable.id, fromInv.id));
+
+      const [toInv] = await tx
+        .select()
+        .from(locationInventoryTable)
+        .where(
+          and(
+            eq(locationInventoryTable.locationId, toLocationId),
+            eq(locationInventoryTable.productId, productId),
+          ),
+        );
+
+      if (!toInv) {
+        await tx.insert(locationInventoryTable).values({
+          locationId: toLocationId,
+          productId,
+          quantityOnHand: quantity,
+        });
+      } else {
+        await tx
+          .update(locationInventoryTable)
+          .set({ quantityOnHand: toInv.quantityOnHand + quantity, updatedAt: new Date() })
+          .where(eq(locationInventoryTable.id, toInv.id));
+      }
+
+      const [outMovement] = await tx
+        .insert(stockMovementsTable)
+        .values({
+          movementType: "location_transfer_out",
+          productId,
+          quantity,
+          fromLocationId,
+          toLocationId,
+          performedByUserId: req.user.id,
+          notes,
+        })
+        .returning();
+
+      const [inMovement] = await tx
+        .insert(stockMovementsTable)
+        .values({
+          movementType: "location_transfer_in",
+          productId,
+          quantity,
+          fromLocationId,
+          toLocationId,
+          performedByUserId: req.user.id,
+          notes,
+        })
+        .returning();
+
+      return { outMovement, inMovement };
+    }).catch((err: Error) => {
+      if (err.message === "Insufficient inventory at source location") return null;
+      throw err;
+    });
+
+    if (!result) {
       res.status(400).json({ error: "Insufficient inventory at source location" });
       return;
     }
 
-    await db
-      .update(locationInventoryTable)
-      .set({ quantityOnHand: fromInv.quantityOnHand - quantity, updatedAt: new Date() })
-      .where(eq(locationInventoryTable.id, fromInv.id));
-
-    const [toInv] = await db
-      .select()
-      .from(locationInventoryTable)
-      .where(
-        and(
-          eq(locationInventoryTable.locationId, toLocationId),
-          eq(locationInventoryTable.productId, productId),
-        ),
-      );
-
-    if (!toInv) {
-      await db.insert(locationInventoryTable).values({
-        locationId: toLocationId,
-        productId,
-        quantityOnHand: quantity,
-      });
-    } else {
-      await db
-        .update(locationInventoryTable)
-        .set({ quantityOnHand: toInv.quantityOnHand + quantity, updatedAt: new Date() })
-        .where(eq(locationInventoryTable.id, toInv.id));
-    }
-
-    const [outMovement] = await db
-      .insert(stockMovementsTable)
-      .values({
-        movementType: "location_transfer_out",
-        productId,
-        quantity,
-        fromLocationId,
-        toLocationId,
-        performedByUserId: req.user.id,
-        notes,
-      })
-      .returning();
-
-    const [inMovement] = await db
-      .insert(stockMovementsTable)
-      .values({
-        movementType: "location_transfer_in",
-        productId,
-        quantity,
-        fromLocationId,
-        toLocationId,
-        performedByUserId: req.user.id,
-        notes,
-      })
-      .returning();
-
-    res.status(201).json({ outMovement, inMovement });
+    res.status(201).json(result);
   },
 );
 
