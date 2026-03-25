@@ -109,7 +109,7 @@ export default function AttendeeBalanceScreen() {
                 <View style={[styles.tamperBadge, { backgroundColor: C.dangerLight }]}>
                   <Feather name="alert-triangle" size={12} color={C.danger} />
                   <Text style={[styles.tamperText, { color: C.danger }]}>
-                    Bracelet inválida
+                    {t("attendee.braceletInvalid")}
                   </Text>
                 </View>
               )}
@@ -129,13 +129,13 @@ export default function AttendeeBalanceScreen() {
               <Feather name="wifi" size={52} color={C.primary} />
             </View>
             <Text style={[styles.tapTitle, { color: C.text }]}>
-              {isNfcSupported() ? t("attendee.tapBracelet") : "Ingresa el UID de tu pulsera"}
+              {isNfcSupported() ? t("attendee.tapBracelet") : t("attendee.enterUidPrompt")}
             </Text>
           </View>
         )}
 
         <Button
-          title={isTapping ? t("attendee.tapping") : isNfcSupported() ? "Toca tu pulsera" : "Ingresar UID"}
+          title={isTapping ? t("attendee.tapping") : isNfcSupported() ? t("attendee.tapBraceletBtn") : t("attendee.enterUid")}
           onPress={handleTap}
           loading={isTapping}
           variant="primary"
@@ -145,7 +145,7 @@ export default function AttendeeBalanceScreen() {
         />
         {bracelet && (
           <Button
-            title="Actualizar saldo"
+            title={t("attendee.refreshBalance")}
             onPress={handleTap}
             variant="ghost"
             size="md"
@@ -158,11 +158,11 @@ export default function AttendeeBalanceScreen() {
         <View style={[styles.modalOverlay, { backgroundColor: C.overlay }]}>
           <View style={[styles.modalBox, { backgroundColor: C.card }]}>
             <Text style={[styles.modalTitle, { color: C.text }]}>
-              Ingresar UID de pulsera
+              {t("common.enterUidTitle")}
             </Text>
             <TextInput
               style={[styles.uidInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
-              placeholder="Ej. A1:B2:C3:D4"
+              placeholder={t("attendee.uidPlaceholder")}
               placeholderTextColor={C.textMuted}
               value={manualUid}
               onChangeText={setManualUid}

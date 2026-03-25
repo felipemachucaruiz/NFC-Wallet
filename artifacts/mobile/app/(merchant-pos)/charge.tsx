@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
-  Modal,
   Platform,
   StyleSheet,
   Text,
@@ -35,7 +34,7 @@ type ChargeStep =
   | "success"
   | "manual_input";
 
-const STEP_LABELS: Record<ChargeStep, string> = {
+const STEP_KEYS: Record<ChargeStep, string> = {
   waiting: "pos.tapBracelet",
   reading: "pos.reading",
   verifying: "pos.verifying",
@@ -104,7 +103,7 @@ export default function ChargeScreen() {
       try {
         await writeBracelet({ uid, balance: newBalance, counter: newCounter, hmac: newHmac });
       } catch {
-        Alert.alert(t("common.error"), "Error escribiendo pulsera");
+        Alert.alert(t("common.error"), t("pos.writeError"));
         setStep("waiting");
         return;
       }
@@ -114,7 +113,7 @@ export default function ChargeScreen() {
       productId: i.productId,
       quantity: i.quantity,
       unitPriceCop: i.priceCop,
-      unitCostCop: Math.round(i.priceCop * 0.4),
+      unitCostCop: i.costCop,
     }));
     try {
       await logTransaction.mutateAsync({
@@ -158,7 +157,7 @@ export default function ChargeScreen() {
       await processCharge(payload.uid, payload.balance, payload.counter, payload.hmac);
     } catch {
       setStep("waiting");
-      Alert.alert(t("common.error"), "Error leyendo pulsera");
+      Alert.alert(t("common.error"), t("pos.readError"));
     }
   };
 
@@ -202,7 +201,9 @@ export default function ChargeScreen() {
             </View>
           ))}
           {cartItems.length > 3 && (
-            <Text style={[styles.moreItems, { color: C.textMuted }]}>+{cartItems.length - 3} más</Text>
+            <Text style={[styles.moreItems, { color: C.textMuted }]}>
+              {t("pos.moreItems", { count: cartItems.length - 3 })}
+            </Text>
           )}
           <View style={[styles.totalRow, { borderTopColor: C.separator }]}>
             <Text style={[styles.totalLabel, { color: C.text }]}>{t("common.total")}</Text>
@@ -215,7 +216,7 @@ export default function ChargeScreen() {
         <StepIcon />
 
         {step !== "success" && step !== "hmac_fail" && step !== "insufficient" && step !== "manual_input" && (
-          <Text style={[styles.stepTitle, { color: C.text }]}>{t(STEP_LABELS[step] || "pos.tapBracelet")}</Text>
+          <Text style={[styles.stepTitle, { color: C.text }]}>{t(STEP_KEYS[step] || "pos.tapBracelet")}</Text>
         )}
 
         {step === "insufficient" && (
@@ -225,7 +226,7 @@ export default function ChargeScreen() {
               {t("pos.shortfall", { amount: formatCOP(shortfall) })}
             </Text>
             <Text style={[styles.currentBalText, { color: C.textSecondary }]}>
-              Saldo actual: {formatCOP(braceletBalance ?? 0)}
+              {t("pos.currentBalance")}: {formatCOP(braceletBalance ?? 0)}
             </Text>
           </View>
         )}
@@ -241,7 +242,7 @@ export default function ChargeScreen() {
           <View style={styles.successBox}>
             <Text style={[styles.stepTitle, { color: C.success }]}>{t("pos.chargeSuccess")}</Text>
             <View style={[styles.balanceRow, { backgroundColor: C.card, borderColor: C.border }]}>
-              <Text style={[styles.balanceLabel, { color: C.textSecondary }]}>Nuevo saldo</Text>
+              <Text style={[styles.balanceLabel, { color: C.textSecondary }]}>{t("pos.newBalance")}</Text>
               <CopAmount amount={braceletBalance} size={24} positive />
             </View>
           </View>
@@ -251,7 +252,7 @@ export default function ChargeScreen() {
       <View style={[styles.bottom, { paddingBottom: isWeb ? 34 : insets.bottom + 16, paddingHorizontal: 20 }]}>
         {step === "waiting" && (
           <Button
-            title={isNfcSupported() ? t("pos.tapBracelet") : "Ingresar UID de pulsera"}
+            title={isNfcSupported() ? t("pos.tapBracelet") : t("pos.enterUid")}
             onPress={handleTap}
             variant="primary"
             size="lg"
@@ -265,15 +266,15 @@ export default function ChargeScreen() {
         {step === "insufficient" && (
           <View style={{ gap: 10 }}>
             <Button title={t("pos.goToBank")} onPress={() => {}} variant="secondary" size="lg" fullWidth />
-            <Button title="Reintentar" onPress={() => setStep("waiting")} variant="primary" size="lg" fullWidth />
+            <Button title={t("common.retry")} onPress={() => setStep("waiting")} variant="primary" size="lg" fullWidth />
           </View>
         )}
         {step === "hmac_fail" && (
-          <Button title="Cancelar" onPress={() => router.back()} variant="danger" size="lg" fullWidth />
+          <Button title={t("common.cancel")} onPress={() => router.back()} variant="danger" size="lg" fullWidth />
         )}
         {step === "success" && (
           <Button
-            title="Nueva venta"
+            title={t("pos.newSale")}
             onPress={() => { router.back(); }}
             variant="success"
             size="lg"
@@ -284,13 +285,13 @@ export default function ChargeScreen() {
           <View style={{ gap: 10 }}>
             <TextInput
               style={[styles.uidInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
-              placeholder="UID de pulsera"
+              placeholder={t("common.uidPlaceholder")}
               placeholderTextColor={C.textMuted}
               value={manualUid}
               onChangeText={setManualUid}
               autoCapitalize="characters"
             />
-            <Button title="Cobrar" onPress={handleManualConfirm} variant="primary" size="lg" fullWidth disabled={!manualUid.trim()} />
+            <Button title={t("pos.charge")} onPress={handleManualConfirm} variant="primary" size="lg" fullWidth disabled={!manualUid.trim()} />
             <Button title={t("common.cancel")} onPress={() => setStep("waiting")} variant="ghost" size="md" fullWidth />
           </View>
         )}

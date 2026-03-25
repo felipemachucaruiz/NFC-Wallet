@@ -63,7 +63,7 @@ export default function MerchantPayoutsScreen() {
           <Text style={[styles.title, { color: C.text }]}>{t("merchant_admin.payouts")}</Text>
           {totalPaid > 0 && (
             <View style={[styles.totalCard, { backgroundColor: C.successLight, borderColor: C.success + "44" }]}>
-              <Text style={[styles.totalLabel, { color: C.success }]}>Total pagado</Text>
+              <Text style={[styles.totalLabel, { color: C.success }]}>{t("merchant_admin.totalPaid")}</Text>
               <CopAmount amount={totalPaid} size={28} color={C.success} />
             </View>
           )}

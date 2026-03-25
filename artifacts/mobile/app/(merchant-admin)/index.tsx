@@ -96,10 +96,10 @@ export default function MerchantEarningsScreen() {
             <CopAmount amount={earnings?.netOwedCop} size={44} color="#fff" />
             <View style={styles.rateRow}>
               <Text style={styles.rateText}>
-                Comisión: {formatPercent(earnings?.commissionRatePercent)}
+                {t("merchant_admin.commissionLabel")}: {formatPercent(earnings?.commissionRatePercent)}
               </Text>
               <Text style={styles.rateText}>
-                Margen: {formatPercent(earnings?.profitMarginPercent)}
+                {t("merchant_admin.marginLabel")}: {formatPercent(earnings?.profitMarginPercent)}
               </Text>
             </View>
           </View>

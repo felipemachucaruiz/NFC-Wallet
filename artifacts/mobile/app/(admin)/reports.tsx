@@ -78,7 +78,7 @@ export default function ReportsScreen() {
               {[
                 { label: t("admin.totalTopUps"), value: revenue?.totalTopUpsCop, positive: true },
                 { label: t("admin.totalSales"), value: revenue?.totalSalesCop, positive: true },
-                { label: "COGS total", value: revenue?.totalCogsCop, positive: false },
+                { label: t("admin.totalCogs"), value: revenue?.totalCogsCop, positive: false },
                 { label: t("admin.grossProfit"), value: revenue?.grossProfitCop, positive: true },
                 { label: t("admin.totalCommissions"), value: revenue?.totalCommissionsCop, positive: false },
                 { label: t("admin.platformRevenue"), value: revenue?.platformRevenueCop, positive: true },
@@ -97,10 +97,10 @@ export default function ReportsScreen() {
           {activeTab === "topups" && (
             <View style={{ gap: 12 }}>
               {[
-                { label: "Total recargado", value: topUps?.totalAmountCop as number | undefined },
-                { label: "Número de recargas", value: topUps?.totalCount as number | undefined, isCOP: false },
-                { label: "Promedio por recarga", value: topUps?.averageAmountCop as number | undefined },
-                { label: "Pulseras únicas", value: topUps?.uniqueBraceletsCount as number | undefined, isCOP: false },
+                { label: t("admin.totalTopUpAmount"), value: topUps?.totalAmountCop as number | undefined },
+                { label: t("admin.topUpCount"), value: topUps?.totalCount as number | undefined, isCOP: false },
+                { label: t("admin.averageTopUp"), value: topUps?.averageAmountCop as number | undefined },
+                { label: t("admin.uniqueBracelets"), value: topUps?.uniqueBraceletsCount as number | undefined, isCOP: false },
               ].map((row) => (
                 <Card key={row.label} padding={16}>
                   <View style={styles.reportRow}>
@@ -119,10 +119,10 @@ export default function ReportsScreen() {
           {activeTab === "inventory" && (
             <View style={{ gap: 12 }}>
               {[
-                { label: "Total unidades en stock", value: inventory?.totalUnitsInStock as number | undefined, isCOP: false },
-                { label: "Valor del inventario", value: inventory?.totalInventoryValueCop as number | undefined },
-                { label: "Productos con bajo stock", value: inventory?.lowStockCount as number | undefined, isCOP: false },
-                { label: "Unidades vendidas (hoy)", value: inventory?.unitsSoldToday as number | undefined, isCOP: false },
+                { label: t("admin.totalUnitsInStock"), value: inventory?.totalUnitsInStock as number | undefined, isCOP: false },
+                { label: t("admin.inventoryValue"), value: inventory?.totalInventoryValueCop as number | undefined },
+                { label: t("admin.lowStockCount"), value: inventory?.lowStockCount as number | undefined, isCOP: false },
+                { label: t("admin.unitsSoldToday"), value: inventory?.unitsSoldToday as number | undefined, isCOP: false },
               ].map((row) => (
                 <Card key={row.label} padding={16}>
                   <View style={styles.reportRow}>

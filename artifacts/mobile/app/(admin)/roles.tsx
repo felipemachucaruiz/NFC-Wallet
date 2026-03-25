@@ -49,10 +49,10 @@ export default function RolesScreen() {
   const updateRole = useUpdateUserRole();
 
   const handleAssign = async () => {
-    if (!userId.trim()) { Alert.alert(t("common.error"), "User ID requerido"); return; }
+    if (!userId.trim()) { Alert.alert(t("common.error"), t("admin.userIdRequired")); return; }
     Alert.alert(
       t("admin.assignRole"),
-      `¿Asignar rol "${selectedRole}" al usuario ${userId.trim()}?`,
+      t("admin.assignRoleConfirm", { role: selectedRole, userId: userId.trim() }),
       [
         { text: t("common.cancel"), style: "cancel" },
         {
@@ -86,7 +86,7 @@ export default function RolesScreen() {
           <Button title={`+ ${t("admin.assignRole")}`} onPress={() => setShowAssign(true)} variant="primary" size="sm" />
         </View>
 
-        <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>Roles disponibles</Text>
+        <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.availableRoles")}</Text>
         {ROLES.map((role) => (
           <Card key={role} padding={14}>
             <View style={styles.roleRow}>
@@ -108,8 +108,8 @@ export default function RolesScreen() {
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <View style={[styles.sheet, { backgroundColor: C.card }]}>
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.assignRole")}</Text>
-            <Input label="User ID" value={userId} onChangeText={setUserId} placeholder="ID del usuario" />
-            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>Seleccionar rol</Text>
+            <Input label="User ID" value={userId} onChangeText={setUserId} placeholder={t("admin.userIdPlaceholder")} />
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.selectRole")}</Text>
             <View style={styles.roleGrid}>
               {ROLES.map((role) => (
                 <Pressable

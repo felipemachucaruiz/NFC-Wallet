@@ -59,12 +59,12 @@ export default function DispatchScreen() {
 
   const handleSubmit = async () => {
     const qty = parseInt(quantity, 10);
-    if (!qty || qty <= 0) { Alert.alert(t("common.error"), "Cantidad inválida"); return; }
+    if (!qty || qty <= 0) { Alert.alert(t("common.error"), t("warehouse.invalidQuantity")); return; }
 
     try {
       if (mode === "dispatch") {
         if (!selectedWarehouseId || !selectedProductId || !selectedLocationId) {
-          Alert.alert(t("common.error"), "Completa todos los campos"); return;
+          Alert.alert(t("common.error"), t("common.fillRequired")); return;
         }
         await dispatch.mutateAsync({
           warehouseId: selectedWarehouseId,
@@ -76,7 +76,7 @@ export default function DispatchScreen() {
         Alert.alert(t("common.success"), t("warehouse.dispatchSuccess"));
       } else {
         if (!selectedLocationId || !selectedToLocationId || !selectedProductId) {
-          Alert.alert(t("common.error"), "Completa todos los campos"); return;
+          Alert.alert(t("common.error"), t("common.fillRequired")); return;
         }
         await transfer.mutateAsync({
           fromLocationId: selectedLocationId,
@@ -178,10 +178,10 @@ export default function DispatchScreen() {
         placeholder="0"
       />
       <Input
-        label={`${t("warehouse.note")} (opcional)`}
+        label={`${t("warehouse.note")} (${t("common.optional")})`}
         value={note}
         onChangeText={setNote}
-        placeholder="Nota adicional"
+        placeholder={t("warehouse.additionalNote")}
       />
 
       <Button
@@ -231,7 +231,7 @@ function SelectPicker({
           </Pressable>
         ))}
         {options.length === 0 && (
-          <Text style={[styles.noOptions, { color: C.textMuted }]}>Sin opciones disponibles</Text>
+          <Text style={[styles.noOptions, { color: C.textMuted }]}>{t("common.noOptions")}</Text>
         )}
       </ScrollView>
     </View>

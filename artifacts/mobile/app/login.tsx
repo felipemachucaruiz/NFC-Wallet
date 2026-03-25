@@ -59,9 +59,9 @@ export default function LoginScreen() {
 
         <View style={styles.features}>
           {[
-            { icon: "zap" as const, text: "Pagos NFC instantáneos" },
-            { icon: "shield" as const, text: "HMAC-SHA256 seguro" },
-            { icon: "wifi-off" as const, text: "Funciona sin conexión" },
+            { icon: "zap" as const, text: t("auth.featureNfc") },
+            { icon: "shield" as const, text: t("auth.featureHmac") },
+            { icon: "wifi-off" as const, text: t("auth.featureOffline") },
           ].map((f) => (
             <View key={f.icon} style={styles.featureRow}>
               <View
@@ -87,7 +87,7 @@ export default function LoginScreen() {
             testID="login-button"
           />
           <Text style={[styles.disclaimer, { color: C.textMuted }]}>
-            Solo para personal autorizado del evento
+            {t("auth.disclaimer")}
           </Text>
         </View>
       </View>

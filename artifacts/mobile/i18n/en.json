@@ -54,7 +54,16 @@
     "status": "Status",
     "actions": "Actions",
     "noResults": "No results",
-    "selectOption": "Select option"
+    "selectOption": "Select option",
+    "bracelet": "Bracelet",
+    "enterUidTitle": "Enter bracelet UID",
+    "uidPlaceholder": "e.g. A1:B2:C3:D4",
+    "fillRequired": "Fill in all required fields",
+    "optional": "Optional",
+    "noOptions": "No options available",
+    "nameRequired": "Name required",
+    "confirmQuestion": "Confirm?",
+    "processing": "Processing..."
   },
   "auth": {
     "title": "Cashless Pay",
@@ -66,12 +75,17 @@
     "logout": "Sign out",
     "logoutConfirm": "Sign out?",
     "sessionExpired": "Session expired",
-    "unauthorized": "Unauthorized"
+    "unauthorized": "Unauthorized",
+    "featureNfc": "Instant NFC payments",
+    "featureHmac": "HMAC-SHA256 secured",
+    "featureOffline": "Works offline",
+    "disclaimer": "For authorized event staff only"
   },
   "attendee": {
     "balance": "Balance",
     "balanceTitle": "My Balance",
     "tapBracelet": "Tap your bracelet to see balance",
+    "tapBraceletBtn": "Tap bracelet",
     "tapping": "Reading bracelet...",
     "history": "History",
     "historyTitle": "My Transactions",
@@ -83,13 +97,21 @@
     "viewDetails": "View details",
     "lineItems": "Items",
     "braceletUid": "Bracelet",
-    "lastUpdated": "Last updated"
+    "lastUpdated": "Last updated",
+    "braceletInvalid": "Invalid bracelet",
+    "enterUidPrompt": "Enter your bracelet UID",
+    "enterUid": "Enter UID",
+    "refreshBalance": "Refresh balance",
+    "tapForHistory": "Tap your bracelet to see history",
+    "uidPlaceholder": "e.g. A1:B2:C3:D4",
+    "balanceLabel": "Balance"
   },
   "bank": {
     "title": "Bank Station",
     "lookup": "Bracelet lookup",
     "lookupSubtitle": "Tap bracelet or enter UID manually",
     "tapOrEnter": "Tap bracelet or enter UID",
+    "tapBracelet": "Tap bracelet",
     "manualUid": "Manual UID",
     "uidPlaceholder": "Enter bracelet UID",
     "currentBalance": "Current balance",
@@ -116,7 +138,15 @@
     "invalidAmount": "Invalid amount",
     "minimumAmount": "Minimum $1,000 COP",
     "writingBracelet": "Writing bracelet...",
-    "braceletReady": "Bracelet ready"
+    "braceletReady": "Bracelet ready",
+    "enterUid": "Enter UID",
+    "enterUidManual": "Enter UID manually",
+    "braceletFlagged": "This bracelet is blocked",
+    "flagged": "Flagged",
+    "topUpLabel": "Top-up",
+    "braceletLabel": "Bracelet",
+    "transactions": "Transactions",
+    "shift": "Shift"
   },
   "pos": {
     "title": "Point of Sale",
@@ -151,7 +181,17 @@
     "syncPending": "{{count}} charges pending sync",
     "syncAll": "Sync all",
     "transactionLogged": "Transaction logged",
-    "searchProducts": "Search products..."
+    "searchProducts": "Search products...",
+    "noLocations": "No locations assigned",
+    "pendingCount": "{{count}} pending",
+    "noProducts": "No products available",
+    "writeError": "Error writing bracelet",
+    "readError": "Error reading bracelet",
+    "moreItems": "+{{count}} more",
+    "currentBalance": "Current balance",
+    "newBalance": "New balance",
+    "enterUid": "Enter bracelet UID",
+    "newSale": "New sale"
   },
   "merchant_admin": {
     "title": "Merchant Panel",
@@ -173,7 +213,10 @@
     "allEvents": "All events",
     "noEarnings": "No sales in period",
     "pending": "Pending payment",
-    "paid": "Paid"
+    "paid": "Paid",
+    "totalPaid": "Total paid",
+    "commissionLabel": "Commission",
+    "marginLabel": "Margin"
   },
   "warehouse": {
     "title": "Warehouse",
@@ -208,7 +251,12 @@
     "lowStockAlert": "Low stock",
     "allWarehouses": "All warehouses",
     "product": "Product",
-    "note": "Note"
+    "note": "Note",
+    "noStock": "No warehouse stock",
+    "outOfStock": "Out of stock",
+    "invalidQuantity": "Invalid quantity",
+    "additionalNote": "Additional note",
+    "confirmAction": "Confirm?"
   },
   "admin": {
     "title": "Admin Panel",
@@ -249,7 +297,6 @@
     "lowStockAlerts": "Low stock alerts",
     "revenue": "Revenue",
     "grossRevenue": "Gross revenue",
-    "topUpReport": "Top-up report",
     "byMerchant": "By merchant",
     "byLocation": "By location",
     "byProduct": "By product",
@@ -282,6 +329,32 @@
     "topUpReport": "Top-ups",
     "inventoryReport": "Inventory",
     "transactions": "Transactions",
-    "roleAssigned": "Role assigned successfully"
+    "roleAssigned": "Role assigned successfully",
+    "topUps": "Top-ups",
+    "bracelets": "Bracelets",
+    "eventFieldsRequired": "Name, start and end dates are required",
+    "venue": "Venue",
+    "startDate": "Start date (YYYY-MM-DD)",
+    "endDate": "End date (YYYY-MM-DD)",
+    "eventNamePlaceholder": "e.g. Summer Festival 2026",
+    "venuePlaceholder": "e.g. Central Park",
+    "contactEmail": "Contact email",
+    "merchantNamePlaceholder": "e.g. Main Bar",
+    "locationCount_one": "{{count}} location",
+    "locationCount_other": "{{count}} locations",
+    "totalCogs": "Total COGS",
+    "totalTopUpAmount": "Total topped-up",
+    "topUpCount": "Number of top-ups",
+    "averageTopUp": "Average per top-up",
+    "uniqueBracelets": "Unique bracelets",
+    "totalUnitsInStock": "Total units in stock",
+    "inventoryValue": "Inventory value",
+    "lowStockCount": "Products with low stock",
+    "unitsSoldToday": "Units sold (today)",
+    "userIdRequired": "User ID required",
+    "availableRoles": "Available roles",
+    "selectRole": "Select role",
+    "userIdPlaceholder": "User ID",
+    "assignRoleConfirm": "Assign role \"{{role}}\" to user {{userId}}?"
   }
 }

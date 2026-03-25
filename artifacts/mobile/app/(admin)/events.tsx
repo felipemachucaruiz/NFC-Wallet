@@ -60,7 +60,7 @@ export default function EventsScreen() {
 
   const handleCreate = async () => {
     if (!eventName.trim() || !startDate.trim() || !endDate.trim()) {
-      Alert.alert(t("common.error"), "Nombre, fecha inicio y fin son requeridos"); return;
+      Alert.alert(t("common.error"), t("admin.eventFieldsRequired")); return;
     }
     try {
       await createEvent.mutateAsync({
@@ -123,10 +123,10 @@ export default function EventsScreen() {
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <ScrollView style={[styles.sheet, { backgroundColor: C.card }]} contentContainerStyle={{ gap: 16, padding: 24 }}>
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.createEvent")}</Text>
-            <Input label="Nombre del evento" value={eventName} onChangeText={setEventName} placeholder="Ej. Festival Verano 2026" />
-            <Input label="Lugar / Venue" value={venue} onChangeText={setVenue} placeholder="Ej. Parque Simón Bolívar" />
-            <Input label="Fecha inicio (YYYY-MM-DD)" value={startDate} onChangeText={setStartDate} placeholder="2026-06-01" />
-            <Input label="Fecha fin (YYYY-MM-DD)" value={endDate} onChangeText={setEndDate} placeholder="2026-06-03" />
+            <Input label={t("admin.eventName")} value={eventName} onChangeText={setEventName} placeholder={t("admin.eventNamePlaceholder")} />
+            <Input label={t("admin.venue")} value={venue} onChangeText={setVenue} placeholder={t("admin.venuePlaceholder")} />
+            <Input label={t("admin.startDate")} value={startDate} onChangeText={setStartDate} placeholder="2026-06-01" />
+            <Input label={t("admin.endDate")} value={endDate} onChangeText={setEndDate} placeholder="2026-06-03" />
             <View style={styles.sheetActions}>
               <Button title={t("common.cancel")} onPress={() => setShowCreate(false)} variant="secondary" />
               <Button title={t("admin.createEvent")} onPress={handleCreate} variant="primary" loading={createEvent.isPending} />

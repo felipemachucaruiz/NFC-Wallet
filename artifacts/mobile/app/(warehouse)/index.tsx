@@ -59,7 +59,7 @@ export default function WarehouseStockScreen() {
         <Text style={[styles.title, { color: C.text }]}>{t("warehouse.warehouseStock")}</Text>
       )}
       ListEmptyComponent={() => (
-        <Empty icon="package" title="Sin stock en almacén" />
+        <Empty icon="package" title={t("warehouse.noStock")} />
       )}
       scrollEnabled={!!items.length}
       renderItem={({ item }) => {
@@ -79,7 +79,7 @@ export default function WarehouseStockScreen() {
             <View style={{ alignItems: "flex-end", gap: 4 }}>
               <Text style={[styles.qty, { color: C.text }]}>{item.quantityOnHand}</Text>
               {isOut ? (
-                <Badge label="Agotado" variant="danger" size="sm" />
+                <Badge label={t("warehouse.outOfStock")} variant="danger" size="sm" />
               ) : isLow ? (
                 <Badge label={t("warehouse.lowStockAlert")} variant="warning" size="sm" />
               ) : null}

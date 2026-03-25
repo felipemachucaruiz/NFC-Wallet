@@ -84,10 +84,10 @@ export default function AttendeeHistoryScreen() {
             {t("attendee.historyTitle")}
           </Text>
           <Text style={[styles.emptySubtitle, { color: C.textSecondary }]}>
-            Toca tu pulsera para ver el historial
+            {t("attendee.tapForHistory")}
           </Text>
           <Button
-            title={isTapping ? t("attendee.tapping") : isNfcSupported() ? "Toca pulsera" : "Ingresar UID"}
+            title={isTapping ? t("attendee.tapping") : isNfcSupported() ? t("attendee.tapBraceletBtn") : t("attendee.enterUid")}
             onPress={handleTap}
             loading={isTapping}
             variant="primary"
@@ -97,10 +97,10 @@ export default function AttendeeHistoryScreen() {
         <Modal visible={showUidInput} transparent animationType="slide">
           <View style={[styles.modalOverlay, { backgroundColor: C.overlay }]}>
             <View style={[styles.modalBox, { backgroundColor: C.card }]}>
-              <Text style={[styles.modalTitle, { color: C.text }]}>Ingresar UID de pulsera</Text>
+              <Text style={[styles.modalTitle, { color: C.text }]}>{t("common.enterUidTitle")}</Text>
               <TextInput
                 style={[styles.uidInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
-                placeholder="UID"
+                placeholder={t("attendee.uidPlaceholder")}
                 placeholderTextColor={C.textMuted}
                 value={manualUid}
                 onChangeText={setManualUid}
@@ -130,11 +130,13 @@ export default function AttendeeHistoryScreen() {
         ListHeaderComponent={() => (
           <View style={styles.header}>
             <Text style={[styles.pageTitle, { color: C.text }]}>{t("attendee.historyTitle")}</Text>
-            <View style={[styles.balancePill, { backgroundColor: C.primaryLight }]}>
-              <Text style={[styles.balancePillText, { color: C.primary }]}>
-                Saldo: <Text style={{ fontFamily: "Inter_700Bold" }}>{braceletData?.balanceCop != null ? `$${braceletData.balanceCop.toLocaleString("es-CO")}` : "?"}</Text>
-              </Text>
-            </View>
+            {braceletData?.balanceCop != null && (
+              <View style={[styles.balancePill, { backgroundColor: C.primaryLight }]}>
+                <Text style={[styles.balancePillText, { color: C.primary }]}>
+                  {t("attendee.balance")}: <CopAmount amount={braceletData.balanceCop} size={14} color={C.primary} />
+                </Text>
+              </View>
+            )}
           </View>
         )}
         ListEmptyComponent={() => (

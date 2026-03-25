@@ -110,7 +110,7 @@ export default function BankLookupScreen() {
 
       <View style={styles.tapSection}>
         <Button
-          title={isTapping ? t("attendee.tapping") : isNfcSupported() ? "Toca la pulsera" : "Ingresar UID"}
+          title={isTapping ? t("attendee.tapping") : isNfcSupported() ? t("bank.tapBracelet") : t("bank.manualUid")}
           onPress={handleTap}
           loading={isTapping}
           variant="primary"
@@ -119,7 +119,7 @@ export default function BankLookupScreen() {
           testID="bank-tap-btn"
         />
         {!isNfcSupported() && (
-          <Button title="Ingresar UID manualmente" onPress={() => setShowManual(true)} variant="ghost" size="md" fullWidth />
+          <Button title={t("bank.enterUidManual")} onPress={() => setShowManual(true)} variant="ghost" size="md" fullWidth />
         )}
       </View>
 
@@ -153,7 +153,7 @@ export default function BankLookupScreen() {
                 <View style={[styles.alertBox, { backgroundColor: C.dangerLight }]}>
                   <Feather name="alert-triangle" size={16} color={C.danger} />
                   <Text style={[styles.alertText, { color: C.danger }]}>
-                    Esta pulsera está bloqueada
+                    {t("bank.braceletFlagged")}
                   </Text>
                 </View>
               ) : (
@@ -174,10 +174,10 @@ export default function BankLookupScreen() {
       <Modal visible={showManual} transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <View style={[styles.modalBox, { backgroundColor: C.card }]}>
-            <Text style={[styles.modalTitle, { color: C.text }]}>Ingresar UID de pulsera</Text>
+            <Text style={[styles.modalTitle, { color: C.text }]}>{t("common.enterUidTitle")}</Text>
             <TextInput
               style={[styles.uidInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
-              placeholder="Ej. A1:B2:C3:D4"
+              placeholder={t("attendee.uidPlaceholder")}
               placeholderTextColor={C.textMuted}
               value={manualUid}
               onChangeText={setManualUid}

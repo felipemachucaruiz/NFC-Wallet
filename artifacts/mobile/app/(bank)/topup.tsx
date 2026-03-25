@@ -96,7 +96,7 @@ export default function TopUpScreen() {
           <Feather name="wifi" size={40} color={C.primary} />
         </View>
         <Text style={[styles.writingTitle, { color: C.text }]}>
-          {isNfcSupported() ? t("bank.writingBracelet") : "Procesando..."}
+          {isNfcSupported() ? t("bank.writingBracelet") : t("common.processing")}
         </Text>
       </View>
     );
@@ -111,7 +111,7 @@ export default function TopUpScreen() {
         <Text style={[styles.successTitle, { color: C.text }]}>{t("bank.topUpSuccess")}</Text>
         <View style={[styles.successAmounts, { backgroundColor: C.card, borderColor: C.border }]}>
           <View style={styles.amountRow}>
-            <Text style={[styles.amountLabel, { color: C.textSecondary }]}>Recarga</Text>
+            <Text style={[styles.amountLabel, { color: C.textSecondary }]}>{t("bank.topUpLabel")}</Text>
             <CopAmount amount={amount} positive />
           </View>
           <View style={[styles.divider, { backgroundColor: C.separator }]} />
@@ -149,7 +149,7 @@ export default function TopUpScreen() {
             <Feather name="wifi" size={18} color={C.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.uidLabel, { color: C.textMuted }]}>Pulsera</Text>
+            <Text style={[styles.uidLabel, { color: C.textMuted }]}>{t("bank.braceletLabel")}</Text>
             <Text style={[styles.uid, { color: C.text }]}>{uid}</Text>
           </View>
           <CopAmount amount={currentBalance} size={18} color={C.textSecondary} bold={false} />

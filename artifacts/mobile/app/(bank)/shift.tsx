@@ -106,7 +106,7 @@ export default function ShiftSummaryScreen() {
               </View>
             )}
 
-            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>Transacciones</Text>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("bank.transactions")}</Text>
           </>
         )}
         ListEmptyComponent={() => (

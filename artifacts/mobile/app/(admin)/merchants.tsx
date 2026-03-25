@@ -55,7 +55,7 @@ export default function MerchantsScreen() {
   const createMerchant = useCreateMerchant();
 
   const handleCreate = async () => {
-    if (!merchantName.trim()) { Alert.alert(t("common.error"), "Nombre requerido"); return; }
+    if (!merchantName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
     try {
       await createMerchant.mutateAsync({
         name: merchantName.trim(),
@@ -127,9 +127,9 @@ export default function MerchantsScreen() {
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <ScrollView style={[styles.sheet, { backgroundColor: C.card }]} contentContainerStyle={{ gap: 16, padding: 24 }}>
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.createMerchant")}</Text>
-            <Input label="Nombre" value={merchantName} onChangeText={setMerchantName} placeholder="Ej. Barra Principal" />
-            <Input label="Email de contacto" value={contactEmail} onChangeText={setContactEmail} placeholder="contacto@email.com" keyboardType="email-address" />
-            <Input label="Comisión (%)" value={commissionRate} onChangeText={setCommissionRate} keyboardType="decimal-pad" placeholder="15" />
+            <Input label={t("common.name")} value={merchantName} onChangeText={setMerchantName} placeholder={t("admin.merchantNamePlaceholder")} />
+            <Input label={t("admin.contactEmail")} value={contactEmail} onChangeText={setContactEmail} placeholder="contacto@email.com" keyboardType="email-address" />
+            <Input label={t("admin.commissionRate")} value={commissionRate} onChangeText={setCommissionRate} keyboardType="decimal-pad" placeholder="15" />
             <View style={styles.sheetActions}>
               <Button title={t("common.cancel")} onPress={() => setShowCreate(false)} variant="secondary" />
               <Button title={t("admin.createMerchant")} onPress={handleCreate} variant="primary" loading={createMerchant.isPending} />

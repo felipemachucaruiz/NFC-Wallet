@@ -76,7 +76,7 @@ export default function MerchantPosScreen() {
                 </View>
               </Card>
             ))}
-            {locations.length === 0 && <Empty icon="map-pin" title="Sin ubicaciones asignadas" />}
+            {locations.length === 0 && <Empty icon="map-pin" title={t("pos.noLocations")} />}
           </ScrollView>
         )}
       </View>
@@ -95,7 +95,7 @@ export default function MerchantPosScreen() {
         </Pressable>
         <Text style={[styles.locationBarName, { color: C.text }]}>{selectedLocation?.name}</Text>
         {pendingCount > 0 && (
-          <Badge label={`${pendingCount} pendientes`} variant="warning" size="sm" />
+          <Badge label={t("pos.pendingCount", { count: pendingCount })} variant="warning" size="sm" />
         )}
       </View>
 
@@ -135,7 +135,7 @@ export default function MerchantPosScreen() {
               contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: isWeb ? 34 : insets.bottom + 100 }}
               columnWrapperStyle={{ gap: 10 }}
               scrollEnabled={!!filtered.length}
-              ListEmptyComponent={() => <Empty icon="package" title="Sin productos disponibles" />}
+              ListEmptyComponent={() => <Empty icon="package" title={t("pos.noProducts")} />}
               renderItem={({ item }) => {
                 const cartItem = cartItems.find((c) => c.productId === item.product.id);
                 const qty = cartItem?.quantity ?? 0;
@@ -166,7 +166,13 @@ export default function MerchantPosScreen() {
                       qty === 0 ? (
                         <TouchableOpacity
                           style={[styles.addBtn, { backgroundColor: C.primary }]}
-                          onPress={() => addItem({ productId: item.product.id, name: item.product.name, priceCop: item.product.priceCop, stockAvailable: item.quantityAvailable })}
+                          onPress={() => addItem({
+                            productId: item.product.id,
+                            name: item.product.name,
+                            priceCop: item.product.priceCop,
+                            costCop: item.product.costCop,
+                            stockAvailable: item.quantityAvailable,
+                          })}
                           testID={`add-product-${item.product.id}`}
                         >
                           <Feather name="plus" size={16} color="#fff" />
@@ -182,7 +188,13 @@ export default function MerchantPosScreen() {
                           <Text style={[styles.qtyText, { color: C.text }]}>{qty}</Text>
                           <TouchableOpacity
                             style={[styles.qtyBtn, { backgroundColor: C.primary }]}
-                            onPress={() => addItem({ productId: item.product.id, name: item.product.name, priceCop: item.product.priceCop, stockAvailable: item.quantityAvailable })}
+                            onPress={() => addItem({
+                              productId: item.product.id,
+                              name: item.product.name,
+                              priceCop: item.product.priceCop,
+                              costCop: item.product.costCop,
+                              stockAvailable: item.quantityAvailable,
+                            })}
                           >
                             <Feather name="plus" size={14} color="#fff" />
                           </TouchableOpacity>

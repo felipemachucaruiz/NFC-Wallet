@@ -67,7 +67,7 @@ export default function AdminDashboardScreen() {
       }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Text style={[styles.title, { color: C.text }]}>Dashboard</Text>
+      <Text style={[styles.title, { color: C.text }]}>{t("admin.dashboard")}</Text>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
         <EventChip label={t("admin.allEvents")} selected={!selectedEventId} onPress={() => setSelectedEventId(undefined)} C={C} />
@@ -90,8 +90,8 @@ export default function AdminDashboardScreen() {
             </View>
             <View style={styles.platformStats}>
               <StatPill label={t("admin.transactions")} value={String(revenue?.transactionCount ?? 0)} />
-              <StatPill label="Top-ups" value={String(revenue?.topUpCount ?? 0)} />
-              <StatPill label="Pulseras" value={String(revenue?.braceletCount ?? 0)} />
+              <StatPill label={t("admin.topUps")} value={String(revenue?.topUpCount ?? 0)} />
+              <StatPill label={t("admin.bracelets")} value={String(revenue?.braceletCount ?? 0)} />
             </View>
           </Card>
 
