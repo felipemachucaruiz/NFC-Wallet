@@ -19,6 +19,7 @@ import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { DatePickerInput } from "@/components/ui/DatePickerInput";
 import { Empty } from "@/components/ui/Empty";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
@@ -41,8 +42,8 @@ export default function EventsScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [eventName, setEventName] = useState("");
   const [venue, setVenue] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
 
   const { data, isLoading, refetch } = useListEvents();
   const events = (data as {
@@ -59,18 +60,18 @@ export default function EventsScreen() {
   const createEvent = useCreateEvent();
 
   const handleCreate = async () => {
-    if (!eventName.trim() || !startDate.trim() || !endDate.trim()) {
+    if (!eventName.trim() || !startDate || !endDate) {
       Alert.alert(t("common.error"), t("admin.eventFieldsRequired")); return;
     }
     try {
       await createEvent.mutateAsync({
         name: eventName.trim(),
         venue: venue.trim() || undefined,
-        startsAt: new Date(startDate).toISOString(),
-        endsAt: new Date(endDate).toISOString(),
+        startsAt: startDate.toISOString(),
+        endsAt: endDate.toISOString(),
       } as Parameters<typeof createEvent.mutateAsync>[0]);
       setShowCreate(false);
-      setEventName(""); setVenue(""); setStartDate(""); setEndDate("");
+      setEventName(""); setVenue(""); setStartDate(null); setEndDate(null);
       refetch();
     } catch {
       Alert.alert(t("common.error"), t("common.unknownError"));
@@ -125,8 +126,25 @@ export default function EventsScreen() {
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.createEvent")}</Text>
             <Input label={t("admin.eventName")} value={eventName} onChangeText={setEventName} placeholder={t("admin.eventNamePlaceholder")} />
             <Input label={t("admin.venue")} value={venue} onChangeText={setVenue} placeholder={t("admin.venuePlaceholder")} />
-            <Input label={t("admin.startDate")} value={startDate} onChangeText={setStartDate} placeholder="2026-06-01" />
-            <Input label={t("admin.endDate")} value={endDate} onChangeText={setEndDate} placeholder="2026-06-03" />
+            <DatePickerInput
+              label={t("admin.startDate")}
+              value={startDate}
+              onChange={setStartDate}
+              placeholder={t("admin.startDatePlaceholder")}
+            />
+            <DatePickerInput
+              label={t("admin.endDate")}
+              value={endDate}
+              onChange={(d) => {
+                if (startDate && d < startDate) {
+                  Alert.alert(t("common.error"), t("admin.endDateAfterStart"));
+                  return;
+                }
+                setEndDate(d);
+              }}
+              minimumDate={startDate ?? undefined}
+              placeholder={t("admin.endDatePlaceholder")}
+            />
             <View style={styles.sheetActions}>
               <Button title={t("common.cancel")} onPress={() => setShowCreate(false)} variant="secondary" />
               <Button title={t("admin.createEvent")} onPress={handleCreate} variant="primary" loading={createEvent.isPending} />
