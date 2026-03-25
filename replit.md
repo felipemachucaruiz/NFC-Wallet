@@ -36,7 +36,8 @@ pnpm workspace monorepo using TypeScript.
 ```text
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server (port from $PORT env, default 8080)
+│   ├── api-server/         # Express API server (port from $PORT env, default 8080)
+│   └── mobile/             # Expo React Native app (6 role-based portals)
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
