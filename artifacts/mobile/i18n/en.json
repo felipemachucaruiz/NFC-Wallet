@@ -72,7 +72,7 @@
     "passwordMinLength": "Password must be at least 6 characters"
   },
   "auth": {
-    "title": "Cashless Pay",
+    "title": "Tapee",
     "subtitle": "Event payment system",
     "identifier": "Email or username",
     "identifierPlaceholder": "email@domain.com or username",

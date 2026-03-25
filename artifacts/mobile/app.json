@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Cashless Event App",
+    "name": "Tapee",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "tapee",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
