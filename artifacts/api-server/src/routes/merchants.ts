@@ -145,6 +145,8 @@ router.get(
 
     const payoutConditions: ReturnType<typeof eq>[] = [eq(merchantPayoutsTable.merchantId, merchantId)];
     if (eventId) payoutConditions.push(eq(merchantPayoutsTable.eventId, eventId));
+    if (from) payoutConditions.push(gte(merchantPayoutsTable.paidAt, new Date(from)));
+    if (to) payoutConditions.push(lte(merchantPayoutsTable.paidAt, new Date(to)));
     const payouts = await db
       .select()
       .from(merchantPayoutsTable)
