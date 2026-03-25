@@ -68,6 +68,7 @@
     "inactive": "Inactivo",
     "unknown": "Desconocido",
     "notSet": "No definido",
+    "optional": "opcional",
     "passwordMinLength": "La contraseña debe tener al menos 6 caracteres"
   },
   "auth": {

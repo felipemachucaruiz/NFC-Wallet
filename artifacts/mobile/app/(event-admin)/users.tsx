@@ -69,6 +69,7 @@ export default function EventAdminUsersScreen() {
 
   // Create form
   const [showCreate, setShowCreate] = useState(false);
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -110,12 +111,12 @@ export default function EventAdminUsersScreen() {
   useEffect(() => { fetchData(); }, [token]);
 
   const resetCreateForm = () => {
-    setEmail(""); setPassword(""); setFirstName(""); setLastName("");
+    setUsername(""); setEmail(""); setPassword(""); setFirstName(""); setLastName("");
     setSelectedRole("merchant_admin"); setSelectedMerchantId(null);
   };
 
   const handleCreate = async () => {
-    if (!email.trim() || !password.trim()) {
+    if (!username.trim() || !password.trim()) {
       Alert.alert(t("common.error"), t("common.fillRequired")); return;
     }
     if (MERCHANT_ROLES.includes(selectedRole) && !selectedMerchantId) {
@@ -124,11 +125,13 @@ export default function EventAdminUsersScreen() {
     setIsCreating(true);
     try {
       const body: Record<string, unknown> = {
-        email: email.trim(), password,
+        username: username.trim().toLowerCase(),
+        password,
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
         role: selectedRole,
       };
+      if (email.trim()) body.email = email.trim().toLowerCase();
       if (MERCHANT_ROLES.includes(selectedRole) && selectedMerchantId) {
         body.merchantId = selectedMerchantId;
       }
@@ -252,9 +255,10 @@ export default function EventAdminUsersScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.userName, { color: C.text }]}>
-                      {item.firstName && item.lastName ? `${item.firstName} ${item.lastName}` : item.email ?? item.username ?? item.id}
+                      {item.firstName && item.lastName ? `${item.firstName} ${item.lastName}` : item.username ?? item.email ?? item.id}
                     </Text>
-                    {item.email ? <Text style={[styles.userEmail, { color: C.textSecondary }]}>{item.email}</Text> : null}
+                    {item.username ? <Text style={[styles.userEmail, { color: C.textSecondary }]}>@{item.username}</Text> : null}
+                    {item.email ? <Text style={[styles.userEmail, { color: C.textMuted }]}>{item.email}</Text> : null}
                     {merchant ? <Text style={[styles.merchantName, { color: C.textMuted }]}>{merchant.name}</Text> : null}
                   </View>
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
@@ -273,7 +277,8 @@ export default function EventAdminUsersScreen() {
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <ScrollView style={[styles.sheet, { backgroundColor: C.card }]} contentContainerStyle={{ gap: 16, padding: 24 }}>
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("eventAdmin.createUser")}</Text>
-            <Input label={t("common.email")} value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="user@example.com" autoCapitalize="none" />
+            <Input label={t("admin.clientUsername")} value={username} onChangeText={(v) => setUsername(v.toLowerCase())} placeholder="juancarlos" autoCapitalize="none" autoCorrect={false} />
+            <Input label={`${t("common.email")} (${t("common.optional")})`} value={email} onChangeText={(v) => setEmail(v.toLowerCase())} keyboardType="email-address" placeholder="user@example.com" autoCapitalize="none" />
             <Input label={t("auth.password")} value={password} onChangeText={setPassword} secureTextEntry placeholder={t("auth.passwordPlaceholder")} />
             <Input label={t("eventAdmin.firstName")} value={firstName} onChangeText={setFirstName} placeholder={t("eventAdmin.firstNamePlaceholder")} />
             <Input label={t("eventAdmin.lastName")} value={lastName} onChangeText={setLastName} placeholder={t("eventAdmin.lastNamePlaceholder")} />
@@ -327,11 +332,15 @@ export default function EventAdminUsersScreen() {
           <ScrollView style={[styles.sheet, { backgroundColor: C.card }]} contentContainerStyle={{ gap: 16, padding: 24 }}>
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.userRole")}</Text>
             {editingUser ? (
-              <Text style={[styles.userEmail, { color: C.textSecondary }]}>
-                {editingUser.firstName && editingUser.lastName
-                  ? `${editingUser.firstName} ${editingUser.lastName}`
-                  : editingUser.email ?? editingUser.id}
-              </Text>
+              <View style={{ gap: 2 }}>
+                <Text style={[styles.userName, { color: C.text }]}>
+                  {editingUser.firstName && editingUser.lastName
+                    ? `${editingUser.firstName} ${editingUser.lastName}`
+                    : editingUser.username ?? editingUser.email ?? editingUser.id}
+                </Text>
+                {editingUser.username ? <Text style={[styles.userEmail, { color: C.textSecondary }]}>@{editingUser.username}</Text> : null}
+                {editingUser.email ? <Text style={[styles.userEmail, { color: C.textMuted }]}>{editingUser.email}</Text> : null}
+              </View>
             ) : null}
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.selectRole")}</Text>
             <View style={styles.roleGrid}>

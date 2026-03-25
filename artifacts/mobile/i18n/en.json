@@ -68,6 +68,7 @@
     "inactive": "Inactive",
     "unknown": "Unknown",
     "notSet": "Not set",
+    "optional": "optional",
     "passwordMinLength": "Password must be at least 6 characters"
   },
   "auth": {
