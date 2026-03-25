@@ -481,7 +481,8 @@
     "eventActive": "Event active",
     "eventInactive": "Event inactive",
     "deactivateEvent": "Deactivate",
-    "activateEvent": "Activate"
+    "activateEvent": "Activate",
+    "resetPasswordConfirm": "Confirm password change for this user?"
   },
   "common_notfound": {
     "title": "Page not found",

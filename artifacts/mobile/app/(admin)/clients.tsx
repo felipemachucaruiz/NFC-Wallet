@@ -70,6 +70,8 @@ export default function ClientsScreen() {
   const [editEventId, setEditEventId] = useState<string>("");
   const [editClientCompanyId, setEditClientCompanyId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [editClientNewPassword, setEditClientNewPassword] = useState("");
+  const [resettingPw, setResettingPw] = useState(false);
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", username: "", password: "", eventId: "" });
 
   // ─── Companies ─────────────────────────────────────────────────────────────
@@ -145,6 +147,39 @@ export default function ClientsScreen() {
     setEditClient(client);
     setEditEventId(client.eventId ?? "");
     setEditClientCompanyId(client.promoterCompanyId ?? "");
+    setEditClientNewPassword("");
+  };
+
+  const handleResetClientPassword = async () => {
+    if (!editClient) return;
+    if (editClientNewPassword.length < 6) {
+      Alert.alert(t("common.error"), t("common.passwordMinLength")); return;
+    }
+    Alert.alert(t("admin.resetPassword"), t("admin.resetPasswordConfirm"), [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("common.confirm"),
+        style: "destructive",
+        onPress: async () => {
+          setResettingPw(true);
+          try {
+            const res = await fetch(`${getApiBase()}/api/users/${editClient.id}/password`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ newPassword: editClientNewPassword }),
+            });
+            if (res.ok) {
+              Alert.alert(t("common.success"), t("admin.passwordReset"));
+              setEditClientNewPassword("");
+            } else {
+              const err = await res.json().catch(() => ({})) as { error?: string };
+              Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+            }
+          } catch { Alert.alert(t("common.error"), t("common.unknownError")); }
+          setResettingPw(false);
+        },
+      },
+    ]);
   };
 
   const handleSaveEdit = async () => {
@@ -425,6 +460,23 @@ export default function ClientsScreen() {
               </Pressable>
             ))}
 
+            {/* ── Reset Password ── */}
+            <View style={[styles.divider, { backgroundColor: C.separator }]} />
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.resetPassword")}</Text>
+            <Input
+              label={t("admin.newPassword")}
+              value={editClientNewPassword}
+              onChangeText={setEditClientNewPassword}
+              secureTextEntry
+              placeholder="••••••"
+            />
+            <Button
+              title={t("admin.resetPassword")}
+              onPress={handleResetClientPassword}
+              variant="danger"
+              loading={resettingPw}
+            />
+
             <View style={styles.sheetActions}>
               <Button title={t("common.cancel")} onPress={() => setEditClient(null)} variant="secondary" />
               <Button title={t("common.save")} onPress={handleSaveEdit} variant="primary" loading={saving} />
@@ -526,4 +578,5 @@ const styles = StyleSheet.create({
   eventOptionText: { fontSize: 14, fontFamily: "Inter_500Medium" },
   eventOptionSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   clientPreview: { padding: 14 },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: 4 },
 });
