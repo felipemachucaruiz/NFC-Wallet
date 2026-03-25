@@ -17,16 +17,28 @@ router.patch(
   "/users/:userId/role",
   requireRole("admin"),
   async (req: Request, res: Response) => {
-    const schema = z.object({ role: z.enum(userRoles) });
+    const schema = z.object({
+      role: z.enum(userRoles),
+      merchantId: z.string().nullable().optional(),
+    });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "Invalid role" });
+      res.status(400).json({ error: "Invalid request" });
       return;
+    }
+
+    const updates: Record<string, unknown> = {
+      role: parsed.data.role,
+      updatedAt: new Date(),
+    };
+
+    if (parsed.data.merchantId !== undefined) {
+      updates.merchantId = parsed.data.merchantId;
     }
 
     const [user] = await db
       .update(usersTable)
-      .set({ role: parsed.data.role, updatedAt: new Date() })
+      .set(updates)
       .where(eq(usersTable.id, req.params.userId as string))
       .returning();
 
@@ -39,7 +51,6 @@ router.patch(
   },
 );
 
-// Self-lookup — any authenticated user
 router.get("/users/me", requireAuth, async (req: Request, res: Response) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });

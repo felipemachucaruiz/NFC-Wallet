@@ -40,6 +40,12 @@ export const GetCurrentAuthUserResponse = zod.object({
         "warehouse_admin",
         "admin",
       ]),
+      merchantId: zod
+        .string()
+        .nullish()
+        .describe(
+          "Set for merchant_admin and merchant_staff users; determines ownership scope",
+        ),
     }),
     zod.null(),
   ]),

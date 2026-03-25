@@ -22,23 +22,17 @@ router.get(
   "/payouts",
   requireRole("admin", "merchant_admin"),
   async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
-    const { merchantId, eventId } = req.query as { merchantId?: string; eventId?: string };
+    const { eventId } = req.query as { eventId?: string };
     const conditions = [];
 
-    if (req.user.role === "merchant_admin") {
-      // merchant_admin can only see their own merchant's payouts
-      // For now, filter by merchantId param if provided, otherwise return empty
-      if (!merchantId) {
+    if (req.user!.role === "merchant_admin") {
+      if (!req.user!.merchantId) {
         res.json({ payouts: [] });
         return;
       }
-      conditions.push(eq(merchantPayoutsTable.merchantId, merchantId));
+      conditions.push(eq(merchantPayoutsTable.merchantId, req.user!.merchantId));
     } else {
+      const { merchantId } = req.query as { merchantId?: string };
       if (merchantId) conditions.push(eq(merchantPayoutsTable.merchantId, merchantId));
     }
 
@@ -57,11 +51,6 @@ router.post(
   "/payouts",
   requireRole("admin"),
   async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
     const parsed = createPayoutSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
@@ -72,7 +61,6 @@ router.post(
     const periodFromDate = new Date(periodFrom);
     const periodToDate = new Date(periodTo);
 
-    // Calculate actuals from transaction logs for the period
     const txRows = await db
       .select()
       .from(transactionLogsTable)
@@ -101,12 +89,37 @@ router.post(
         netPayoutCop,
         paymentMethod,
         referenceNote,
-        performedByUserId: req.user.id,
+        performedByUserId: req.user!.id,
         paidAt: new Date(paidAt),
       })
       .returning();
 
     res.status(201).json(payout);
+  },
+);
+
+router.patch(
+  "/payouts/:payoutId",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({
+      referenceNote: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const [payout] = await db
+      .update(merchantPayoutsTable)
+      .set(parsed.data)
+      .where(eq(merchantPayoutsTable.id, req.params.payoutId as string))
+      .returning();
+    if (!payout) {
+      res.status(404).json({ error: "Payout not found" });
+      return;
+    }
+    res.json(payout);
   },
 );
 

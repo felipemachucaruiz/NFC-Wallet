@@ -1547,6 +1547,9 @@ components:
           type: [string, 'null']
         role:
           $ref: '#/components/schemas/UserRole'
+        merchantId:
+          type: [string, 'null']
+          description: Set for merchant_admin and merchant_staff users; determines ownership scope
 
     AuthUserEnvelope:
       type: object

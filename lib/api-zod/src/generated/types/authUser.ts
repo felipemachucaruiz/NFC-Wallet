@@ -18,4 +18,9 @@ export interface AuthUser {
   /** @nullable */
   profileImageUrl: string | null;
   role: UserRole;
+  /**
+   * Set for merchant_admin and merchant_staff users; determines ownership scope
+   * @nullable
+   */
+  merchantId?: string | null;
 }
