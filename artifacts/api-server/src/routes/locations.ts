@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, locationsTable, userLocationAssignmentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
+import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -22,6 +23,21 @@ const assignUserSchema = z.object({
 });
 
 router.get("/locations", requireAuth, async (req: Request, res: Response) => {
+  const user = req.user!;
+
+  if (isMerchantScoped(user)) {
+    if (!user.merchantId) {
+      res.json({ locations: [] });
+      return;
+    }
+    const locations = await db
+      .select()
+      .from(locationsTable)
+      .where(eq(locationsTable.merchantId, user.merchantId));
+    res.json({ locations });
+    return;
+  }
+
   const { merchantId, eventId } = req.query as { merchantId?: string; eventId?: string };
   const conditions = [];
   if (merchantId) conditions.push(eq(locationsTable.merchantId, merchantId));
@@ -42,6 +58,15 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+
+    const user = req.user!;
+    if (user.role === "merchant_admin") {
+      if (!user.merchantId || parsed.data.merchantId !== user.merchantId) {
+        res.status(403).json({ error: "Access denied: can only create locations for your own merchant" });
+        return;
+      }
+    }
+
     const [location] = await db
       .insert(locationsTable)
       .values(parsed.data)
@@ -51,10 +76,23 @@ router.post(
 );
 
 router.get("/locations/:locationId", requireAuth, async (req: Request, res: Response) => {
+  const user = req.user!;
+  const locationId = req.params.locationId as string;
+
+  if (isMerchantScoped(user)) {
+    const result = await assertLocationAccess(locationId, user);
+    if ("error" in result) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json(result.location);
+    return;
+  }
+
   const [location] = await db
     .select()
     .from(locationsTable)
-    .where(eq(locationsTable.id, req.params.locationId as string));
+    .where(eq(locationsTable.id, locationId));
   if (!location) {
     res.status(404).json({ error: "Location not found" });
     return;
@@ -71,10 +109,22 @@ router.patch(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+
+    const locationId = req.params.locationId as string;
+    const user = req.user!;
+
+    if (user.role === "merchant_admin") {
+      const result = await assertLocationAccess(locationId, user);
+      if ("error" in result) {
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+    }
+
     const [location] = await db
       .update(locationsTable)
       .set(parsed.data)
-      .where(eq(locationsTable.id, req.params.locationId as string))
+      .where(eq(locationsTable.id, locationId))
       .returning();
     if (!location) {
       res.status(404).json({ error: "Location not found" });
@@ -93,19 +143,31 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+
+    const locationId = req.params.locationId as string;
+    const user = req.user!;
+
+    if (user.role === "merchant_admin") {
+      const result = await assertLocationAccess(locationId, user);
+      if ("error" in result) {
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+    }
+
     const existing = await db
       .select()
       .from(userLocationAssignmentsTable)
       .where(
         and(
           eq(userLocationAssignmentsTable.userId, parsed.data.userId),
-          eq(userLocationAssignmentsTable.locationId, req.params.locationId as string),
+          eq(userLocationAssignmentsTable.locationId, locationId),
         ),
       );
     if (existing.length === 0) {
       await db.insert(userLocationAssignmentsTable).values({
         userId: parsed.data.userId,
-        locationId: req.params.locationId as string,
+        locationId,
       });
     }
     res.json({ success: true });
@@ -121,12 +183,24 @@ router.delete(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+
+    const locationId = req.params.locationId as string;
+    const user = req.user!;
+
+    if (user.role === "merchant_admin") {
+      const result = await assertLocationAccess(locationId, user);
+      if ("error" in result) {
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+    }
+
     await db
       .delete(userLocationAssignmentsTable)
       .where(
         and(
           eq(userLocationAssignmentsTable.userId, parsed.data.userId),
-          eq(userLocationAssignmentsTable.locationId, req.params.locationId as string),
+          eq(userLocationAssignmentsTable.locationId, locationId),
         ),
       );
     res.json({ success: true });

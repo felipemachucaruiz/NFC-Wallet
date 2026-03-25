@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, productsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
+import { assertProductAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -23,6 +24,21 @@ const updateProductSchema = z.object({
 });
 
 router.get("/products", requireAuth, async (req: Request, res: Response) => {
+  const user = req.user!;
+
+  if (isMerchantScoped(user)) {
+    if (!user.merchantId) {
+      res.json({ products: [] });
+      return;
+    }
+    const products = await db
+      .select()
+      .from(productsTable)
+      .where(eq(productsTable.merchantId, user.merchantId));
+    res.json({ products });
+    return;
+  }
+
   const { merchantId } = req.query as { merchantId?: string };
   const products = await db
     .select()
@@ -40,6 +56,15 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+
+    const user = req.user!;
+    if (user.role === "merchant_admin") {
+      if (!user.merchantId || parsed.data.merchantId !== user.merchantId) {
+        res.status(403).json({ error: "Access denied: can only create products for your own merchant" });
+        return;
+      }
+    }
+
     const [product] = await db
       .insert(productsTable)
       .values(parsed.data)
@@ -49,10 +74,23 @@ router.post(
 );
 
 router.get("/products/:productId", requireAuth, async (req: Request, res: Response) => {
+  const user = req.user!;
+  const productId = req.params.productId as string;
+
+  if (isMerchantScoped(user)) {
+    const result = await assertProductAccess(productId, user);
+    if ("error" in result) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json(result.product);
+    return;
+  }
+
   const [product] = await db
     .select()
     .from(productsTable)
-    .where(eq(productsTable.id, req.params.productId as string));
+    .where(eq(productsTable.id, productId));
   if (!product) {
     res.status(404).json({ error: "Product not found" });
     return;
@@ -69,10 +107,22 @@ router.patch(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+
+    const productId = req.params.productId as string;
+    const user = req.user!;
+
+    if (user.role === "merchant_admin") {
+      const result = await assertProductAccess(productId, user);
+      if ("error" in result) {
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+    }
+
     const [product] = await db
       .update(productsTable)
       .set({ ...parsed.data, updatedAt: new Date() })
-      .where(eq(productsTable.id, req.params.productId as string))
+      .where(eq(productsTable.id, productId))
       .returning();
     if (!product) {
       res.status(404).json({ error: "Product not found" });

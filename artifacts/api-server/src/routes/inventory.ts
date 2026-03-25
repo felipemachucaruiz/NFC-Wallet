@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
+import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -119,6 +120,17 @@ router.get(
   "/inventory/locations/:locationId",
   requireAuth,
   async (req: Request, res: Response) => {
+    const locationId = req.params.locationId as string;
+    const user = req.user!;
+
+    if (isMerchantScoped(user)) {
+      const access = await assertLocationAccess(locationId, user);
+      if ("error" in access) {
+        res.status(access.status).json({ error: access.error });
+        return;
+      }
+    }
+
     const items = await db
       .select({
         id: locationInventoryTable.id,
@@ -131,7 +143,7 @@ router.get(
       })
       .from(locationInventoryTable)
       .leftJoin(productsTable, eq(locationInventoryTable.productId, productsTable.id))
-      .where(eq(locationInventoryTable.locationId, req.params.locationId as string));
+      .where(eq(locationInventoryTable.locationId, locationId));
     res.json({ inventory: items });
   },
 );
@@ -153,6 +165,15 @@ router.patch(
     }
     const { productId, restockTrigger, restockTargetQty, quantityAdjustment } = parsed.data;
     const { locationId } = req.params as { locationId: string };
+    const user = req.user!;
+
+    if (user.role === "merchant_admin") {
+      const access = await assertLocationAccess(locationId, user);
+      if ("error" in access) {
+        res.status(access.status).json({ error: access.error });
+        return;
+      }
+    }
 
     const existing = await db
       .select()

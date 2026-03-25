@@ -1,7 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, transactionLogsTable, transactionLineItemsTable, productsTable, locationInventoryTable, braceletsTable, merchantsTable, locationsTable, restockOrdersTable } from "@workspace/db";
+import { db, transactionLogsTable, transactionLineItemsTable, productsTable, locationInventoryTable, braceletsTable, merchantsTable, locationsTable, restockOrdersTable, userLocationAssignmentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import type { AuthUser } from "@workspace/api-zod";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -23,9 +24,43 @@ const logTransactionSchema = z.object({
 
 type LogTransactionInput = z.infer<typeof logTransactionSchema>;
 
+async function checkLocationAccess(
+  locationId: string,
+  user: AuthUser,
+): Promise<{ location: typeof locationsTable.$inferSelect } | { error: string }> {
+  const [location] = await db
+    .select()
+    .from(locationsTable)
+    .where(eq(locationsTable.id, locationId));
+
+  if (!location) return { error: "Location not found" };
+
+  if (user.role === "merchant_admin" || user.role === "merchant_staff") {
+    if (!user.merchantId || location.merchantId !== user.merchantId) {
+      return { error: "Access denied: location does not belong to your merchant" };
+    }
+    if (user.role === "merchant_staff") {
+      const [assignment] = await db
+        .select()
+        .from(userLocationAssignmentsTable)
+        .where(
+          and(
+            eq(userLocationAssignmentsTable.locationId, locationId),
+            eq(userLocationAssignmentsTable.userId, user.id),
+          ),
+        );
+      if (!assignment) {
+        return { error: "Access denied: you are not assigned to this location" };
+      }
+    }
+  }
+
+  return { location };
+}
+
 async function processTransaction(
   input: LogTransactionInput,
-  performedByUserId: string | undefined,
+  user: AuthUser,
   isSyncBatch: boolean,
 ): Promise<{
   status: "created" | "duplicate" | "error";
@@ -41,15 +76,14 @@ async function processTransaction(
     return { status: "duplicate" };
   }
 
-  // Resolve location → merchant → event
-  const [location] = await db
-    .select()
-    .from(locationsTable)
-    .where(eq(locationsTable.id, input.locationId));
-  if (!location) {
-    return { status: "error", error: "Location not found" };
+  // Ownership + staff assignment check
+  const accessResult = await checkLocationAccess(input.locationId, user);
+  if ("error" in accessResult) {
+    return { status: "error", error: accessResult.error };
   }
+  const { location } = accessResult;
 
+  // Resolve merchant from location
   const [merchant] = await db
     .select()
     .from(merchantsTable)
@@ -88,6 +122,8 @@ async function processTransaction(
     });
   }
 
+  void cogsCop;
+
   // Commission calculation
   const commissionRate = parseFloat(merchant.commissionRatePercent ?? "0");
   const commissionAmountCop = Math.round(grossAmountCop * commissionRate / 100);
@@ -107,7 +143,7 @@ async function processTransaction(
       netAmountCop,
       newBalanceCop: input.newBalance,
       counter: input.counter,
-      performedByUserId,
+      performedByUserId: user.id,
       syncedAt: isSyncBatch ? new Date() : null,
       offlineCreatedAt: input.offlineCreatedAt ? new Date(input.offlineCreatedAt) : null,
     })
@@ -201,7 +237,7 @@ router.post(
       return;
     }
 
-    const result = await processTransaction(parsed.data, req.user.id, false);
+    const result = await processTransaction(parsed.data, req.user, false);
     if (result.status === "duplicate") {
       res.status(409).json({ error: "Duplicate transaction (idempotency key already used)" });
       return;
@@ -234,7 +270,7 @@ router.post(
 
     const results = [];
     for (const tx of parsed.data.transactions) {
-      const result = await processTransaction(tx, req.user.id, true);
+      const result = await processTransaction(tx, req.user, true);
       results.push({
         idempotencyKey: tx.idempotencyKey,
         status: result.status,
