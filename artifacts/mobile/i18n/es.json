@@ -446,7 +446,21 @@
     "noEventAssigned": "Sin evento asignado",
     "createClientHint": "Crea una cuenta de organizador para tu cliente",
     "firstName": "Nombre",
-    "lastName": "Apellido"
+    "lastName": "Apellido",
+    "editClient": "Editar Cliente",
+    "organizerSection": "Organizador de Evento",
+    "organizerMode.none": "Ninguno",
+    "organizerMode.existing": "Cliente existente",
+    "organizerMode.new": "Nuevo organizador",
+    "selectClientRequired": "Por favor selecciona un cliente",
+    "noClientsToAssign": "Sin clientes aún. Crea un cliente primero.",
+    "searchClients": "Buscar clientes...",
+    "alreadyAssigned": "Ya asignado a un evento",
+    "organizerMode": {
+      "none": "Ninguno",
+      "existing": "Cliente existente",
+      "new": "Nuevo organizador"
+    }
   },
   "common_notfound": {
     "title": "Página no encontrada",

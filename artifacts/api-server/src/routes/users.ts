@@ -102,6 +102,34 @@ router.patch(
   },
 );
 
+router.patch(
+  "/users/:userId/event",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({
+      eventId: z.string().nullable(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+
+    const [user] = await db
+      .update(usersTable)
+      .set({ eventId: parsed.data.eventId, updatedAt: new Date() })
+      .where(eq(usersTable.id, req.params.userId as string))
+      .returning();
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    res.json(user);
+  },
+);
+
 router.get("/users/me", requireAuth, async (req: Request, res: Response) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });

@@ -5,6 +5,7 @@ import {
   FlatList,
   Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -36,6 +37,8 @@ type Client = {
   eventId: string | null;
 };
 
+type EventItem = { id: string; name: string; status: string };
+
 export default function ClientsScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
@@ -49,6 +52,11 @@ export default function ClientsScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  // Edit state
+  const [editClient, setEditClient] = useState<Client | null>(null);
+  const [editEventId, setEditEventId] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -58,8 +66,8 @@ export default function ClientsScreen() {
     eventId: "",
   });
 
-  const { data: eventsData } = useListEvents();
-  const events = (eventsData as { events?: Array<{ id: string; name: string; status: string }> } | undefined)?.events ?? [];
+  const { data: eventsData, refetch: refetchEvents } = useListEvents();
+  const events: EventItem[] = (eventsData as { events?: EventItem[] } | undefined)?.events ?? [];
 
   const eventName = (id: string | null) =>
     id ? (events.find((e) => e.id === id)?.name ?? id) : t("admin.noEventAssigned");
@@ -125,6 +133,34 @@ export default function ClientsScreen() {
     }
   };
 
+  const openEdit = (client: Client) => {
+    setEditClient(client);
+    setEditEventId(client.eventId ?? "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editClient) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${getApiBase()}/api/users/${editClient.id}/event`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ eventId: editEventId || null }),
+      });
+      const data = await res.json() as { error?: string };
+      if (!res.ok) {
+        Alert.alert(t("common.error"), data.error ?? t("common.unknownError")); return;
+      }
+      setEditClient(null);
+      fetchClients();
+      refetchEvents();
+    } catch {
+      Alert.alert(t("common.error"), t("common.unknownError"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <Loading label={t("common.loading")} />;
 
   return (
@@ -169,32 +205,117 @@ export default function ClientsScreen() {
           const identifier = item.email ?? item.username ?? "—";
           const ev = item.eventId ? events.find((e) => e.id === item.eventId) : null;
           return (
-            <Card>
-              <View style={styles.clientRow}>
-                <View style={[styles.avatar, { backgroundColor: C.primaryLight }]}>
-                  <Feather name="user" size={20} color={C.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.clientName, { color: C.text }]}>{displayName}</Text>
-                  <Text style={[styles.clientId, { color: C.textMuted }]}>{identifier}</Text>
-                  <View style={styles.eventTag}>
-                    <Feather name="calendar" size={12} color={C.textSecondary} />
-                    <Text style={[styles.eventTagText, { color: C.textSecondary }]}>
-                      {eventName(item.eventId)}
-                    </Text>
+            <Pressable onPress={() => openEdit(item)}>
+              <Card>
+                <View style={styles.clientRow}>
+                  <View style={[styles.avatar, { backgroundColor: C.primaryLight }]}>
+                    <Feather name="user" size={20} color={C.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.clientName, { color: C.text }]}>{displayName}</Text>
+                    <Text style={[styles.clientId, { color: C.textMuted }]}>{identifier}</Text>
+                    <View style={styles.eventTag}>
+                      <Feather name="calendar" size={12} color={C.textSecondary} />
+                      <Text style={[styles.eventTagText, { color: C.textSecondary }]}>
+                        {eventName(item.eventId)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 8 }}>
+                    <Badge
+                      label={ev ? t(`admin.eventStatus.${ev.status}`, { defaultValue: ev.status }) : t("admin.noEventAssigned")}
+                      variant={ev ? (ev.status === "active" ? "success" : ev.status === "upcoming" ? "info" : "muted") : "muted"}
+                      size="sm"
+                    />
+                    <Feather name="edit-2" size={13} color={C.textMuted} />
                   </View>
                 </View>
-                <Badge
-                  label={ev ? t(`admin.eventStatus.${ev.status}`, { defaultValue: ev.status }) : t("admin.noEventAssigned")}
-                  variant={ev ? (ev.status === "active" ? "success" : ev.status === "upcoming" ? "info" : "muted") : "muted"}
-                  size="sm"
-                />
-              </View>
-            </Card>
+              </Card>
+            </Pressable>
           );
         }}
       />
 
+      {/* Edit client modal */}
+      <Modal visible={!!editClient} transparent animationType="slide">
+        <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
+          <ScrollView
+            style={[styles.sheet, { backgroundColor: C.card }]}
+            contentContainerStyle={{ gap: 16, padding: 24, paddingBottom: 40 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.sheetHeader}>
+              <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.editClient")}</Text>
+              <Pressable onPress={() => setEditClient(null)}>
+                <Feather name="x" size={22} color={C.textSecondary} />
+              </Pressable>
+            </View>
+
+            {editClient && (
+              <View style={[styles.clientPreview, { backgroundColor: C.inputBg, borderRadius: 12 }]}>
+                <Text style={[styles.clientName, { color: C.text }]}>
+                  {[editClient.firstName, editClient.lastName].filter(Boolean).join(" ") || editClient.username || editClient.email}
+                </Text>
+                <Text style={[styles.clientId, { color: C.textMuted }]}>
+                  {editClient.email ?? editClient.username}
+                </Text>
+              </View>
+            )}
+
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.assignToEvent")}</Text>
+
+            {/* No event option */}
+            <Pressable
+              onPress={() => setEditEventId("")}
+              style={[
+                styles.eventOption,
+                {
+                  backgroundColor: !editEventId ? C.primary + "18" : C.inputBg,
+                  borderColor: !editEventId ? C.primary : C.border,
+                },
+              ]}
+            >
+              <Feather name="slash" size={16} color={!editEventId ? C.primary : C.textMuted} />
+              <Text style={[styles.eventOptionText, { color: !editEventId ? C.primary : C.textSecondary }]}>
+                {t("admin.noEventAssigned")}
+              </Text>
+              {!editEventId && <Feather name="check" size={16} color={C.primary} />}
+            </Pressable>
+
+            {events.map((ev) => (
+              <Pressable
+                key={ev.id}
+                onPress={() => setEditEventId(ev.id)}
+                style={[
+                  styles.eventOption,
+                  {
+                    backgroundColor: editEventId === ev.id ? C.primary + "18" : C.inputBg,
+                    borderColor: editEventId === ev.id ? C.primary : C.border,
+                  },
+                ]}
+              >
+                <Feather name="calendar" size={16} color={editEventId === ev.id ? C.primary : C.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.eventOptionText, { color: editEventId === ev.id ? C.primary : C.text }]}>
+                    {ev.name}
+                  </Text>
+                  <Text style={[styles.eventOptionSub, { color: C.textMuted }]}>
+                    {t(`admin.eventStatus.${ev.status}`, { defaultValue: ev.status })}
+                  </Text>
+                </View>
+                {editEventId === ev.id && <Feather name="check" size={16} color={C.primary} />}
+              </Pressable>
+            ))}
+
+            <View style={styles.sheetActions}>
+              <Button title={t("common.cancel")} onPress={() => setEditClient(null)} variant="secondary" />
+              <Button title={t("common.save")} onPress={handleSaveEdit} variant="primary" loading={saving} />
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Create client modal */}
       <Modal visible={showCreate} transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <ScrollView
@@ -249,32 +370,44 @@ export default function ClientsScreen() {
               secureTextEntry
             />
 
-            <View style={{ gap: 8 }}>
-              <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.assignToEvent")}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                <Text
-                  onPress={() => setForm((f) => ({ ...f, eventId: "" }))}
-                  style={[
-                    styles.eventChip,
-                    { backgroundColor: !form.eventId ? C.primary : C.inputBg, color: !form.eventId ? "#fff" : C.textSecondary, borderColor: !form.eventId ? C.primary : C.border },
-                  ]}
-                >
-                  {t("admin.noEventYet")}
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.assignToEvent")}</Text>
+
+            <Pressable
+              onPress={() => setForm((f) => ({ ...f, eventId: "" }))}
+              style={[
+                styles.eventOption,
+                {
+                  backgroundColor: !form.eventId ? C.primary + "18" : C.inputBg,
+                  borderColor: !form.eventId ? C.primary : C.border,
+                },
+              ]}
+            >
+              <Feather name="slash" size={16} color={!form.eventId ? C.primary : C.textMuted} />
+              <Text style={[styles.eventOptionText, { color: !form.eventId ? C.primary : C.textSecondary }]}>
+                {t("admin.noEventYet")}
+              </Text>
+              {!form.eventId && <Feather name="check" size={16} color={C.primary} />}
+            </Pressable>
+
+            {events.map((ev) => (
+              <Pressable
+                key={ev.id}
+                onPress={() => setForm((f) => ({ ...f, eventId: ev.id }))}
+                style={[
+                  styles.eventOption,
+                  {
+                    backgroundColor: form.eventId === ev.id ? C.primary + "18" : C.inputBg,
+                    borderColor: form.eventId === ev.id ? C.primary : C.border,
+                  },
+                ]}
+              >
+                <Feather name="calendar" size={16} color={form.eventId === ev.id ? C.primary : C.textMuted} />
+                <Text style={[styles.eventOptionText, { color: form.eventId === ev.id ? C.primary : C.text, flex: 1 }]}>
+                  {ev.name}
                 </Text>
-                {events.map((ev) => (
-                  <Text
-                    key={ev.id}
-                    onPress={() => setForm((f) => ({ ...f, eventId: ev.id }))}
-                    style={[
-                      styles.eventChip,
-                      { backgroundColor: form.eventId === ev.id ? C.primary : C.inputBg, color: form.eventId === ev.id ? "#fff" : C.textSecondary, borderColor: form.eventId === ev.id ? C.primary : C.border },
-                    ]}
-                  >
-                    {ev.name}
-                  </Text>
-                ))}
-              </ScrollView>
-            </View>
+                {form.eventId === ev.id && <Feather name="check" size={16} color={C.primary} />}
+              </Pressable>
+            ))}
 
             <View style={styles.sheetActions}>
               <Button title={t("common.cancel")} onPress={() => { setShowCreate(false); resetForm(); }} variant="secondary" />
@@ -299,11 +432,15 @@ const styles = StyleSheet.create({
   eventTag: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
   eventTagText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   overlay: { flex: 1, justifyContent: "flex-end" },
-  sheet: { maxHeight: "90%", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  sheet: { maxHeight: "92%", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  sheetHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sheetTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
   sheetHint: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: -8 },
   sheetActions: { flexDirection: "row", gap: 12, marginTop: 8 },
   row: { flexDirection: "row", gap: 12 },
   sectionLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
-  eventChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 100, fontFamily: "Inter_500Medium", fontSize: 13, borderWidth: 1, overflow: "hidden" },
+  eventOption: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 12, borderWidth: 1 },
+  eventOptionText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  eventOptionSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  clientPreview: { padding: 14 },
 });

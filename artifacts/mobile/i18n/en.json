@@ -446,7 +446,21 @@
     "noEventAssigned": "No event assigned",
     "createClientHint": "Creates an event organizer account for your client",
     "firstName": "First Name",
-    "lastName": "Last Name"
+    "lastName": "Last Name",
+    "editClient": "Edit Client",
+    "organizerSection": "Event Organizer",
+    "organizerMode.none": "None",
+    "organizerMode.existing": "Existing Client",
+    "organizerMode.new": "New Organizer",
+    "selectClientRequired": "Please select a client to assign",
+    "noClientsToAssign": "No clients yet. Create a client first.",
+    "searchClients": "Search clients...",
+    "alreadyAssigned": "Already assigned to an event",
+    "organizerMode": {
+      "none": "None",
+      "existing": "Existing Client",
+      "new": "New Organizer"
+    }
   },
   "common_notfound": {
     "title": "Page not found",
