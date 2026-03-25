@@ -170,7 +170,8 @@ const styles = StyleSheet.create({
   },
   logoSection: { alignItems: "center", gap: 12 },
   logoImage: {
-    width: 300,
+    width: "75%",
+    maxWidth: 300,
     aspectRatio: 684 / 290,
   },
   subtitle: {
