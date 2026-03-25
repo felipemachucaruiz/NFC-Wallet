@@ -449,47 +449,122 @@ export async function scanBracelet(): Promise<ScanResult> {
     throw new Error("NFC_NOT_AVAILABLE");
   }
 
-  let tagInfo: TagInfo;
-
-  if (Platform.OS === "android") {
-    let techTypes: string[] = [];
+  if (Platform.OS === "ios") {
     try {
-      await NfcManager.requestTechnology([
-        NfcTech.MifareClassic,
-        NfcTech.MifareUltralight,
-        NfcTech.Ndef,
-        NfcTech.NfcA,
-      ]);
+      await NfcManager.requestTechnology(NfcTech.Ndef);
       const tag = await NfcManager.getTag();
-      techTypes = getTagTechTypes(tag);
-    } catch {
-      techTypes = [];
+      if (!tag) throw new Error("NFC_NO_TAG");
+      const uid = getUid(tag);
+      const techTypes = getTagTechTypes(tag);
+      const tagInfo: TagInfo =
+        hasTech(techTypes, "MifareUltralight") || hasTech(techTypes, "MifareIOS") || hasTech(techTypes, "mifare")
+          ? { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight", memoryBytes: 64 }
+          : { type: "NDEF", label: "NDEF", memoryBytes: 0 };
+      const ndefMsg = (tag as { ndefMessage?: unknown[] }).ndefMessage;
+      if (!ndefMsg || ndefMsg.length === 0) {
+        return { payload: { uid, balance: 0, counter: 0, hmac: "" }, tagInfo };
+      }
+      const firstRecord = ndefMsg[0] as { payload: number[] };
+      const text = Ndef.text.decodePayload(new Uint8Array(firstRecord.payload));
+      return { payload: parsePayloadJson(text, uid), tagInfo };
     } finally {
       await NfcManager.cancelTechnologyRequest().catch(() => {});
     }
-    tagInfo = await detectTagType(techTypes);
-  } else {
-    tagInfo = await detectTagTypeIos();
   }
 
-  let payload: BraceletPayload;
+  // Android: single NFC session — detect tag type AND read data without re-requesting
+  try {
+    await NfcManager.requestTechnology([
+      NfcTech.MifareClassic,
+      NfcTech.MifareUltralight,
+      NfcTech.Ndef,
+      NfcTech.NfcA,
+    ]);
+    const tag = await NfcManager.getTag();
+    if (!tag) throw new Error("NFC_NO_TAG");
 
-  switch (tagInfo.type) {
-    case "MIFARE_CLASSIC":
-      payload = await readBraceletMifareClassic();
-      break;
-    case "NTAG213":
-    case "NTAG215":
-    case "NTAG216":
-    case "MIFARE_ULTRALIGHT":
-      payload = await readBraceletUltralight(tagInfo.type);
-      break;
-    default:
-      payload = await readBraceletNdef();
-      break;
+    const uid = getUid(tag);
+    const techTypes = getTagTechTypes(tag);
+
+    if (hasTech(techTypes, "MifareClassic")) {
+      const tagInfo: TagInfo = { type: "MIFARE_CLASSIC", label: "MIFARE Classic", memoryBytes: 1024 };
+      const mfcHandler = getMfcHandler(NfcManager as unknown as AnyRecord);
+      if (!mfcHandler) throw new Error("MIFARE_CLASSIC_HANDLER_UNAVAILABLE");
+
+      const allBytes: number[] = [];
+      for (const sector of MFC_PAYLOAD_SECTORS) {
+        await mfcHandler.mifareClassicAuthenticateA(sector, MFC_KEY_A);
+        const sectorFirstBlock = await mfcHandler.mifareClassicSectorToBlock(sector);
+        for (let i = 0; i < MFC_DATA_BLOCKS_IN_SECTOR; i++) {
+          const blockData = await mfcHandler.mifareClassicReadBlock(sectorFirstBlock + i);
+          allBytes.push(...blockData);
+        }
+      }
+      const textBytes = new Uint8Array(allBytes);
+      const jsonStart = textBytes.indexOf(0x7b);
+      if (jsonStart === -1) return { payload: { uid, balance: 0, counter: 0, hmac: "" }, tagInfo };
+      let jsonEnd = textBytes.length;
+      for (let i = jsonStart; i < textBytes.length; i++) {
+        if (textBytes[i] === 0) { jsonEnd = i; break; }
+      }
+      const text = new TextDecoder().decode(textBytes.slice(jsonStart, jsonEnd));
+      return { payload: parsePayloadJson(text, uid), tagInfo };
+    }
+
+    if (hasTech(techTypes, "MifareUltralight")) {
+      const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
+      let tagType: TagType = "MIFARE_ULTRALIGHT";
+      let tagLabel = "MIFARE Ultralight";
+      let tagMemory = 64;
+
+      if (mfuHandler?.mifareUltralightReadPages) {
+        try {
+          const page3Data = await mfuHandler.mifareUltralightReadPages(3);
+          const ccByte = page3Data[2] ?? null;
+          if (ccByte !== null) {
+            const normalized = ccByte & 0xff;
+            const ntag = NTAG_CC_MAP[normalized];
+            if (ntag) { tagType = ntag.type; tagLabel = ntag.label; tagMemory = ntag.memoryBytes; }
+          }
+        } catch {}
+      }
+
+      const tagInfo: TagInfo = { type: tagType, label: tagLabel, memoryBytes: tagMemory };
+      if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
+
+      const endPage = getMfuEndPage(tagType);
+      const rawBytes: number[] = [];
+      let foundEnd = false;
+      for (let page = MFU_PAYLOAD_START_PAGE; page < endPage && !foundEnd; page += 4) {
+        const pageData = await mfuHandler.mifareUltralightReadPages(page);
+        rawBytes.push(...pageData);
+        for (let i = 0; i < pageData.length; i++) {
+          if (pageData[i] === 0) { foundEnd = true; break; }
+        }
+      }
+      const allBytes = new Uint8Array(rawBytes);
+      const jsonStart = allBytes.indexOf(0x7b);
+      if (jsonStart === -1) return { payload: { uid, balance: 0, counter: 0, hmac: "" }, tagInfo };
+      let jsonEnd = allBytes.length;
+      for (let i = jsonStart; i < allBytes.length; i++) {
+        if (allBytes[i] === 0) { jsonEnd = i; break; }
+      }
+      const text = new TextDecoder().decode(allBytes.slice(jsonStart, jsonEnd));
+      return { payload: parsePayloadJson(text, uid), tagInfo };
+    }
+
+    // NDEF fallback
+    const tagInfo: TagInfo = { type: "NDEF", label: "NDEF", memoryBytes: 0 };
+    const ndefMsg = (tag as { ndefMessage?: unknown[] }).ndefMessage;
+    if (!ndefMsg || ndefMsg.length === 0) {
+      return { payload: { uid, balance: 0, counter: 0, hmac: "" }, tagInfo };
+    }
+    const firstRecord = ndefMsg[0] as { payload: number[] };
+    const text = Ndef.text.decodePayload(new Uint8Array(firstRecord.payload));
+    return { payload: parsePayloadJson(text, uid), tagInfo };
+  } finally {
+    await NfcManager.cancelTechnologyRequest().catch(() => {});
   }
-
-  return { payload, tagInfo };
 }
 
 export async function writeBracelet(
