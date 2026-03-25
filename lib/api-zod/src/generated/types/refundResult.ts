@@ -5,12 +5,9 @@
  * Contactless cashless event payment system API (Colombia market)
  * OpenAPI spec version: 0.1.0
  */
+import type { Refund } from "./refund";
 
-export interface RegisterBraceletBody {
-  /** @minLength 1 */
-  nfcUid: string;
-  eventId?: string;
-  attendeeName?: string;
-  phone?: string;
-  email?: string;
+export interface RefundResult {
+  refund: Refund;
+  amountCop: number;
 }

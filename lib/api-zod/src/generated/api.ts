@@ -51,7 +51,7 @@ export const GetCurrentAuthUserResponse = zod.object({
         .string()
         .nullish()
         .describe(
-          "Set for event_admin users; determines which event they manage",
+          "Set for event_admin users; determines which event they administer",
         ),
     }),
     zod.null(),
@@ -145,6 +145,7 @@ export const ListUsersResponse = zod.object({
         "merchant_staff",
         "merchant_admin",
         "warehouse_admin",
+        "event_admin",
         "admin",
       ]),
       createdAt: zod.date(),
@@ -166,6 +167,7 @@ export const UpdateUserRoleBody = zod.object({
     "merchant_staff",
     "merchant_admin",
     "warehouse_admin",
+    "event_admin",
     "admin",
   ]),
 });
@@ -182,6 +184,7 @@ export const UpdateUserRoleResponse = zod.object({
     "merchant_staff",
     "merchant_admin",
     "warehouse_admin",
+    "event_admin",
     "admin",
   ]),
   createdAt: zod.date(),
@@ -270,6 +273,8 @@ export const RegisterBraceletBody = zod.object({
   nfcUid: zod.string().min(1),
   eventId: zod.string().optional(),
   attendeeName: zod.string().optional(),
+  phone: zod.string().optional(),
+  email: zod.string().optional(),
 });
 
 /**
@@ -284,11 +289,90 @@ export const GetBraceletResponse = zod.object({
   nfcUid: zod.string(),
   eventId: zod.string().nullish(),
   attendeeName: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  email: zod.string().nullish(),
   lastKnownBalanceCop: zod.number(),
   lastCounter: zod.number(),
   flagged: zod.boolean(),
   flagReason: zod.string().nullish(),
   createdAt: zod.date(),
+});
+
+/**
+ * @summary Update bracelet contact info (bank or admin)
+ */
+export const UpdateBraceletContactParams = zod.object({
+  nfcUid: zod.coerce.string(),
+});
+
+export const UpdateBraceletContactBody = zod.object({
+  attendeeName: zod.string().optional(),
+  phone: zod.string().optional(),
+  email: zod.string().optional(),
+});
+
+export const UpdateBraceletContactResponse = zod.object({
+  id: zod.string(),
+  nfcUid: zod.string(),
+  eventId: zod.string().nullish(),
+  attendeeName: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  email: zod.string().nullish(),
+  lastKnownBalanceCop: zod.number(),
+  lastCounter: zod.number(),
+  flagged: zod.boolean(),
+  flagReason: zod.string().nullish(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Issue a bracelet refund (bank or admin)
+ */
+
+export const CreateRefundBody = zod.object({
+  braceletUid: zod.string().min(1),
+  refundMethod: zod.enum(["cash", "nequi", "bancolombia", "other"]),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Bracelets with remaining balance for an event (event_admin or admin)
+ */
+export const GetUnclaimedBalancesParams = zod.object({
+  eventId: zod.coerce.string(),
+});
+
+export const GetUnclaimedBalancesResponse = zod.object({
+  bracelets: zod.array(
+    zod.object({
+      id: zod.string(),
+      nfcUid: zod.string(),
+      eventId: zod.string().nullish(),
+      attendeeName: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      email: zod.string().nullish(),
+      lastKnownBalanceCop: zod.number(),
+      lastCounter: zod.number(),
+      flagged: zod.boolean(),
+      flagReason: zod.string().nullish(),
+      createdAt: zod.date(),
+      latestRefund: zod
+        .union([
+          zod.object({
+            id: zod.string(),
+            braceletUid: zod.string(),
+            eventId: zod.string(),
+            amountCop: zod.number(),
+            refundMethod: zod.enum(["cash", "nequi", "bancolombia", "other"]),
+            notes: zod.string().nullish(),
+            performedByUserId: zod.string(),
+            createdAt: zod.date(),
+          }),
+          zod.null(),
+        ])
+        .optional(),
+    }),
+  ),
 });
 
 /**

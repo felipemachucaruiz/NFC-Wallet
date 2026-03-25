@@ -6,6 +6,8 @@ export const braceletsTable = pgTable("bracelets", {
   nfcUid: varchar("nfc_uid", { length: 64 }).notNull().unique(),
   eventId: varchar("event_id"),
   attendeeName: varchar("attendee_name", { length: 255 }),
+  phone: varchar("phone", { length: 32 }),
+  email: varchar("email", { length: 255 }),
   lastKnownBalanceCop: integer("last_known_balance_cop").notNull().default(0),
   lastCounter: integer("last_counter").notNull().default(0),
   flagged: boolean("flagged").notNull().default(false),

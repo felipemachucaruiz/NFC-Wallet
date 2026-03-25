@@ -37,6 +37,8 @@ tags:
     description: Revenue and operational reports.
   - name: Users
     description: User and role management.
+  - name: Refunds
+    description: Bracelet refund processing and unclaimed balance reports.
 
 paths:
   /healthz:
@@ -385,6 +387,88 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Bracelets]
+      operationId: updateBraceletContact
+      summary: Update bracelet contact info (bank or admin)
+      parameters:
+        - name: nfcUid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBraceletContactBody'
+      responses:
+        '200':
+          description: Bracelet updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bracelet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Refunds ──────────────────────────────────────────────────────────────────
+  /refunds:
+    post:
+      tags: [Refunds]
+      operationId: createRefund
+      summary: Issue a bracelet refund (bank or admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRefundBody'
+      responses:
+        '201':
+          description: Refund issued and bracelet balance zeroed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /events/{eventId}/unclaimed-balances:
+    get:
+      tags: [Refunds]
+      operationId: getUnclaimedBalances
+      summary: Bracelets with remaining balance for an event (event_admin or admin)
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of bracelets with unclaimed balances.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnclaimedBalancesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   # ── Top-ups ──────────────────────────────────────────────────────────────────
   /topups:
@@ -1550,6 +1634,9 @@ components:
         merchantId:
           type: [string, 'null']
           description: Set for merchant_admin and merchant_staff users; determines ownership scope
+        eventId:
+          type: [string, 'null']
+          description: Set for event_admin users; determines which event they administer
 
     AuthUserEnvelope:
       type: object
@@ -1598,7 +1685,7 @@ components:
     # ── Roles & Users ─────────────────────────────────────────────────────────
     UserRole:
       type: string
-      enum: [attendee, bank, merchant_staff, merchant_admin, warehouse_admin, admin]
+      enum: [attendee, bank, merchant_staff, merchant_admin, warehouse_admin, event_admin, admin]
 
     UserProfile:
       type: object
@@ -1702,6 +1789,10 @@ components:
           type: [string, 'null']
         attendeeName:
           type: [string, 'null']
+        phone:
+          type: [string, 'null']
+        email:
+          type: [string, 'null']
         lastKnownBalanceCop:
           type: integer
         lastCounter:
@@ -1725,6 +1816,108 @@ components:
           type: string
         attendeeName:
           type: string
+        phone:
+          type: string
+        email:
+          type: string
+
+    UpdateBraceletContactBody:
+      type: object
+      properties:
+        attendeeName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+
+    RefundMethod:
+      type: string
+      enum: [cash, nequi, bancolombia, other]
+
+    Refund:
+      type: object
+      required: [id, braceletUid, eventId, amountCop, refundMethod, performedByUserId, createdAt]
+      properties:
+        id:
+          type: string
+        braceletUid:
+          type: string
+        eventId:
+          type: string
+        amountCop:
+          type: integer
+        refundMethod:
+          $ref: '#/components/schemas/RefundMethod'
+        notes:
+          type: [string, 'null']
+        performedByUserId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateRefundBody:
+      type: object
+      required: [braceletUid, refundMethod]
+      properties:
+        braceletUid:
+          type: string
+          minLength: 1
+        refundMethod:
+          $ref: '#/components/schemas/RefundMethod'
+        notes:
+          type: string
+
+    RefundResult:
+      type: object
+      required: [refund, amountCop]
+      properties:
+        refund:
+          $ref: '#/components/schemas/Refund'
+        amountCop:
+          type: integer
+
+    UnclaimedBracelet:
+      type: object
+      required: [id, nfcUid, lastKnownBalanceCop, lastCounter, flagged, createdAt]
+      properties:
+        id:
+          type: string
+        nfcUid:
+          type: string
+        eventId:
+          type: [string, 'null']
+        attendeeName:
+          type: [string, 'null']
+        phone:
+          type: [string, 'null']
+        email:
+          type: [string, 'null']
+        lastKnownBalanceCop:
+          type: integer
+        lastCounter:
+          type: integer
+        flagged:
+          type: boolean
+        flagReason:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        latestRefund:
+          oneOf:
+            - $ref: '#/components/schemas/Refund'
+            - type: 'null'
+
+    UnclaimedBalancesResponse:
+      type: object
+      required: [bracelets]
+      properties:
+        bracelets:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnclaimedBracelet'
 
     # ── Top-Ups ───────────────────────────────────────────────────────────────
     PaymentMethod:

@@ -28,6 +28,7 @@ import type {
   CreateMerchantBody,
   CreatePayoutBody,
   CreateProductBody,
+  CreateRefundBody,
   CreateTopUpBody,
   CreateWarehouseBody,
   Event,
@@ -71,6 +72,7 @@ import type {
   MobileTokenExchangeSuccess,
   NotFoundResponse,
   Product,
+  RefundResult,
   RegisterBraceletBody,
   RestockOrder,
   RevenueReport,
@@ -87,6 +89,8 @@ import type {
   TransactionLog,
   TransferBetweenLocations201,
   UnauthorizedResponse,
+  UnclaimedBalancesResponse,
+  UpdateBraceletContactBody,
   UpdateEventBody,
   UpdateLocationBody,
   UpdateLocationInventoryBody,
@@ -1491,6 +1495,304 @@ export function useGetBracelet<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetBraceletQueryOptions(nfcUid, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update bracelet contact info (bank or admin)
+ */
+export const getUpdateBraceletContactUrl = (nfcUid: string) => {
+  return `/api/bracelets/${nfcUid}`;
+};
+
+export const updateBraceletContact = async (
+  nfcUid: string,
+  updateBraceletContactBody: UpdateBraceletContactBody,
+  options?: RequestInit,
+): Promise<Bracelet> => {
+  return customFetch<Bracelet>(getUpdateBraceletContactUrl(nfcUid), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateBraceletContactBody),
+  });
+};
+
+export const getUpdateBraceletContactMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBraceletContact>>,
+    TError,
+    { nfcUid: string; data: BodyType<UpdateBraceletContactBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateBraceletContact>>,
+  TError,
+  { nfcUid: string; data: BodyType<UpdateBraceletContactBody> },
+  TContext
+> => {
+  const mutationKey = ["updateBraceletContact"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateBraceletContact>>,
+    { nfcUid: string; data: BodyType<UpdateBraceletContactBody> }
+  > = (props) => {
+    const { nfcUid, data } = props ?? {};
+
+    return updateBraceletContact(nfcUid, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateBraceletContactMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateBraceletContact>>
+>;
+export type UpdateBraceletContactMutationBody =
+  BodyType<UpdateBraceletContactBody>;
+export type UpdateBraceletContactMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+>;
+
+/**
+ * @summary Update bracelet contact info (bank or admin)
+ */
+export const useUpdateBraceletContact = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBraceletContact>>,
+    TError,
+    { nfcUid: string; data: BodyType<UpdateBraceletContactBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateBraceletContact>>,
+  TError,
+  { nfcUid: string; data: BodyType<UpdateBraceletContactBody> },
+  TContext
+> => {
+  return useMutation(getUpdateBraceletContactMutationOptions(options));
+};
+
+/**
+ * @summary Issue a bracelet refund (bank or admin)
+ */
+export const getCreateRefundUrl = () => {
+  return `/api/refunds`;
+};
+
+export const createRefund = async (
+  createRefundBody: CreateRefundBody,
+  options?: RequestInit,
+): Promise<RefundResult> => {
+  return customFetch<RefundResult>(getCreateRefundUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createRefundBody),
+  });
+};
+
+export const getCreateRefundMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRefund>>,
+    TError,
+    { data: BodyType<CreateRefundBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRefund>>,
+  TError,
+  { data: BodyType<CreateRefundBody> },
+  TContext
+> => {
+  const mutationKey = ["createRefund"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRefund>>,
+    { data: BodyType<CreateRefundBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createRefund(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRefundMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createRefund>>
+>;
+export type CreateRefundMutationBody = BodyType<CreateRefundBody>;
+export type CreateRefundMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+>;
+
+/**
+ * @summary Issue a bracelet refund (bank or admin)
+ */
+export const useCreateRefund = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRefund>>,
+    TError,
+    { data: BodyType<CreateRefundBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createRefund>>,
+  TError,
+  { data: BodyType<CreateRefundBody> },
+  TContext
+> => {
+  return useMutation(getCreateRefundMutationOptions(options));
+};
+
+/**
+ * @summary Bracelets with remaining balance for an event (event_admin or admin)
+ */
+export const getGetUnclaimedBalancesUrl = (eventId: string) => {
+  return `/api/events/${eventId}/unclaimed-balances`;
+};
+
+export const getUnclaimedBalances = async (
+  eventId: string,
+  options?: RequestInit,
+): Promise<UnclaimedBalancesResponse> => {
+  return customFetch<UnclaimedBalancesResponse>(
+    getGetUnclaimedBalancesUrl(eventId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetUnclaimedBalancesQueryKey = (eventId: string) => {
+  return [`/api/events/${eventId}/unclaimed-balances`] as const;
+};
+
+export const getGetUnclaimedBalancesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUnclaimedBalances>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  eventId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUnclaimedBalances>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetUnclaimedBalancesQueryKey(eventId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getUnclaimedBalances>>
+  > = ({ signal }) =>
+    getUnclaimedBalances(eventId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!eventId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUnclaimedBalances>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetUnclaimedBalancesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUnclaimedBalances>>
+>;
+export type GetUnclaimedBalancesQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Bracelets with remaining balance for an event (event_admin or admin)
+ */
+
+export function useGetUnclaimedBalances<
+  TData = Awaited<ReturnType<typeof getUnclaimedBalances>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  eventId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUnclaimedBalances>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUnclaimedBalancesQueryOptions(eventId, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

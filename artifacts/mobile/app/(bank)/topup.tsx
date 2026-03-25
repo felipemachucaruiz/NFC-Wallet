@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useCreateTopUp, useGetSigningKey } from "@workspace/api-client-react";
+import { useCreateTopUp, useGetSigningKey, useUpdateBraceletContact } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
@@ -75,6 +75,9 @@ export default function TopUpScreen() {
     tagType: string;
     tagLabel: string;
     tagMemoryBytes: string;
+    attendeeName?: string;
+    phone?: string;
+    email?: string;
   }>();
   const uid = params.uid ?? "";
   const currentBalance = parseInt(params.balance ?? "0", 10);
@@ -93,10 +96,15 @@ export default function TopUpScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [step, setStep] = useState<"form" | "writing" | "success">("form");
 
+  const [attendeeName, setAttendeeName] = useState(params.attendeeName ?? "");
+  const [phone, setPhone] = useState(params.phone ?? "");
+  const [email, setEmail] = useState(params.email ?? "");
+
   const { data: keyData } = useGetSigningKey();
   const hmacSecret = keyData?.key ?? "";
 
   const createTopUp = useCreateTopUp();
+  const updateContact = useUpdateBraceletContact();
 
   const amount = parseCOPInput(amountText);
   const newBalance = currentBalance + amount;
@@ -127,6 +135,15 @@ export default function TopUpScreen() {
         newHmac,
         paymentMethod,
       });
+
+      const contactUpdates: { attendeeName?: string; phone?: string; email?: string } = {};
+      if (attendeeName.trim()) contactUpdates.attendeeName = attendeeName.trim();
+      if (phone.trim()) contactUpdates.phone = phone.trim();
+      if (email.trim()) contactUpdates.email = email.trim();
+
+      if (Object.keys(contactUpdates).length > 0) {
+        await updateContact.mutateAsync({ nfcUid: uid, data: contactUpdates });
+      }
 
       setStep("success");
     } catch (e: unknown) {
@@ -251,6 +268,36 @@ export default function TopUpScreen() {
         </View>
       </View>
 
+      <View style={{ gap: 4 }}>
+        <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>{t("bank.contactInfo")}</Text>
+        <Text style={[styles.contactHint, { color: C.textMuted }]}>{t("bank.contactOptional")}</Text>
+      </View>
+
+      <TextInput
+        style={[styles.contactInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+        placeholder={t("bank.attendeeName")}
+        placeholderTextColor={C.textMuted}
+        value={attendeeName}
+        onChangeText={setAttendeeName}
+      />
+      <TextInput
+        style={[styles.contactInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+        placeholder={t("bank.phone")}
+        placeholderTextColor={C.textMuted}
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+      />
+      <TextInput
+        style={[styles.contactInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+        placeholder={t("bank.email")}
+        placeholderTextColor={C.textMuted}
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+
       <Button
         title={`${t("bank.confirmTopUp")} ${amount > 0 ? formatCOP(amount) : ""}`}
         onPress={handleConfirm}
@@ -287,4 +334,6 @@ const styles = StyleSheet.create({
   methodGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   methodBtn: { borderWidth: 1.5, borderRadius: 12, padding: 14, alignItems: "center", gap: 6, width: "47%" },
   methodLabel: { fontSize: 12, fontFamily: "Inter_500Medium", textAlign: "center" },
+  contactHint: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: -8, marginBottom: 4 },
+  contactInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: "Inter_400Regular" },
 });

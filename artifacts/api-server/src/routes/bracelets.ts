@@ -10,6 +10,14 @@ const registerBraceletSchema = z.object({
   nfcUid: z.string().min(1),
   eventId: z.string().optional(),
   attendeeName: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+});
+
+const updateContactSchema = z.object({
+  attendeeName: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
 });
 
 router.post(
@@ -21,7 +29,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { nfcUid, eventId, attendeeName } = parsed.data;
+    const { nfcUid, eventId, attendeeName, phone, email } = parsed.data;
 
     const existing = await db
       .select()
@@ -34,7 +42,7 @@ router.post(
 
     const [bracelet] = await db
       .insert(braceletsTable)
-      .values({ nfcUid, eventId, attendeeName })
+      .values({ nfcUid, eventId, attendeeName, phone, email })
       .returning();
     res.status(201).json(bracelet);
   },
@@ -53,6 +61,40 @@ router.get(
       return;
     }
     res.json(bracelet);
+  },
+);
+
+router.patch(
+  "/bracelets/:nfcUid",
+  requireRole("bank", "admin"),
+  async (req: Request, res: Response) => {
+    const parsed = updateContactSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const [existing] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, req.params.nfcUid as string));
+    if (!existing) {
+      res.status(404).json({ error: "Bracelet not found" });
+      return;
+    }
+
+    const updates: Partial<{ attendeeName: string; phone: string; email: string }> = {};
+    if (parsed.data.attendeeName !== undefined) updates.attendeeName = parsed.data.attendeeName;
+    if (parsed.data.phone !== undefined) updates.phone = parsed.data.phone;
+    if (parsed.data.email !== undefined) updates.email = parsed.data.email;
+
+    const [updated] = await db
+      .update(braceletsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(braceletsTable.nfcUid, req.params.nfcUid as string))
+      .returning();
+
+    res.json(updated);
   },
 );
 

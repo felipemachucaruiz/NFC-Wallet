@@ -6,10 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface RegisterBraceletBody {
-  /** @minLength 1 */
-  nfcUid: string;
-  eventId?: string;
+export interface UpdateBraceletContactBody {
   attendeeName?: string;
   phone?: string;
   email?: string;

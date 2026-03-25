@@ -11,14 +11,46 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useGetRevenueReport, useGetTopUpReport, useGetInventoryReport } from "@workspace/api-client-react";
+import {
+  useGetRevenueReport,
+  useGetTopUpReport,
+  useGetInventoryReport,
+  useGetUnclaimedBalances,
+} from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
+import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
 
-type ReportTab = "revenue" | "topups" | "inventory";
+type ReportTab = "revenue" | "topups" | "inventory" | "unclaimed";
+type UnclaimedFilter = "all" | "pending" | "refunded";
+
+interface RefundRecord {
+  id: string;
+  braceletUid: string;
+  eventId: string;
+  amountCop: number;
+  refundMethod: string;
+  notes?: string | null;
+  performedByUserId: string;
+  createdAt: string;
+}
+
+interface UnclaimedBracelet {
+  id: string;
+  nfcUid: string;
+  eventId?: string | null;
+  attendeeName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  lastKnownBalanceCop: number;
+  lastCounter: number;
+  flagged: boolean;
+  createdAt: string;
+  latestRefund: RefundRecord | null;
+}
 
 export default function EventAdminReportsScreen() {
   const { t } = useTranslation();
@@ -29,21 +61,35 @@ export default function EventAdminReportsScreen() {
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<ReportTab>("revenue");
+  const [unclaimedFilter, setUnclaimedFilter] = useState<UnclaimedFilter>("all");
 
   const eventId = user?.eventId ?? undefined;
 
   const { data: revenueData, isLoading: revLoading } = useGetRevenueReport(eventId ? { eventId } : {});
   const { data: topUpData, isLoading: topUpLoading } = useGetTopUpReport({});
   const { data: inventoryData, isLoading: invLoading } = useGetInventoryReport(eventId ? { eventId } : {});
+  const { data: unclaimedData, isLoading: unclaimedLoading } = useGetUnclaimedBalances(
+    eventId ?? "",
+    { query: { enabled: !!eventId && activeTab === "unclaimed" } },
+  );
 
   const revenue = revenueData as Record<string, number | undefined> | undefined;
   const topUps = topUpData as Record<string, number | string | Array<Record<string, unknown>> | undefined> | undefined;
   const inventory = inventoryData as Record<string, number | Array<Record<string, unknown>> | undefined> | undefined;
 
+  const unclaimedBracelets = (
+    (unclaimedData as { bracelets?: UnclaimedBracelet[] } | undefined)?.bracelets ?? []
+  ).filter((b) => {
+    if (unclaimedFilter === "pending") return !b.latestRefund;
+    if (unclaimedFilter === "refunded") return !!b.latestRefund;
+    return true;
+  });
+
   const tabs: { key: ReportTab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
     { key: "revenue", label: t("admin.revenueReport"), icon: "trending-up" },
     { key: "topups", label: t("admin.topUpReport"), icon: "plus-circle" },
     { key: "inventory", label: t("admin.inventoryReport"), icon: "package" },
+    { key: "unclaimed", label: t("eventAdmin.unclaimed"), icon: "rotate-ccw" },
   ];
 
   const isLoading = revLoading || topUpLoading || invLoading;
@@ -61,20 +107,36 @@ export default function EventAdminReportsScreen() {
     >
       <Text style={[styles.title, { color: C.text }]}>{t("eventAdmin.reports")}</Text>
 
-      <View style={[styles.tabRow, { backgroundColor: C.inputBg }]}>
-        {tabs.map((tab) => (
-          <Pressable
-            key={tab.key}
-            onPress={() => setActiveTab(tab.key)}
-            style={[styles.tabBtn, activeTab === tab.key && { backgroundColor: C.card, borderRadius: 10, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }]}
-          >
-            <Feather name={tab.icon} size={16} color={activeTab === tab.key ? C.primary : C.textMuted} />
-            <Text style={[styles.tabLabel, { color: activeTab === tab.key ? C.primary : C.textMuted }]}>{tab.label}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll}>
+        <View style={[styles.tabRow, { backgroundColor: C.inputBg }]}>
+          {tabs.map((tab) => (
+            <Pressable
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key)}
+              style={[
+                styles.tabBtn,
+                activeTab === tab.key && {
+                  backgroundColor: C.card,
+                  borderRadius: 10,
+                  shadowColor: "#000",
+                  shadowOpacity: 0.06,
+                  shadowRadius: 4,
+                  elevation: 2,
+                },
+              ]}
+            >
+              <Feather name={tab.icon} size={16} color={activeTab === tab.key ? C.primary : C.textMuted} />
+              <Text style={[styles.tabLabel, { color: activeTab === tab.key ? C.primary : C.textMuted }]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
 
-      {isLoading ? <Loading label={t("common.loading")} /> : (
+      {activeTab !== "unclaimed" && isLoading ? (
+        <Loading label={t("common.loading")} />
+      ) : (
         <>
           {activeTab === "revenue" && (
             <View style={{ gap: 12 }}>
@@ -139,6 +201,95 @@ export default function EventAdminReportsScreen() {
               ))}
             </View>
           )}
+
+          {activeTab === "unclaimed" && (
+            <View style={{ gap: 12 }}>
+              <View>
+                <Text style={[styles.unclaimedSubtitle, { color: C.textSecondary }]}>
+                  {t("eventAdmin.unclaimedSubtitle")}
+                </Text>
+              </View>
+
+              <View style={[styles.filterRow, { backgroundColor: C.inputBg }]}>
+                {(["all", "pending", "refunded"] as UnclaimedFilter[]).map((f) => (
+                  <Pressable
+                    key={f}
+                    onPress={() => setUnclaimedFilter(f)}
+                    style={[
+                      styles.filterBtn,
+                      unclaimedFilter === f && { backgroundColor: C.card, borderRadius: 8 },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterLabel,
+                        { color: unclaimedFilter === f ? C.primary : C.textMuted },
+                      ]}
+                    >
+                      {f === "all"
+                        ? t("eventAdmin.filterAll")
+                        : f === "pending"
+                          ? t("eventAdmin.filterPending")
+                          : t("eventAdmin.filterRefunded")}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {unclaimedLoading ? (
+                <Loading label={t("common.loading")} />
+              ) : unclaimedBracelets.length === 0 ? (
+                <Card padding={24}>
+                  <Text style={[styles.emptyText, { color: C.textMuted }]}>
+                    {t("eventAdmin.noUnclaimed")}
+                  </Text>
+                </Card>
+              ) : (
+                unclaimedBracelets.map((b) => (
+                  <Card key={b.id} padding={16}>
+                    <View style={styles.unclaimedCard}>
+                      <View style={styles.unclaimedTop}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.braceletUid, { color: C.text }]} numberOfLines={1}>
+                            {b.nfcUid}
+                          </Text>
+                          {b.attendeeName ? (
+                            <Text style={[styles.contactLine, { color: C.textSecondary }]}>
+                              {b.attendeeName}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.rightCol}>
+                          <CopAmount amount={b.lastKnownBalanceCop} size={16} />
+                          {b.latestRefund ? (
+                            <Badge label={t("eventAdmin.refundIssued")} variant="success" />
+                          ) : (
+                            <Badge label={t("eventAdmin.pendingRefund")} variant="warning" />
+                          )}
+                        </View>
+                      </View>
+                      {(b.phone || b.email) && (
+                        <View style={[styles.contactDetails, { borderTopColor: C.separator }]}>
+                          {b.phone ? (
+                            <View style={styles.contactRow}>
+                              <Feather name="phone" size={12} color={C.textMuted} />
+                              <Text style={[styles.contactText, { color: C.textSecondary }]}>{b.phone}</Text>
+                            </View>
+                          ) : null}
+                          {b.email ? (
+                            <View style={styles.contactRow}>
+                              <Feather name="mail" size={12} color={C.textMuted} />
+                              <Text style={[styles.contactText, { color: C.textSecondary }]}>{b.email}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      )}
+                    </View>
+                  </Card>
+                ))
+              )}
+            </View>
+          )}
         </>
       )}
     </ScrollView>
@@ -147,10 +298,24 @@ export default function EventAdminReportsScreen() {
 
 const styles = StyleSheet.create({
   title: { fontSize: 26, fontFamily: "Inter_700Bold" },
+  tabScroll: { flexGrow: 0 },
   tabRow: { flexDirection: "row", borderRadius: 12, padding: 4, gap: 2 },
-  tabBtn: { flex: 1, alignItems: "center", paddingVertical: 10, paddingHorizontal: 6, gap: 4 },
+  tabBtn: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 10, gap: 4, minWidth: 70 },
   tabLabel: { fontSize: 11, fontFamily: "Inter_500Medium", textAlign: "center" },
   reportRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   reportLabel: { fontSize: 14, fontFamily: "Inter_500Medium", flex: 1 },
   countValue: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  unclaimedSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  filterRow: { flexDirection: "row", borderRadius: 10, padding: 3, gap: 2 },
+  filterBtn: { flex: 1, alignItems: "center", paddingVertical: 8, paddingHorizontal: 4 },
+  filterLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  unclaimedCard: { gap: 10 },
+  unclaimedTop: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  braceletUid: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  contactLine: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  rightCol: { alignItems: "flex-end", gap: 6 },
+  contactDetails: { borderTopWidth: 1, paddingTop: 8, gap: 4 },
+  contactRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  contactText: { fontSize: 12, fontFamily: "Inter_400Regular" },
 });

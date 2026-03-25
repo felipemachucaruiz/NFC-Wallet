@@ -5,8 +5,9 @@
  * Contactless cashless event payment system API (Colombia market)
  * OpenAPI spec version: 0.1.0
  */
+import type { Refund } from "./refund";
 
-export interface Bracelet {
+export interface UnclaimedBracelet {
   id: string;
   nfcUid: string;
   /** @nullable */
@@ -23,4 +24,5 @@ export interface Bracelet {
   /** @nullable */
   flagReason?: string | null;
   createdAt: Date;
+  latestRefund?: Refund | null;
 }

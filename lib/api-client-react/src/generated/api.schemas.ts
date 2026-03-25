@@ -31,6 +31,7 @@ export const UserRole = {
   merchant_staff: "merchant_staff",
   merchant_admin: "merchant_admin",
   warehouse_admin: "warehouse_admin",
+  event_admin: "event_admin",
   admin: "admin",
 } as const;
 
@@ -50,6 +51,11 @@ export interface AuthUser {
    * @nullable
    */
   merchantId?: string | null;
+  /**
+   * Set for event_admin users; determines which event they administer
+   * @nullable
+   */
+  eventId?: string | null;
 }
 
 export interface AuthUserEnvelope {
@@ -136,6 +142,10 @@ export interface Bracelet {
   eventId?: string | null;
   /** @nullable */
   attendeeName?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
   lastKnownBalanceCop: number;
   lastCounter: number;
   flagged: boolean;
@@ -149,6 +159,71 @@ export interface RegisterBraceletBody {
   nfcUid: string;
   eventId?: string;
   attendeeName?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface UpdateBraceletContactBody {
+  attendeeName?: string;
+  phone?: string;
+  email?: string;
+}
+
+export type RefundMethod = (typeof RefundMethod)[keyof typeof RefundMethod];
+
+export const RefundMethod = {
+  cash: "cash",
+  nequi: "nequi",
+  bancolombia: "bancolombia",
+  other: "other",
+} as const;
+
+export interface Refund {
+  id: string;
+  braceletUid: string;
+  eventId: string;
+  amountCop: number;
+  refundMethod: RefundMethod;
+  /** @nullable */
+  notes?: string | null;
+  performedByUserId: string;
+  createdAt: string;
+}
+
+export interface CreateRefundBody {
+  /** @minLength 1 */
+  braceletUid: string;
+  refundMethod: RefundMethod;
+  notes?: string;
+}
+
+export interface RefundResult {
+  refund: Refund;
+  amountCop: number;
+}
+
+export interface UnclaimedBracelet {
+  id: string;
+  nfcUid: string;
+  /** @nullable */
+  eventId?: string | null;
+  /** @nullable */
+  attendeeName?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  lastKnownBalanceCop: number;
+  lastCounter: number;
+  flagged: boolean;
+  /** @nullable */
+  flagReason?: string | null;
+  createdAt: string;
+  latestRefund?: Refund | null;
+}
+
+export interface UnclaimedBalancesResponse {
+  bracelets: UnclaimedBracelet[];
 }
 
 export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];

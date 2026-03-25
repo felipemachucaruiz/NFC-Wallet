@@ -83,6 +83,7 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen name="topup" options={{ href: null }} />
+      <Tabs.Screen name="refund" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );

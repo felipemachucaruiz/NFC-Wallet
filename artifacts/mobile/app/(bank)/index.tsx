@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { isNfcSupported, scanBracelet, type TagInfo } from "@/utils/nfc";
-import { formatDateTime } from "@/utils/format";
 
 interface BraceletState {
   uid: string;
@@ -103,9 +102,18 @@ export default function BankLookupScreen() {
     setManualUid("");
   };
 
+  const apiRecord = apiData as {
+    balanceCop?: number;
+    isFlagged?: boolean;
+    attendeeName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    lastKnownBalanceCop?: number;
+  } | undefined;
+
   const handleTopUp = () => {
     if (!bracelet) return;
-    const apiBalance = (apiData as { balanceCop?: number } | undefined)?.balanceCop ?? bracelet.balance;
+    const apiBalance = apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance;
     router.push({
       pathname: "/(bank)/topup",
       params: {
@@ -116,12 +124,32 @@ export default function BankLookupScreen() {
         tagType: tagInfo?.type ?? "",
         tagLabel: tagInfo?.label ?? "",
         tagMemoryBytes: String(tagInfo?.memoryBytes ?? 0),
+        attendeeName: apiRecord?.attendeeName ?? "",
+        phone: apiRecord?.phone ?? "",
+        email: apiRecord?.email ?? "",
       },
     });
   };
 
-  const displayBalance = (apiData as { balanceCop?: number } | undefined)?.balanceCop ?? bracelet?.balance ?? 0;
-  const isFlagged = (apiData as { isFlagged?: boolean } | undefined)?.isFlagged ?? false;
+  const handleRefund = () => {
+    if (!bracelet) return;
+    const apiBalance = apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance;
+    router.push({
+      pathname: "/(bank)/refund",
+      params: {
+        uid: bracelet.uid,
+        balance: String(apiBalance),
+        counter: String(bracelet.counter),
+        hmac: bracelet.hmac,
+        attendeeName: apiRecord?.attendeeName ?? "",
+        phone: apiRecord?.phone ?? "",
+        email: apiRecord?.email ?? "",
+      },
+    });
+  };
+
+  const displayBalance = apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet?.balance ?? 0;
+  const isFlagged = apiRecord?.isFlagged ?? false;
 
   return (
     <ScrollView
@@ -190,14 +218,30 @@ export default function BankLookupScreen() {
                   </Text>
                 </View>
               ) : (
-                <Button
-                  title={t("bank.confirmTopUp")}
-                  onPress={handleTopUp}
-                  variant="success"
-                  size="lg"
-                  fullWidth
-                  testID="bank-topup-btn"
-                />
+                <View style={styles.actionButtons}>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      title={t("bank.confirmTopUp")}
+                      onPress={handleTopUp}
+                      variant="success"
+                      size="lg"
+                      fullWidth
+                      testID="bank-topup-btn"
+                    />
+                  </View>
+                  {displayBalance > 0 && (
+                    <View style={{ flex: 1 }}>
+                      <Button
+                        title={t("bank.issueRefund")}
+                        onPress={handleRefund}
+                        variant="secondary"
+                        size="lg"
+                        fullWidth
+                        testID="bank-refund-btn"
+                      />
+                    </View>
+                  )}
+                </View>
               )}
             </View>
           )}
@@ -242,6 +286,7 @@ const styles = StyleSheet.create({
   balanceLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
   alertBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10 },
   alertText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  actionButtons: { flexDirection: "row", gap: 10 },
   overlay: { flex: 1, justifyContent: "flex-end" },
   modalBox: { padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 16 },
   modalTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
