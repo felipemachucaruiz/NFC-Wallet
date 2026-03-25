@@ -98,10 +98,10 @@ export default function ClientsScreen() {
     try {
       const body: Record<string, string> = {
         firstName: form.firstName.trim(),
-        lastName: form.lastName.trim(),
         password: form.password,
         role: "event_admin",
       };
+      if (form.lastName.trim()) body.lastName = form.lastName.trim();
       if (form.email.trim()) body.email = form.email.trim().toLowerCase();
       if (form.username.trim()) body.username = form.username.trim();
       if (form.eventId.trim()) body.eventId = form.eventId.trim();
