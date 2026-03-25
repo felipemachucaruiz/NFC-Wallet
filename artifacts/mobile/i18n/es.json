@@ -474,7 +474,9 @@
     "pulepId": "PULEP",
     "pulepIdPlaceholder": "ID PULEP (opcional)",
     "companiesTab": "Empresas",
-    "clientsTab": "Clientes"
+    "clientsTab": "Clientes",
+    "capacity": "Aforo",
+    "capacityPlaceholder": "Número máximo de asistentes"
   },
   "common_notfound": {
     "title": "Página no encontrada",

@@ -78,6 +78,7 @@ export default function EventsScreen() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [platformCommission, setPlatformCommission] = useState("0");
+  const [capacity, setCapacity] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [pulepId, setPulepId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -113,6 +114,7 @@ export default function EventsScreen() {
       startsAt: string;
       endsAt: string;
       platformCommissionRate?: string | number;
+      capacity?: number | null;
       promoterCompanyId?: string | null;
       pulepId?: string | null;
     }>
@@ -164,7 +166,7 @@ export default function EventsScreen() {
 
   const resetForm = () => {
     setEventName(""); setVenue(""); setStartDate(null); setEndDate(null);
-    setPlatformCommission("0"); setSelectedCompanyId(""); setPulepId("");
+    setPlatformCommission("0"); setCapacity(""); setSelectedCompanyId(""); setPulepId("");
     setAdminEmail(""); setAdminPassword(""); setAdminFirstName("");
     setOrganizerMode("none"); setSelectedClientId(""); setClientSearch("");
   };
@@ -191,6 +193,7 @@ export default function EventsScreen() {
         startsAt: startDate.toISOString(),
         endsAt: endDate.toISOString(),
         platformCommissionRate: platformCommission.trim() || "0",
+        capacity: capacity.trim() ? parseInt(capacity.trim(), 10) : undefined,
         promoterCompanyId: selectedCompanyId,
         pulepId: pulepId.trim() || undefined,
       };
@@ -280,6 +283,12 @@ export default function EventsScreen() {
                   )}
                   {item.venueAddress ? <Text style={[styles.venue, { color: C.textSecondary }]}>{item.venueAddress}</Text> : null}
                   <Text style={[styles.dates, { color: C.textMuted }]}>{formatDate(item.startsAt)} → {formatDate(item.endsAt)}</Text>
+                  {item.capacity ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                      <Feather name="users" size={11} color={C.textSecondary} />
+                      <Text style={[styles.dates, { color: C.textMuted }]}>{t("admin.capacity")}: {item.capacity.toLocaleString()}</Text>
+                    </View>
+                  ) : null}
                   {item.pulepId ? (
                     <Text style={[styles.commission, { color: C.textMuted }]}>PULEP: {item.pulepId}</Text>
                   ) : null}
@@ -336,6 +345,13 @@ export default function EventsScreen() {
               onChangeText={setPlatformCommission}
               keyboardType="decimal-pad"
               placeholder={t("eventAdmin.platformCommissionPlaceholder")}
+            />
+            <Input
+              label={t("admin.capacity")}
+              value={capacity}
+              onChangeText={setCapacity}
+              keyboardType="number-pad"
+              placeholder={t("admin.capacityPlaceholder")}
             />
 
             {/* Promoter Company (required) */}

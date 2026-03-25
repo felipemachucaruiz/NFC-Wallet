@@ -14,6 +14,7 @@ const createEventSchema = z.object({
   startsAt: z.string().optional(),
   endsAt: z.string().optional(),
   platformCommissionRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  capacity: z.number().int().positive().optional(),
   promoterCompanyId: z.string().optional(),
   pulepId: z.string().optional(),
   eventAdmin: z.object({
@@ -32,6 +33,7 @@ const updateEventSchema = z.object({
   endsAt: z.string().optional(),
   active: z.boolean().optional(),
   platformCommissionRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  capacity: z.number().int().positive().nullable().optional(),
   promoterCompanyId: z.string().nullable().optional(),
   pulepId: z.string().nullable().optional(),
 });
@@ -78,7 +80,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, platformCommissionRate, promoterCompanyId, pulepId, eventAdmin } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, eventAdmin } = parsed.data;
 
   // Pre-validate event admin email uniqueness BEFORE inserting event (atomicity)
   let normalizedAdminEmail: string | null = null;
@@ -107,6 +109,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
         startsAt: startsAt ? new Date(startsAt) : undefined,
         endsAt: endsAt ? new Date(endsAt) : undefined,
         platformCommissionRate: platformCommissionRate ?? "0",
+        capacity: capacity ?? null,
         promoterCompanyId: promoterCompanyId ?? null,
         pulepId: pulepId ?? null,
       })
@@ -147,7 +150,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, promoterCompanyId, pulepId } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId } = parsed.data;
 
   const updateData: Record<string, unknown> = {
     ...(name !== undefined && { name }),
@@ -156,6 +159,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(startsAt !== undefined && { startsAt: new Date(startsAt) }),
     ...(endsAt !== undefined && { endsAt: new Date(endsAt) }),
     ...(active !== undefined && { active }),
+    ...(capacity !== undefined && { capacity }),
     ...(promoterCompanyId !== undefined && { promoterCompanyId }),
     ...(pulepId !== undefined && { pulepId }),
     updatedAt: new Date(),
