@@ -35,6 +35,16 @@ const STATUS_BADGE: Record<string, "success" | "warning" | "muted" | "info" | "d
   cancelled: "danger",
 };
 
+function getEventStatus(event: { active?: boolean; startsAt: string; endsAt: string }): string {
+  if (!event.active) return "cancelled";
+  const now = Date.now();
+  const start = new Date(event.startsAt).getTime();
+  const end = new Date(event.endsAt).getTime();
+  if (now < start) return "upcoming";
+  if (now > end) return "completed";
+  return "active";
+}
+
 const getApiBase = (): string => `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
 
 type OrganizerMode = "none" | "existing" | "new";
@@ -81,7 +91,7 @@ export default function EventsScreen() {
       id: string;
       name: string;
       venueAddress: string | null;
-      status: string;
+      active?: boolean;
       startsAt: string;
       endsAt: string;
       platformCommissionRate?: string | number;
@@ -224,7 +234,7 @@ export default function EventsScreen() {
                   </Text>
                 ) : null}
               </View>
-              <Badge label={t(`admin.eventStatus.${item.status}`, { defaultValue: item.status })} variant={STATUS_BADGE[item.status] ?? "muted"} size="sm" />
+              <Badge label={t(`admin.eventStatus.${getEventStatus(item)}`)} variant={STATUS_BADGE[getEventStatus(item)] ?? "muted"} size="sm" />
             </View>
           </Card>
         )}
