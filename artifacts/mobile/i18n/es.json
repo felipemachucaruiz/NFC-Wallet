@@ -311,7 +311,7 @@
     "createMerchant": "Crear merchant",
     "createLocation": "Crear ubicación",
     "createProduct": "Crear producto",
-    "editEvent": "Editar evento",
+    "editEvent": "Editar Evento",
     "editMerchant": "Editar merchant",
     "commissionRate": "Tasa de comisión (%)",
     "eventName": "Nombre del evento",
@@ -476,7 +476,12 @@
     "companiesTab": "Empresas",
     "clientsTab": "Clientes",
     "capacity": "Aforo",
-    "capacityPlaceholder": "Número máximo de asistentes"
+    "capacityPlaceholder": "Número máximo de asistentes",
+    "saveChanges": "Guardar Cambios",
+    "eventActive": "Evento activo",
+    "eventInactive": "Evento inactivo",
+    "deactivateEvent": "Desactivar",
+    "activateEvent": "Activar"
   },
   "common_notfound": {
     "title": "Página no encontrada",

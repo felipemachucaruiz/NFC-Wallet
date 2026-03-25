@@ -9,6 +9,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -64,6 +65,19 @@ type PromoterCompany = {
   nit: string | null;
 };
 
+type EventItem = {
+  id: string;
+  name: string;
+  venueAddress: string | null;
+  active?: boolean;
+  startsAt: string;
+  endsAt: string;
+  platformCommissionRate?: string | number;
+  capacity?: number | null;
+  promoterCompanyId?: string | null;
+  pulepId?: string | null;
+};
+
 export default function EventsScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
@@ -72,7 +86,15 @@ export default function EventsScreen() {
   const isWeb = Platform.OS === "web";
   const { token } = useAuth();
 
+  // Create modal
   const [showCreate, setShowCreate] = useState(false);
+
+  // Edit modal
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [editActive, setEditActive] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Shared form fields
   const [eventName, setEventName] = useState("");
   const [venue, setVenue] = useState("");
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -83,7 +105,7 @@ export default function EventsScreen() {
   const [pulepId, setPulepId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
-  // Organizer section
+  // Organizer section (create only)
   const [organizerMode, setOrganizerMode] = useState<OrganizerMode>("none");
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [clientSearch, setClientSearch] = useState("");
@@ -94,8 +116,8 @@ export default function EventsScreen() {
   // Clients + companies lists
   const [clients, setClients] = useState<Client[]>([]);
   const [companies, setCompanies] = useState<PromoterCompany[]>([]);
-
   const [allCompanies, setAllCompanies] = useState<PromoterCompany[]>([]);
+
   useEffect(() => {
     if (!token) return;
     fetch(`${getApiBase()}/api/promoter-companies`, { headers: { Authorization: `Bearer ${token}` } })
@@ -105,20 +127,7 @@ export default function EventsScreen() {
   }, [token]);
 
   const { data, isLoading, refetch } = useListEvents();
-  const events = (data as {
-    events?: Array<{
-      id: string;
-      name: string;
-      venueAddress: string | null;
-      active?: boolean;
-      startsAt: string;
-      endsAt: string;
-      platformCommissionRate?: string | number;
-      capacity?: number | null;
-      promoterCompanyId?: string | null;
-      pulepId?: string | null;
-    }>
-  } | undefined)?.events ?? [];
+  const events = (data as { events?: EventItem[] } | undefined)?.events ?? [];
 
   const fetchClients = useCallback(async () => {
     if (!token) return;
@@ -153,6 +162,12 @@ export default function EventsScreen() {
     }
   }, [showCreate, fetchClients, fetchCompanies]);
 
+  useEffect(() => {
+    if (editingEvent) {
+      fetchCompanies();
+    }
+  }, [editingEvent, fetchCompanies]);
+
   const filteredClients = clients.filter((c) => {
     if (!clientSearch.trim()) return true;
     const q = clientSearch.toLowerCase();
@@ -169,6 +184,24 @@ export default function EventsScreen() {
     setPlatformCommission("0"); setCapacity(""); setSelectedCompanyId(""); setPulepId("");
     setAdminEmail(""); setAdminPassword(""); setAdminFirstName("");
     setOrganizerMode("none"); setSelectedClientId(""); setClientSearch("");
+  };
+
+  const openEdit = (item: EventItem) => {
+    setEventName(item.name);
+    setVenue(item.venueAddress ?? "");
+    setStartDate(item.startsAt ? new Date(item.startsAt) : null);
+    setEndDate(item.endsAt ? new Date(item.endsAt) : null);
+    setPlatformCommission(item.platformCommissionRate ? String(item.platformCommissionRate) : "0");
+    setCapacity(item.capacity ? String(item.capacity) : "");
+    setSelectedCompanyId(item.promoterCompanyId ?? "");
+    setPulepId(item.pulepId ?? "");
+    setEditActive(item.active !== false);
+    setEditingEvent(item);
+  };
+
+  const closeEdit = () => {
+    setEditingEvent(null);
+    resetForm();
   };
 
   const handleCreate = async () => {
@@ -222,7 +255,6 @@ export default function EventsScreen() {
       const created = await res.json() as { id: string };
       const newEventId = created?.id;
 
-      // If assigning existing client, patch their eventId
       if (organizerMode === "existing" && selectedClientId && newEventId) {
         await fetch(`${getApiBase()}/api/users/${selectedClientId}/event`, {
           method: "PATCH",
@@ -238,6 +270,50 @@ export default function EventsScreen() {
       Alert.alert(t("common.error"), t("common.unknownError"));
     }
     setIsCreating(false);
+  };
+
+  const handleEdit = async () => {
+    if (!editingEvent) return;
+    if (!eventName.trim() || !startDate || !endDate) {
+      Alert.alert(t("common.error"), t("admin.eventFieldsRequired")); return;
+    }
+    if (!selectedCompanyId) {
+      Alert.alert(t("common.error"), t("admin.promoterCompanyRequired")); return;
+    }
+
+    setIsSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        name: eventName.trim(),
+        venueAddress: venue.trim() || null,
+        startsAt: startDate.toISOString(),
+        endsAt: endDate.toISOString(),
+        platformCommissionRate: platformCommission.trim() || "0",
+        capacity: capacity.trim() ? parseInt(capacity.trim(), 10) : null,
+        promoterCompanyId: selectedCompanyId,
+        pulepId: pulepId.trim() || null,
+        active: editActive,
+      };
+
+      const res = await fetch(`${getApiBase()}/api/events/${editingEvent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+        setIsSaving(false);
+        return;
+      }
+
+      closeEdit();
+      refetch();
+    } catch {
+      Alert.alert(t("common.error"), t("common.unknownError"));
+    }
+    setIsSaving(false);
   };
 
   if (isLoading) return <Loading label={t("common.loading")} />;
@@ -267,6 +343,7 @@ export default function EventsScreen() {
         scrollEnabled={!!events.length}
         renderItem={({ item }) => {
           const company = item.promoterCompanyId ? allCompanies.find((c) => c.id === item.promoterCompanyId) : null;
+          const status = getEventStatus(item);
           return (
             <Card>
               <View style={styles.eventRow}>
@@ -298,13 +375,24 @@ export default function EventsScreen() {
                     </Text>
                   ) : null}
                 </View>
-                <Badge label={t(`admin.eventStatus.${getEventStatus(item)}`)} variant={STATUS_BADGE[getEventStatus(item)] ?? "muted"} size="sm" />
+                <View style={{ alignItems: "flex-end", gap: 8 }}>
+                  <Badge label={t(`admin.eventStatus.${status}`)} variant={STATUS_BADGE[status] ?? "muted"} size="sm" />
+                  <Pressable
+                    onPress={() => openEdit(item)}
+                    style={[styles.editBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
+                    hitSlop={8}
+                  >
+                    <Feather name="edit-2" size={13} color={C.textSecondary} />
+                    <Text style={[styles.editBtnText, { color: C.textSecondary }]}>{t("admin.editEvent")}</Text>
+                  </Pressable>
+                </View>
               </View>
             </Card>
           );
         }}
       />
 
+      {/* ── CREATE MODAL ─────────────────────────────────────────────── */}
       <Modal visible={showCreate} transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <ScrollView
@@ -319,82 +407,21 @@ export default function EventsScreen() {
               </Pressable>
             </View>
 
-            <Input label={t("admin.eventName")} value={eventName} onChangeText={setEventName} placeholder={t("admin.eventNamePlaceholder")} />
-            <Input label={t("admin.venue")} value={venue} onChangeText={setVenue} placeholder={t("admin.venuePlaceholder")} />
-            <DatePickerInput
-              label={t("admin.startDate")}
-              value={startDate}
-              onChange={setStartDate}
-              placeholder={t("admin.startDatePlaceholder")}
-            />
-            <DatePickerInput
-              label={t("admin.endDate")}
-              value={endDate}
-              onChange={(d) => {
-                if (startDate && d < startDate) {
-                  Alert.alert(t("common.error"), t("admin.endDateAfterStart")); return;
-                }
-                setEndDate(d);
-              }}
-              minimumDate={startDate ?? undefined}
-              placeholder={t("admin.endDatePlaceholder")}
-            />
-            <Input
-              label={t("eventAdmin.platformCommission")}
-              value={platformCommission}
-              onChangeText={setPlatformCommission}
-              keyboardType="decimal-pad"
-              placeholder={t("eventAdmin.platformCommissionPlaceholder")}
-            />
-            <Input
-              label={t("admin.capacity")}
-              value={capacity}
-              onChangeText={setCapacity}
-              keyboardType="number-pad"
-              placeholder={t("admin.capacityPlaceholder")}
-            />
-
-            {/* Promoter Company (required) */}
-            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
-              {t("admin.promoterCompany")} <Text style={{ color: C.danger }}>*</Text>
-            </Text>
-            {companies.length === 0 ? (
-              <Text style={[styles.hintText, { color: C.textMuted }]}>{t("promoterCompany.noCompanies")}</Text>
-            ) : companies.map((c) => (
-              <Pressable
-                key={c.id}
-                onPress={() => setSelectedCompanyId(c.id)}
-                style={[
-                  styles.clientOption,
-                  {
-                    backgroundColor: selectedCompanyId === c.id ? C.primary + "18" : C.inputBg,
-                    borderColor: selectedCompanyId === c.id ? C.primary : C.border,
-                  },
-                ]}
-              >
-                <View style={[styles.clientAvatar, { backgroundColor: selectedCompanyId === c.id ? C.primary : C.border }]}>
-                  <Feather name="briefcase" size={14} color={selectedCompanyId === c.id ? "#fff" : C.textSecondary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.clientOptionName, { color: selectedCompanyId === c.id ? C.primary : C.text }]}>{c.companyName}</Text>
-                  {c.nit ? <Text style={[styles.clientOptionSub, { color: C.textMuted }]}>NIT: {c.nit}</Text> : null}
-                </View>
-                {selectedCompanyId === c.id && <Feather name="check-circle" size={18} color={C.primary} />}
-              </Pressable>
-            ))}
-
-            {/* PULEP ID (optional) */}
-            <Input
-              label={t("admin.pulepId")}
-              value={pulepId}
-              onChangeText={setPulepId}
-              placeholder={t("admin.pulepIdPlaceholder")}
-              autoCapitalize="none"
+            <EventFormFields
+              C={C}
+              t={t}
+              eventName={eventName} setEventName={setEventName}
+              venue={venue} setVenue={setVenue}
+              startDate={startDate} setStartDate={setStartDate}
+              endDate={endDate} setEndDate={setEndDate}
+              platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
+              capacity={capacity} setCapacity={setCapacity}
+              companies={companies} selectedCompanyId={selectedCompanyId} setSelectedCompanyId={setSelectedCompanyId}
+              pulepId={pulepId} setPulepId={setPulepId}
             />
 
             {/* Organizer section */}
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.organizerSection")}</Text>
-
             <View style={[styles.modeRow, { backgroundColor: C.inputBg, borderRadius: 12 }]}>
               {(["none", "existing", "new"] as OrganizerMode[]).map((mode) => (
                 <Pressable
@@ -503,7 +530,159 @@ export default function EventsScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* ── EDIT MODAL ───────────────────────────────────────────────── */}
+      <Modal visible={!!editingEvent} transparent animationType="slide">
+        <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
+          <ScrollView
+            style={[styles.sheet, { backgroundColor: C.card }]}
+            contentContainerStyle={{ gap: 16, padding: 24, paddingBottom: 40 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.sheetHeader}>
+              <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.editEvent")}</Text>
+              <Pressable onPress={closeEdit}>
+                <Feather name="x" size={22} color={C.textSecondary} />
+              </Pressable>
+            </View>
+
+            {/* Active / Inactive toggle */}
+            <View style={[styles.activeRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.activeLabel, { color: C.text }]}>
+                  {editActive ? t("admin.eventActive") : t("admin.eventInactive")}
+                </Text>
+                <Text style={[styles.activeSub, { color: C.textMuted }]}>
+                  {editActive ? t("admin.deactivateEvent") : t("admin.activateEvent")}
+                </Text>
+              </View>
+              <Switch
+                value={editActive}
+                onValueChange={setEditActive}
+                trackColor={{ false: C.border, true: C.primary + "80" }}
+                thumbColor={editActive ? C.primary : C.textMuted}
+              />
+            </View>
+
+            <EventFormFields
+              C={C}
+              t={t}
+              eventName={eventName} setEventName={setEventName}
+              venue={venue} setVenue={setVenue}
+              startDate={startDate} setStartDate={setStartDate}
+              endDate={endDate} setEndDate={setEndDate}
+              platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
+              capacity={capacity} setCapacity={setCapacity}
+              companies={companies} selectedCompanyId={selectedCompanyId} setSelectedCompanyId={setSelectedCompanyId}
+              pulepId={pulepId} setPulepId={setPulepId}
+            />
+
+            <View style={styles.sheetActions}>
+              <Button title={t("common.cancel")} onPress={closeEdit} variant="secondary" />
+              <Button title={t("admin.saveChanges")} onPress={handleEdit} variant="primary" loading={isSaving} />
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
+  );
+}
+
+// ── Shared form fields component ─────────────────────────────────────────────
+type Colors = typeof import("@/constants/colors").default.light;
+
+function EventFormFields({
+  C, t,
+  eventName, setEventName,
+  venue, setVenue,
+  startDate, setStartDate,
+  endDate, setEndDate,
+  platformCommission, setPlatformCommission,
+  capacity, setCapacity,
+  companies, selectedCompanyId, setSelectedCompanyId,
+  pulepId, setPulepId,
+}: {
+  C: Colors;
+  t: (key: string) => string;
+  eventName: string; setEventName: (v: string) => void;
+  venue: string; setVenue: (v: string) => void;
+  startDate: Date | null; setStartDate: (v: Date | null) => void;
+  endDate: Date | null; setEndDate: (v: Date | null) => void;
+  platformCommission: string; setPlatformCommission: (v: string) => void;
+  capacity: string; setCapacity: (v: string) => void;
+  companies: PromoterCompany[]; selectedCompanyId: string; setSelectedCompanyId: (v: string) => void;
+  pulepId: string; setPulepId: (v: string) => void;
+}) {
+  return (
+    <>
+      <Input label={t("admin.eventName")} value={eventName} onChangeText={setEventName} placeholder={t("admin.eventNamePlaceholder")} />
+      <Input label={t("admin.venue")} value={venue} onChangeText={setVenue} placeholder={t("admin.venuePlaceholder")} />
+      <DatePickerInput label={t("admin.startDate")} value={startDate} onChange={setStartDate} placeholder={t("admin.startDatePlaceholder")} />
+      <DatePickerInput
+        label={t("admin.endDate")}
+        value={endDate}
+        onChange={(d) => {
+          if (startDate && d < startDate) {
+            Alert.alert("Error", t("admin.endDateAfterStart")); return;
+          }
+          setEndDate(d);
+        }}
+        minimumDate={startDate ?? undefined}
+        placeholder={t("admin.endDatePlaceholder")}
+      />
+      <Input
+        label={t("eventAdmin.platformCommission")}
+        value={platformCommission}
+        onChangeText={setPlatformCommission}
+        keyboardType="decimal-pad"
+        placeholder={t("eventAdmin.platformCommissionPlaceholder")}
+      />
+      <Input
+        label={t("admin.capacity")}
+        value={capacity}
+        onChangeText={setCapacity}
+        keyboardType="number-pad"
+        placeholder={t("admin.capacityPlaceholder")}
+      />
+
+      {/* Promoter Company */}
+      <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+        {t("admin.promoterCompany")} <Text style={{ color: C.danger }}>*</Text>
+      </Text>
+      {companies.length === 0 ? (
+        <Text style={[styles.hintText, { color: C.textMuted }]}>{t("promoterCompany.noCompanies")}</Text>
+      ) : companies.map((c) => (
+        <Pressable
+          key={c.id}
+          onPress={() => setSelectedCompanyId(c.id)}
+          style={[
+            styles.clientOption,
+            {
+              backgroundColor: selectedCompanyId === c.id ? C.primary + "18" : C.inputBg,
+              borderColor: selectedCompanyId === c.id ? C.primary : C.border,
+            },
+          ]}
+        >
+          <View style={[styles.clientAvatar, { backgroundColor: selectedCompanyId === c.id ? C.primary : C.border }]}>
+            <Feather name="briefcase" size={14} color={selectedCompanyId === c.id ? "#fff" : C.textSecondary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.clientOptionName, { color: selectedCompanyId === c.id ? C.primary : C.text }]}>{c.companyName}</Text>
+            {c.nit ? <Text style={[styles.clientOptionSub, { color: C.textMuted }]}>NIT: {c.nit}</Text> : null}
+          </View>
+          {selectedCompanyId === c.id && <Feather name="check-circle" size={18} color={C.primary} />}
+        </Pressable>
+      ))}
+
+      {/* PULEP ID */}
+      <Input
+        label={t("admin.pulepId")}
+        value={pulepId}
+        onChangeText={setPulepId}
+        placeholder={t("admin.pulepIdPlaceholder")}
+        autoCapitalize="none"
+      />
+    </>
   );
 }
 
@@ -517,6 +696,8 @@ const styles = StyleSheet.create({
   venue: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   dates: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4 },
   commission: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 2 },
+  editBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  editBtnText: { fontSize: 11, fontFamily: "Inter_500Medium" },
   overlay: { flex: 1, justifyContent: "flex-end" },
   sheet: { maxHeight: "92%", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   sheetHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -533,4 +714,7 @@ const styles = StyleSheet.create({
   clientOptionName: { fontSize: 14, fontFamily: "Inter_500Medium" },
   clientOptionSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
   hintText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  activeRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 12, borderWidth: 1 },
+  activeLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  activeSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

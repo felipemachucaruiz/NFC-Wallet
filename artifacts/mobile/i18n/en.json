@@ -311,7 +311,7 @@
     "createMerchant": "Create merchant",
     "createLocation": "Create location",
     "createProduct": "Create product",
-    "editEvent": "Edit event",
+    "editEvent": "Edit Event",
     "editMerchant": "Edit merchant",
     "commissionRate": "Commission rate (%)",
     "eventName": "Event name",
@@ -476,7 +476,12 @@
     "companiesTab": "Companies",
     "clientsTab": "Clients",
     "capacity": "Capacity",
-    "capacityPlaceholder": "Max number of attendees"
+    "capacityPlaceholder": "Max number of attendees",
+    "saveChanges": "Save Changes",
+    "eventActive": "Event active",
+    "eventInactive": "Event inactive",
+    "deactivateEvent": "Deactivate",
+    "activateEvent": "Activate"
   },
   "common_notfound": {
     "title": "Page not found",
