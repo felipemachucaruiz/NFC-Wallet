@@ -83,7 +83,7 @@ export default function LoginScreen() {
         >
           <View style={styles.logoSection}>
             <Image
-              source={require("@/assets/images/icon.png")}
+              source={require("@/assets/images/tapee-logo.png")}
               style={styles.logoImage}
               resizeMode="contain"
             />
@@ -170,14 +170,8 @@ const styles = StyleSheet.create({
   },
   logoSection: { alignItems: "center", gap: 12 },
   logoImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 40,
-    shadowColor: "#1956dc",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
+    width: 300,
+    height: 136,
   },
   subtitle: {
     fontSize: 16,
