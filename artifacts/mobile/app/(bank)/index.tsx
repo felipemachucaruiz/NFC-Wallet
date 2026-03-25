@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
-import { isNfcSupported, readBracelet } from "@/utils/nfc";
+import { isNfcSupported, scanBracelet, type TagInfo } from "@/utils/nfc";
 import { formatDateTime } from "@/utils/format";
 
 interface BraceletState {
@@ -30,6 +30,32 @@ interface BraceletState {
   counter: number;
   hmac: string;
 }
+
+function TagBadge({ tagInfo, colors }: { tagInfo: TagInfo; colors: typeof Colors.light }) {
+  const label =
+    tagInfo.memoryBytes > 0
+      ? `${tagInfo.label} · ${tagInfo.memoryBytes} B`
+      : tagInfo.label;
+  return (
+    <View style={[tagBadgeStyles.badge, { backgroundColor: colors.primaryLight }]}>
+      <Feather name="cpu" size={11} color={colors.primary} />
+      <Text style={[tagBadgeStyles.text, { color: colors.primary }]}>{label}</Text>
+    </View>
+  );
+}
+
+const tagBadgeStyles = StyleSheet.create({
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  text: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+});
 
 export default function BankLookupScreen() {
   const { t } = useTranslation();
@@ -43,6 +69,7 @@ export default function BankLookupScreen() {
   const [showManual, setShowManual] = useState(false);
   const [manualUid, setManualUid] = useState("");
   const [fetchUid, setFetchUid] = useState<string | null>(null);
+  const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
 
   const { data: apiData, isLoading } = useGetBracelet(fetchUid ?? "", {
     query: { enabled: !!fetchUid },
@@ -55,9 +82,10 @@ export default function BankLookupScreen() {
     }
     setIsTapping(true);
     try {
-      const payload = await readBracelet();
-      setBracelet(payload);
-      setFetchUid(payload.uid);
+      const result = await scanBracelet();
+      setBracelet(result.payload);
+      setTagInfo(result.tagInfo);
+      setFetchUid(result.payload.uid);
     } catch (e: unknown) {
       Alert.alert(t("common.error"), t("common.unknownError"));
     } finally {
@@ -69,6 +97,7 @@ export default function BankLookupScreen() {
     if (!manualUid.trim()) return;
     const uid = manualUid.trim();
     setBracelet({ uid, balance: 0, counter: 0, hmac: "" });
+    setTagInfo(null);
     setFetchUid(uid);
     setShowManual(false);
     setManualUid("");
@@ -84,6 +113,9 @@ export default function BankLookupScreen() {
         balance: String(apiBalance),
         counter: String(bracelet.counter),
         hmac: bracelet.hmac,
+        tagType: tagInfo?.type ?? "",
+        tagLabel: tagInfo?.label ?? "",
+        tagMemoryBytes: String(tagInfo?.memoryBytes ?? 0),
       },
     });
   };
@@ -136,6 +168,7 @@ export default function BankLookupScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.uidLabel, { color: C.textMuted }]}>UID</Text>
                   <Text style={[styles.uid, { color: C.text }]}>{bracelet.uid}</Text>
+                  {tagInfo && <TagBadge tagInfo={tagInfo} colors={C} />}
                 </View>
                 {isFlagged && <Badge label={t("bank.flagged")} variant="danger" />}
               </View>

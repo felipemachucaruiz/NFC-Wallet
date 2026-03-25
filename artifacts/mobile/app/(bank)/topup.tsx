@@ -20,7 +20,7 @@ import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { isNfcSupported, writeBracelet } from "@/utils/nfc";
+import { isNfcSupported, writeBracelet, type TagInfo, type TagType } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { formatCOP, parseCOPInput } from "@/utils/format";
 
@@ -34,6 +34,32 @@ const PAYMENT_METHODS: { value: PaymentMethod; icon: React.ComponentProps<typeof
   { value: "other", icon: "more-horizontal" },
 ];
 
+function TagBadge({ tagInfo, colors }: { tagInfo: TagInfo; colors: typeof Colors.light }) {
+  const label =
+    tagInfo.memoryBytes > 0
+      ? `${tagInfo.label} · ${tagInfo.memoryBytes} B`
+      : tagInfo.label;
+  return (
+    <View style={[tagBadgeStyles.badge, { backgroundColor: colors.primaryLight }]}>
+      <Feather name="cpu" size={11} color={colors.primary} />
+      <Text style={[tagBadgeStyles.text, { color: colors.primary }]}>{label}</Text>
+    </View>
+  );
+}
+
+const tagBadgeStyles = StyleSheet.create({
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  text: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+});
+
 export default function TopUpScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
@@ -41,10 +67,27 @@ export default function TopUpScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
 
-  const params = useLocalSearchParams<{ uid: string; balance: string; counter: string; hmac: string }>();
+  const params = useLocalSearchParams<{
+    uid: string;
+    balance: string;
+    counter: string;
+    hmac: string;
+    tagType: string;
+    tagLabel: string;
+    tagMemoryBytes: string;
+  }>();
   const uid = params.uid ?? "";
   const currentBalance = parseInt(params.balance ?? "0", 10);
   const currentCounter = parseInt(params.counter ?? "0", 10);
+
+  const tagInfoFromParams: TagInfo | null =
+    params.tagType
+      ? {
+          type: params.tagType as TagType,
+          label: params.tagLabel ?? params.tagType,
+          memoryBytes: parseInt(params.tagMemoryBytes ?? "0", 10),
+        }
+      : null;
 
   const [amountText, setAmountText] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -70,7 +113,10 @@ export default function TopUpScreen() {
       const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
 
       if (isNfcSupported()) {
-        await writeBracelet({ uid, balance: newBalance, counter: newCounter, hmac: newHmac });
+        await writeBracelet(
+          { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
+          tagInfoFromParams ?? undefined
+        );
       }
 
       await createTopUp.mutateAsync({
@@ -120,6 +166,7 @@ export default function TopUpScreen() {
             <CopAmount amount={newBalance} />
           </View>
         </View>
+        {tagInfoFromParams && <TagBadge tagInfo={tagInfoFromParams} colors={C} />}
         <Button title={t("bank.lookup")} onPress={() => router.back()} variant="primary" size="lg" fullWidth />
       </View>
     );
@@ -151,6 +198,7 @@ export default function TopUpScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.uidLabel, { color: C.textMuted }]}>{t("bank.braceletLabel")}</Text>
             <Text style={[styles.uid, { color: C.text }]}>{uid}</Text>
+            {tagInfoFromParams && <TagBadge tagInfo={tagInfoFromParams} colors={C} />}
           </View>
           <CopAmount amount={currentBalance} size={18} color={C.textSecondary} bold={false} />
         </View>

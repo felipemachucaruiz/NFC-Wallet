@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useCart } from "@/contexts/CartContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
-import { isNfcSupported, readBracelet, writeBracelet } from "@/utils/nfc";
+import { isNfcSupported, scanBracelet, writeBracelet, type TagInfo } from "@/utils/nfc";
 import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCOP } from "@/utils/format";
 
@@ -46,6 +46,32 @@ const STEP_KEYS: Record<ChargeStep, string> = {
   manual_input: "bank.manualUid",
 };
 
+function TagBadge({ tagInfo, colors }: { tagInfo: TagInfo; colors: typeof Colors.light }) {
+  const label =
+    tagInfo.memoryBytes > 0
+      ? `${tagInfo.label} · ${tagInfo.memoryBytes} B`
+      : tagInfo.label;
+  return (
+    <View style={[tagBadgeStyles.badge, { backgroundColor: colors.primaryLight }]}>
+      <Feather name="cpu" size={11} color={colors.primary} />
+      <Text style={[tagBadgeStyles.text, { color: colors.primary }]}>{label}</Text>
+    </View>
+  );
+}
+
+const tagBadgeStyles = StyleSheet.create({
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "center",
+  },
+  text: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+});
+
 export default function ChargeScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
@@ -67,10 +93,11 @@ export default function ChargeScreen() {
   const [braceletBalance, setBraceletBalance] = useState<number | null>(null);
   const [braceletUid, setBraceletUid] = useState<string | null>(null);
   const [manualUid, setManualUid] = useState("");
+  const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
 
   const shortfall = braceletBalance != null ? total - braceletBalance : 0;
 
-  const processCharge = async (uid: string, balance: number, counter: number, hmac: string) => {
+  const processCharge = async (uid: string, balance: number, counter: number, hmac: string, detectedTagInfo?: TagInfo) => {
     setStep("verifying");
     let hmacOk = true;
     if (hmacSecret && hmac) {
@@ -101,7 +128,7 @@ export default function ChargeScreen() {
     const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
     if (isNfcSupported()) {
       try {
-        await writeBracelet({ uid, balance: newBalance, counter: newCounter, hmac: newHmac });
+        await writeBracelet({ uid, balance: newBalance, counter: newCounter, hmac: newHmac }, detectedTagInfo);
       } catch {
         Alert.alert(t("common.error"), t("pos.writeError"));
         setStep("waiting");
@@ -153,8 +180,9 @@ export default function ChargeScreen() {
     }
     setStep("reading");
     try {
-      const payload = await readBracelet();
-      await processCharge(payload.uid, payload.balance, payload.counter, payload.hmac);
+      const result = await scanBracelet();
+      setTagInfo(result.tagInfo);
+      await processCharge(result.payload.uid, result.payload.balance, result.payload.counter, result.payload.hmac, result.tagInfo);
     } catch {
       setStep("waiting");
       Alert.alert(t("common.error"), t("pos.readError"));
@@ -228,6 +256,7 @@ export default function ChargeScreen() {
             <Text style={[styles.currentBalText, { color: C.textSecondary }]}>
               {t("pos.currentBalance")}: {formatCOP(braceletBalance ?? 0)}
             </Text>
+            {tagInfo && <TagBadge tagInfo={tagInfo} colors={C} />}
           </View>
         )}
 
@@ -245,6 +274,7 @@ export default function ChargeScreen() {
               <Text style={[styles.balanceLabel, { color: C.textSecondary }]}>{t("pos.newBalance")}</Text>
               <CopAmount amount={braceletBalance} size={24} positive />
             </View>
+            {tagInfo && <TagBadge tagInfo={tagInfo} colors={C} />}
           </View>
         )}
       </View>

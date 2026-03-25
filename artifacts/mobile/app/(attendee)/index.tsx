@@ -20,9 +20,35 @@ import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
-import { isNfcSupported, readBracelet } from "@/utils/nfc";
+import { isNfcSupported, scanBracelet, type TagInfo } from "@/utils/nfc";
 import { verifyHmac, type BraceletPayload } from "@/utils/hmac";
 import { formatDateTime } from "@/utils/format";
+
+function TagBadge({ tagInfo, colors }: { tagInfo: TagInfo; colors: typeof Colors.light }) {
+  const label =
+    tagInfo.memoryBytes > 0
+      ? `${tagInfo.label} · ${tagInfo.memoryBytes} B`
+      : tagInfo.label;
+  return (
+    <View style={[tagBadgeStyles.badge, { backgroundColor: colors.primaryLight }]}>
+      <Feather name="cpu" size={11} color={colors.primary} />
+      <Text style={[tagBadgeStyles.text, { color: colors.primary }]}>{label}</Text>
+    </View>
+  );
+}
+
+const tagBadgeStyles = StyleSheet.create({
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "center",
+  },
+  text: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+});
 
 export default function AttendeeBalanceScreen() {
   const { t } = useTranslation();
@@ -37,6 +63,7 @@ export default function AttendeeBalanceScreen() {
   const [showManualUid, setShowManualUid] = useState(false);
   const [manualUid, setManualUid] = useState("");
   const [lastRead, setLastRead] = useState<string | null>(null);
+  const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
 
   const { data: keyData } = useGetSigningKey();
   const hmacSecret = keyData?.key ?? "";
@@ -48,7 +75,8 @@ export default function AttendeeBalanceScreen() {
     }
     setIsTapping(true);
     try {
-      const payload = await readBracelet();
+      const result = await scanBracelet();
+      const payload = result.payload;
       if (hmacSecret && payload.hmac) {
         const valid = await verifyHmac(payload.balance, payload.counter, payload.hmac, hmacSecret);
         setHmacValid(valid);
@@ -56,6 +84,7 @@ export default function AttendeeBalanceScreen() {
         setHmacValid(null);
       }
       setBracelet(payload);
+      setTagInfo(result.tagInfo);
       setLastRead(new Date().toISOString());
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
@@ -71,6 +100,7 @@ export default function AttendeeBalanceScreen() {
     if (!manualUid.trim()) return;
     setBracelet({ uid: manualUid.trim(), balance: 0, counter: 0, hmac: "" });
     setHmacValid(null);
+    setTagInfo(null);
     setLastRead(new Date().toISOString());
     setShowManualUid(false);
     setManualUid("");
@@ -114,6 +144,7 @@ export default function AttendeeBalanceScreen() {
                 </View>
               )}
             </View>
+            {tagInfo && <TagBadge tagInfo={tagInfo} colors={C} />}
             {lastRead && (
               <Text style={[styles.lastRead, { color: C.textMuted }]}>
                 {t("attendee.lastUpdated")}: {formatDateTime(lastRead)}
