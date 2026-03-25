@@ -27,7 +27,7 @@ pnpm workspace monorepo using TypeScript.
 - **Commission**: `commission = Math.round(gross × rate / 100)`, stored per transaction log
 - **COGS tracking**: `unit_cost_snapshot` on transaction line items; products have both `price_cop` and `cost_cop`
 - **Auto-restock**: After each transaction, if location inventory ≤ `restockTrigger` and no pending restock order, one is auto-created
-- **Roles**: `attendee`, `bank`, `merchant_staff`, `merchant_admin`, `warehouse_admin`, `admin`
+- **Roles**: `attendee`, `bank`, `merchant_staff`, `merchant_admin`, `warehouse_admin`, `event_admin`, `admin`
 - **Currency**: All monetary values in Colombian Pesos (COP, integer)
 - **lib packages must be built** before api-server can typecheck: run `pnpm exec tsc -p tsconfig.json` in `lib/db` and `lib/api-zod`
 

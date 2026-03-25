@@ -15,23 +15,23 @@ function NativeTabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "chart.pie", selected: "chart.pie.fill" }} />
-        <Label>{t("admin.dashboard")}</Label>
+        <Label>{t("admin.overview")}</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="merchants">
-        <Icon sf={{ default: "storefront", selected: "storefront.fill" }} />
-        <Label>{t("admin.merchants")}</Label>
+      <NativeTabs.Trigger name="clients">
+        <Icon sf={{ default: "person.2.circle", selected: "person.2.circle.fill" }} />
+        <Label>{t("admin.clients")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="events">
         <Icon sf={{ default: "calendar", selected: "calendar.fill" }} />
         <Label>{t("admin.events")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="reports">
-        <Icon sf={{ default: "doc.chart", selected: "doc.chart.fill" }} />
-        <Label>{t("admin.reports")}</Label>
+        <Icon sf={{ default: "banknote", selected: "banknote.fill" }} />
+        <Label>{t("admin.billing")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="roles">
-        <Icon sf={{ default: "person.3", selected: "person.3.fill" }} />
-        <Label>{t("admin.users")}</Label>
+        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
+        <Label>{t("admin.settings")}</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -75,11 +75,12 @@ function ClassicTabLayout() {
         tabBarLabelStyle: { fontSize: 10, fontFamily: "Inter_500Medium" },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: t("admin.dashboard"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="chart.pie.fill" tintColor={color} size={22} /> : <Feather name="pie-chart" size={22} color={color} /> }} />
-      <Tabs.Screen name="merchants" options={{ title: t("admin.merchants"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="storefront.fill" tintColor={color} size={22} /> : <Feather name="shopping-bag" size={22} color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: t("admin.overview"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="chart.pie.fill" tintColor={color} size={22} /> : <Feather name="pie-chart" size={22} color={color} /> }} />
+      <Tabs.Screen name="clients" options={{ title: t("admin.clients"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="person.2.circle.fill" tintColor={color} size={22} /> : <Feather name="users" size={22} color={color} /> }} />
       <Tabs.Screen name="events" options={{ title: t("admin.events"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="calendar.fill" tintColor={color} size={22} /> : <Feather name="calendar" size={22} color={color} /> }} />
-      <Tabs.Screen name="reports" options={{ title: t("admin.reports"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="doc.chart.fill" tintColor={color} size={22} /> : <Feather name="file-text" size={22} color={color} /> }} />
-      <Tabs.Screen name="roles" options={{ title: t("admin.users"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="person.3.fill" tintColor={color} size={22} /> : <Feather name="users" size={22} color={color} /> }} />
+      <Tabs.Screen name="reports" options={{ title: t("admin.billing"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="banknote.fill" tintColor={color} size={22} /> : <Feather name="dollar-sign" size={22} color={color} /> }} />
+      <Tabs.Screen name="roles" options={{ title: t("admin.settings"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="gearshape.fill" tintColor={color} size={22} /> : <Feather name="settings" size={22} color={color} /> }} />
+      <Tabs.Screen name="merchants" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -14,9 +14,6 @@ import { useTranslation } from "react-i18next";
 import {
   useGetRevenueReport,
   useGetTopUpReport,
-  useGetInventoryReport,
-  useListMerchants,
-  useListLocations,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
@@ -24,7 +21,7 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
 
-type ReportTab = "revenue" | "topups" | "inventory" | "billing";
+type ReportTab = "billing" | "revenue" | "topups";
 
 type BillingRow = {
   eventId: string;
@@ -44,33 +41,12 @@ export default function ReportsScreen() {
   const isWeb = Platform.OS === "web";
   const { token } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<ReportTab>("revenue");
+  const [activeTab, setActiveTab] = useState<ReportTab>("billing");
   const [billing, setBilling] = useState<BillingRow[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
-  const [selectedMerchantId, setSelectedMerchantId] = useState<string | undefined>(undefined);
-  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined);
 
-  const { data: merchantsData } = useListMerchants({});
-  const merchants = (merchantsData as { merchants?: Array<{ id: string; name: string }> } | undefined)?.merchants ?? [];
-
-  const { data: locationsData } = useListLocations(
-    selectedMerchantId ? { merchantId: selectedMerchantId } : {},
-    { query: { enabled: !!selectedMerchantId } }
-  );
-  const locations = (locationsData as { locations?: Array<{ id: string; name: string; active: boolean }> } | undefined)?.locations?.filter((l) => l.active) ?? [];
-
-  const revenueParams = {
-    ...(selectedMerchantId ? { merchantId: selectedMerchantId } : {}),
-    ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
-  };
-
-  const inventoryParams = {
-    ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
-  };
-
-  const { data: revenueData, isLoading: revLoading } = useGetRevenueReport(revenueParams);
+  const { data: revenueData, isLoading: revLoading } = useGetRevenueReport({});
   const { data: topUpData, isLoading: topUpLoading } = useGetTopUpReport({});
-  const { data: inventoryData, isLoading: invLoading } = useGetInventoryReport(inventoryParams);
 
   const revenue = revenueData as {
     totals?: {
@@ -85,17 +61,6 @@ export default function ReportsScreen() {
   } | undefined;
 
   const topUps = topUpData as Record<string, number | string | Array<Record<string, unknown>> | undefined> | undefined;
-  const inventory = inventoryData as {
-    items?: Array<{
-      locationId: string;
-      locationName: string;
-      productId: string;
-      productName: string;
-      quantityOnHand: number;
-      restockTrigger: number;
-      isLowStock: boolean;
-    }>;
-  } | undefined;
 
   useEffect(() => {
     if (activeTab === "billing" && token) {
@@ -111,15 +76,12 @@ export default function ReportsScreen() {
   }, [activeTab, token]);
 
   const tabs: { key: ReportTab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
+    { key: "billing", label: t("admin.billing"), icon: "dollar-sign" },
     { key: "revenue", label: t("admin.revenueReport"), icon: "trending-up" },
     { key: "topups", label: t("admin.topUpReport"), icon: "plus-circle" },
-    { key: "inventory", label: t("admin.inventoryReport"), icon: "package" },
-    { key: "billing", label: t("admin.billing"), icon: "dollar-sign" },
   ];
 
-  const isLoading = revLoading || topUpLoading || invLoading;
-
-  const showLocationFilter = activeTab === "revenue" || activeTab === "inventory";
+  const isLoading = revLoading || topUpLoading;
 
   return (
     <ScrollView
@@ -132,76 +94,20 @@ export default function ReportsScreen() {
       }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Text style={[styles.title, { color: C.text }]}>{t("admin.reports")}</Text>
+      <Text style={[styles.title, { color: C.text }]}>{t("admin.billing")}</Text>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ gap: 2, paddingHorizontal: 20 }}>
-        <View style={[styles.tabRow, { backgroundColor: C.inputBg }]}>
-          {tabs.map((tab) => (
-            <Pressable
-              key={tab.key}
-              onPress={() => setActiveTab(tab.key)}
-              style={[styles.tabBtn, activeTab === tab.key && { backgroundColor: C.card, borderRadius: 10, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }]}
-            >
-              <Feather name={tab.icon} size={16} color={activeTab === tab.key ? C.primary : C.textMuted} />
-              <Text style={[styles.tabLabel, { color: activeTab === tab.key ? C.primary : C.textMuted }]}>{tab.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
-
-      {showLocationFilter && (
-        <View style={{ gap: 12 }}>
-          <Text style={[styles.filterLabel, { color: C.textSecondary }]}>{t("admin.filterByMerchant")}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 4 }}>
-            <Pressable
-              onPress={() => { setSelectedMerchantId(undefined); setSelectedLocationId(undefined); }}
-              style={[styles.chip, { backgroundColor: !selectedMerchantId ? C.primary : C.inputBg, borderColor: !selectedMerchantId ? C.primary : C.border }]}
-            >
-              <Text style={[styles.chipText, { color: !selectedMerchantId ? "#fff" : C.textSecondary }]}>
-                {t("admin.allMerchants")}
-              </Text>
-            </Pressable>
-            {merchants.map((m) => (
-              <Pressable
-                key={m.id}
-                onPress={() => { setSelectedMerchantId(m.id); setSelectedLocationId(undefined); }}
-                style={[styles.chip, { backgroundColor: selectedMerchantId === m.id ? C.primary : C.inputBg, borderColor: selectedMerchantId === m.id ? C.primary : C.border }]}
-              >
-                <Text style={[styles.chipText, { color: selectedMerchantId === m.id ? "#fff" : C.textSecondary }]}>
-                  {m.name}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          {selectedMerchantId && locations.length > 0 && (
-            <>
-              <Text style={[styles.filterLabel, { color: C.textSecondary }]}>{t("admin.filterByLocation")}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 4 }}>
-                <Pressable
-                  onPress={() => setSelectedLocationId(undefined)}
-                  style={[styles.chip, { backgroundColor: !selectedLocationId ? C.primary : C.inputBg, borderColor: !selectedLocationId ? C.primary : C.border }]}
-                >
-                  <Text style={[styles.chipText, { color: !selectedLocationId ? "#fff" : C.textSecondary }]}>
-                    {t("admin.allLocations")}
-                  </Text>
-                </Pressable>
-                {locations.map((loc) => (
-                  <Pressable
-                    key={loc.id}
-                    onPress={() => setSelectedLocationId(loc.id)}
-                    style={[styles.chip, { backgroundColor: selectedLocationId === loc.id ? C.primary : C.inputBg, borderColor: selectedLocationId === loc.id ? C.primary : C.border }]}
-                  >
-                    <Text style={[styles.chipText, { color: selectedLocationId === loc.id ? "#fff" : C.textSecondary }]}>
-                      {loc.name}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </>
-          )}
-        </View>
-      )}
+      <View style={[styles.tabRow, { backgroundColor: C.inputBg }]}>
+        {tabs.map((tab) => (
+          <Pressable
+            key={tab.key}
+            onPress={() => setActiveTab(tab.key)}
+            style={[styles.tabBtn, activeTab === tab.key && { backgroundColor: C.card, borderRadius: 10, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }]}
+          >
+            <Feather name={tab.icon} size={16} color={activeTab === tab.key ? C.primary : C.textMuted} />
+            <Text style={[styles.tabLabel, { color: activeTab === tab.key ? C.primary : C.textMuted }]}>{tab.label}</Text>
+          </Pressable>
+        ))}
+      </View>
 
       {isLoading && activeTab !== "billing" ? <Loading label={t("common.loading")} /> : (
         <>
@@ -243,63 +149,6 @@ export default function ReportsScreen() {
                   </View>
                 </Card>
               ))}
-            </View>
-          )}
-
-          {activeTab === "inventory" && (
-            <View style={{ gap: 12 }}>
-              {inventory?.items && inventory.items.length > 0 ? (
-                <>
-                  <View style={{ gap: 2 }}>
-                    <Card padding={16}>
-                      <View style={styles.reportRow}>
-                        <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("admin.totalUnitsInStock")}</Text>
-                        <Text style={[styles.countValue, { color: C.text }]}>
-                          {inventory.items.reduce((s, i) => s + i.quantityOnHand, 0)}
-                        </Text>
-                      </View>
-                    </Card>
-                    <Card padding={16}>
-                      <View style={styles.reportRow}>
-                        <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("admin.lowStockCount")}</Text>
-                        <Text style={[styles.countValue, { color: C.text }]}>
-                          {inventory.items.filter((i) => i.isLowStock).length}
-                        </Text>
-                      </View>
-                    </Card>
-                  </View>
-
-                  <Text style={[styles.filterLabel, { color: C.textSecondary }]}>{t("admin.byLocation")}</Text>
-                  {Object.entries(
-                    inventory.items.reduce((acc, item) => {
-                      if (!acc[item.locationId]) {
-                        acc[item.locationId] = { name: item.locationName, items: [] };
-                      }
-                      acc[item.locationId].items.push(item);
-                      return acc;
-                    }, {} as Record<string, { name: string; items: typeof inventory.items }>)
-                  ).map(([locId, locGroup]) => (
-                    <Card key={locId} padding={14}>
-                      <Text style={[styles.locationGroupTitle, { color: C.text }]}>{locGroup.name}</Text>
-                      {locGroup.items.map((item) => (
-                        <View key={item.productId} style={[styles.invDetailRow, { borderTopColor: C.border }]}>
-                          <Text style={[styles.invProduct, { color: C.text, flex: 1 }]}>{item.productName}</Text>
-                          <Text style={[styles.invQty, { color: item.isLowStock ? C.danger : C.text }]}>
-                            {item.quantityOnHand} u.
-                          </Text>
-                          {item.isLowStock && (
-                            <Feather name="alert-triangle" size={12} color={C.danger} />
-                          )}
-                        </View>
-                      ))}
-                    </Card>
-                  ))}
-                </>
-              ) : (
-                <Card padding={16}>
-                  <Text style={[styles.reportLabel, { color: C.textSecondary, textAlign: "center" }]}>{t("admin.noInventoryData")}</Text>
-                </Card>
-              )}
             </View>
           )}
 

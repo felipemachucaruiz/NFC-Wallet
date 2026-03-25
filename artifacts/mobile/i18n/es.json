@@ -427,7 +427,26 @@
       "upcoming": "Próximo",
       "completed": "Finalizado",
       "cancelled": "Cancelado"
-    }
+    },
+    "overview": "Resumen",
+    "clients": "Clientes",
+    "settings": "Ajustes",
+    "noClients": "Sin clientes aún",
+    "createClient": "Crear Cliente",
+    "clientsSubtitle": "{{count}} organizador(es) de eventos",
+    "clientNameRequired": "El nombre es requerido",
+    "emailOrUsernameRequired": "Se requiere email o usuario",
+    "passwordMinLength": "La contraseña debe tener al menos 6 caracteres",
+    "clientEmail": "Email (opcional)",
+    "clientUsername": "Usuario (opcional)",
+    "clientUsernamePlaceholder": "ej. festivalXYZ",
+    "clientPassword": "Contraseña",
+    "passwordMinLengthHint": "Mín. 6 caracteres",
+    "noEventYet": "Sin evento aún",
+    "noEventAssigned": "Sin evento asignado",
+    "createClientHint": "Crea una cuenta de organizador para tu cliente",
+    "firstName": "Nombre",
+    "lastName": "Apellido"
   },
   "common_notfound": {
     "title": "Página no encontrada",
