@@ -1,5 +1,5 @@
 import { ProfileSettings } from "@/components/ProfileSettings";
 
-export default function SettingsScreen() {
+export default function ProfileScreen() {
   return <ProfileSettings />;
 }

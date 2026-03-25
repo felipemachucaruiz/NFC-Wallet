@@ -29,6 +29,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "doc.chart", selected: "doc.chart.fill" }} />
         <Label>{t("eventAdmin.reports")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
+        <Label>{t("common.settings")}</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -75,6 +79,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="merchants" options={{ title: t("eventAdmin.merchants"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="storefront.fill" tintColor={color} size={22} /> : <Feather name="shopping-bag" size={22} color={color} /> }} />
       <Tabs.Screen name="users" options={{ title: t("eventAdmin.users"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="person.3.fill" tintColor={color} size={22} /> : <Feather name="users" size={22} color={color} /> }} />
       <Tabs.Screen name="reports" options={{ title: t("eventAdmin.reports"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="doc.chart.fill" tintColor={color} size={22} /> : <Feather name="file-text" size={22} color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }

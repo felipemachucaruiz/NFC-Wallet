@@ -25,6 +25,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "banknote", selected: "banknote.fill" }} />
         <Label>{t("merchant_admin.payouts")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
+        <Label>{t("common.settings")}</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -90,6 +94,7 @@ function ClassicTabLayout() {
             isIOS ? <SymbolView name="banknote" tintColor={color} size={22} /> : <Feather name="credit-card" size={22} color={color} />,
         }}
       />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }

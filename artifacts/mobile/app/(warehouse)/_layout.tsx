@@ -29,6 +29,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "list.bullet.rectangle", selected: "list.bullet.rectangle.fill" }} />
         <Label>{t("warehouse.movements")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
+        <Label>{t("common.settings")}</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -74,6 +78,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="dispatch" options={{ title: t("warehouse.dispatch"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="arrow.up.circle.fill" tintColor={color} size={22} /> : <Feather name="upload" size={22} color={color} /> }} />
       <Tabs.Screen name="restock" options={{ title: t("warehouse.restock"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="cart.badge.plus" tintColor={color} size={22} /> : <Feather name="shopping-cart" size={22} color={color} /> }} />
       <Tabs.Screen name="movements" options={{ title: t("warehouse.movements"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="list.bullet.rectangle.fill" tintColor={color} size={22} /> : <Feather name="list" size={22} color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }

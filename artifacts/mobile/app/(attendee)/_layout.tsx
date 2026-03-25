@@ -21,6 +21,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "list.bullet", selected: "list.bullet" }} />
         <Label>{t("attendee.history")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
+        <Label>{t("common.settings")}</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -78,6 +82,7 @@ function ClassicTabLayout() {
             isIOS ? <SymbolView name="list.bullet" tintColor={color} size={22} /> : <Feather name="list" size={22} color={color} />,
         }}
       />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }

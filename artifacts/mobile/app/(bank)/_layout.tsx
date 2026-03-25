@@ -21,6 +21,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
         <Label>{t("bank.shift")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
+        <Label>{t("common.settings")}</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -79,6 +83,7 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen name="topup" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }
