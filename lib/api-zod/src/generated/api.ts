@@ -38,6 +38,7 @@ export const GetCurrentAuthUserResponse = zod.object({
         "merchant_staff",
         "merchant_admin",
         "warehouse_admin",
+        "event_admin",
         "admin",
       ]),
       merchantId: zod
@@ -45,6 +46,12 @@ export const GetCurrentAuthUserResponse = zod.object({
         .nullish()
         .describe(
           "Set for merchant_admin and merchant_staff users; determines ownership scope",
+        ),
+      eventId: zod
+        .string()
+        .nullish()
+        .describe(
+          "Set for event_admin users; determines which event they manage",
         ),
     }),
     zod.null(),
