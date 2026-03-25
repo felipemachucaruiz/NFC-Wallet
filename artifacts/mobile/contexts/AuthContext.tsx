@@ -36,7 +36,7 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<string | null>;
+  login: (identifier: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -116,12 +116,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { mounted = false; };
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<string | null> => {
+  const login = useCallback(async (identifier: string, password: string): Promise<string | null> => {
     try {
       const res = await fetch(`${getApiBase()}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

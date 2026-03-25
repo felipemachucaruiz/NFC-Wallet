@@ -94,23 +94,28 @@ router.get("/auth/user", (req: Request, res: Response) => {
 });
 
 const PasswordLoginBody = z.object({
-  email: z.string().min(1),
+  identifier: z.string().min(1),
   password: z.string().min(1),
 });
 
 router.post("/auth/login", async (req: Request, res: Response) => {
   const parsed = PasswordLoginBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Email and password are required" });
+    res.status(400).json({ error: "Username/email and password are required" });
     return;
   }
 
-  const { email, password } = parsed.data;
+  const { identifier, password } = parsed.data;
+  const trimmed = identifier.trim();
+  const lower = trimmed.toLowerCase();
 
   const [user] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.email, email.toLowerCase().trim()));
+    .where(or(
+      eq(usersTable.email, lower),
+      eq(usersTable.username, trimmed),
+    ));
 
   if (!user || !user.passwordHash) {
     res.status(401).json({ error: "Invalid credentials" });
@@ -140,11 +145,14 @@ router.post("/auth/login", async (req: Request, res: Response) => {
 });
 
 const CreateAccountBody = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+  email: z.string().email().optional(),
+  username: z.string().min(3).max(40).regex(/^[a-zA-Z0-9_.-]+$/, "Username may only contain letters, numbers, underscores, dots, and hyphens").optional(),
+  password: z.string().min(6),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   role: z.enum(["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin", "admin"]).optional(),
+}).refine((d) => d.email || d.username, {
+  message: "Either email or username is required",
 });
 
 router.post("/auth/create-account", async (req: Request, res: Response) => {
@@ -154,21 +162,21 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
     return;
   }
 
-  const { email, password, firstName, lastName } = parsed.data;
-  const normalizedEmail = email.toLowerCase().trim();
+  const { email, username, password, firstName, lastName } = parsed.data;
   const requestedRole = parsed.data.role ?? "attendee";
-
   const isAdmin = req.isAuthenticated() && req.user?.role === "admin";
   const allowedRole = isAdmin ? requestedRole : "attendee";
 
-  const [existing] = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(eq(usersTable.email, normalizedEmail));
+  const normalizedEmail = email ? email.toLowerCase().trim() : null;
+  const normalizedUsername = username ? username.trim() : null;
 
-  if (existing) {
-    res.status(409).json({ error: "Email already registered" });
-    return;
+  if (normalizedEmail) {
+    const [dup] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, normalizedEmail));
+    if (dup) { res.status(409).json({ error: "Email already registered" }); return; }
+  }
+  if (normalizedUsername) {
+    const [dup] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.username, normalizedUsername));
+    if (dup) { res.status(409).json({ error: "Username already taken" }); return; }
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -177,6 +185,7 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
     .insert(usersTable)
     .values({
       email: normalizedEmail,
+      username: normalizedUsername,
       passwordHash,
       firstName: firstName ?? null,
       lastName: lastName ?? null,
@@ -184,7 +193,7 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
     })
     .returning();
 
-  res.status(201).json({ id: newUser.id, email: newUser.email, role: newUser.role });
+  res.status(201).json({ id: newUser.id, email: newUser.email, username: newUser.username, role: newUser.role });
 });
 
 const SetupBody = z.object({

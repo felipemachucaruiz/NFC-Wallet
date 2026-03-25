@@ -26,7 +26,7 @@ export default function LoginScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const isWeb = Platform.OS === "web";
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,13 +38,13 @@ export default function LoginScreen() {
   }, [isAuthenticated]);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password) {
+    if (!identifier.trim() || !password) {
       setError(t("auth.fillFields"));
       return;
     }
     setError(null);
     setSubmitting(true);
-    const err = await login(email.trim(), password);
+    const err = await login(identifier.trim(), password);
     setSubmitting(false);
     if (err) {
       setError(t("auth.invalidCredentials"));
@@ -94,16 +94,15 @@ export default function LoginScreen() {
 
           <View style={styles.form}>
             <Input
-              label={t("auth.email")}
-              value={email}
-              onChangeText={(v) => { setEmail(v); setError(null); }}
-              placeholder={t("auth.emailPlaceholder")}
-              keyboardType="email-address"
+              label={t("auth.identifier")}
+              value={identifier}
+              onChangeText={(v) => { setIdentifier(v); setError(null); }}
+              placeholder={t("auth.identifierPlaceholder")}
               autoCapitalize="none"
-              autoComplete="email"
+              autoCorrect={false}
               returnKeyType="next"
               editable={!busy}
-              testID="email-input"
+              testID="identifier-input"
             />
             <Input
               label={t("auth.password")}
