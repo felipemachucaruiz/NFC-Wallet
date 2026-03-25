@@ -1,9 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -13,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import Colors from "@/constants/colors";
 
 export default function LoginScreen() {
@@ -23,11 +26,32 @@ export default function LoginScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const isWeb = Platform.OS === "web";
 
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     if (isAuthenticated) {
       router.replace("/");
     }
   }, [isAuthenticated]);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      setError(t("auth.fillFields"));
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    const err = await login(email.trim(), password);
+    setSubmitting(false);
+    if (err) {
+      setError(t("auth.invalidCredentials"));
+    }
+  };
+
+  const busy = isLoading || submitting;
 
   return (
     <View
@@ -44,53 +68,94 @@ export default function LoginScreen() {
         }
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.inner}>
-        <View style={styles.logoSection}>
-          <View style={[styles.iconBg, { backgroundColor: C.primary }]}>
-            <Feather name="credit-card" size={40} color="#fff" />
-          </View>
-          <Text style={[styles.appName, { color: C.text }]}>
-            {t("auth.title")}
-          </Text>
-          <Text style={[styles.subtitle, { color: C.textSecondary }]}>
-            {t("auth.subtitle")}
-          </Text>
-        </View>
-
-        <View style={styles.features}>
-          {[
-            { icon: "zap" as const, text: t("auth.featureNfc") },
-            { icon: "shield" as const, text: t("auth.featureHmac") },
-            { icon: "wifi-off" as const, text: t("auth.featureOffline") },
-          ].map((f) => (
-            <View key={f.icon} style={styles.featureRow}>
-              <View
-                style={[styles.featureIcon, { backgroundColor: C.primaryLight }]}
-              >
-                <Feather name={f.icon} size={18} color={C.primary} />
-              </View>
-              <Text style={[styles.featureText, { color: C.textSecondary }]}>
-                {f.text}
-              </Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.inner,
+            { paddingBottom: isWeb ? 34 : insets.bottom + 20 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.logoSection}>
+            <View style={[styles.iconBg, { backgroundColor: C.primary }]}>
+              <Feather name="credit-card" size={40} color="#fff" />
             </View>
-          ))}
-        </View>
+            <Text style={[styles.appName, { color: C.text }]}>
+              {t("auth.title")}
+            </Text>
+            <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+              {t("auth.subtitle")}
+            </Text>
+          </View>
 
-        <View style={[styles.bottom, { paddingBottom: isWeb ? 34 : insets.bottom + 20 }]}>
-          <Button
-            title={isLoading ? t("auth.loggingIn") : t("auth.loginButton")}
-            onPress={login}
-            variant="primary"
-            size="lg"
-            loading={isLoading}
-            fullWidth
-            testID="login-button"
-          />
+          <View style={styles.form}>
+            <Input
+              label={t("auth.email")}
+              value={email}
+              onChangeText={(v) => { setEmail(v); setError(null); }}
+              placeholder={t("auth.emailPlaceholder")}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              returnKeyType="next"
+              editable={!busy}
+              testID="email-input"
+            />
+            <Input
+              label={t("auth.password")}
+              value={password}
+              onChangeText={(v) => { setPassword(v); setError(null); }}
+              placeholder={t("auth.passwordPlaceholder")}
+              secureTextEntry
+              autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+              editable={!busy}
+              testID="password-input"
+            />
+            {error ? (
+              <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
+                <Feather name="alert-circle" size={16} color={C.danger} />
+                <Text style={[styles.errorText, { color: C.danger }]}>{error}</Text>
+              </View>
+            ) : null}
+            <Button
+              title={busy ? t("auth.signingIn") : t("auth.signIn")}
+              onPress={handleLogin}
+              variant="primary"
+              size="lg"
+              loading={busy}
+              fullWidth
+              testID="login-button"
+            />
+          </View>
+
+          <View style={styles.features}>
+            {[
+              { icon: "zap" as const, text: t("auth.featureNfc") },
+              { icon: "shield" as const, text: t("auth.featureHmac") },
+              { icon: "wifi-off" as const, text: t("auth.featureOffline") },
+            ].map((f) => (
+              <View key={f.icon} style={styles.featureRow}>
+                <View style={[styles.featureIcon, { backgroundColor: C.primaryLight }]}>
+                  <Feather name={f.icon} size={18} color={C.primary} />
+                </View>
+                <Text style={[styles.featureText, { color: C.textSecondary }]}>
+                  {f.text}
+                </Text>
+              </View>
+            ))}
+          </View>
+
           <Text style={[styles.disclaimer, { color: C.textMuted }]}>
             {t("auth.disclaimer")}
           </Text>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -98,12 +163,13 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   inner: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 28,
-    justifyContent: "space-between",
     paddingVertical: 40,
+    gap: 32,
+    justifyContent: "center",
   },
-  logoSection: { alignItems: "center", gap: 16 },
+  logoSection: { alignItems: "center", gap: 12 },
   iconBg: {
     width: 88,
     height: 88,
@@ -127,20 +193,32 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     textAlign: "center",
   },
-  features: { gap: 16 },
+  form: { gap: 16 },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+  },
+  errorText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    flex: 1,
+  },
+  features: { gap: 12 },
   featureRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   featureIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   featureText: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: "Inter_500Medium",
   },
-  bottom: { gap: 14 },
   disclaimer: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",

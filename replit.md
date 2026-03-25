@@ -17,7 +17,7 @@ pnpm workspace monorepo using TypeScript.
 - **Validation**: Zod v3 (import as `"zod"`, NOT `"zod/v4"`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
-- **Auth**: Replit Auth (OIDC + PKCE) via `openid-client`
+- **Auth**: Email + password (bcrypt) with server-side sessions (SID in DB); `openid-client` kept for legacy OIDC routes
 - **NFC security**: HMAC-SHA256 (`balance:counter` signed with `HMAC_SECRET`)
 
 ## Key Design Decisions
@@ -72,7 +72,8 @@ Express 5 API server. All routes under `/api` prefix.
 - Entry: `src/index.ts` — reads `PORT`, starts Express
 - App setup: `src/app.ts` — CORS, JSON parsing, cookieParser, authMiddleware, routes at `/api`
 - Routes: `src/routes/index.ts` mounts all 16 sub-routers
-- Auth: `src/lib/auth.ts` (OIDC session), `src/middlewares/requireRole.ts` (RBAC)
+- Auth: `src/lib/auth.ts` (session management), `src/middlewares/requireRole.ts` (RBAC)
+- Password auth routes: `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/create-account`, `POST /api/auth/setup`
 - `pnpm --filter @workspace/api-server run dev` — dev server
 
 **Route Groups (all under /api):**

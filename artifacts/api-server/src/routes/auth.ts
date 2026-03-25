@@ -1,5 +1,7 @@
 import * as oidc from "openid-client";
+import bcrypt from "bcryptjs";
 import { Router, type IRouter, type Request, type Response } from "express";
+import { z } from "zod";
 import {
   GetCurrentAuthUserResponse,
   ExchangeMobileAuthorizationCodeBody,
@@ -7,6 +9,7 @@ import {
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
 import { db, usersTable } from "@workspace/db";
+import { eq, or } from "drizzle-orm";
 import {
   clearSession,
   getOidcConfig,
@@ -88,6 +91,155 @@ router.get("/auth/user", (req: Request, res: Response) => {
       user: req.isAuthenticated() ? req.user : null,
     }),
   );
+});
+
+const PasswordLoginBody = z.object({
+  email: z.string().min(1),
+  password: z.string().min(1),
+});
+
+router.post("/auth/login", async (req: Request, res: Response) => {
+  const parsed = PasswordLoginBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Email and password are required" });
+    return;
+  }
+
+  const { email, password } = parsed.data;
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, email.toLowerCase().trim()));
+
+  if (!user || !user.passwordHash) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  const sessionData = {
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.profileImageUrl,
+      role: user.role,
+      merchantId: user.merchantId ?? null,
+    },
+  };
+
+  const sid = await createSession(sessionData);
+  res.json({ token: sid });
+});
+
+const CreateAccountBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  role: z.enum(["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin", "admin"]).optional(),
+});
+
+router.post("/auth/create-account", async (req: Request, res: Response) => {
+  const parsed = CreateAccountBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
+    return;
+  }
+
+  const { email, password, firstName, lastName } = parsed.data;
+  const normalizedEmail = email.toLowerCase().trim();
+  const requestedRole = parsed.data.role ?? "attendee";
+
+  const isAdmin = req.isAuthenticated() && req.user?.role === "admin";
+  const allowedRole = isAdmin ? requestedRole : "attendee";
+
+  const [existing] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.email, normalizedEmail));
+
+  if (existing) {
+    res.status(409).json({ error: "Email already registered" });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  const [newUser] = await db
+    .insert(usersTable)
+    .values({
+      email: normalizedEmail,
+      passwordHash,
+      firstName: firstName ?? null,
+      lastName: lastName ?? null,
+      role: allowedRole,
+    })
+    .returning();
+
+  res.status(201).json({ id: newUser.id, email: newUser.email, role: newUser.role });
+});
+
+const SetupBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+});
+
+router.post("/auth/setup", async (req: Request, res: Response) => {
+  const parsed = SetupBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+
+  const [existingAdmin] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.role, "admin"));
+
+  if (existingAdmin) {
+    res.status(403).json({ error: "Setup already complete. An admin account already exists." });
+    return;
+  }
+
+  const { email, password, firstName, lastName } = parsed.data;
+  const normalizedEmail = email.toLowerCase().trim();
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  const [newUser] = await db
+    .insert(usersTable)
+    .values({
+      email: normalizedEmail,
+      passwordHash,
+      firstName: firstName ?? "Admin",
+      lastName: lastName ?? null,
+      role: "admin",
+    })
+    .onConflictDoUpdate({
+      target: usersTable.email,
+      set: { passwordHash, role: "admin", updatedAt: new Date() },
+    })
+    .returning();
+
+  res.status(201).json({ id: newUser.id, email: newUser.email, role: newUser.role });
+});
+
+router.post("/auth/logout", async (req: Request, res: Response) => {
+  const sid = getSessionId(req);
+  if (sid) {
+    await deleteSession(sid);
+  }
+  res.clearCookie(SESSION_COOKIE, { path: "/" });
+  res.json({ success: true });
 });
 
 router.get("/login", async (req: Request, res: Response) => {
