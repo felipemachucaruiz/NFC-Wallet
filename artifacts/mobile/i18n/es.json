@@ -460,7 +460,9 @@
       "none": "Ninguno",
       "existing": "Cliente existente",
       "new": "Nuevo organizador"
-    }
+    },
+    "searchUser": "Buscar por nombre o correo…",
+    "selectUserRequired": "Por favor selecciona un usuario primero"
   },
   "common_notfound": {
     "title": "Página no encontrada",

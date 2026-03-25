@@ -460,7 +460,9 @@
       "none": "None",
       "existing": "Existing Client",
       "new": "New Organizer"
-    }
+    },
+    "searchUser": "Search by name or email…",
+    "selectUserRequired": "Please select a user first"
   },
   "common_notfound": {
     "title": "Page not found",
