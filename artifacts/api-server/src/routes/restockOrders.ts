@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, restockOrdersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, restockOrdersTable, locationsTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -11,9 +11,41 @@ router.get(
   requireRole("admin", "warehouse_admin", "merchant_admin"),
   async (req: Request, res: Response) => {
     const { status, locationId } = req.query as { status?: string; locationId?: string };
+    const user = req.user!;
     const conditions = [];
+
     if (status) conditions.push(eq(restockOrdersTable.status, status as "pending" | "approved" | "dispatched" | "rejected"));
-    if (locationId) conditions.push(eq(restockOrdersTable.locationId, locationId));
+
+    if (user.role === "merchant_admin") {
+      if (!user.merchantId) {
+        res.json({ orders: [] });
+        return;
+      }
+
+      const merchantLocations = await db
+        .select({ id: locationsTable.id })
+        .from(locationsTable)
+        .where(eq(locationsTable.merchantId, user.merchantId));
+
+      if (merchantLocations.length === 0) {
+        res.json({ orders: [] });
+        return;
+      }
+
+      const locationIds = merchantLocations.map((l) => l.id);
+
+      if (locationId) {
+        if (!locationIds.includes(locationId)) {
+          res.status(403).json({ error: "Access denied: location does not belong to your merchant" });
+          return;
+        }
+        conditions.push(eq(restockOrdersTable.locationId, locationId));
+      } else {
+        conditions.push(inArray(restockOrdersTable.locationId, locationIds));
+      }
+    } else {
+      if (locationId) conditions.push(eq(restockOrdersTable.locationId, locationId));
+    }
 
     const orders = await db
       .select()

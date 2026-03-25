@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, braceletsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth, requireRole } from "../middlewares/requireRole";
+import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -42,7 +42,7 @@ router.post(
 
 router.get(
   "/bracelets/:nfcUid",
-  requireAuth,
+  requireRole("bank", "admin", "merchant_staff", "merchant_admin"),
   async (req: Request, res: Response) => {
     const [bracelet] = await db
       .select()
