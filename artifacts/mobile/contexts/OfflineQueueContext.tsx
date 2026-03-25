@@ -16,11 +16,9 @@ const SYNC_INTERVAL = 30_000;
 export interface QueuedTransaction {
   id: string;
   locationId: string;
-  braceletUid: string;
-  totalCop: number;
+  nfcUid: string;
   newBalance: number;
-  newCounter: number;
-  newHmac: string;
+  counter: number;
   lineItems: Array<{
     productId: string;
     quantity: number;
@@ -106,20 +104,16 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     try {
       await syncTransactions({
         transactions: pending.map((t) => ({
-          localId: t.id,
+          idempotencyKey: t.id,
+          nfcUid: t.nfcUid,
           locationId: t.locationId,
-          braceletUid: t.braceletUid,
-          totalAmountCop: t.totalCop,
           newBalance: t.newBalance,
-          newCounter: t.newCounter,
-          newHmac: t.newHmac,
+          counter: t.counter,
           lineItems: t.lineItems.map((li) => ({
             productId: li.productId,
             quantity: li.quantity,
-            unitPriceCop: li.unitPriceCop,
-            unitCostCop: li.unitCostCop,
           })),
-          occurredAt: t.createdAt,
+          offlineCreatedAt: t.createdAt,
         })),
       });
       q = queueRef.current.filter((t) => !pending.find((p) => p.id === t.id));

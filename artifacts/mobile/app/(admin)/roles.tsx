@@ -138,7 +138,7 @@ export default function RolesScreen() {
           text: t("common.confirm"),
           onPress: async () => {
             try {
-              await updateRole.mutateAsync({ userId: selectedUser.id, role: selectedRole } as Parameters<typeof updateRole.mutateAsync>[0]);
+              await updateRole.mutateAsync({ userId: selectedUser.id, data: { role: selectedRole } });
               Alert.alert(t("common.success"), t("admin.roleAssigned"));
               setShowAssign(false);
             } catch {

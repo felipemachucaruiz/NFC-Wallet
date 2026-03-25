@@ -425,6 +425,8 @@
     "eventNamePlaceholder": "Ej. Festival Verano 2026",
     "venuePlaceholder": "Ej. Parque Simón Bolívar",
     "contactEmail": "Email de contacto",
+    "event": "Evento",
+    "selectEvent": "Por favor selecciona un evento",
     "merchantNamePlaceholder": "Ej. Barra Principal",
     "locationCount_one": "{{count}} ubicación",
     "locationCount_other": "{{count}} ubicaciones",

@@ -24,14 +24,14 @@ import { isNfcSupported, writeBracelet, type TagInfo, type TagType } from "@/uti
 import { computeHmac } from "@/utils/hmac";
 import { formatCOP, parseCOPInput } from "@/utils/format";
 
-type PaymentMethod = "cash" | "card_external" | "nequi" | "bancolombia" | "other";
+type PaymentMethod = "cash" | "card_external" | "nequi_transfer" | "bancolombia_transfer" | "other";
 
-const PAYMENT_METHODS: { value: PaymentMethod; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
-  { value: "cash", icon: "dollar-sign" },
-  { value: "card_external", icon: "credit-card" },
-  { value: "nequi", icon: "smartphone" },
-  { value: "bancolombia", icon: "home" },
-  { value: "other", icon: "more-horizontal" },
+const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
+  { value: "cash", label: "Efectivo", icon: "dollar-sign" },
+  { value: "card_external", label: "Tarjeta", icon: "credit-card" },
+  { value: "nequi_transfer", label: "Nequi", icon: "smartphone" },
+  { value: "bancolombia_transfer", label: "Bancolombia", icon: "home" },
+  { value: "other", label: "Otro", icon: "more-horizontal" },
 ];
 
 function TagBadge({ tagInfo, colors }: { tagInfo: TagInfo; colors: typeof Colors.light }) {
@@ -101,7 +101,7 @@ export default function TopUpScreen() {
   const [email, setEmail] = useState(params.email ?? "");
 
   const { data: keyData } = useGetSigningKey();
-  const hmacSecret = keyData?.key ?? "";
+  const hmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
 
   const createTopUp = useCreateTopUp();
   const updateContact = useUpdateBraceletContact();
@@ -128,12 +128,11 @@ export default function TopUpScreen() {
       }
 
       await createTopUp.mutateAsync({
-        braceletUid: uid,
-        amountCop: amount,
-        newBalance,
-        newCounter,
-        newHmac,
-        paymentMethod,
+        data: {
+          nfcUid: uid,
+          amountCop: amount,
+          paymentMethod,
+        },
       });
 
       const contactUpdates: { attendeeName?: string; phone?: string; email?: string } = {};
@@ -245,7 +244,7 @@ export default function TopUpScreen() {
         <View style={styles.methodGrid}>
           {PAYMENT_METHODS.map((m) => {
             const isSelected = paymentMethod === m.value;
-            const label = t(`bank.${m.value === "card_external" ? "cardExternal" : m.value}`);
+            const label = m.label;
             return (
               <Pressable
                 key={m.value}

@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import {
   useListMerchants,
   useCreateMerchant,
+  useListEvents,
   useListLocations,
   useCreateLocation,
   useUpdateLocation,
@@ -61,29 +62,36 @@ export default function MerchantsScreen() {
   const [merchantName, setMerchantName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [commissionRate, setCommissionRate] = useState("15");
+  const [selectedEventId, setSelectedEventId] = useState("");
 
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
 
   const { data, isLoading, refetch } = useListMerchants({});
+  const { data: eventsData } = useListEvents();
   const merchants = (data as {
     merchants?: Merchant[];
   } | undefined)?.merchants ?? [];
+  const events = (eventsData as { events?: { id: string; name: string }[] } | undefined)?.events ?? [];
 
   const createMerchant = useCreateMerchant();
 
   const handleCreate = async () => {
     if (!merchantName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
+    if (!selectedEventId) { Alert.alert(t("common.error"), t("admin.selectEvent")); return; }
     try {
       await createMerchant.mutateAsync({
-        name: merchantName.trim(),
-        contactEmail: contactEmail.trim() || undefined,
-        commissionRatePercent: parseFloat(commissionRate) || 15,
-      } as Parameters<typeof createMerchant.mutateAsync>[0]);
+        data: {
+          name: merchantName.trim(),
+          eventId: selectedEventId,
+          commissionRatePercent: String(parseFloat(commissionRate) || 15),
+        },
+      });
       setShowCreate(false);
       setMerchantName("");
       setContactEmail("");
       setCommissionRate("15");
+      setSelectedEventId("");
       refetch();
     } catch {
       Alert.alert(t("common.error"), t("common.unknownError"));
@@ -151,6 +159,30 @@ export default function MerchantsScreen() {
             <Input label={t("common.name")} value={merchantName} onChangeText={setMerchantName} placeholder={t("admin.merchantNamePlaceholder")} />
             <Input label={t("admin.contactEmail")} value={contactEmail} onChangeText={setContactEmail} placeholder="contacto@email.com" keyboardType="email-address" />
             <Input label={t("admin.commissionRate")} value={commissionRate} onChangeText={setCommissionRate} keyboardType="decimal-pad" placeholder="15" />
+            <View style={{ gap: 6 }}>
+              <Text style={[styles.label, { color: C.textSecondary }]}>{t("admin.event")}</Text>
+              <View style={{ gap: 6 }}>
+                {events.map((ev) => (
+                  <Pressable
+                    key={ev.id}
+                    onPress={() => setSelectedEventId(ev.id)}
+                    style={[
+                      styles.eventOption,
+                      {
+                        borderColor: selectedEventId === ev.id ? C.primary : C.border,
+                        backgroundColor: selectedEventId === ev.id ? C.primaryLight : C.card,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: selectedEventId === ev.id ? C.primary : C.text, fontSize: 14 }}>{ev.name}</Text>
+                    {selectedEventId === ev.id && <Feather name="check" size={14} color={C.primary} />}
+                  </Pressable>
+                ))}
+                {events.length === 0 && (
+                  <Text style={{ color: C.textMuted, fontSize: 13 }}>{t("admin.noEvents")}</Text>
+                )}
+              </View>
+            </View>
             <View style={styles.sheetActions}>
               <Button title={t("common.cancel")} onPress={() => setShowCreate(false)} variant="secondary" />
               <Button title={t("admin.createMerchant")} onPress={handleCreate} variant="primary" loading={createMerchant.isPending} />
@@ -498,4 +530,6 @@ const styles = StyleSheet.create({
   staffNote: { flexDirection: "row", gap: 8, padding: 12, alignItems: "flex-start" },
   staffNoteText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
   emptyText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 16 },
+  label: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 },
+  eventOption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 12, borderRadius: 10, borderWidth: 1.5 },
 });

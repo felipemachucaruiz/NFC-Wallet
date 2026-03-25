@@ -65,7 +65,7 @@ export default function RefundScreen() {
   const [refundedAmount, setRefundedAmount] = useState(0);
 
   const { data: keyData } = useGetSigningKey();
-  const hmacSecret = keyData?.key ?? "";
+  const hmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
   const createRefund = useCreateRefund();
 
   const handleConfirm = async () => {

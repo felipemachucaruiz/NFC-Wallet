@@ -52,10 +52,12 @@ export default function EventAdminMerchantsScreen() {
     if (!user?.eventId) { Alert.alert(t("common.error"), t("eventAdmin.noEvent")); return; }
     try {
       await createMerchant.mutateAsync({
-        name: merchantName.trim(),
-        eventId: user.eventId,
-        commissionRatePercent: String(parseFloat(commissionRate) || 15),
-      } as Parameters<typeof createMerchant.mutateAsync>[0]);
+        data: {
+          name: merchantName.trim(),
+          eventId: user.eventId!,
+          commissionRatePercent: String(parseFloat(commissionRate) || 15),
+        },
+      });
       setShowCreate(false);
       setMerchantName("");
       setCommissionRate("15");

@@ -66,7 +66,7 @@ export default function AttendeeBalanceScreen() {
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
 
   const { data: keyData } = useGetSigningKey();
-  const hmacSecret = keyData?.key ?? "";
+  const hmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
 
   const handleTap = async () => {
     if (!isNfcSupported()) {

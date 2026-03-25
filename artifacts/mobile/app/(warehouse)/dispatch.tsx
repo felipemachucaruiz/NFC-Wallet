@@ -67,24 +67,28 @@ export default function DispatchScreen() {
           Alert.alert(t("common.error"), t("common.fillRequired")); return;
         }
         await dispatch.mutateAsync({
-          warehouseId: selectedWarehouseId,
-          productId: selectedProductId,
-          locationId: selectedLocationId,
-          quantity: qty,
-          note: note || undefined,
-        } as Parameters<typeof dispatch.mutateAsync>[0]);
+          data: {
+            warehouseId: selectedWarehouseId,
+            productId: selectedProductId,
+            locationId: selectedLocationId,
+            quantity: qty,
+            notes: note || undefined,
+          },
+        });
         Alert.alert(t("common.success"), t("warehouse.dispatchSuccess"));
       } else {
         if (!selectedLocationId || !selectedToLocationId || !selectedProductId) {
           Alert.alert(t("common.error"), t("common.fillRequired")); return;
         }
         await transfer.mutateAsync({
-          fromLocationId: selectedLocationId,
-          toLocationId: selectedToLocationId,
-          productId: selectedProductId,
-          quantity: qty,
-          note: note || undefined,
-        } as Parameters<typeof transfer.mutateAsync>[0]);
+          data: {
+            fromLocationId: selectedLocationId,
+            toLocationId: selectedToLocationId,
+            productId: selectedProductId,
+            quantity: qty,
+            notes: note || undefined,
+          },
+        });
         Alert.alert(t("common.success"), t("warehouse.transferSuccess"));
       }
       setQuantity("");

@@ -425,6 +425,8 @@
     "eventNamePlaceholder": "e.g. Summer Festival 2026",
     "venuePlaceholder": "e.g. Central Park",
     "contactEmail": "Contact email",
+    "event": "Event",
+    "selectEvent": "Please select an event",
     "merchantNamePlaceholder": "e.g. Main Bar",
     "locationCount_one": "{{count}} location",
     "locationCount_other": "{{count}} locations",

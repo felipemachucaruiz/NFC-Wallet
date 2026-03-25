@@ -85,7 +85,7 @@ export default function ChargeScreen() {
   const { items: cartItems, total, clearCart } = useCart();
   const { enqueue } = useOfflineQueue();
   const { data: keyData } = useGetSigningKey();
-  const hmacSecret = keyData?.key ?? "";
+  const hmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
 
   const logTransaction = useLogTransaction();
 
@@ -105,15 +105,6 @@ export default function ChargeScreen() {
     }
     if (!hmacOk) {
       setStep("hmac_fail");
-      try {
-        await logTransaction.mutateAsync({
-          locationId,
-          braceletUid: uid,
-          totalAmountCop: total,
-          tamperDetected: true,
-          lineItems: [],
-        } as Parameters<typeof logTransaction.mutateAsync>[0]);
-      } catch {}
       return;
     }
     if (balance < total) {
@@ -142,16 +133,19 @@ export default function ChargeScreen() {
       unitPriceCop: i.priceCop,
       unitCostCop: i.costCop,
     }));
+    const idempotencyKey = `${uid}-${newCounter}-${Date.now()}`;
     try {
       await logTransaction.mutateAsync({
-        locationId,
-        braceletUid: uid,
-        totalAmountCop: total,
-        newBalance,
-        newCounter,
-        newHmac,
-        lineItems,
-      } as Parameters<typeof logTransaction.mutateAsync>[0]);
+        data: {
+          idempotencyKey,
+          nfcUid: uid,
+          locationId,
+          newBalance,
+          counter: newCounter,
+          lineItems: lineItems.map((li) => ({ productId: li.productId, quantity: li.quantity })),
+          offlineCreatedAt: new Date().toISOString(),
+        },
+      });
       clearCart();
       setStep("success");
       setBraceletBalance(newBalance);
@@ -159,11 +153,9 @@ export default function ChargeScreen() {
     } catch {
       await enqueue({
         locationId,
-        braceletUid: uid,
-        totalCop: total,
+        nfcUid: uid,
         newBalance,
-        newCounter,
-        newHmac,
+        counter: newCounter,
         lineItems,
       });
       clearCart();

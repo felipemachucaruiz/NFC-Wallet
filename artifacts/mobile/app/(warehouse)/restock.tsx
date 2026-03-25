@@ -53,7 +53,7 @@ export default function RestockOrdersScreen() {
           style: status === "rejected" ? "destructive" : "default",
           onPress: async () => {
             try {
-              await updateOrder.mutateAsync({ id: orderId, status } as Parameters<typeof updateOrder.mutateAsync>[0]);
+              await updateOrder.mutateAsync({ orderId, data: { status } });
               refetch();
             } catch {
               Alert.alert(t("common.error"), t("common.unknownError"));
