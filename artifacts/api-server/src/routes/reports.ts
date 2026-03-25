@@ -166,7 +166,7 @@ router.get(
 
 router.get(
   "/reports/topups",
-  requireRole("admin", "bank"),
+  requireRole("admin"),
   async (req: Request, res: Response) => {
     const { from, to } = req.query as { from?: string; to?: string };
     const conditions = [];
