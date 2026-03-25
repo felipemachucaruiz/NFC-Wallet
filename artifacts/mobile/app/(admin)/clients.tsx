@@ -311,8 +311,8 @@ export default function ClientsScreen() {
           ListHeaderComponent={() => (
             <View style={{ gap: 14 }}>
               <View style={styles.header}>
-                <View>
-                  <Text style={[styles.title, { color: C.text }]}>{t("promoterCompany.title")}</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.title, { color: C.text }]} numberOfLines={1} adjustsFontSizeToFit>{t("promoterCompany.title")}</Text>
                   <Text style={[styles.subtitle, { color: C.textSecondary }]}>{companies.length} {t("promoterCompany.company").toLowerCase()}s</Text>
                 </View>
                 <Button title={`+ ${t("promoterCompany.addCompany")}`} onPress={openCreateCompany} variant="primary" size="sm" />
