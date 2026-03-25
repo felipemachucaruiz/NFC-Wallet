@@ -65,7 +65,8 @@
     "confirmQuestion": "Confirm?",
     "processing": "Processing...",
     "active": "Active",
-    "inactive": "Inactive"
+    "inactive": "Inactive",
+    "passwordMinLength": "Password must be at least 6 characters"
   },
   "auth": {
     "title": "Cashless Pay",
@@ -462,7 +463,11 @@
       "new": "New Organizer"
     },
     "searchUser": "Search by name or email…",
-    "selectUserRequired": "Please select a user first"
+    "selectUserRequired": "Please select a user first",
+    "resetPassword": "Reset Password",
+    "newPassword": "New Password",
+    "passwordReset": "Password reset successfully",
+    "changeRole": "Change Role"
   },
   "common_notfound": {
     "title": "Page not found",

@@ -83,6 +83,10 @@ export default function EventAdminUsersScreen() {
   const [editMerchantId, setEditMerchantId] = useState<string | null>(null);
   const [isSavingRole, setIsSavingRole] = useState(false);
 
+  // Reset password
+  const [resetPw, setResetPw] = useState("");
+  const [isResettingPw, setIsResettingPw] = useState(false);
+
   const fetchData = async () => {
     if (!token) return;
     setIsLoading(true);
@@ -152,6 +156,33 @@ export default function EventAdminUsersScreen() {
     setEditingUser(user);
     setEditRole((user.role as EventAdminRole) ?? "attendee");
     setEditMerchantId(user.merchantId ?? null);
+    setResetPw("");
+  };
+
+  const handleResetPassword = async () => {
+    if (!editingUser) return;
+    if (resetPw.length < 6) {
+      Alert.alert(t("common.error"), t("common.passwordMinLength"));
+      return;
+    }
+    setIsResettingPw(true);
+    try {
+      const res = await fetch(`${getApiBase()}/api/users/${editingUser.id}/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ newPassword: resetPw }),
+      });
+      if (res.ok) {
+        Alert.alert(t("common.success"), t("admin.passwordReset"));
+        setEditingUser(null);
+      } else {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+      }
+    } catch {
+      Alert.alert(t("common.error"), t("common.unknownError"));
+    }
+    setIsResettingPw(false);
   };
 
   const handleSaveRole = async () => {
@@ -342,6 +373,23 @@ export default function EventAdminUsersScreen() {
               <Button title={t("common.cancel")} onPress={() => setEditingUser(null)} variant="secondary" />
               <Button title={t("common.save")} onPress={handleSaveRole} variant="primary" loading={isSavingRole} />
             </View>
+
+            <View style={[styles.divider, { backgroundColor: C.separator }]} />
+
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.resetPassword")}</Text>
+            <Input
+              label={t("admin.newPassword")}
+              value={resetPw}
+              onChangeText={setResetPw}
+              secureTextEntry
+              placeholder="••••••"
+            />
+            <Button
+              title={t("admin.resetPassword")}
+              onPress={handleResetPassword}
+              variant="danger"
+              loading={isResettingPw}
+            />
           </ScrollView>
         </View>
       </Modal>
@@ -366,4 +414,5 @@ const styles = StyleSheet.create({
   roleChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, borderWidth: 1 },
   roleChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   sheetActions: { flexDirection: "row", gap: 12 },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: 4 },
 });

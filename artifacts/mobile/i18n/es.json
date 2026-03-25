@@ -65,7 +65,8 @@
     "confirmQuestion": "¿Confirmar?",
     "processing": "Procesando...",
     "active": "Activo",
-    "inactive": "Inactivo"
+    "inactive": "Inactivo",
+    "passwordMinLength": "La contraseña debe tener al menos 6 caracteres"
   },
   "auth": {
     "title": "Cashless Pay",
@@ -462,7 +463,11 @@
       "new": "Nuevo organizador"
     },
     "searchUser": "Buscar por nombre o correo…",
-    "selectUserRequired": "Por favor selecciona un usuario primero"
+    "selectUserRequired": "Por favor selecciona un usuario primero",
+    "resetPassword": "Restablecer contraseña",
+    "newPassword": "Nueva contraseña",
+    "passwordReset": "Contraseña restablecida",
+    "changeRole": "Cambiar rol"
   },
   "common_notfound": {
     "title": "Página no encontrada",

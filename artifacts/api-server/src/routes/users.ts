@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import bcrypt from "bcryptjs";
 import { db, usersTable, merchantsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
@@ -127,6 +128,52 @@ router.patch(
     }
 
     res.json(user);
+  },
+);
+
+router.patch(
+  "/users/:userId/password",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({ newPassword: z.string().min(6) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Password must be at least 6 characters" });
+      return;
+    }
+
+    const isEventAdmin = req.user!.role === "event_admin";
+    if (isEventAdmin) {
+      if (!req.user!.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [target] = await db
+        .select()
+        .from(usersTable)
+        .where(and(eq(usersTable.id, req.params.userId as string), eq(usersTable.eventId, req.user!.eventId)));
+      if (!target) {
+        res.status(404).json({ error: "User not found in your event" });
+        return;
+      }
+      if (target.role === "event_admin") {
+        res.status(403).json({ error: "Cannot modify another event admin" });
+        return;
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    const [updated] = await db
+      .update(usersTable)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(usersTable.id, req.params.userId as string))
+      .returning({ id: usersTable.id });
+
+    if (!updated) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ success: true });
   },
 );
 

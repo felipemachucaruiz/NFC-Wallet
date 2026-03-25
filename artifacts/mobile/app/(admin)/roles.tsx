@@ -21,6 +21,7 @@ import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 
 type Role = "attendee" | "bank" | "merchant_staff" | "merchant_admin" | "warehouse_admin" | "event_admin" | "admin";
 
@@ -62,6 +63,11 @@ export default function RolesScreen() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
+  // Tab inside the assign sheet: "role" or "password"
+  const [activeTab, setActiveTab] = useState<"role" | "password">("role");
+  const [newPassword, setNewPassword] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+
   const updateRole = useUpdateUserRole();
 
   const fetchUsers = useCallback(async () => {
@@ -86,6 +92,8 @@ export default function RolesScreen() {
       setSelectedUser(null);
       setUserSearch("");
       setSelectedRole("attendee");
+      setActiveTab("role");
+      setNewPassword("");
     }
   }, [showAssign, fetchUsers]);
 
@@ -120,7 +128,10 @@ export default function RolesScreen() {
     }
     Alert.alert(
       t("admin.assignRole"),
-      t("admin.assignRoleConfirm", { role: t(`admin.roles.${selectedRole}`), userId: selectedUser.firstName ?? selectedUser.email ?? selectedUser.username }),
+      t("admin.assignRoleConfirm", {
+        role: t(`admin.roles.${selectedRole}`),
+        userId: selectedUser.firstName ?? selectedUser.email ?? selectedUser.username,
+      }),
       [
         { text: t("common.cancel"), style: "cancel" },
         {
@@ -137,6 +148,32 @@ export default function RolesScreen() {
         },
       ]
     );
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+    if (newPassword.length < 6) {
+      Alert.alert(t("common.error"), t("common.passwordMinLength"));
+      return;
+    }
+    setIsResettingPassword(true);
+    try {
+      const res = await fetch(`${getApiBase()}/api/users/${selectedUser.id}/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ newPassword }),
+      });
+      if (res.ok) {
+        Alert.alert(t("common.success"), t("admin.passwordReset"));
+        setShowAssign(false);
+      } else {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+      }
+    } catch {
+      Alert.alert(t("common.error"), t("common.unknownError"));
+    }
+    setIsResettingPassword(false);
   };
 
   const displayName = (u: UserItem) =>
@@ -206,6 +243,7 @@ export default function RolesScreen() {
             <View style={styles.sheetHandle} />
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.assignRole")}</Text>
 
+            {/* User search */}
             <View style={[styles.searchBox, { backgroundColor: C.inputBg, borderColor: C.border }]}>
               <Feather name="search" size={16} color={C.textSecondary} />
               <TextInput
@@ -223,6 +261,7 @@ export default function RolesScreen() {
               )}
             </View>
 
+            {/* User list */}
             <ScrollView style={styles.userList} nestedScrollEnabled>
               {loadingUsers ? (
                 <Text style={[styles.hint, { color: C.textSecondary }]}>{t("common.loading")}…</Text>
@@ -236,6 +275,8 @@ export default function RolesScreen() {
                     onPress={() => {
                       setSelectedUser(u);
                       setSelectedRole(u.role as Role ?? "attendee");
+                      setActiveTab("role");
+                      setNewPassword("");
                     }}
                     style={[
                       styles.userItem,
@@ -256,40 +297,78 @@ export default function RolesScreen() {
               })}
             </ScrollView>
 
+            {/* Tab switcher + action area — only visible once a user is selected */}
             {selectedUser && (
               <>
-                <Text style={[styles.sectionLabel, { color: C.textSecondary, marginTop: 8 }]}>{t("admin.selectRole")}</Text>
-                <View style={styles.roleGrid}>
-                  {ROLES.map((role) => (
-                    <Pressable
-                      key={role}
-                      onPress={() => setSelectedRole(role)}
-                      style={[
-                        styles.roleChip,
-                        {
-                          backgroundColor: selectedRole === role ? C.primary : C.inputBg,
-                          borderColor: selectedRole === role ? C.primary : C.border,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.roleChipText, { color: selectedRole === role ? "#fff" : C.textSecondary }]}>
-                        {t(`admin.roles.${role}`)}
-                      </Text>
-                    </Pressable>
-                  ))}
+                <View style={[styles.tabRow, { backgroundColor: C.inputBg }]}>
+                  <Pressable
+                    onPress={() => setActiveTab("role")}
+                    style={[styles.tabBtn, activeTab === "role" && { backgroundColor: C.card }]}
+                  >
+                    <Feather name="shield" size={13} color={activeTab === "role" ? C.primary : C.textSecondary} />
+                    <Text style={[styles.tabBtnText, { color: activeTab === "role" ? C.primary : C.textSecondary }]}>
+                      {t("admin.changeRole")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setActiveTab("password")}
+                    style={[styles.tabBtn, activeTab === "password" && { backgroundColor: C.card }]}
+                  >
+                    <Feather name="key" size={13} color={activeTab === "password" ? C.primary : C.textSecondary} />
+                    <Text style={[styles.tabBtnText, { color: activeTab === "password" ? C.primary : C.textSecondary }]}>
+                      {t("admin.resetPassword")}
+                    </Text>
+                  </Pressable>
                 </View>
+
+                {activeTab === "role" ? (
+                  <>
+                    <View style={styles.roleGrid}>
+                      {ROLES.map((role) => (
+                        <Pressable
+                          key={role}
+                          onPress={() => setSelectedRole(role)}
+                          style={[
+                            styles.roleChip,
+                            {
+                              backgroundColor: selectedRole === role ? C.primary : C.inputBg,
+                              borderColor: selectedRole === role ? C.primary : C.border,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.roleChipText, { color: selectedRole === role ? "#fff" : C.textSecondary }]}>
+                            {t(`admin.roles.${role}`)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <View style={styles.sheetActions}>
+                      <Button title={t("common.cancel")} onPress={() => setShowAssign(false)} variant="secondary" />
+                      <Button title={t("admin.assignRole")} onPress={handleAssign} variant="primary" loading={updateRole.isPending} />
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Input
+                      label={t("admin.newPassword")}
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      secureTextEntry
+                      placeholder="••••••"
+                    />
+                    <View style={styles.sheetActions}>
+                      <Button title={t("common.cancel")} onPress={() => setShowAssign(false)} variant="secondary" />
+                      <Button title={t("admin.resetPassword")} onPress={handleResetPassword} variant="danger" loading={isResettingPassword} />
+                    </View>
+                  </>
+                )}
               </>
             )}
 
-            <View style={styles.sheetActions}>
+            {/* No user selected yet — just a cancel */}
+            {!selectedUser && (
               <Button title={t("common.cancel")} onPress={() => setShowAssign(false)} variant="secondary" />
-              <Button
-                title={t("admin.assignRole")}
-                onPress={handleAssign}
-                variant="primary"
-                loading={updateRole.isPending}
-              />
-            </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -314,18 +393,21 @@ const styles = StyleSheet.create({
   roleIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   roleName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   overlay: { flex: 1, justifyContent: "flex-end" },
-  sheet: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 14, maxHeight: "80%" },
+  sheet: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 14, maxHeight: "85%" },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#ccc", alignSelf: "center", marginBottom: 4 },
   sheetTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   searchInput: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", padding: 0 },
-  userList: { maxHeight: 220 },
+  userList: { maxHeight: 180 },
   userItem: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, gap: 10 },
   userItemName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   userItemSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
   hint: { fontSize: 13, fontFamily: "Inter_400Regular", paddingVertical: 12, textAlign: "center" },
+  tabRow: { flexDirection: "row", borderRadius: 12, padding: 3, gap: 2 },
+  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8, borderRadius: 10 },
+  tabBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   roleGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   roleChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, borderWidth: 1 },
   roleChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  sheetActions: { flexDirection: "row", gap: 12, marginTop: 4 },
+  sheetActions: { flexDirection: "row", gap: 12 },
 });
