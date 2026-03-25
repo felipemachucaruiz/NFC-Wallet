@@ -254,7 +254,11 @@
     "salesSummary": "Sales summary",
     "currentInventory": "Current inventory",
     "noInventory": "No inventory data",
-    "transactions": "transactions"
+    "transactions": "transactions",
+    "addLocation": "Add location",
+    "deactivateLocation": "Deactivate location",
+    "deactivateLocationConfirm": "Deactivate \"{{name}}\"? It will no longer appear in active lists.",
+    "deactivate": "Deactivate"
   },
   "warehouse": {
     "title": "Warehouse",

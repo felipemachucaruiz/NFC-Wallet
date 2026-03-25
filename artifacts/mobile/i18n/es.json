@@ -254,7 +254,11 @@
     "salesSummary": "Resumen de ventas",
     "currentInventory": "Inventario actual",
     "noInventory": "Sin datos de inventario",
-    "transactions": "transacciones"
+    "transactions": "transacciones",
+    "addLocation": "Agregar ubicación",
+    "deactivateLocation": "Desactivar ubicación",
+    "deactivateLocationConfirm": "¿Desactivar \"{{name}}\"? Ya no aparecerá en las listas activas.",
+    "deactivate": "Desactivar"
   },
   "warehouse": {
     "title": "Almacén",

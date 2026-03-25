@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
+  Alert,
   Platform,
   Pressable,
   RefreshControl,
@@ -14,13 +15,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
   useListLocations,
+  useCreateLocation,
+  useUpdateLocation,
   useGetLocationInventory,
   useGetRevenueReport,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { Empty } from "@/components/ui/Empty";
 
@@ -41,12 +46,66 @@ export default function MerchantLocationsScreen() {
   const { user } = useAuth();
 
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newLocationName, setNewLocationName] = useState("");
 
   const { data: locData, isLoading: locLoading, refetch } = useListLocations(
     user?.merchantId ? { merchantId: user.merchantId } : {},
     { query: { enabled: !!user?.merchantId } }
   );
   const locations = (locData as { locations?: Location[] } | undefined)?.locations?.filter((l) => l.active) ?? [];
+
+  const createLocation = useCreateLocation();
+  const updateLocation = useUpdateLocation();
+
+  const handleAddLocation = async () => {
+    if (!newLocationName.trim()) {
+      Alert.alert(t("common.error"), t("common.nameRequired"));
+      return;
+    }
+    try {
+      await createLocation.mutateAsync({
+        data: {
+          merchantId: user?.merchantId ?? "",
+          eventId: user?.eventId ?? "",
+          name: newLocationName.trim(),
+        },
+      });
+      setShowAddForm(false);
+      setNewLocationName("");
+      refetch();
+    } catch {
+      Alert.alert(t("common.error"), t("common.unknownError"));
+    }
+  };
+
+  const handleDeactivate = (location: Location) => {
+    Alert.alert(
+      t("merchant_admin.deactivateLocation"),
+      t("merchant_admin.deactivateLocationConfirm", { name: location.name }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("merchant_admin.deactivate"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await updateLocation.mutateAsync({
+                locationId: location.id,
+                data: { active: false },
+              });
+              if (selectedLocationId === location.id) {
+                setSelectedLocationId(null);
+              }
+              refetch();
+            } catch {
+              Alert.alert(t("common.error"), t("common.unknownError"));
+            }
+          },
+        },
+      ]
+    );
+  };
 
   if (locLoading) return <Loading label={t("common.loading")} />;
 
@@ -62,7 +121,41 @@ export default function MerchantLocationsScreen() {
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={<RefreshControl refreshing={locLoading} onRefresh={refetch} tintColor={C.primary} />}
     >
-      <Text style={[styles.title, { color: C.text }]}>{t("merchant_admin.locations")}</Text>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: C.text }]}>{t("merchant_admin.locations")}</Text>
+        <Button
+          title={`+ ${t("merchant_admin.addLocation")}`}
+          onPress={() => { setShowAddForm(!showAddForm); setNewLocationName(""); }}
+          variant="primary"
+          size="sm"
+        />
+      </View>
+
+      {showAddForm && (
+        <View style={[styles.addForm, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+          <Input
+            label={t("admin.locationName")}
+            value={newLocationName}
+            onChangeText={setNewLocationName}
+            placeholder={t("admin.locationNamePlaceholder")}
+          />
+          <View style={styles.formActions}>
+            <Button
+              title={t("common.cancel")}
+              onPress={() => { setShowAddForm(false); setNewLocationName(""); }}
+              variant="secondary"
+              size="sm"
+            />
+            <Button
+              title={t("merchant_admin.addLocation")}
+              onPress={handleAddLocation}
+              variant="primary"
+              size="sm"
+              loading={createLocation.isPending}
+            />
+          </View>
+        </View>
+      )}
 
       {locations.length === 0 ? (
         <Empty icon="map-pin" title={t("merchant_admin.noLocations")} />
@@ -96,6 +189,7 @@ export default function MerchantLocationsScreen() {
                   location={loc}
                   merchantId={user?.merchantId ?? ""}
                   onPress={() => setSelectedLocationId(loc.id)}
+                  onDeactivate={() => handleDeactivate(loc)}
                   C={C}
                 />
               ))}
@@ -139,11 +233,13 @@ function LocationSummaryCard({
   location,
   merchantId,
   onPress,
+  onDeactivate,
   C,
 }: {
   location: Location;
   merchantId: string;
   onPress: () => void;
+  onDeactivate: () => void;
   C: typeof Colors.light;
 }) {
   const { t } = useTranslation();
@@ -166,6 +262,12 @@ function LocationSummaryCard({
           <View style={{ alignItems: "flex-end" }}>
             <CopAmount amount={totals?.grossSalesCop} size={16} color={C.primary} />
           </View>
+          <Pressable
+            onPress={(e) => { e.stopPropagation(); onDeactivate(); }}
+            style={[styles.deactivateBtn, { borderColor: C.border }]}
+          >
+            <Feather name="x" size={14} color={C.danger} />
+          </Pressable>
           <Feather name="chevron-right" size={16} color={C.textMuted} />
         </View>
       </Card>
@@ -260,7 +362,10 @@ function LocationDetailPanel({
 }
 
 const styles = StyleSheet.create({
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { fontSize: 26, fontFamily: "Inter_700Bold" },
+  addForm: { borderRadius: 12, padding: 16, gap: 12, borderWidth: 1 },
+  formActions: { flexDirection: "row", gap: 12 },
   filterChip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
@@ -273,6 +378,7 @@ const styles = StyleSheet.create({
   locationIcon: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   locationName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   txCount: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  deactivateBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   sectionLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   metricIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center", marginBottom: 6 },
