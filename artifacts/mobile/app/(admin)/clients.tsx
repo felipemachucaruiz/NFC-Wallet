@@ -38,7 +38,17 @@ type Client = {
   promoterCompanyId: string | null;
 };
 
-type EventItem = { id: string; name: string; status: string };
+type EventItem = { id: string; name: string; active?: boolean; startsAt: string; endsAt: string };
+
+function getEventStatus(event: EventItem): string {
+  if (!event.active) return "cancelled";
+  const now = Date.now();
+  const start = new Date(event.startsAt).getTime();
+  const end = new Date(event.endsAt).getTime();
+  if (now < start) return "upcoming";
+  if (now > end) return "completed";
+  return "active";
+}
 
 type PromoterCompany = {
   id: string;
@@ -327,7 +337,10 @@ export default function ClientsScreen() {
                       </View>
                     </View>
                     <View style={{ alignItems: "flex-end", gap: 8 }}>
-                      <Badge label={ev ? t(`admin.eventStatus.${ev.status}`, { defaultValue: ev.status }) : t("admin.noEventAssigned")} variant={ev ? (ev.status === "active" ? "success" : ev.status === "upcoming" ? "info" : "muted") : "muted"} size="sm" />
+                      {ev ? (() => {
+                        const s = getEventStatus(ev);
+                        return <Badge label={t(`admin.eventStatus.${s}`)} variant={s === "active" ? "success" : s === "upcoming" ? "info" : s === "cancelled" ? "danger" : "muted"} size="sm" />;
+                      })() : <Badge label={t("admin.noEventAssigned")} variant="muted" size="sm" />}
                       <Feather name="edit-2" size={13} color={C.textMuted} />
                     </View>
                   </View>
@@ -454,7 +467,7 @@ export default function ClientsScreen() {
                 <Feather name="calendar" size={16} color={editEventId === ev.id ? C.primary : C.textMuted} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.eventOptionText, { color: editEventId === ev.id ? C.primary : C.text }]}>{ev.name}</Text>
-                  <Text style={[styles.eventOptionSub, { color: C.textMuted }]}>{t(`admin.eventStatus.${ev.status}`, { defaultValue: ev.status })}</Text>
+                  <Text style={[styles.eventOptionSub, { color: C.textMuted }]}>{t(`admin.eventStatus.${getEventStatus(ev)}`)}</Text>
                 </View>
                 {editEventId === ev.id && <Feather name="check" size={16} color={C.primary} />}
               </Pressable>
