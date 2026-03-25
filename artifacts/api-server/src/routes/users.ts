@@ -132,6 +132,29 @@ router.patch(
 );
 
 router.patch(
+  "/users/:userId/promoter-company",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({ promoterCompanyId: z.string().nullable() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+    const [user] = await db
+      .update(usersTable)
+      .set({ promoterCompanyId: parsed.data.promoterCompanyId, updatedAt: new Date() })
+      .where(eq(usersTable.id, req.params.userId as string))
+      .returning({ id: usersTable.id });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({ success: true });
+  },
+);
+
+router.patch(
   "/users/:userId/password",
   requireRole("admin", "event_admin"),
   async (req: Request, res: Response) => {

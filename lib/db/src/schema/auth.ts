@@ -33,6 +33,7 @@ export const usersTable = pgTable("users", {
   role: userRoleEnum("role").notNull().default("attendee"),
   merchantId: varchar("merchant_id"),
   eventId: varchar("event_id"),
+  promoterCompanyId: varchar("promoter_company_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

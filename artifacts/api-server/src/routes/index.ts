@@ -15,6 +15,7 @@ import restockOrdersRouter from "./restockOrders";
 import transactionsRouter from "./transactions";
 import payoutsRouter from "./payouts";
 import reportsRouter from "./reports";
+import promoterCompaniesRouter from "./promoterCompanies";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(restockOrdersRouter);
 router.use(transactionsRouter);
 router.use(payoutsRouter);
 router.use(reportsRouter);
+router.use(promoterCompaniesRouter);
 
 export default router;

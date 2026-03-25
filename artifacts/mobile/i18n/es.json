@@ -467,11 +467,35 @@
     "resetPassword": "Restablecer contraseña",
     "newPassword": "Nueva contraseña",
     "passwordReset": "Contraseña restablecida",
-    "changeRole": "Cambiar rol"
+    "changeRole": "Cambiar rol",
+    "promoterCompany": "Empresa Promotora",
+    "promoterCompanyRequired": "Seleccione una empresa promotora",
+    "selectPromoterCompany": "Seleccionar empresa promotora",
+    "pulepId": "PULEP",
+    "pulepIdPlaceholder": "ID PULEP (opcional)",
+    "companiesTab": "Empresas",
+    "clientsTab": "Clientes"
   },
   "common_notfound": {
     "title": "Página no encontrada",
     "message": "Esta pantalla no existe.",
     "goHome": "Ir al inicio"
+  },
+  "promoterCompany": {
+    "title": "Empresas Promotoras",
+    "company": "Empresa",
+    "companyName": "Razón Social",
+    "nit": "NIT",
+    "address": "Dirección",
+    "phone": "Teléfono",
+    "email": "Correo Electrónico",
+    "addCompany": "Agregar Empresa",
+    "editCompany": "Editar Empresa",
+    "companyNameRequired": "La razón social es obligatoria",
+    "noCompanies": "No hay empresas promotoras",
+    "assignToAdmin": "Asignar a administrador",
+    "companyDeleted": "Empresa eliminada",
+    "companySaved": "Empresa guardada",
+    "deleteConfirm": "¿Eliminar esta empresa promotora?"
   }
 }

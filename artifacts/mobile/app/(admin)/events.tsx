@@ -58,6 +58,12 @@ type Client = {
   eventId: string | null;
 };
 
+type PromoterCompany = {
+  id: string;
+  companyName: string;
+  nit: string | null;
+};
+
 export default function EventsScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
@@ -72,6 +78,8 @@ export default function EventsScreen() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [platformCommission, setPlatformCommission] = useState("0");
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [pulepId, setPulepId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
   // Organizer section
@@ -82,8 +90,18 @@ export default function EventsScreen() {
   const [adminPassword, setAdminPassword] = useState("");
   const [adminFirstName, setAdminFirstName] = useState("");
 
-  // Clients list (event_admin users)
+  // Clients + companies lists
   const [clients, setClients] = useState<Client[]>([]);
+  const [companies, setCompanies] = useState<PromoterCompany[]>([]);
+
+  const [allCompanies, setAllCompanies] = useState<PromoterCompany[]>([]);
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${getApiBase()}/api/promoter-companies`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((d: { companies?: PromoterCompany[] }) => setAllCompanies(d.companies ?? []))
+      .catch(() => {});
+  }, [token]);
 
   const { data, isLoading, refetch } = useListEvents();
   const events = (data as {
@@ -95,6 +113,8 @@ export default function EventsScreen() {
       startsAt: string;
       endsAt: string;
       platformCommissionRate?: string | number;
+      promoterCompanyId?: string | null;
+      pulepId?: string | null;
     }>
   } | undefined)?.events ?? [];
 
@@ -111,7 +131,25 @@ export default function EventsScreen() {
     }
   }, [token]);
 
-  useEffect(() => { if (showCreate) fetchClients(); }, [showCreate, fetchClients]);
+  const fetchCompanies = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${getApiBase()}/api/promoter-companies`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json() as { companies: PromoterCompany[] };
+      setCompanies(data.companies ?? []);
+    } catch {
+      setCompanies([]);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (showCreate) {
+      fetchClients();
+      fetchCompanies();
+    }
+  }, [showCreate, fetchClients, fetchCompanies]);
 
   const filteredClients = clients.filter((c) => {
     if (!clientSearch.trim()) return true;
@@ -126,13 +164,17 @@ export default function EventsScreen() {
 
   const resetForm = () => {
     setEventName(""); setVenue(""); setStartDate(null); setEndDate(null);
-    setPlatformCommission("0"); setAdminEmail(""); setAdminPassword(""); setAdminFirstName("");
+    setPlatformCommission("0"); setSelectedCompanyId(""); setPulepId("");
+    setAdminEmail(""); setAdminPassword(""); setAdminFirstName("");
     setOrganizerMode("none"); setSelectedClientId(""); setClientSearch("");
   };
 
   const handleCreate = async () => {
     if (!eventName.trim() || !startDate || !endDate) {
       Alert.alert(t("common.error"), t("admin.eventFieldsRequired")); return;
+    }
+    if (!selectedCompanyId) {
+      Alert.alert(t("common.error"), t("admin.promoterCompanyRequired")); return;
     }
     if (organizerMode === "new" && adminEmail && !adminPassword) {
       Alert.alert(t("common.error"), t("auth.passwordPlaceholder")); return;
@@ -149,6 +191,8 @@ export default function EventsScreen() {
         startsAt: startDate.toISOString(),
         endsAt: endDate.toISOString(),
         platformCommissionRate: platformCommission.trim() || "0",
+        promoterCompanyId: selectedCompanyId,
+        pulepId: pulepId.trim() || undefined,
       };
 
       if (organizerMode === "new" && adminEmail.trim()) {
@@ -218,26 +262,38 @@ export default function EventsScreen() {
           <Empty icon="calendar" title={t("admin.noEvents")} actionLabel={t("admin.createEvent")} onAction={() => setShowCreate(true)} />
         )}
         scrollEnabled={!!events.length}
-        renderItem={({ item }) => (
-          <Card>
-            <View style={styles.eventRow}>
-              <View style={[styles.eventIcon, { backgroundColor: C.primaryLight }]}>
-                <Feather name="calendar" size={20} color={C.primary} />
+        renderItem={({ item }) => {
+          const company = item.promoterCompanyId ? allCompanies.find((c) => c.id === item.promoterCompanyId) : null;
+          return (
+            <Card>
+              <View style={styles.eventRow}>
+                <View style={[styles.eventIcon, { backgroundColor: C.primaryLight }]}>
+                  <Feather name="calendar" size={20} color={C.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.eventName, { color: C.text }]}>{item.name}</Text>
+                  {company && (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                      <Feather name="briefcase" size={11} color={C.textSecondary} />
+                      <Text style={[styles.venue, { color: C.textSecondary }]}>{company.companyName}</Text>
+                    </View>
+                  )}
+                  {item.venueAddress ? <Text style={[styles.venue, { color: C.textSecondary }]}>{item.venueAddress}</Text> : null}
+                  <Text style={[styles.dates, { color: C.textMuted }]}>{formatDate(item.startsAt)} → {formatDate(item.endsAt)}</Text>
+                  {item.pulepId ? (
+                    <Text style={[styles.commission, { color: C.textMuted }]}>PULEP: {item.pulepId}</Text>
+                  ) : null}
+                  {item.platformCommissionRate && parseFloat(String(item.platformCommissionRate)) > 0 ? (
+                    <Text style={[styles.commission, { color: C.warning }]}>
+                      {t("eventAdmin.platformCommission").replace(" (%)", "")}: {item.platformCommissionRate}%
+                    </Text>
+                  ) : null}
+                </View>
+                <Badge label={t(`admin.eventStatus.${getEventStatus(item)}`)} variant={STATUS_BADGE[getEventStatus(item)] ?? "muted"} size="sm" />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.eventName, { color: C.text }]}>{item.name}</Text>
-                {item.venueAddress ? <Text style={[styles.venue, { color: C.textSecondary }]}>{item.venueAddress}</Text> : null}
-                <Text style={[styles.dates, { color: C.textMuted }]}>{formatDate(item.startsAt)} → {formatDate(item.endsAt)}</Text>
-                {item.platformCommissionRate && parseFloat(String(item.platformCommissionRate)) > 0 ? (
-                  <Text style={[styles.commission, { color: C.warning }]}>
-                    {t("eventAdmin.platformCommission").replace(" (%)", "")}: {item.platformCommissionRate}%
-                  </Text>
-                ) : null}
-              </View>
-              <Badge label={t(`admin.eventStatus.${getEventStatus(item)}`)} variant={STATUS_BADGE[getEventStatus(item)] ?? "muted"} size="sm" />
-            </View>
-          </Card>
-        )}
+            </Card>
+          );
+        }}
       />
 
       <Modal visible={showCreate} transparent animationType="slide">
@@ -280,6 +336,44 @@ export default function EventsScreen() {
               onChangeText={setPlatformCommission}
               keyboardType="decimal-pad"
               placeholder={t("eventAdmin.platformCommissionPlaceholder")}
+            />
+
+            {/* Promoter Company (required) */}
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              {t("admin.promoterCompany")} <Text style={{ color: C.danger }}>*</Text>
+            </Text>
+            {companies.length === 0 ? (
+              <Text style={[styles.hintText, { color: C.textMuted }]}>{t("promoterCompany.noCompanies")}</Text>
+            ) : companies.map((c) => (
+              <Pressable
+                key={c.id}
+                onPress={() => setSelectedCompanyId(c.id)}
+                style={[
+                  styles.clientOption,
+                  {
+                    backgroundColor: selectedCompanyId === c.id ? C.primary + "18" : C.inputBg,
+                    borderColor: selectedCompanyId === c.id ? C.primary : C.border,
+                  },
+                ]}
+              >
+                <View style={[styles.clientAvatar, { backgroundColor: selectedCompanyId === c.id ? C.primary : C.border }]}>
+                  <Feather name="briefcase" size={14} color={selectedCompanyId === c.id ? "#fff" : C.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.clientOptionName, { color: selectedCompanyId === c.id ? C.primary : C.text }]}>{c.companyName}</Text>
+                  {c.nit ? <Text style={[styles.clientOptionSub, { color: C.textMuted }]}>NIT: {c.nit}</Text> : null}
+                </View>
+                {selectedCompanyId === c.id && <Feather name="check-circle" size={18} color={C.primary} />}
+              </Pressable>
+            ))}
+
+            {/* PULEP ID (optional) */}
+            <Input
+              label={t("admin.pulepId")}
+              value={pulepId}
+              onChangeText={setPulepId}
+              placeholder={t("admin.pulepIdPlaceholder")}
+              autoCapitalize="none"
             />
 
             {/* Organizer section */}

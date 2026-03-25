@@ -467,11 +467,35 @@
     "resetPassword": "Reset Password",
     "newPassword": "New Password",
     "passwordReset": "Password reset successfully",
-    "changeRole": "Change Role"
+    "changeRole": "Change Role",
+    "promoterCompany": "Promoter Company",
+    "promoterCompanyRequired": "Select a promoter company",
+    "selectPromoterCompany": "Select promoter company",
+    "pulepId": "PULEP",
+    "pulepIdPlaceholder": "PULEP ID (optional)",
+    "companiesTab": "Companies",
+    "clientsTab": "Clients"
   },
   "common_notfound": {
     "title": "Page not found",
     "message": "This screen doesn't exist.",
     "goHome": "Go to home screen"
+  },
+  "promoterCompany": {
+    "title": "Promoter Companies",
+    "company": "Company",
+    "companyName": "Company Name",
+    "nit": "NIT",
+    "address": "Address",
+    "phone": "Phone",
+    "email": "Email",
+    "addCompany": "Add Company",
+    "editCompany": "Edit Company",
+    "companyNameRequired": "Company name is required",
+    "noCompanies": "No promoter companies yet",
+    "assignToAdmin": "Assign to admin",
+    "companyDeleted": "Company deleted",
+    "companySaved": "Company saved",
+    "deleteConfirm": "Delete this promoter company?"
   }
 }
