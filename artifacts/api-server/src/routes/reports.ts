@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, transactionLogsTable, transactionLineItemsTable, topUpsTable, merchantsTable, locationsTable, locationInventoryTable, productsTable, merchantPayoutsTable, braceletsTable, eventsTable, usersTable } from "@workspace/db";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -11,11 +11,30 @@ router.get(
   requireRole("admin", "merchant_admin"),
   async (req: Request, res: Response) => {
     const { eventId, merchantId, locationId, from, to } = req.query as Record<string, string | undefined>;
+    const user = req.user!;
 
     const conditions = [];
     if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
-    if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
-    if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
+
+    if (user.role === "merchant_admin") {
+      if (!user.merchantId) {
+        res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
+        return;
+      }
+      conditions.push(eq(transactionLogsTable.merchantId, user.merchantId));
+      if (locationId) {
+        const [loc] = await db.select().from(locationsTable).where(eq(locationsTable.id, locationId));
+        if (!loc || loc.merchantId !== user.merchantId) {
+          res.status(403).json({ error: "Access denied: location does not belong to your merchant" });
+          return;
+        }
+        conditions.push(eq(transactionLogsTable.locationId, locationId));
+      }
+    } else {
+      if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
+      if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
+    }
+
     if (from) conditions.push(gte(transactionLogsTable.createdAt, new Date(from)));
     if (to) conditions.push(lte(transactionLogsTable.createdAt, new Date(to)));
 
@@ -201,8 +220,40 @@ router.get(
   requireRole("admin", "warehouse_admin", "merchant_admin"),
   async (req: Request, res: Response) => {
     const { eventId, locationId } = req.query as { eventId?: string; locationId?: string };
+    const user = req.user!;
 
-    const conditions = locationId ? [eq(locationInventoryTable.locationId, locationId)] : [];
+    if (user.role === "merchant_admin") {
+      if (!user.merchantId) {
+        res.json({ items: [] });
+        return;
+      }
+      if (locationId) {
+        const [loc] = await db.select().from(locationsTable).where(eq(locationsTable.id, locationId));
+        if (!loc || loc.merchantId !== user.merchantId) {
+          res.status(403).json({ error: "Access denied: location does not belong to your merchant" });
+          return;
+        }
+      }
+    }
+
+    void eventId;
+
+    const conditions = [];
+    if (locationId) {
+      conditions.push(eq(locationInventoryTable.locationId, locationId));
+    } else if (user.role === "merchant_admin" && user.merchantId) {
+      const merchantLocations = await db
+        .select({ id: locationsTable.id })
+        .from(locationsTable)
+        .where(eq(locationsTable.merchantId, user.merchantId));
+      const locationIds = merchantLocations.map((l) => l.id);
+      if (locationIds.length === 0) {
+        res.json({ items: [] });
+        return;
+      }
+      conditions.push(inArray(locationInventoryTable.locationId, locationIds));
+    }
+
     const items = await db
       .select({
         id: locationInventoryTable.id,

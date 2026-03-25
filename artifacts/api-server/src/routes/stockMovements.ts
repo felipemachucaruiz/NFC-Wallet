@@ -1,7 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, stockMovementsTable, warehouseInventoryTable, locationInventoryTable, restockOrdersTable } from "@workspace/db";
-import { eq, and, gte, lte, or } from "drizzle-orm";
+import { db, stockMovementsTable, warehouseInventoryTable, locationInventoryTable, restockOrdersTable, locationsTable } from "@workspace/db";
+import { eq, and, gte, lte, or, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { assertLocationAccess } from "../lib/ownershipGuards";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -11,26 +12,67 @@ router.get(
   requireRole("admin", "warehouse_admin", "merchant_admin"),
   async (req: Request, res: Response) => {
     const { productId, locationId, warehouseId, from, to } = req.query as Record<string, string | undefined>;
+    const user = req.user!;
     const conditions = [];
+
     if (productId) conditions.push(eq(stockMovementsTable.productId, productId));
-    if (locationId) {
-      conditions.push(
-        or(
-          eq(stockMovementsTable.fromLocationId, locationId),
-          eq(stockMovementsTable.toLocationId, locationId),
-        )!,
-      );
-    }
-    if (warehouseId) {
-      conditions.push(
-        or(
-          eq(stockMovementsTable.fromWarehouseId, warehouseId),
-          eq(stockMovementsTable.toWarehouseId, warehouseId),
-        )!,
-      );
-    }
     if (from) conditions.push(gte(stockMovementsTable.createdAt, new Date(from)));
     if (to) conditions.push(lte(stockMovementsTable.createdAt, new Date(to)));
+
+    if (user.role === "merchant_admin") {
+      if (!user.merchantId) {
+        res.json({ movements: [] });
+        return;
+      }
+      const merchantLocations = await db
+        .select({ id: locationsTable.id })
+        .from(locationsTable)
+        .where(eq(locationsTable.merchantId, user.merchantId));
+
+      if (merchantLocations.length === 0) {
+        res.json({ movements: [] });
+        return;
+      }
+
+      const locationIds = merchantLocations.map((l) => l.id);
+
+      if (locationId) {
+        if (!locationIds.includes(locationId)) {
+          res.status(403).json({ error: "Access denied: location does not belong to your merchant" });
+          return;
+        }
+        conditions.push(
+          or(
+            eq(stockMovementsTable.fromLocationId, locationId),
+            eq(stockMovementsTable.toLocationId, locationId),
+          )!,
+        );
+      } else {
+        conditions.push(
+          or(
+            inArray(stockMovementsTable.fromLocationId, locationIds),
+            inArray(stockMovementsTable.toLocationId, locationIds),
+          )!,
+        );
+      }
+    } else {
+      if (locationId) {
+        conditions.push(
+          or(
+            eq(stockMovementsTable.fromLocationId, locationId),
+            eq(stockMovementsTable.toLocationId, locationId),
+          )!,
+        );
+      }
+      if (warehouseId) {
+        conditions.push(
+          or(
+            eq(stockMovementsTable.fromWarehouseId, warehouseId),
+            eq(stockMovementsTable.toWarehouseId, warehouseId),
+          )!,
+        );
+      }
+    }
 
     const movements = await db
       .select()
@@ -154,6 +196,20 @@ router.post(
       return;
     }
     const { fromLocationId, toLocationId, productId, quantity, notes } = parsed.data;
+    const user = req.user!;
+
+    if (user.role === "merchant_admin") {
+      const fromAccess = await assertLocationAccess(fromLocationId, user);
+      if ("error" in fromAccess) {
+        res.status(fromAccess.status).json({ error: fromAccess.error });
+        return;
+      }
+      const toAccess = await assertLocationAccess(toLocationId, user);
+      if ("error" in toAccess) {
+        res.status(toAccess.status).json({ error: toAccess.error });
+        return;
+      }
+    }
 
     const [fromInv] = await db
       .select()
