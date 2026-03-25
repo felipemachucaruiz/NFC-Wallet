@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -81,12 +82,11 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.logoSection}>
-            <View style={[styles.iconBg, { backgroundColor: C.primary }]}>
-              <Feather name="credit-card" size={40} color="#fff" />
-            </View>
-            <Text style={[styles.appName, { color: C.text }]}>
-              {t("auth.title")}
-            </Text>
+            <Image
+              source={require("@/assets/images/icon.png")}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={[styles.subtitle, { color: C.textSecondary }]}>
               {t("auth.subtitle")}
             </Text>
@@ -169,23 +169,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logoSection: { alignItems: "center", gap: 12 },
-  iconBg: {
-    width: 88,
-    height: 88,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-    shadowColor: "#1A56DB",
+  logoImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 40,
+    shadowColor: "#1956dc",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 8,
-  },
-  appName: {
-    fontSize: 32,
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
