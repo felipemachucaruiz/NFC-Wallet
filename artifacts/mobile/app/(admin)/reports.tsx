@@ -11,7 +11,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useGetRevenueReport, useGetTopUpReport, useGetInventoryReport } from "@workspace/api-client-react";
+import {
+  useGetRevenueReport,
+  useGetTopUpReport,
+  useGetInventoryReport,
+  useListMerchants,
+  useListLocations,
+} from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Card } from "@/components/ui/Card";
@@ -41,14 +47,55 @@ export default function ReportsScreen() {
   const [activeTab, setActiveTab] = useState<ReportTab>("revenue");
   const [billing, setBilling] = useState<BillingRow[]>([]);
   const [billingLoading, setBillingLoading] = useState(false);
+  const [selectedMerchantId, setSelectedMerchantId] = useState<string | undefined>(undefined);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined);
 
-  const { data: revenueData, isLoading: revLoading } = useGetRevenueReport({});
+  const { data: merchantsData } = useListMerchants({});
+  const merchants = (merchantsData as { merchants?: Array<{ id: string; name: string }> } | undefined)?.merchants ?? [];
+
+  const { data: locationsData } = useListLocations(
+    selectedMerchantId ? { merchantId: selectedMerchantId } : {},
+    { query: { enabled: !!selectedMerchantId } }
+  );
+  const locations = (locationsData as { locations?: Array<{ id: string; name: string; active: boolean }> } | undefined)?.locations?.filter((l) => l.active) ?? [];
+
+  const revenueParams = {
+    ...(selectedMerchantId ? { merchantId: selectedMerchantId } : {}),
+    ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
+  };
+
+  const inventoryParams = {
+    ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
+  };
+
+  const { data: revenueData, isLoading: revLoading } = useGetRevenueReport(revenueParams);
   const { data: topUpData, isLoading: topUpLoading } = useGetTopUpReport({});
-  const { data: inventoryData, isLoading: invLoading } = useGetInventoryReport({});
+  const { data: inventoryData, isLoading: invLoading } = useGetInventoryReport(inventoryParams);
 
-  const revenue = revenueData as Record<string, number | undefined> | undefined;
+  const revenue = revenueData as {
+    totals?: {
+      grossSalesCop?: number;
+      cogsCop?: number;
+      grossProfitCop?: number;
+      commissionCop?: number;
+      netCop?: number;
+      transactionCount?: number;
+    };
+    totalTopUpsCop?: number;
+  } | undefined;
+
   const topUps = topUpData as Record<string, number | string | Array<Record<string, unknown>> | undefined> | undefined;
-  const inventory = inventoryData as Record<string, number | Array<Record<string, unknown>> | undefined> | undefined;
+  const inventory = inventoryData as {
+    items?: Array<{
+      locationId: string;
+      locationName: string;
+      productId: string;
+      productName: string;
+      quantityOnHand: number;
+      restockTrigger: number;
+      isLowStock: boolean;
+    }>;
+  } | undefined;
 
   useEffect(() => {
     if (activeTab === "billing" && token) {
@@ -71,6 +118,8 @@ export default function ReportsScreen() {
   ];
 
   const isLoading = revLoading || topUpLoading || invLoading;
+
+  const showLocationFilter = activeTab === "revenue" || activeTab === "inventory";
 
   return (
     <ScrollView
@@ -100,18 +149,70 @@ export default function ReportsScreen() {
         </View>
       </ScrollView>
 
+      {showLocationFilter && (
+        <View style={{ gap: 12 }}>
+          <Text style={[styles.filterLabel, { color: C.textSecondary }]}>{t("admin.filterByMerchant")}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 4 }}>
+            <Pressable
+              onPress={() => { setSelectedMerchantId(undefined); setSelectedLocationId(undefined); }}
+              style={[styles.chip, { backgroundColor: !selectedMerchantId ? C.primary : C.inputBg, borderColor: !selectedMerchantId ? C.primary : C.border }]}
+            >
+              <Text style={[styles.chipText, { color: !selectedMerchantId ? "#fff" : C.textSecondary }]}>
+                {t("admin.allMerchants")}
+              </Text>
+            </Pressable>
+            {merchants.map((m) => (
+              <Pressable
+                key={m.id}
+                onPress={() => { setSelectedMerchantId(m.id); setSelectedLocationId(undefined); }}
+                style={[styles.chip, { backgroundColor: selectedMerchantId === m.id ? C.primary : C.inputBg, borderColor: selectedMerchantId === m.id ? C.primary : C.border }]}
+              >
+                <Text style={[styles.chipText, { color: selectedMerchantId === m.id ? "#fff" : C.textSecondary }]}>
+                  {m.name}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {selectedMerchantId && locations.length > 0 && (
+            <>
+              <Text style={[styles.filterLabel, { color: C.textSecondary }]}>{t("admin.filterByLocation")}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 4 }}>
+                <Pressable
+                  onPress={() => setSelectedLocationId(undefined)}
+                  style={[styles.chip, { backgroundColor: !selectedLocationId ? C.primary : C.inputBg, borderColor: !selectedLocationId ? C.primary : C.border }]}
+                >
+                  <Text style={[styles.chipText, { color: !selectedLocationId ? "#fff" : C.textSecondary }]}>
+                    {t("admin.allLocations")}
+                  </Text>
+                </Pressable>
+                {locations.map((loc) => (
+                  <Pressable
+                    key={loc.id}
+                    onPress={() => setSelectedLocationId(loc.id)}
+                    style={[styles.chip, { backgroundColor: selectedLocationId === loc.id ? C.primary : C.inputBg, borderColor: selectedLocationId === loc.id ? C.primary : C.border }]}
+                  >
+                    <Text style={[styles.chipText, { color: selectedLocationId === loc.id ? "#fff" : C.textSecondary }]}>
+                      {loc.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </>
+          )}
+        </View>
+      )}
+
       {isLoading && activeTab !== "billing" ? <Loading label={t("common.loading")} /> : (
         <>
           {activeTab === "revenue" && (
             <View style={{ gap: 12 }}>
               {[
-                { label: t("admin.totalTopUps"), value: revenue?.totalTopUpsCop, positive: true },
-                { label: t("admin.totalSales"), value: revenue?.totalSalesCop, positive: true },
-                { label: t("admin.totalCogs"), value: revenue?.totalCogsCop, positive: false },
-                { label: t("admin.grossProfit"), value: revenue?.grossProfitCop, positive: true },
-                { label: t("admin.totalCommissions"), value: revenue?.totalCommissionsCop, positive: false },
-                { label: t("admin.platformRevenue"), value: revenue?.platformRevenueCop, positive: true },
-                { label: t("admin.netOwedToMerchants"), value: revenue?.netOwedToMerchantsCop, positive: false },
+                { label: t("admin.totalSales"), value: revenue?.totals?.grossSalesCop, positive: true },
+                { label: t("admin.totalCogs"), value: revenue?.totals?.cogsCop, positive: false },
+                { label: t("admin.grossProfit"), value: revenue?.totals?.grossProfitCop, positive: true },
+                { label: t("admin.totalCommissions"), value: revenue?.totals?.commissionCop, positive: false },
+                { label: t("admin.netOwedToMerchants"), value: revenue?.totals?.netCop, positive: false },
               ].map((row) => (
                 <Card key={row.label} padding={16}>
                   <View style={styles.reportRow}>
@@ -147,23 +248,58 @@ export default function ReportsScreen() {
 
           {activeTab === "inventory" && (
             <View style={{ gap: 12 }}>
-              {[
-                { label: t("admin.totalUnitsInStock"), value: inventory?.totalUnitsInStock as number | undefined, isCOP: false },
-                { label: t("admin.inventoryValue"), value: inventory?.totalInventoryValueCop as number | undefined },
-                { label: t("admin.lowStockCount"), value: inventory?.lowStockCount as number | undefined, isCOP: false },
-                { label: t("admin.unitsSoldToday"), value: inventory?.unitsSoldToday as number | undefined, isCOP: false },
-              ].map((row) => (
-                <Card key={row.label} padding={16}>
-                  <View style={styles.reportRow}>
-                    <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{row.label}</Text>
-                    {row.isCOP === false ? (
-                      <Text style={[styles.countValue, { color: C.text }]}>{row.value ?? "—"}</Text>
-                    ) : (
-                      <CopAmount amount={row.value} size={18} />
-                    )}
+              {inventory?.items && inventory.items.length > 0 ? (
+                <>
+                  <View style={{ gap: 2 }}>
+                    <Card padding={16}>
+                      <View style={styles.reportRow}>
+                        <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("admin.totalUnitsInStock")}</Text>
+                        <Text style={[styles.countValue, { color: C.text }]}>
+                          {inventory.items.reduce((s, i) => s + i.quantityOnHand, 0)}
+                        </Text>
+                      </View>
+                    </Card>
+                    <Card padding={16}>
+                      <View style={styles.reportRow}>
+                        <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("admin.lowStockCount")}</Text>
+                        <Text style={[styles.countValue, { color: C.text }]}>
+                          {inventory.items.filter((i) => i.isLowStock).length}
+                        </Text>
+                      </View>
+                    </Card>
                   </View>
+
+                  <Text style={[styles.filterLabel, { color: C.textSecondary }]}>{t("admin.byLocation")}</Text>
+                  {Object.entries(
+                    inventory.items.reduce((acc, item) => {
+                      if (!acc[item.locationId]) {
+                        acc[item.locationId] = { name: item.locationName, items: [] };
+                      }
+                      acc[item.locationId].items.push(item);
+                      return acc;
+                    }, {} as Record<string, { name: string; items: typeof inventory.items }>)
+                  ).map(([locId, locGroup]) => (
+                    <Card key={locId} padding={14}>
+                      <Text style={[styles.locationGroupTitle, { color: C.text }]}>{locGroup.name}</Text>
+                      {locGroup.items.map((item) => (
+                        <View key={item.productId} style={[styles.invDetailRow, { borderTopColor: C.border }]}>
+                          <Text style={[styles.invProduct, { color: C.text, flex: 1 }]}>{item.productName}</Text>
+                          <Text style={[styles.invQty, { color: item.isLowStock ? C.danger : C.text }]}>
+                            {item.quantityOnHand} u.
+                          </Text>
+                          {item.isLowStock && (
+                            <Feather name="alert-triangle" size={12} color={C.danger} />
+                          )}
+                        </View>
+                      ))}
+                    </Card>
+                  ))}
+                </>
+              ) : (
+                <Card padding={16}>
+                  <Text style={[styles.reportLabel, { color: C.textSecondary, textAlign: "center" }]}>{t("admin.noInventoryData")}</Text>
                 </Card>
-              ))}
+              )}
             </View>
           )}
 
@@ -213,4 +349,11 @@ const styles = StyleSheet.create({
   eventBillingName: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 8 },
   commissionRate: { fontSize: 16, fontFamily: "Inter_700Bold" },
   billingTotal: { marginTop: 12, paddingTop: 12, borderTopWidth: 1 },
+  filterLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, borderWidth: 1 },
+  chipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  locationGroupTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 8 },
+  invDetailRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8, marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
+  invProduct: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  invQty: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });

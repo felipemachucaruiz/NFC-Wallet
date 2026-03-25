@@ -5,6 +5,7 @@ import {
   FlatList,
   Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -17,9 +18,12 @@ import { useTranslation } from "react-i18next";
 import {
   useListMerchants,
   useCreateMerchant,
+  useListLocations,
   useCreateLocation,
-  useCreateProduct,
-  useCreatePayout,
+  useUpdateLocation,
+  useAssignUserToLocation,
+  useRemoveUserFromLocation,
+  useGetLocationInventory,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
@@ -28,6 +32,23 @@ import { Card } from "@/components/ui/Card";
 import { Empty } from "@/components/ui/Empty";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
+import { Badge } from "@/components/ui/Badge";
+
+type Merchant = {
+  id: string;
+  name: string;
+  contactEmail: string | null;
+  commissionRatePercent: number;
+  locationCount?: number;
+};
+
+type Location = {
+  id: string;
+  name: string;
+  merchantId: string;
+  eventId: string;
+  active: boolean;
+};
 
 export default function MerchantsScreen() {
   const { t } = useTranslation();
@@ -41,15 +62,12 @@ export default function MerchantsScreen() {
   const [contactEmail, setContactEmail] = useState("");
   const [commissionRate, setCommissionRate] = useState("15");
 
+  const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+
   const { data, isLoading, refetch } = useListMerchants({});
   const merchants = (data as {
-    merchants?: Array<{
-      id: string;
-      name: string;
-      contactEmail: string | null;
-      commissionRatePercent: number;
-      locationCount?: number;
-    }>
+    merchants?: Merchant[];
   } | undefined)?.merchants ?? [];
 
   const createMerchant = useCreateMerchant();
@@ -103,23 +121,26 @@ export default function MerchantsScreen() {
         )}
         scrollEnabled={!!merchants.length}
         renderItem={({ item }) => (
-          <Card>
-            <View style={styles.merchantRow}>
-              <View style={[styles.merchantIcon, { backgroundColor: C.primaryLight }]}>
-                <Feather name="shopping-bag" size={20} color={C.primary} />
+          <Pressable onPress={() => setSelectedMerchant(item)}>
+            <Card>
+              <View style={styles.merchantRow}>
+                <View style={[styles.merchantIcon, { backgroundColor: C.primaryLight }]}>
+                  <Feather name="shopping-bag" size={20} color={C.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.merchantName, { color: C.text }]}>{item.name}</Text>
+                  {item.contactEmail ? (
+                    <Text style={[styles.merchantEmail, { color: C.textSecondary }]}>{item.contactEmail}</Text>
+                  ) : null}
+                </View>
+                <View style={{ alignItems: "flex-end", gap: 4 }}>
+                  <Text style={[styles.commRate, { color: C.primary }]}>{item.commissionRatePercent}%</Text>
+                  <Text style={[styles.locCount, { color: C.textMuted }]}>{t("admin.locationCount", { count: item.locationCount ?? 0 })}</Text>
+                </View>
+                <Feather name="chevron-right" size={16} color={C.textMuted} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.merchantName, { color: C.text }]}>{item.name}</Text>
-                {item.contactEmail ? (
-                  <Text style={[styles.merchantEmail, { color: C.textSecondary }]}>{item.contactEmail}</Text>
-                ) : null}
-              </View>
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={[styles.commRate, { color: C.primary }]}>{item.commissionRatePercent}%</Text>
-                <Text style={[styles.locCount, { color: C.textMuted }]}>{t("admin.locationCount", { count: item.locationCount ?? 0 })}</Text>
-              </View>
-            </View>
-          </Card>
+            </Card>
+          </Pressable>
         )}
       />
 
@@ -137,7 +158,310 @@ export default function MerchantsScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {selectedMerchant && (
+        <MerchantDetailModal
+          merchant={selectedMerchant}
+          onClose={() => setSelectedMerchant(null)}
+          onSelectLocation={(loc) => setSelectedLocation(loc)}
+          C={C}
+        />
+      )}
+
+      {selectedLocation && (
+        <LocationDetailModal
+          location={selectedLocation}
+          onClose={() => setSelectedLocation(null)}
+          C={C}
+        />
+      )}
     </View>
+  );
+}
+
+function MerchantDetailModal({
+  merchant,
+  onClose,
+  onSelectLocation,
+  C,
+}: {
+  merchant: Merchant;
+  onClose: () => void;
+  onSelectLocation: (loc: Location) => void;
+  C: typeof Colors.light;
+}) {
+  const { t } = useTranslation();
+  const [showAddLocation, setShowAddLocation] = useState(false);
+  const [newLocationName, setNewLocationName] = useState("");
+  const [newEventId, setNewEventId] = useState("");
+
+  const { data: locData, isLoading, refetch } = useListLocations({ merchantId: merchant.id });
+  const locations = (locData as { locations?: Location[] } | undefined)?.locations ?? [];
+
+  const createLocation = useCreateLocation();
+  const updateLocation = useUpdateLocation();
+
+  const handleAddLocation = async () => {
+    if (!newLocationName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
+    if (!newEventId.trim()) { Alert.alert(t("common.error"), t("admin.eventIdRequired")); return; }
+    try {
+      await createLocation.mutateAsync({
+        data: {
+          merchantId: merchant.id,
+          eventId: newEventId.trim(),
+          name: newLocationName.trim(),
+        },
+      });
+      setShowAddLocation(false);
+      setNewLocationName("");
+      setNewEventId("");
+      refetch();
+    } catch {
+      Alert.alert(t("common.error"), t("common.unknownError"));
+    }
+  };
+
+  const handleDeactivate = (location: Location) => {
+    Alert.alert(
+      t("admin.deactivateLocation"),
+      t("admin.deactivateLocationConfirm", { name: location.name }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("admin.deactivate"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await updateLocation.mutateAsync({
+                locationId: location.id,
+                data: { active: false },
+              });
+              refetch();
+            } catch {
+              Alert.alert(t("common.error"), t("common.unknownError"));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <Modal visible transparent animationType="slide">
+      <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
+        <View style={[styles.largeSheet, { backgroundColor: C.card }]}>
+          <View style={styles.sheetHeader}>
+            <Pressable onPress={onClose} style={styles.backBtn}>
+              <Feather name="arrow-left" size={20} color={C.text} />
+            </Pressable>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sheetTitle, { color: C.text }]}>{merchant.name}</Text>
+              {merchant.contactEmail ? (
+                <Text style={[styles.merchantEmail, { color: C.textSecondary }]}>{merchant.contactEmail}</Text>
+              ) : null}
+            </View>
+            <Badge label={`${merchant.commissionRatePercent}%`} variant="info" size="sm" />
+          </View>
+
+          <View style={styles.sectionRow}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.locations")}</Text>
+            <Pressable onPress={() => setShowAddLocation(!showAddLocation)}>
+              <Text style={[styles.addLink, { color: C.primary }]}>+ {t("admin.addLocation")}</Text>
+            </Pressable>
+          </View>
+
+          {showAddLocation && (
+            <View style={[styles.addForm, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+              <Input
+                label={t("admin.locationName")}
+                value={newLocationName}
+                onChangeText={setNewLocationName}
+                placeholder={t("admin.locationNamePlaceholder")}
+              />
+              <Input
+                label={t("admin.eventId")}
+                value={newEventId}
+                onChangeText={setNewEventId}
+                placeholder={t("admin.eventIdPlaceholder")}
+              />
+              <View style={styles.sheetActions}>
+                <Button title={t("common.cancel")} onPress={() => { setShowAddLocation(false); setNewLocationName(""); setNewEventId(""); }} variant="secondary" size="sm" />
+                <Button title={t("admin.addLocation")} onPress={handleAddLocation} variant="primary" size="sm" loading={createLocation.isPending} />
+              </View>
+            </View>
+          )}
+
+          {isLoading ? (
+            <Loading label={t("common.loading")} />
+          ) : locations.length === 0 ? (
+            <Empty icon="map-pin" title={t("admin.noLocations")} />
+          ) : (
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 8 }}>
+              {locations.map((loc) => (
+                <Pressable key={loc.id} onPress={() => onSelectLocation(loc)}>
+                  <Card padding={14}>
+                    <View style={styles.locationRow}>
+                      <View style={[styles.locationIcon, { backgroundColor: loc.active ? C.primaryLight : C.inputBg }]}>
+                        <Feather name="map-pin" size={16} color={loc.active ? C.primary : C.textMuted} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.locationName, { color: C.text }]}>{loc.name}</Text>
+                        <Text style={[styles.locationStatus, { color: loc.active ? C.success : C.textMuted }]}>
+                          {loc.active ? t("common.active") : t("common.inactive")}
+                        </Text>
+                      </View>
+                      {loc.active && (
+                        <Pressable
+                          onPress={(e) => { e.stopPropagation(); handleDeactivate(loc); }}
+                          style={[styles.deactivateBtn, { borderColor: C.border }]}
+                        >
+                          <Feather name="x" size={14} color={C.danger} />
+                        </Pressable>
+                      )}
+                      <Feather name="chevron-right" size={16} color={C.textMuted} />
+                    </View>
+                  </Card>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function LocationDetailModal({
+  location,
+  onClose,
+  C,
+}: {
+  location: Location;
+  onClose: () => void;
+  C: typeof Colors.light;
+}) {
+  const { t } = useTranslation();
+  const [assignUserId, setAssignUserId] = useState("");
+  const [showAssign, setShowAssign] = useState(false);
+
+  const { data: invData, isLoading: invLoading } = useGetLocationInventory(location.id);
+  const inventoryItems = (invData as { inventory?: Array<{ productId: string; product?: { id: string; name: string }; quantityOnHand: number; restockTrigger: number }> } | undefined)?.inventory ?? [];
+
+  const assignUser = useAssignUserToLocation();
+  const removeUser = useRemoveUserFromLocation();
+
+  const handleAssign = async () => {
+    if (!assignUserId.trim()) { Alert.alert(t("common.error"), t("admin.userIdRequired")); return; }
+    try {
+      await assignUser.mutateAsync({
+        locationId: location.id,
+        data: { userId: assignUserId.trim() },
+      });
+      setAssignUserId("");
+      setShowAssign(false);
+      Alert.alert(t("common.success"), t("admin.staffAssigned"));
+    } catch {
+      Alert.alert(t("common.error"), t("common.unknownError"));
+    }
+  };
+
+  const handleRemove = (userId: string) => {
+    Alert.alert(
+      t("admin.removeStaff"),
+      t("admin.removeStaffConfirm"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.confirm"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await removeUser.mutateAsync({
+                locationId: location.id,
+                data: { userId },
+              });
+              Alert.alert(t("common.success"), t("admin.staffRemoved"));
+            } catch {
+              Alert.alert(t("common.error"), t("common.unknownError"));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <Modal visible transparent animationType="slide">
+      <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
+        <View style={[styles.largeSheet, { backgroundColor: C.card }]}>
+          <View style={styles.sheetHeader}>
+            <Pressable onPress={onClose} style={styles.backBtn}>
+              <Feather name="arrow-left" size={20} color={C.text} />
+            </Pressable>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sheetTitle, { color: C.text }]}>{location.name}</Text>
+              <Text style={[styles.locationStatus, { color: location.active ? C.success : C.textMuted }]}>
+                {location.active ? t("common.active") : t("common.inactive")}
+              </Text>
+            </View>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 16 }}>
+            <View style={styles.sectionRow}>
+              <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.staffAssignment")}</Text>
+              <Pressable onPress={() => setShowAssign(!showAssign)}>
+                <Text style={[styles.addLink, { color: C.primary }]}>+ {t("admin.assignStaff")}</Text>
+              </Pressable>
+            </View>
+
+            {showAssign && (
+              <View style={[styles.addForm, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+                <Input
+                  label={t("admin.userId")}
+                  value={assignUserId}
+                  onChangeText={setAssignUserId}
+                  placeholder={t("admin.userIdPlaceholder")}
+                />
+                <View style={styles.sheetActions}>
+                  <Button title={t("common.cancel")} onPress={() => { setShowAssign(false); setAssignUserId(""); }} variant="secondary" size="sm" />
+                  <Button title={t("admin.assignStaff")} onPress={handleAssign} variant="primary" size="sm" loading={assignUser.isPending} />
+                </View>
+              </View>
+            )}
+
+            <Text style={[styles.sectionLabel, { color: C.textSecondary, marginTop: 8 }]}>{t("admin.currentInventory")}</Text>
+            {invLoading ? (
+              <Loading label={t("common.loading")} />
+            ) : inventoryItems.length === 0 ? (
+              <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("admin.noInventory")}</Text>
+            ) : (
+              <View style={{ gap: 8 }}>
+                {inventoryItems.map((item, idx) => (
+                  <Card key={idx} padding={12}>
+                    <View style={styles.invRow}>
+                      <Text style={[styles.invProduct, { color: C.text, flex: 1 }]}>{item.product?.name ?? item.productId}</Text>
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Text style={[styles.invQty, { color: item.quantityOnHand <= item.restockTrigger ? C.danger : C.text }]}>
+                          {item.quantityOnHand} {t("warehouse.units")}
+                        </Text>
+                        {item.quantityOnHand <= item.restockTrigger && (
+                          <Text style={[styles.lowStockLabel, { color: C.danger }]}>{t("warehouse.lowStockAlert")}</Text>
+                        )}
+                      </View>
+                    </View>
+                  </Card>
+                ))}
+              </View>
+            )}
+
+            <View style={[styles.staffNote, { backgroundColor: C.inputBg, borderRadius: 12 }]}>
+              <Feather name="info" size={14} color={C.textMuted} />
+              <Text style={[styles.staffNoteText, { color: C.textMuted }]}>{t("admin.staffAssignNote")}</Text>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -153,6 +477,25 @@ const styles = StyleSheet.create({
   locCount: { fontSize: 12, fontFamily: "Inter_400Regular" },
   overlay: { flex: 1, justifyContent: "flex-end" },
   sheet: { maxHeight: "80%", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  largeSheet: { height: "90%", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 16 },
   sheetTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
   sheetActions: { flexDirection: "row", gap: 12 },
+  sheetHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  backBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  sectionLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
+  addLink: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  addForm: { borderRadius: 12, padding: 16, gap: 12, borderWidth: 1 },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  locationIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  locationName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  locationStatus: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  deactivateBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  invRow: { flexDirection: "row", alignItems: "center" },
+  invProduct: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  invQty: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  lowStockLabel: { fontSize: 10, fontFamily: "Inter_500Medium" },
+  staffNote: { flexDirection: "row", gap: 8, padding: 12, alignItems: "flex-start" },
+  staffNoteText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+  emptyText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 16 },
 });

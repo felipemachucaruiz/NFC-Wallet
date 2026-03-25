@@ -17,6 +17,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
         <Label>{t("merchant_admin.earnings")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="locations">
+        <Icon sf={{ default: "mappin.and.ellipse", selected: "mappin.and.ellipse" }} />
+        <Label>{t("merchant_admin.locations")}</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="payouts">
         <Icon sf={{ default: "banknote", selected: "banknote.fill" }} />
         <Label>{t("merchant_admin.payouts")}</Label>
@@ -68,6 +72,14 @@ function ClassicTabLayout() {
           title: t("merchant_admin.earnings"),
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="chart.bar.fill" tintColor={color} size={22} /> : <Feather name="bar-chart-2" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="locations"
+        options={{
+          title: t("merchant_admin.locations"),
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="mappin.and.ellipse" tintColor={color} size={22} /> : <Feather name="map-pin" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
