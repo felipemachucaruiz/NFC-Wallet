@@ -66,6 +66,7 @@
     "processing": "Procesando...",
     "active": "Activo",
     "inactive": "Inactivo",
+    "unknown": "Desconocido",
     "passwordMinLength": "La contraseña debe tener al menos 6 caracteres"
   },
   "auth": {
@@ -294,6 +295,14 @@
     "eventAdminOptional": "Opcional: crear admin del evento ahora",
     "selectMerchant": "Asignar a merchant",
     "selectMerchantForRole": "Por favor selecciona un merchant para este rol"
+  },
+  "inventory": {
+    "tab": "Inventario",
+    "title": "Inventario",
+    "subtitle": "Stock por ubicación — toca para expandir",
+    "noLocations": "No hay ubicaciones para este evento",
+    "noProductsInLocation": "Aún no hay productos en esta ubicación",
+    "units": "unidades"
   },
   "admin": {
     "title": "Panel Admin",

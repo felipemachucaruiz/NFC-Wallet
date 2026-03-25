@@ -25,6 +25,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "person.3", selected: "person.3.fill" }} />
         <Label>{t("eventAdmin.users")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="inventory">
+        <Icon sf={{ default: "shippingbox", selected: "shippingbox.fill" }} />
+        <Label>{t("inventory.tab")}</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="reports">
         <Icon sf={{ default: "doc.chart", selected: "doc.chart.fill" }} />
         <Label>{t("eventAdmin.reports")}</Label>
@@ -78,6 +82,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="index" options={{ title: t("eventAdmin.dashboard"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="chart.pie.fill" tintColor={color} size={22} /> : <Feather name="pie-chart" size={22} color={color} /> }} />
       <Tabs.Screen name="merchants" options={{ title: t("eventAdmin.merchants"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="storefront.fill" tintColor={color} size={22} /> : <Feather name="shopping-bag" size={22} color={color} /> }} />
       <Tabs.Screen name="users" options={{ title: t("eventAdmin.users"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="person.3.fill" tintColor={color} size={22} /> : <Feather name="users" size={22} color={color} /> }} />
+      <Tabs.Screen name="inventory" options={{ title: t("inventory.tab"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="shippingbox.fill" tintColor={color} size={22} /> : <Feather name="package" size={22} color={color} /> }} />
       <Tabs.Screen name="reports" options={{ title: t("eventAdmin.reports"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="doc.chart.fill" tintColor={color} size={22} /> : <Feather name="file-text" size={22} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
