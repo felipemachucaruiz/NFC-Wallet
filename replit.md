@@ -2,7 +2,9 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+Contactless cashless event payment system for the Colombian market. Attendees load money onto NFC bracelets (NTAG213/215) secured with HMAC-SHA256 signing. Merchants charge bracelets via a product cart. Bank staff handle top-ups. Includes commission tracking, merchant payouts, warehouse/inventory management with auto-restock, and full audit trail.
+
+pnpm workspace monorepo using TypeScript.
 
 ## Stack
 
@@ -12,85 +14,115 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **TypeScript version**: 5.9
 - **API framework**: Express 5
 - **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
+- **Validation**: Zod v3 (import as `"zod"`, NOT `"zod/v4"`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Auth**: Replit Auth (OIDC + PKCE) via `openid-client`
+- **NFC security**: HMAC-SHA256 (`balance:counter` signed with `HMAC_SECRET`)
+
+## Key Design Decisions
+
+- **Zod import**: Always `import { z } from "zod"` — the project uses zod v3.x
+- **Bracelet payload**: `{ balance, counter, hmac }` stored on NTAG213/215. HMAC = sha256(`balance:counter`, HMAC_SECRET). Counter prevents rollback attacks.
+- **Commission**: `commission = Math.round(gross × rate / 100)`, stored per transaction log
+- **COGS tracking**: `unit_cost_snapshot` on transaction line items; products have both `price_cop` and `cost_cop`
+- **Auto-restock**: After each transaction, if location inventory ≤ `restockTrigger` and no pending restock order, one is auto-created
+- **Roles**: `attendee`, `bank`, `merchant_staff`, `merchant_admin`, `warehouse_admin`, `admin`
+- **Currency**: All monetary values in Colombian Pesos (COP, integer)
+- **lib packages must be built** before api-server can typecheck: run `pnpm exec tsc -p tsconfig.json` in `lib/db` and `lib/api-zod`
 
 ## Structure
 
 ```text
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
+│   └── api-server/         # Express API server (port from $PORT env, default 8080)
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
+├── scripts/                # Utility scripts
+├── pnpm-workspace.yaml
 ├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
 ├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+└── package.json
 ```
 
 ## TypeScript & Composite Projects
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references.
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`)
+- **Build lib packages first**: `cd lib/db && pnpm exec tsc -p tsconfig.json` then `cd lib/api-zod && pnpm exec tsc -p tsconfig.json`
+- **`emitDeclarationOnly`** — only `.d.ts` files during typecheck; actual JS bundling by esbuild
 
 ## Root Scripts
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages
+- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly`
 
 ## Packages
 
 ### `artifacts/api-server` (`@workspace/api-server`)
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+Express 5 API server. All routes under `/api` prefix.
 
 - Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+- App setup: `src/app.ts` — CORS, JSON parsing, cookieParser, authMiddleware, routes at `/api`
+- Routes: `src/routes/index.ts` mounts all 16 sub-routers
+- Auth: `src/lib/auth.ts` (OIDC session), `src/middlewares/requireRole.ts` (RBAC)
+- `pnpm --filter @workspace/api-server run dev` — dev server
+
+**Route Groups (all under /api):**
+- `GET /healthz` — health check (no auth)
+- `GET /auth/me`, `GET /auth/signing-key` — auth & NFC signing key
+- `GET|PATCH /users/:id` — user management (admin)
+- `GET|POST /events` + `GET|PATCH|DELETE /events/:id` — event management
+- `POST /bracelets`, `GET|PATCH /bracelets/:nfcUid` — bracelet registration & management
+- `POST /topups`, `GET /topups/my-shift` — top-ups with HMAC signing
+- `GET|POST /merchants`, `GET|PATCH /merchants/:id`, `GET /merchants/:id/earnings` — merchants
+- `GET|POST /locations`, `GET|PATCH /locations/:id`, `POST /locations/:id/staff` — locations
+- `GET|POST /products`, `GET|PATCH|DELETE /products/:id` — products
+- `PATCH /inventory/warehouses/:warehouseId`, `PATCH /inventory/locations/:locationId` — inventory
+- `GET|POST /warehouses` — warehouses
+- `GET /stock-movements`, `POST /stock-movements/dispatch`, `POST /stock-movements/transfer` — stock
+- `GET|PATCH /restock-orders`, `PATCH /restock-orders/:id` — restock
+- `POST /transactions/log`, `POST /transactions/sync` — transactions (commission + auto-restock)
+- `GET|POST /payouts`, `PATCH /payouts/:id` — merchant payouts
+- `GET /reports/revenue`, `GET /reports/topups`, `GET /reports/inventory` — reports
+- `POST /admin/tamper-report`, `GET /admin/snapshot` — admin
 
 ### `lib/db` (`@workspace/db`)
 
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
+Drizzle ORM + PostgreSQL. Schema tables:
+- `sessions`, `users` (role enum), `events`, `merchants`, `locations`, `products`
+- `warehouses`, `warehouse_inventory`, `location_inventory`
+- `restock_orders`, `stock_movements`, `user_location_assignments`
+- `bracelets`, `transaction_logs`, `transaction_line_items`, `top_ups`, `merchant_payouts`
 
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+- `pnpm --filter @workspace/db run push` — push schema to DB
 
 ### `lib/api-spec` (`@workspace/api-spec`)
 
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
+OpenAPI 3.1 spec (`openapi.yaml`) and Orval codegen config. Run: `pnpm --filter @workspace/api-spec run codegen`
 
 ### `lib/api-zod` (`@workspace/api-zod`)
 
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
+Generated Zod schemas. `src/index.ts` exports from `./generated/api` (Zod schemas) plus explicit type-only exports for `AuthUser` and `UserRole` from `./generated/types/`.
 
 ### `lib/api-client-react` (`@workspace/api-client-react`)
 
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
+Generated React Query hooks and fetch client from OpenAPI spec.
 
 ### `scripts` (`@workspace/scripts`)
 
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+Utility scripts. Run: `pnpm --filter @workspace/scripts run <script>`
+
+## Environment Variables
+
+- `DATABASE_URL` — PostgreSQL connection string (provided by Replit)
+- `HMAC_SECRET` — NFC bracelet payload signing key
+- `SESSION_SECRET` — Express session secret
+- `PORT` — server port (default 8080)
+- `REPLIT_DOMAINS` — for OIDC redirect URIs

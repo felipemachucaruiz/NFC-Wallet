@@ -1,0 +1,231 @@
+import { Router, type IRouter, type Request, type Response } from "express";
+import { db, stockMovementsTable, warehouseInventoryTable, locationInventoryTable, restockOrdersTable } from "@workspace/db";
+import { eq, and, gte, lte, or } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
+import { z } from "zod";
+
+const router: IRouter = Router();
+
+router.get(
+  "/stock-movements",
+  requireRole("admin", "warehouse_admin", "merchant_admin"),
+  async (req: Request, res: Response) => {
+    const { productId, locationId, warehouseId, from, to } = req.query as Record<string, string | undefined>;
+    const conditions = [];
+    if (productId) conditions.push(eq(stockMovementsTable.productId, productId));
+    if (locationId) {
+      conditions.push(
+        or(
+          eq(stockMovementsTable.fromLocationId, locationId),
+          eq(stockMovementsTable.toLocationId, locationId),
+        )!,
+      );
+    }
+    if (warehouseId) {
+      conditions.push(
+        or(
+          eq(stockMovementsTable.fromWarehouseId, warehouseId),
+          eq(stockMovementsTable.toWarehouseId, warehouseId),
+        )!,
+      );
+    }
+    if (from) conditions.push(gte(stockMovementsTable.createdAt, new Date(from)));
+    if (to) conditions.push(lte(stockMovementsTable.createdAt, new Date(to)));
+
+    const movements = await db
+      .select()
+      .from(stockMovementsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+    res.json({ movements });
+  },
+);
+
+router.post(
+  "/stock-movements/warehouse-dispatch",
+  requireRole("admin", "warehouse_admin"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const schema = z.object({
+      warehouseId: z.string().min(1),
+      locationId: z.string().min(1),
+      productId: z.string().min(1),
+      quantity: z.number().int().min(1),
+      restockOrderId: z.string().optional(),
+      notes: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const { warehouseId, locationId, productId, quantity, restockOrderId, notes } = parsed.data;
+
+    const [whInv] = await db
+      .select()
+      .from(warehouseInventoryTable)
+      .where(
+        and(
+          eq(warehouseInventoryTable.warehouseId, warehouseId),
+          eq(warehouseInventoryTable.productId, productId),
+        ),
+      );
+
+    if (!whInv || whInv.quantityOnHand < quantity) {
+      res.status(400).json({ error: "Insufficient warehouse inventory" });
+      return;
+    }
+
+    await db
+      .update(warehouseInventoryTable)
+      .set({ quantityOnHand: whInv.quantityOnHand - quantity, updatedAt: new Date() })
+      .where(eq(warehouseInventoryTable.id, whInv.id));
+
+    const locInvRows = await db
+      .select()
+      .from(locationInventoryTable)
+      .where(
+        and(
+          eq(locationInventoryTable.locationId, locationId),
+          eq(locationInventoryTable.productId, productId),
+        ),
+      );
+
+    if (locInvRows.length === 0) {
+      await db.insert(locationInventoryTable).values({
+        locationId,
+        productId,
+        quantityOnHand: quantity,
+      });
+    } else {
+      await db
+        .update(locationInventoryTable)
+        .set({ quantityOnHand: locInvRows[0].quantityOnHand + quantity, updatedAt: new Date() })
+        .where(eq(locationInventoryTable.id, locInvRows[0].id));
+    }
+
+    if (restockOrderId) {
+      await db
+        .update(restockOrdersTable)
+        .set({ status: "dispatched", dispatchedAt: new Date() })
+        .where(eq(restockOrdersTable.id, restockOrderId));
+    }
+
+    const [movement] = await db
+      .insert(stockMovementsTable)
+      .values({
+        movementType: "warehouse_dispatch",
+        productId,
+        quantity,
+        fromWarehouseId: warehouseId,
+        toLocationId: locationId,
+        performedByUserId: req.user.id,
+        restockOrderId,
+        notes,
+      })
+      .returning();
+
+    res.status(201).json(movement);
+  },
+);
+
+router.post(
+  "/stock-movements/location-transfer",
+  requireRole("admin", "warehouse_admin", "merchant_admin"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const schema = z.object({
+      fromLocationId: z.string().min(1),
+      toLocationId: z.string().min(1),
+      productId: z.string().min(1),
+      quantity: z.number().int().min(1),
+      notes: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const { fromLocationId, toLocationId, productId, quantity, notes } = parsed.data;
+
+    const [fromInv] = await db
+      .select()
+      .from(locationInventoryTable)
+      .where(
+        and(
+          eq(locationInventoryTable.locationId, fromLocationId),
+          eq(locationInventoryTable.productId, productId),
+        ),
+      );
+
+    if (!fromInv || fromInv.quantityOnHand < quantity) {
+      res.status(400).json({ error: "Insufficient inventory at source location" });
+      return;
+    }
+
+    await db
+      .update(locationInventoryTable)
+      .set({ quantityOnHand: fromInv.quantityOnHand - quantity, updatedAt: new Date() })
+      .where(eq(locationInventoryTable.id, fromInv.id));
+
+    const [toInv] = await db
+      .select()
+      .from(locationInventoryTable)
+      .where(
+        and(
+          eq(locationInventoryTable.locationId, toLocationId),
+          eq(locationInventoryTable.productId, productId),
+        ),
+      );
+
+    if (!toInv) {
+      await db.insert(locationInventoryTable).values({
+        locationId: toLocationId,
+        productId,
+        quantityOnHand: quantity,
+      });
+    } else {
+      await db
+        .update(locationInventoryTable)
+        .set({ quantityOnHand: toInv.quantityOnHand + quantity, updatedAt: new Date() })
+        .where(eq(locationInventoryTable.id, toInv.id));
+    }
+
+    const [outMovement] = await db
+      .insert(stockMovementsTable)
+      .values({
+        movementType: "location_transfer_out",
+        productId,
+        quantity,
+        fromLocationId,
+        toLocationId,
+        performedByUserId: req.user.id,
+        notes,
+      })
+      .returning();
+
+    const [inMovement] = await db
+      .insert(stockMovementsTable)
+      .values({
+        movementType: "location_transfer_in",
+        productId,
+        quantity,
+        fromLocationId,
+        toLocationId,
+        performedByUserId: req.user.id,
+        notes,
+      })
+      .returning();
+
+    res.status(201).json({ outMovement, inMovement });
+  },
+);
+
+export default router;

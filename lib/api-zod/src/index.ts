@@ -1,2 +1,5 @@
 export * from "./generated/api";
-export * from "./generated/types";
+
+// TypeScript types not available via Zod inference (used by auth middleware)
+export type { AuthUser } from "./generated/types/authUser";
+export type { UserRole } from "./generated/types/userRole";

@@ -24,3 +24,8 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+HMAC_SECRET = "62a8f741ca5c98657dc655e4e40f453e07e56224f58643f4323a8f1658300530"

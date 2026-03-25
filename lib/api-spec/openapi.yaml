@@ -1,22 +1,49 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Contactless cashless event payment system API (Colombia market)
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: Bracelets
+    description: NFC bracelet registration and lookup.
+  - name: TopUps
+    description: Bank-initiated bracelet top-ups.
+  - name: Transactions
+    description: Merchant purchase transactions.
+  - name: Events
+    description: Event management.
+  - name: Merchants
+    description: Merchant management.
+  - name: Locations
+    description: Merchant location management.
+  - name: Products
+    description: Product catalog management.
+  - name: Inventory
+    description: Location and warehouse inventory.
+  - name: StockMovements
+    description: Warehouse dispatches, location transfers, and movement history.
+  - name: RestockOrders
+    description: Automatic restock order management.
+  - name: Payouts
+    description: Merchant payout management.
+  - name: Reports
+    description: Revenue and operational reports.
+  - name: Users
+    description: User and role management.
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +51,2465 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+
+  /auth/signing-key:
+    get:
+      tags: [Auth]
+      operationId: getSigningKey
+      summary: Get the HMAC signing key (bank, merchant_staff, merchant_admin, admin only)
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Signing key returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SigningKeyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the OIDC authorization endpoint.
+
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: iss
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect to returnTo path on success or /api/login on failure.
+
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '302':
+          description: Redirect to the OIDC provider logout URL.
+
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile OIDC code for a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+      responses:
+        '200':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+
+  # ── Users ────────────────────────────────────────────────────────────────────
+  /users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: List all users (admin only)
+      responses:
+        '200':
+          description: List of users.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /users/{userId}/role:
+    patch:
+      tags: [Users]
+      operationId: updateUserRole
+      summary: Update a user's role (admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRoleBody'
+      responses:
+        '200':
+          description: Role updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Events ───────────────────────────────────────────────────────────────────
+  /events:
+    get:
+      tags: [Events]
+      operationId: listEvents
+      summary: List all events
+      responses:
+        '200':
+          description: List of events.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Events]
+      operationId: createEvent
+      summary: Create a new event (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventBody'
+      responses:
+        '201':
+          description: Event created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /events/{eventId}:
+    get:
+      tags: [Events]
+      operationId: getEvent
+      summary: Get event details
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Events]
+      operationId: updateEvent
+      summary: Update event (admin only)
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventBody'
+      responses:
+        '200':
+          description: Event updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Bracelets ────────────────────────────────────────────────────────────────
+  /bracelets:
+    post:
+      tags: [Bracelets]
+      operationId: registerBracelet
+      summary: Register a new bracelet (bank or admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterBraceletBody'
+      responses:
+        '201':
+          description: Bracelet registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bracelet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /bracelets/{nfcUid}:
+    get:
+      tags: [Bracelets]
+      operationId: getBracelet
+      summary: Look up a bracelet by NFC UID
+      parameters:
+        - name: nfcUid
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bracelet data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bracelet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Top-ups ──────────────────────────────────────────────────────────────────
+  /topups:
+    post:
+      tags: [TopUps]
+      operationId: createTopUp
+      summary: Bank-initiated bracelet top-up
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTopUpBody'
+      responses:
+        '201':
+          description: Top-up recorded. Returns signed bracelet payload to write to NFC tag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopUpResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /topups/my-shift:
+    get:
+      tags: [TopUps]
+      operationId: getMyShiftTopUps
+      summary: Today's top-ups by the authenticated bank user
+      responses:
+        '200':
+          description: Shift summary with top-ups and totals by payment method.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftTopUpSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Merchants ────────────────────────────────────────────────────────────────
+  /merchants:
+    get:
+      tags: [Merchants]
+      operationId: listMerchants
+      summary: List merchants
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of merchants.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [merchants]
+                properties:
+                  merchants:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Merchant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Merchants]
+      operationId: createMerchant
+      summary: Create a new merchant (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMerchantBody'
+      responses:
+        '201':
+          description: Merchant created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Merchant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /merchants/{merchantId}:
+    get:
+      tags: [Merchants]
+      operationId: getMerchant
+      summary: Get merchant details
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Merchant details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Merchant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Merchants]
+      operationId: updateMerchant
+      summary: Update merchant (admin or merchant_admin for own merchant)
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMerchantBody'
+      responses:
+        '200':
+          description: Merchant updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Merchant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /merchants/{merchantId}/earnings:
+    get:
+      tags: [Merchants]
+      operationId: getMerchantEarnings
+      summary: Get merchant earnings summary (merchant_admin or admin)
+      parameters:
+        - name: merchantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Earnings summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantEarnings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Locations ────────────────────────────────────────────────────────────────
+  /locations:
+    get:
+      tags: [Locations]
+      operationId: listLocations
+      summary: List locations
+      parameters:
+        - name: merchantId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of locations.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [locations]
+                properties:
+                  locations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Location'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Locations]
+      operationId: createLocation
+      summary: Create a new location (admin or merchant_admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLocationBody'
+      responses:
+        '201':
+          description: Location created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /locations/{locationId}:
+    get:
+      tags: [Locations]
+      operationId: getLocation
+      summary: Get location details
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Location details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Locations]
+      operationId: updateLocation
+      summary: Update a location
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLocationBody'
+      responses:
+        '200':
+          description: Location updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /locations/{locationId}/staff:
+    post:
+      tags: [Locations]
+      operationId: assignUserToLocation
+      summary: Assign a user to a location (admin or merchant_admin)
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignUserToLocationBody'
+      responses:
+        '200':
+          description: User assigned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Locations]
+      operationId: removeUserFromLocation
+      summary: Remove a user from a location (admin or merchant_admin)
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignUserToLocationBody'
+      responses:
+        '200':
+          description: User removed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Products ─────────────────────────────────────────────────────────────────
+  /products:
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: List products
+      parameters:
+        - name: merchantId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of products.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [products]
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Create a product (admin or merchant_admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductBody'
+      responses:
+        '201':
+          description: Product created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /products/{productId}:
+    get:
+      tags: [Products]
+      operationId: getProduct
+      summary: Get product details
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Update a product (admin or merchant_admin)
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductBody'
+      responses:
+        '200':
+          description: Product updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Inventory ────────────────────────────────────────────────────────────────
+  /inventory/locations/{locationId}:
+    get:
+      tags: [Inventory]
+      operationId: getLocationInventory
+      summary: Get inventory for a location
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Location inventory.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [inventory]
+                properties:
+                  inventory:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LocationInventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Inventory]
+      operationId: updateLocationInventoryItem
+      summary: Update restock thresholds for a location inventory item
+      parameters:
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLocationInventoryBody'
+      responses:
+        '200':
+          description: Inventory item updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationInventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /inventory/warehouses/{warehouseId}:
+    get:
+      tags: [Inventory]
+      operationId: getWarehouseInventory
+      summary: Get inventory for a warehouse
+      parameters:
+        - name: warehouseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Warehouse inventory.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [inventory]
+                properties:
+                  inventory:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WarehouseInventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Inventory]
+      operationId: updateWarehouseInventory
+      summary: Load stock into warehouse (warehouse_admin or admin)
+      parameters:
+        - name: warehouseId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWarehouseInventoryBody'
+      responses:
+        '200':
+          description: Warehouse inventory updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarehouseInventoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Warehouses ───────────────────────────────────────────────────────────────
+  /warehouses:
+    get:
+      tags: [Inventory]
+      operationId: listWarehouses
+      summary: List warehouses for an event
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of warehouses.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [warehouses]
+                properties:
+                  warehouses:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Warehouse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Inventory]
+      operationId: createWarehouse
+      summary: Create a warehouse (admin or warehouse_admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWarehouseBody'
+      responses:
+        '201':
+          description: Warehouse created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Stock Movements ──────────────────────────────────────────────────────────
+  /stock-movements:
+    get:
+      tags: [StockMovements]
+      operationId: listStockMovements
+      summary: List stock movements (warehouse_admin or admin)
+      parameters:
+        - name: productId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Stock movement list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [movements]
+                properties:
+                  movements:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StockMovement'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /stock-movements/warehouse-dispatch:
+    post:
+      tags: [StockMovements]
+      operationId: dispatchFromWarehouse
+      summary: Dispatch stock from warehouse to a location (warehouse_admin or admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseDispatchBody'
+      responses:
+        '201':
+          description: Dispatch recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockMovement'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /stock-movements/location-transfer:
+    post:
+      tags: [StockMovements]
+      operationId: transferBetweenLocations
+      summary: Transfer stock between locations (warehouse_admin, merchant_admin, or admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationTransferBody'
+      responses:
+        '201':
+          description: Transfer recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [outMovement, inMovement]
+                properties:
+                  outMovement:
+                    $ref: '#/components/schemas/StockMovement'
+                  inMovement:
+                    $ref: '#/components/schemas/StockMovement'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Restock Orders ───────────────────────────────────────────────────────────
+  /restock-orders:
+    get:
+      tags: [RestockOrders]
+      operationId: listRestockOrders
+      summary: List restock orders (warehouse_admin, merchant_admin, or admin)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, approved, dispatched, rejected]
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Restock order list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [orders]
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RestockOrder'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /restock-orders/{orderId}:
+    patch:
+      tags: [RestockOrders]
+      operationId: updateRestockOrder
+      summary: Approve, dispatch, or reject a restock order (warehouse_admin or admin)
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRestockOrderBody'
+      responses:
+        '200':
+          description: Restock order updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestockOrder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Transactions ─────────────────────────────────────────────────────────────
+  /transactions/log:
+    post:
+      tags: [Transactions]
+      operationId: logTransaction
+      summary: Log a purchase transaction (merchant_staff or merchant_admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogTransactionBody'
+      responses:
+        '201':
+          description: Transaction logged with commission computed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionLog'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /transactions/sync:
+    post:
+      tags: [Transactions]
+      operationId: syncTransactions
+      summary: Batch sync offline-queued transactions (merchant_staff or merchant_admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncTransactionsBody'
+      responses:
+        '200':
+          description: Sync result with per-transaction status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncTransactionsResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Payouts ──────────────────────────────────────────────────────────────────
+  /payouts:
+    get:
+      tags: [Payouts]
+      operationId: listPayouts
+      summary: List payouts (admin sees all; merchant_admin sees own)
+      parameters:
+        - name: merchantId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of payouts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [payouts]
+                properties:
+                  payouts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MerchantPayout'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Payouts]
+      operationId: createPayout
+      summary: Create a payout record for a merchant (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePayoutBody'
+      responses:
+        '201':
+          description: Payout created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantPayout'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Reports & Alerts ─────────────────────────────────────────────────────────
+  /reports/revenue:
+    get:
+      tags: [Reports]
+      operationId: getRevenueReport
+      summary: Revenue report (admin or merchant_admin)
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: merchantId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Revenue report with gross, COGS, profit, and commission breakdown.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevenueReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/topups:
+    get:
+      tags: [Reports]
+      operationId: getTopUpReport
+      summary: Top-up report by payment method and bank user (bank or admin)
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Top-up report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopUpReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/inventory:
+    get:
+      tags: [Reports]
+      operationId: getInventoryReport
+      summary: Inventory status report (warehouse_admin, merchant_admin, or admin)
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: locationId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Inventory status with low-stock flags.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/tamper-report:
+    post:
+      tags: [Reports]
+      operationId: reportTamper
+      summary: Report a failed HMAC verification (tamper alert)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TamperReportBody'
+      responses:
+        '200':
+          description: Tamper alert recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/snapshot:
+    get:
+      tags: [Reports]
+      operationId: getSnapshot
+      summary: Full event data snapshot export (admin only)
+      parameters:
+        - name: eventId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Full snapshot as JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotExport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: Opaque session token — `Bearer <sid>`.
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      description: Browser session cookie.
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request body or parameters.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Not authenticated.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Insufficient permissions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Resource already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    InternalError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SuccessEnvelope:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+
+    # ── Auth ──────────────────────────────────────────────────────────────────
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl, role]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+          format: uri
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    SigningKeyResponse:
+      type: object
+      required: [hmacSecret]
+      properties:
+        hmacSecret:
+          type: string
+
+    # ── Roles & Users ─────────────────────────────────────────────────────────
+    UserRole:
+      type: string
+      enum: [attendee, bank, merchant_staff, merchant_admin, warehouse_admin, admin]
+
+    UserProfile:
+      type: object
+      required: [id, role, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
+        role:
+          $ref: '#/components/schemas/UserRole'
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateUserRoleBody:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    # ── Events ────────────────────────────────────────────────────────────────
+    Event:
+      type: object
+      required: [id, name, active, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        venueAddress:
+          type: [string, 'null']
+        startsAt:
+          type: [string, 'null']
+          format: date-time
+        endsAt:
+          type: [string, 'null']
+          format: date-time
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateEventBody:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        venueAddress:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+
+    UpdateEventBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        venueAddress:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+
+    # ── Bracelets ─────────────────────────────────────────────────────────────
+    Bracelet:
+      type: object
+      required: [id, nfcUid, lastKnownBalanceCop, lastCounter, flagged, createdAt]
+      properties:
+        id:
+          type: string
+        nfcUid:
+          type: string
+        eventId:
+          type: [string, 'null']
+        attendeeName:
+          type: [string, 'null']
+        lastKnownBalanceCop:
+          type: integer
+        lastCounter:
+          type: integer
+        flagged:
+          type: boolean
+        flagReason:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+
+    RegisterBraceletBody:
+      type: object
+      required: [nfcUid]
+      properties:
+        nfcUid:
+          type: string
+          minLength: 1
+        eventId:
+          type: string
+        attendeeName:
+          type: string
+
+    # ── Top-Ups ───────────────────────────────────────────────────────────────
+    PaymentMethod:
+      type: string
+      enum: [cash, card_external, nequi_transfer, bancolombia_transfer, other]
+
+    TopUp:
+      type: object
+      required: [id, braceletUid, amountCop, paymentMethod, status, newBalanceCop, newCounter, createdAt]
+      properties:
+        id:
+          type: string
+        braceletUid:
+          type: string
+        amountCop:
+          type: integer
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        performedByUserId:
+          type: string
+        wompiTransactionId:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        newBalanceCop:
+          type: integer
+        newCounter:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateTopUpBody:
+      type: object
+      required: [nfcUid, amountCop, paymentMethod]
+      properties:
+        nfcUid:
+          type: string
+          minLength: 1
+        amountCop:
+          type: integer
+          minimum: 1
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        wompiTransactionId:
+          type: string
+
+    TopUpResult:
+      type: object
+      required: [topUp, signedPayload]
+      properties:
+        topUp:
+          $ref: '#/components/schemas/TopUp'
+        signedPayload:
+          $ref: '#/components/schemas/SignedBraceletPayload'
+
+    SignedBraceletPayload:
+      type: object
+      required: [balance, counter, hmac]
+      properties:
+        balance:
+          type: integer
+        counter:
+          type: integer
+        hmac:
+          type: string
+
+    ShiftTopUpSummary:
+      type: object
+      required: [topUps, totalCop, byPaymentMethod]
+      properties:
+        topUps:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopUp'
+        totalCop:
+          type: integer
+        byPaymentMethod:
+          type: object
+          additionalProperties:
+            type: integer
+
+    # ── Merchants ─────────────────────────────────────────────────────────────
+    Merchant:
+      type: object
+      required: [id, eventId, name, commissionRatePercent, active, createdAt]
+      properties:
+        id:
+          type: string
+        eventId:
+          type: string
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        commissionRatePercent:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateMerchantBody:
+      type: object
+      required: [eventId, name, commissionRatePercent]
+      properties:
+        eventId:
+          type: string
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        commissionRatePercent:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+
+    UpdateMerchantBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        commissionRatePercent:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+        active:
+          type: boolean
+
+    MerchantEarnings:
+      type: object
+      required: [merchantId, grossSalesCop, cogsCop, grossProfitCop, profitMarginPercent, totalCommissionCop, netEarnedCop, totalPaidOutCop, pendingCop]
+      properties:
+        merchantId:
+          type: string
+        grossSalesCop:
+          type: integer
+        cogsCop:
+          type: integer
+        grossProfitCop:
+          type: integer
+        profitMarginPercent:
+          type: number
+        totalCommissionCop:
+          type: integer
+        netEarnedCop:
+          type: integer
+        totalPaidOutCop:
+          type: integer
+        pendingCop:
+          type: integer
+        payouts:
+          type: array
+          items:
+            $ref: '#/components/schemas/MerchantPayout'
+
+    # ── Locations ─────────────────────────────────────────────────────────────
+    Location:
+      type: object
+      required: [id, merchantId, eventId, name, active, createdAt]
+      properties:
+        id:
+          type: string
+        merchantId:
+          type: string
+        eventId:
+          type: string
+        name:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateLocationBody:
+      type: object
+      required: [merchantId, eventId, name]
+      properties:
+        merchantId:
+          type: string
+        eventId:
+          type: string
+        name:
+          type: string
+          minLength: 1
+
+    UpdateLocationBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        active:
+          type: boolean
+
+    AssignUserToLocationBody:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+
+    # ── Products ──────────────────────────────────────────────────────────────
+    Product:
+      type: object
+      required: [id, merchantId, name, priceCop, costCop, active, createdAt]
+      properties:
+        id:
+          type: string
+        merchantId:
+          type: string
+        name:
+          type: string
+        category:
+          type: [string, 'null']
+        priceCop:
+          type: integer
+        costCop:
+          type: integer
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateProductBody:
+      type: object
+      required: [merchantId, name, priceCop]
+      properties:
+        merchantId:
+          type: string
+        name:
+          type: string
+          minLength: 1
+        category:
+          type: string
+        priceCop:
+          type: integer
+          minimum: 0
+        costCop:
+          type: integer
+          minimum: 0
+
+    UpdateProductBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        category:
+          type: string
+        priceCop:
+          type: integer
+          minimum: 0
+        costCop:
+          type: integer
+          minimum: 0
+        active:
+          type: boolean
+
+    # ── Inventory ─────────────────────────────────────────────────────────────
+    LocationInventoryItem:
+      type: object
+      required: [id, locationId, productId, quantityOnHand, restockTrigger, restockTargetQty]
+      properties:
+        id:
+          type: string
+        locationId:
+          type: string
+        productId:
+          type: string
+        product:
+          $ref: '#/components/schemas/Product'
+        quantityOnHand:
+          type: integer
+        restockTrigger:
+          type: integer
+        restockTargetQty:
+          type: integer
+
+    UpdateLocationInventoryBody:
+      type: object
+      required: [productId]
+      properties:
+        productId:
+          type: string
+        restockTrigger:
+          type: integer
+          minimum: 0
+        restockTargetQty:
+          type: integer
+          minimum: 0
+        quantityAdjustment:
+          type: integer
+
+    WarehouseInventoryItem:
+      type: object
+      required: [id, warehouseId, productId, quantityOnHand]
+      properties:
+        id:
+          type: string
+        warehouseId:
+          type: string
+        productId:
+          type: string
+        product:
+          $ref: '#/components/schemas/Product'
+        quantityOnHand:
+          type: integer
+
+    UpdateWarehouseInventoryBody:
+      type: object
+      required: [productId, quantityDelta]
+      properties:
+        productId:
+          type: string
+        quantityDelta:
+          type: integer
+
+    Warehouse:
+      type: object
+      required: [id, eventId, name, createdAt]
+      properties:
+        id:
+          type: string
+        eventId:
+          type: string
+        name:
+          type: string
+        notes:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateWarehouseBody:
+      type: object
+      required: [eventId, name]
+      properties:
+        eventId:
+          type: string
+        name:
+          type: string
+          minLength: 1
+        notes:
+          type: string
+
+    # ── Stock Movements ───────────────────────────────────────────────────────
+    StockMovement:
+      type: object
+      required: [id, movementType, productId, quantity, createdAt]
+      properties:
+        id:
+          type: string
+        movementType:
+          type: string
+          enum: [warehouse_load, warehouse_dispatch, location_transfer_out, location_transfer_in, sale]
+        productId:
+          type: string
+        quantity:
+          type: integer
+        fromWarehouseId:
+          type: [string, 'null']
+        toWarehouseId:
+          type: [string, 'null']
+        fromLocationId:
+          type: [string, 'null']
+        toLocationId:
+          type: [string, 'null']
+        performedByUserId:
+          type: [string, 'null']
+        restockOrderId:
+          type: [string, 'null']
+        notes:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+
+    WarehouseDispatchBody:
+      type: object
+      required: [warehouseId, locationId, productId, quantity]
+      properties:
+        warehouseId:
+          type: string
+        locationId:
+          type: string
+        productId:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        restockOrderId:
+          type: string
+        notes:
+          type: string
+
+    LocationTransferBody:
+      type: object
+      required: [fromLocationId, toLocationId, productId, quantity]
+      properties:
+        fromLocationId:
+          type: string
+        toLocationId:
+          type: string
+        productId:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        notes:
+          type: string
+
+    # ── Restock Orders ────────────────────────────────────────────────────────
+    RestockOrder:
+      type: object
+      required: [id, locationId, productId, requestedQty, status, createdAt]
+      properties:
+        id:
+          type: string
+        locationId:
+          type: string
+        productId:
+          type: string
+        requestedQty:
+          type: integer
+        status:
+          type: string
+          enum: [pending, approved, dispatched, rejected]
+        approvedByUserId:
+          type: [string, 'null']
+        approvedAt:
+          type: [string, 'null']
+          format: date-time
+        dispatchedAt:
+          type: [string, 'null']
+          format: date-time
+        rejectedAt:
+          type: [string, 'null']
+          format: date-time
+        notes:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateRestockOrderBody:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, dispatched, rejected]
+        notes:
+          type: string
+
+    # ── Transactions ──────────────────────────────────────────────────────────
+    TransactionLineItemInput:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+
+    TransactionLineItem:
+      type: object
+      required: [id, transactionLogId, productNameSnapshot, unitPriceSnapshot, unitCostSnapshot, quantity]
+      properties:
+        id:
+          type: string
+        transactionLogId:
+          type: string
+        productId:
+          type: [string, 'null']
+        productNameSnapshot:
+          type: string
+        unitPriceSnapshot:
+          type: integer
+        unitCostSnapshot:
+          type: integer
+        quantity:
+          type: integer
+
+    TransactionLog:
+      type: object
+      required: [id, idempotencyKey, braceletUid, locationId, merchantId, eventId, grossAmountCop, commissionAmountCop, netAmountCop, newBalanceCop, counter, createdAt]
+      properties:
+        id:
+          type: string
+        idempotencyKey:
+          type: string
+        braceletUid:
+          type: string
+        locationId:
+          type: string
+        merchantId:
+          type: string
+        eventId:
+          type: string
+        grossAmountCop:
+          type: integer
+        commissionAmountCop:
+          type: integer
+        netAmountCop:
+          type: integer
+        newBalanceCop:
+          type: integer
+        counter:
+          type: integer
+        performedByUserId:
+          type: [string, 'null']
+        offlineCreatedAt:
+          type: [string, 'null']
+          format: date-time
+        syncedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionLineItem'
+
+    LogTransactionBody:
+      type: object
+      required: [idempotencyKey, nfcUid, locationId, newBalance, counter, lineItems]
+      properties:
+        idempotencyKey:
+          type: string
+          minLength: 1
+        nfcUid:
+          type: string
+          minLength: 1
+        locationId:
+          type: string
+        newBalance:
+          type: integer
+          minimum: 0
+        counter:
+          type: integer
+          minimum: 0
+        lineItems:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/TransactionLineItemInput'
+        offlineCreatedAt:
+          type: string
+          format: date-time
+
+    SyncTransactionsBody:
+      type: object
+      required: [transactions]
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogTransactionBody'
+
+    SyncTransactionsResult:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [idempotencyKey, status]
+            properties:
+              idempotencyKey:
+                type: string
+              status:
+                type: string
+                enum: [created, duplicate, error]
+              error:
+                type: string
+
+    # ── Payouts ───────────────────────────────────────────────────────────────
+    PayoutPaymentMethod:
+      type: string
+      enum: [transfer, nequi, cash, other]
+
+    MerchantPayout:
+      type: object
+      required: [id, merchantId, eventId, periodFrom, periodTo, grossSalesCop, commissionCop, netPayoutCop, paymentMethod, performedByUserId, paidAt, createdAt]
+      properties:
+        id:
+          type: string
+        merchantId:
+          type: string
+        eventId:
+          type: string
+        periodFrom:
+          type: string
+          format: date-time
+        periodTo:
+          type: string
+          format: date-time
+        grossSalesCop:
+          type: integer
+        commissionCop:
+          type: integer
+        netPayoutCop:
+          type: integer
+        paymentMethod:
+          $ref: '#/components/schemas/PayoutPaymentMethod'
+        referenceNote:
+          type: [string, 'null']
+        performedByUserId:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    CreatePayoutBody:
+      type: object
+      required: [merchantId, eventId, periodFrom, periodTo, paymentMethod, paidAt]
+      properties:
+        merchantId:
+          type: string
+        eventId:
+          type: string
+        periodFrom:
+          type: string
+          format: date-time
+        periodTo:
+          type: string
+          format: date-time
+        paymentMethod:
+          $ref: '#/components/schemas/PayoutPaymentMethod'
+        referenceNote:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
+
+    # ── Reports ───────────────────────────────────────────────────────────────
+    RevenueReportRow:
+      type: object
+      required: [grossSalesCop, cogsCop, grossProfitCop, profitMarginPercent, commissionCop, netCop, transactionCount]
+      properties:
+        grossSalesCop:
+          type: integer
+        cogsCop:
+          type: integer
+        grossProfitCop:
+          type: integer
+        profitMarginPercent:
+          type: number
+        commissionCop:
+          type: integer
+        netCop:
+          type: integer
+        transactionCount:
+          type: integer
+
+    RevenueReport:
+      type: object
+      required: [totals, byMerchant]
+      properties:
+        totals:
+          $ref: '#/components/schemas/RevenueReportRow'
+        byMerchant:
+          type: array
+          items:
+            type: object
+            required: [merchantId, merchantName, data]
+            properties:
+              merchantId:
+                type: string
+              merchantName:
+                type: string
+              data:
+                $ref: '#/components/schemas/RevenueReportRow'
+              byLocation:
+                type: array
+                items:
+                  type: object
+                  required: [locationId, locationName, data]
+                  properties:
+                    locationId:
+                      type: string
+                    locationName:
+                      type: string
+                    data:
+                      $ref: '#/components/schemas/RevenueReportRow'
+
+    TopUpReport:
+      type: object
+      required: [totalCop, byPaymentMethod, byUser]
+      properties:
+        totalCop:
+          type: integer
+        byPaymentMethod:
+          type: object
+          additionalProperties:
+            type: integer
+        byUser:
+          type: array
+          items:
+            type: object
+            required: [userId, totalCop, count]
+            properties:
+              userId:
+                type: string
+              firstName:
+                type: [string, 'null']
+              lastName:
+                type: [string, 'null']
+              totalCop:
+                type: integer
+              count:
+                type: integer
+
+    InventoryReport:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [locationId, locationName, productId, productName, quantityOnHand, restockTrigger, isLowStock]
+            properties:
+              locationId:
+                type: string
+              locationName:
+                type: string
+              productId:
+                type: string
+              productName:
+                type: string
+              quantityOnHand:
+                type: integer
+              restockTrigger:
+                type: integer
+              isLowStock:
+                type: boolean
+
+    TamperReportBody:
+      type: object
+      required: [nfcUid]
+      properties:
+        nfcUid:
+          type: string
+        reason:
+          type: string
+        context:
+          type: object
+          additionalProperties: true
+
+    SnapshotExport:
+      type: object
+      required: [eventId, exportedAt]
+      properties:
+        eventId:
+          type: string
+        exportedAt:
+          type: string
+          format: date-time
+        event:
+          $ref: '#/components/schemas/Event'
+        merchants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Merchant'
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionLog'
+        topUps:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopUp'
+        payouts:
+          type: array
+          items:
+            $ref: '#/components/schemas/MerchantPayout'
