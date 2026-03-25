@@ -157,11 +157,29 @@ function parsePayloadJson(text: string, uid: string): BraceletPayload {
 function getUid(tag: unknown): string {
   if (tag && typeof tag === "object" && "id" in tag) {
     const id = (tag as { id?: unknown }).id;
-    if (Array.isArray(id)) {
+    // Plain number array (most common on Android)
+    if (Array.isArray(id) && id.length > 0) {
       return (id as number[])
-        .map((b: number) => b.toString(16).padStart(2, "0"))
+        .map((b: number) => (b & 0xff).toString(16).padStart(2, "0"))
         .join(":")
         .toUpperCase();
+    }
+    // Uint8Array / Buffer (some Android versions / react-native-nfc-manager variants)
+    if (id && typeof id === "object" && "byteLength" in (id as object)) {
+      const arr = new Uint8Array(id as ArrayBuffer);
+      if (arr.length > 0) {
+        return Array.from(arr)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join(":")
+          .toUpperCase();
+      }
+    }
+    // Hex string fallback (e.g. "04A3B2C1")
+    if (typeof id === "string" && id.length > 0 && id !== "UNKNOWN") {
+      const clean = id.replace(/[^0-9a-fA-F]/g, "");
+      if (clean.length >= 2) {
+        return (clean.match(/.{1,2}/g) ?? []).join(":").toUpperCase();
+      }
     }
   }
   return "UNKNOWN";
