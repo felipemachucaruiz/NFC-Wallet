@@ -2,7 +2,6 @@ import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs, router } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
-import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
@@ -45,7 +44,6 @@ function ClassicTabLayout() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
-  const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const isDark = scheme === "dark";
 
@@ -79,11 +77,11 @@ function ClassicTabLayout() {
         tabBarLabelStyle: { fontSize: 10, fontFamily: "Inter_500Medium" },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: t("eventAdmin.dashboard"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="chart.pie.fill" tintColor={color} size={22} /> : <Feather name="pie-chart" size={22} color={color} /> }} />
-      <Tabs.Screen name="merchants" options={{ title: t("eventAdmin.merchants"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="storefront.fill" tintColor={color} size={22} /> : <Feather name="shopping-bag" size={22} color={color} /> }} />
-      <Tabs.Screen name="users" options={{ title: t("eventAdmin.users"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="person.3.fill" tintColor={color} size={22} /> : <Feather name="users" size={22} color={color} /> }} />
-      <Tabs.Screen name="inventory" options={{ title: t("inventory.tab"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="shippingbox.fill" tintColor={color} size={22} /> : <Feather name="package" size={22} color={color} /> }} />
-      <Tabs.Screen name="reports" options={{ title: t("eventAdmin.reports"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="doc.chart.fill" tintColor={color} size={22} /> : <Feather name="file-text" size={22} color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: t("eventAdmin.dashboard"), tabBarIcon: ({ color }) => <Feather name="pie-chart" size={22} color={color} /> }} />
+      <Tabs.Screen name="merchants" options={{ title: t("eventAdmin.merchants"), tabBarIcon: ({ color }) => <Feather name="shopping-bag" size={22} color={color} /> }} />
+      <Tabs.Screen name="users" options={{ title: t("eventAdmin.users"), tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} /> }} />
+      <Tabs.Screen name="inventory" options={{ title: t("inventory.tab"), tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />
+      <Tabs.Screen name="reports" options={{ title: t("eventAdmin.reports"), tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
