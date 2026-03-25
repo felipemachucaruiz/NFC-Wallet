@@ -55,7 +55,7 @@ export default function EventAdminMerchantsScreen() {
         data: {
           name: merchantName.trim(),
           eventId: user.eventId!,
-          commissionRatePercent: String(parseFloat(commissionRate) || 15),
+          commissionRatePercent: String(Number.isNaN(parseFloat(commissionRate)) ? 15 : parseFloat(commissionRate)),
         },
       });
       setShowCreate(false);
