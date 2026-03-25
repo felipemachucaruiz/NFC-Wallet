@@ -67,6 +67,7 @@
     "active": "Activo",
     "inactive": "Inactivo",
     "unknown": "Desconocido",
+    "notSet": "No definido",
     "passwordMinLength": "La contraseña debe tener al menos 6 caracteres"
   },
   "auth": {
@@ -294,7 +295,11 @@
     "eventAdminSection": "Administrador del evento",
     "eventAdminOptional": "Opcional: crear admin del evento ahora",
     "selectMerchant": "Asignar a merchant",
-    "selectMerchantForRole": "Por favor selecciona un merchant para este rol"
+    "selectMerchantForRole": "Por favor selecciona un merchant para este rol",
+    "company": "Empresa",
+    "startsAt": "Inicio",
+    "endsAt": "Fin",
+    "venue": "Sede"
   },
   "inventory": {
     "tab": "Inventario",

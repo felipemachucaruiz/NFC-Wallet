@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, eventsTable, usersTable } from "@workspace/db";
+import { db, eventsTable, usersTable, promoterCompaniesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -63,15 +63,31 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
     return;
   }
 
-  const [event] = await db
-    .select()
+  const [row] = await db
+    .select({
+      id: eventsTable.id,
+      name: eventsTable.name,
+      description: eventsTable.description,
+      venueAddress: eventsTable.venueAddress,
+      startsAt: eventsTable.startsAt,
+      endsAt: eventsTable.endsAt,
+      active: eventsTable.active,
+      capacity: eventsTable.capacity,
+      platformCommissionRate: eventsTable.platformCommissionRate,
+      promoterCompanyId: eventsTable.promoterCompanyId,
+      promoterCompanyName: promoterCompaniesTable.companyName,
+      pulepId: eventsTable.pulepId,
+      createdAt: eventsTable.createdAt,
+      updatedAt: eventsTable.updatedAt,
+    })
     .from(eventsTable)
+    .leftJoin(promoterCompaniesTable, eq(eventsTable.promoterCompanyId, promoterCompaniesTable.id))
     .where(eq(eventsTable.id, eventId));
-  if (!event) {
+  if (!row) {
     res.status(404).json({ error: "Event not found" });
     return;
   }
-  res.json(event);
+  res.json(row);
 });
 
 router.post("/events", requireRole("admin"), async (req: Request, res: Response) => {
