@@ -1,5 +1,5 @@
 import { db, locationsTable, productsTable, userLocationAssignmentsTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import type { AuthUser } from "@workspace/api-zod";
 
 type MerchantScopedUser = { role: string; merchantId?: string | null };
@@ -24,16 +24,23 @@ export async function assertLocationAccess(
       return { error: "Access denied", status: 403 };
     }
     if (user.role === "merchant_staff") {
-      const [assignment] = await db
-        .select()
+      const [{ totalAssignments }] = await db
+        .select({ totalAssignments: count() })
         .from(userLocationAssignmentsTable)
-        .where(
-          and(
-            eq(userLocationAssignmentsTable.locationId, locationId),
-            eq(userLocationAssignmentsTable.userId, (user as AuthUser).id),
-          ),
-        );
-      if (!assignment) return { error: "Not assigned to this location", status: 403 };
+        .where(eq(userLocationAssignmentsTable.userId, (user as AuthUser).id));
+
+      if (totalAssignments > 0) {
+        const [assignment] = await db
+          .select()
+          .from(userLocationAssignmentsTable)
+          .where(
+            and(
+              eq(userLocationAssignmentsTable.locationId, locationId),
+              eq(userLocationAssignmentsTable.userId, (user as AuthUser).id),
+            ),
+          );
+        if (!assignment) return { error: "Not assigned to this location", status: 403 };
+      }
     }
   }
 
