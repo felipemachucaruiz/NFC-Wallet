@@ -45,6 +45,7 @@ import type {
   InternalErrorResponse,
   InventoryReport,
   ListEvents200,
+  ListEventsParams,
   ListLocations200,
   ListLocationsParams,
   ListMerchants200,
@@ -53,6 +54,7 @@ import type {
   ListPayoutsParams,
   ListProducts200,
   ListProductsParams,
+  ListPromoterCompanies200,
   ListRestockOrders200,
   ListRestockOrdersParams,
   ListStockMovements200,
@@ -72,6 +74,8 @@ import type {
   MobileTokenExchangeSuccess,
   NotFoundResponse,
   Product,
+  PromoterCompany,
+  PromoterCompanySummary,
   RefundResult,
   RegisterBraceletBody,
   RestockOrder,
@@ -81,6 +85,7 @@ import type {
   SnapshotExport,
   StockMovement,
   SuccessEnvelope,
+  SuccessResponse,
   SyncTransactionsBody,
   SyncTransactionsResult,
   TamperReportBody,
@@ -99,6 +104,7 @@ import type {
   UpdateRestockOrderBody,
   UpdateUserRoleBody,
   UpdateWarehouseInventoryBody,
+  UpsertPromoterCompanyBody,
   UserProfile,
   Warehouse,
   WarehouseDispatchBody,
@@ -969,41 +975,57 @@ export const useUpdateUserRole = <
 /**
  * @summary List all events
  */
-export const getListEventsUrl = () => {
-  return `/api/events`;
+export const getListEventsUrl = (params?: ListEventsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/events?${stringifiedParams}`
+    : `/api/events`;
 };
 
 export const listEvents = async (
+  params?: ListEventsParams,
   options?: RequestInit,
 ): Promise<ListEvents200> => {
-  return customFetch<ListEvents200>(getListEventsUrl(), {
+  return customFetch<ListEvents200>(getListEventsUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListEventsQueryKey = () => {
-  return [`/api/events`] as const;
+export const getListEventsQueryKey = (params?: ListEventsParams) => {
+  return [`/api/events`, ...(params ? [params] : [])] as const;
 };
 
 export const getListEventsQueryOptions = <
   TData = Awaited<ReturnType<typeof listEvents>>,
   TError = ErrorType<UnauthorizedResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listEvents>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: ListEventsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListEventsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListEventsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listEvents>>> = ({
     signal,
-  }) => listEvents({ signal, ...requestOptions });
+  }) => listEvents(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listEvents>>,
@@ -1024,15 +1046,18 @@ export type ListEventsQueryError = ErrorType<UnauthorizedResponse>;
 export function useListEvents<
   TData = Awaited<ReturnType<typeof listEvents>>,
   TError = ErrorType<UnauthorizedResponse>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listEvents>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListEventsQueryOptions(options);
+>(
+  params?: ListEventsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEventsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -1312,6 +1337,543 @@ export const useUpdateEvent = <
 > => {
   return useMutation(getUpdateEventMutationOptions(options));
 };
+
+/**
+ * @summary List all promoter companies (admin or event_admin)
+ */
+export const getListPromoterCompaniesUrl = () => {
+  return `/api/promoter-companies`;
+};
+
+export const listPromoterCompanies = async (
+  options?: RequestInit,
+): Promise<ListPromoterCompanies200> => {
+  return customFetch<ListPromoterCompanies200>(getListPromoterCompaniesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListPromoterCompaniesQueryKey = () => {
+  return [`/api/promoter-companies`] as const;
+};
+
+export const getListPromoterCompaniesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPromoterCompanies>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listPromoterCompanies>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListPromoterCompaniesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPromoterCompanies>>
+  > = ({ signal }) => listPromoterCompanies({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPromoterCompanies>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListPromoterCompaniesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPromoterCompanies>>
+>;
+export type ListPromoterCompaniesQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary List all promoter companies (admin or event_admin)
+ */
+
+export function useListPromoterCompanies<
+  TData = Awaited<ReturnType<typeof listPromoterCompanies>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listPromoterCompanies>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListPromoterCompaniesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a promoter company (admin only)
+ */
+export const getCreatePromoterCompanyUrl = () => {
+  return `/api/promoter-companies`;
+};
+
+export const createPromoterCompany = async (
+  upsertPromoterCompanyBody: UpsertPromoterCompanyBody,
+  options?: RequestInit,
+): Promise<PromoterCompany> => {
+  return customFetch<PromoterCompany>(getCreatePromoterCompanyUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(upsertPromoterCompanyBody),
+  });
+};
+
+export const getCreatePromoterCompanyMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPromoterCompany>>,
+    TError,
+    { data: BodyType<UpsertPromoterCompanyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createPromoterCompany>>,
+  TError,
+  { data: BodyType<UpsertPromoterCompanyBody> },
+  TContext
+> => {
+  const mutationKey = ["createPromoterCompany"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createPromoterCompany>>,
+    { data: BodyType<UpsertPromoterCompanyBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createPromoterCompany(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreatePromoterCompanyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createPromoterCompany>>
+>;
+export type CreatePromoterCompanyMutationBody =
+  BodyType<UpsertPromoterCompanyBody>;
+export type CreatePromoterCompanyMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Create a promoter company (admin only)
+ */
+export const useCreatePromoterCompany = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createPromoterCompany>>,
+    TError,
+    { data: BodyType<UpsertPromoterCompanyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createPromoterCompany>>,
+  TError,
+  { data: BodyType<UpsertPromoterCompanyBody> },
+  TContext
+> => {
+  return useMutation(getCreatePromoterCompanyMutationOptions(options));
+};
+
+/**
+ * @summary Get a promoter company by ID
+ */
+export const getGetPromoterCompanyUrl = (id: string) => {
+  return `/api/promoter-companies/${id}`;
+};
+
+export const getPromoterCompany = async (
+  id: string,
+  options?: RequestInit,
+): Promise<PromoterCompany> => {
+  return customFetch<PromoterCompany>(getGetPromoterCompanyUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPromoterCompanyQueryKey = (id: string) => {
+  return [`/api/promoter-companies/${id}`] as const;
+};
+
+export const getGetPromoterCompanyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPromoterCompany>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPromoterCompany>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPromoterCompanyQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPromoterCompany>>
+  > = ({ signal }) => getPromoterCompany(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPromoterCompany>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPromoterCompanyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPromoterCompany>>
+>;
+export type GetPromoterCompanyQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Get a promoter company by ID
+ */
+
+export function useGetPromoterCompany<
+  TData = Awaited<ReturnType<typeof getPromoterCompany>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPromoterCompany>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPromoterCompanyQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a promoter company (admin only)
+ */
+export const getUpdatePromoterCompanyUrl = (id: string) => {
+  return `/api/promoter-companies/${id}`;
+};
+
+export const updatePromoterCompany = async (
+  id: string,
+  upsertPromoterCompanyBody: UpsertPromoterCompanyBody,
+  options?: RequestInit,
+): Promise<PromoterCompany> => {
+  return customFetch<PromoterCompany>(getUpdatePromoterCompanyUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(upsertPromoterCompanyBody),
+  });
+};
+
+export const getUpdatePromoterCompanyMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePromoterCompany>>,
+    TError,
+    { id: string; data: BodyType<UpsertPromoterCompanyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePromoterCompany>>,
+  TError,
+  { id: string; data: BodyType<UpsertPromoterCompanyBody> },
+  TContext
+> => {
+  const mutationKey = ["updatePromoterCompany"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePromoterCompany>>,
+    { id: string; data: BodyType<UpsertPromoterCompanyBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updatePromoterCompany(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdatePromoterCompanyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePromoterCompany>>
+>;
+export type UpdatePromoterCompanyMutationBody =
+  BodyType<UpsertPromoterCompanyBody>;
+export type UpdatePromoterCompanyMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Update a promoter company (admin only)
+ */
+export const useUpdatePromoterCompany = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePromoterCompany>>,
+    TError,
+    { id: string; data: BodyType<UpsertPromoterCompanyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updatePromoterCompany>>,
+  TError,
+  { id: string; data: BodyType<UpsertPromoterCompanyBody> },
+  TContext
+> => {
+  return useMutation(getUpdatePromoterCompanyMutationOptions(options));
+};
+
+/**
+ * @summary Delete a promoter company (admin only)
+ */
+export const getDeletePromoterCompanyUrl = (id: string) => {
+  return `/api/promoter-companies/${id}`;
+};
+
+export const deletePromoterCompany = async (
+  id: string,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getDeletePromoterCompanyUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeletePromoterCompanyMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePromoterCompany>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deletePromoterCompany>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deletePromoterCompany"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deletePromoterCompany>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deletePromoterCompany(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeletePromoterCompanyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deletePromoterCompany>>
+>;
+
+export type DeletePromoterCompanyMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Delete a promoter company (admin only)
+ */
+export const useDeletePromoterCompany = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deletePromoterCompany>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deletePromoterCompany>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeletePromoterCompanyMutationOptions(options));
+};
+
+/**
+ * @summary Get consolidated metrics for all events of a promoter company
+ */
+export const getGetPromoterCompanySummaryUrl = (id: string) => {
+  return `/api/promoter-companies/${id}/summary`;
+};
+
+export const getPromoterCompanySummary = async (
+  id: string,
+  options?: RequestInit,
+): Promise<PromoterCompanySummary> => {
+  return customFetch<PromoterCompanySummary>(
+    getGetPromoterCompanySummaryUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetPromoterCompanySummaryQueryKey = (id: string) => {
+  return [`/api/promoter-companies/${id}/summary`] as const;
+};
+
+export const getGetPromoterCompanySummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPromoterCompanySummary>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPromoterCompanySummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPromoterCompanySummaryQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPromoterCompanySummary>>
+  > = ({ signal }) =>
+    getPromoterCompanySummary(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPromoterCompanySummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPromoterCompanySummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPromoterCompanySummary>>
+>;
+export type GetPromoterCompanySummaryQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Get consolidated metrics for all events of a promoter company
+ */
+
+export function useGetPromoterCompanySummary<
+  TData = Awaited<ReturnType<typeof getPromoterCompanySummary>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPromoterCompanySummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPromoterCompanySummaryQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Register a new bracelet (bank or admin)
@@ -2345,49 +2907,6 @@ export const useUpdateMerchant = <
   TContext
 > => {
   return useMutation(getUpdateMerchantMutationOptions(options));
-};
-
-export const getDeleteMerchantUrl = (merchantId: string) =>
-  `/api/merchants/${merchantId}`;
-
-export const deleteMerchant = async (
-  merchantId: string,
-  options?: SecondParameter<typeof customFetch>,
-): Promise<void> => {
-  await customFetch<void>(getDeleteMerchantUrl(merchantId), {
-    ...options,
-    method: "DELETE",
-  });
-};
-
-export const getDeleteMerchantMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<void, TError, { merchantId: string }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<void, TError, { merchantId: string }, TContext> => {
-  const mutationKey = ["deleteMerchant"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-  const mutationFn: MutationFunction<void, { merchantId: string }> = ({ merchantId }) =>
-    deleteMerchant(merchantId, requestOptions);
-  return { mutationFn, ...mutationOptions };
-};
-
-export const useDeleteMerchant = <
-  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<void, TError, { merchantId: string }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<void, TError, { merchantId: string }, TContext> => {
-  return useMutation(getDeleteMerchantMutationOptions(options));
 };
 
 /**
@@ -3438,51 +3957,6 @@ export const useUpdateProduct = <
   TContext
 > => {
   return useMutation(getUpdateProductMutationOptions(options));
-};
-
-// ─── Delete Product ────────────────────────────────────────────────────────────
-
-export const getDeleteProductUrl = (productId: string) =>
-  `/api/products/${productId}`;
-
-export const deleteProduct = async (
-  productId: string,
-  options?: RequestInit,
-): Promise<void> => {
-  await customFetch<void>(getDeleteProductUrl(productId), {
-    ...options,
-    method: "DELETE",
-  });
-};
-
-export const getDeleteProductMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<void, TError, { productId: string }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<void, TError, { productId: string }, TContext> => {
-  const mutationKey = ["deleteProduct"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-  const mutationFn: MutationFunction<void, { productId: string }> = ({ productId }) =>
-    deleteProduct(productId, requestOptions);
-  return { mutationFn, ...mutationOptions };
-};
-
-export const useDeleteProduct = <
-  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<void, TError, { productId: string }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<void, TError, { productId: string }, TContext> => {
-  return useMutation(getDeleteProductMutationOptions(options));
 };
 
 /**
@@ -5386,339 +5860,3 @@ export function useGetSnapshot<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
-
-/**
- * @summary Unflag a bracelet (remove ban)
- */
-export const getUnflagBraceletUrl = (nfcUid: string) => {
-  return `/api/admin/bracelets/${nfcUid}/unflag`;
-};
-
-export const unflagBracelet = async (
-  nfcUid: string,
-  options?: RequestInit,
-): Promise<SuccessEnvelope> => {
-  return customFetch<SuccessEnvelope>(getUnflagBraceletUrl(nfcUid), {
-    ...options,
-    method: "PATCH",
-  });
-};
-
-export const getUnflagBraceletMutationOptions = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof unflagBracelet>>,
-    TError,
-    { nfcUid: string },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof unflagBracelet>>,
-  TError,
-  { nfcUid: string },
-  TContext
-> => {
-  const mutationKey = ["unflagBracelet"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof unflagBracelet>>,
-    { nfcUid: string }
-  > = (props) => {
-    const { nfcUid } = props ?? {};
-    return unflagBracelet(nfcUid, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type UnflagBraceletMutationResult = NonNullable<Awaited<ReturnType<typeof unflagBracelet>>>;
-export type UnflagBraceletMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>;
-
-export const useUnflagBracelet = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof unflagBracelet>>,
-    TError,
-    { nfcUid: string },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof unflagBracelet>>,
-  TError,
-  { nfcUid: string },
-  TContext
-> => {
-  const mutationOptions = getUnflagBraceletMutationOptions(options);
-  return useMutation(mutationOptions);
-};
-
-/**
- * @summary Delete a bracelet record (hard delete — transactions preserved)
- */
-export const getDeleteAdminBraceletUrl = (nfcUid: string) => {
-  return `/api/admin/bracelets/${nfcUid}`;
-};
-
-export const deleteAdminBracelet = async (
-  nfcUid: string,
-  options?: RequestInit,
-): Promise<SuccessEnvelope> => {
-  return customFetch<SuccessEnvelope>(getDeleteAdminBraceletUrl(nfcUid), {
-    ...options,
-    method: "DELETE",
-  });
-};
-
-export const getDeleteAdminBraceletMutationOptions = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deleteAdminBracelet>>,
-    TError,
-    { nfcUid: string },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof deleteAdminBracelet>>,
-  TError,
-  { nfcUid: string },
-  TContext
-> => {
-  const mutationKey = ["deleteAdminBracelet"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deleteAdminBracelet>>,
-    { nfcUid: string }
-  > = (props) => {
-    const { nfcUid } = props ?? {};
-    return deleteAdminBracelet(nfcUid, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type DeleteAdminBraceletMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminBracelet>>>;
-export type DeleteAdminBraceletMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>;
-
-export const useDeleteAdminBracelet = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deleteAdminBracelet>>,
-    TError,
-    { nfcUid: string },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof deleteAdminBracelet>>,
-  TError,
-  { nfcUid: string },
-  TContext
-> => {
-  const mutationOptions = getDeleteAdminBraceletMutationOptions(options);
-  return useMutation(mutationOptions);
-};
-
-// ─── Merchant Staff Management ────────────────────────────────────────────────
-
-export interface MerchantStaffMember {
-  id: string;
-  username: string | null;
-  email: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  role: string;
-  createdAt: string;
-}
-
-export interface MerchantStaffListResponse {
-  staff: MerchantStaffMember[];
-}
-
-export interface CreateMerchantStaffBody {
-  username: string;
-  password: string;
-  firstName?: string;
-  lastName?: string;
-}
-
-export interface ResetMerchantStaffPasswordBody {
-  newPassword: string;
-}
-
-export const getListMerchantStaffUrl = () => `/api/merchant/staff`;
-export const getCreateMerchantStaffUrl = () => `/api/merchant/staff`;
-export const getResetMerchantStaffPasswordUrl = (userId: string) => `/api/merchant/staff/${userId}/password`;
-export const getDeleteMerchantStaffUrl = (userId: string) => `/api/merchant/staff/${userId}`;
-
-export const listMerchantStaff = async (options?: RequestInit): Promise<MerchantStaffListResponse> =>
-  customFetch<MerchantStaffListResponse>(getListMerchantStaffUrl(), { ...options, method: "GET" });
-
-export const getListMerchantStaffQueryKey = () => [`/api/merchant/staff`] as const;
-
-export const getListMerchantStaffQueryOptions = <
-  TData = Awaited<ReturnType<typeof listMerchantStaff>>,
-  TError = ErrorType<UnauthorizedResponse>,
->(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof listMerchantStaff>>, TError, TData>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryOptions<Awaited<ReturnType<typeof listMerchantStaff>>, TError, TData> => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-  const queryKey = queryOptions?.queryKey ?? getListMerchantStaffQueryKey();
-  return {
-    queryKey,
-    queryFn: ({ signal }) => listMerchantStaff({ signal, ...requestOptions }),
-    ...queryOptions,
-  };
-};
-
-export const useListMerchantStaff = <
-  TData = Awaited<ReturnType<typeof listMerchantStaff>>,
-  TError = ErrorType<UnauthorizedResponse>,
->(options?: {
-  query?: UseQueryOptions<Awaited<ReturnType<typeof listMerchantStaff>>, TError, TData>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } => {
-  const queryOptions = getListMerchantStaffQueryOptions(options);
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
-  return { ...query, queryKey: queryOptions.queryKey };
-};
-
-export const createMerchantStaff = async (
-  body: CreateMerchantStaffBody,
-  options?: RequestInit,
-): Promise<MerchantStaffMember> =>
-  customFetch<MerchantStaffMember>(getCreateMerchantStaffUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(body),
-  });
-
-export const getCreateMerchantStaffMutationOptions = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<Awaited<ReturnType<typeof createMerchantStaff>>, TError, { data: BodyType<CreateMerchantStaffBody> }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<Awaited<ReturnType<typeof createMerchantStaff>>, TError, { data: BodyType<CreateMerchantStaffBody> }, TContext> => {
-  const mutationKey = ["createMerchantStaff"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMerchantStaff>>, { data: BodyType<CreateMerchantStaffBody> }> = (props) => {
-    const { data } = props ?? {};
-    return createMerchantStaff(data, requestOptions);
-  };
-  return { mutationFn, ...mutationOptions };
-};
-
-export const useCreateMerchantStaff = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<Awaited<ReturnType<typeof createMerchantStaff>>, TError, { data: BodyType<CreateMerchantStaffBody> }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<Awaited<ReturnType<typeof createMerchantStaff>>, TError, { data: BodyType<CreateMerchantStaffBody> }, TContext> => {
-  const mutationOptions = getCreateMerchantStaffMutationOptions(options);
-  return useMutation(mutationOptions);
-};
-
-export const resetMerchantStaffPassword = async (
-  userId: string,
-  body: ResetMerchantStaffPasswordBody,
-  options?: RequestInit,
-): Promise<SuccessEnvelope> =>
-  customFetch<SuccessEnvelope>(getResetMerchantStaffPasswordUrl(userId), {
-    ...options,
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(body),
-  });
-
-export const getResetMerchantStaffPasswordMutationOptions = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, TError, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, TError, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }, TContext> => {
-  const mutationKey = ["resetMerchantStaffPassword"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }> = (props) => {
-    const { userId, data } = props ?? {};
-    return resetMerchantStaffPassword(userId, data, requestOptions);
-  };
-  return { mutationFn, ...mutationOptions };
-};
-
-export const useResetMerchantStaffPassword = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, TError, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, TError, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }, TContext> => {
-  const mutationOptions = getResetMerchantStaffPasswordMutationOptions(options);
-  return useMutation(mutationOptions);
-};
-
-export const deleteMerchantStaff = async (userId: string, options?: RequestInit): Promise<SuccessEnvelope> =>
-  customFetch<SuccessEnvelope>(getDeleteMerchantStaffUrl(userId), { ...options, method: "DELETE" });
-
-export const getDeleteMerchantStaffMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteMerchantStaff>>, TError, { userId: string }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<Awaited<ReturnType<typeof deleteMerchantStaff>>, TError, { userId: string }, TContext> => {
-  const mutationKey = ["deleteMerchantStaff"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMerchantStaff>>, { userId: string }> = (props) => {
-    const { userId } = props ?? {};
-    return deleteMerchantStaff(userId, requestOptions);
-  };
-  return { mutationFn, ...mutationOptions };
-};
-
-export const useDeleteMerchantStaff = <
-  TError = ErrorType<UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteMerchantStaff>>, TError, { userId: string }, TContext>;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<Awaited<ReturnType<typeof deleteMerchantStaff>>, TError, { userId: string }, TContext> => {
-  const mutationOptions = getDeleteMerchantStaffMutationOptions(options);
-  return useMutation(mutationOptions);
-};

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, promoterCompaniesTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, promoterCompaniesTable, usersTable, eventsTable, transactionLogsTable, braceletsTable, topUpsTable } from "@workspace/db";
+import { eq, inArray, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -97,6 +97,90 @@ router.patch(
       return;
     }
     res.json({ success: true });
+  },
+);
+
+router.get(
+  "/promoter-companies/:id/summary",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const companyId = req.params.id as string;
+
+    const user = req.user!;
+    if (user.role === "event_admin" && (user as { promoterCompanyId?: string | null }).promoterCompanyId !== companyId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [company] = await db
+      .select()
+      .from(promoterCompaniesTable)
+      .where(eq(promoterCompaniesTable.id, companyId));
+
+    if (!company) {
+      res.status(404).json({ error: "Company not found" });
+      return;
+    }
+
+    const events = await db
+      .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active })
+      .from(eventsTable)
+      .where(eq(eventsTable.promoterCompanyId, companyId));
+
+    const eventCount = events.length;
+
+    if (eventCount === 0) {
+      res.json({
+        companyId,
+        companyName: company.companyName,
+        eventCount: 0,
+        totalRevenueCop: 0,
+        totalTopupsCop: 0,
+        totalUnclaimedCop: 0,
+        totalAttendees: 0,
+      });
+      return;
+    }
+
+    const eventIds = events.map((e) => e.id);
+
+    const txRows = await db
+      .select({ grossAmountCop: transactionLogsTable.grossAmountCop })
+      .from(transactionLogsTable)
+      .where(inArray(transactionLogsTable.eventId, eventIds));
+
+    const totalRevenueCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
+
+    const eventBracelets = await db
+      .select({ nfcUid: braceletsTable.nfcUid, lastKnownBalanceCop: braceletsTable.lastKnownBalanceCop })
+      .from(braceletsTable)
+      .where(inArray(braceletsTable.eventId, eventIds));
+
+    const braceletUids = eventBracelets.map((b) => b.nfcUid);
+    const totalAttendees = braceletUids.length;
+    const totalUnclaimedCop = eventBracelets.reduce((s, b) => s + (b.lastKnownBalanceCop ?? 0), 0);
+
+    let totalTopupsCop = 0;
+    if (braceletUids.length > 0) {
+      const topUpRows = await db
+        .select({ amountCop: topUpsTable.amountCop })
+        .from(topUpsTable)
+        .where(
+          sql`${topUpsTable.braceletUid} = ANY(ARRAY[${sql.join(braceletUids.map((uid) => sql`${uid}`), sql`, `)}]::text[])`,
+        );
+      totalTopupsCop = topUpRows.reduce((s, t) => s + t.amountCop, 0);
+    }
+
+    res.json({
+      companyId,
+      companyName: company.companyName,
+      eventCount,
+      totalRevenueCop,
+      totalTopupsCop,
+      totalUnclaimedCop,
+      totalAttendees,
+      events: events.map((e) => ({ id: e.id, name: e.name, active: e.active })),
+    });
   },
 );
 

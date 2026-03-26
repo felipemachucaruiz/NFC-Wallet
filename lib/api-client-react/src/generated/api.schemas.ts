@@ -56,6 +56,11 @@ export interface AuthUser {
    * @nullable
    */
   eventId?: string | null;
+  /**
+   * Set for event_admin users linked to a promoter company; determines which company's events they manage
+   * @nullable
+   */
+  promoterCompanyId?: string | null;
 }
 
 export interface AuthUserEnvelope {
@@ -101,7 +106,50 @@ export interface UpdateUserRoleBody {
   role: UserRole;
 }
 
-export type InventoryMode = "location_based" | "centralized_warehouse";
+export interface SuccessResponse {
+  success: boolean;
+}
+
+export interface PromoterCompany {
+  id: string;
+  companyName: string;
+  /** @nullable */
+  nit?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertPromoterCompanyBody {
+  /** @minLength 1 */
+  companyName: string;
+  nit?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+}
+
+export type PromoterCompanySummaryEventsItem = {
+  id: string;
+  name: string;
+  active: boolean;
+};
+
+export interface PromoterCompanySummary {
+  companyId: string;
+  companyName: string;
+  eventCount: number;
+  totalRevenueCop: number;
+  totalTopupsCop: number;
+  totalUnclaimedCop: number;
+  totalAttendees: number;
+  events?: PromoterCompanySummaryEventsItem[];
+}
 
 export interface Event {
   id: string;
@@ -115,7 +163,6 @@ export interface Event {
   /** @nullable */
   endsAt?: string | null;
   active: boolean;
-  inventoryMode?: InventoryMode;
   createdAt: string;
 }
 
@@ -136,7 +183,6 @@ export interface UpdateEventBody {
   startsAt?: string;
   endsAt?: string;
   active?: boolean;
-  inventoryMode?: InventoryMode;
 }
 
 export interface Bracelet {
@@ -290,8 +336,6 @@ export interface ShiftTopUpSummary {
   byPaymentMethod: ShiftTopUpSummaryByPaymentMethod;
 }
 
-export type MerchantType = "event_managed" | "external";
-
 export interface Merchant {
   id: string;
   eventId: string;
@@ -299,7 +343,6 @@ export interface Merchant {
   /** @nullable */
   description?: string | null;
   commissionRatePercent: string;
-  merchantType: MerchantType;
   active: boolean;
   createdAt: string;
 }
@@ -311,7 +354,6 @@ export interface CreateMerchantBody {
   description?: string;
   /** @pattern ^\d+(\.\d{1,2})?$ */
   commissionRatePercent: string;
-  merchantType?: MerchantType;
 }
 
 export interface UpdateMerchantBody {
@@ -320,7 +362,6 @@ export interface UpdateMerchantBody {
   description?: string;
   /** @pattern ^\d+(\.\d{1,2})?$ */
   commissionRatePercent?: string;
-  merchantType?: MerchantType;
   active?: boolean;
 }
 
@@ -781,8 +822,16 @@ export type ListUsers200 = {
   users: UserProfile[];
 };
 
+export type ListEventsParams = {
+  promoterCompanyId?: string;
+};
+
 export type ListEvents200 = {
   events: Event[];
+};
+
+export type ListPromoterCompanies200 = {
+  companies: PromoterCompany[];
 };
 
 export type ListMerchantsParams = {
@@ -883,11 +932,13 @@ export type GetRevenueReportParams = {
   locationId?: string;
   from?: string;
   to?: string;
+  promoterCompanyId?: string;
 };
 
 export type GetTopUpReportParams = {
   from?: string;
   to?: string;
+  promoterCompanyId?: string;
 };
 
 export type GetInventoryReportParams = {

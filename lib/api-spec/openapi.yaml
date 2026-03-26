@@ -39,6 +39,8 @@ tags:
     description: User and role management.
   - name: Refunds
     description: Bracelet refund processing and unclaimed balance reports.
+  - name: PromoterCompanies
+    description: Promoter company management and consolidated metrics.
 
 paths:
   /healthz:
@@ -246,6 +248,12 @@ paths:
       tags: [Events]
       operationId: listEvents
       summary: List all events
+      parameters:
+        - name: promoterCompanyId
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: List of events.
@@ -330,6 +338,151 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Promoter Companies ───────────────────────────────────────────────────────
+  /promoter-companies:
+    get:
+      tags: [PromoterCompanies]
+      operationId: listPromoterCompanies
+      summary: List all promoter companies (admin or event_admin)
+      responses:
+        '200':
+          description: List of promoter companies.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [companies]
+                properties:
+                  companies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PromoterCompany'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [PromoterCompanies]
+      operationId: createPromoterCompany
+      summary: Create a promoter company (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertPromoterCompanyBody'
+      responses:
+        '201':
+          description: Promoter company created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromoterCompany'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /promoter-companies/{id}:
+    get:
+      tags: [PromoterCompanies]
+      operationId: getPromoterCompany
+      summary: Get a promoter company by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Promoter company details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromoterCompany'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [PromoterCompanies]
+      operationId: updatePromoterCompany
+      summary: Update a promoter company (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertPromoterCompanyBody'
+      responses:
+        '200':
+          description: Promoter company updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromoterCompany'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [PromoterCompanies]
+      operationId: deletePromoterCompany
+      summary: Delete a promoter company (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Promoter company deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /promoter-companies/{id}/summary:
+    get:
+      tags: [PromoterCompanies]
+      operationId: getPromoterCompanySummary
+      summary: Get consolidated metrics for all events of a promoter company
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Consolidated summary of promoter company metrics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromoterCompanySummary'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1411,6 +1564,11 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: promoterCompanyId
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: Revenue report with gross, COGS, profit, and commission breakdown.
@@ -1441,6 +1599,11 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: promoterCompanyId
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: Top-up report.
@@ -1637,6 +1800,9 @@ components:
         eventId:
           type: [string, 'null']
           description: Set for event_admin users; determines which event they administer
+        promoterCompanyId:
+          type: [string, 'null']
+          description: Set for event_admin users linked to a promoter company; determines which company's events they manage
 
     AuthUserEnvelope:
       type: object
@@ -1713,6 +1879,86 @@ components:
       properties:
         role:
           $ref: '#/components/schemas/UserRole'
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    # ── Promoter Companies ────────────────────────────────────────────────────
+    PromoterCompany:
+      type: object
+      required: [id, companyName, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        companyName:
+          type: string
+        nit:
+          type: [string, 'null']
+        address:
+          type: [string, 'null']
+        phone:
+          type: [string, 'null']
+        email:
+          type: [string, 'null']
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpsertPromoterCompanyBody:
+      type: object
+      required: [companyName]
+      properties:
+        companyName:
+          type: string
+          minLength: 1
+        nit:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+
+    PromoterCompanySummary:
+      type: object
+      required: [companyId, companyName, eventCount, totalRevenueCop, totalTopupsCop, totalUnclaimedCop, totalAttendees]
+      properties:
+        companyId:
+          type: string
+        companyName:
+          type: string
+        eventCount:
+          type: integer
+        totalRevenueCop:
+          type: number
+        totalTopupsCop:
+          type: number
+        totalUnclaimedCop:
+          type: number
+        totalAttendees:
+          type: integer
+        events:
+          type: array
+          items:
+            type: object
+            required: [id, name, active]
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              active:
+                type: boolean
 
     # ── Events ────────────────────────────────────────────────────────────────
     Event:

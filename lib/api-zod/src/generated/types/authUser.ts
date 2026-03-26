@@ -28,4 +28,9 @@ export interface AuthUser {
    * @nullable
    */
   eventId?: string | null;
+  /**
+   * Set for event_admin users linked to a promoter company; determines which company's events they manage
+   * @nullable
+   */
+  promoterCompanyId?: string | null;
 }

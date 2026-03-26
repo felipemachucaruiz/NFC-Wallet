@@ -34,6 +34,7 @@ export interface AuthUser {
   role: UserRole;
   merchantId: string | null;
   eventId?: string | null;
+  promoterCompanyId?: string | null;
   merchantName?: string | null;
   eventName?: string | null;
 }

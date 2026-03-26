@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { EventProvider } from "@/contexts/EventContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 function NativeTabLayout() {
   const { t } = useTranslation();
@@ -17,6 +18,10 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "chart.pie", selected: "chart.pie.fill" }} />
         <Label>{t("eventAdmin.dashboard")}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="promoter-summary">
+        <Icon sf={{ default: "building.2", selected: "building.2.fill" }} />
+        <Label>{t("eventAdmin.promoterSummary")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="merchants">
         <Icon sf={{ default: "storefront", selected: "storefront.fill" }} />
@@ -48,6 +53,8 @@ function NativeTabLayout() {
 
 function ClassicTabLayout() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const hasPromoterCompany = !!user?.promoterCompanyId;
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const isWeb = Platform.OS === "web";
@@ -85,6 +92,7 @@ function ClassicTabLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: t("eventAdmin.dashboard"), tabBarIcon: ({ color }) => <Feather name="pie-chart" size={22} color={color} /> }} />
+      <Tabs.Screen name="promoter-summary" options={{ href: hasPromoterCompany ? undefined : null, title: t("eventAdmin.promoterSummary"), tabBarIcon: ({ color }) => <Feather name="briefcase" size={22} color={color} /> }} />
       <Tabs.Screen name="merchants" options={{ title: t("eventAdmin.merchants"), tabBarIcon: ({ color }) => <Feather name="shopping-bag" size={22} color={color} /> }} />
       <Tabs.Screen name="users" options={{ title: t("eventAdmin.users"), tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} /> }} />
       <Tabs.Screen name="inventory" options={{ title: t("inventory.tab"), tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />

@@ -452,7 +452,18 @@
     "selfManagedStock": "Self-Managed Stock",
     "selfManagedStockDesc": "This event uses location-based inventory. Manage your stock directly without warehouse requests.",
     "locationBasedModeActive": "Location-Based Mode Active",
-    "locationBasedModeInfo": "This event is configured for location-based inventory. Warehouse dispatch and restock orders are not available."
+    "locationBasedModeInfo": "This event is configured for location-based inventory. Warehouse dispatch and restock orders are not available.",
+    "promoterSummary": "Company Summary",
+    "promoterSummarySubtitle": "Consolidated metrics across all your events",
+    "totalRevenue": "Total Revenue",
+    "totalTopUps": "Total Top-Ups",
+    "unclaimedBalance": "Unclaimed Balance",
+    "totalAttendees": "Total Attendees",
+    "eventsCount": "Events",
+    "noPromoterCompany": "Your account is not linked to a promoter company",
+    "eventsList": "Events in This Company",
+    "eventActive": "Active",
+    "eventInactive": "Inactive"
   },
   "inventory": {
     "tab": "Inventory",

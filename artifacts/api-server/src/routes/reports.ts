@@ -4,25 +4,46 @@ import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
+async function getEventIdsByPromoterCompany(promoterCompanyId: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: eventsTable.id })
+    .from(eventsTable)
+    .where(eq(eventsTable.promoterCompanyId, promoterCompanyId));
+  return rows.map((r) => r.id);
+}
+
 const router: IRouter = Router();
 
 router.get(
   "/reports/revenue",
   requireRole("admin", "merchant_admin", "event_admin"),
   async (req: Request, res: Response) => {
-    const { eventId, merchantId, locationId, from, to } = req.query as Record<string, string | undefined>;
+    const { eventId, merchantId, locationId, from, to, promoterCompanyId } = req.query as Record<string, string | undefined>;
     const user = req.user!;
 
     const conditions = [];
 
     if (user.role === "event_admin") {
-      if (!user.eventId) {
-        res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
-        return;
+      const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
+      if (userCompanyId) {
+        const companyEventIds = await getEventIdsByPromoterCompany(userCompanyId);
+        if (companyEventIds.length === 0) {
+          res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
+          return;
+        }
+        conditions.push(inArray(transactionLogsTable.eventId, companyEventIds));
+        if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
+        if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
+        if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
+      } else {
+        if (!user.eventId) {
+          res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
+          return;
+        }
+        conditions.push(eq(transactionLogsTable.eventId, user.eventId));
+        if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
+        if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
       }
-      conditions.push(eq(transactionLogsTable.eventId, user.eventId));
-      if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
-      if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
     } else if (user.role === "merchant_admin") {
       if (!user.merchantId) {
         res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
@@ -39,7 +60,16 @@ router.get(
         conditions.push(eq(transactionLogsTable.locationId, locationId));
       }
     } else {
-      if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
+      if (promoterCompanyId) {
+        const companyEventIds = await getEventIdsByPromoterCompany(promoterCompanyId);
+        if (companyEventIds.length === 0) {
+          res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
+          return;
+        }
+        conditions.push(inArray(transactionLogsTable.eventId, companyEventIds));
+      } else if (eventId) {
+        conditions.push(eq(transactionLogsTable.eventId, eventId));
+      }
       if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
       if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
     }
@@ -179,15 +209,60 @@ router.get(
   },
 );
 
+async function getTopUpsForEventIds(eventIds: string[], from?: string, to?: string) {
+  const bracelets = await db
+    .select({ nfcUid: braceletsTable.nfcUid })
+    .from(braceletsTable)
+    .where(inArray(braceletsTable.eventId, eventIds));
+  const braceletUids = bracelets.map((b) => b.nfcUid);
+  if (braceletUids.length === 0) return [];
+  const topUpConditions = [inArray(topUpsTable.braceletUid, braceletUids)];
+  if (from) topUpConditions.push(gte(topUpsTable.createdAt, new Date(from)));
+  if (to) topUpConditions.push(lte(topUpsTable.createdAt, new Date(to)));
+  return db.select().from(topUpsTable).where(and(...topUpConditions));
+}
+
 router.get(
   "/reports/topups",
   requireRole("admin", "event_admin"),
   async (req: Request, res: Response) => {
-    const { from, to } = req.query as { from?: string; to?: string };
+    const { from, to, promoterCompanyId } = req.query as { from?: string; to?: string; promoterCompanyId?: string };
     const user = req.user!;
+
+    type TopUpRow = typeof topUpsTable.$inferSelect;
+    const buildTopUpSummary = async (topUps: TopUpRow[]) => {
+      const totalCop = topUps.reduce((s, t) => s + t.amountCop, 0);
+      const byPaymentMethod: Record<string, number> = {};
+      const byUserMap = new Map<string, { totalCop: number; count: number }>();
+      for (const t of topUps) {
+        byPaymentMethod[t.paymentMethod] = (byPaymentMethod[t.paymentMethod] ?? 0) + t.amountCop;
+        if (!byUserMap.has(t.performedByUserId)) byUserMap.set(t.performedByUserId, { totalCop: 0, count: 0 });
+        const u = byUserMap.get(t.performedByUserId)!;
+        u.totalCop += t.amountCop; u.count += 1;
+      }
+      const userIds = [...byUserMap.keys()];
+      const users = userIds.length > 0 ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds)) : [];
+      const byUser = userIds.map((uid) => {
+        const usr = users.find((u) => u.id === uid);
+        const data = byUserMap.get(uid)!;
+        return { userId: uid, firstName: usr?.firstName ?? null, lastName: usr?.lastName ?? null, totalCop: data.totalCop, count: data.count };
+      });
+      return { totalCop, byPaymentMethod, byUser };
+    };
 
     // event_admin: scope top-ups to their event via bracelet.eventId
     if (user.role === "event_admin") {
+      const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
+      if (userCompanyId) {
+        const companyEventIds = await getEventIdsByPromoterCompany(userCompanyId);
+        if (companyEventIds.length === 0) {
+          res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [] });
+          return;
+        }
+        const topUps = await getTopUpsForEventIds(companyEventIds, from, to);
+        res.json(await buildTopUpSummary(topUps));
+        return;
+      }
       if (!user.eventId) {
         res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [] });
         return;
@@ -207,25 +282,18 @@ router.get(
       if (from) topUpConditions.push(gte(topUpsTable.createdAt, new Date(from)));
       if (to) topUpConditions.push(lte(topUpsTable.createdAt, new Date(to)));
       const topUps = await db.select().from(topUpsTable).where(and(...topUpConditions));
-      const totalCop = topUps.reduce((s, t) => s + t.amountCop, 0);
-      const byPaymentMethod: Record<string, number> = {};
-      const byUserMap = new Map<string, { totalCop: number; count: number }>();
-      for (const t of topUps) {
-        byPaymentMethod[t.paymentMethod] = (byPaymentMethod[t.paymentMethod] ?? 0) + t.amountCop;
-        if (!byUserMap.has(t.performedByUserId)) byUserMap.set(t.performedByUserId, { totalCop: 0, count: 0 });
-        const u = byUserMap.get(t.performedByUserId)!;
-        u.totalCop += t.amountCop; u.count += 1;
+      res.json(await buildTopUpSummary(topUps));
+      return;
+    }
+
+    if (promoterCompanyId) {
+      const companyEventIds = await getEventIdsByPromoterCompany(promoterCompanyId);
+      if (companyEventIds.length === 0) {
+        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [] });
+        return;
       }
-      const userIds = [...byUserMap.keys()];
-      const users = userIds.length > 0
-        ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds))
-        : [];
-      const byUser = userIds.map((uid) => {
-        const usr = users.find((u) => u.id === uid);
-        const data = byUserMap.get(uid)!;
-        return { userId: uid, firstName: usr?.firstName ?? null, lastName: usr?.lastName ?? null, totalCop: data.totalCop, count: data.count };
-      });
-      res.json({ totalCop, byPaymentMethod, byUser });
+      const topUps = await getTopUpsForEventIds(companyEventIds, from, to);
+      res.json(await buildTopUpSummary(topUps));
       return;
     }
 
@@ -238,40 +306,7 @@ router.get(
       .from(topUpsTable)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    const totalCop = topUps.reduce((s, t) => s + t.amountCop, 0);
-    const byPaymentMethod: Record<string, number> = {};
-    const byUserMap = new Map<string, { totalCop: number; count: number }>();
-
-    for (const t of topUps) {
-      byPaymentMethod[t.paymentMethod] = (byPaymentMethod[t.paymentMethod] ?? 0) + t.amountCop;
-      if (!byUserMap.has(t.performedByUserId)) {
-        byUserMap.set(t.performedByUserId, { totalCop: 0, count: 0 });
-      }
-      const u = byUserMap.get(t.performedByUserId)!;
-      u.totalCop += t.amountCop;
-      u.count += 1;
-    }
-
-    const userIds = [...byUserMap.keys()];
-    const users = userIds.length > 0
-      ? await db.select().from(usersTable).where(
-          sql`${usersTable.id} = ANY(ARRAY[${sql.join(userIds.map(id => sql`${id}`), sql`, `)}]::text[])`,
-        )
-      : [];
-
-    const byUser = userIds.map((uid) => {
-      const user = users.find((u) => u.id === uid);
-      const data = byUserMap.get(uid)!;
-      return {
-        userId: uid,
-        firstName: user?.firstName ?? null,
-        lastName: user?.lastName ?? null,
-        totalCop: data.totalCop,
-        count: data.count,
-      };
-    });
-
-    res.json({ totalCop, byPaymentMethod, byUser });
+    res.json(await buildTopUpSummary(topUps));
   },
 );
 

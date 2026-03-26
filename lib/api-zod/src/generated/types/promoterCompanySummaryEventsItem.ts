@@ -6,11 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetRevenueReportParams = {
-  eventId?: string;
-  merchantId?: string;
-  locationId?: string;
-  from?: Date;
-  to?: Date;
-  promoterCompanyId?: string;
+export type PromoterCompanySummaryEventsItem = {
+  id: string;
+  name: string;
+  active: boolean;
 };

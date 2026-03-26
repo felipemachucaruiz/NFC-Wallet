@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetRevenueReportParams = {
-  eventId?: string;
-  merchantId?: string;
-  locationId?: string;
-  from?: Date;
-  to?: Date;
-  promoterCompanyId?: string;
-};
+export interface UpsertPromoterCompanyBody {
+  /** @minLength 1 */
+  companyName: string;
+  nit?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+}

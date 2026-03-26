@@ -9,4 +9,5 @@
 export type GetTopUpReportParams = {
   from?: Date;
   to?: Date;
+  promoterCompanyId?: string;
 };

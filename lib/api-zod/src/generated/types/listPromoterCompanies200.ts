@@ -5,12 +5,8 @@
  * Contactless cashless event payment system API (Colombia market)
  * OpenAPI spec version: 0.1.0
  */
+import type { PromoterCompany } from "./promoterCompany";
 
-export type GetRevenueReportParams = {
-  eventId?: string;
-  merchantId?: string;
-  locationId?: string;
-  from?: Date;
-  to?: Date;
-  promoterCompanyId?: string;
+export type ListPromoterCompanies200 = {
+  companies: PromoterCompany[];
 };

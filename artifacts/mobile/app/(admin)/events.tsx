@@ -76,6 +76,7 @@ type EventItem = {
   platformCommissionRate?: string | number;
   capacity?: number | null;
   promoterCompanyId?: string | null;
+  promoterCompanyName?: string | null;
   pulepId?: string | null;
 };
 
@@ -343,7 +344,8 @@ export default function EventsScreen() {
         )}
         scrollEnabled={!!events.length}
         renderItem={({ item }) => {
-          const company = item.promoterCompanyId ? allCompanies.find((c) => c.id === item.promoterCompanyId) : null;
+          const companyName = item.promoterCompanyName
+            ?? (item.promoterCompanyId ? allCompanies.find((c) => c.id === item.promoterCompanyId)?.companyName : null);
           const status = getEventStatus(item);
           return (
             <Card>
@@ -353,10 +355,10 @@ export default function EventsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.eventName, { color: C.text }]}>{item.name}</Text>
-                  {company && (
+                  {companyName && (
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
                       <Feather name="briefcase" size={11} color={C.textSecondary} />
-                      <Text style={[styles.venue, { color: C.textSecondary }]}>{company.companyName}</Text>
+                      <Text style={[styles.venue, { color: C.textSecondary }]}>{companyName}</Text>
                     </View>
                   )}
                   {item.venueAddress ? <Text style={[styles.venue, { color: C.textSecondary }]}>{item.venueAddress}</Text> : null}

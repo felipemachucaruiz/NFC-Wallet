@@ -53,6 +53,12 @@ export const GetCurrentAuthUserResponse = zod.object({
         .describe(
           "Set for event_admin users; determines which event they administer",
         ),
+      promoterCompanyId: zod
+        .string()
+        .nullish()
+        .describe(
+          "Set for event_admin users linked to a promoter company; determines which company's events they manage",
+        ),
     }),
     zod.null(),
   ]),
@@ -193,6 +199,10 @@ export const UpdateUserRoleResponse = zod.object({
 /**
  * @summary List all events
  */
+export const ListEventsQueryParams = zod.object({
+  promoterCompanyId: zod.coerce.string().optional(),
+});
+
 export const ListEventsResponse = zod.object({
   events: zod.array(
     zod.object({
@@ -263,6 +273,117 @@ export const UpdateEventResponse = zod.object({
   endsAt: zod.date().nullish(),
   active: zod.boolean(),
   createdAt: zod.date(),
+});
+
+/**
+ * @summary List all promoter companies (admin or event_admin)
+ */
+export const ListPromoterCompaniesResponse = zod.object({
+  companies: zod.array(
+    zod.object({
+      id: zod.string(),
+      companyName: zod.string(),
+      nit: zod.string().nullish(),
+      address: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      email: zod.string().email().nullish(),
+      createdAt: zod.date(),
+      updatedAt: zod.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a promoter company (admin only)
+ */
+
+export const CreatePromoterCompanyBody = zod.object({
+  companyName: zod.string().min(1),
+  nit: zod.string().optional(),
+  address: zod.string().optional(),
+  phone: zod.string().optional(),
+  email: zod.string().email().optional(),
+});
+
+/**
+ * @summary Get a promoter company by ID
+ */
+export const GetPromoterCompanyParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetPromoterCompanyResponse = zod.object({
+  id: zod.string(),
+  companyName: zod.string(),
+  nit: zod.string().nullish(),
+  address: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  email: zod.string().email().nullish(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Update a promoter company (admin only)
+ */
+export const UpdatePromoterCompanyParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdatePromoterCompanyBody = zod.object({
+  companyName: zod.string().min(1),
+  nit: zod.string().optional(),
+  address: zod.string().optional(),
+  phone: zod.string().optional(),
+  email: zod.string().email().optional(),
+});
+
+export const UpdatePromoterCompanyResponse = zod.object({
+  id: zod.string(),
+  companyName: zod.string(),
+  nit: zod.string().nullish(),
+  address: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  email: zod.string().email().nullish(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Delete a promoter company (admin only)
+ */
+export const DeletePromoterCompanyParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeletePromoterCompanyResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Get consolidated metrics for all events of a promoter company
+ */
+export const GetPromoterCompanySummaryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetPromoterCompanySummaryResponse = zod.object({
+  companyId: zod.string(),
+  companyName: zod.string(),
+  eventCount: zod.number(),
+  totalRevenueCop: zod.number(),
+  totalTopupsCop: zod.number(),
+  totalUnclaimedCop: zod.number(),
+  totalAttendees: zod.number(),
+  events: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        name: zod.string(),
+        active: zod.boolean(),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -1132,6 +1253,7 @@ export const GetRevenueReportQueryParams = zod.object({
   locationId: zod.coerce.string().optional(),
   from: zod.date().optional(),
   to: zod.date().optional(),
+  promoterCompanyId: zod.coerce.string().optional(),
 });
 
 export const GetRevenueReportResponse = zod.object({
@@ -1184,6 +1306,7 @@ export const GetRevenueReportResponse = zod.object({
 export const GetTopUpReportQueryParams = zod.object({
   from: zod.date().optional(),
   to: zod.date().optional(),
+  promoterCompanyId: zod.coerce.string().optional(),
 });
 
 export const GetTopUpReportResponse = zod.object({

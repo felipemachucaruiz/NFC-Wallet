@@ -6,17 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Event {
+export interface PromoterCompany {
   id: string;
-  name: string;
+  companyName: string;
   /** @nullable */
-  description?: string | null;
+  nit?: string | null;
   /** @nullable */
-  venueAddress?: string | null;
+  address?: string | null;
   /** @nullable */
-  startsAt?: Date | null;
+  phone?: string | null;
   /** @nullable */
-  endsAt?: Date | null;
-  active: boolean;
+  email?: string | null;
   createdAt: Date;
+  updatedAt: Date;
 }

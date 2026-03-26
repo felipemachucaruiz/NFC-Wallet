@@ -48,28 +48,114 @@ const updateEventSchema = z.object({
 });
 
 router.get("/events", requireAuth, async (req: Request, res: Response) => {
-  if (req.user!.role === "event_admin") {
-    if (!req.user!.eventId) {
+  const user = req.user!;
+  const promoterCompanyIdFilter = req.query.promoterCompanyId as string | undefined;
+
+  if (user.role === "event_admin") {
+    const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
+    if (userCompanyId) {
+      const companyEvents = await db
+        .select({
+          id: eventsTable.id,
+          name: eventsTable.name,
+          description: eventsTable.description,
+          venueAddress: eventsTable.venueAddress,
+          startsAt: eventsTable.startsAt,
+          endsAt: eventsTable.endsAt,
+          active: eventsTable.active,
+          capacity: eventsTable.capacity,
+          platformCommissionRate: eventsTable.platformCommissionRate,
+          promoterCompanyId: eventsTable.promoterCompanyId,
+          promoterCompanyName: promoterCompaniesTable.companyName,
+          pulepId: eventsTable.pulepId,
+          inventoryMode: eventsTable.inventoryMode,
+          createdAt: eventsTable.createdAt,
+          updatedAt: eventsTable.updatedAt,
+        })
+        .from(eventsTable)
+        .leftJoin(promoterCompaniesTable, eq(eventsTable.promoterCompanyId, promoterCompaniesTable.id))
+        .where(eq(eventsTable.promoterCompanyId, userCompanyId));
+      res.json({ events: companyEvents });
+      return;
+    }
+    if (!user.eventId) {
       res.json({ events: [] });
       return;
     }
     const [event] = await db
-      .select()
+      .select({
+        id: eventsTable.id,
+        name: eventsTable.name,
+        description: eventsTable.description,
+        venueAddress: eventsTable.venueAddress,
+        startsAt: eventsTable.startsAt,
+        endsAt: eventsTable.endsAt,
+        active: eventsTable.active,
+        capacity: eventsTable.capacity,
+        platformCommissionRate: eventsTable.platformCommissionRate,
+        promoterCompanyId: eventsTable.promoterCompanyId,
+        promoterCompanyName: promoterCompaniesTable.companyName,
+        pulepId: eventsTable.pulepId,
+        inventoryMode: eventsTable.inventoryMode,
+        createdAt: eventsTable.createdAt,
+        updatedAt: eventsTable.updatedAt,
+      })
       .from(eventsTable)
-      .where(eq(eventsTable.id, req.user!.eventId));
+      .leftJoin(promoterCompaniesTable, eq(eventsTable.promoterCompanyId, promoterCompaniesTable.id))
+      .where(eq(eventsTable.id, user.eventId));
     res.json({ events: event ? [event] : [] });
     return;
   }
-  const events = await db.select().from(eventsTable);
+
+  const baseQuery = db
+    .select({
+      id: eventsTable.id,
+      name: eventsTable.name,
+      description: eventsTable.description,
+      venueAddress: eventsTable.venueAddress,
+      startsAt: eventsTable.startsAt,
+      endsAt: eventsTable.endsAt,
+      active: eventsTable.active,
+      capacity: eventsTable.capacity,
+      platformCommissionRate: eventsTable.platformCommissionRate,
+      promoterCompanyId: eventsTable.promoterCompanyId,
+      promoterCompanyName: promoterCompaniesTable.companyName,
+      pulepId: eventsTable.pulepId,
+      inventoryMode: eventsTable.inventoryMode,
+      createdAt: eventsTable.createdAt,
+      updatedAt: eventsTable.updatedAt,
+    })
+    .from(eventsTable)
+    .leftJoin(promoterCompaniesTable, eq(eventsTable.promoterCompanyId, promoterCompaniesTable.id));
+
+  const events = promoterCompanyIdFilter
+    ? await baseQuery.where(eq(eventsTable.promoterCompanyId, promoterCompanyIdFilter))
+    : await baseQuery;
+
   res.json({ events });
 });
 
 router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) => {
   const eventId = req.params.eventId as string;
+  const user = req.user!;
 
-  if (req.user!.role === "event_admin" && req.user!.eventId !== eventId) {
-    res.status(403).json({ error: "Access denied" });
-    return;
+  if (user.role === "event_admin") {
+    const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
+    const ownsSingleEvent = user.eventId === eventId;
+    if (!userCompanyId && !ownsSingleEvent) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+    if (userCompanyId) {
+      const [eventForCompany] = await db
+        .select({ promoterCompanyId: eventsTable.promoterCompanyId })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, eventId));
+      if (!eventForCompany || eventForCompany.promoterCompanyId !== userCompanyId) {
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
+    }
   }
 
   const [row] = await db
@@ -165,10 +251,25 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
 
 router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req: Request, res: Response) => {
   const eventId = req.params.eventId as string;
+  const user = req.user!;
 
-  if (req.user!.role === "event_admin" && req.user!.eventId !== eventId) {
-    res.status(403).json({ error: "Access denied" });
-    return;
+  if (user.role === "event_admin") {
+    const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
+    const ownsSingleEvent = user.eventId === eventId;
+    if (!userCompanyId && !ownsSingleEvent) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+    if (userCompanyId) {
+      const [eventForCompany] = await db
+        .select({ promoterCompanyId: eventsTable.promoterCompanyId })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, eventId));
+      if (!eventForCompany || eventForCompany.promoterCompanyId !== userCompanyId) {
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
+    }
   }
 
   const parsed = updateEventSchema.safeParse(req.body);

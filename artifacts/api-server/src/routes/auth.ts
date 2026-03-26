@@ -169,6 +169,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
       role: user.role,
       merchantId: user.merchantId ?? null,
       eventId: user.eventId ?? null,
+      promoterCompanyId: user.promoterCompanyId ?? null,
     },
   };
 
@@ -408,6 +409,7 @@ router.get("/callback", async (req: Request, res: Response) => {
       role: dbUser.role,
       merchantId: dbUser.merchantId ?? null,
       eventId: dbUser.eventId ?? null,
+      promoterCompanyId: dbUser.promoterCompanyId ?? null,
     },
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
@@ -481,6 +483,7 @@ router.post(
           role: dbUser.role,
           merchantId: dbUser.merchantId ?? null,
           eventId: dbUser.eventId ?? null,
+          promoterCompanyId: dbUser.promoterCompanyId ?? null,
         },
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
