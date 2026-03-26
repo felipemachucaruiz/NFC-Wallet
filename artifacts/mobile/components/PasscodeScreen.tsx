@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
-const LOGO = require("../assets/images/tapee-logo.png");
+const LOGO = require("../assets/images/tapee-letters-white.png");
 const PAD_KEYS = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
 const CODE_LENGTH = 4;
 
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   logoWrap: { alignItems: "center" },
-  logo: { width: 200, height: 91, tintColor: "#ffffff" },
+  logo: { width: 220, height: 80 },
   textBlock: { alignItems: "center", gap: 8 },
   titleText: {
     fontSize: 22,
