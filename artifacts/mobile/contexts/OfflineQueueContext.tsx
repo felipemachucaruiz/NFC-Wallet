@@ -8,13 +8,17 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { syncTransactions } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
 import { generateId } from "@/utils/hmac";
+import { cacheSigningKey, getCachedSigningKey } from "@/utils/signingKeyCache";
 
 const QUEUE_KEY = "@offline_queue";
+const TOPUP_QUEUE_KEY = "@offline_topup_queue";
 const SYNC_INTERVAL = 30_000;
 
 export interface QueuedTransaction {
   id: string;
+  type: "charge";
   locationId: string;
   nfcUid: string;
   newBalance: number;
@@ -28,23 +32,64 @@ export interface QueuedTransaction {
   createdAt: string;
   status: "pending" | "syncing" | "failed";
   failCount: number;
+  failReason?: string;
+}
+
+export interface QueuedTopUp {
+  id: string;
+  type: "topup";
+  nfcUid: string;
+  amountCop: number;
+  paymentMethod: string;
+  newBalance: number;
+  newCounter: number;
+  createdAt: string;
+  status: "pending" | "syncing" | "failed";
+  failCount: number;
+  failReason?: string;
+}
+
+export type QueuedItem = QueuedTransaction | QueuedTopUp;
+
+interface TopUpSyncResult {
+  results?: Array<{ idempotencyKey: string; status: string; error?: string }>;
 }
 
 interface OfflineQueueContextValue {
   queue: QueuedTransaction[];
+  topUpQueue: QueuedTopUp[];
+  allFailedItems: QueuedItem[];
   isOnline: boolean;
   isSyncing: boolean;
-  enqueue: (tx: Omit<QueuedTransaction, "id" | "createdAt" | "status" | "failCount">) => Promise<void>;
+  enqueue: (tx: Omit<QueuedTransaction, "id" | "createdAt" | "status" | "failCount" | "type">) => Promise<void>;
+  enqueueTopUp: (topup: Omit<QueuedTopUp, "id" | "createdAt" | "status" | "failCount" | "type">) => Promise<void>;
   syncNow: () => Promise<void>;
+  dismissFailedItem: (id: string, itemType: "charge" | "topup") => Promise<void>;
   pendingCount: number;
+  cachedHmacSecret: string;
+  updateCachedHmacSecret: (secret: string) => Promise<void>;
+  clearCachedHmacSecret: () => void;
 }
 
 const OfflineQueueContext = createContext<OfflineQueueContextValue | null>(null);
 
+// Module-level callback so AuthContext can clear the in-memory key on logout
+// without requiring hook access
+let _clearCachedHmacSecretCallback: (() => void) | null = null;
+export function clearInMemoryCachedHmacSecret(): void {
+  _clearCachedHmacSecretCallback?.();
+}
+
+function getCounterForItem(item: QueuedItem): number {
+  return item.type === "charge" ? item.counter : item.newCounter;
+}
+
 async function loadQueue(): Promise<QueuedTransaction[]> {
   try {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as QueuedTransaction[];
+    return parsed.map((t) => ({ ...t, type: "charge" as const }));
   } catch {
     return [];
   }
@@ -56,16 +101,42 @@ async function saveQueue(q: QueuedTransaction[]): Promise<void> {
   } catch {}
 }
 
+async function loadTopUpQueue(): Promise<QueuedTopUp[]> {
+  try {
+    const raw = await AsyncStorage.getItem(TOPUP_QUEUE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as QueuedTopUp[];
+  } catch {
+    return [];
+  }
+}
+
+async function saveTopUpQueue(q: QueuedTopUp[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(TOPUP_QUEUE_KEY, JSON.stringify(q));
+  } catch {}
+}
+
 export function OfflineQueueProvider({ children }: { children: React.ReactNode }) {
   const [queue, setQueue] = useState<QueuedTransaction[]>([]);
+  const [topUpQueue, setTopUpQueue] = useState<QueuedTopUp[]>([]);
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [cachedHmacSecret, setCachedHmacSecret] = useState<string>("");
   const queueRef = useRef<QueuedTransaction[]>([]);
+  const topUpQueueRef = useRef<QueuedTopUp[]>([]);
 
   useEffect(() => {
     loadQueue().then((q) => {
       queueRef.current = q;
       setQueue(q);
+    });
+    loadTopUpQueue().then((q) => {
+      topUpQueueRef.current = q;
+      setTopUpQueue(q);
+    });
+    getCachedSigningKey().then((key) => {
+      if (key) setCachedHmacSecret(key);
     });
   }, []);
 
@@ -75,10 +146,34 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     await saveQueue(q);
   }, []);
 
+  const updateTopUpQueue = useCallback(async (q: QueuedTopUp[]) => {
+    topUpQueueRef.current = q;
+    setTopUpQueue([...q]);
+    await saveTopUpQueue(q);
+  }, []);
+
+  const updateCachedHmacSecret = useCallback(async (secret: string) => {
+    setCachedHmacSecret(secret);
+    await cacheSigningKey(secret);
+  }, []);
+
+  const clearCachedHmacSecret = useCallback(() => {
+    setCachedHmacSecret("");
+  }, []);
+
+  // Register module-level callback so AuthContext can call it without hook access
+  useEffect(() => {
+    _clearCachedHmacSecretCallback = clearCachedHmacSecret;
+    return () => {
+      _clearCachedHmacSecretCallback = null;
+    };
+  }, [clearCachedHmacSecret]);
+
   const enqueue = useCallback(
-    async (tx: Omit<QueuedTransaction, "id" | "createdAt" | "status" | "failCount">) => {
+    async (tx: Omit<QueuedTransaction, "id" | "createdAt" | "status" | "failCount" | "type">) => {
       const item: QueuedTransaction = {
         ...tx,
+        type: "charge",
         id: generateId(),
         createdAt: new Date().toISOString(),
         status: "pending",
@@ -90,63 +185,217 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     [updateQueue]
   );
 
+  const enqueueTopUp = useCallback(
+    async (topup: Omit<QueuedTopUp, "id" | "createdAt" | "status" | "failCount" | "type">) => {
+      const item: QueuedTopUp = {
+        ...topup,
+        type: "topup",
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+        status: "pending",
+        failCount: 0,
+      };
+      const q = [...topUpQueueRef.current, item];
+      await updateTopUpQueue(q);
+    },
+    [updateTopUpQueue]
+  );
+
   const syncNow = useCallback(async () => {
-    const pending = queueRef.current.filter((t) => t.status === "pending");
-    if (pending.length === 0) return;
+    const eligibleCharges = queueRef.current.filter(
+      (t) => t.status === "pending" || t.status === "failed"
+    );
+    const eligibleTopUps = topUpQueueRef.current.filter(
+      (t) => t.status === "pending" || t.status === "failed"
+    );
+
+    if (eligibleCharges.length === 0 && eligibleTopUps.length === 0) return;
     setIsSyncing(true);
 
-    let q = [...queueRef.current];
-    q = q.map((t) =>
-      t.status === "pending" ? { ...t, status: "syncing" as const } : t
+    // Mark all eligible items as syncing
+    let q = queueRef.current.map((t) =>
+      t.status === "pending" || t.status === "failed"
+        ? { ...t, status: "syncing" as const }
+        : t
+    );
+    let tq = topUpQueueRef.current.map((t) =>
+      t.status === "pending" || t.status === "failed"
+        ? { ...t, status: "syncing" as const }
+        : t
     );
     await updateQueue(q);
+    await updateTopUpQueue(tq);
 
-    try {
-      await syncTransactions({
-        transactions: pending.map((t) => ({
-          idempotencyKey: t.id,
-          nfcUid: t.nfcUid,
-          locationId: t.locationId,
-          newBalance: t.newBalance,
-          counter: t.counter,
-          lineItems: t.lineItems.map((li) => ({
-            productId: li.productId,
-            quantity: li.quantity,
-          })),
-          offlineCreatedAt: t.createdAt,
-        })),
-      });
-      q = queueRef.current.filter((t) => !pending.find((p) => p.id === t.id));
-      await updateQueue(q);
-      setIsOnline(true);
-    } catch {
-      setIsOnline(false);
-      q = queueRef.current.map((t) => {
-        if (t.status === "syncing") {
-          return {
-            ...t,
-            status: "pending" as const,
-            failCount: t.failCount + 1,
-          };
+    // Build a globally sorted list across both item types: by nfcUid, then counter
+    const allItems: QueuedItem[] = [
+      ...eligibleCharges.map((t) => ({ ...t, status: "syncing" as const })),
+      ...eligibleTopUps.map((t) => ({ ...t, status: "syncing" as const })),
+    ].sort((a, b) => {
+      const uidCmp = a.nfcUid.localeCompare(b.nfcUid);
+      if (uidCmp !== 0) return uidCmp;
+      return getCounterForItem(a) - getCounterForItem(b);
+    });
+
+    let anySuccess = false;
+    let anyError = false;
+
+    // Dispatch each item in global counter order (one at a time to preserve ordering)
+    for (const item of allItems) {
+      if (item.type === "charge") {
+        // Charges go via syncTransactions (batch of one to maintain order)
+        try {
+          const result = await syncTransactions({
+            transactions: [
+              {
+                idempotencyKey: item.id,
+                nfcUid: item.nfcUid,
+                locationId: item.locationId,
+                newBalance: item.newBalance,
+                counter: item.counter,
+                lineItems: item.lineItems.map((li) => ({
+                  productId: li.productId,
+                  quantity: li.quantity,
+                })),
+                offlineCreatedAt: item.createdAt,
+              },
+            ],
+          });
+
+          const typedResult = result as TopUpSyncResult;
+          const syncResult = (typedResult.results ?? []).find(
+            (r) => r.idempotencyKey === item.id
+          );
+
+          if (!syncResult || syncResult.status === "created" || syncResult.status === "duplicate") {
+            q = queueRef.current.filter((t) => t.id !== item.id);
+          } else {
+            q = queueRef.current.map((t) =>
+              t.id === item.id
+                ? {
+                    ...t,
+                    status: "failed" as const,
+                    failCount: t.failCount + 1,
+                    failReason: syncResult.error ?? "Unknown error",
+                  }
+                : t
+            );
+            anyError = true;
+          }
+          await updateQueue(q);
+          anySuccess = true;
+        } catch (err: unknown) {
+          anyError = true;
+          const msg = err instanceof Error ? err.message : "Network error";
+          q = queueRef.current.map((t) =>
+            t.id === item.id
+              ? {
+                  ...t,
+                  status: "pending" as const,
+                  failCount: t.failCount + 1,
+                  failReason: msg,
+                }
+              : t
+          );
+          await updateQueue(q);
         }
-        return t;
-      });
-      await updateQueue(q);
-    } finally {
-      setIsSyncing(false);
+      } else {
+        // Top-ups go via the offline sync endpoint
+        try {
+          await customFetch("/api/topups/sync", {
+            method: "POST",
+            body: JSON.stringify({
+              id: item.id,
+              nfcUid: item.nfcUid,
+              amountCop: item.amountCop,
+              paymentMethod: item.paymentMethod,
+              newBalance: item.newBalance,
+              newCounter: item.newCounter,
+              offlineCreatedAt: item.createdAt,
+            }),
+          });
+          tq = topUpQueueRef.current.filter((t) => t.id !== item.id);
+          await updateTopUpQueue(tq);
+          anySuccess = true;
+        } catch (err: unknown) {
+          const httpErr = err as { status?: number; data?: { error?: string } };
+          if (httpErr.status === 409) {
+            // Duplicate — idempotent success
+            tq = topUpQueueRef.current.filter((t) => t.id !== item.id);
+            await updateTopUpQueue(tq);
+            anySuccess = true;
+          } else {
+            anyError = true;
+            const msg = err instanceof Error ? err.message : "Network error";
+            const reason = httpErr.data?.error ?? msg;
+            tq = topUpQueueRef.current.map((t) =>
+              t.id === item.id
+                ? {
+                    ...t,
+                    status: "failed" as const,
+                    failCount: t.failCount + 1,
+                    failReason: reason,
+                  }
+                : t
+            );
+            await updateTopUpQueue(tq);
+          }
+        }
+      }
     }
-  }, [updateQueue]);
+
+    if (anySuccess && !anyError) {
+      setIsOnline(true);
+    } else if (anyError && !anySuccess) {
+      setIsOnline(false);
+    }
+
+    setIsSyncing(false);
+  }, [updateQueue, updateTopUpQueue]);
 
   useEffect(() => {
     const interval = setInterval(syncNow, SYNC_INTERVAL);
     return () => clearInterval(interval);
   }, [syncNow]);
 
-  const pendingCount = queue.filter((t) => t.status === "pending").length;
+  const dismissFailedItem = useCallback(
+    async (id: string, itemType: "charge" | "topup") => {
+      if (itemType === "charge") {
+        const updated = queueRef.current.filter((t) => t.id !== id);
+        await updateQueue(updated);
+      } else {
+        const updated = topUpQueueRef.current.filter((t) => t.id !== id);
+        await updateTopUpQueue(updated);
+      }
+    },
+    [updateQueue, updateTopUpQueue]
+  );
+
+  const pendingCount =
+    queue.filter((t) => t.status === "pending" || t.status === "syncing").length +
+    topUpQueue.filter((t) => t.status === "pending" || t.status === "syncing").length;
+
+  const allFailedItems: QueuedItem[] = [
+    ...queue.filter((t) => t.status === "failed"),
+    ...topUpQueue.filter((t) => t.status === "failed"),
+  ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   return (
     <OfflineQueueContext.Provider
-      value={{ queue, isOnline, isSyncing, enqueue, syncNow, pendingCount }}
+      value={{
+        queue,
+        topUpQueue,
+        allFailedItems,
+        isOnline,
+        isSyncing,
+        enqueue,
+        enqueueTopUp,
+        syncNow,
+        dismissFailedItem,
+        pendingCount,
+        cachedHmacSecret,
+        updateCachedHmacSecret,
+        clearCachedHmacSecret,
+      }}
     >
       {children}
     </OfflineQueueContext.Provider>

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useCart } from "@/contexts/CartContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { isNfcSupported, scanBracelet, writeBracelet, type TagInfo } from "@/utils/nfc";
 import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCOP } from "@/utils/format";
@@ -83,9 +84,16 @@ export default function ChargeScreen() {
   const locationId = params.locationId ?? "";
 
   const { items: cartItems, total, clearCart } = useCart();
-  const { enqueue } = useOfflineQueue();
+  const { enqueue, cachedHmacSecret, updateCachedHmacSecret } = useOfflineQueue();
   const { data: keyData } = useGetSigningKey();
-  const hmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
+  const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
+  const hmacSecret = networkHmacSecret || cachedHmacSecret;
+
+  React.useEffect(() => {
+    if (networkHmacSecret) {
+      updateCachedHmacSecret(networkHmacSecret);
+    }
+  }, [networkHmacSecret, updateCachedHmacSecret]);
 
   const logTransaction = useLogTransaction();
   const reportTamper = useReportTamper();
@@ -217,6 +225,7 @@ export default function ChargeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
+      <OfflineBanner syncIssuesRoute={"/(merchant-pos)/sync-issues"} />
       <View style={styles.cartSummary}>
         <Card padding={16} style={{ marginHorizontal: 20, marginTop: 8 }}>
           {cartItems.slice(0, 3).map((item) => (

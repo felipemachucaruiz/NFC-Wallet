@@ -27,6 +27,7 @@ export default function MerchantPosLayout() {
     >
       <Stack.Screen name="index" options={{ title: t("pos.title"), headerShown: true }} />
       <Stack.Screen name="charge" options={{ title: t("pos.chargeTitle"), headerShown: true, presentation: "modal" }} />
+      <Stack.Screen name="sync-issues" options={{ title: t("syncIssues.title"), headerShown: true }} />
     </Stack>
   );
 }

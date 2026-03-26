@@ -55,6 +55,7 @@ export const transactionLineItemsTable = pgTable("transaction_line_items", {
 
 export const topUpsTable = pgTable("top_ups", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  idempotencyKey: varchar("idempotency_key", { length: 128 }).unique(),
   braceletUid: varchar("bracelet_uid", { length: 64 }).notNull(),
   amountCop: integer("amount_cop").notNull(),
   paymentMethod: paymentMethodEnum("payment_method").notNull(),
@@ -63,6 +64,8 @@ export const topUpsTable = pgTable("top_ups", {
   status: topUpStatusEnum("status").notNull().default("completed"),
   newBalanceCop: integer("new_balance_cop").notNull(),
   newCounter: integer("new_counter").notNull(),
+  syncedAt: timestamp("synced_at", { withTimezone: true }),
+  offlineCreatedAt: timestamp("offline_created_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

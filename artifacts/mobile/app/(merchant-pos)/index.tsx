@@ -59,7 +59,7 @@ export default function MerchantPosScreen() {
   if (!selectedLocationId) {
     return (
       <View style={[styles.container, { backgroundColor: C.background }]}>
-        <OfflineBanner />
+        <OfflineBanner syncIssuesRoute={"/(merchant-pos)/sync-issues"} />
         {locLoading ? (
           <Loading label={t("common.loading")} />
         ) : (
@@ -87,7 +87,7 @@ export default function MerchantPosScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      <OfflineBanner />
+      <OfflineBanner syncIssuesRoute={"/(merchant-pos)/sync-issues"} />
 
       <View style={[styles.locationBar, { backgroundColor: C.card, borderBottomColor: C.border }]}>
         <Pressable onPress={() => setSelectedLocationId(null)}>

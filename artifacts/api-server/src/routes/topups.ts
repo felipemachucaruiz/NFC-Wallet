@@ -87,6 +87,100 @@ router.post(
   },
 );
 
+const syncTopUpSchema = z.object({
+  id: z.string().min(1),
+  nfcUid: z.string().min(1),
+  amountCop: z.number().int().min(1),
+  paymentMethod: z.enum(paymentMethods),
+  newBalance: z.number().int().min(0),
+  newCounter: z.number().int().min(1),
+  offlineCreatedAt: z.string().optional(),
+});
+
+router.post(
+  "/topups/sync",
+  requireRole("bank", "admin"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const parsed = syncTopUpSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const { id, nfcUid, amountCop, paymentMethod, newBalance, newCounter, offlineCreatedAt } = parsed.data;
+
+    // Idempotency: check if already processed (use id as idempotency key)
+    const existing = await db
+      .select()
+      .from(topUpsTable)
+      .where(eq(topUpsTable.idempotencyKey, id));
+    if (existing.length > 0) {
+      res.status(409).json({ error: "Duplicate top-up (already synced)" });
+      return;
+    }
+
+    let [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+
+    // Auto-register new bracelets
+    if (!bracelet) {
+      const [created] = await db
+        .insert(braceletsTable)
+        .values({ nfcUid, lastKnownBalanceCop: 0, lastCounter: 0 })
+        .returning();
+      bracelet = created;
+    }
+
+    // Counter must be strictly increasing
+    if (bracelet.lastCounter !== null && newCounter <= bracelet.lastCounter) {
+      res.status(400).json({ error: `Counter replay detected: submitted ${newCounter} ≤ stored ${bracelet.lastCounter}` });
+      return;
+    }
+
+    // Balance consistency: newBalance must equal stored balance + amountCop
+    const expectedBalance = bracelet.lastKnownBalanceCop + amountCop;
+    if (newBalance !== expectedBalance) {
+      res.status(400).json({
+        error: `Balance mismatch: expected ${expectedBalance} (${bracelet.lastKnownBalanceCop} + ${amountCop}), got ${newBalance}`,
+      });
+      return;
+    }
+
+    const [topUp] = await db
+      .insert(topUpsTable)
+      .values({
+        idempotencyKey: id,
+        braceletUid: nfcUid,
+        amountCop,
+        paymentMethod,
+        performedByUserId: req.user.id,
+        status: "completed",
+        newBalanceCop: newBalance,
+        newCounter,
+        syncedAt: new Date(),
+        offlineCreatedAt: offlineCreatedAt ? new Date(offlineCreatedAt) : null,
+      })
+      .returning();
+
+    await db
+      .update(braceletsTable)
+      .set({
+        lastKnownBalanceCop: newBalance,
+        lastCounter: newCounter,
+        updatedAt: new Date(),
+      })
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+
+    res.status(201).json({ topUp, status: "created" });
+  },
+);
+
 router.get(
   "/topups/my-shift",
   requireRole("bank", "admin"),

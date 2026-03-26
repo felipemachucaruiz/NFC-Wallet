@@ -204,7 +204,10 @@
     "refundError": "Error al hacer la devolución",
     "refundedAmount": "Devuelto",
     "noContactInfo": "Sin información de contacto",
-    "writingZero": "Borrando saldo de pulsera..."
+    "writingZero": "Borrando saldo de pulsera...",
+    "noSigningKey": "Clave de firma no disponible. Por favor conéctate a la red primero.",
+    "savedOffline": "Recarga en cola para sincronizar. Se sincronizará cuando haya conexión.",
+    "nfcRequired": "Este dispositivo no soporta NFC. Se debe escribir la pulsera antes de registrar una recarga."
   },
   "pos": {
     "title": "Punto de Venta",
@@ -703,5 +706,24 @@
     "downloading": "Descargando actualización…",
     "ready": "¡Actualización lista!",
     "restart": "Reiniciar ahora"
+  },
+  "syncIssues": {
+    "title": "Errores de sincronización",
+    "bannerLabel": "{{count}} error(es) de sync — toca para revisar",
+    "count": "{{count}} elemento(s) fallido(s)",
+    "noIssues": "Sin errores de sincronización",
+    "retryAll": "Reintentar todo",
+    "chargeType": "Cobro",
+    "topUpType": "Recarga",
+    "chargeItem": "Cobro — {{uid}}",
+    "topUpItem": "Recarga — {{uid}}",
+    "newBalance": "Saldo nuevo",
+    "attempts": "{{count}} intento(s)",
+    "dismissTitle": "Anular elemento fallido",
+    "dismissConfirm": "¿Eliminar permanentemente esta transacción fallida? Esta acción no se puede deshacer. La escritura en la pulsera ya ocurrió.",
+    "dismissAction": "Anular y eliminar",
+    "dismiss": "Anular / descartar",
+    "supervisorOnly": "Se requiere supervisor",
+    "supervisorRequired": "Solo supervisores (admin o event admin) pueden anular transacciones fallidas."
   }
 }

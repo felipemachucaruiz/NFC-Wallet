@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CopAmount } from "@/components/CopAmount";
 import { isNfcSupported, scanBracelet } from "@/utils/nfc";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 export default function BraceletsAdminScreen() {
   const { t } = useTranslation();
@@ -118,6 +119,8 @@ export default function BraceletsAdminScreen() {
   const flagReason = (bracelet as { flagReason?: string | null } | undefined)?.flagReason;
 
   return (
+    <>
+    <OfflineBanner syncIssuesRoute={""} />
     <ScrollView
       style={[styles.container, { backgroundColor: C.background }]}
       contentContainerStyle={[
@@ -236,6 +239,7 @@ export default function BraceletsAdminScreen() {
         </Card>
       )}
     </ScrollView>
+    </>
   );
 }
 

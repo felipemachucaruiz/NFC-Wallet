@@ -204,7 +204,10 @@
     "refundError": "Refund error",
     "refundedAmount": "Refunded",
     "noContactInfo": "No contact info on file",
-    "writingZero": "Zeroing bracelet..."
+    "writingZero": "Zeroing bracelet...",
+    "noSigningKey": "Signing key not available. Please connect to the network first.",
+    "savedOffline": "Top-up queued for sync. Will be synced when online.",
+    "nfcRequired": "This device does not support NFC. A bracelet must be written before a top-up can be recorded."
   },
   "pos": {
     "title": "Point of Sale",
@@ -703,5 +706,24 @@
     "downloading": "Downloading update…",
     "ready": "Update ready!",
     "restart": "Restart now"
+  },
+  "syncIssues": {
+    "title": "Sync Issues",
+    "bannerLabel": "{{count}} sync error(s) — tap to review",
+    "count": "{{count}} failed item(s)",
+    "noIssues": "No sync issues",
+    "retryAll": "Retry all",
+    "chargeType": "Charge",
+    "topUpType": "Top-up",
+    "chargeItem": "Charge — {{uid}}",
+    "topUpItem": "Top-up — {{uid}}",
+    "newBalance": "New balance",
+    "attempts": "{{count}} attempt(s)",
+    "dismissTitle": "Void failed item",
+    "dismissConfirm": "Permanently remove this failed transaction? This action cannot be undone. The bracelet write has already happened.",
+    "dismissAction": "Void & remove",
+    "dismiss": "Void / dismiss",
+    "supervisorOnly": "Supervisor required",
+    "supervisorRequired": "Only supervisors (admin or event admin) can void failed transactions."
   }
 }

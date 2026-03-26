@@ -11,6 +11,8 @@ import { Platform } from "react-native";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { getCurrentAuthUser } from "@workspace/api-client-react";
 import { API_BASE_URL } from "@/constants/domain";
+import { clearSigningKeyCache } from "@/utils/signingKeyCache";
+import { clearInMemoryCachedHmacSecret } from "@/contexts/OfflineQueueContext";
 
 const TOKEN_KEY = "@auth_token";
 
@@ -162,6 +164,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {}
     await clearToken();
+    await clearSigningKeyCache();
+    clearInMemoryCachedHmacSecret();
     setAuthToken(null);
     setUser(null);
   }, []);

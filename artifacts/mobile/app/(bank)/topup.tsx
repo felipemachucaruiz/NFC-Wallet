@@ -16,15 +16,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useCreateTopUp, useGetSigningKey, useUpdateBraceletContact } from "@workspace/api-client-react";
+import { useUpdateBraceletContact, useGetSigningKey } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { isNfcSupported, writeBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { formatCOP, parseCOPInput } from "@/utils/format";
+import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 
 type PaymentMethod = "cash" | "card_external" | "nequi_transfer" | "bancolombia_transfer" | "other";
 
@@ -64,12 +66,12 @@ const tagBadgeStyles = StyleSheet.create({
 
 // Steps:
 //  "form"      — user fills in amount / payment method
-//  "saving"    — API call in progress
-//  "tap_write" — saved OK, now waiting for user to tap card (modal)
-//  "writing"   — NFC write in progress (modal, tag detected)
+//  "writing"   — NFC write in progress (first, before saving)
+//  "tap_write" — waiting for user to tap card
+//  "saving"    — server sync in progress (after write)
 //  "success"   — done (with optional write warning)
 
-type Step = "form" | "saving" | "tap_write" | "writing" | "success";
+type Step = "form" | "tap_write" | "writing" | "saving" | "success";
 
 export default function TopUpScreen() {
   const { t } = useTranslation();
@@ -116,13 +118,18 @@ export default function TopUpScreen() {
   const [email, setEmail] = useState(params.email ?? "");
 
   const { data: keyData } = useGetSigningKey();
-  const hmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
+  const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
+  const { enqueueTopUp, cachedHmacSecret, updateCachedHmacSecret, syncNow } = useOfflineQueue();
+  const hmacSecret = networkHmacSecret || cachedHmacSecret;
 
-  const createTopUp = useCreateTopUp();
+  useEffect(() => {
+    if (networkHmacSecret) {
+      updateCachedHmacSecret(networkHmacSecret);
+    }
+  }, [networkHmacSecret, updateCachedHmacSecret]);
+
   const updateContact = useUpdateBraceletContact();
 
-  // Reset all form state whenever this screen comes into focus (handles Expo Router
-  // reusing the cached screen instance when navigating back then forward again)
   useFocusEffect(
     useCallback(() => {
       setAmountText("");
@@ -132,8 +139,6 @@ export default function TopUpScreen() {
       setWriteError(null);
       submittingRef.current = false;
       writingRef.current = false;
-      // Re-sync contact fields from current params (params object is live from Expo Router
-      // but local state initializers don't re-run when screen is reused)
       setAttendeeName(params.attendeeName ?? "");
       setPhone(params.phone ?? "");
       setEmail(params.email ?? "");
@@ -142,8 +147,8 @@ export default function TopUpScreen() {
 
   const amount = parseCOPInput(amountText);
   const newBalance = currentBalance + amount;
+  const newCounter = currentCounter + 1;
 
-  // Pulse animation for the NFC write waiting modals
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const isNfcStep = step === "tap_write" || step === "writing";
@@ -158,22 +163,15 @@ export default function TopUpScreen() {
     return () => loop.stop();
   }, [step]);
 
-  // ─── Step 1: Save top-up to server ───────────────────────────────────────────
-  const handleConfirm = async () => {
-    if (submittingRef.current) return;
-    if (amount < 1000) {
-      Alert.alert(t("common.error"), t("bank.minimumAmount"));
+  // ─── Perform server sync (after write, or as fallback) ───────────────────────
+  const syncToServer = async (offlineEnqueued: boolean) => {
+    if (offlineEnqueued) {
+      void syncNow().catch(() => {});
       return;
     }
 
-    submittingRef.current = true;
     setStep("saving");
-
     try {
-      await createTopUp.mutateAsync({
-        data: { nfcUid: uid, amountCop: amount, paymentMethod },
-      });
-
       const contactUpdates: { attendeeName?: string; phone?: string; email?: string } = {};
       if (attendeeName.trim()) contactUpdates.attendeeName = attendeeName.trim();
       if (phone.trim()) contactUpdates.phone = phone.trim();
@@ -182,23 +180,35 @@ export default function TopUpScreen() {
         await updateContact.mutateAsync({ nfcUid: uid, data: contactUpdates });
       }
     } catch {
+    }
+    setStep("success");
+  };
+
+  // ─── Step 1: User confirms the form → go to NFC tap ─────────────────────────
+  const handleConfirm = async () => {
+    if (submittingRef.current) return;
+    if (amount < 1000) {
+      Alert.alert(t("common.error"), t("bank.minimumAmount"));
+      return;
+    }
+    submittingRef.current = true;
+
+    if (!hmacSecret) {
+      Alert.alert(t("common.error"), t("bank.noSigningKey"));
       submittingRef.current = false;
-      setStep("form");
-      Alert.alert(t("common.error"), t("bank.topUpError"));
       return;
     }
 
-    submittingRef.current = false;
-
-    // API saved — now ask user to tap the card
     if (isNfcSupported()) {
       setStep("tap_write");
     } else {
-      setStep("success");
+      // NFC unavailable: cannot write bracelet → block the top-up
+      Alert.alert(t("common.error"), t("bank.nfcRequired"));
+      submittingRef.current = false;
     }
   };
 
-  // ─── Step 2: User taps "Acercar pulsera" button → start NFC write ────────────
+  // ─── Step 2: User taps button → start NFC write ──────────────────────────────
   const handleStartWrite = async () => {
     if (writingRef.current) return;
     writingRef.current = true;
@@ -206,21 +216,28 @@ export default function TopUpScreen() {
     setStep("writing");
 
     try {
-      const newCounter = currentCounter + 1;
       const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
       await writeBracelet(
         { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
         tagInfoFromParams ?? undefined
       );
-      // Write succeeded — go to clean success
       writingRef.current = false;
+      // Write succeeded — enqueue for server sync
+      await enqueueTopUp({
+        nfcUid: uid,
+        amountCop: amount,
+        paymentMethod,
+        newBalance,
+        newCounter,
+      });
+      submittingRef.current = false;
+      void syncToServer(true);
       setStep("success");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       console.warn("[TopUp] NFC write failed:", msg);
       writingRef.current = false;
       setWriteError(msg);
-      // Show error in the modal so user can retry or skip
       setStep("tap_write");
     }
   };
@@ -228,15 +245,18 @@ export default function TopUpScreen() {
   const handleSkipWrite = async () => {
     await cancelNfc().catch(() => {});
     writingRef.current = false;
-    setWriteWarning(true);
-    setStep("success");
+    submittingRef.current = false;
+    // Do NOT enqueue: bracelet was never written — abort the operation entirely
+    setStep("form");
+    Alert.alert(t("common.error"), t("bank.nfcWriteWarning"));
   };
 
   const handleCancelWriting = async () => {
     await cancelNfc().catch(() => {});
     writingRef.current = false;
-    setWriteWarning(true);
-    setStep("success");
+    submittingRef.current = false;
+    // Do NOT enqueue: write was cancelled before completion — return to form
+    setStep("form");
   };
 
   // ─── Saving overlay ───────────────────────────────────────────────────────────
@@ -255,6 +275,7 @@ export default function TopUpScreen() {
   if (step === "success") {
     return (
       <View style={[styles.center, { backgroundColor: C.background }]}>
+        <OfflineBanner syncIssuesRoute={"/(bank)/sync-issues"} />
         <View style={[styles.successIcon, { backgroundColor: C.successLight }]}>
           <Feather name="check-circle" size={52} color={C.success} />
         </View>
@@ -287,10 +308,11 @@ export default function TopUpScreen() {
   // ─── Main form ────────────────────────────────────────────────────────────────
   return (
     <>
+      <OfflineBanner syncIssuesRoute={"/(bank)/sync-issues"} />
       <ScrollView
         style={{ flex: 1, backgroundColor: C.background }}
         contentContainerStyle={{
-          paddingTop: isWeb ? 67 : insets.top + 16,
+          paddingTop: isWeb ? 16 : insets.top + 16,
           paddingBottom: isWeb ? 34 : insets.bottom + 24,
           paddingHorizontal: 20,
           gap: 20,
@@ -401,7 +423,6 @@ export default function TopUpScreen() {
           size="lg"
           fullWidth
           disabled={amount < 1000}
-          loading={createTopUp.isPending}
           testID="confirm-topup-btn"
         />
       </ScrollView>
@@ -442,11 +463,6 @@ export default function TopUpScreen() {
                 >
                   <Feather name="wifi" size={48} color={C.primary} />
                 </Animated.View>
-
-                <View style={[styles.savedBadge, { backgroundColor: C.successLight }]}>
-                  <Feather name="check" size={14} color={C.success} />
-                  <Text style={[styles.savedBadgeText, { color: C.success }]}>{t("bank.savedOk")}</Text>
-                </View>
 
                 <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
                   {t("bank.acercarManilla")}
@@ -499,7 +515,7 @@ const styles = StyleSheet.create({
   amountRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   amountLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
   divider: { height: 1 },
-  writeWarnBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginTop: -4 },
+  writeWarnBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginTop: -4, width: "100%" },
   writeWarnText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
   pageTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
@@ -521,8 +537,6 @@ const styles = StyleSheet.create({
   nfcPulse: { width: 100, height: 100, borderRadius: 50, alignItems: "center", justifyContent: "center" },
   modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
   modalSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8 },
-  savedBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  savedBadgeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   errorBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, width: "100%" },
   errorText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   errorCode: { fontSize: 10, fontFamily: "Inter_400Regular", opacity: 0.75, fontVariant: ["tabular-nums"] },

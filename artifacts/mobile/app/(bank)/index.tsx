@@ -25,6 +25,7 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useFocusEffect } from "expo-router";
 import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo } from "@/utils/nfc";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 interface BraceletState {
   uid: string;
@@ -188,10 +189,12 @@ export default function BankLookupScreen() {
   const isFlagged = apiRecord?.isFlagged ?? false;
 
   return (
+    <>
+    <OfflineBanner syncIssuesRoute={"/(bank)/sync-issues"} />
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
-        paddingTop: isWeb ? 67 : insets.top + 16,
+        paddingTop: isWeb ? 16 : insets.top + 16,
         paddingBottom: isWeb ? 34 : insets.bottom + 100,
         paddingHorizontal: 20,
         gap: 20,
@@ -331,6 +334,7 @@ export default function BankLookupScreen() {
         </View>
       </Modal>
     </ScrollView>
+    </>
   );
 }
 
