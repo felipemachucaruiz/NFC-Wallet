@@ -214,6 +214,9 @@ async function writeBraceletNdef(payload: BraceletPayload): Promise<void> {
     throw new Error("NFC_NOT_AVAILABLE");
   }
 
+  await NfcManager.cancelTechnologyRequest().catch(() => {});
+  await NfcManager.start().catch(() => {});
+
   try {
     await NfcManager.requestTechnology(NfcTech.Ndef);
     const data = JSON.stringify({
@@ -284,6 +287,11 @@ export async function writeBraceletMifareClassic(payload: BraceletPayload): Prom
   if (Platform.OS === "ios") {
     return writeBraceletNdef(payload);
   }
+
+  // Cancel any stale session from a prior scan before requesting a new one
+  await NfcManager.cancelTechnologyRequest().catch(() => {});
+  // Ensure manager is started (idempotent)
+  await NfcManager.start().catch(() => {});
 
   try {
     await NfcManager.requestTechnology(NfcTech.MifareClassic);
@@ -403,6 +411,9 @@ export async function writeBraceletUltralight(
   if (Platform.OS === "ios") {
     return writeBraceletNdef(payload);
   }
+
+  await NfcManager.cancelTechnologyRequest().catch(() => {});
+  await NfcManager.start().catch(() => {});
 
   try {
     await NfcManager.requestTechnology(NfcTech.MifareUltralight);

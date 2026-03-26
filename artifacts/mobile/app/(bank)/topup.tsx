@@ -21,7 +21,7 @@ import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { isNfcSupported, writeBracelet, type TagInfo, type TagType } from "@/utils/nfc";
+import { isNfcSupported, writeBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { formatCOP, parseCOPInput } from "@/utils/format";
 
@@ -97,6 +97,7 @@ export default function TopUpScreen() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [step, setStep] = useState<"form" | "saving" | "writing" | "success">("form");
   const [writeWarning, setWriteWarning] = useState(false);
+  const submittingRef = useRef(false);
 
   const [attendeeName, setAttendeeName] = useState(params.attendeeName ?? "");
   const [phone, setPhone] = useState(params.phone ?? "");
@@ -125,11 +126,20 @@ export default function TopUpScreen() {
     return () => loop.stop();
   }, [step]);
 
+  const handleCancelWrite = async () => {
+    await cancelNfc().catch(() => {});
+    setWriteWarning(true);
+    setStep("success");
+  };
+
   const handleConfirm = async () => {
+    if (submittingRef.current) return;
     if (amount < 1000) {
       Alert.alert(t("common.error"), t("bank.minimumAmount"));
       return;
     }
+
+    submittingRef.current = true;
 
     // Step 1: Save to server first — this is the critical step
     setStep("saving");
@@ -150,6 +160,7 @@ export default function TopUpScreen() {
         await updateContact.mutateAsync({ nfcUid: uid, data: contactUpdates });
       }
     } catch (e: unknown) {
+      submittingRef.current = false;
       setStep("form");
       Alert.alert(t("common.error"), t("bank.topUpError"));
       return;
@@ -165,12 +176,14 @@ export default function TopUpScreen() {
           { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
           tagInfoFromParams ?? undefined
         );
-      } catch {
+      } catch (e: unknown) {
         // NFC write failed — top-up is already saved server-side, show warning
+        console.warn("[TopUp] NFC write failed:", e instanceof Error ? e.message : String(e));
         setWriteWarning(true);
       }
     }
 
+    submittingRef.current = false;
     setStep("success");
   };
 
@@ -200,6 +213,9 @@ export default function TopUpScreen() {
         <Text style={[styles.writingSubtitle, { color: C.textSecondary }]}>
           {t("bank.holdSteady")}
         </Text>
+        <Pressable onPress={handleCancelWrite} style={[styles.cancelWriteBtn, { borderColor: C.border }]}>
+          <Text style={[styles.cancelWriteText, { color: C.textSecondary }]}>{t("bank.skipWrite")}</Text>
+        </Pressable>
       </View>
     );
   }
@@ -386,4 +402,6 @@ const styles = StyleSheet.create({
   methodLabel: { fontSize: 12, fontFamily: "Inter_500Medium", textAlign: "center" },
   contactHint: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: -8, marginBottom: 4 },
   contactInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: "Inter_400Regular" },
+  cancelWriteBtn: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32, marginTop: 8 },
+  cancelWriteText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 });
