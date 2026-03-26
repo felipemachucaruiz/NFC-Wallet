@@ -19,6 +19,7 @@ import promoterCompaniesRouter from "./promoterCompanies";
 import refundsRouter from "./refunds";
 import attendeeRouter from "./attendee";
 import analyticsRouter from "./analytics";
+import fraudAlertsRouter from "./fraudAlerts";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(promoterCompaniesRouter);
 router.use(refundsRouter);
 router.use(attendeeRouter);
 router.use(analyticsRouter);
+router.use(fraudAlertsRouter);
 
 export default router;

@@ -5,6 +5,7 @@ import { requireRole } from "../middlewares/requireRole";
 import type { AuthUser } from "@workspace/api-zod";
 import { z } from "zod";
 import { getEventInventoryMode } from "./events";
+import { runFraudDetection, runSyncFraudDetection } from "../lib/fraudDetection";
 
 const router: IRouter = Router();
 
@@ -327,6 +328,18 @@ async function processTransaction(
       .where(eq(braceletsTable.nfcUid, input.nfcUid));
   }
 
+  // Async fraud detection (non-blocking) — capture previous balance BEFORE update
+  void runFraudDetection({
+    nfcUid: input.nfcUid,
+    locationId: input.locationId,
+    eventId: merchant.eventId,
+    grossAmountCop,
+    previousBalanceCop: bracelet.lastKnownBalanceCop ?? input.newBalance,
+    newBalanceCop: input.newBalance,
+    performedByUserId: user.id,
+    transactionTime: new Date(),
+  });
+
   return {
     status: "created",
     transaction: { ...txLog, lineItems: insertedLineItems },
@@ -380,6 +393,8 @@ router.post(
     }
 
     const results = [];
+    const createdByLocation = new Map<string, number>();
+
     for (const tx of parsed.data.transactions) {
       const result = await processTransaction(tx, req.user, true);
       results.push({
@@ -388,6 +403,19 @@ router.post(
         ...(result.error && { error: result.error }),
         ...(result.flagged && { flagged: true }),
       });
+      if (result.status === "created") {
+        createdByLocation.set(tx.locationId, (createdByLocation.get(tx.locationId) ?? 0) + 1);
+      }
+    }
+
+    for (const [locationId, count] of createdByLocation.entries()) {
+      const [loc] = await db.select({ merchantId: locationsTable.merchantId }).from(locationsTable).where(eq(locationsTable.id, locationId));
+      if (loc) {
+        const [merch] = await db.select({ eventId: merchantsTable.eventId }).from(merchantsTable).where(eq(merchantsTable.id, loc.merchantId));
+        if (merch?.eventId) {
+          void runSyncFraudDetection({ locationId, eventId: merch.eventId, syncedCount: count });
+        }
+      }
     }
 
     res.json({ results });

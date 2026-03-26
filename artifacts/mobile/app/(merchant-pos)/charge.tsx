@@ -23,6 +23,7 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { isNfcSupported, scanBracelet, writeBracelet, type TagInfo } from "@/utils/nfc";
 import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCOP } from "@/utils/format";
+import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 
 type ChargeStep =
   | "waiting"
@@ -112,6 +113,7 @@ export default function ChargeScreen() {
   const [braceletUid, setBraceletUid] = useState<string | null>(null);
   const [manualUid, setManualUid] = useState("");
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const shortfall = braceletBalance != null ? total - braceletBalance : 0;
 
@@ -362,13 +364,23 @@ export default function ChargeScreen() {
           </View>
         )}
         {step === "success" && (
-          <Button
-            title={t("pos.newSale")}
-            onPress={() => { router.back(); }}
-            variant="success"
-            size="lg"
-            fullWidth
-          />
+          <View style={{ gap: 10 }}>
+            <Button
+              title={t("pos.newSale")}
+              onPress={() => { router.back(); }}
+              variant="success"
+              size="lg"
+              fullWidth
+            />
+            <Button
+              title={t("fraud.reportSuspicious")}
+              onPress={() => setShowReportModal(true)}
+              variant="secondary"
+              size="md"
+              fullWidth
+              icon="alert-triangle"
+            />
+          </View>
         )}
         {step === "manual_input" && (
           <View style={{ gap: 10 }}>
@@ -385,6 +397,12 @@ export default function ChargeScreen() {
           </View>
         )}
       </View>
+
+      <SuspiciousReportModal
+        visible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        prefillUid={braceletUid ?? undefined}
+      />
     </View>
   );
 }

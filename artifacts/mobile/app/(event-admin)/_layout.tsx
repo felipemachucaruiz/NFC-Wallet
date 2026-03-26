@@ -43,6 +43,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "doc.chart", selected: "doc.chart.fill" }} />
         <Label>{t("eventAdmin.reports")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="fraud-alerts">
+        <Icon sf={{ default: "exclamationmark.shield", selected: "exclamationmark.shield.fill" }} />
+        <Label>{t("fraud.alertsTitle")}</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="event-settings">
         <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
         <Label>{t("eventAdmin.inventorySettings")}</Label>
@@ -102,6 +106,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="inventory" options={{ title: t("inventory.tab"), tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />
       <Tabs.Screen name="analytics" options={{ title: t("analytics.title"), tabBarIcon: ({ color }) => <Feather name="activity" size={22} color={color} /> }} />
       <Tabs.Screen name="reports" options={{ title: t("eventAdmin.reports"), tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} /> }} />
+      <Tabs.Screen name="fraud-alerts" options={{ title: t("fraud.alertsTitle"), tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }} />
       <Tabs.Screen name="event-settings" options={{ title: t("eventAdmin.inventorySettings"), tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>

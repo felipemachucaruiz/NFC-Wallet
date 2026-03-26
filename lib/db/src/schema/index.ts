@@ -7,3 +7,4 @@ export * from "./transactions";
 export * from "./promoterCompanies";
 export * from "./refunds";
 export * from "./attendeeRefundRequests";
+export * from "./fraudAlerts";

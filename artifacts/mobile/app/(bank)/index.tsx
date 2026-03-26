@@ -26,6 +26,7 @@ import { Loading } from "@/components/ui/Loading";
 import { useFocusEffect } from "expo-router";
 import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo } from "@/utils/nfc";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 
 interface BraceletState {
   uid: string;
@@ -73,6 +74,7 @@ export default function BankLookupScreen() {
   const [manualUid, setManualUid] = useState("");
   const [fetchUid, setFetchUid] = useState<string | null>(null);
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Reset scan state whenever this screen comes back into focus (e.g. after topup/refund)
   useFocusEffect(
@@ -220,6 +222,14 @@ export default function BankLookupScreen() {
         {!isNfcSupported() && (
           <Button title={t("bank.enterUidManual")} onPress={() => setShowManual(true)} variant="ghost" size="md" fullWidth />
         )}
+        <Button
+          title={t("fraud.reportSuspicious")}
+          onPress={() => setShowReportModal(true)}
+          variant="secondary"
+          size="md"
+          fullWidth
+          icon="alert-triangle"
+        />
       </View>
 
       {bracelet && (
@@ -352,6 +362,12 @@ export default function BankLookupScreen() {
           </View>
         </View>
       </Modal>
+
+      <SuspiciousReportModal
+        visible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        prefillUid={bracelet?.uid}
+      />
     </ScrollView>
     </>
   );

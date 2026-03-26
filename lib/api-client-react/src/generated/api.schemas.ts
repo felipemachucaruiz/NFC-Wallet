@@ -1230,3 +1230,61 @@ export type GetAnalyticsHeatmapParams = {
   from?: string;
   to?: string;
 };
+export type FraudAlertType =
+  | "double_location"
+  | "offline_volume_anomaly"
+  | "high_value_staff"
+  | "balance_increase_no_topup"
+  | "manual_report"
+  | "hmac_invalid";
+
+export type FraudAlertSeverity = "low" | "medium" | "high" | "critical";
+
+export type FraudAlertEntityType = "bracelet" | "pos" | "staff";
+
+export type FraudAlertStatus = "open" | "reviewed" | "dismissed";
+
+export interface FraudAlert {
+  id: string;
+  eventId: string;
+  type: FraudAlertType;
+  severity: FraudAlertSeverity;
+  entityType: FraudAlertEntityType;
+  entityId: string;
+  description: string;
+  /** @nullable */
+  reportedBy: string | null;
+  status: FraudAlertStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FraudAlertsListResponse {
+  alerts: FraudAlert[];
+}
+
+export type GetFraudAlertsParams = {
+  eventId?: string;
+  status?: FraudAlertStatus;
+  severity?: FraudAlertSeverity;
+};
+
+export interface PatchFraudAlertBody {
+  status: FraudAlertStatus;
+}
+
+export type ManualReportReason =
+  | "wrong_balance"
+  | "strange_behavior"
+  | "damaged_bracelet"
+  | "other";
+
+export interface ManualFraudReportBody {
+  nfcUid: string;
+  reason: ManualReportReason;
+  notes?: string;
+}
+
+export interface RegisterPushTokenBody {
+  token: string;
+}

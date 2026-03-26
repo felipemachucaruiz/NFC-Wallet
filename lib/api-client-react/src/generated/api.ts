@@ -48,6 +48,9 @@ import type {
   GetAnalyticsSummaryParams,
   GetAnalyticsTopMerchantsParams,
   GetAnalyticsTopProductsParams,
+  FraudAlert,
+  FraudAlertsListResponse,
+  GetFraudAlertsParams,
   GetFiscalSummary200,
   GetFiscalSummaryParams,
   GetInventoryReportParams,
@@ -86,10 +89,13 @@ import type {
   LocationTransferBody,
   LogTransactionBody,
   LogoutSuccess,
+  ManualFraudReportBody,
   Merchant,
   MerchantEarnings,
   MerchantPayout,
   MobileTokenExchangeRequest,
+  PatchFraudAlertBody,
+  RegisterPushTokenBody,
   MobileTokenExchangeSuccess,
   NotFoundResponse,
   PayoutTransactionsResponse,
@@ -7633,3 +7639,262 @@ export function useGetAnalyticsHeatmap<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+// ─── Fraud Alerts ──────────────────────────────────────────────────────────────
+
+export const getGetFraudAlertsUrl = (params?: GetFraudAlertsParams) => {
+  const normalizedParams = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) normalizedParams.append(key, String(value));
+    });
+  }
+  const stringifiedParams = normalizedParams.toString();
+  return stringifiedParams.length > 0
+    ? `/api/fraud-alerts?${stringifiedParams}`
+    : `/api/fraud-alerts`;
+};
+
+export const getFraudAlerts = async (
+  params?: GetFraudAlertsParams,
+  options?: RequestInit,
+): Promise<FraudAlertsListResponse> => {
+  return customFetch<FraudAlertsListResponse>(getGetFraudAlertsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetFraudAlertsQueryKey = (params?: GetFraudAlertsParams) =>
+  [`/api/fraud-alerts`, ...(params ? [params] : [])] as const;
+
+export const getGetFraudAlertsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFraudAlerts>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetFraudAlertsParams,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getFraudAlerts>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetFraudAlertsQueryKey(params);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFraudAlerts>>> = ({ signal }) =>
+    getFraudAlerts(params, { signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFraudAlerts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export function useGetFraudAlerts<
+  TData = Awaited<ReturnType<typeof getFraudAlerts>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetFraudAlertsParams,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getFraudAlerts>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetFraudAlertsQueryOptions(params, options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const patchFraudAlert = async (
+  id: string,
+  patchFraudAlertBody: BodyType<PatchFraudAlertBody>,
+  options?: RequestInit,
+): Promise<FraudAlert> => {
+  return customFetch<FraudAlert>(`/api/fraud-alerts/${id}`, {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(patchFraudAlertBody),
+  });
+};
+
+export const getPatchFraudAlertMutationOptions = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof patchFraudAlert>>,
+    TError,
+    { id: string; data: BodyType<PatchFraudAlertBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof patchFraudAlert>>,
+  TError,
+  { id: string; data: BodyType<PatchFraudAlertBody> },
+  TContext
+> => {
+  const mutationKey = ["patchFraudAlert"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof patchFraudAlert>>,
+    { id: string; data: BodyType<PatchFraudAlertBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+    return patchFraudAlert(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export const usePatchFraudAlert = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof patchFraudAlert>>,
+    TError,
+    { id: string; data: BodyType<PatchFraudAlertBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof patchFraudAlert>>,
+  TError,
+  { id: string; data: BodyType<PatchFraudAlertBody> },
+  TContext
+> => {
+  return useMutation(getPatchFraudAlertMutationOptions(options));
+};
+
+export const reportSuspiciousBracelet = async (
+  manualFraudReportBody: BodyType<ManualFraudReportBody>,
+  options?: RequestInit,
+): Promise<FraudAlert> => {
+  return customFetch<FraudAlert>(`/api/fraud-alerts/report`, {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(manualFraudReportBody),
+  });
+};
+
+export const getReportSuspiciousBraceletMutationOptions = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportSuspiciousBracelet>>,
+    TError,
+    { data: BodyType<ManualFraudReportBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reportSuspiciousBracelet>>,
+  TError,
+  { data: BodyType<ManualFraudReportBody> },
+  TContext
+> => {
+  const mutationKey = ["reportSuspiciousBracelet"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reportSuspiciousBracelet>>,
+    { data: BodyType<ManualFraudReportBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+    return reportSuspiciousBracelet(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export const useReportSuspiciousBracelet = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reportSuspiciousBracelet>>,
+    TError,
+    { data: BodyType<ManualFraudReportBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reportSuspiciousBracelet>>,
+  TError,
+  { data: BodyType<ManualFraudReportBody> },
+  TContext
+> => {
+  return useMutation(getReportSuspiciousBraceletMutationOptions(options));
+};
+
+export const registerPushToken = async (
+  registerPushTokenBody: BodyType<RegisterPushTokenBody>,
+  options?: SecondParameter<typeof customFetch>,
+): Promise<{ ok: boolean }> => {
+  return customFetch<{ ok: boolean }>(`/api/push-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    data: registerPushTokenBody,
+    ...options,
+  });
+};
+
+export const getRegisterPushTokenMutationOptions = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerPushToken>>,
+    TError,
+    BodyType<RegisterPushTokenBody>,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerPushToken>>,
+  TError,
+  BodyType<RegisterPushTokenBody>,
+  TContext
+> => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationKey = ["registerPushToken"];
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerPushToken>>,
+    BodyType<RegisterPushTokenBody>
+  > = (data) => {
+    return registerPushToken(data, requestOptions);
+  };
+  return { mutationKey, mutationFn, ...mutationOptions };
+};
+
+export const useRegisterPushToken = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerPushToken>>,
+    TError,
+    BodyType<RegisterPushTokenBody>,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerPushToken>>,
+  TError,
+  BodyType<RegisterPushTokenBody>,
+  TContext
+> => {
+  return useMutation(getRegisterPushTokenMutationOptions(options));
+};

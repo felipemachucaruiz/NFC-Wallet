@@ -19,6 +19,7 @@ import { PasscodeScreen } from "@/components/PasscodeScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PasscodeProvider, usePasscode } from "@/contexts/PasscodeContext";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { CartProvider } from "@/contexts/CartContext";
 import { OfflineQueueProvider } from "@/contexts/OfflineQueueContext";
 import { UpdateBanner } from "@/components/UpdateBanner";
@@ -81,6 +82,7 @@ function LockOverlay() {
 
 function AppWithPasscode({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
+  usePushNotifications(isAuthenticated);
   return (
     <PasscodeProvider isAuthenticated={isAuthenticated}>
       {children}

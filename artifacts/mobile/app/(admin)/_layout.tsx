@@ -38,6 +38,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "banknote", selected: "banknote.fill" }} />
         <Label>{t("admin.billing")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="fraud-alerts">
+        <Icon sf={{ default: "exclamationmark.shield", selected: "exclamationmark.shield.fill" }} />
+        <Label>{t("fraud.alertsTitle")}</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="roles">
         <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
         <Label>{t("admin.settings")}</Label>
@@ -90,6 +94,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="bracelets" options={{ title: t("admin.braceletMgmt"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="wave.3.right.circle.fill" tintColor={color} size={22} /> : <Feather name="wifi" size={22} color={color} /> }} />
       <Tabs.Screen name="analytics" options={{ title: t("analytics.title"), tabBarIcon: ({ color }) => <Feather name="activity" size={22} color={color} /> }} />
       <Tabs.Screen name="reports" options={{ title: t("admin.billing"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="banknote.fill" tintColor={color} size={22} /> : <Feather name="dollar-sign" size={22} color={color} /> }} />
+      <Tabs.Screen name="fraud-alerts" options={{ title: t("fraud.alertsTitle"), tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }} />
       <Tabs.Screen name="roles" options={{ title: t("admin.settings"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="gearshape.fill" tintColor={color} size={22} /> : <Feather name="settings" size={22} color={color} /> }} />
       <Tabs.Screen name="merchants" options={{ href: null }} />
     </Tabs>
