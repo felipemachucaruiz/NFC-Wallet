@@ -40,6 +40,7 @@ type Merchant = {
   name: string;
   contactEmail: string | null;
   commissionRatePercent: number;
+  merchantType?: "event_managed" | "external";
   locationCount?: number;
 };
 
@@ -63,6 +64,7 @@ export default function MerchantsScreen() {
   const [contactEmail, setContactEmail] = useState("");
   const [commissionRate, setCommissionRate] = useState("15");
   const [selectedEventId, setSelectedEventId] = useState("");
+  const [merchantType, setMerchantType] = useState<"event_managed" | "external">("event_managed");
 
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -85,6 +87,7 @@ export default function MerchantsScreen() {
           name: merchantName.trim(),
           eventId: selectedEventId,
           commissionRatePercent: String(parseFloat(commissionRate) || 15),
+          merchantType,
         },
       });
       setShowCreate(false);
@@ -92,6 +95,7 @@ export default function MerchantsScreen() {
       setContactEmail("");
       setCommissionRate("15");
       setSelectedEventId("");
+      setMerchantType("event_managed");
       refetch();
     } catch {
       Alert.alert(t("common.error"), t("common.unknownError"));
@@ -136,7 +140,17 @@ export default function MerchantsScreen() {
                   <Feather name="shopping-bag" size={20} color={C.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.merchantName, { color: C.text }]}>{item.name}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <Text style={[styles.merchantName, { color: C.text }]}>{item.name}</Text>
+                    <View style={[
+                      styles.typeBadge,
+                      { backgroundColor: item.merchantType === "external" ? "#fef3c7" : C.primaryLight },
+                    ]}>
+                      <Text style={[styles.typeBadgeText, { color: item.merchantType === "external" ? "#92400e" : C.primary }]}>
+                        {item.merchantType === "external" ? t("merchant_admin.typeExternal") : t("merchant_admin.typeEventManaged")}
+                      </Text>
+                    </View>
+                  </View>
                   {item.contactEmail ? (
                     <Text style={[styles.merchantEmail, { color: C.textSecondary }]}>{item.contactEmail}</Text>
                   ) : null}
@@ -159,6 +173,29 @@ export default function MerchantsScreen() {
             <Input label={t("common.name")} value={merchantName} onChangeText={setMerchantName} placeholder={t("admin.merchantNamePlaceholder")} />
             <Input label={t("admin.contactEmail")} value={contactEmail} onChangeText={setContactEmail} placeholder="contacto@email.com" keyboardType="email-address" />
             <Input label={t("admin.commissionRate")} value={commissionRate} onChangeText={setCommissionRate} keyboardType="decimal-pad" placeholder="15" />
+            <View style={{ gap: 8 }}>
+              <Text style={[styles.label, { color: C.textSecondary }]}>{t("merchant_admin.typeLabel")}</Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {(["event_managed", "external"] as const).map((type) => (
+                  <Pressable
+                    key={type}
+                    onPress={() => setMerchantType(type)}
+                    style={[
+                      styles.typeOption,
+                      {
+                        borderColor: merchantType === type ? C.primary : C.border,
+                        backgroundColor: merchantType === type ? C.primaryLight : C.card,
+                        flex: 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.typeOptionText, { color: merchantType === type ? C.primary : C.textSecondary }]}>
+                      {type === "event_managed" ? t("merchant_admin.typeEventManaged") : t("merchant_admin.typeExternal")}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
             <View style={{ gap: 6 }}>
               <Text style={[styles.label, { color: C.textSecondary }]}>{t("admin.event")}</Text>
               <View style={{ gap: 6 }}>
@@ -532,4 +569,8 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", paddingVertical: 16 },
   label: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 },
   eventOption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 12, borderRadius: 10, borderWidth: 1.5 },
+  typeBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 100 },
+  typeBadgeText: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  typeOption: { padding: 12, borderRadius: 10, borderWidth: 1.5, alignItems: "center" },
+  typeOptionText: { fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "center" },
 });

@@ -1,6 +1,8 @@
-import { pgTable, varchar, text, timestamp, boolean, integer, numeric } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, varchar, text, timestamp, boolean, integer, numeric } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { eventsTable } from "./events";
+
+export const merchantTypeEnum = pgEnum("merchant_type", ["event_managed", "external"]);
 
 export const merchantsTable = pgTable("merchants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -8,6 +10,7 @@ export const merchantsTable = pgTable("merchants", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   commissionRatePercent: numeric("commission_rate_percent", { precision: 5, scale: 2 }).notNull().default("0"),
+  merchantType: merchantTypeEnum("merchant_type").notNull().default("event_managed"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

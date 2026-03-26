@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import {
   useListWarehouses,
   useListLocations,
+  useListMerchants,
   useGetWarehouseInventory,
   useDispatchFromWarehouse,
   useTransferBetweenLocations,
@@ -45,7 +46,14 @@ export default function DispatchScreen() {
   const warehouses = (warehousesData as { warehouses?: Array<{ id: string; name: string }> } | undefined)?.warehouses ?? [];
 
   const { data: locationsData } = useListLocations();
-  const locations = (locationsData as { locations?: Array<{ id: string; name: string }> } | undefined)?.locations ?? [];
+  const { data: merchantsData } = useListMerchants({});
+  const eventManagedMerchantIds = new Set(
+    ((merchantsData as { merchants?: Array<{ id: string; merchantType?: string }> } | undefined)?.merchants ?? [])
+      .filter((m) => m.merchantType === "event_managed" || !m.merchantType)
+      .map((m) => m.id),
+  );
+  const allLocations = (locationsData as { locations?: Array<{ id: string; name: string; merchantId?: string }> } | undefined)?.locations ?? [];
+  const locations = allLocations.filter((l) => !l.merchantId || eventManagedMerchantIds.has(l.merchantId));
 
   const { data: inventoryData } = useGetWarehouseInventory(selectedWarehouseId, {
     query: { enabled: !!selectedWarehouseId },

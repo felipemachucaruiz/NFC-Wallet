@@ -3397,6 +3397,45 @@ export const useUpdateProduct = <
   return useMutation(getUpdateProductMutationOptions(options));
 };
 
+// ─── Delete Product ────────────────────────────────────────────────────────────
+
+export const getDeleteProductUrl = (productId: string) =>
+  `/api/products/${productId}`;
+
+export const deleteProduct = async (
+  productId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  await customFetch<void>(getDeleteProductUrl(productId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteProductMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<void, TError, { productId: string }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const mutationKey = ["deleteProduct"];
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<void, { productId: string }> = ({ productId }) =>
+    deleteProduct(productId, requestOptions);
+  return { mutationKey, mutationFn, ...mutationOptions };
+};
+
+export const useDeleteProduct = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<void, TError, { productId: string }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<void, TError, { productId: string }, TContext> => {
+  return useMutation(getDeleteProductMutationOptions(options));
+};
+
 /**
  * @summary Get inventory for a location
  */

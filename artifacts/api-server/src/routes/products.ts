@@ -222,4 +222,39 @@ router.patch(
   },
 );
 
+router.delete(
+  "/products/:productId",
+  requireRole("admin", "merchant_admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const productId = req.params.productId as string;
+    const user = req.user!;
+
+    if (user.role === "merchant_admin") {
+      const result = await assertProductAccess(productId, user);
+      if ("error" in result) {
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+    }
+
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+      if (!product) { res.status(404).json({ error: "Product not found" }); return; }
+      const [merchant] = await db.select({ id: merchantsTable.id, eventId: merchantsTable.eventId }).from(merchantsTable).where(eq(merchantsTable.id, product.merchantId));
+      if (!merchant || merchant.eventId !== user.eventId) {
+        res.status(403).json({ error: "Product does not belong to your event" });
+        return;
+      }
+    }
+
+    const [deleted] = await db.delete(productsTable).where(eq(productsTable.id, productId)).returning();
+    if (!deleted) { res.status(404).json({ error: "Product not found" }); return; }
+    res.status(204).send();
+  },
+);
+
 export default router;

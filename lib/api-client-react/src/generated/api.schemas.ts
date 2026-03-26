@@ -286,6 +286,8 @@ export interface ShiftTopUpSummary {
   byPaymentMethod: ShiftTopUpSummaryByPaymentMethod;
 }
 
+export type MerchantType = "event_managed" | "external";
+
 export interface Merchant {
   id: string;
   eventId: string;
@@ -293,6 +295,7 @@ export interface Merchant {
   /** @nullable */
   description?: string | null;
   commissionRatePercent: string;
+  merchantType: MerchantType;
   active: boolean;
   createdAt: string;
 }
@@ -304,6 +307,7 @@ export interface CreateMerchantBody {
   description?: string;
   /** @pattern ^\d+(\.\d{1,2})?$ */
   commissionRatePercent: string;
+  merchantType?: MerchantType;
 }
 
 export interface UpdateMerchantBody {
@@ -312,6 +316,7 @@ export interface UpdateMerchantBody {
   description?: string;
   /** @pattern ^\d+(\.\d{1,2})?$ */
   commissionRatePercent?: string;
+  merchantType?: MerchantType;
   active?: boolean;
 }
 

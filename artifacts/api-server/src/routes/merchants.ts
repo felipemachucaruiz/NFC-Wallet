@@ -11,12 +11,14 @@ const createMerchantSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   commissionRatePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).default("0"),
+  merchantType: z.enum(["event_managed", "external"]).default("event_managed"),
 });
 
 const updateMerchantSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   commissionRatePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  merchantType: z.enum(["event_managed", "external"]).optional(),
   active: z.boolean().optional(),
 });
 

@@ -22,6 +22,14 @@ function NativeTabLayout() {
         <Icon sf={{ default: "mappin.and.ellipse", selected: "mappin.and.ellipse" }} />
         <Label>{t("merchant_admin.locations")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="products">
+        <Icon sf={{ default: "tag", selected: "tag.fill" }} />
+        <Label>{t("merchant_admin.products")}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="stock">
+        <Icon sf={{ default: "shippingbox", selected: "shippingbox.fill" }} />
+        <Label>{t("merchant_admin.inventory")}</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="staff">
         <Icon sf={{ default: "person.badge.plus", selected: "person.badge.plus.fill" }} />
         <Label>{t("merchant_admin.staff")}</Label>
@@ -89,6 +97,22 @@ function ClassicTabLayout() {
           title: t("merchant_admin.locations"),
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="mappin.and.ellipse" tintColor={color} size={22} /> : <Feather name="map-pin" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="products"
+        options={{
+          title: t("merchant_admin.products"),
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="tag.fill" tintColor={color} size={22} /> : <Feather name="tag" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="stock"
+        options={{
+          title: t("merchant_admin.inventory"),
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="shippingbox.fill" tintColor={color} size={22} /> : <Feather name="package" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
