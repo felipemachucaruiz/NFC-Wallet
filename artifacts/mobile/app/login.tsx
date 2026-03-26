@@ -58,7 +58,13 @@ export default function LoginScreen() {
     const err = await login(identifier.trim(), password, rememberMe);
     setSubmitting(false);
     if (err) {
-      setError(t("auth.invalidCredentials"));
+      if (err === "Network error") {
+        setError(t("auth.networkError") ?? "No se puede conectar al servidor. Verifica tu conexión.");
+      } else if (err === "Could not load user profile") {
+        setError(t("auth.profileError") ?? "Error cargando perfil. Intenta de nuevo.");
+      } else {
+        setError(t("auth.invalidCredentials"));
+      }
       return;
     }
     // Offer passcode setup if remember-me is on and no passcode set yet
