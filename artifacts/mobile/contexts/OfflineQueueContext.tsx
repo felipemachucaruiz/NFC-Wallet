@@ -14,7 +14,10 @@ import { cacheSigningKey, getCachedSigningKey } from "@/utils/signingKeyCache";
 
 const QUEUE_KEY = "@offline_queue";
 const TOPUP_QUEUE_KEY = "@offline_topup_queue";
+const UNSYNC_SPEND_KEY = "@unsync_spend_cop";
 const SYNC_INTERVAL = 30_000;
+
+const DEFAULT_OFFLINE_SYNC_LIMIT = 500_000;
 
 export interface QueuedTransaction {
   id: string;
@@ -29,6 +32,7 @@ export interface QueuedTransaction {
     unitPriceCop: number;
     unitCostCop: number;
   }>;
+  grossAmountCop: number;
   createdAt: string;
   status: "pending" | "syncing" | "failed";
   failCount: number;
@@ -67,7 +71,11 @@ interface OfflineQueueContextValue {
   dismissFailedItem: (id: string, itemType: "charge" | "topup") => Promise<void>;
   pendingCount: number;
   cachedHmacSecret: string;
+  offlineSyncLimit: number;
+  unsyncedSpendCop: number;
+  isOfflineLimitReached: boolean;
   updateCachedHmacSecret: (secret: string) => Promise<void>;
+  updateOfflineLimits: (syncLimit: number) => Promise<void>;
   clearCachedHmacSecret: () => void;
 }
 
@@ -89,7 +97,7 @@ async function loadQueue(): Promise<QueuedTransaction[]> {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as QueuedTransaction[];
-    return parsed.map((t) => ({ ...t, type: "charge" as const }));
+    return parsed.map((t) => ({ ...t, type: "charge" as const, grossAmountCop: t.grossAmountCop ?? 0 }));
   } catch {
     return [];
   }
@@ -117,14 +125,32 @@ async function saveTopUpQueue(q: QueuedTopUp[]): Promise<void> {
   } catch {}
 }
 
+async function loadUnsyncedSpend(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(UNSYNC_SPEND_KEY);
+    return raw ? parseInt(raw, 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function saveUnsyncedSpend(amount: number): Promise<void> {
+  try {
+    await AsyncStorage.setItem(UNSYNC_SPEND_KEY, String(amount));
+  } catch {}
+}
+
 export function OfflineQueueProvider({ children }: { children: React.ReactNode }) {
   const [queue, setQueue] = useState<QueuedTransaction[]>([]);
   const [topUpQueue, setTopUpQueue] = useState<QueuedTopUp[]>([]);
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [cachedHmacSecret, setCachedHmacSecret] = useState<string>("");
+  const [offlineSyncLimit, setOfflineSyncLimit] = useState<number>(DEFAULT_OFFLINE_SYNC_LIMIT);
+  const [unsyncedSpendCop, setUnsyncedSpendCop] = useState<number>(0);
   const queueRef = useRef<QueuedTransaction[]>([]);
   const topUpQueueRef = useRef<QueuedTopUp[]>([]);
+  const unsyncedSpendRef = useRef<number>(0);
 
   useEffect(() => {
     loadQueue().then((q) => {
@@ -137,6 +163,10 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     });
     getCachedSigningKey().then((key) => {
       if (key) setCachedHmacSecret(key);
+    });
+    loadUnsyncedSpend().then((amount) => {
+      unsyncedSpendRef.current = amount;
+      setUnsyncedSpendCop(amount);
     });
   }, []);
 
@@ -152,9 +182,19 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     await saveTopUpQueue(q);
   }, []);
 
+  const updateUnsyncedSpend = useCallback(async (amount: number) => {
+    unsyncedSpendRef.current = amount;
+    setUnsyncedSpendCop(amount);
+    await saveUnsyncedSpend(amount);
+  }, []);
+
   const updateCachedHmacSecret = useCallback(async (secret: string) => {
     setCachedHmacSecret(secret);
     await cacheSigningKey(secret);
+  }, []);
+
+  const updateOfflineLimits = useCallback(async (syncLimit: number) => {
+    setOfflineSyncLimit(syncLimit);
   }, []);
 
   const clearCachedHmacSecret = useCallback(() => {
@@ -181,8 +221,11 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
       };
       const q = [...queueRef.current, item];
       await updateQueue(q);
+      // Accumulate unsynced spend
+      const newSpend = unsyncedSpendRef.current + tx.grossAmountCop;
+      await updateUnsyncedSpend(newSpend);
     },
-    [updateQueue]
+    [updateQueue, updateUnsyncedSpend]
   );
 
   const enqueueTopUp = useCallback(
@@ -238,6 +281,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
 
     let anySuccess = false;
     let anyError = false;
+    let syncedSpend = 0;
 
     // Dispatch each item in global counter order (one at a time to preserve ordering)
     for (const item of allItems) {
@@ -268,6 +312,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
 
           if (!syncResult || syncResult.status === "created" || syncResult.status === "duplicate") {
             q = queueRef.current.filter((t) => t.id !== item.id);
+            syncedSpend += item.grossAmountCop;
           } else {
             q = queueRef.current.map((t) =>
               t.id === item.id
@@ -343,6 +388,12 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
       }
     }
 
+    // Reduce unsynced spend by what was successfully synced
+    if (syncedSpend > 0) {
+      const newSpend = Math.max(0, unsyncedSpendRef.current - syncedSpend);
+      await updateUnsyncedSpend(newSpend);
+    }
+
     if (anySuccess && !anyError) {
       setIsOnline(true);
     } else if (anyError && !anySuccess) {
@@ -350,7 +401,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     }
 
     setIsSyncing(false);
-  }, [updateQueue, updateTopUpQueue]);
+  }, [updateQueue, updateTopUpQueue, updateUnsyncedSpend]);
 
   useEffect(() => {
     const interval = setInterval(syncNow, SYNC_INTERVAL);
@@ -360,14 +411,20 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
   const dismissFailedItem = useCallback(
     async (id: string, itemType: "charge" | "topup") => {
       if (itemType === "charge") {
+        const item = queueRef.current.find((t) => t.id === id);
         const updated = queueRef.current.filter((t) => t.id !== id);
         await updateQueue(updated);
+        // Reduce unsynced spend when dismissing a failed item
+        if (item) {
+          const newSpend = Math.max(0, unsyncedSpendRef.current - item.grossAmountCop);
+          await updateUnsyncedSpend(newSpend);
+        }
       } else {
         const updated = topUpQueueRef.current.filter((t) => t.id !== id);
         await updateTopUpQueue(updated);
       }
     },
-    [updateQueue, updateTopUpQueue]
+    [updateQueue, updateTopUpQueue, updateUnsyncedSpend]
   );
 
   const pendingCount =
@@ -378,6 +435,8 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     ...queue.filter((t) => t.status === "failed"),
     ...topUpQueue.filter((t) => t.status === "failed"),
   ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  const isOfflineLimitReached = unsyncedSpendCop >= offlineSyncLimit;
 
   return (
     <OfflineQueueContext.Provider
@@ -393,7 +452,11 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         dismissFailedItem,
         pendingCount,
         cachedHmacSecret,
+        offlineSyncLimit,
+        unsyncedSpendCop,
+        isOfflineLimitReached,
         updateCachedHmacSecret,
+        updateOfflineLimits,
         clearCachedHmacSecret,
       }}
     >

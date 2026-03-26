@@ -59,6 +59,8 @@ async function checkLocationAccess(
   return { location };
 }
 
+const BALANCE_DISCREPANCY_THRESHOLD = 50000; // COP 50,000 tolerance
+
 async function processTransaction(
   input: LogTransactionInput,
   user: AuthUser,
@@ -67,6 +69,7 @@ async function processTransaction(
   status: "created" | "duplicate" | "error";
   transaction?: typeof transactionLogsTable.$inferSelect & { lineItems: (typeof transactionLineItemsTable.$inferSelect)[] };
   error?: string;
+  flagged?: boolean;
 }> {
   // Idempotency check
   const existing = await db
@@ -241,15 +244,69 @@ async function processTransaction(
     }
   }
 
-  // Update bracelet server-side record
-  await db
-    .update(braceletsTable)
-    .set({
-      lastKnownBalanceCop: input.newBalance,
-      lastCounter: input.counter,
-      updatedAt: new Date(),
-    })
-    .where(eq(braceletsTable.nfcUid, input.nfcUid));
+  // Coherence check for sync batch: validate balance against known server history
+  let wasFlagged = false;
+  if (isSyncBatch && bracelet.lastKnownBalanceCop !== null) {
+    // Expected new balance = last known balance - gross amount charged
+    const expectedNewBalance = bracelet.lastKnownBalanceCop - grossAmountCop;
+    const discrepancy = Math.abs(expectedNewBalance - input.newBalance);
+    if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
+      wasFlagged = true;
+      await db
+        .update(braceletsTable)
+        .set({
+          flagged: true,
+          flagReason: `Balance discrepancy during sync: expected ${expectedNewBalance} COP but device reported ${input.newBalance} COP (diff: ${discrepancy} COP). Tx: ${txLog.id}`,
+          lastKnownBalanceCop: input.newBalance,
+          lastCounter: input.counter,
+          updatedAt: new Date(),
+        })
+        .where(eq(braceletsTable.nfcUid, input.nfcUid));
+
+      return {
+        status: "created",
+        transaction: { ...txLog, lineItems: insertedLineItems },
+        flagged: true,
+      };
+    }
+  }
+
+  // Check per-bracelet offline spend limit
+  if (isSyncBatch && bracelet.maxOfflineSpend !== null && bracelet.maxOfflineSpend !== undefined) {
+    // Sum all offline-created (not yet synced at time of creation) transactions for this bracelet
+    // This is approximate since we're checking after insert, but useful for threshold alerting
+    if (grossAmountCop > bracelet.maxOfflineSpend) {
+      wasFlagged = true;
+      await db
+        .update(braceletsTable)
+        .set({
+          flagged: true,
+          flagReason: `Single offline transaction amount ${grossAmountCop} COP exceeds bracelet max offline spend limit ${bracelet.maxOfflineSpend} COP. Tx: ${txLog.id}`,
+          lastKnownBalanceCop: input.newBalance,
+          lastCounter: input.counter,
+          updatedAt: new Date(),
+        })
+        .where(eq(braceletsTable.nfcUid, input.nfcUid));
+
+      return {
+        status: "created",
+        transaction: { ...txLog, lineItems: insertedLineItems },
+        flagged: true,
+      };
+    }
+  }
+
+  if (!wasFlagged) {
+    // Update bracelet server-side record
+    await db
+      .update(braceletsTable)
+      .set({
+        lastKnownBalanceCop: input.newBalance,
+        lastCounter: input.counter,
+        updatedAt: new Date(),
+      })
+      .where(eq(braceletsTable.nfcUid, input.nfcUid));
+  }
 
   return {
     status: "created",
@@ -310,6 +367,7 @@ router.post(
         idempotencyKey: tx.idempotencyKey,
         status: result.status,
         ...(result.error && { error: result.error }),
+        ...(result.flagged && { flagged: true }),
       });
     }
 

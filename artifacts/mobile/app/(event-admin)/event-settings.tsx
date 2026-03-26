@@ -8,12 +8,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useGetEvent, useUpdateEvent } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import type { InventoryMode } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
@@ -26,7 +29,15 @@ type EventDetail = {
   id: string;
   name: string;
   inventoryMode?: InventoryMode;
+  hasHmacSecret?: boolean;
+  offlineSyncLimit?: number;
+  maxOfflineSpendPerBracelet?: number;
 };
+
+type ConfirmModal =
+  | { type: "inventory"; pendingMode: InventoryMode }
+  | { type: "rotate_key" }
+  | null;
 
 function InventoryModeOption({
   mode,
@@ -90,47 +101,110 @@ export default function EventSettingsScreen() {
     { query: { enabled: !!user?.eventId, queryKey: ["event-settings", user?.eventId] } },
   );
 
+  const { data: flaggedData, refetch: refetchFlagged } = useQuery({
+    queryKey: ["flagged-bracelets", user?.eventId],
+    enabled: !!user?.eventId,
+    queryFn: async () => {
+      const res = await customFetch(`/api/events/${user!.eventId}/flagged-bracelets`, { method: "GET" });
+      return res as { flaggedBracelets: Array<{ nfcUid: string; flagReason: string | null; updatedAt: string }> };
+    },
+  });
+  const flaggedBracelets = flaggedData?.flaggedBracelets ?? [];
+
   const event = eventData as EventDetail | undefined;
   const currentMode: InventoryMode = event?.inventoryMode ?? "location_based";
 
-  const [pendingMode, setPendingMode] = useState<InventoryMode | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<ConfirmModal>(null);
+  const [isRotating, setIsRotating] = useState(false);
+
+  const [offlineSyncLimit, setOfflineSyncLimit] = useState<string>("");
+  const [maxOfflineSpendPerBracelet, setMaxOfflineSpendPerBracelet] = useState<string>("");
+  const [isSavingLimits, setIsSavingLimits] = useState(false);
+
+  React.useEffect(() => {
+    if (event) {
+      setOfflineSyncLimit(String(event.offlineSyncLimit ?? 500000));
+      setMaxOfflineSpendPerBracelet(String(event.maxOfflineSpendPerBracelet ?? 200000));
+    }
+  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet]);
 
   const updateEvent = useUpdateEvent();
   const queryClient = useQueryClient();
 
   const handleSelectMode = (mode: InventoryMode) => {
     if (mode === currentMode) return;
-    setPendingMode(mode);
-    setShowConfirm(true);
+    setConfirmModal({ type: "inventory", pendingMode: mode });
   };
 
   const handleConfirm = async () => {
-    if (!pendingMode || !user?.eventId) return;
-    try {
-      await updateEvent.mutateAsync({
-        eventId: user.eventId,
-        data: { inventoryMode: pendingMode },
-      });
-      setShowConfirm(false);
-      setPendingMode(null);
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ["event-context", user.eventId] });
-      queryClient.invalidateQueries({ queryKey: ["event-inventory-mode", user.eventId] });
-      Alert.alert(t("common.success"), t("eventAdmin.inventoryModeChanged"));
-    } catch {
-      setShowConfirm(false);
-      setPendingMode(null);
-      Alert.alert(t("common.error"), t("eventAdmin.inventoryModeChangeFailed"));
+    if (!user?.eventId) return;
+
+    if (confirmModal?.type === "inventory") {
+      const pendingMode = confirmModal.pendingMode;
+      try {
+        await updateEvent.mutateAsync({
+          eventId: user.eventId,
+          data: { inventoryMode: pendingMode },
+        });
+        setConfirmModal(null);
+        refetch();
+        queryClient.invalidateQueries({ queryKey: ["event-context", user.eventId] });
+        queryClient.invalidateQueries({ queryKey: ["event-inventory-mode", user.eventId] });
+        Alert.alert(t("common.success"), t("eventAdmin.inventoryModeChanged"));
+      } catch {
+        setConfirmModal(null);
+        Alert.alert(t("common.error"), t("eventAdmin.inventoryModeChangeFailed"));
+      }
+    } else if (confirmModal?.type === "rotate_key") {
+      setIsRotating(true);
+      setConfirmModal(null);
+      try {
+        await customFetch(`/api/events/${user.eventId}/rotate-signing-key`, {
+          method: "POST",
+        });
+        refetch();
+        Alert.alert(t("common.success"), t("eventAdmin.signingKeyRotated"));
+      } catch {
+        Alert.alert(t("common.error"), t("eventAdmin.signingKeyRotateFailed"));
+      } finally {
+        setIsRotating(false);
+      }
     }
   };
 
   const handleCancel = () => {
-    setShowConfirm(false);
-    setPendingMode(null);
+    setConfirmModal(null);
+  };
+
+  const handleSaveLimits = async () => {
+    if (!user?.eventId) return;
+    const syncLimit = parseInt(offlineSyncLimit, 10);
+    const braceletLimit = parseInt(maxOfflineSpendPerBracelet, 10);
+    if (isNaN(syncLimit) || syncLimit <= 0 || isNaN(braceletLimit) || braceletLimit <= 0) {
+      Alert.alert(t("common.error"), t("eventAdmin.invalidLimitValues"));
+      return;
+    }
+    setIsSavingLimits(true);
+    try {
+      await customFetch(`/api/events/${user.eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          offlineSyncLimit: syncLimit,
+          maxOfflineSpendPerBracelet: braceletLimit,
+        }),
+      });
+      refetch();
+      Alert.alert(t("common.success"), t("eventAdmin.offlineLimitsSaved"));
+    } catch {
+      Alert.alert(t("common.error"), t("common.error"));
+    } finally {
+      setIsSavingLimits(false);
+    }
   };
 
   if (isLoading) return <Loading label={t("common.loading")} />;
+
+  const pendingMode = confirmModal?.type === "inventory" ? confirmModal.pendingMode : null;
 
   return (
     <>
@@ -176,10 +250,136 @@ export default function EventSettingsScreen() {
             </Text>
           </View>
         </Card>
+
+        <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
+
+        <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.securitySettings")}</Text>
+        <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+          {t("eventAdmin.hmacKeyDescription")}
+        </Text>
+
+        <Card padding={16} style={{ borderColor: C.border, borderWidth: 1 }}>
+          <View style={styles.keyRow}>
+            <View style={[styles.keyIconBox, { backgroundColor: C.primaryLight }]}>
+              <Feather name="key" size={20} color={C.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.keyLabel, { color: C.text }]}>{t("eventAdmin.signingKey")}</Text>
+              <Text style={[styles.keyValue, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>
+                {event?.hasHmacSecret ? "••••••••••••••••••••••••••••••••" : t("eventAdmin.noKeySet")}
+              </Text>
+            </View>
+          </View>
+
+          <Button
+            title={isRotating ? t("common.loading") : t("eventAdmin.rotateSigningKey")}
+            onPress={() => setConfirmModal({ type: "rotate_key" })}
+            variant="danger"
+            size="md"
+            fullWidth
+            style={{ marginTop: 12 }}
+            loading={isRotating}
+          />
+        </Card>
+
+        <Card style={[styles.infoCard, { borderColor: C.danger + "55", backgroundColor: C.dangerLight }]} padding={14}>
+          <View style={styles.infoRow}>
+            <Feather name="alert-octagon" size={16} color={C.danger} style={{ marginTop: 1 }} />
+            <Text style={[styles.infoText, { color: C.text }]}>
+              {t("eventAdmin.rotateKeyWarning")}
+            </Text>
+          </View>
+        </Card>
+
+        <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
+
+        <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.offlineLimits")}</Text>
+        <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+          {t("eventAdmin.offlineLimitsDescription")}
+        </Text>
+
+        <Card padding={16} style={{ borderColor: C.border, borderWidth: 1 }}>
+          <Text style={[styles.inputLabel, { color: C.text }]}>{t("eventAdmin.offlineSyncLimit")}</Text>
+          <Text style={[styles.inputHint, { color: C.textMuted }]}>
+            {t("eventAdmin.offlineSyncLimitHint")}
+          </Text>
+          <TextInput
+            style={[styles.limitInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+            value={offlineSyncLimit}
+            onChangeText={setOfflineSyncLimit}
+            keyboardType="numeric"
+            placeholder="500000"
+            placeholderTextColor={C.textMuted}
+          />
+
+          <Text style={[styles.inputLabel, { color: C.text, marginTop: 16 }]}>{t("eventAdmin.maxOfflineSpendPerBracelet")}</Text>
+          <Text style={[styles.inputHint, { color: C.textMuted }]}>
+            {t("eventAdmin.maxOfflineSpendHint")}
+          </Text>
+          <TextInput
+            style={[styles.limitInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+            value={maxOfflineSpendPerBracelet}
+            onChangeText={setMaxOfflineSpendPerBracelet}
+            keyboardType="numeric"
+            placeholder="200000"
+            placeholderTextColor={C.textMuted}
+          />
+
+          <Button
+            title={t("common.save")}
+            onPress={handleSaveLimits}
+            variant="primary"
+            size="md"
+            fullWidth
+            style={{ marginTop: 16 }}
+            loading={isSavingLimits}
+          />
+        </Card>
+
+        <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
+
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.flaggedBracelets")}</Text>
+          <Pressable onPress={() => refetchFlagged()} style={styles.refreshBtn}>
+            <Feather name="refresh-cw" size={16} color={C.primary} />
+          </Pressable>
+        </View>
+        <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+          {t("eventAdmin.flaggedBraceletsDescription")}
+        </Text>
+
+        {flaggedBracelets.length === 0 ? (
+          <Card padding={16} style={{ borderColor: C.border, borderWidth: 1 }}>
+            <View style={styles.infoRow}>
+              <Feather name="check-circle" size={16} color={C.success} style={{ marginTop: 1 }} />
+              <Text style={[styles.infoText, { color: C.text }]}>{t("eventAdmin.noFlaggedBracelets")}</Text>
+            </View>
+          </Card>
+        ) : (
+          <Card padding={0} style={{ borderColor: C.danger + "55", borderWidth: 1, overflow: "hidden" }}>
+            {flaggedBracelets.map((b, idx) => (
+              <View
+                key={b.nfcUid}
+                style={[
+                  styles.flaggedRow,
+                  { borderTopColor: C.border, borderTopWidth: idx === 0 ? 0 : 1 },
+                ]}
+              >
+                <View style={[styles.flagDot, { backgroundColor: C.danger }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.flagUid, { color: C.text, fontFamily: "Inter_600SemiBold" }]}>{b.nfcUid}</Text>
+                  {b.flagReason ? (
+                    <Text style={[styles.flagReason, { color: C.textSecondary }]}>{b.flagReason}</Text>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </Card>
+        )}
       </ScrollView>
 
       <Modal
-        visible={showConfirm}
+        visible={confirmModal !== null}
         animationType="slide"
         presentationStyle="pageSheet"
         transparent={false}
@@ -188,26 +388,40 @@ export default function EventSettingsScreen() {
         <View style={[styles.confirmModal, { backgroundColor: C.background }]}>
           <View style={styles.modalHandle} />
 
-          <View style={[styles.warningIconBox, { backgroundColor: C.warningLight }]}>
-            <Feather name="alert-triangle" size={32} color={C.warning} />
-          </View>
-
-          <Text style={[styles.confirmTitle, { color: C.text }]}>
-            {t("eventAdmin.inventoryMode")}
-          </Text>
-          <Text style={[styles.confirmDesc, { color: C.textSecondary }]}>
-            {t("eventAdmin.inventoryModeWarning")}
-          </Text>
-
-          {pendingMode && (
-            <View style={[styles.pendingModeBox, { backgroundColor: C.primaryLight, borderColor: C.primary + "44" }]}>
-              <Feather name="arrow-right" size={16} color={C.primary} />
-              <Text style={[styles.pendingModeText, { color: C.primary }]}>
-                {pendingMode === "location_based"
-                  ? t("eventAdmin.locationBased")
-                  : t("eventAdmin.centralizedWarehouse")}
+          {confirmModal?.type === "rotate_key" ? (
+            <>
+              <View style={[styles.warningIconBox, { backgroundColor: C.dangerLight }]}>
+                <Feather name="alert-octagon" size={32} color={C.danger} />
+              </View>
+              <Text style={[styles.confirmTitle, { color: C.text }]}>
+                {t("eventAdmin.rotateSigningKey")}
               </Text>
-            </View>
+              <Text style={[styles.confirmDesc, { color: C.textSecondary }]}>
+                {t("eventAdmin.rotateKeyWarning")}
+              </Text>
+            </>
+          ) : (
+            <>
+              <View style={[styles.warningIconBox, { backgroundColor: C.warningLight }]}>
+                <Feather name="alert-triangle" size={32} color={C.warning} />
+              </View>
+              <Text style={[styles.confirmTitle, { color: C.text }]}>
+                {t("eventAdmin.inventoryMode")}
+              </Text>
+              <Text style={[styles.confirmDesc, { color: C.textSecondary }]}>
+                {t("eventAdmin.inventoryModeWarning")}
+              </Text>
+              {pendingMode && (
+                <View style={[styles.pendingModeBox, { backgroundColor: C.primaryLight, borderColor: C.primary + "44" }]}>
+                  <Feather name="arrow-right" size={16} color={C.primary} />
+                  <Text style={[styles.pendingModeText, { color: C.primary }]}>
+                    {pendingMode === "location_based"
+                      ? t("eventAdmin.locationBased")
+                      : t("eventAdmin.centralizedWarehouse")}
+                  </Text>
+                </View>
+              )}
+            </>
           )}
 
           <View style={styles.confirmActions}>
@@ -219,12 +433,12 @@ export default function EventSettingsScreen() {
               fullWidth
             />
             <Button
-              title={t("common.confirm")}
+              title={confirmModal?.type === "rotate_key" ? t("eventAdmin.confirmRotate") : t("common.confirm")}
               onPress={handleConfirm}
-              variant="primary"
+              variant={confirmModal?.type === "rotate_key" ? "danger" : "primary"}
               size="lg"
               fullWidth
-              loading={updateEvent.isPending}
+              loading={updateEvent.isPending || isRotating}
             />
           </View>
         </View>
@@ -238,10 +452,18 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontFamily: "Inter_700Bold",
   },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+  },
   subtitle: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
     marginTop: -12,
+  },
+  sectionDivider: {
+    borderTopWidth: 1,
+    marginVertical: 4,
   },
   modesContainer: {
     gap: 12,
@@ -301,6 +523,45 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     lineHeight: 19,
   },
+  keyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 4,
+  },
+  keyIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  keyLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  keyValue: {
+    fontSize: 13,
+    marginTop: 2,
+    letterSpacing: 2,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    marginBottom: 2,
+  },
+  inputHint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 6,
+  },
+  limitInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
   confirmModal: {
     flex: 1,
     alignItems: "center",
@@ -352,5 +613,33 @@ const styles = StyleSheet.create({
     width: "100%",
     gap: 10,
     marginTop: "auto",
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  refreshBtn: {
+    padding: 6,
+  },
+  flaggedRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: 14,
+  },
+  flagDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 5,
+  },
+  flagUid: {
+    fontSize: 13,
+  },
+  flagReason: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
   },
 });

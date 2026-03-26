@@ -253,7 +253,11 @@
     "newBalance": "Nuevo saldo",
     "enterUid": "Ingresar UID de pulsera",
     "newSale": "Nueva venta",
-    "scanError": "No se pudo leer la pulsera. Intenta de nuevo."
+    "scanError": "No se pudo leer la pulsera. Intenta de nuevo.",
+    "offlineLimitReached": "Límite offline alcanzado",
+    "offlineLimitDetail": "Gastado sin sincronizar: {{spent}} de {{limit}} permitidos. Sincroniza antes de continuar.",
+    "syncNow": "Sincronizar ahora",
+    "syncError": "Error al sincronizar"
   },
   "merchant_admin": {
     "title": "Panel Merchant",
@@ -466,7 +470,28 @@
     "selfManagedStock": "Stock Autogestionado",
     "selfManagedStockDesc": "Este evento usa inventario por ubicación. Gestiona tu stock directamente sin solicitudes al almacén.",
     "locationBasedModeActive": "Modo por Ubicación Activo",
-    "locationBasedModeInfo": "Este evento está configurado con inventario por ubicación. El despacho desde almacén y las órdenes de reabastecimiento no están disponibles."
+    "locationBasedModeInfo": "Este evento está configurado con inventario por ubicación. El despacho desde almacén y las órdenes de reabastecimiento no están disponibles.",
+    "securitySettings": "Seguridad",
+    "hmacKeyDescription": "Clave HMAC usada para verificar la autenticidad de las pulseras en este evento",
+    "signingKey": "Clave de firma",
+    "noKeySet": "Sin clave configurada",
+    "rotateSigningKey": "Rotar clave de firma",
+    "signingKeyRotated": "Clave de firma rotada. Todos los POS deben reconectarse.",
+    "signingKeyRotateFailed": "Error al rotar la clave de firma",
+    "rotateKeyWarning": "Al rotar la clave, todos los dispositivos POS de este evento quedarán desconectados y deberán iniciar sesión nuevamente.",
+    "confirmRotate": "Sí, rotar clave",
+    "offlineLimits": "Límites offline",
+    "offlineLimitsDescription": "Configura cuánto puede gastarse sin sincronizar con el servidor",
+    "offlineSyncLimit": "Límite total sin sincronizar (COP)",
+    "offlineSyncLimitHint": "Monto máximo acumulado en el POS antes de exigir sincronización",
+    "maxOfflineSpendPerBracelet": "Límite por pulsera offline (COP)",
+    "maxOfflineSpendHint": "Transacciones que superen este monto en modo offline serán marcadas para revisión",
+    "offlineLimitsSaved": "Límites offline guardados",
+    "invalidLimitValues": "Ingresa valores válidos mayores a 0",
+    "flaggedBracelets": "Pulseras Flaggeadas",
+    "flaggedBraceletsDescription": "Pulseras marcadas automáticamente por discrepancias de balance o exceso de límite offline.",
+    "noFlaggedBracelets": "No hay pulseras flaggeadas en este evento.",
+    "flaggedBracelets_alert": "Toca para revisar en Configuración del evento"
   },
   "inventory": {
     "tab": "Inventario",

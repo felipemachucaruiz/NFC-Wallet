@@ -10,6 +10,7 @@ export const braceletsTable = pgTable("bracelets", {
   email: varchar("email", { length: 255 }),
   lastKnownBalanceCop: integer("last_known_balance_cop").notNull().default(0),
   lastCounter: integer("last_counter").notNull().default(0),
+  maxOfflineSpend: integer("max_offline_spend"),
   flagged: boolean("flagged").notNull().default(false),
   flagReason: text("flag_reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

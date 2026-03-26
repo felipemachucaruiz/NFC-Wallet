@@ -11,6 +11,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useGetRevenueReport, useGetEvent } from "@workspace/api-client-react";
+import { customFetch } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import { router as navRouter } from "expo-router";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Card } from "@/components/ui/Card";
@@ -104,6 +107,17 @@ export default function EventAdminDashboard() {
     { query: { enabled: !!user?.eventId } },
   );
 
+  const { data: flaggedData } = useQuery({
+    queryKey: ["flagged-bracelets", user?.eventId],
+    enabled: !!user?.eventId,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const res = await customFetch(`/api/events/${user!.eventId}/flagged-bracelets`, { method: "GET" });
+      return res as { flaggedBracelets: Array<{ nfcUid: string }> };
+    },
+  });
+  const flaggedCount = flaggedData?.flaggedBracelets?.length ?? 0;
+
   const revenue = revenueData as {
     totalTopUpsCop?: number;
     totalSalesCop?: number;
@@ -142,6 +156,23 @@ export default function EventAdminDashboard() {
       <Text style={[styles.title, { color: C.text }]}>{t("eventAdmin.dashboard")}</Text>
 
       {event ? <EventInfoCard event={event} /> : null}
+
+      {flaggedCount > 0 && (
+        <Pressable onPress={() => navRouter.push("/(event-admin)/event-settings")}>
+          <Card padding={14} style={[styles.flagAlert, { borderColor: C.danger + "55", backgroundColor: C.dangerLight }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View style={[styles.flagAlertBadge, { backgroundColor: C.danger }]}>
+                <Text style={styles.flagAlertBadgeText}>{flaggedCount}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.flagAlertTitle, { color: C.text }]}>{t("eventAdmin.flaggedBracelets")}</Text>
+                <Text style={[styles.flagAlertSub, { color: C.textSecondary }]}>{t("eventAdmin.flaggedBracelets_alert")}</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={C.danger} />
+            </View>
+          </Card>
+        </Pressable>
+      )}
 
       {revenueLoading ? <Loading label={t("common.loading")} /> : (
         <>
@@ -243,4 +274,9 @@ const styles = StyleSheet.create({
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   kpiIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   kpiLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginBottom: 4 },
+  flagAlert: { borderWidth: 1, borderRadius: 14 },
+  flagAlertBadge: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  flagAlertBadgeText: { color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" },
+  flagAlertTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  flagAlertSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

@@ -33,7 +33,8 @@ type ChargeStep =
   | "writing"
   | "logging"
   | "success"
-  | "manual_input";
+  | "manual_input"
+  | "offline_limit";
 
 const STEP_KEYS: Record<ChargeStep, string> = {
   waiting: "pos.tapBracelet",
@@ -45,6 +46,7 @@ const STEP_KEYS: Record<ChargeStep, string> = {
   logging: "pos.processing",
   success: "pos.chargeSuccess",
   manual_input: "bank.manualUid",
+  offline_limit: "pos.offlineLimitReached",
 };
 
 function TagBadge({ tagInfo, colors }: { tagInfo: TagInfo; colors: typeof Colors.light }) {
@@ -84,7 +86,7 @@ export default function ChargeScreen() {
   const locationId = params.locationId ?? "";
 
   const { items: cartItems, total, clearCart } = useCart();
-  const { enqueue, cachedHmacSecret, updateCachedHmacSecret } = useOfflineQueue();
+  const { enqueue, cachedHmacSecret, updateCachedHmacSecret, updateOfflineLimits, isOfflineLimitReached, unsyncedSpendCop, offlineSyncLimit, syncNow } = useOfflineQueue();
   const { data: keyData } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
@@ -94,6 +96,13 @@ export default function ChargeScreen() {
       updateCachedHmacSecret(networkHmacSecret);
     }
   }, [networkHmacSecret, updateCachedHmacSecret]);
+
+  React.useEffect(() => {
+    const keyDataTyped = keyData as unknown as { offlineSyncLimit?: number } | undefined;
+    if (keyDataTyped?.offlineSyncLimit) {
+      updateOfflineLimits(keyDataTyped.offlineSyncLimit);
+    }
+  }, [keyData, updateOfflineLimits]);
 
   const logTransaction = useLogTransaction();
   const reportTamper = useReportTamper();
@@ -172,6 +181,7 @@ export default function ChargeScreen() {
         newBalance,
         counter: newCounter,
         lineItems,
+        grossAmountCop: total,
       });
       clearCart();
       setStep("success");
@@ -181,6 +191,10 @@ export default function ChargeScreen() {
   };
 
   const handleTap = async () => {
+    if (isOfflineLimitReached) {
+      setStep("offline_limit");
+      return;
+    }
     if (!isNfcSupported()) {
       setStep("manual_input");
       return;
@@ -203,6 +217,15 @@ export default function ChargeScreen() {
     setManualUid("");
   };
 
+  const handleSyncAndRetry = async () => {
+    try {
+      await syncNow();
+      setStep("waiting");
+    } catch {
+      Alert.alert(t("common.error"), t("pos.syncError"));
+    }
+  };
+
   const StepIcon = () => {
     const icons: Partial<Record<ChargeStep, { icon: string; color: string; bg: string }>> = {
       waiting: { icon: "wifi", color: C.primary, bg: C.primaryLight },
@@ -213,6 +236,7 @@ export default function ChargeScreen() {
       success: { icon: "check-circle", color: C.success, bg: C.successLight },
       hmac_fail: { icon: "alert-triangle", color: C.danger, bg: C.dangerLight },
       insufficient: { icon: "alert-circle", color: C.warning, bg: C.warningLight },
+      offline_limit: { icon: "wifi-off", color: C.danger, bg: C.dangerLight },
     };
     const s = icons[step];
     if (!s) return null;
@@ -251,8 +275,17 @@ export default function ChargeScreen() {
       <View style={styles.centerSection}>
         <StepIcon />
 
-        {step !== "success" && step !== "hmac_fail" && step !== "insufficient" && step !== "manual_input" && (
+        {step !== "success" && step !== "hmac_fail" && step !== "insufficient" && step !== "manual_input" && step !== "offline_limit" && (
           <Text style={[styles.stepTitle, { color: C.text }]}>{t(STEP_KEYS[step] || "pos.tapBracelet")}</Text>
+        )}
+
+        {step === "offline_limit" && (
+          <View style={styles.insufficientBox}>
+            <Text style={[styles.stepTitle, { color: C.danger }]}>{t("pos.offlineLimitReached")}</Text>
+            <Text style={[styles.shortfallText, { color: C.textSecondary }]}>
+              {t("pos.offlineLimitDetail", { spent: formatCOP(unsyncedSpendCop), limit: formatCOP(offlineSyncLimit) })}
+            </Text>
+          </View>
         )}
 
         {step === "insufficient" && (
@@ -309,6 +342,24 @@ export default function ChargeScreen() {
         )}
         {step === "hmac_fail" && (
           <Button title={t("common.cancel")} onPress={() => router.back()} variant="danger" size="lg" fullWidth />
+        )}
+        {step === "offline_limit" && (
+          <View style={{ gap: 10 }}>
+            <Button
+              title={t("pos.syncNow")}
+              onPress={handleSyncAndRetry}
+              variant="primary"
+              size="lg"
+              fullWidth
+            />
+            <Button
+              title={t("common.cancel")}
+              onPress={() => router.back()}
+              variant="ghost"
+              size="md"
+              fullWidth
+            />
+          </View>
         )}
         {step === "success" && (
           <Button

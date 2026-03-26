@@ -1,7 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, eventsTable, usersTable, promoterCompaniesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import crypto from "crypto";
+import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable } from "@workspace/db";
+import { eq, sql, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -11,6 +12,10 @@ export async function getEventInventoryMode(eventId: string): Promise<"location_
     .from(eventsTable)
     .where(eq(eventsTable.id, eventId));
   return event?.inventoryMode ?? "location_based";
+}
+
+function generateHmacSecret(): string {
+  return crypto.randomBytes(32).toString("hex");
 }
 
 const router: IRouter = Router();
@@ -25,6 +30,8 @@ const createEventSchema = z.object({
   capacity: z.number().int().positive().optional(),
   promoterCompanyId: z.string().optional(),
   pulepId: z.string().optional(),
+  offlineSyncLimit: z.number().int().positive().optional(),
+  maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
   eventAdmin: z.object({
     email: z.string().email(),
     password: z.string().min(6),
@@ -45,7 +52,29 @@ const updateEventSchema = z.object({
   promoterCompanyId: z.string().nullable().optional(),
   pulepId: z.string().nullable().optional(),
   inventoryMode: z.enum(["location_based", "centralized_warehouse"]).optional(),
+  offlineSyncLimit: z.number().int().positive().optional(),
+  maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
 });
+
+const SAFE_EVENT_FIELDS = {
+  id: eventsTable.id,
+  name: eventsTable.name,
+  description: eventsTable.description,
+  venueAddress: eventsTable.venueAddress,
+  startsAt: eventsTable.startsAt,
+  endsAt: eventsTable.endsAt,
+  active: eventsTable.active,
+  capacity: eventsTable.capacity,
+  platformCommissionRate: eventsTable.platformCommissionRate,
+  promoterCompanyId: eventsTable.promoterCompanyId,
+  promoterCompanyName: promoterCompaniesTable.companyName,
+  pulepId: eventsTable.pulepId,
+  inventoryMode: eventsTable.inventoryMode,
+  offlineSyncLimit: eventsTable.offlineSyncLimit,
+  maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
+  createdAt: eventsTable.createdAt,
+  updatedAt: eventsTable.updatedAt,
+};
 
 router.get("/events", requireAuth, async (req: Request, res: Response) => {
   const user = req.user!;
@@ -55,23 +84,7 @@ router.get("/events", requireAuth, async (req: Request, res: Response) => {
     const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
     if (userCompanyId) {
       const companyEvents = await db
-        .select({
-          id: eventsTable.id,
-          name: eventsTable.name,
-          description: eventsTable.description,
-          venueAddress: eventsTable.venueAddress,
-          startsAt: eventsTable.startsAt,
-          endsAt: eventsTable.endsAt,
-          active: eventsTable.active,
-          capacity: eventsTable.capacity,
-          platformCommissionRate: eventsTable.platformCommissionRate,
-          promoterCompanyId: eventsTable.promoterCompanyId,
-          promoterCompanyName: promoterCompaniesTable.companyName,
-          pulepId: eventsTable.pulepId,
-          inventoryMode: eventsTable.inventoryMode,
-          createdAt: eventsTable.createdAt,
-          updatedAt: eventsTable.updatedAt,
-        })
+        .select(SAFE_EVENT_FIELDS)
         .from(eventsTable)
         .leftJoin(promoterCompaniesTable, eq(eventsTable.promoterCompanyId, promoterCompaniesTable.id))
         .where(eq(eventsTable.promoterCompanyId, userCompanyId));
@@ -83,23 +96,7 @@ router.get("/events", requireAuth, async (req: Request, res: Response) => {
       return;
     }
     const [event] = await db
-      .select({
-        id: eventsTable.id,
-        name: eventsTable.name,
-        description: eventsTable.description,
-        venueAddress: eventsTable.venueAddress,
-        startsAt: eventsTable.startsAt,
-        endsAt: eventsTable.endsAt,
-        active: eventsTable.active,
-        capacity: eventsTable.capacity,
-        platformCommissionRate: eventsTable.platformCommissionRate,
-        promoterCompanyId: eventsTable.promoterCompanyId,
-        promoterCompanyName: promoterCompaniesTable.companyName,
-        pulepId: eventsTable.pulepId,
-        inventoryMode: eventsTable.inventoryMode,
-        createdAt: eventsTable.createdAt,
-        updatedAt: eventsTable.updatedAt,
-      })
+      .select(SAFE_EVENT_FIELDS)
       .from(eventsTable)
       .leftJoin(promoterCompaniesTable, eq(eventsTable.promoterCompanyId, promoterCompaniesTable.id))
       .where(eq(eventsTable.id, user.eventId));
@@ -108,23 +105,7 @@ router.get("/events", requireAuth, async (req: Request, res: Response) => {
   }
 
   const baseQuery = db
-    .select({
-      id: eventsTable.id,
-      name: eventsTable.name,
-      description: eventsTable.description,
-      venueAddress: eventsTable.venueAddress,
-      startsAt: eventsTable.startsAt,
-      endsAt: eventsTable.endsAt,
-      active: eventsTable.active,
-      capacity: eventsTable.capacity,
-      platformCommissionRate: eventsTable.platformCommissionRate,
-      promoterCompanyId: eventsTable.promoterCompanyId,
-      promoterCompanyName: promoterCompaniesTable.companyName,
-      pulepId: eventsTable.pulepId,
-      inventoryMode: eventsTable.inventoryMode,
-      createdAt: eventsTable.createdAt,
-      updatedAt: eventsTable.updatedAt,
-    })
+    .select(SAFE_EVENT_FIELDS)
     .from(eventsTable)
     .leftJoin(promoterCompaniesTable, eq(eventsTable.promoterCompanyId, promoterCompaniesTable.id));
 
@@ -173,6 +154,9 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
       promoterCompanyName: promoterCompaniesTable.companyName,
       pulepId: eventsTable.pulepId,
       inventoryMode: eventsTable.inventoryMode,
+      offlineSyncLimit: eventsTable.offlineSyncLimit,
+      maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
+      hasHmacSecret: eventsTable.hmacSecret,
       createdAt: eventsTable.createdAt,
       updatedAt: eventsTable.updatedAt,
     })
@@ -183,7 +167,9 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
     res.status(404).json({ error: "Event not found" });
     return;
   }
-  res.json(row);
+
+  const { hasHmacSecret, ...rest } = row;
+  res.json({ ...rest, hasHmacSecret: !!hasHmacSecret });
 });
 
 router.post("/events", requireRole("admin"), async (req: Request, res: Response) => {
@@ -192,7 +178,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, eventAdmin } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, offlineSyncLimit, maxOfflineSpendPerBracelet, eventAdmin } = parsed.data;
 
   // Pre-validate event admin email uniqueness BEFORE inserting event (atomicity)
   let normalizedAdminEmail: string | null = null;
@@ -210,6 +196,8 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     adminPasswordHash = await bcrypt.hash(eventAdmin.password, 12);
   }
 
+  const hmacSecret = generateHmacSecret();
+
   // Use a transaction to create event + admin atomically
   const result = await db.transaction(async (tx) => {
     const [event] = await tx
@@ -224,6 +212,9 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
         capacity: capacity ?? null,
         promoterCompanyId: promoterCompanyId ?? null,
         pulepId: pulepId ?? null,
+        hmacSecret,
+        offlineSyncLimit: offlineSyncLimit ?? 500000,
+        maxOfflineSpendPerBracelet: maxOfflineSpendPerBracelet ?? 200000,
       })
       .returning();
 
@@ -246,7 +237,8 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     return { event, createdAdmin };
   });
 
-  res.status(201).json({ ...result.event, eventAdmin: result.createdAdmin });
+  const { hmacSecret: _secret, ...eventWithoutSecret } = result.event;
+  res.status(201).json({ ...eventWithoutSecret, eventAdmin: result.createdAdmin });
 });
 
 router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req: Request, res: Response) => {
@@ -277,7 +269,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, offlineSyncLimit, maxOfflineSpendPerBracelet } = parsed.data;
 
   const updateData: Record<string, unknown> = {
     ...(name !== undefined && { name }),
@@ -290,6 +282,8 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(promoterCompanyId !== undefined && { promoterCompanyId }),
     ...(pulepId !== undefined && { pulepId }),
     ...(inventoryMode !== undefined && { inventoryMode }),
+    ...(offlineSyncLimit !== undefined && { offlineSyncLimit }),
+    ...(maxOfflineSpendPerBracelet !== undefined && { maxOfflineSpendPerBracelet }),
     updatedAt: new Date(),
   };
 
@@ -306,7 +300,67 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(404).json({ error: "Event not found" });
     return;
   }
-  res.json(event);
+
+  const { hmacSecret: _secret, ...eventWithoutSecret } = event;
+  res.json({ ...eventWithoutSecret, hasHmacSecret: !!_secret });
 });
+
+router.post(
+  "/events/:eventId/rotate-signing-key",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const eventId = req.params.eventId as string;
+
+    if (req.user!.role === "event_admin" && req.user!.eventId !== eventId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [event] = await db
+      .select({ id: eventsTable.id })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId));
+
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    const newSecret = generateHmacSecret();
+
+    await db
+      .update(eventsTable)
+      .set({ hmacSecret: newSecret, updatedAt: new Date() })
+      .where(eq(eventsTable.id, eventId));
+
+    // Invalidate all POS sessions for users belonging to this event by deleting their sessions.
+    // Sessions store user data as JSONB; delete rows where sess->'user'->>'eventId' matches.
+    await db.execute(
+      sql`DELETE FROM sessions WHERE sess->'user'->>'eventId' = ${eventId}`
+    );
+
+    res.json({ success: true, rotatedAt: new Date().toISOString() });
+  }
+);
+
+router.get(
+  "/events/:eventId/flagged-bracelets",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const eventId = req.params.eventId as string;
+
+    if (req.user!.role === "event_admin" && req.user!.eventId !== eventId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const flagged = await db
+      .select()
+      .from(braceletsTable)
+      .where(and(eq(braceletsTable.eventId, eventId), eq(braceletsTable.flagged, true)));
+
+    res.json({ flaggedBracelets: flagged });
+  }
+);
 
 export default router;

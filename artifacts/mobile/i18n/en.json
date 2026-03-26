@@ -253,7 +253,11 @@
     "newBalance": "New balance",
     "enterUid": "Enter bracelet UID",
     "newSale": "New sale",
-    "scanError": "Could not read bracelet. Try again."
+    "scanError": "Could not read bracelet. Try again.",
+    "offlineLimitReached": "Offline limit reached",
+    "offlineLimitDetail": "Unsynced spend: {{spent}} of {{limit}} allowed. Please sync before continuing.",
+    "syncNow": "Sync now",
+    "syncError": "Error syncing"
   },
   "merchant_admin": {
     "title": "Merchant Panel",
@@ -477,7 +481,28 @@
     "noPromoterCompany": "Your account is not linked to a promoter company",
     "eventsList": "Events in This Company",
     "eventActive": "Active",
-    "eventInactive": "Inactive"
+    "eventInactive": "Inactive",
+    "securitySettings": "Security",
+    "hmacKeyDescription": "HMAC key used to verify bracelet authenticity for this event",
+    "signingKey": "Signing key",
+    "noKeySet": "No key configured",
+    "rotateSigningKey": "Rotate signing key",
+    "signingKeyRotated": "Signing key rotated. All POS devices must reconnect.",
+    "signingKeyRotateFailed": "Failed to rotate signing key",
+    "rotateKeyWarning": "Rotating the key will log out all POS devices for this event. Staff will need to sign in again.",
+    "confirmRotate": "Yes, rotate key",
+    "offlineLimits": "Offline Limits",
+    "offlineLimitsDescription": "Configure how much can be spent without syncing to the server",
+    "offlineSyncLimit": "Total unsynced spend limit (COP)",
+    "offlineSyncLimitHint": "Maximum accumulated amount on POS before requiring sync",
+    "maxOfflineSpendPerBracelet": "Per-bracelet offline limit (COP)",
+    "maxOfflineSpendHint": "Offline transactions exceeding this amount will be flagged for review",
+    "offlineLimitsSaved": "Offline limits saved",
+    "invalidLimitValues": "Please enter valid values greater than 0",
+    "flaggedBracelets": "Flagged Bracelets",
+    "flaggedBraceletsDescription": "Bracelets automatically flagged for balance discrepancies or offline limit violations.",
+    "noFlaggedBracelets": "No flagged bracelets for this event.",
+    "flaggedBracelets_alert": "Tap to review in Event Settings"
   },
   "inventory": {
     "tab": "Inventory",
