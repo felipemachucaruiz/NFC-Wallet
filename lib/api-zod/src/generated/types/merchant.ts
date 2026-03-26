@@ -16,5 +16,9 @@ export interface Merchant {
   commissionRatePercent: string;
   merchantType?: MerchantType;
   active: boolean;
+  /** Porcentaje de retención en la fuente (ej: '3.50') */
+  retencionFuenteRate: string;
+  /** Tasa de retención ICA del municipio (ej: '0.9660') */
+  retencionICARate: string;
   createdAt: Date;
 }

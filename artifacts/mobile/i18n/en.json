@@ -360,7 +360,20 @@
     "typeEventManaged": "Event managed",
     "typeExternal": "External vendor",
     "typeEventManagedHint": "Inventory dispatched from warehouse. Warehouse team manages stock levels.",
-    "typeExternalHint": "Vendor manages their own inventory and product catalog independently."
+    "typeExternalHint": "Vendor manages their own inventory and product catalog independently.",
+    "ivaRate": "IVA rate (%)",
+    "ivaExento": "VAT exempt",
+    "ivaExentoHint": "Basic food basket or exempt products",
+    "fiscalBreakdown": "Tax breakdown",
+    "totalIva": "Total VAT (IVA)",
+    "retencionFuente": "Withholding tax (fuente)",
+    "retencionICA": "Industry tax (ICA)",
+    "totalRetenciones": "Total withholdings",
+    "totalNeto": "Net payable to merchant",
+    "retencionFuenteRate": "Withholding rate (fuente, %)",
+    "retencionICARate": "ICA rate (%)",
+    "fiscalSettings": "Tax settings",
+    "fiscalSettingsHint": "These rates are applied to all sales from this merchant"
   },
   "warehouse": {
     "title": "Warehouse",

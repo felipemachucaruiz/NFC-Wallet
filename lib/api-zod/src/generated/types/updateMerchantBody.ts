@@ -15,4 +15,8 @@ export interface UpdateMerchantBody {
   commissionRatePercent?: string;
   merchantType?: MerchantType;
   active?: boolean;
+  /** @pattern ^\d+(\.\d{1,2})?$ */
+  retencionFuenteRate?: string;
+  /** @pattern ^\d+(\.\d{1,4})?$ */
+  retencionICARate?: string;
 }

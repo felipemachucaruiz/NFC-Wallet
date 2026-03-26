@@ -363,6 +363,10 @@ export interface Merchant {
   commissionRatePercent: string;
   merchantType?: MerchantType;
   active: boolean;
+  /** Porcentaje de retención en la fuente (ej: '3.50') */
+  retencionFuenteRate: string;
+  /** Tasa de retención ICA del municipio (ej: '0.9660') */
+  retencionICARate: string;
   createdAt: string;
 }
 
@@ -374,6 +378,10 @@ export interface CreateMerchantBody {
   /** @pattern ^\d+(\.\d{1,2})?$ */
   commissionRatePercent: string;
   merchantType?: MerchantType;
+  /** @pattern ^\d+(\.\d{1,2})?$ */
+  retencionFuenteRate?: string;
+  /** @pattern ^\d+(\.\d{1,4})?$ */
+  retencionICARate?: string;
 }
 
 export interface UpdateMerchantBody {
@@ -384,6 +392,10 @@ export interface UpdateMerchantBody {
   commissionRatePercent?: string;
   merchantType?: MerchantType;
   active?: boolean;
+  /** @pattern ^\d+(\.\d{1,2})?$ */
+  retencionFuenteRate?: string;
+  /** @pattern ^\d+(\.\d{1,4})?$ */
+  retencionICARate?: string;
 }
 
 export type PayoutPaymentMethod =
@@ -425,6 +437,16 @@ export interface MerchantEarnings {
   netEarnedCop: number;
   totalPaidOutCop: number;
   pendingCop: number;
+  /** Total IVA recaudado en ventas */
+  totalIvaCop: number;
+  /** Total retención en la fuente aplicada */
+  totalRetencionFuenteCop: number;
+  /** Total retención de ICA aplicada */
+  totalRetencionICACop: number;
+  /** Total retenciones (fuente + ICA) */
+  totalRetencionesCop: number;
+  /** Neto efectivo para el merchant (bruto - comisión - retenciones) */
+  totalNetoCop: number;
   payouts?: MerchantPayout[];
 }
 
@@ -462,6 +484,10 @@ export interface Product {
   category?: string | null;
   priceCop: number;
   costCop: number;
+  /** Porcentaje de IVA aplicable al producto (ej: '19.00') */
+  ivaRate: string;
+  /** True si el producto está excluido de IVA (canasta básica, etc.) */
+  ivaExento: boolean;
   active: boolean;
   createdAt: string;
 }
@@ -475,6 +501,13 @@ export interface CreateProductBody {
   priceCop: number;
   /** @minimum 0 */
   costCop?: number;
+  /**
+   * Tasa de IVA en porcentaje
+   * @pattern ^\d+(\.\d{1,2})?$
+   */
+  ivaRate?: string;
+  /** Producto excluido de IVA */
+  ivaExento?: boolean;
 }
 
 export interface UpdateProductBody {
@@ -486,6 +519,13 @@ export interface UpdateProductBody {
   /** @minimum 0 */
   costCop?: number;
   active?: boolean;
+  /**
+   * Tasa de IVA en porcentaje
+   * @pattern ^\d+(\.\d{1,2})?$
+   */
+  ivaRate?: string;
+  /** Producto excluido de IVA */
+  ivaExento?: boolean;
 }
 
 export interface LocationInventoryItem {
@@ -746,6 +786,34 @@ export interface RevenueReportRow {
   commissionCop: number;
   netCop: number;
   transactionCount: number;
+  totalIvaCop: number;
+  totalRetencionFuenteCop: number;
+  totalRetencionICACop: number;
+  totalRetencionesCop: number;
+  totalNetoCop: number;
+}
+
+export interface FiscalSummaryRow {
+  merchantId: string;
+  merchantName: string;
+  transactionCount: number;
+  totalBrutoCop: number;
+  totalIvaCop: number;
+  totalRetencionFuenteCop: number;
+  totalRetencionICACop: number;
+  totalRetencionesCop: number;
+  totalComisionCop: number;
+  totalNetoCop: number;
+}
+
+export interface FiscalSummaryTotals {
+  totalBrutoCop: number;
+  totalIvaCop: number;
+  totalRetencionFuenteCop: number;
+  totalRetencionICACop: number;
+  totalRetencionesCop: number;
+  totalComisionCop: number;
+  totalNetoCop: number;
 }
 
 export type RevenueReportByMerchantItemByLocationItem = {
@@ -1006,6 +1074,18 @@ export type GetRefundsReportParams = {
   eventId?: string;
   from?: string;
   to?: string;
+};
+
+export type GetFiscalSummaryParams = {
+  eventId?: string;
+  merchantId?: string;
+  from?: string;
+  to?: string;
+};
+
+export type GetFiscalSummary200 = {
+  totals: FiscalSummaryTotals;
+  byMerchant: FiscalSummaryRow[];
 };
 
 export type GetInventoryReportParams = {

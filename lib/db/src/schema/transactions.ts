@@ -51,6 +51,9 @@ export const transactionLineItemsTable = pgTable("transaction_line_items", {
   unitPriceSnapshot: integer("unit_price_snapshot").notNull(),
   unitCostSnapshot: integer("unit_cost_snapshot").notNull().default(0),
   quantity: integer("quantity").notNull(),
+  ivaAmountCop: integer("iva_amount_cop").notNull().default(0),
+  retencionFuenteAmountCop: integer("retencion_fuente_amount_cop").notNull().default(0),
+  retencionICAAmountCop: integer("retencion_ica_amount_cop").notNull().default(0),
 });
 
 export const topUpsTable = pgTable("top_ups", {

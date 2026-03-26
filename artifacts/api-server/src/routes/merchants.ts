@@ -24,6 +24,8 @@ const createMerchantSchema = z.object({
   description: z.string().optional(),
   commissionRatePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).default("0"),
   merchantType: z.enum(["event_managed", "external"]).default("event_managed"),
+  retencionFuenteRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  retencionICARate: z.string().regex(/^\d+(\.\d{1,4})?$/).optional(),
 });
 
 const updateMerchantSchema = z.object({
@@ -32,6 +34,8 @@ const updateMerchantSchema = z.object({
   commissionRatePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   merchantType: z.enum(["event_managed", "external"]).optional(),
   active: z.boolean().optional(),
+  retencionFuenteRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  retencionICARate: z.string().regex(/^\d+(\.\d{1,4})?$/).optional(),
 });
 
 router.get("/merchants", requireAuth, async (req: Request, res: Response) => {
@@ -191,18 +195,28 @@ router.get(
 
     const txIds = txRows.map((r) => r.id);
     let cogsCop = 0;
+    let totalIvaCop = 0;
+    let totalRetencionFuenteCop = 0;
+    let totalRetencionICACop = 0;
     if (txIds.length > 0) {
       const lineItemRows = await db
         .select()
         .from(transactionLineItemsTable)
         .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map((id) => sql`${id}`), sql`, `)}]::text[])`);
       cogsCop = lineItemRows.reduce((s, li) => s + li.unitCostSnapshot * li.quantity, 0);
+      for (const li of lineItemRows) {
+        totalIvaCop += li.ivaAmountCop;
+        totalRetencionFuenteCop += li.retencionFuenteAmountCop;
+        totalRetencionICACop += li.retencionICAAmountCop;
+      }
     }
 
     const grossProfitCop = grossSalesCop - cogsCop;
     const profitMarginPercent = grossSalesCop > 0
       ? Math.round((grossProfitCop / grossSalesCop) * 10000) / 100
       : 0;
+    const totalRetencionesCop = totalRetencionFuenteCop + totalRetencionICACop;
+    const totalNetoCop = grossSalesCop - totalCommissionCop - totalRetencionesCop;
 
     const payoutConditions: ReturnType<typeof eq>[] = [eq(merchantPayoutsTable.merchantId, merchantId)];
     if (eventId) payoutConditions.push(eq(merchantPayoutsTable.eventId, eventId));
@@ -227,6 +241,11 @@ router.get(
       netEarnedCop,
       totalPaidOutCop,
       pendingCop,
+      totalIvaCop,
+      totalRetencionFuenteCop,
+      totalRetencionICACop,
+      totalRetencionesCop,
+      totalNetoCop,
       payouts,
     });
   },

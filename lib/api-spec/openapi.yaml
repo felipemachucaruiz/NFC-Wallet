@@ -1900,6 +1900,54 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /reports/fiscal-summary:
+    get:
+      tags: [Reports]
+      operationId: getFiscalSummary
+      summary: Fiscal summary with IVA and retenciones breakdown (admin, merchant_admin, event_admin)
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: merchantId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Fiscal summary with IVA, retenciones, and net amounts per merchant.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [totals, byMerchant]
+                properties:
+                  totals:
+                    $ref: '#/components/schemas/FiscalSummaryTotals'
+                  byMerchant:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FiscalSummaryRow'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /reports/inventory:
     get:
       tags: [Reports]
@@ -2550,7 +2598,7 @@ components:
     # ── Merchants ─────────────────────────────────────────────────────────────
     Merchant:
       type: object
-      required: [id, eventId, name, commissionRatePercent, active, createdAt]
+      required: [id, eventId, name, commissionRatePercent, active, createdAt, retencionFuenteRate, retencionICARate]
       properties:
         id:
           type: string
@@ -2566,6 +2614,12 @@ components:
           $ref: '#/components/schemas/MerchantType'
         active:
           type: boolean
+        retencionFuenteRate:
+          type: string
+          description: "Porcentaje de retención en la fuente (ej: '3.50')"
+        retencionICARate:
+          type: string
+          description: "Tasa de retención ICA del municipio (ej: '0.9660')"
         createdAt:
           type: string
           format: date-time
@@ -2586,6 +2640,12 @@ components:
           pattern: '^\d+(\.\d{1,2})?$'
         merchantType:
           $ref: '#/components/schemas/MerchantType'
+        retencionFuenteRate:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+        retencionICARate:
+          type: string
+          pattern: '^\d+(\.\d{1,4})?$'
 
     UpdateMerchantBody:
       type: object
@@ -2602,10 +2662,16 @@ components:
           $ref: '#/components/schemas/MerchantType'
         active:
           type: boolean
+        retencionFuenteRate:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+        retencionICARate:
+          type: string
+          pattern: '^\d+(\.\d{1,4})?$'
 
     MerchantEarnings:
       type: object
-      required: [merchantId, grossSalesCop, cogsCop, grossProfitCop, profitMarginPercent, marginPercent, totalCommissionCop, netEarnedCop, totalPaidOutCop, pendingCop]
+      required: [merchantId, grossSalesCop, cogsCop, grossProfitCop, profitMarginPercent, marginPercent, totalCommissionCop, netEarnedCop, totalPaidOutCop, pendingCop, totalIvaCop, totalRetencionFuenteCop, totalRetencionICACop, totalRetencionesCop, totalNetoCop]
       properties:
         merchantId:
           type: string
@@ -2628,6 +2694,21 @@ components:
           type: integer
         pendingCop:
           type: integer
+        totalIvaCop:
+          type: integer
+          description: Total IVA recaudado en ventas
+        totalRetencionFuenteCop:
+          type: integer
+          description: Total retención en la fuente aplicada
+        totalRetencionICACop:
+          type: integer
+          description: Total retención de ICA aplicada
+        totalRetencionesCop:
+          type: integer
+          description: Total retenciones (fuente + ICA)
+        totalNetoCop:
+          type: integer
+          description: Neto efectivo para el merchant (bruto - comisión - retenciones)
         payouts:
           type: array
           items:
@@ -2683,7 +2764,7 @@ components:
     # ── Products ──────────────────────────────────────────────────────────────
     Product:
       type: object
-      required: [id, merchantId, name, priceCop, costCop, active, createdAt]
+      required: [id, merchantId, name, priceCop, costCop, active, createdAt, ivaRate, ivaExento]
       properties:
         id:
           type: string
@@ -2697,6 +2778,12 @@ components:
           type: integer
         costCop:
           type: integer
+        ivaRate:
+          type: string
+          description: "Porcentaje de IVA aplicable al producto (ej: '19.00')"
+        ivaExento:
+          type: boolean
+          description: "True si el producto está excluido de IVA (canasta básica, etc.)"
         active:
           type: boolean
         createdAt:
@@ -2720,6 +2807,13 @@ components:
         costCop:
           type: integer
           minimum: 0
+        ivaRate:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+          description: "Tasa de IVA en porcentaje"
+        ivaExento:
+          type: boolean
+          description: "Producto excluido de IVA"
 
     UpdateProductBody:
       type: object
@@ -2737,6 +2831,13 @@ components:
           minimum: 0
         active:
           type: boolean
+        ivaRate:
+          type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+          description: "Tasa de IVA en porcentaje"
+        ivaExento:
+          type: boolean
+          description: "Producto excluido de IVA"
 
     # ── Inventory ─────────────────────────────────────────────────────────────
     LocationInventoryItem:
@@ -3158,7 +3259,7 @@ components:
     # ── Reports ───────────────────────────────────────────────────────────────
     RevenueReportRow:
       type: object
-      required: [grossSalesCop, cogsCop, grossProfitCop, profitMarginPercent, commissionCop, netCop, transactionCount]
+      required: [grossSalesCop, cogsCop, grossProfitCop, profitMarginPercent, commissionCop, netCop, transactionCount, totalIvaCop, totalRetencionFuenteCop, totalRetencionICACop, totalRetencionesCop, totalNetoCop]
       properties:
         grossSalesCop:
           type: integer
@@ -3173,6 +3274,60 @@ components:
         netCop:
           type: integer
         transactionCount:
+          type: integer
+        totalIvaCop:
+          type: integer
+        totalRetencionFuenteCop:
+          type: integer
+        totalRetencionICACop:
+          type: integer
+        totalRetencionesCop:
+          type: integer
+        totalNetoCop:
+          type: integer
+
+    FiscalSummaryRow:
+      type: object
+      required: [merchantId, merchantName, transactionCount, totalBrutoCop, totalIvaCop, totalRetencionFuenteCop, totalRetencionICACop, totalRetencionesCop, totalComisionCop, totalNetoCop]
+      properties:
+        merchantId:
+          type: string
+        merchantName:
+          type: string
+        transactionCount:
+          type: integer
+        totalBrutoCop:
+          type: integer
+        totalIvaCop:
+          type: integer
+        totalRetencionFuenteCop:
+          type: integer
+        totalRetencionICACop:
+          type: integer
+        totalRetencionesCop:
+          type: integer
+        totalComisionCop:
+          type: integer
+        totalNetoCop:
+          type: integer
+
+    FiscalSummaryTotals:
+      type: object
+      required: [totalBrutoCop, totalIvaCop, totalRetencionFuenteCop, totalRetencionICACop, totalRetencionesCop, totalComisionCop, totalNetoCop]
+      properties:
+        totalBrutoCop:
+          type: integer
+        totalIvaCop:
+          type: integer
+        totalRetencionFuenteCop:
+          type: integer
+        totalRetencionICACop:
+          type: integer
+        totalRetencionesCop:
+          type: integer
+        totalComisionCop:
+          type: integer
+        totalNetoCop:
           type: integer
 
     RevenueReport:

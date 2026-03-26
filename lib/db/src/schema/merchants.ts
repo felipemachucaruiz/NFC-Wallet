@@ -12,6 +12,8 @@ export const merchantsTable = pgTable("merchants", {
   commissionRatePercent: numeric("commission_rate_percent", { precision: 5, scale: 2 }).notNull().default("0"),
   merchantType: merchantTypeEnum("merchant_type").notNull().default("event_managed"),
   active: boolean("active").notNull().default(true),
+  retencionFuenteRate: numeric("retencion_fuente_rate", { precision: 5, scale: 2 }).notNull().default("0"),
+  retencionICARate: numeric("retencion_ica_rate", { precision: 7, scale: 4 }).notNull().default("0"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -32,6 +34,8 @@ export const productsTable = pgTable("products", {
   category: varchar("category", { length: 100 }),
   priceCop: integer("price_cop").notNull(),
   costCop: integer("cost_cop").notNull().default(0),
+  ivaRate: numeric("iva_rate", { precision: 5, scale: 2 }).notNull().default("0"),
+  ivaExento: boolean("iva_exento").notNull().default(false),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

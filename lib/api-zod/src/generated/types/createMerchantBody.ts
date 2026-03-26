@@ -15,4 +15,8 @@ export interface CreateMerchantBody {
   /** @pattern ^\d+(\.\d{1,2})?$ */
   commissionRatePercent: string;
   merchantType?: MerchantType;
+  /** @pattern ^\d+(\.\d{1,2})?$ */
+  retencionFuenteRate?: string;
+  /** @pattern ^\d+(\.\d{1,4})?$ */
+  retencionICARate?: string;
 }

@@ -19,5 +19,15 @@ export interface MerchantEarnings {
   netEarnedCop: number;
   totalPaidOutCop: number;
   pendingCop: number;
+  /** Total IVA recaudado en ventas */
+  totalIvaCop: number;
+  /** Total retención en la fuente aplicada */
+  totalRetencionFuenteCop: number;
+  /** Total retención de ICA aplicada */
+  totalRetencionICACop: number;
+  /** Total retenciones (fuente + ICA) */
+  totalRetencionesCop: number;
+  /** Neto efectivo para el merchant (bruto - comisión - retenciones) */
+  totalNetoCop: number;
   payouts?: MerchantPayout[];
 }

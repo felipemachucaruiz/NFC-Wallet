@@ -673,6 +673,12 @@ export const ListMerchantsResponse = zod.object({
       commissionRatePercent: zod.string(),
       merchantType: zod.enum(["event_managed", "external"]).optional(),
       active: zod.boolean(),
+      retencionFuenteRate: zod
+        .string()
+        .describe("Porcentaje de retención en la fuente (ej: '3.50')"),
+      retencionICARate: zod
+        .string()
+        .describe("Tasa de retención ICA del municipio (ej: '0.9660')"),
       createdAt: zod.date(),
     }),
   ),
@@ -685,6 +691,12 @@ export const ListMerchantsResponse = zod.object({
 export const createMerchantBodyCommissionRatePercentRegExp = new RegExp(
   "^\\d+(\\.\\d{1,2})?$",
 );
+export const createMerchantBodyRetencionFuenteRateRegExp = new RegExp(
+  "^\\d+(\\.\\d{1,2})?$",
+);
+export const createMerchantBodyRetencionICARateRegExp = new RegExp(
+  "^\\d+(\\.\\d{1,4})?$",
+);
 
 export const CreateMerchantBody = zod.object({
   eventId: zod.string(),
@@ -694,6 +706,14 @@ export const CreateMerchantBody = zod.object({
     .string()
     .regex(createMerchantBodyCommissionRatePercentRegExp),
   merchantType: zod.enum(["event_managed", "external"]).optional(),
+  retencionFuenteRate: zod
+    .string()
+    .regex(createMerchantBodyRetencionFuenteRateRegExp)
+    .optional(),
+  retencionICARate: zod
+    .string()
+    .regex(createMerchantBodyRetencionICARateRegExp)
+    .optional(),
 });
 
 /**
@@ -711,6 +731,12 @@ export const GetMerchantResponse = zod.object({
   commissionRatePercent: zod.string(),
   merchantType: zod.enum(["event_managed", "external"]).optional(),
   active: zod.boolean(),
+  retencionFuenteRate: zod
+    .string()
+    .describe("Porcentaje de retención en la fuente (ej: '3.50')"),
+  retencionICARate: zod
+    .string()
+    .describe("Tasa de retención ICA del municipio (ej: '0.9660')"),
   createdAt: zod.date(),
 });
 
@@ -724,6 +750,12 @@ export const UpdateMerchantParams = zod.object({
 export const updateMerchantBodyCommissionRatePercentRegExp = new RegExp(
   "^\\d+(\\.\\d{1,2})?$",
 );
+export const updateMerchantBodyRetencionFuenteRateRegExp = new RegExp(
+  "^\\d+(\\.\\d{1,2})?$",
+);
+export const updateMerchantBodyRetencionICARateRegExp = new RegExp(
+  "^\\d+(\\.\\d{1,4})?$",
+);
 
 export const UpdateMerchantBody = zod.object({
   name: zod.string().min(1).optional(),
@@ -734,6 +766,14 @@ export const UpdateMerchantBody = zod.object({
     .optional(),
   merchantType: zod.enum(["event_managed", "external"]).optional(),
   active: zod.boolean().optional(),
+  retencionFuenteRate: zod
+    .string()
+    .regex(updateMerchantBodyRetencionFuenteRateRegExp)
+    .optional(),
+  retencionICARate: zod
+    .string()
+    .regex(updateMerchantBodyRetencionICARateRegExp)
+    .optional(),
 });
 
 export const UpdateMerchantResponse = zod.object({
@@ -744,6 +784,12 @@ export const UpdateMerchantResponse = zod.object({
   commissionRatePercent: zod.string(),
   merchantType: zod.enum(["event_managed", "external"]).optional(),
   active: zod.boolean(),
+  retencionFuenteRate: zod
+    .string()
+    .describe("Porcentaje de retención en la fuente (ej: '3.50')"),
+  retencionICARate: zod
+    .string()
+    .describe("Tasa de retención ICA del municipio (ej: '0.9660')"),
   createdAt: zod.date(),
 });
 
@@ -782,6 +828,21 @@ export const GetMerchantEarningsResponse = zod.object({
   netEarnedCop: zod.number(),
   totalPaidOutCop: zod.number(),
   pendingCop: zod.number(),
+  totalIvaCop: zod.number().describe("Total IVA recaudado en ventas"),
+  totalRetencionFuenteCop: zod
+    .number()
+    .describe("Total retención en la fuente aplicada"),
+  totalRetencionICACop: zod
+    .number()
+    .describe("Total retención de ICA aplicada"),
+  totalRetencionesCop: zod
+    .number()
+    .describe("Total retenciones (fuente + ICA)"),
+  totalNetoCop: zod
+    .number()
+    .describe(
+      "Neto efectivo para el merchant (bruto - comisión - retenciones)",
+    ),
   payouts: zod
     .array(
       zod.object({
@@ -917,6 +978,14 @@ export const ListProductsResponse = zod.object({
       category: zod.string().nullish(),
       priceCop: zod.number(),
       costCop: zod.number(),
+      ivaRate: zod
+        .string()
+        .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
+      ivaExento: zod
+        .boolean()
+        .describe(
+          "True si el producto está excluido de IVA (canasta básica, etc.)",
+        ),
       active: zod.boolean(),
       createdAt: zod.date(),
     }),
@@ -931,12 +1000,22 @@ export const createProductBodyPriceCopMin = 0;
 
 export const createProductBodyCostCopMin = 0;
 
+export const createProductBodyIvaRateRegExp = new RegExp(
+  "^\\d+(\\.\\d{1,2})?$",
+);
+
 export const CreateProductBody = zod.object({
   merchantId: zod.string(),
   name: zod.string().min(1),
   category: zod.string().optional(),
   priceCop: zod.number().min(createProductBodyPriceCopMin),
   costCop: zod.number().min(createProductBodyCostCopMin).optional(),
+  ivaRate: zod
+    .string()
+    .regex(createProductBodyIvaRateRegExp)
+    .optional()
+    .describe("Tasa de IVA en porcentaje"),
+  ivaExento: zod.boolean().optional().describe("Producto excluido de IVA"),
 });
 
 /**
@@ -953,6 +1032,14 @@ export const GetProductResponse = zod.object({
   category: zod.string().nullish(),
   priceCop: zod.number(),
   costCop: zod.number(),
+  ivaRate: zod
+    .string()
+    .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
+  ivaExento: zod
+    .boolean()
+    .describe(
+      "True si el producto está excluido de IVA (canasta básica, etc.)",
+    ),
   active: zod.boolean(),
   createdAt: zod.date(),
 });
@@ -968,12 +1055,22 @@ export const updateProductBodyPriceCopMin = 0;
 
 export const updateProductBodyCostCopMin = 0;
 
+export const updateProductBodyIvaRateRegExp = new RegExp(
+  "^\\d+(\\.\\d{1,2})?$",
+);
+
 export const UpdateProductBody = zod.object({
   name: zod.string().min(1).optional(),
   category: zod.string().optional(),
   priceCop: zod.number().min(updateProductBodyPriceCopMin).optional(),
   costCop: zod.number().min(updateProductBodyCostCopMin).optional(),
   active: zod.boolean().optional(),
+  ivaRate: zod
+    .string()
+    .regex(updateProductBodyIvaRateRegExp)
+    .optional()
+    .describe("Tasa de IVA en porcentaje"),
+  ivaExento: zod.boolean().optional().describe("Producto excluido de IVA"),
 });
 
 export const UpdateProductResponse = zod.object({
@@ -983,6 +1080,14 @@ export const UpdateProductResponse = zod.object({
   category: zod.string().nullish(),
   priceCop: zod.number(),
   costCop: zod.number(),
+  ivaRate: zod
+    .string()
+    .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
+  ivaExento: zod
+    .boolean()
+    .describe(
+      "True si el producto está excluido de IVA (canasta básica, etc.)",
+    ),
   active: zod.boolean(),
   createdAt: zod.date(),
 });
@@ -1015,6 +1120,14 @@ export const GetLocationInventoryResponse = zod.object({
           category: zod.string().nullish(),
           priceCop: zod.number(),
           costCop: zod.number(),
+          ivaRate: zod
+            .string()
+            .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
+          ivaExento: zod
+            .boolean()
+            .describe(
+              "True si el producto está excluido de IVA (canasta básica, etc.)",
+            ),
           active: zod.boolean(),
           createdAt: zod.date(),
         })
@@ -1062,6 +1175,14 @@ export const UpdateLocationInventoryItemResponse = zod.object({
       category: zod.string().nullish(),
       priceCop: zod.number(),
       costCop: zod.number(),
+      ivaRate: zod
+        .string()
+        .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
+      ivaExento: zod
+        .boolean()
+        .describe(
+          "True si el producto está excluido de IVA (canasta básica, etc.)",
+        ),
       active: zod.boolean(),
       createdAt: zod.date(),
     })
@@ -1092,6 +1213,14 @@ export const GetWarehouseInventoryResponse = zod.object({
           category: zod.string().nullish(),
           priceCop: zod.number(),
           costCop: zod.number(),
+          ivaRate: zod
+            .string()
+            .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
+          ivaExento: zod
+            .boolean()
+            .describe(
+              "True si el producto está excluido de IVA (canasta básica, etc.)",
+            ),
           active: zod.boolean(),
           createdAt: zod.date(),
         })
@@ -1125,6 +1254,14 @@ export const UpdateWarehouseInventoryResponse = zod.object({
       category: zod.string().nullish(),
       priceCop: zod.number(),
       costCop: zod.number(),
+      ivaRate: zod
+        .string()
+        .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
+      ivaExento: zod
+        .boolean()
+        .describe(
+          "True si el producto está excluido de IVA (canasta básica, etc.)",
+        ),
       active: zod.boolean(),
       createdAt: zod.date(),
     })
@@ -1461,6 +1598,11 @@ export const GetRevenueReportResponse = zod.object({
     commissionCop: zod.number(),
     netCop: zod.number(),
     transactionCount: zod.number(),
+    totalIvaCop: zod.number(),
+    totalRetencionFuenteCop: zod.number(),
+    totalRetencionICACop: zod.number(),
+    totalRetencionesCop: zod.number(),
+    totalNetoCop: zod.number(),
   }),
   byMerchant: zod.array(
     zod.object({
@@ -1474,6 +1616,11 @@ export const GetRevenueReportResponse = zod.object({
         commissionCop: zod.number(),
         netCop: zod.number(),
         transactionCount: zod.number(),
+        totalIvaCop: zod.number(),
+        totalRetencionFuenteCop: zod.number(),
+        totalRetencionICACop: zod.number(),
+        totalRetencionesCop: zod.number(),
+        totalNetoCop: zod.number(),
       }),
       byLocation: zod
         .array(
@@ -1488,6 +1635,11 @@ export const GetRevenueReportResponse = zod.object({
               commissionCop: zod.number(),
               netCop: zod.number(),
               transactionCount: zod.number(),
+              totalIvaCop: zod.number(),
+              totalRetencionFuenteCop: zod.number(),
+              totalRetencionICACop: zod.number(),
+              totalRetencionesCop: zod.number(),
+              totalNetoCop: zod.number(),
             }),
           }),
         )
@@ -1536,6 +1688,42 @@ export const GetRefundsReportResponse = zod.object({
     zod.object({
       totalCop: zod.number(),
       count: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Fiscal summary with IVA and retenciones breakdown (admin, merchant_admin, event_admin)
+ */
+export const GetFiscalSummaryQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  merchantId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const GetFiscalSummaryResponse = zod.object({
+  totals: zod.object({
+    totalBrutoCop: zod.number(),
+    totalIvaCop: zod.number(),
+    totalRetencionFuenteCop: zod.number(),
+    totalRetencionICACop: zod.number(),
+    totalRetencionesCop: zod.number(),
+    totalComisionCop: zod.number(),
+    totalNetoCop: zod.number(),
+  }),
+  byMerchant: zod.array(
+    zod.object({
+      merchantId: zod.string(),
+      merchantName: zod.string(),
+      transactionCount: zod.number(),
+      totalBrutoCop: zod.number(),
+      totalIvaCop: zod.number(),
+      totalRetencionFuenteCop: zod.number(),
+      totalRetencionICACop: zod.number(),
+      totalRetencionesCop: zod.number(),
+      totalComisionCop: zod.number(),
+      totalNetoCop: zod.number(),
     }),
   ),
 });
@@ -1610,6 +1798,12 @@ export const GetSnapshotResponse = zod.object({
         commissionRatePercent: zod.string(),
         merchantType: zod.enum(["event_managed", "external"]).optional(),
         active: zod.boolean(),
+        retencionFuenteRate: zod
+          .string()
+          .describe("Porcentaje de retención en la fuente (ej: '3.50')"),
+        retencionICARate: zod
+          .string()
+          .describe("Tasa de retención ICA del municipio (ej: '0.9660')"),
         createdAt: zod.date(),
       }),
     )

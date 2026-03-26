@@ -6,17 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface RevenueReportRow {
-  grossSalesCop: number;
-  cogsCop: number;
-  grossProfitCop: number;
-  profitMarginPercent: number;
-  commissionCop: number;
-  netCop: number;
+export interface FiscalSummaryRow {
+  merchantId: string;
+  merchantName: string;
   transactionCount: number;
+  totalBrutoCop: number;
   totalIvaCop: number;
   totalRetencionFuenteCop: number;
   totalRetencionICACop: number;
   totalRetencionesCop: number;
+  totalComisionCop: number;
   totalNetoCop: number;
 }

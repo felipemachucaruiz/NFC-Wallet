@@ -15,4 +15,11 @@ export interface UpdateProductBody {
   /** @minimum 0 */
   costCop?: number;
   active?: boolean;
+  /**
+   * Tasa de IVA en porcentaje
+   * @pattern ^\d+(\.\d{1,2})?$
+   */
+  ivaRate?: string;
+  /** Producto excluido de IVA */
+  ivaExento?: boolean;
 }

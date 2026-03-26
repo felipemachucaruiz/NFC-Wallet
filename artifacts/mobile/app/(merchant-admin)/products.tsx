@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
   useColorScheme,
@@ -34,6 +35,8 @@ type Product = {
   category?: string | null;
   priceCop: number;
   costCop: number;
+  ivaRate: string;
+  ivaExento: boolean;
   active: boolean;
 };
 
@@ -42,9 +45,11 @@ type FormState = {
   category: string;
   priceCop: string;
   costCop: string;
+  ivaRate: string;
+  ivaExento: boolean;
 };
 
-const emptyForm: FormState = { name: "", category: "", priceCop: "", costCop: "" };
+const emptyForm: FormState = { name: "", category: "", priceCop: "", costCop: "", ivaRate: "0", ivaExento: false };
 
 export default function MerchantProductsScreen() {
   const { t } = useTranslation();
@@ -82,6 +87,7 @@ export default function MerchantProductsScreen() {
     const price = parseInt(form.priceCop, 10);
     const cost = parseInt(form.costCop || "0", 10);
     if (isNaN(price) || price < 0) { Alert.alert(t("common.error"), t("merchant_admin.priceRequired")); return; }
+    const ivaRateVal = form.ivaExento ? "0" : (parseFloat(form.ivaRate || "0").toFixed(2));
     try {
       await createProduct.mutateAsync({
         data: {
@@ -90,6 +96,8 @@ export default function MerchantProductsScreen() {
           category: form.category.trim() || undefined,
           priceCop: price,
           costCop: isNaN(cost) ? 0 : cost,
+          ivaRate: ivaRateVal,
+          ivaExento: form.ivaExento,
         },
       });
       Alert.alert(t("common.success"), t("merchant_admin.productCreated"));
@@ -105,6 +113,7 @@ export default function MerchantProductsScreen() {
     if (!form.name.trim()) { Alert.alert(t("common.error"), t("merchant_admin.nameRequired")); return; }
     const price = parseInt(form.priceCop, 10);
     const cost = parseInt(form.costCop || "0", 10);
+    const ivaRateVal = form.ivaExento ? "0" : (parseFloat(form.ivaRate || "0").toFixed(2));
     try {
       await updateProduct.mutateAsync({
         productId: editingProduct.id,
@@ -113,6 +122,8 @@ export default function MerchantProductsScreen() {
           category: form.category.trim() || undefined,
           priceCop: isNaN(price) ? editingProduct.priceCop : price,
           costCop: isNaN(cost) ? 0 : cost,
+          ivaRate: ivaRateVal,
+          ivaExento: form.ivaExento,
         },
       });
       Alert.alert(t("common.success"), t("merchant_admin.productUpdated"));
@@ -153,6 +164,8 @@ export default function MerchantProductsScreen() {
       category: product.category ?? "",
       priceCop: String(product.priceCop),
       costCop: product.costCop ? String(product.costCop) : "",
+      ivaRate: product.ivaRate ?? "0",
+      ivaExento: product.ivaExento ?? false,
     });
     setShowAddForm(false);
   };
@@ -227,6 +240,26 @@ export default function MerchantProductsScreen() {
               onChangeText={(v) => setForm((f) => ({ ...f, costCop: v }))}
               keyboardType="numeric"
             />
+            <View style={[styles.ivaExentoRow, { backgroundColor: C.inputBg, borderRadius: 10 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.ivaLabel, { color: C.text }]}>{t("merchant_admin.ivaExento")}</Text>
+                <Text style={[styles.ivaHint, { color: C.textMuted }]}>{t("merchant_admin.ivaExentoHint")}</Text>
+              </View>
+              <Switch
+                value={form.ivaExento}
+                onValueChange={(v) => setForm((f) => ({ ...f, ivaExento: v, ivaRate: v ? "0" : f.ivaRate }))}
+                trackColor={{ false: C.border, true: C.primary }}
+              />
+            </View>
+            {!form.ivaExento && (
+              <Input
+                label={t("merchant_admin.ivaRate")}
+                placeholder="19"
+                value={form.ivaRate}
+                onChangeText={(v) => setForm((f) => ({ ...f, ivaRate: v }))}
+                keyboardType="decimal-pad"
+              />
+            )}
           </View>
           <View style={styles.formActions}>
             <Button
@@ -265,6 +298,15 @@ export default function MerchantProductsScreen() {
                       <Text style={[styles.badgeText, { color: C.textMuted }]}>{t("merchant_admin.inactive")}</Text>
                     </View>
                   )}
+                  {product.ivaExento ? (
+                    <View style={[styles.ivaBadge, { backgroundColor: "#f0fdf4" }]}>
+                      <Text style={[styles.ivaBadgeText, { color: "#16a34a" }]}>Exento</Text>
+                    </View>
+                  ) : parseFloat(product.ivaRate || "0") > 0 ? (
+                    <View style={[styles.ivaBadge, { backgroundColor: "#eff6ff" }]}>
+                      <Text style={[styles.ivaBadgeText, { color: "#2563eb" }]}>IVA {product.ivaRate}%</Text>
+                    </View>
+                  ) : null}
                 </View>
                 {product.category ? (
                   <Text style={[styles.productCategory, { color: C.textMuted }]}>{product.category}</Text>
@@ -316,4 +358,9 @@ const styles = StyleSheet.create({
   iconBtn: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 100 },
   badgeText: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  ivaExentoRow: { flexDirection: "row", alignItems: "center", padding: 12, gap: 12 },
+  ivaLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  ivaHint: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  ivaBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 3 },
+  ivaBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
 });

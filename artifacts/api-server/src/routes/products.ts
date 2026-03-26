@@ -13,6 +13,8 @@ const createProductSchema = z.object({
   category: z.string().optional(),
   priceCop: z.number().int().min(0),
   costCop: z.number().int().min(0).default(0),
+  ivaRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  ivaExento: z.boolean().optional(),
 });
 
 const updateProductSchema = z.object({
@@ -21,6 +23,8 @@ const updateProductSchema = z.object({
   priceCop: z.number().int().min(0).optional(),
   costCop: z.number().int().min(0).optional(),
   active: z.boolean().optional(),
+  ivaRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  ivaExento: z.boolean().optional(),
 });
 
 router.get("/products", requireAuth, async (req: Request, res: Response) => {

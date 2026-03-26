@@ -86,6 +86,9 @@ router.get(
     const txIds = txRows.map((r) => r.id);
     let cogsCop = 0;
     const cogsByTxId = new Map<string, number>();
+    const ivaByTxId = new Map<string, number>();
+    const retencionFuenteByTxId = new Map<string, number>();
+    const retencionICAByTxId = new Map<string, number>();
     if (txIds.length > 0) {
       const lineItemRows = await db
         .select()
@@ -94,6 +97,9 @@ router.get(
       for (const li of lineItemRows) {
         const txCogs = (cogsByTxId.get(li.transactionLogId) ?? 0) + li.unitCostSnapshot * li.quantity;
         cogsByTxId.set(li.transactionLogId, txCogs);
+        ivaByTxId.set(li.transactionLogId, (ivaByTxId.get(li.transactionLogId) ?? 0) + li.ivaAmountCop);
+        retencionFuenteByTxId.set(li.transactionLogId, (retencionFuenteByTxId.get(li.transactionLogId) ?? 0) + li.retencionFuenteAmountCop);
+        retencionICAByTxId.set(li.transactionLogId, (retencionICAByTxId.get(li.transactionLogId) ?? 0) + li.retencionICAAmountCop);
       }
       cogsCop = [...cogsByTxId.values()].reduce((s, c) => s + c, 0);
     }
@@ -105,6 +111,11 @@ router.get(
     const profitMarginPercent = grossSalesCop > 0
       ? Math.round((grossProfitCop / grossSalesCop) * 10000) / 100
       : 0;
+    const totalIvaCop = [...ivaByTxId.values()].reduce((s, v) => s + v, 0);
+    const totalRetencionFuenteCop = [...retencionFuenteByTxId.values()].reduce((s, v) => s + v, 0);
+    const totalRetencionICACop = [...retencionICAByTxId.values()].reduce((s, v) => s + v, 0);
+    const totalRetencionesCop = totalRetencionFuenteCop + totalRetencionICACop;
+    const totalNetoCop = grossSalesCop - commissionCop - totalRetencionesCop;
 
     const totals = {
       grossSalesCop,
@@ -114,6 +125,11 @@ router.get(
       commissionCop,
       netCop,
       transactionCount: txRows.length,
+      totalIvaCop,
+      totalRetencionFuenteCop,
+      totalRetencionICACop,
+      totalRetencionesCop,
+      totalNetoCop,
     };
 
     // Group by merchant
@@ -183,6 +199,11 @@ router.get(
       const groupCogs = rows.reduce((s, r) => s + (cogsByTxId.get(r.id) ?? 0), 0);
       const profit = gross - groupCogs;
       const margin = gross > 0 ? Math.round((profit / gross) * 10000) / 100 : 0;
+      const groupIva = rows.reduce((s, r) => s + (ivaByTxId.get(r.id) ?? 0), 0);
+      const groupRetencionFuente = rows.reduce((s, r) => s + (retencionFuenteByTxId.get(r.id) ?? 0), 0);
+      const groupRetencionICA = rows.reduce((s, r) => s + (retencionICAByTxId.get(r.id) ?? 0), 0);
+      const groupRetenciones = groupRetencionFuente + groupRetencionICA;
+      const groupNeto = gross - comm - groupRetenciones;
       return {
         grossSalesCop: gross,
         cogsCop: groupCogs,
@@ -191,6 +212,11 @@ router.get(
         commissionCop: comm,
         netCop: net,
         transactionCount: rows.length,
+        totalIvaCop: groupIva,
+        totalRetencionFuenteCop: groupRetencionFuente,
+        totalRetencionICACop: groupRetencionICA,
+        totalRetencionesCop: groupRetenciones,
+        totalNetoCop: groupNeto,
       };
     }
 
@@ -512,6 +538,121 @@ router.get(
     );
 
     res.json({ billing: billingRows });
+  },
+);
+
+router.get(
+  "/reports/fiscal-summary",
+  requireRole("admin", "merchant_admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId, merchantId, from, to } = req.query as Record<string, string | undefined>;
+    const user = req.user!;
+
+    const conditions: ReturnType<typeof eq>[] = [];
+
+    if (user.role === "merchant_admin") {
+      if (!user.merchantId) {
+        res.json({ byMerchant: [] });
+        return;
+      }
+      conditions.push(eq(transactionLogsTable.merchantId, user.merchantId));
+      if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
+    } else if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.json({ byMerchant: [] });
+        return;
+      }
+      conditions.push(eq(transactionLogsTable.eventId, user.eventId));
+      if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
+    } else {
+      if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
+      if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
+    }
+
+    if (from) conditions.push(gte(transactionLogsTable.createdAt, new Date(from)));
+    if (to) conditions.push(lte(transactionLogsTable.createdAt, new Date(to)));
+
+    const txRows = await db
+      .select()
+      .from(transactionLogsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    const txIds = txRows.map((r) => r.id);
+    const liByTxId = new Map<string, { iva: number; fuente: number; ica: number }>();
+
+    if (txIds.length > 0) {
+      const lineItems = await db
+        .select()
+        .from(transactionLineItemsTable)
+        .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map(id => sql`${id}`), sql`, `)}]::text[])`);
+      for (const li of lineItems) {
+        const cur = liByTxId.get(li.transactionLogId) ?? { iva: 0, fuente: 0, ica: 0 };
+        cur.iva += li.ivaAmountCop;
+        cur.fuente += li.retencionFuenteAmountCop;
+        cur.ica += li.retencionICAAmountCop;
+        liByTxId.set(li.transactionLogId, cur);
+      }
+    }
+
+    const byMerchantMap = new Map<string, {
+      merchantId: string;
+      merchantName: string;
+      rows: typeof txRows;
+    }>();
+
+    for (const tx of txRows) {
+      if (!byMerchantMap.has(tx.merchantId)) {
+        byMerchantMap.set(tx.merchantId, { merchantId: tx.merchantId, merchantName: "", rows: [] });
+      }
+      byMerchantMap.get(tx.merchantId)!.rows.push(tx);
+    }
+
+    const merchantIds = [...byMerchantMap.keys()];
+    if (merchantIds.length > 0) {
+      const merchants = await db.select().from(merchantsTable).where(
+        sql`${merchantsTable.id} = ANY(ARRAY[${sql.join(merchantIds.map(id => sql`${id}`), sql`, `)}]::text[])`,
+      );
+      for (const m of merchants) {
+        if (byMerchantMap.has(m.id)) byMerchantMap.get(m.id)!.merchantName = m.name;
+      }
+    }
+
+    const byMerchant = [...byMerchantMap.values()].map((mg) => {
+      const totalBrutoCop = mg.rows.reduce((s, r) => s + r.grossAmountCop, 0);
+      const totalComisionCop = mg.rows.reduce((s, r) => s + r.commissionAmountCop, 0);
+      const totalIvaCop = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.iva ?? 0), 0);
+      const totalRetencionFuenteCop = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.fuente ?? 0), 0);
+      const totalRetencionICACop = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.ica ?? 0), 0);
+      const totalRetencionesCop = totalRetencionFuenteCop + totalRetencionICACop;
+      const totalNetoCop = totalBrutoCop - totalComisionCop - totalRetencionesCop;
+      return {
+        merchantId: mg.merchantId,
+        merchantName: mg.merchantName,
+        transactionCount: mg.rows.length,
+        totalBrutoCop,
+        totalIvaCop,
+        totalRetencionFuenteCop,
+        totalRetencionICACop,
+        totalRetencionesCop,
+        totalComisionCop,
+        totalNetoCop,
+      };
+    });
+
+    const grandTotals = byMerchant.reduce(
+      (acc, m) => ({
+        totalBrutoCop: acc.totalBrutoCop + m.totalBrutoCop,
+        totalIvaCop: acc.totalIvaCop + m.totalIvaCop,
+        totalRetencionFuenteCop: acc.totalRetencionFuenteCop + m.totalRetencionFuenteCop,
+        totalRetencionICACop: acc.totalRetencionICACop + m.totalRetencionICACop,
+        totalRetencionesCop: acc.totalRetencionesCop + m.totalRetencionesCop,
+        totalComisionCop: acc.totalComisionCop + m.totalComisionCop,
+        totalNetoCop: acc.totalNetoCop + m.totalNetoCop,
+      }),
+      { totalBrutoCop: 0, totalIvaCop: 0, totalRetencionFuenteCop: 0, totalRetencionICACop: 0, totalRetencionesCop: 0, totalComisionCop: 0, totalNetoCop: 0 },
+    );
+
+    res.json({ totals: grandTotals, byMerchant });
   },
 );
 

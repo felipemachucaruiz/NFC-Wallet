@@ -129,7 +129,13 @@ async function processTransaction(
     priceCop: number;
     costCop: number;
     quantity: number;
+    ivaAmountCop: number;
+    retencionFuenteAmountCop: number;
+    retencionICAAmountCop: number;
   }[] = [];
+
+  const retencionFuenteRate = parseFloat(merchant.retencionFuenteRate ?? "0");
+  const retencionICARate = parseFloat(merchant.retencionICARate ?? "0");
 
   for (const item of input.lineItems) {
     const [product] = await db
@@ -139,14 +145,24 @@ async function processTransaction(
     if (!product) {
       return { status: "error", error: `Product ${item.productId} not found` };
     }
-    grossAmountCop += product.priceCop * item.quantity;
+    const lineGross = product.priceCop * item.quantity;
+    grossAmountCop += lineGross;
     cogsCop += product.costCop * item.quantity;
+
+    const ivaRate = product.ivaExento ? 0 : parseFloat(product.ivaRate ?? "0");
+    const ivaAmountCop = Math.round(lineGross * ivaRate / 100);
+    const retencionFuenteAmountCop = Math.round(lineGross * retencionFuenteRate / 100);
+    const retencionICAAmountCop = Math.round(lineGross * retencionICARate / 100);
+
     resolvedItems.push({
       productId: product.id,
       name: product.name,
       priceCop: product.priceCop,
       costCop: product.costCop,
       quantity: item.quantity,
+      ivaAmountCop,
+      retencionFuenteAmountCop,
+      retencionICAAmountCop,
     });
   }
 
@@ -185,6 +201,9 @@ async function processTransaction(
     unitPriceSnapshot: item.priceCop,
     unitCostSnapshot: item.costCop,
     quantity: item.quantity,
+    ivaAmountCop: item.ivaAmountCop,
+    retencionFuenteAmountCop: item.retencionFuenteAmountCop,
+    retencionICAAmountCop: item.retencionICAAmountCop,
   }));
   const insertedLineItems = await db
     .insert(transactionLineItemsTable)

@@ -360,7 +360,20 @@
     "typeEventManaged": "Gestionado por el evento",
     "typeExternal": "Comercio externo",
     "typeEventManagedHint": "El inventario llega desde bodega. El equipo de bodega gestiona los niveles de stock.",
-    "typeExternalHint": "El comercio gestiona su propio inventario y catálogo de productos de forma independiente."
+    "typeExternalHint": "El comercio gestiona su propio inventario y catálogo de productos de forma independiente.",
+    "ivaRate": "Tasa de IVA (%)",
+    "ivaExento": "Exento de IVA",
+    "ivaExentoHint": "Canasta básica u otros productos excluidos",
+    "fiscalBreakdown": "Resumen fiscal",
+    "totalIva": "Total IVA recaudado",
+    "retencionFuente": "Retención en la fuente",
+    "retencionICA": "Retención de ICA",
+    "totalRetenciones": "Total retenciones",
+    "totalNeto": "Neto para el comercio",
+    "retencionFuenteRate": "Retención en la fuente (%)",
+    "retencionICARate": "Tasa ICA (%)",
+    "fiscalSettings": "Configuración fiscal",
+    "fiscalSettingsHint": "Estas tasas se aplican a todas las ventas de este comercio"
   },
   "warehouse": {
     "title": "Almacén",

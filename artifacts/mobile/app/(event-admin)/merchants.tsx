@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useListMerchants, useCreateMerchant } from "@workspace/api-client-react";
+import { useListMerchants, useCreateMerchant, useUpdateMerchant } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -33,6 +33,8 @@ type Merchant = {
   commissionRatePercent: string;
   merchantType?: MerchantType;
   locationCount?: number;
+  retencionFuenteRate?: string;
+  retencionICARate?: string;
 };
 
 export default function EventAdminMerchantsScreen() {
@@ -48,10 +50,39 @@ export default function EventAdminMerchantsScreen() {
   const [commissionRate, setCommissionRate] = useState("15");
   const [merchantType, setMerchantType] = useState<MerchantType>("event_managed");
 
+  const [editingMerchant, setEditingMerchant] = useState<Merchant | null>(null);
+  const [fiscalFuente, setFiscalFuente] = useState("0");
+  const [fiscalICA, setFiscalICA] = useState("0");
+
   const { data, isLoading, refetch } = useListMerchants({});
   const merchants: Merchant[] = (data as { merchants?: Merchant[] } | undefined)?.merchants ?? [];
 
   const createMerchant = useCreateMerchant();
+  const updateMerchant = useUpdateMerchant();
+
+  const openFiscalEdit = (merchant: Merchant) => {
+    setEditingMerchant(merchant);
+    setFiscalFuente(merchant.retencionFuenteRate ?? "0");
+    setFiscalICA(merchant.retencionICARate ?? "0");
+  };
+
+  const handleSaveFiscal = async () => {
+    if (!editingMerchant) return;
+    try {
+      await updateMerchant.mutateAsync({
+        merchantId: editingMerchant.id,
+        data: {
+          retencionFuenteRate: parseFloat(fiscalFuente || "0").toFixed(2),
+          retencionICARate: parseFloat(fiscalICA || "0").toFixed(4),
+        },
+      });
+      Alert.alert(t("common.success"), t("merchant_admin.fiscalSettings") + " guardado");
+      setEditingMerchant(null);
+      refetch();
+    } catch {
+      Alert.alert(t("common.error"), t("common.unknownError"));
+    }
+  };
 
   const handleCreate = async () => {
     if (!merchantName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
@@ -113,15 +144,58 @@ export default function EventAdminMerchantsScreen() {
                   variant={item.merchantType === "external" ? "warning" : "success"}
                   size="sm"
                 />
+                {(parseFloat(item.retencionFuenteRate ?? "0") > 0 || parseFloat(item.retencionICARate ?? "0") > 0) && (
+                  <Text style={[styles.fiscalInfo, { color: C.textMuted }]}>
+                    Ret. Fuente: {item.retencionFuenteRate ?? "0"}% · ICA: {item.retencionICARate ?? "0"}%
+                  </Text>
+                )}
               </View>
-              <View style={{ alignItems: "flex-end" }}>
+              <View style={{ alignItems: "flex-end", gap: 6 }}>
                 <Text style={[styles.commRate, { color: C.primary }]}>{item.commissionRatePercent}%</Text>
                 <Text style={[styles.locCount, { color: C.textMuted }]}>{t("admin.locationCount", { count: item.locationCount ?? 0 })}</Text>
+                <Pressable
+                  onPress={() => openFiscalEdit(item)}
+                  style={[styles.fiscalBtn, { backgroundColor: C.inputBg }]}
+                >
+                  <Feather name="percent" size={12} color={C.textSecondary} />
+                  <Text style={[styles.fiscalBtnText, { color: C.textSecondary }]}>{t("merchant_admin.fiscalSettings")}</Text>
+                </Pressable>
               </View>
             </View>
           </Card>
         )}
       />
+
+      <Modal visible={!!editingMerchant} transparent animationType="slide">
+        <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
+          <ScrollView style={[styles.sheet, { backgroundColor: C.card }]} contentContainerStyle={{ gap: 16, padding: 24 }}>
+            <Text style={[styles.sheetTitle, { color: C.text }]}>{t("merchant_admin.fiscalSettings")}</Text>
+            {editingMerchant && (
+              <Text style={[styles.typeHint, { color: C.textMuted }]}>
+                {editingMerchant.name} · {t("merchant_admin.fiscalSettingsHint")}
+              </Text>
+            )}
+            <Input
+              label={t("merchant_admin.retencionFuenteRate")}
+              value={fiscalFuente}
+              onChangeText={setFiscalFuente}
+              keyboardType="decimal-pad"
+              placeholder="3.50"
+            />
+            <Input
+              label={t("merchant_admin.retencionICARate")}
+              value={fiscalICA}
+              onChangeText={setFiscalICA}
+              keyboardType="decimal-pad"
+              placeholder="0.9660"
+            />
+            <View style={styles.sheetActions}>
+              <Button title={t("common.cancel")} onPress={() => setEditingMerchant(null)} variant="secondary" />
+              <Button title={t("common.save")} onPress={handleSaveFiscal} variant="primary" loading={updateMerchant.isPending} />
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
 
       <Modal visible={showCreate} transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
@@ -205,4 +279,7 @@ const styles = StyleSheet.create({
   typeOption: { padding: 12, borderRadius: 10, borderWidth: 1.5, alignItems: "center", gap: 6 },
   typeOptionText: { fontSize: 12, fontFamily: "Inter_500Medium", textAlign: "center" },
   typeHint: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  fiscalInfo: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  fiscalBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  fiscalBtnText: { fontSize: 11, fontFamily: "Inter_500Medium" },
 });

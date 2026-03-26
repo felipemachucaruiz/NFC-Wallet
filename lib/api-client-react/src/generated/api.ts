@@ -35,6 +35,8 @@ import type {
   ErrorEnvelope,
   Event,
   ForbiddenResponse,
+  GetFiscalSummary200,
+  GetFiscalSummaryParams,
   GetInventoryReportParams,
   GetLocationInventory200,
   GetMerchantEarningsParams,
@@ -6501,6 +6503,105 @@ export function useGetRefundsReport<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetRefundsReportQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Fiscal summary with IVA and retenciones breakdown (admin, merchant_admin, event_admin)
+ */
+export const getGetFiscalSummaryUrl = (params?: GetFiscalSummaryParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/fiscal-summary?${stringifiedParams}`
+    : `/api/reports/fiscal-summary`;
+};
+
+export const getFiscalSummary = async (
+  params?: GetFiscalSummaryParams,
+  options?: RequestInit,
+): Promise<GetFiscalSummary200> => {
+  return customFetch<GetFiscalSummary200>(getGetFiscalSummaryUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetFiscalSummaryQueryKey = (
+  params?: GetFiscalSummaryParams,
+) => {
+  return [`/api/reports/fiscal-summary`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetFiscalSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFiscalSummary>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetFiscalSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getFiscalSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetFiscalSummaryQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFiscalSummary>>
+  > = ({ signal }) => getFiscalSummary(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFiscalSummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetFiscalSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFiscalSummary>>
+>;
+export type GetFiscalSummaryQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Fiscal summary with IVA and retenciones breakdown (admin, merchant_admin, event_admin)
+ */
+
+export function useGetFiscalSummary<
+  TData = Awaited<ReturnType<typeof getFiscalSummary>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetFiscalSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getFiscalSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetFiscalSummaryQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
