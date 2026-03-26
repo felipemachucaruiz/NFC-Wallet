@@ -18,8 +18,8 @@ router.get(
 
     const user = req.user!;
 
-    // admin/bank roles are not event-scoped; they use the global HMAC_SECRET
-    if (user.role === "admin" || user.role === "bank") {
+    // admin role (no event scope) uses the global HMAC_SECRET
+    if (user.role === "admin") {
       const hmacSecret = process.env.HMAC_SECRET;
       if (!hmacSecret) {
         res.status(500).json({ error: "HMAC_SECRET not configured" });
