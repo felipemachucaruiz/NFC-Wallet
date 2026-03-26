@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { Badge } from "@/components/ui/Badge";
+import { useEventContext } from "@/contexts/EventContext";
 
 type Mode = "dispatch" | "transfer";
 
@@ -42,6 +43,7 @@ export default function DispatchScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { inventoryMode } = useEventContext();
 
   const [mode, setMode] = useState<Mode>("dispatch");
 
@@ -60,10 +62,12 @@ export default function DispatchScreen() {
   const [transferQty, setTransferQty] = useState("");
   const [transferNote, setTransferNote] = useState("");
 
-  const { data: warehousesData } = useListWarehouses();
+  const isCentralized = inventoryMode === "centralized_warehouse";
+
+  const { data: warehousesData } = useListWarehouses(undefined, { query: { enabled: isCentralized, queryKey: ["warehouses-dispatch", isCentralized] } });
   const warehouses = (warehousesData as { warehouses?: Array<{ id: string; name: string }> } | undefined)?.warehouses ?? [];
 
-  const { data: locationsData } = useListLocations();
+  const { data: locationsData } = useListLocations({}, { query: { enabled: isCentralized } });
   const { data: merchantsData } = useListMerchants({});
   const eventManagedMerchantIds = new Set(
     ((merchantsData as { merchants?: Array<{ id: string; merchantType?: string }> } | undefined)?.merchants ?? [])
@@ -187,6 +191,29 @@ export default function DispatchScreen() {
   };
 
   const orderTotal = orderLines.reduce((s, l) => s + l.quantity, 0);
+
+  if (inventoryMode === "location_based") {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: C.background,
+          paddingTop: isWeb ? 67 : insets.top + 32,
+          paddingBottom: isWeb ? 34 : insets.bottom + 100,
+          paddingHorizontal: 28,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+        }}
+      >
+        <View style={[styles.infoIconBox, { backgroundColor: C.warningLight }]}>
+          <Feather name="info" size={32} color={C.warning} />
+        </View>
+        <Text style={[styles.infoTitle, { color: C.text }]}>{t("eventAdmin.locationBasedModeActive")}</Text>
+        <Text style={[styles.infoDesc, { color: C.textSecondary }]}>{t("eventAdmin.locationBasedModeInfo")}</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -445,6 +472,9 @@ function ChipPicker({
 }
 
 const styles = StyleSheet.create({
+  infoIconBox: { width: 72, height: 72, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  infoTitle: { fontSize: 20, fontFamily: "Inter_700Bold", textAlign: "center" },
+  infoDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 21 },
   title: { fontSize: 26, fontFamily: "Inter_700Bold" },
   modeToggle: { flexDirection: "row", borderRadius: 12, padding: 4 },
   modeBtn: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 10 },

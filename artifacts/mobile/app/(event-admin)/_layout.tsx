@@ -8,6 +8,7 @@ import { Platform, Pressable, StyleSheet, View, useColorScheme } from "react-nat
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
+import { EventProvider } from "@/contexts/EventContext";
 
 function NativeTabLayout() {
   const { t } = useTranslation();
@@ -32,6 +33,10 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="reports">
         <Icon sf={{ default: "doc.chart", selected: "doc.chart.fill" }} />
         <Label>{t("eventAdmin.reports")}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="event-settings">
+        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
+        <Label>{t("eventAdmin.inventorySettings")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
@@ -84,6 +89,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="users" options={{ title: t("eventAdmin.users"), tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} /> }} />
       <Tabs.Screen name="inventory" options={{ title: t("inventory.tab"), tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />
       <Tabs.Screen name="reports" options={{ title: t("eventAdmin.reports"), tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} /> }} />
+      <Tabs.Screen name="event-settings" options={{ title: t("eventAdmin.inventorySettings"), tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
@@ -91,6 +97,6 @@ function ClassicTabLayout() {
 
 export default function EventAdminLayout() {
   useRoleGuard("event_admin");
-  if (isLiquidGlassAvailable()) return <NativeTabLayout />;
-  return <ClassicTabLayout />;
+  const layout = isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />;
+  return <EventProvider>{layout}</EventProvider>;
 }

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Empty } from "@/components/ui/Empty";
 import { Loading } from "@/components/ui/Loading";
 import { formatDate } from "@/utils/format";
+import { useEventContext } from "@/contexts/EventContext";
 
 export default function RestockOrdersScreen() {
   const { t } = useTranslation();
@@ -26,8 +27,11 @@ export default function RestockOrdersScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { inventoryMode } = useEventContext();
 
-  const { data, isLoading, refetch } = useListRestockOrders({ status: "pending" });
+  const isCentralized = inventoryMode === "centralized_warehouse";
+
+  const { data, isLoading, refetch } = useListRestockOrders({ status: "pending" }, { query: { enabled: isCentralized } });
   const orders = (data as {
     orders?: Array<{
       id: string;
@@ -65,6 +69,29 @@ export default function RestockOrdersScreen() {
   };
 
   if (isLoading) return <Loading label={t("common.loading")} />;
+
+  if (inventoryMode === "location_based") {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: C.background,
+          paddingTop: isWeb ? 67 : insets.top + 32,
+          paddingBottom: isWeb ? 34 : insets.bottom + 100,
+          paddingHorizontal: 28,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+        }}
+      >
+        <View style={[styles.infoIconBox, { backgroundColor: C.warningLight }]}>
+          <Feather name="info" size={32} color={C.warning} />
+        </View>
+        <Text style={[styles.infoTitle, { color: C.text }]}>{t("eventAdmin.locationBasedModeActive")}</Text>
+        <Text style={[styles.infoDesc, { color: C.textSecondary }]}>{t("eventAdmin.locationBasedModeInfo")}</Text>
+      </View>
+    );
+  }
 
   return (
     <FlatList
@@ -125,6 +152,9 @@ export default function RestockOrdersScreen() {
 }
 
 const styles = StyleSheet.create({
+  infoIconBox: { width: 72, height: 72, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  infoTitle: { fontSize: 20, fontFamily: "Inter_700Bold", textAlign: "center" },
+  infoDesc: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 21 },
   title: { fontSize: 26, fontFamily: "Inter_700Bold", marginBottom: 4 },
   orderCard: { borderWidth: 1, borderRadius: 14, padding: 16, gap: 12 },
   orderHeader: { flexDirection: "row", alignItems: "center", gap: 10 },

@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export type InventoryMode = "location_based" | "centralized_warehouse";
+
 export interface Event {
   id: string;
   name: string;
@@ -18,5 +20,6 @@ export interface Event {
   /** @nullable */
   endsAt?: Date | null;
   active: boolean;
+  inventoryMode?: InventoryMode;
   createdAt: Date;
 }

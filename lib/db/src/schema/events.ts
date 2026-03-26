@@ -1,5 +1,7 @@
-import { pgTable, varchar, text, timestamp, boolean, integer, numeric } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, varchar, text, timestamp, boolean, integer, numeric } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+export const inventoryModeEnum = pgEnum("inventory_mode", ["location_based", "centralized_warehouse"]);
 
 export const eventsTable = pgTable("events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -13,6 +15,7 @@ export const eventsTable = pgTable("events", {
   capacity: integer("capacity"),
   promoterCompanyId: varchar("promoter_company_id"),
   pulepId: varchar("pulep_id", { length: 100 }),
+  inventoryMode: inventoryModeEnum("inventory_mode").notNull().default("location_based"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

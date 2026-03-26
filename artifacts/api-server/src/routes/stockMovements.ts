@@ -1,9 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, stockMovementsTable, warehouseInventoryTable, locationInventoryTable, restockOrdersTable, locationsTable } from "@workspace/db";
+import { db, stockMovementsTable, warehouseInventoryTable, locationInventoryTable, restockOrdersTable, locationsTable, warehousesTable } from "@workspace/db";
 import { eq, and, gte, lte, or, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess } from "../lib/ownershipGuards";
 import { z } from "zod";
+import { getEventInventoryMode } from "./events";
 
 const router: IRouter = Router();
 
@@ -105,6 +106,20 @@ router.post(
       return;
     }
     const { warehouseId, locationId, productId, quantity, restockOrderId, notes } = parsed.data;
+
+    const [warehouse] = await db
+      .select({ eventId: warehousesTable.eventId })
+      .from(warehousesTable)
+      .where(eq(warehousesTable.id, warehouseId));
+    if (!warehouse) {
+      res.status(404).json({ error: "Warehouse not found" });
+      return;
+    }
+    const inventoryMode = await getEventInventoryMode(warehouse.eventId);
+    if (inventoryMode === "location_based") {
+      res.status(409).json({ error: "Warehouse dispatch is not available in location-based inventory mode. Switch the event to Centralized Warehouse mode to use this feature." });
+      return;
+    }
 
     const movement = await db.transaction(async (tx) => {
       const [whInv] = await tx

@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { Empty } from "@/components/ui/Empty";
+import { useInventoryMode } from "@/hooks/useInventoryMode";
 
 type Location = { id: string; name: string; merchantId: string; active: boolean };
 
@@ -241,6 +242,7 @@ export default function MerchantStockScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { user } = useAuth();
+  const { inventoryMode } = useInventoryMode();
 
   const merchantId = user?.merchantId ?? "";
 
@@ -268,6 +270,16 @@ export default function MerchantStockScreen() {
     >
       <Text style={[styles.title, { color: C.text }]}>{t("merchant_admin.stockTitle")}</Text>
       <Text style={[styles.subtitle, { color: C.textSecondary }]}>{t("merchant_admin.stockSubtitle")}</Text>
+
+      {inventoryMode === "location_based" && (
+        <View style={[styles.selfManagedBanner, { backgroundColor: C.primaryLight, borderColor: C.primary + "44" }]}>
+          <Feather name="check-circle" size={16} color={C.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.selfManagedTitle, { color: C.primary }]}>{t("eventAdmin.selfManagedStock")}</Text>
+            <Text style={[styles.selfManagedDesc, { color: C.textSecondary }]}>{t("eventAdmin.selfManagedStockDesc")}</Text>
+          </View>
+        </View>
+      )}
 
       {isLoading ? (
         <Loading />
@@ -344,4 +356,7 @@ const styles = StyleSheet.create({
   modalCard: { borderRadius: 20, padding: 24, width: "100%", maxWidth: 400 },
   modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 4 },
   modalSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 16 },
+  selfManagedBanner: { flexDirection: "row", alignItems: "flex-start", gap: 10, borderWidth: 1, borderRadius: 12, padding: 12 },
+  selfManagedTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  selfManagedDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2, lineHeight: 17 },
 });

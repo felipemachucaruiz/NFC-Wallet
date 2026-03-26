@@ -1,8 +1,21 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, restockOrdersTable, locationsTable } from "@workspace/db";
+import { db, restockOrdersTable, locationsTable, merchantsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
+import { getEventInventoryMode } from "./events";
+
+async function resolveEventId(user: { eventId?: string | null; merchantId?: string | null; role: string }): Promise<string | null> {
+  if (user.eventId) return user.eventId;
+  if (user.merchantId) {
+    const [merchant] = await db
+      .select({ eventId: merchantsTable.eventId })
+      .from(merchantsTable)
+      .where(eq(merchantsTable.id, user.merchantId));
+    return merchant?.eventId ?? null;
+  }
+  return null;
+}
 
 const router: IRouter = Router();
 
@@ -12,6 +25,18 @@ router.get(
   async (req: Request, res: Response) => {
     const { status, locationId } = req.query as { status?: string; locationId?: string };
     const user = req.user!;
+
+    if (user.role !== "admin") {
+      const eventId = await resolveEventId(user);
+      if (eventId) {
+        const inventoryMode = await getEventInventoryMode(eventId);
+        if (inventoryMode === "location_based") {
+          res.status(409).json({ error: "Restock orders are not available in location-based inventory mode" });
+          return;
+        }
+      }
+    }
+
     const conditions = [];
 
     if (status) conditions.push(eq(restockOrdersTable.status, status as "pending" | "approved" | "dispatched" | "rejected"));
@@ -72,6 +97,24 @@ router.patch(
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
+    }
+
+    const [existingOrder] = await db
+      .select({ locationId: restockOrdersTable.locationId })
+      .from(restockOrdersTable)
+      .where(eq(restockOrdersTable.id, req.params.orderId as string));
+    if (existingOrder) {
+      const [location] = await db
+        .select({ eventId: locationsTable.eventId })
+        .from(locationsTable)
+        .where(eq(locationsTable.id, existingOrder.locationId));
+      if (location) {
+        const inventoryMode = await getEventInventoryMode(location.eventId);
+        if (inventoryMode === "location_based") {
+          res.status(409).json({ error: "Restock order approval is not available in location-based inventory mode. Switch the event to Centralized Warehouse mode to use this feature." });
+          return;
+        }
+      }
     }
 
     const { status, notes } = parsed.data;

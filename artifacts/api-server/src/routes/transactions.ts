@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthUser } from "@workspace/api-zod";
 import { z } from "zod";
+import { getEventInventoryMode } from "./events";
 
 const router: IRouter = Router();
 
@@ -216,8 +217,8 @@ async function processTransaction(
         transactionLogId: txLog.id,
       });
 
-      // Auto-create restock order if below threshold
-      if (newQty <= locInv.restockTrigger) {
+      const eventInventoryMode = await getEventInventoryMode(merchant.eventId);
+      if (eventInventoryMode === "centralized_warehouse" && newQty <= locInv.restockTrigger) {
         const pendingOrders = await db
           .select()
           .from(restockOrdersTable)

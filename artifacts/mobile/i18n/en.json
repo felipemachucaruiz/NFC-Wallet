@@ -435,7 +435,21 @@
     "company": "Company",
     "startsAt": "Starts",
     "endsAt": "Ends",
-    "venue": "Venue"
+    "venue": "Venue",
+    "inventorySettings": "Inventory Settings",
+    "inventoryMode": "Inventory Mode",
+    "inventoryModeLabel": "How stock is managed for this event",
+    "locationBased": "Location-Based Inventory",
+    "locationBasedDesc": "Each location manages its own stock independently. No warehouse approval needed.",
+    "centralizedWarehouse": "Central Warehouse",
+    "centralizedWarehouseDesc": "A central warehouse controls all stock. Locations must request restocks through the warehouse.",
+    "inventoryModeWarning": "Changing the inventory mode mid-event will affect active stock flows. Warehouse dispatch and restock orders will be enabled or disabled accordingly.",
+    "inventoryModeChanged": "Inventory mode updated",
+    "inventoryModeChangeFailed": "Failed to update inventory mode",
+    "selfManagedStock": "Self-Managed Stock",
+    "selfManagedStockDesc": "This event uses location-based inventory. Manage your stock directly without warehouse requests.",
+    "locationBasedModeActive": "Location-Based Mode Active",
+    "locationBasedModeInfo": "This event is configured for location-based inventory. Warehouse dispatch and restock orders are not available."
   },
   "inventory": {
     "tab": "Inventory",

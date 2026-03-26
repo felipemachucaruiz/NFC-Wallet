@@ -101,6 +101,8 @@ export interface UpdateUserRoleBody {
   role: UserRole;
 }
 
+export type InventoryMode = "location_based" | "centralized_warehouse";
+
 export interface Event {
   id: string;
   name: string;
@@ -113,6 +115,7 @@ export interface Event {
   /** @nullable */
   endsAt?: string | null;
   active: boolean;
+  inventoryMode?: InventoryMode;
   createdAt: string;
 }
 
@@ -133,6 +136,7 @@ export interface UpdateEventBody {
   startsAt?: string;
   endsAt?: string;
   active?: boolean;
+  inventoryMode?: InventoryMode;
 }
 
 export interface Bracelet {

@@ -435,7 +435,21 @@
     "company": "Empresa",
     "startsAt": "Inicio",
     "endsAt": "Fin",
-    "venue": "Sede"
+    "venue": "Sede",
+    "inventorySettings": "Configuración de Inventario",
+    "inventoryMode": "Modo de Inventario",
+    "inventoryModeLabel": "Cómo se gestiona el stock en este evento",
+    "locationBased": "Inventario por Ubicación",
+    "locationBasedDesc": "Cada ubicación gestiona su propio stock de forma independiente. No se necesita aprobación del almacén.",
+    "centralizedWarehouse": "Almacén Central",
+    "centralizedWarehouseDesc": "Un almacén central controla todo el stock. Las ubicaciones deben solicitar reabastecimiento al almacén.",
+    "inventoryModeWarning": "Cambiar el modo de inventario en medio del evento afectará los flujos de stock activos. El despacho desde almacén y las órdenes de reabastecimiento se habilitarán o deshabilitarán según corresponda.",
+    "inventoryModeChanged": "Modo de inventario actualizado",
+    "inventoryModeChangeFailed": "Error al actualizar el modo de inventario",
+    "selfManagedStock": "Stock Autogestionado",
+    "selfManagedStockDesc": "Este evento usa inventario por ubicación. Gestiona tu stock directamente sin solicitudes al almacén.",
+    "locationBasedModeActive": "Modo por Ubicación Activo",
+    "locationBasedModeInfo": "Este evento está configurado con inventario por ubicación. El despacho desde almacén y las órdenes de reabastecimiento no están disponibles."
   },
   "inventory": {
     "tab": "Inventario",

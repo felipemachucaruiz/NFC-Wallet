@@ -5,6 +5,14 @@ import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
+export async function getEventInventoryMode(eventId: string): Promise<"location_based" | "centralized_warehouse"> {
+  const [event] = await db
+    .select({ inventoryMode: eventsTable.inventoryMode })
+    .from(eventsTable)
+    .where(eq(eventsTable.id, eventId));
+  return event?.inventoryMode ?? "location_based";
+}
+
 const router: IRouter = Router();
 
 const createEventSchema = z.object({
@@ -36,6 +44,7 @@ const updateEventSchema = z.object({
   capacity: z.number().int().positive().nullable().optional(),
   promoterCompanyId: z.string().nullable().optional(),
   pulepId: z.string().nullable().optional(),
+  inventoryMode: z.enum(["location_based", "centralized_warehouse"]).optional(),
 });
 
 router.get("/events", requireAuth, async (req: Request, res: Response) => {
@@ -77,6 +86,7 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
       promoterCompanyId: eventsTable.promoterCompanyId,
       promoterCompanyName: promoterCompaniesTable.companyName,
       pulepId: eventsTable.pulepId,
+      inventoryMode: eventsTable.inventoryMode,
       createdAt: eventsTable.createdAt,
       updatedAt: eventsTable.updatedAt,
     })
@@ -166,7 +176,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode } = parsed.data;
 
   const updateData: Record<string, unknown> = {
     ...(name !== undefined && { name }),
@@ -178,6 +188,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(capacity !== undefined && { capacity }),
     ...(promoterCompanyId !== undefined && { promoterCompanyId }),
     ...(pulepId !== undefined && { pulepId }),
+    ...(inventoryMode !== undefined && { inventoryMode }),
     updatedAt: new Date(),
   };
 
