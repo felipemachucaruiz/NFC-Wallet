@@ -45,12 +45,19 @@ router.post(
       .where(eq(braceletsTable.nfcUid, nfcUid));
 
     // Auto-register new bracelets on first top-up
+    const bankEventId = (req.user as { eventId?: string | null }).eventId ?? null;
     if (!bracelet) {
       const [created] = await db
         .insert(braceletsTable)
-        .values({ nfcUid, lastKnownBalanceCop: 0, lastCounter: 0 })
+        .values({ nfcUid, lastKnownBalanceCop: 0, lastCounter: 0, eventId: bankEventId })
         .returning();
       bracelet = created;
+    } else if (!bracelet.eventId && bankEventId) {
+      // Backfill missing event_id on existing bracelets
+      await db
+        .update(braceletsTable)
+        .set({ eventId: bankEventId })
+        .where(eq(braceletsTable.nfcUid, nfcUid));
     }
 
     const newBalance = bracelet.lastKnownBalanceCop + amountCop;
@@ -129,12 +136,18 @@ router.post(
       .where(eq(braceletsTable.nfcUid, nfcUid));
 
     // Auto-register new bracelets
+    const syncBankEventId = (req.user as { eventId?: string | null }).eventId ?? null;
     if (!bracelet) {
       const [created] = await db
         .insert(braceletsTable)
-        .values({ nfcUid, lastKnownBalanceCop: 0, lastCounter: 0 })
+        .values({ nfcUid, lastKnownBalanceCop: 0, lastCounter: 0, eventId: syncBankEventId })
         .returning();
       bracelet = created;
+    } else if (!bracelet.eventId && syncBankEventId) {
+      await db
+        .update(braceletsTable)
+        .set({ eventId: syncBankEventId })
+        .where(eq(braceletsTable.nfcUid, nfcUid));
     }
 
     // Counter must be strictly increasing
