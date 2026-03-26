@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import {
   useListMerchants,
   useCreateMerchant,
+  useUpdateMerchant,
   useListEvents,
   useListLocations,
   useCreateLocation,
@@ -39,8 +40,9 @@ type Merchant = {
   id: string;
   name: string;
   contactEmail: string | null;
-  commissionRatePercent: number;
+  commissionRatePercent: string;
   merchantType?: "event_managed" | "external";
+  active?: boolean;
   locationCount?: number;
 };
 
@@ -233,6 +235,7 @@ export default function MerchantsScreen() {
           merchant={selectedMerchant}
           onClose={() => setSelectedMerchant(null)}
           onSelectLocation={(loc) => setSelectedLocation(loc)}
+          onMerchantUpdated={(updated) => { setSelectedMerchant(updated); refetch(); }}
           C={C}
         />
       )}
@@ -252,17 +255,46 @@ function MerchantDetailModal({
   merchant,
   onClose,
   onSelectLocation,
+  onMerchantUpdated,
   C,
 }: {
   merchant: Merchant;
   onClose: () => void;
   onSelectLocation: (loc: Location) => void;
+  onMerchantUpdated: (updated: Merchant) => void;
   C: typeof Colors.light;
 }) {
   const { t } = useTranslation();
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [newLocationName, setNewLocationName] = useState("");
   const [newEventId, setNewEventId] = useState("");
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(merchant.name);
+  const [editCommission, setEditCommission] = useState(String(merchant.commissionRatePercent));
+  const [editType, setEditType] = useState<"event_managed" | "external">(merchant.merchantType ?? "event_managed");
+  const [editActive, setEditActive] = useState(merchant.active !== false);
+
+  const updateMerchant = useUpdateMerchant();
+
+  const handleSaveEdit = async () => {
+    if (!editName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
+    try {
+      const updated = await updateMerchant.mutateAsync({
+        merchantId: merchant.id,
+        data: {
+          name: editName.trim(),
+          commissionRatePercent: String(parseFloat(editCommission) || 0),
+          merchantType: editType,
+          active: editActive,
+        },
+      });
+      setIsEditing(false);
+      onMerchantUpdated({ ...merchant, ...updated });
+    } catch {
+      Alert.alert(t("common.error"), t("common.unknownError"));
+    }
+  };
 
   const { data: locData, isLoading, refetch } = useListLocations({ merchantId: merchant.id });
   const locations = (locData as { locations?: Location[] } | undefined)?.locations ?? [];
@@ -324,13 +356,110 @@ function MerchantDetailModal({
               <Feather name="arrow-left" size={20} color={C.text} />
             </Pressable>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.sheetTitle, { color: C.text }]}>{merchant.name}</Text>
-              {merchant.contactEmail ? (
-                <Text style={[styles.merchantEmail, { color: C.textSecondary }]}>{merchant.contactEmail}</Text>
-              ) : null}
+              <Text style={[styles.sheetTitle, { color: C.text }]} numberOfLines={1}>
+                {isEditing ? editName : merchant.name}
+              </Text>
             </View>
-            <Badge label={`${merchant.commissionRatePercent}%`} variant="info" size="sm" />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Badge label={`${merchant.commissionRatePercent}%`} variant="info" size="sm" />
+              <Pressable
+                onPress={() => {
+                  if (isEditing) {
+                    setIsEditing(false);
+                    setEditName(merchant.name);
+                    setEditCommission(String(merchant.commissionRatePercent));
+                    setEditType(merchant.merchantType ?? "event_managed");
+                    setEditActive(merchant.active !== false);
+                  } else {
+                    setIsEditing(true);
+                  }
+                }}
+                style={[styles.backBtn, { backgroundColor: isEditing ? C.inputBg : C.primaryLight }]}
+              >
+                <Feather name={isEditing ? "x" : "edit-2"} size={16} color={isEditing ? C.textSecondary : C.primary} />
+              </Pressable>
+            </View>
           </View>
+
+          {isEditing && (
+            <View style={[styles.addForm, { backgroundColor: C.inputBg, borderColor: C.border, gap: 12 }]}>
+              <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.editMerchant")}</Text>
+              <Input
+                label={t("admin.merchantName")}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder={t("admin.merchantNamePlaceholder")}
+              />
+              <Input
+                label={t("admin.commissionRate")}
+                value={editCommission}
+                onChangeText={setEditCommission}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <View style={{ gap: 6 }}>
+                <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("merchant_admin.typeLabel")}</Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {(["event_managed", "external"] as const).map((type) => (
+                    <Pressable
+                      key={type}
+                      onPress={() => setEditType(type)}
+                      style={[
+                        styles.typeOption,
+                        {
+                          borderColor: editType === type ? C.primary : C.border,
+                          backgroundColor: editType === type ? C.primaryLight : C.card,
+                          flex: 1,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.typeOptionText, { color: editType === type ? C.primary : C.textSecondary }]}>
+                        {type === "event_managed" ? t("merchant_admin.typeEventManaged") : t("merchant_admin.typeExternal")}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <Pressable
+                  onPress={() => setEditActive(!editActive)}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
+                  <View style={[
+                    styles.backBtn,
+                    { backgroundColor: editActive ? C.primaryLight : C.inputBg, borderRadius: 8 },
+                  ]}>
+                    <Feather name={editActive ? "check" : "x"} size={16} color={editActive ? C.primary : C.textMuted} />
+                  </View>
+                  <Text style={[{ fontFamily: "Inter_500Medium", fontSize: 14 }, { color: C.text }]}>
+                    {editActive ? t("common.active") : t("common.inactive")}
+                  </Text>
+                </Pressable>
+              </View>
+              <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: C.textMuted }}>
+                {t("admin.commissionChangeNote")}
+              </Text>
+              <View style={styles.sheetActions}>
+                <Button
+                  title={t("common.cancel")}
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => {
+                    setIsEditing(false);
+                    setEditName(merchant.name);
+                    setEditCommission(String(merchant.commissionRatePercent));
+                  }}
+                />
+                <Button
+                  title={t("common.save")}
+                  variant="primary"
+                  size="sm"
+                  loading={updateMerchant.isPending}
+                  onPress={handleSaveEdit}
+                />
+              </View>
+            </View>
+          )}
 
           <View style={styles.sectionRow}>
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("admin.locations")}</Text>

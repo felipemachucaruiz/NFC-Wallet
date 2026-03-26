@@ -444,6 +444,7 @@
     "editEvent": "Edit Event",
     "editMerchant": "Edit merchant",
     "commissionRate": "Commission rate (%)",
+    "commissionChangeNote": "Note: changing the commission rate only affects future transactions. Past sales remain at the rate they were charged.",
     "eventName": "Event name",
     "merchantName": "Merchant name",
     "locationName": "Location name",

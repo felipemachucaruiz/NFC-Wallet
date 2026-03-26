@@ -444,6 +444,7 @@
     "editEvent": "Editar Evento",
     "editMerchant": "Editar merchant",
     "commissionRate": "Tasa de comisión (%)",
+    "commissionChangeNote": "Nota: cambiar la tasa de comisión solo afecta transacciones futuras. Las ventas pasadas conservan la tasa con la que fueron cobradas.",
     "eventName": "Nombre del evento",
     "merchantName": "Nombre del merchant",
     "locationName": "Nombre de la ubicación",

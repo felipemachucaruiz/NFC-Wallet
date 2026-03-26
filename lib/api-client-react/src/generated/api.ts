@@ -3418,12 +3418,18 @@ export const getDeleteProductMutationOptions = <
 >(options?: {
   mutation?: UseMutationOptions<void, TError, { productId: string }, TContext>;
   request?: SecondParameter<typeof customFetch>;
-}) => {
+}): UseMutationOptions<void, TError, { productId: string }, TContext> => {
   const mutationKey = ["deleteProduct"];
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
   const mutationFn: MutationFunction<void, { productId: string }> = ({ productId }) =>
     deleteProduct(productId, requestOptions);
-  return { mutationKey, mutationFn, ...mutationOptions };
+  return { mutationFn, ...mutationOptions };
 };
 
 export const useDeleteProduct = <
