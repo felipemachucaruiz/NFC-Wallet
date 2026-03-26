@@ -1360,6 +1360,17 @@ export const TransferBetweenLocationsBody = zod.object({
 });
 
 /**
+ * @summary Create a restock order (event_admin, merchant_admin, or admin)
+ */
+
+export const CreateRestockOrderBody = zod.object({
+  locationId: zod.string(),
+  productId: zod.string(),
+  requestedQty: zod.number().min(1),
+  notes: zod.string().nullish(),
+});
+
+/**
  * @summary List restock orders (warehouse_admin, merchant_admin, or admin)
  */
 export const ListRestockOrdersQueryParams = zod.object({
@@ -1883,4 +1894,158 @@ export const GetSnapshotResponse = zod.object({
       }),
     )
     .optional(),
+});
+
+/**
+ * @summary Analytics summary cards (total top-ups, total sales, pending balance, counts)
+ */
+export const GetAnalyticsSummaryQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const GetAnalyticsSummaryResponse = zod.object({
+  totalTopUpsCop: zod.number(),
+  totalSalesCop: zod.number(),
+  pendingBalanceCop: zod.number(),
+  transactionCount: zod.number(),
+  topUpCount: zod.number(),
+});
+
+/**
+ * @summary Sales totals grouped by hour of day (bar chart data)
+ */
+export const GetAnalyticsSalesByHourQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const getAnalyticsSalesByHourResponseSalesByHourItemHourMin = 0;
+export const getAnalyticsSalesByHourResponseSalesByHourItemHourMax = 23;
+
+export const GetAnalyticsSalesByHourResponse = zod.object({
+  salesByHour: zod.array(
+    zod.object({
+      hour: zod
+        .number()
+        .min(getAnalyticsSalesByHourResponseSalesByHourItemHourMin)
+        .max(getAnalyticsSalesByHourResponseSalesByHourItemHourMax),
+      day: zod.string(),
+      totalCop: zod.number(),
+      txCount: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Top products by units sold and revenue
+ */
+export const getAnalyticsTopProductsQueryLimitDefault = 10;
+
+export const GetAnalyticsTopProductsQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  limit: zod.coerce.number().default(getAnalyticsTopProductsQueryLimitDefault),
+});
+
+export const GetAnalyticsTopProductsResponse = zod.object({
+  topProducts: zod.array(
+    zod.object({
+      productId: zod.string().nullable(),
+      productName: zod.string(),
+      totalUnits: zod.number(),
+      totalRevenueCop: zod.number(),
+      totalCogsCop: zod.number(),
+      grossProfitCop: zod.number(),
+      profitMarginPercent: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Top merchants by sales volume and profitability
+ */
+export const getAnalyticsTopMerchantsQueryLimitDefault = 10;
+
+export const GetAnalyticsTopMerchantsQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  limit: zod.coerce.number().default(getAnalyticsTopMerchantsQueryLimitDefault),
+});
+
+export const GetAnalyticsTopMerchantsResponse = zod.object({
+  topMerchants: zod.array(
+    zod.object({
+      merchantId: zod.string(),
+      merchantName: zod.string(),
+      totalSalesCop: zod.number(),
+      totalCommissionCop: zod.number(),
+      totalNetCop: zod.number(),
+      totalCogsCop: zod.number(),
+      grossProfitCop: zod.number(),
+      profitMarginPercent: zod.number(),
+      txCount: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Stock alert list — products below restock trigger
+ */
+export const GetAnalyticsStockAlertsQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+});
+
+export const GetAnalyticsStockAlertsResponse = zod.object({
+  alerts: zod.array(
+    zod.object({
+      inventoryId: zod.string(),
+      locationId: zod.string(),
+      locationName: zod.string(),
+      eventId: zod.string().nullish(),
+      productId: zod.string(),
+      productName: zod.string(),
+      quantityOnHand: zod.number(),
+      restockTrigger: zod.number(),
+      restockTargetQty: zod.number(),
+      deficit: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Transaction heatmap — intensity by hour and day of week
+ */
+export const GetAnalyticsHeatmapQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const getAnalyticsHeatmapResponseHeatmapItemHourMin = 0;
+export const getAnalyticsHeatmapResponseHeatmapItemHourMax = 23;
+
+export const getAnalyticsHeatmapResponseHeatmapItemDayNumMin = 0;
+export const getAnalyticsHeatmapResponseHeatmapItemDayNumMax = 6;
+
+export const GetAnalyticsHeatmapResponse = zod.object({
+  heatmap: zod.array(
+    zod.object({
+      hour: zod
+        .number()
+        .min(getAnalyticsHeatmapResponseHeatmapItemHourMin)
+        .max(getAnalyticsHeatmapResponseHeatmapItemHourMax),
+      day: zod.string(),
+      dayNum: zod
+        .number()
+        .min(getAnalyticsHeatmapResponseHeatmapItemDayNumMin)
+        .max(getAnalyticsHeatmapResponseHeatmapItemDayNumMax),
+      txCount: zod.number(),
+      totalCop: zod.number(),
+    }),
+  ),
 });

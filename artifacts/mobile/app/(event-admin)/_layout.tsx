@@ -35,6 +35,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "shippingbox", selected: "shippingbox.fill" }} />
         <Label>{t("inventory.tab")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="analytics">
+        <Icon sf={{ default: "waveform.path.ecg", selected: "waveform.path.ecg" }} />
+        <Label>{t("analytics.title")}</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="reports">
         <Icon sf={{ default: "doc.chart", selected: "doc.chart.fill" }} />
         <Label>{t("eventAdmin.reports")}</Label>
@@ -96,6 +100,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="merchants" options={{ title: t("eventAdmin.merchants"), tabBarIcon: ({ color }) => <Feather name="shopping-bag" size={22} color={color} /> }} />
       <Tabs.Screen name="users" options={{ title: t("eventAdmin.users"), tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} /> }} />
       <Tabs.Screen name="inventory" options={{ title: t("inventory.tab"), tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />
+      <Tabs.Screen name="analytics" options={{ title: t("analytics.title"), tabBarIcon: ({ color }) => <Feather name="activity" size={22} color={color} /> }} />
       <Tabs.Screen name="reports" options={{ title: t("eventAdmin.reports"), tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} /> }} />
       <Tabs.Screen name="event-settings" options={{ title: t("eventAdmin.inventorySettings"), tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ href: null }} />

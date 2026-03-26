@@ -41,6 +41,8 @@ tags:
     description: Bracelet refund processing and unclaimed balance reports.
   - name: PromoterCompanies
     description: Promoter company management and consolidated metrics.
+  - name: Analytics
+    description: Real-time analytics dashboards for event admins and platform admins.
 
 paths:
   /healthz:
@@ -1578,6 +1580,33 @@ paths:
 
   # ── Restock Orders ───────────────────────────────────────────────────────────
   /restock-orders:
+    post:
+      tags: [RestockOrders]
+      operationId: createRestockOrder
+      summary: Create a restock order (event_admin, merchant_admin, or admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRestockOrderBody'
+      responses:
+        '201':
+          description: Restock order created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestockOrder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
     get:
       tags: [RestockOrders]
       operationId: listRestockOrders
@@ -2017,6 +2046,216 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SnapshotExport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /analytics/summary:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsSummary
+      summary: Analytics summary cards (total top-ups, total sales, pending balance, counts)
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /analytics/sales-by-hour:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsSalesByHour
+      summary: Sales totals grouped by hour of day (bar chart data)
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Sales by hour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsSalesByHour'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /analytics/top-products:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsTopProducts
+      summary: Top products by units sold and revenue
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Top products ranking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsTopProducts'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /analytics/top-merchants:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsTopMerchants
+      summary: Top merchants by sales volume and profitability
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Top merchants ranking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsTopMerchants'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /analytics/stock-alerts:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsStockAlerts
+      summary: Stock alert list — products below restock trigger
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stock alerts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsStockAlerts'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /analytics/heatmap:
+    get:
+      tags: [Analytics]
+      operationId: getAnalyticsHeatmap
+      summary: Transaction heatmap — intensity by hour and day of week
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Heatmap data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsHeatmap'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3025,6 +3264,21 @@ components:
           type: string
           format: date-time
 
+    CreateRestockOrderBody:
+      type: object
+      required: [locationId, productId, requestedQty]
+      properties:
+        locationId:
+          type: string
+        productId:
+          type: string
+        requestedQty:
+          type: integer
+          minimum: 1
+        notes:
+          type: string
+          nullable: true
+
     UpdateRestockOrderBody:
       type: object
       required: [status]
@@ -3424,6 +3678,169 @@ components:
         context:
           type: object
           additionalProperties: true
+
+    AnalyticsSummary:
+      type: object
+      required: [totalTopUpsCop, totalSalesCop, pendingBalanceCop, transactionCount, topUpCount]
+      properties:
+        totalTopUpsCop:
+          type: integer
+        totalSalesCop:
+          type: integer
+        pendingBalanceCop:
+          type: integer
+        transactionCount:
+          type: integer
+        topUpCount:
+          type: integer
+
+    AnalyticsSalesByHourItem:
+      type: object
+      required: [hour, day, totalCop, txCount]
+      properties:
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        day:
+          type: string
+        totalCop:
+          type: integer
+        txCount:
+          type: integer
+
+    AnalyticsSalesByHour:
+      type: object
+      required: [salesByHour]
+      properties:
+        salesByHour:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsSalesByHourItem'
+
+    AnalyticsTopProductItem:
+      type: object
+      required: [productId, productName, totalUnits, totalRevenueCop, totalCogsCop, grossProfitCop, profitMarginPercent]
+      properties:
+        productId:
+          type: string
+          nullable: true
+        productName:
+          type: string
+        totalUnits:
+          type: integer
+        totalRevenueCop:
+          type: integer
+        totalCogsCop:
+          type: integer
+        grossProfitCop:
+          type: integer
+        profitMarginPercent:
+          type: number
+
+    AnalyticsTopProducts:
+      type: object
+      required: [topProducts]
+      properties:
+        topProducts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsTopProductItem'
+
+    AnalyticsTopMerchantItem:
+      type: object
+      required: [merchantId, merchantName, totalSalesCop, totalCommissionCop, totalNetCop, totalCogsCop, grossProfitCop, profitMarginPercent, txCount]
+      properties:
+        merchantId:
+          type: string
+        merchantName:
+          type: string
+        totalSalesCop:
+          type: integer
+        totalCommissionCop:
+          type: integer
+        totalNetCop:
+          type: integer
+        totalCogsCop:
+          type: integer
+        grossProfitCop:
+          type: integer
+        profitMarginPercent:
+          type: number
+        txCount:
+          type: integer
+
+    AnalyticsTopMerchants:
+      type: object
+      required: [topMerchants]
+      properties:
+        topMerchants:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsTopMerchantItem'
+
+    AnalyticsStockAlertItem:
+      type: object
+      required: [inventoryId, locationId, locationName, productId, productName, quantityOnHand, restockTrigger, restockTargetQty, deficit]
+      properties:
+        inventoryId:
+          type: string
+        locationId:
+          type: string
+        locationName:
+          type: string
+        eventId:
+          type: string
+          nullable: true
+        productId:
+          type: string
+        productName:
+          type: string
+        quantityOnHand:
+          type: integer
+        restockTrigger:
+          type: integer
+        restockTargetQty:
+          type: integer
+        deficit:
+          type: integer
+
+    AnalyticsStockAlerts:
+      type: object
+      required: [alerts]
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsStockAlertItem'
+
+    AnalyticsHeatmapItem:
+      type: object
+      required: [hour, day, dayNum, txCount, totalCop]
+      properties:
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        day:
+          type: string
+        dayNum:
+          type: integer
+          minimum: 0
+          maximum: 6
+        txCount:
+          type: integer
+        totalCop:
+          type: integer
+
+    AnalyticsHeatmap:
+      type: object
+      required: [heatmap]
+      properties:
+        heatmap:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsHeatmapItem'
 
     SnapshotExport:
       type: object

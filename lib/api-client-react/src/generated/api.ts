@@ -17,6 +17,12 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AnalyticsHeatmap,
+  AnalyticsSalesByHour,
+  AnalyticsStockAlerts,
+  AnalyticsSummary,
+  AnalyticsTopMerchants,
+  AnalyticsTopProducts,
   AssignUserToLocationBody,
   AuthUserEnvelope,
   BadRequestResponse,
@@ -30,11 +36,18 @@ import type {
   CreatePayoutBody,
   CreateProductBody,
   CreateRefundBody,
+  CreateRestockOrderBody,
   CreateTopUpBody,
   CreateWarehouseBody,
   ErrorEnvelope,
   Event,
   ForbiddenResponse,
+  GetAnalyticsHeatmapParams,
+  GetAnalyticsSalesByHourParams,
+  GetAnalyticsStockAlertsParams,
+  GetAnalyticsSummaryParams,
+  GetAnalyticsTopMerchantsParams,
+  GetAnalyticsTopProductsParams,
   GetFiscalSummary200,
   GetFiscalSummaryParams,
   GetInventoryReportParams,
@@ -5542,6 +5555,110 @@ export const useTransferBetweenLocations = <
 };
 
 /**
+ * @summary Create a restock order (event_admin, merchant_admin, or admin)
+ */
+export const getCreateRestockOrderUrl = () => {
+  return `/api/restock-orders`;
+};
+
+export const createRestockOrder = async (
+  createRestockOrderBody: CreateRestockOrderBody,
+  options?: RequestInit,
+): Promise<RestockOrder> => {
+  return customFetch<RestockOrder>(getCreateRestockOrderUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createRestockOrderBody),
+  });
+};
+
+export const getCreateRestockOrderMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRestockOrder>>,
+    TError,
+    { data: BodyType<CreateRestockOrderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRestockOrder>>,
+  TError,
+  { data: BodyType<CreateRestockOrderBody> },
+  TContext
+> => {
+  const mutationKey = ["createRestockOrder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRestockOrder>>,
+    { data: BodyType<CreateRestockOrderBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createRestockOrder(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRestockOrderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createRestockOrder>>
+>;
+export type CreateRestockOrderMutationBody = BodyType<CreateRestockOrderBody>;
+export type CreateRestockOrderMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+  | ConflictResponse
+>;
+
+/**
+ * @summary Create a restock order (event_admin, merchant_admin, or admin)
+ */
+export const useCreateRestockOrder = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRestockOrder>>,
+    TError,
+    { data: BodyType<CreateRestockOrderBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createRestockOrder>>,
+  TError,
+  { data: BodyType<CreateRestockOrderBody> },
+  TContext
+> => {
+  return useMutation(getCreateRestockOrderMutationOptions(options));
+};
+
+/**
  * @summary List restock orders (warehouse_admin, merchant_admin, or admin)
  */
 export const getListRestockOrdersUrl = (params?: ListRestockOrdersParams) => {
@@ -6885,6 +7002,630 @@ export function useGetSnapshot<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetSnapshotQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Analytics summary cards (total top-ups, total sales, pending balance, counts)
+ */
+export const getGetAnalyticsSummaryUrl = (
+  params?: GetAnalyticsSummaryParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/analytics/summary?${stringifiedParams}`
+    : `/api/analytics/summary`;
+};
+
+export const getAnalyticsSummary = async (
+  params?: GetAnalyticsSummaryParams,
+  options?: RequestInit,
+): Promise<AnalyticsSummary> => {
+  return customFetch<AnalyticsSummary>(getGetAnalyticsSummaryUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAnalyticsSummaryQueryKey = (
+  params?: GetAnalyticsSummaryParams,
+) => {
+  return [`/api/analytics/summary`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAnalyticsSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAnalyticsSummary>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAnalyticsSummaryQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAnalyticsSummary>>
+  > = ({ signal }) =>
+    getAnalyticsSummary(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAnalyticsSummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAnalyticsSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAnalyticsSummary>>
+>;
+export type GetAnalyticsSummaryQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Analytics summary cards (total top-ups, total sales, pending balance, counts)
+ */
+
+export function useGetAnalyticsSummary<
+  TData = Awaited<ReturnType<typeof getAnalyticsSummary>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAnalyticsSummaryQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Sales totals grouped by hour of day (bar chart data)
+ */
+export const getGetAnalyticsSalesByHourUrl = (
+  params?: GetAnalyticsSalesByHourParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/analytics/sales-by-hour?${stringifiedParams}`
+    : `/api/analytics/sales-by-hour`;
+};
+
+export const getAnalyticsSalesByHour = async (
+  params?: GetAnalyticsSalesByHourParams,
+  options?: RequestInit,
+): Promise<AnalyticsSalesByHour> => {
+  return customFetch<AnalyticsSalesByHour>(
+    getGetAnalyticsSalesByHourUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAnalyticsSalesByHourQueryKey = (
+  params?: GetAnalyticsSalesByHourParams,
+) => {
+  return [`/api/analytics/sales-by-hour`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAnalyticsSalesByHourQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAnalyticsSalesByHour>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsSalesByHourParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsSalesByHour>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAnalyticsSalesByHourQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAnalyticsSalesByHour>>
+  > = ({ signal }) =>
+    getAnalyticsSalesByHour(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAnalyticsSalesByHour>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAnalyticsSalesByHourQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAnalyticsSalesByHour>>
+>;
+export type GetAnalyticsSalesByHourQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Sales totals grouped by hour of day (bar chart data)
+ */
+
+export function useGetAnalyticsSalesByHour<
+  TData = Awaited<ReturnType<typeof getAnalyticsSalesByHour>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsSalesByHourParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsSalesByHour>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAnalyticsSalesByHourQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Top products by units sold and revenue
+ */
+export const getGetAnalyticsTopProductsUrl = (
+  params?: GetAnalyticsTopProductsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/analytics/top-products?${stringifiedParams}`
+    : `/api/analytics/top-products`;
+};
+
+export const getAnalyticsTopProducts = async (
+  params?: GetAnalyticsTopProductsParams,
+  options?: RequestInit,
+): Promise<AnalyticsTopProducts> => {
+  return customFetch<AnalyticsTopProducts>(
+    getGetAnalyticsTopProductsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAnalyticsTopProductsQueryKey = (
+  params?: GetAnalyticsTopProductsParams,
+) => {
+  return [`/api/analytics/top-products`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAnalyticsTopProductsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAnalyticsTopProducts>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsTopProductsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsTopProducts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAnalyticsTopProductsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAnalyticsTopProducts>>
+  > = ({ signal }) =>
+    getAnalyticsTopProducts(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAnalyticsTopProducts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAnalyticsTopProductsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAnalyticsTopProducts>>
+>;
+export type GetAnalyticsTopProductsQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Top products by units sold and revenue
+ */
+
+export function useGetAnalyticsTopProducts<
+  TData = Awaited<ReturnType<typeof getAnalyticsTopProducts>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsTopProductsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsTopProducts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAnalyticsTopProductsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Top merchants by sales volume and profitability
+ */
+export const getGetAnalyticsTopMerchantsUrl = (
+  params?: GetAnalyticsTopMerchantsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/analytics/top-merchants?${stringifiedParams}`
+    : `/api/analytics/top-merchants`;
+};
+
+export const getAnalyticsTopMerchants = async (
+  params?: GetAnalyticsTopMerchantsParams,
+  options?: RequestInit,
+): Promise<AnalyticsTopMerchants> => {
+  return customFetch<AnalyticsTopMerchants>(
+    getGetAnalyticsTopMerchantsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAnalyticsTopMerchantsQueryKey = (
+  params?: GetAnalyticsTopMerchantsParams,
+) => {
+  return [`/api/analytics/top-merchants`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAnalyticsTopMerchantsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAnalyticsTopMerchants>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsTopMerchantsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsTopMerchants>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAnalyticsTopMerchantsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAnalyticsTopMerchants>>
+  > = ({ signal }) =>
+    getAnalyticsTopMerchants(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAnalyticsTopMerchants>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAnalyticsTopMerchantsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAnalyticsTopMerchants>>
+>;
+export type GetAnalyticsTopMerchantsQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Top merchants by sales volume and profitability
+ */
+
+export function useGetAnalyticsTopMerchants<
+  TData = Awaited<ReturnType<typeof getAnalyticsTopMerchants>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsTopMerchantsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsTopMerchants>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAnalyticsTopMerchantsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Stock alert list — products below restock trigger
+ */
+export const getGetAnalyticsStockAlertsUrl = (
+  params?: GetAnalyticsStockAlertsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/analytics/stock-alerts?${stringifiedParams}`
+    : `/api/analytics/stock-alerts`;
+};
+
+export const getAnalyticsStockAlerts = async (
+  params?: GetAnalyticsStockAlertsParams,
+  options?: RequestInit,
+): Promise<AnalyticsStockAlerts> => {
+  return customFetch<AnalyticsStockAlerts>(
+    getGetAnalyticsStockAlertsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAnalyticsStockAlertsQueryKey = (
+  params?: GetAnalyticsStockAlertsParams,
+) => {
+  return [`/api/analytics/stock-alerts`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAnalyticsStockAlertsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAnalyticsStockAlerts>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsStockAlertsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsStockAlerts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAnalyticsStockAlertsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAnalyticsStockAlerts>>
+  > = ({ signal }) =>
+    getAnalyticsStockAlerts(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAnalyticsStockAlerts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAnalyticsStockAlertsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAnalyticsStockAlerts>>
+>;
+export type GetAnalyticsStockAlertsQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Stock alert list — products below restock trigger
+ */
+
+export function useGetAnalyticsStockAlerts<
+  TData = Awaited<ReturnType<typeof getAnalyticsStockAlerts>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsStockAlertsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsStockAlerts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAnalyticsStockAlertsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Transaction heatmap — intensity by hour and day of week
+ */
+export const getGetAnalyticsHeatmapUrl = (
+  params?: GetAnalyticsHeatmapParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/analytics/heatmap?${stringifiedParams}`
+    : `/api/analytics/heatmap`;
+};
+
+export const getAnalyticsHeatmap = async (
+  params?: GetAnalyticsHeatmapParams,
+  options?: RequestInit,
+): Promise<AnalyticsHeatmap> => {
+  return customFetch<AnalyticsHeatmap>(getGetAnalyticsHeatmapUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAnalyticsHeatmapQueryKey = (
+  params?: GetAnalyticsHeatmapParams,
+) => {
+  return [`/api/analytics/heatmap`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAnalyticsHeatmapQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAnalyticsHeatmap>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsHeatmapParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsHeatmap>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAnalyticsHeatmapQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAnalyticsHeatmap>>
+  > = ({ signal }) =>
+    getAnalyticsHeatmap(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAnalyticsHeatmap>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAnalyticsHeatmapQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAnalyticsHeatmap>>
+>;
+export type GetAnalyticsHeatmapQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Transaction heatmap — intensity by hour and day of week
+ */
+
+export function useGetAnalyticsHeatmap<
+  TData = Awaited<ReturnType<typeof getAnalyticsHeatmap>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetAnalyticsHeatmapParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAnalyticsHeatmap>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAnalyticsHeatmapQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

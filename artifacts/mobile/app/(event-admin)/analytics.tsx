@@ -1,0 +1,762 @@
+import { Feather } from "@expo/vector-icons";
+import React, { useState } from "react";
+import {
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useColorScheme,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import {
+  useGetAnalyticsSummary,
+  useGetAnalyticsSalesByHour,
+  useGetAnalyticsTopProducts,
+  useGetAnalyticsTopMerchants,
+  useGetAnalyticsStockAlerts,
+  useGetAnalyticsHeatmap,
+  useCreateRestockOrder,
+} from "@workspace/api-client-react";
+import Colors from "@/constants/colors";
+import { CopAmount } from "@/components/CopAmount";
+import { Card } from "@/components/ui/Card";
+import { Loading } from "@/components/ui/Loading";
+import { useAuth } from "@/contexts/AuthContext";
+
+const REFETCH_INTERVAL = 60_000;
+
+const DAYS_ORDER = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+type AnalyticsTab = "summary" | "sales" | "products" | "merchants" | "stock" | "heatmap";
+
+function SummaryPanel({
+  data,
+  isLoading,
+}: {
+  data: {
+    totalTopUpsCop?: number;
+    totalSalesCop?: number;
+    pendingBalanceCop?: number;
+    transactionCount?: number;
+    topUpCount?: number;
+  } | undefined;
+  isLoading: boolean;
+}) {
+  const { t } = useTranslation();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  if (isLoading) return <Loading label={t("common.loading")} />;
+
+  const cards = [
+    { label: t("analytics.totalTopUps"), value: data?.totalTopUpsCop, isCop: true, color: C.primary, icon: "arrow-up-circle" as const },
+    { label: t("analytics.totalSales"), value: data?.totalSalesCop, isCop: true, color: C.success, icon: "shopping-bag" as const },
+    { label: t("analytics.pendingBalance"), value: data?.pendingBalanceCop, isCop: true, color: C.warning, icon: "credit-card" as const },
+    { label: t("analytics.transactions"), value: data?.transactionCount, isCop: false, color: C.textSecondary, icon: "activity" as const },
+    { label: t("analytics.topUpCount"), value: data?.topUpCount, isCop: false, color: C.textSecondary, icon: "plus-circle" as const },
+  ];
+
+  return (
+    <View style={{ gap: 10 }}>
+      {cards.map((c) => (
+        <Card key={c.label} padding={16}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryLeft}>
+              <Feather name={c.icon} size={20} color={c.color} />
+              <Text style={[styles.summaryLabel, { color: C.textSecondary }]}>{c.label}</Text>
+            </View>
+            {c.isCop ? (
+              <CopAmount amount={c.value as number | undefined} size={18} color={c.color} />
+            ) : (
+              <Text style={[styles.summaryCount, { color: C.text }]}>{c.value ?? "—"}</Text>
+            )}
+          </View>
+        </Card>
+      ))}
+    </View>
+  );
+}
+
+function SalesByHourPanel({
+  data,
+  isLoading,
+}: {
+  data: { salesByHour: { hour: number; day: string; totalCop: number; txCount: number }[] } | undefined;
+  isLoading: boolean;
+}) {
+  const { t } = useTranslation();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  if (isLoading) return <Loading label={t("common.loading")} />;
+
+  const salesByHour = data?.salesByHour ?? [];
+
+  const hourTotals: Record<number, number> = {};
+  for (const row of salesByHour) {
+    hourTotals[row.hour] = (hourTotals[row.hour] ?? 0) + row.totalCop;
+  }
+
+  const maxVal = Math.max(...Object.values(hourTotals), 1);
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+
+  if (salesByHour.length === 0) {
+    return (
+      <Card padding={24}>
+        <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("analytics.noData")}</Text>
+      </Card>
+    );
+  }
+
+  return (
+    <Card padding={16}>
+      <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.salesByHour")}</Text>
+      <Text style={[styles.panelSubtitle, { color: C.textMuted }]}>{t("analytics.salesByHourSubtitle")}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }}>
+        <View style={styles.barChart}>
+          {hours.map((h) => {
+            const val = hourTotals[h] ?? 0;
+            const heightPct = val / maxVal;
+            const barH = Math.max(heightPct * 120, val > 0 ? 4 : 0);
+            return (
+              <View key={h} style={styles.barCol}>
+                <View style={[styles.barContainer, { height: 120 }]}>
+                  <View
+                    style={[
+                      styles.bar,
+                      { height: barH, backgroundColor: val > 0 ? C.primary : C.inputBg },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.barLabel, { color: C.textMuted }]}>{h}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+      <Text style={[styles.chartNote, { color: C.textMuted }]}>{t("analytics.hourAxis")}</Text>
+    </Card>
+  );
+}
+
+function TopProductsPanel({
+  data,
+  isLoading,
+}: {
+  data: {
+    topProducts: {
+      productId: string | null;
+      productName: string;
+      totalUnits: number;
+      totalRevenueCop: number;
+      grossProfitCop: number;
+      profitMarginPercent: number;
+    }[];
+  } | undefined;
+  isLoading: boolean;
+}) {
+  const { t } = useTranslation();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  if (isLoading) return <Loading label={t("common.loading")} />;
+
+  const products = data?.topProducts ?? [];
+
+  if (products.length === 0) {
+    return (
+      <Card padding={24}>
+        <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("analytics.noData")}</Text>
+      </Card>
+    );
+  }
+
+  const maxUnits = Math.max(...products.map((p) => p.totalUnits), 1);
+
+  return (
+    <Card padding={16}>
+      <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.topProducts")}</Text>
+      <Text style={[styles.panelSubtitle, { color: C.textMuted }]}>{t("analytics.topProductsSubtitle")}</Text>
+      <View style={{ marginTop: 12, gap: 12 }}>
+        {products.map((p, idx) => (
+          <View key={p.productId ?? p.productName} style={{ gap: 6 }}>
+            <View style={styles.rankRow}>
+              <Text style={[styles.rankNum, { color: C.textMuted }]}>#{idx + 1}</Text>
+              <Text style={[styles.productName, { color: C.text }]} numberOfLines={1}>
+                {p.productName}
+              </Text>
+              <Text style={[styles.unitCount, { color: C.primary }]}>
+                {p.totalUnits} {t("analytics.units")}
+              </Text>
+            </View>
+            <View style={[styles.progressBg, { backgroundColor: C.inputBg }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${(p.totalUnits / maxUnits) * 100}%`, backgroundColor: C.primary },
+                ]}
+              />
+            </View>
+            <View style={styles.productMeta}>
+              <CopAmount amount={p.totalRevenueCop} size={13} />
+              <Text style={[styles.marginBadge, { color: C.success, backgroundColor: C.successLight }]}>
+                {p.profitMarginPercent.toFixed(1)}% {t("analytics.margin")}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+function TopMerchantsPanel({
+  data,
+  isLoading,
+}: {
+  data: {
+    topMerchants: {
+      merchantId: string;
+      merchantName: string;
+      totalSalesCop: number;
+      grossProfitCop: number;
+      profitMarginPercent: number;
+      txCount: number;
+    }[];
+  } | undefined;
+  isLoading: boolean;
+}) {
+  const { t } = useTranslation();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  if (isLoading) return <Loading label={t("common.loading")} />;
+
+  const merchants = data?.topMerchants ?? [];
+
+  if (merchants.length === 0) {
+    return (
+      <Card padding={24}>
+        <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("analytics.noData")}</Text>
+      </Card>
+    );
+  }
+
+  const maxSales = Math.max(...merchants.map((m) => m.totalSalesCop), 1);
+
+  return (
+    <Card padding={16}>
+      <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.topMerchants")}</Text>
+      <Text style={[styles.panelSubtitle, { color: C.textMuted }]}>{t("analytics.topMerchantsSubtitle")}</Text>
+      <View style={{ marginTop: 12, gap: 12 }}>
+        {merchants.map((m, idx) => (
+          <View key={m.merchantId} style={{ gap: 6 }}>
+            <View style={styles.rankRow}>
+              <Text style={[styles.rankNum, { color: C.textMuted }]}>#{idx + 1}</Text>
+              <Text style={[styles.productName, { color: C.text }]} numberOfLines={1}>
+                {m.merchantName}
+              </Text>
+              <Text style={[styles.unitCount, { color: C.textSecondary }]}>
+                {m.txCount} {t("analytics.txns")}
+              </Text>
+            </View>
+            <View style={[styles.progressBg, { backgroundColor: C.inputBg }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${(m.totalSalesCop / maxSales) * 100}%`, backgroundColor: C.success },
+                ]}
+              />
+            </View>
+            <View style={styles.productMeta}>
+              <CopAmount amount={m.totalSalesCop} size={13} />
+              <Text style={[styles.marginBadge, { color: C.success, backgroundColor: C.successLight }]}>
+                {m.profitMarginPercent.toFixed(1)}% {t("analytics.margin")}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+function StockAlertsPanel({
+  data,
+  isLoading,
+  onRequestRestock,
+}: {
+  data: {
+    alerts: {
+      inventoryId: string;
+      locationId: string;
+      locationName: string;
+      productId: string;
+      productName: string;
+      quantityOnHand: number;
+      restockTrigger: number;
+      restockTargetQty: number;
+      deficit: number;
+    }[];
+  } | undefined;
+  isLoading: boolean;
+  onRequestRestock?: (locationId: string, productId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  if (isLoading) return <Loading label={t("common.loading")} />;
+
+  const alerts = data?.alerts ?? [];
+
+  if (alerts.length === 0) {
+    return (
+      <Card padding={24}>
+        <View style={styles.emptyState}>
+          <Feather name="check-circle" size={32} color={C.success} />
+          <Text style={[styles.emptyText, { color: C.textSecondary, marginTop: 8 }]}>{t("analytics.noStockAlerts")}</Text>
+        </View>
+      </Card>
+    );
+  }
+
+  return (
+    <View style={{ gap: 10 }}>
+      <Card padding={16}>
+        <View style={styles.alertsHeader}>
+          <Feather name="alert-triangle" size={18} color={C.warning} />
+          <Text style={[styles.panelTitle, { color: C.text, marginBottom: 0 }]}>
+            {alerts.length} {t("analytics.stockAlerts")}
+          </Text>
+        </View>
+      </Card>
+      {alerts.map((alert) => {
+        const criticalLevel = alert.quantityOnHand === 0;
+        return (
+          <Card key={alert.inventoryId} padding={14}>
+            <View style={styles.alertRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.alertProduct, { color: C.text }]} numberOfLines={1}>
+                  {alert.productName}
+                </Text>
+                <Text style={[styles.alertLocation, { color: C.textMuted }]} numberOfLines={1}>
+                  {alert.locationName}
+                </Text>
+              </View>
+              <View style={styles.alertRight}>
+                <Text
+                  style={[
+                    styles.alertQty,
+                    { color: criticalLevel ? C.danger : C.warning },
+                  ]}
+                >
+                  {alert.quantityOnHand}
+                  <Text style={[styles.alertTrigger, { color: C.textMuted }]}>
+                    {" "}/{" "}{alert.restockTrigger}
+                  </Text>
+                </Text>
+                <Text style={[styles.alertLabel, { color: C.textMuted }]}>{t("analytics.units")}</Text>
+              </View>
+            </View>
+            <View style={[styles.stockBar, { backgroundColor: C.inputBg, marginTop: 8 }]}>
+              <View
+                style={[
+                  styles.stockBarFill,
+                  {
+                    width: alert.restockTrigger > 0 ? `${Math.min((alert.quantityOnHand / (alert.restockTrigger * 2)) * 100, 100)}%` : "0%",
+                    backgroundColor: criticalLevel ? C.danger : C.warning,
+                  },
+                ]}
+              />
+            </View>
+            {onRequestRestock && (
+              <Pressable
+                onPress={() => onRequestRestock(alert.locationId, alert.productId)}
+                style={[styles.restockBtn, { backgroundColor: C.primaryLight, borderColor: C.primary }]}
+              >
+                <Feather name="plus-circle" size={14} color={C.primary} />
+                <Text style={[styles.restockBtnText, { color: C.primary }]}>
+                  {t("analytics.requestRestock")} ({alert.deficit} {t("analytics.units")})
+                </Text>
+              </Pressable>
+            )}
+          </Card>
+        );
+      })}
+    </View>
+  );
+}
+
+function HeatmapPanel({
+  data,
+  isLoading,
+}: {
+  data: { heatmap: { hour: number; day: string; dayNum: number; txCount: number; totalCop: number }[] } | undefined;
+  isLoading: boolean;
+}) {
+  const { t } = useTranslation();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  if (isLoading) return <Loading label={t("common.loading")} />;
+
+  const heatmap = data?.heatmap ?? [];
+
+  if (heatmap.length === 0) {
+    return (
+      <Card padding={24}>
+        <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("analytics.noData")}</Text>
+      </Card>
+    );
+  }
+
+  const cellMap = new Map<string, number>();
+  let maxCount = 1;
+  for (const row of heatmap) {
+    const key = `${row.dayNum}-${row.hour}`;
+    cellMap.set(key, row.txCount);
+    if (row.txCount > maxCount) maxCount = row.txCount;
+  }
+
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+
+  return (
+    <Card padding={16}>
+      <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.heatmap")}</Text>
+      <Text style={[styles.panelSubtitle, { color: C.textMuted }]}>{t("analytics.heatmapSubtitle")}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+        <View>
+          <View style={styles.heatmapRow}>
+            <View style={styles.heatmapDayLabel} />
+            {hours.map((h) => (
+              <Text key={h} style={[styles.heatmapHourLabel, { color: C.textMuted }]}>
+                {h % 6 === 0 ? `${h}h` : ""}
+              </Text>
+            ))}
+          </View>
+          {DAYS_ORDER.map((dayName, dayNum) => (
+            <View key={dayName} style={styles.heatmapRow}>
+              <Text style={[styles.heatmapDayLabel, { color: C.textMuted }]}>{dayName}</Text>
+              {hours.map((h) => {
+                const count = cellMap.get(`${dayNum}-${h}`) ?? 0;
+                const intensity = count / maxCount;
+                return (
+                  <View
+                    key={h}
+                    style={[
+                      styles.heatmapCell,
+                      {
+                        backgroundColor: count > 0
+                          ? `rgba(26, 86, 219, ${0.1 + intensity * 0.9})`
+                          : C.inputBg,
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+      <View style={[styles.legendRow, { marginTop: 8 }]}>
+        <Text style={[styles.legendLabel, { color: C.textMuted }]}>{t("analytics.low")}</Text>
+        {[0.1, 0.3, 0.5, 0.7, 0.9].map((v) => (
+          <View key={v} style={[styles.legendCell, { backgroundColor: `rgba(26, 86, 219, ${v})` }]} />
+        ))}
+        <Text style={[styles.legendLabel, { color: C.textMuted }]}>{t("analytics.high")}</Text>
+      </View>
+    </Card>
+  );
+}
+
+type RestockTarget = { locationId: string; locationName: string; productId: string; productName: string; deficit: number };
+
+export default function EventAdminAnalyticsScreen() {
+  const { t } = useTranslation();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+  const insets = useSafeAreaInsets();
+  const isWeb = Platform.OS === "web";
+  const { user } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>("summary");
+  const [restockTarget, setRestockTarget] = useState<RestockTarget | null>(null);
+  const [restockQty, setRestockQty] = useState("");
+  const [restockNote, setRestockNote] = useState("");
+
+  const createRestock = useCreateRestockOrder();
+
+  const eventId = user?.eventId ?? undefined;
+  const queryParams = eventId ? { eventId } : {};
+  const refetchInterval = REFETCH_INTERVAL;
+
+  const { data: summaryData, isLoading: summaryLoading } = useGetAnalyticsSummary(queryParams, {
+    query: { refetchInterval, queryKey: ["analytics-summary", queryParams] },
+  });
+
+  const { data: salesByHourData, isLoading: salesLoading } = useGetAnalyticsSalesByHour(queryParams, {
+    query: { refetchInterval, enabled: activeTab === "sales", queryKey: ["analytics-sales-by-hour", queryParams] },
+  });
+
+  const { data: topProductsData, isLoading: productsLoading } = useGetAnalyticsTopProducts(
+    { ...queryParams, limit: 10 },
+    { query: { refetchInterval, enabled: activeTab === "products", queryKey: ["analytics-top-products", queryParams] } },
+  );
+
+  const { data: topMerchantsData, isLoading: merchantsLoading } = useGetAnalyticsTopMerchants(
+    { ...queryParams, limit: 10 },
+    { query: { refetchInterval, enabled: activeTab === "merchants", queryKey: ["analytics-top-merchants", queryParams] } },
+  );
+
+  const { data: stockAlertsData, isLoading: stockLoading } = useGetAnalyticsStockAlerts(queryParams, {
+    query: { refetchInterval, enabled: activeTab === "stock", queryKey: ["analytics-stock-alerts", queryParams] },
+  });
+
+  const { data: heatmapData, isLoading: heatmapLoading } = useGetAnalyticsHeatmap(queryParams, {
+    query: { refetchInterval, enabled: activeTab === "heatmap", queryKey: ["analytics-heatmap", queryParams] },
+  });
+
+  const tabs: { key: AnalyticsTab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
+    { key: "summary", label: t("analytics.tabSummary"), icon: "pie-chart" },
+    { key: "sales", label: t("analytics.tabSales"), icon: "bar-chart-2" },
+    { key: "products", label: t("analytics.tabProducts"), icon: "package" },
+    { key: "merchants", label: t("analytics.tabMerchants"), icon: "users" },
+    { key: "stock", label: t("analytics.tabStock"), icon: "alert-triangle" },
+    { key: "heatmap", label: t("analytics.tabHeatmap"), icon: "grid" },
+  ];
+
+  function handleSubmitRestock() {
+    if (!restockTarget) return;
+    const qty = parseInt(restockQty, 10);
+    if (isNaN(qty) || qty <= 0) {
+      Alert.alert(t("common.error"), t("analytics.restockQtyRequired"));
+      return;
+    }
+    createRestock.mutate(
+      { data: { locationId: restockTarget.locationId, productId: restockTarget.productId, requestedQty: qty, notes: restockNote || undefined } },
+      {
+        onSuccess: () => {
+          Alert.alert(t("common.success"), t("analytics.restockCreated"));
+          setRestockTarget(null);
+          setRestockQty("");
+          setRestockNote("");
+        },
+        onError: (err: unknown) => {
+          Alert.alert(t("common.error"), String((err as { message?: string })?.message ?? err));
+        },
+      },
+    );
+  }
+
+  return (
+    <>
+      <Modal
+        visible={restockTarget !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setRestockTarget(null)}
+      >
+        <View style={[styles.modalOverlay]}>
+          <View style={[styles.modalCard, { backgroundColor: C.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: C.text }]}>{t("analytics.createRestockOrder")}</Text>
+              <Pressable onPress={() => setRestockTarget(null)}>
+                <Feather name="x" size={20} color={C.textMuted} />
+              </Pressable>
+            </View>
+            {restockTarget && (
+              <>
+                <View style={[styles.modalInfoRow, { backgroundColor: C.inputBg }]}>
+                  <Text style={[styles.modalInfoLabel, { color: C.textMuted }]}>{t("analytics.product")}</Text>
+                  <Text style={[styles.modalInfoValue, { color: C.text }]} numberOfLines={1}>{restockTarget.productName}</Text>
+                </View>
+                <View style={[styles.modalInfoRow, { backgroundColor: C.inputBg }]}>
+                  <Text style={[styles.modalInfoLabel, { color: C.textMuted }]}>{t("analytics.location")}</Text>
+                  <Text style={[styles.modalInfoValue, { color: C.text }]} numberOfLines={1}>{restockTarget.locationName}</Text>
+                </View>
+                <View style={[styles.modalInfoRow, { backgroundColor: C.inputBg }]}>
+                  <Text style={[styles.modalInfoLabel, { color: C.textMuted }]}>{t("analytics.deficit")}</Text>
+                  <Text style={[styles.modalInfoValue, { color: C.warning }]}>{restockTarget.deficit} {t("analytics.units")}</Text>
+                </View>
+                <Text style={[styles.modalLabel, { color: C.textSecondary }]}>{t("analytics.requestedQty")}</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+                  value={restockQty}
+                  onChangeText={setRestockQty}
+                  keyboardType="numeric"
+                  placeholder={String(restockTarget.deficit)}
+                  placeholderTextColor={C.textMuted}
+                />
+                <Text style={[styles.modalLabel, { color: C.textSecondary }]}>{t("analytics.notes")}</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border, minHeight: 60 }]}
+                  value={restockNote}
+                  onChangeText={setRestockNote}
+                  placeholder={t("analytics.notesPlaceholder")}
+                  placeholderTextColor={C.textMuted}
+                  multiline
+                />
+                <View style={styles.modalActions}>
+                  <Pressable
+                    style={[styles.modalCancelBtn, { borderColor: C.border }]}
+                    onPress={() => setRestockTarget(null)}
+                  >
+                    <Text style={[styles.modalCancelText, { color: C.textSecondary }]}>{t("common.cancel")}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.modalSubmitBtn, { backgroundColor: C.primary }, createRestock.isPending && { opacity: 0.6 }]}
+                    onPress={handleSubmitRestock}
+                    disabled={createRestock.isPending}
+                  >
+                    <Text style={styles.modalSubmitText}>{createRestock.isPending ? t("common.loading") : t("analytics.submitRestock")}</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      <ScrollView
+        style={{ flex: 1, backgroundColor: C.background }}
+        contentContainerStyle={{
+          paddingTop: isWeb ? 67 : insets.top + 16,
+          paddingBottom: isWeb ? 34 : insets.bottom + 100,
+          paddingHorizontal: 20,
+          gap: 16,
+        }}
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <Text style={[styles.title, { color: C.text }]}>{t("analytics.title")}</Text>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll}>
+          <View style={[styles.tabRow, { backgroundColor: C.inputBg }]}>
+            {tabs.map((tab) => (
+              <Pressable
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                style={[
+                  styles.tabBtn,
+                  activeTab === tab.key && {
+                    backgroundColor: C.card,
+                    borderRadius: 10,
+                    shadowColor: "#000",
+                    shadowOpacity: 0.06,
+                    shadowRadius: 4,
+                    elevation: 2,
+                  },
+                ]}
+              >
+                <Feather name={tab.icon} size={15} color={activeTab === tab.key ? C.primary : C.textMuted} />
+                <Text style={[styles.tabLabel, { color: activeTab === tab.key ? C.primary : C.textMuted }]}>
+                  {tab.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
+
+        {activeTab === "summary" && (
+          <SummaryPanel data={summaryData} isLoading={summaryLoading} />
+        )}
+        {activeTab === "sales" && (
+          <SalesByHourPanel data={salesByHourData} isLoading={salesLoading} />
+        )}
+        {activeTab === "products" && (
+          <TopProductsPanel data={topProductsData} isLoading={productsLoading} />
+        )}
+        {activeTab === "merchants" && (
+          <TopMerchantsPanel data={topMerchantsData} isLoading={merchantsLoading} />
+        )}
+        {activeTab === "stock" && (
+          <StockAlertsPanel
+            data={stockAlertsData}
+            isLoading={stockLoading}
+            onRequestRestock={(locationId, productId) => {
+              const alerts = (stockAlertsData as { alerts?: { locationId: string; locationName: string; productId: string; productName: string; deficit: number }[] } | undefined)?.alerts ?? [];
+              const alert = alerts.find((a) => a.locationId === locationId && a.productId === productId);
+              if (alert) {
+                setRestockTarget({ locationId, locationName: alert.locationName, productId, productName: alert.productName, deficit: alert.deficit });
+                setRestockQty(String(alert.deficit));
+                setRestockNote("");
+              }
+            }}
+          />
+        )}
+        {activeTab === "heatmap" && (
+          <HeatmapPanel data={heatmapData} isLoading={heatmapLoading} />
+        )}
+      </ScrollView>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  title: { fontSize: 26, fontFamily: "Inter_700Bold" },
+  tabScroll: { flexGrow: 0 },
+  tabRow: { flexDirection: "row", borderRadius: 12, padding: 4, gap: 2 },
+  tabBtn: { alignItems: "center", paddingVertical: 8, paddingHorizontal: 10, gap: 3, minWidth: 60 },
+  tabLabel: { fontSize: 10, fontFamily: "Inter_500Medium", textAlign: "center" },
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  summaryLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+  summaryLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  summaryCount: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  panelTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 2 },
+  panelSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  barChart: { flexDirection: "row", alignItems: "flex-end", gap: 3 },
+  barCol: { alignItems: "center", width: 20 },
+  barContainer: { justifyContent: "flex-end" },
+  bar: { width: 14, borderRadius: 3 },
+  barLabel: { fontSize: 8, fontFamily: "Inter_400Regular", marginTop: 3 },
+  chartNote: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 6, textAlign: "center" },
+  rankRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  rankNum: { fontSize: 12, fontFamily: "Inter_600SemiBold", width: 20 },
+  productName: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium" },
+  unitCount: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  progressBg: { height: 6, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: 6, borderRadius: 3 },
+  productMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  marginBadge: { fontSize: 11, fontFamily: "Inter_600SemiBold", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 100 },
+  alertsHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  alertRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  alertProduct: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  alertLocation: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  alertRight: { alignItems: "flex-end" },
+  alertQty: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  alertTrigger: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  alertLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  stockBar: { height: 4, borderRadius: 2, overflow: "hidden" },
+  stockBarFill: { height: 4, borderRadius: 2 },
+  heatmapRow: { flexDirection: "row", alignItems: "center", marginBottom: 2 },
+  heatmapDayLabel: { width: 32, fontSize: 10, fontFamily: "Inter_400Regular" },
+  heatmapHourLabel: { width: 16, fontSize: 8, fontFamily: "Inter_400Regular", textAlign: "center" },
+  heatmapCell: { width: 14, height: 14, borderRadius: 2, marginHorizontal: 1 },
+  legendRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  legendLabel: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  legendCell: { width: 14, height: 14, borderRadius: 2 },
+  emptyState: { alignItems: "center", paddingVertical: 16 },
+  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  restockBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1 },
+  restockBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalCard: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, gap: 12 },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  modalInfoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 10, borderRadius: 8 },
+  modalInfoLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  modalInfoValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", maxWidth: "60%" },
+  modalLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginTop: 4 },
+  modalInput: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 15, fontFamily: "Inter_400Regular" },
+  modalActions: { flexDirection: "row", gap: 10, marginTop: 8 },
+  modalCancelBtn: { flex: 1, borderWidth: 1, borderRadius: 10, padding: 14, alignItems: "center" },
+  modalCancelText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  modalSubmitBtn: { flex: 2, borderRadius: 10, padding: 14, alignItems: "center" },
+  modalSubmitText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
+});

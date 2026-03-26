@@ -6,6 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./analyticsHeatmap";
+export * from "./analyticsHeatmapItem";
+export * from "./analyticsSalesByHour";
+export * from "./analyticsSalesByHourItem";
+export * from "./analyticsStockAlertItem";
+export * from "./analyticsStockAlerts";
+export * from "./analyticsSummary";
+export * from "./analyticsTopMerchantItem";
+export * from "./analyticsTopMerchants";
+export * from "./analyticsTopProductItem";
+export * from "./analyticsTopProducts";
 export * from "./assignUserToLocationBody";
 export * from "./authorizationSessionHeaderParameter";
 export * from "./authUser";
@@ -21,6 +32,7 @@ export * from "./createMerchantStaffBody";
 export * from "./createPayoutBody";
 export * from "./createProductBody";
 export * from "./createRefundBody";
+export * from "./createRestockOrderBody";
 export * from "./createTopUpBody";
 export * from "./createWarehouseBody";
 export * from "./errorEnvelope";
@@ -28,6 +40,12 @@ export * from "./event";
 export * from "./fiscalSummaryRow";
 export * from "./fiscalSummaryTotals";
 export * from "./forbiddenResponse";
+export * from "./getAnalyticsHeatmapParams";
+export * from "./getAnalyticsSalesByHourParams";
+export * from "./getAnalyticsStockAlertsParams";
+export * from "./getAnalyticsSummaryParams";
+export * from "./getAnalyticsTopMerchantsParams";
+export * from "./getAnalyticsTopProductsParams";
 export * from "./getFiscalSummary200";
 export * from "./getFiscalSummaryParams";
 export * from "./getInventoryReportParams";

@@ -657,6 +657,14 @@ export interface RestockOrder {
   createdAt: string;
 }
 
+export interface CreateRestockOrderBody {
+  locationId: string;
+  productId: string;
+  /** @minimum 1 */
+  requestedQty: number;
+  notes?: string | null;
+}
+
 export type UpdateRestockOrderBodyStatus =
   (typeof UpdateRestockOrderBodyStatus)[keyof typeof UpdateRestockOrderBodyStatus];
 
@@ -872,6 +880,96 @@ export interface TamperReportBody {
   nfcUid: string;
   reason?: string;
   context?: TamperReportBodyContext;
+}
+
+export interface AnalyticsSummary {
+  totalTopUpsCop: number;
+  totalSalesCop: number;
+  pendingBalanceCop: number;
+  transactionCount: number;
+  topUpCount: number;
+}
+
+export interface AnalyticsSalesByHourItem {
+  /**
+   * @minimum 0
+   * @maximum 23
+   */
+  hour: number;
+  day: string;
+  totalCop: number;
+  txCount: number;
+}
+
+export interface AnalyticsSalesByHour {
+  salesByHour: AnalyticsSalesByHourItem[];
+}
+
+export interface AnalyticsTopProductItem {
+  productId: string | null;
+  productName: string;
+  totalUnits: number;
+  totalRevenueCop: number;
+  totalCogsCop: number;
+  grossProfitCop: number;
+  profitMarginPercent: number;
+}
+
+export interface AnalyticsTopProducts {
+  topProducts: AnalyticsTopProductItem[];
+}
+
+export interface AnalyticsTopMerchantItem {
+  merchantId: string;
+  merchantName: string;
+  totalSalesCop: number;
+  totalCommissionCop: number;
+  totalNetCop: number;
+  totalCogsCop: number;
+  grossProfitCop: number;
+  profitMarginPercent: number;
+  txCount: number;
+}
+
+export interface AnalyticsTopMerchants {
+  topMerchants: AnalyticsTopMerchantItem[];
+}
+
+export interface AnalyticsStockAlertItem {
+  inventoryId: string;
+  locationId: string;
+  locationName: string;
+  eventId?: string | null;
+  productId: string;
+  productName: string;
+  quantityOnHand: number;
+  restockTrigger: number;
+  restockTargetQty: number;
+  deficit: number;
+}
+
+export interface AnalyticsStockAlerts {
+  alerts: AnalyticsStockAlertItem[];
+}
+
+export interface AnalyticsHeatmapItem {
+  /**
+   * @minimum 0
+   * @maximum 23
+   */
+  hour: number;
+  day: string;
+  /**
+   * @minimum 0
+   * @maximum 6
+   */
+  dayNum: number;
+  txCount: number;
+  totalCop: number;
+}
+
+export interface AnalyticsHeatmap {
+  heatmap: AnalyticsHeatmapItem[];
 }
 
 export interface SnapshotExport {
@@ -1095,4 +1193,40 @@ export type GetInventoryReportParams = {
 
 export type GetSnapshotParams = {
   eventId: string;
+};
+
+export type GetAnalyticsSummaryParams = {
+  eventId?: string;
+  from?: string;
+  to?: string;
+};
+
+export type GetAnalyticsSalesByHourParams = {
+  eventId?: string;
+  from?: string;
+  to?: string;
+};
+
+export type GetAnalyticsTopProductsParams = {
+  eventId?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+};
+
+export type GetAnalyticsTopMerchantsParams = {
+  eventId?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+};
+
+export type GetAnalyticsStockAlertsParams = {
+  eventId?: string;
+};
+
+export type GetAnalyticsHeatmapParams = {
+  eventId?: string;
+  from?: string;
+  to?: string;
 };

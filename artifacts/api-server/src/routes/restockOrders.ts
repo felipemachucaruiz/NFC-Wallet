@@ -80,6 +80,66 @@ router.get(
   },
 );
 
+router.post(
+  "/restock-orders",
+  requireRole("admin", "event_admin", "merchant_admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({
+      locationId: z.string().min(1),
+      productId: z.string().min(1),
+      requestedQty: z.number().int().positive(),
+      notes: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const { locationId, productId, requestedQty, notes } = parsed.data;
+
+    const [location] = await db
+      .select({ eventId: locationsTable.eventId, merchantId: locationsTable.merchantId })
+      .from(locationsTable)
+      .where(eq(locationsTable.id, locationId));
+
+    if (!location) {
+      res.status(404).json({ error: "Location not found" });
+      return;
+    }
+
+    const user = req.user!;
+
+    if (user.role === "event_admin") {
+      const userEventId = user.eventId;
+      if (!userEventId || location.eventId !== userEventId) {
+        res.status(403).json({ error: "Access denied: location does not belong to your event" });
+        return;
+      }
+    } else if (user.role === "merchant_admin") {
+      if (!user.merchantId || location.merchantId !== user.merchantId) {
+        res.status(403).json({ error: "Access denied: location does not belong to your merchant" });
+        return;
+      }
+    }
+
+    if (location.eventId) {
+      const inventoryMode = await getEventInventoryMode(location.eventId);
+      if (inventoryMode === "location_based") {
+        res.status(409).json({ error: "Restock orders are not available in location-based inventory mode" });
+        return;
+      }
+    }
+
+    const [order] = await db
+      .insert(restockOrdersTable)
+      .values({ locationId, productId, requestedQty, notes })
+      .returning();
+
+    res.status(201).json(order);
+  },
+);
+
 router.patch(
   "/restock-orders/:orderId",
   requireRole("admin", "warehouse_admin"),
