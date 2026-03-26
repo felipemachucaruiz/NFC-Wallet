@@ -14,7 +14,7 @@ import { API_BASE_URL } from "@/constants/domain";
 import { clearSigningKeyCache } from "@/utils/signingKeyCache";
 import { clearInMemoryCachedHmacSecret } from "@/contexts/OfflineQueueContext";
 
-const TOKEN_KEY = "@auth_token";
+const TOKEN_KEY = "tapee_auth_token";
 
 export type UserRole =
   | "attendee"
@@ -161,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { token: sid } = await res.json() as { token: string };
       const u = await fetchUser(sid);
       if (!u) return "Could not load user profile";
+      if (u === "network_error") return "Network error";
       if (rememberMe) {
         await storeToken(sid);
       } else {

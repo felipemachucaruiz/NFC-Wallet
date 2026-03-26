@@ -405,9 +405,12 @@ router.get(
       const report = items.map((item) => {
         const loc = eventLocations.find((l) => l.id === item.locationId);
         const prod = products.find((p) => p.id === item.productId);
-        return { locationId: item.locationId, locationName: loc?.name ?? item.locationId, productId: item.productId, productName: prod?.name ?? item.productId, quantityOnHand: item.quantityOnHand, restockTrigger: item.restockTrigger, isLowStock: item.quantityOnHand <= item.restockTrigger };
+        return { locationId: item.locationId, locationName: loc?.name ?? item.locationId, productId: item.productId, productName: prod?.name ?? item.productId, priceCop: prod?.priceCop ?? 0, quantityOnHand: item.quantityOnHand, restockTrigger: item.restockTrigger, isLowStock: item.quantityOnHand <= item.restockTrigger };
       });
-      res.json({ items: report });
+      const totalUnitsInStock = report.reduce((s, i) => s + i.quantityOnHand, 0);
+      const totalInventoryValueCop = report.reduce((s, i) => s + i.quantityOnHand * i.priceCop, 0);
+      const lowStockCount = report.filter((i) => i.isLowStock).length;
+      res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday: 0 });
       return;
     }
 
@@ -476,13 +479,17 @@ router.get(
         locationName: loc?.name ?? item.locationId,
         productId: item.productId,
         productName: prod?.name ?? item.productId,
+        priceCop: prod?.priceCop ?? 0,
         quantityOnHand: item.quantityOnHand,
         restockTrigger: item.restockTrigger,
         isLowStock: item.quantityOnHand <= item.restockTrigger,
       };
     });
 
-    res.json({ items: report });
+    const totalUnitsInStock = report.reduce((s, i) => s + i.quantityOnHand, 0);
+    const totalInventoryValueCop = report.reduce((s, i) => s + i.quantityOnHand * i.priceCop, 0);
+    const lowStockCount = report.filter((i) => i.isLowStock).length;
+    res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday: 0 });
   },
 );
 

@@ -9,8 +9,8 @@ import React, {
 import * as SecureStore from "expo-secure-store";
 import { AppState, type AppStateStatus, Platform } from "react-native";
 
-const PASSCODE_KEY = "@tapee_passcode";
-const PIN_SKIP_KEY = "@tapee_pin_skip_remaining";
+const PASSCODE_KEY = "tapee_passcode";
+const PIN_SKIP_KEY = "tapee_pin_skip_remaining";
 const LOCK_AFTER_MS = 30_000; // 30 seconds in background
 const SKIP_COUNT = 3; // logins to suppress after "Not now"
 
