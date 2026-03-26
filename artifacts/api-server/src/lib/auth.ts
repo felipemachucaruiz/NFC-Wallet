@@ -49,6 +49,17 @@ export async function getSession(sid: string): Promise<SessionData | null> {
     return null;
   }
 
+  // Sliding expiry: extend TTL on every access so active users never get
+  // logged out mid-use. Only extend if more than 1 day remains to avoid
+  // a DB write on every single request.
+  const oneDay = 24 * 60 * 60 * 1000;
+  if (row.expire.getTime() - Date.now() < SESSION_TTL - oneDay) {
+    await db
+      .update(sessionsTable)
+      .set({ expire: new Date(Date.now() + SESSION_TTL) })
+      .where(eq(sessionsTable.sid, sid));
+  }
+
   return row.sess as unknown as SessionData;
 }
 

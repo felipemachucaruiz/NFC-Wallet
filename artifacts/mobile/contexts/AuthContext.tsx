@@ -92,34 +92,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(t);
   }, []);
 
-  // Returns the user, null if session invalid, or "network_error" if unreachable
+  // Returns the user, null if session explicitly rejected (401), or "network_error" if unreachable
   const fetchUser = useCallback(async (t: string): Promise<AuthUser | null | "network_error"> => {
     try {
       tokenRef.current = t;
       const resp = await getCurrentAuthUser();
       if (resp?.user) return resp.user as AuthUser;
       return null;
-    } catch {
+    } catch (err: unknown) {
+      // Distinguish 401/403 (session genuinely invalid) from network failures
+      if (err && typeof err === "object" && "status" in err) {
+        const status = (err as { status: number }).status;
+        if (status === 401 || status === 403) return null;
+      }
       return "network_error";
     }
   }, []);
+
+  // On startup: try to restore session with up to RETRY_COUNT retries
+  // so a brief API server restart doesn't force the user to log in again.
+  const RETRY_COUNT = 4;
+  const RETRY_DELAY_MS = 2000;
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       const stored = await getStoredToken();
       if (stored) {
-        const result = await fetchUser(stored);
+        let result: AuthUser | null | "network_error" = "network_error";
+        for (let attempt = 0; attempt <= RETRY_COUNT; attempt++) {
+          if (!mounted) return;
+          if (attempt > 0) {
+            // Wait before retrying
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          }
+          result = await fetchUser(stored);
+          if (result !== "network_error") break; // Got a definitive answer
+        }
         if (mounted) {
           if (result && result !== "network_error") {
             // Session is valid — restore the user
             setAuthToken(stored);
-            setUser(result);
+            setUser(result as AuthUser);
           } else if (result === null) {
-            // Server explicitly rejected session (expired/not found) — clear it
+            // Server explicitly rejected session (401) — clear it
             await clearToken();
           }
-          // "network_error": keep the token, user will try again next launch
+          // Still "network_error" after all retries: keep the token stored,
+          // show login so user can proceed (token will be re-validated next launch)
         }
       }
       if (mounted) setIsLoading(false);
