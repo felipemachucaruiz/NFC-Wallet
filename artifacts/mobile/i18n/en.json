@@ -151,6 +151,7 @@
     "invalidAmount": "Invalid amount",
     "minimumAmount": "Minimum $1,000 COP",
     "writingBracelet": "Writing bracelet...",
+    "nfcWriteWarning": "Top-up saved. Could not write to bracelet — hold it close to sync on the next charge.",
     "braceletReady": "Bracelet ready",
     "enterUid": "Enter UID",
     "enterUidManual": "Enter UID manually",

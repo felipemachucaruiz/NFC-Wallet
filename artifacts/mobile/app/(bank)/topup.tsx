@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
   Platform,
   Pressable,
   ScrollView,
@@ -94,7 +95,8 @@ export default function TopUpScreen() {
 
   const [amountText, setAmountText] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
-  const [step, setStep] = useState<"form" | "writing" | "success">("form");
+  const [step, setStep] = useState<"form" | "saving" | "writing" | "success">("form");
+  const [writeWarning, setWriteWarning] = useState(false);
 
   const [attendeeName, setAttendeeName] = useState(params.attendeeName ?? "");
   const [phone, setPhone] = useState(params.phone ?? "");
@@ -109,24 +111,29 @@ export default function TopUpScreen() {
   const amount = parseCOPInput(amountText);
   const newBalance = currentBalance + amount;
 
+  // Pulse animation for the NFC write waiting screen
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (step !== "writing") { pulseAnim.setValue(1); return; }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.3, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [step]);
+
   const handleConfirm = async () => {
     if (amount < 1000) {
       Alert.alert(t("common.error"), t("bank.minimumAmount"));
       return;
     }
 
-    setStep("writing");
+    // Step 1: Save to server first — this is the critical step
+    setStep("saving");
     try {
-      const newCounter = currentCounter + 1;
-      const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
-
-      if (isNfcSupported()) {
-        await writeBracelet(
-          { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
-          tagInfoFromParams ?? undefined
-        );
-      }
-
       await createTopUp.mutateAsync({
         data: {
           nfcUid: uid,
@@ -139,26 +146,59 @@ export default function TopUpScreen() {
       if (attendeeName.trim()) contactUpdates.attendeeName = attendeeName.trim();
       if (phone.trim()) contactUpdates.phone = phone.trim();
       if (email.trim()) contactUpdates.email = email.trim();
-
       if (Object.keys(contactUpdates).length > 0) {
         await updateContact.mutateAsync({ nfcUid: uid, data: contactUpdates });
       }
-
-      setStep("success");
     } catch (e: unknown) {
       setStep("form");
       Alert.alert(t("common.error"), t("bank.topUpError"));
+      return;
     }
+
+    // Step 2: Write updated balance to the NFC bracelet (non-fatal)
+    if (isNfcSupported()) {
+      setStep("writing");
+      try {
+        const newCounter = currentCounter + 1;
+        const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
+        await writeBracelet(
+          { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
+          tagInfoFromParams ?? undefined
+        );
+      } catch {
+        // NFC write failed — top-up is already saved server-side, show warning
+        setWriteWarning(true);
+      }
+    }
+
+    setStep("success");
   };
+
+  if (step === "saving") {
+    return (
+      <View style={[styles.center, { backgroundColor: C.background }]}>
+        <View style={[styles.writingIcon, { backgroundColor: C.primaryLight }]}>
+          <Feather name="upload-cloud" size={40} color={C.primary} />
+        </View>
+        <Text style={[styles.writingTitle, { color: C.text }]}>{t("common.processing")}</Text>
+      </View>
+    );
+  }
 
   if (step === "writing") {
     return (
       <View style={[styles.center, { backgroundColor: C.background }]}>
-        <View style={[styles.writingIcon, { backgroundColor: C.primaryLight }]}>
+        <Animated.View
+          style={[
+            styles.writingIcon,
+            { backgroundColor: C.primaryLight, transform: [{ scale: pulseAnim }] },
+          ]}
+        >
           <Feather name="wifi" size={40} color={C.primary} />
-        </View>
-        <Text style={[styles.writingTitle, { color: C.text }]}>
-          {isNfcSupported() ? t("bank.writingBracelet") : t("common.processing")}
+        </Animated.View>
+        <Text style={[styles.writingTitle, { color: C.text }]}>{t("bank.acercarManilla")}</Text>
+        <Text style={[styles.writingSubtitle, { color: C.textSecondary }]}>
+          {t("bank.holdSteady")}
         </Text>
       </View>
     );
@@ -183,6 +223,14 @@ export default function TopUpScreen() {
           </View>
         </View>
         {tagInfoFromParams && <TagBadge tagInfo={tagInfoFromParams} colors={C} />}
+        {writeWarning && (
+          <View style={[styles.writeWarnBox, { backgroundColor: C.warningLight ?? "#FFF3CD", borderColor: C.warning ?? "#F59E0B" }]}>
+            <Feather name="alert-circle" size={15} color={C.warning ?? "#F59E0B"} />
+            <Text style={[styles.writeWarnText, { color: C.warning ?? "#92400E" }]}>
+              {t("bank.nfcWriteWarning")}
+            </Text>
+          </View>
+        )}
         <Button title={t("bank.lookup")} onPress={() => router.back()} variant="primary" size="lg" fullWidth />
       </View>
     );
@@ -315,6 +363,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 20, paddingHorizontal: 28 },
   writingIcon: { width: 100, height: 100, borderRadius: 28, alignItems: "center", justifyContent: "center" },
   writingTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  writingSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
+  writeWarnBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginTop: -4 },
+  writeWarnText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   successIcon: { width: 100, height: 100, borderRadius: 28, alignItems: "center", justifyContent: "center" },
   successTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
   successAmounts: { width: "100%", borderWidth: 1, borderRadius: 16, padding: 20, gap: 16 },
