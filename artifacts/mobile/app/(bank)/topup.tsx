@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -120,6 +120,25 @@ export default function TopUpScreen() {
 
   const createTopUp = useCreateTopUp();
   const updateContact = useUpdateBraceletContact();
+
+  // Reset all form state whenever this screen comes into focus (handles Expo Router
+  // reusing the cached screen instance when navigating back then forward again)
+  useFocusEffect(
+    useCallback(() => {
+      setAmountText("");
+      setPaymentMethod("cash");
+      setStep("form");
+      setWriteWarning(false);
+      setWriteError(null);
+      submittingRef.current = false;
+      writingRef.current = false;
+      // Re-sync contact fields from current params (params object is live from Expo Router
+      // but local state initializers don't re-run when screen is reused)
+      setAttendeeName(params.attendeeName ?? "");
+      setPhone(params.phone ?? "");
+      setEmail(params.email ?? "");
+    }, [params.attendeeName, params.phone, params.email])
+  );
 
   const amount = parseCOPInput(amountText);
   const newBalance = currentBalance + amount;

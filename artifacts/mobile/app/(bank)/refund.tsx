@@ -19,7 +19,7 @@ import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { isNfcSupported, writeBracelet } from "@/utils/nfc";
+import { isNfcSupported, writeBracelet, type TagInfo, type TagType } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 
 type RefundMethod = "cash" | "nequi" | "bancolombia" | "other";
@@ -47,6 +47,9 @@ export default function RefundScreen() {
     balance: string;
     counter: string;
     hmac: string;
+    tagType?: string;
+    tagLabel?: string;
+    tagMemoryBytes?: string;
     attendeeName?: string;
     phone?: string;
     email?: string;
@@ -58,6 +61,15 @@ export default function RefundScreen() {
   const attendeeName = params.attendeeName ?? "";
   const phone = params.phone ?? "";
   const email = params.email ?? "";
+
+  const tagInfoFromParams: TagInfo | null =
+    params.tagType
+      ? {
+          type: params.tagType as TagType,
+          label: params.tagLabel ?? params.tagType,
+          memoryBytes: parseInt(params.tagMemoryBytes ?? "0", 10),
+        }
+      : null;
 
   const [refundMethod, setRefundMethod] = useState<RefundMethod>("cash");
   const [notes, setNotes] = useState("");
@@ -84,7 +96,10 @@ export default function RefundScreen() {
               const newHmac = await computeHmac(0, newCounter, hmacSecret);
 
               if (isNfcSupported()) {
-                await writeBracelet({ uid, balance: 0, counter: newCounter, hmac: newHmac });
+                await writeBracelet(
+                  { uid, balance: 0, counter: newCounter, hmac: newHmac },
+                  tagInfoFromParams ?? undefined
+                );
               }
 
               const result = await createRefund.mutateAsync({
