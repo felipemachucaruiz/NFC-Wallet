@@ -71,7 +71,8 @@
     "unknown": "Unknown",
     "notSet": "Not set",
     "passwordMinLength": "Password must be at least 6 characters",
-    "unexpectedError": "An unexpected error occurred"
+    "unexpectedError": "An unexpected error occurred",
+    "endOfList": "No more items"
   },
   "auth": {
     "title": "Tapee",
@@ -135,6 +136,80 @@
     "tapForHistory": "Tap your bracelet to see history",
     "uidPlaceholder": "e.g. A1:B2:C3:D4",
     "balanceLabel": "Balance"
+  },
+  "attendeeHome": {
+    "tab": "Home",
+    "greeting": "Welcome back,",
+    "currentBalance": "Current balance",
+    "totalBalance": "Total balance",
+    "noBracelet": "No bracelet linked",
+    "linkBraceletHint": "Visit the Bank station to get your bracelet, then link it here.",
+    "myBracelets": "My bracelets",
+    "blocked": "Blocked",
+    "blockedHint": "This bracelet is blocked. Go to the Bank station to unblock it.",
+    "blockBracelet": "Block bracelet",
+    "requestRefund": "Request refund",
+    "quickActions": "Quick actions",
+    "history": "History",
+    "linkBracelet": "Link bracelet"
+  },
+  "attendeeBlock": {
+    "title": "Block bracelet",
+    "confirmMessage": "Are you sure you want to block this bracelet? No payments can be made with it until you go to the Bank station to unblock it.",
+    "blockBtn": "Block bracelet",
+    "blockedTitle": "Bracelet blocked",
+    "blockedMessage": "Your bracelet has been blocked. To unblock it, go to the Bank station and verify your identity.",
+    "warningTitle": "Before you block",
+    "warning1": "You will not be able to make purchases at any stand.",
+    "warning2": "The bracelet can only be unblocked at the Bank station with identity verification.",
+    "warning3": "Your balance is safe and will not be lost.",
+    "unlockInfo": "To unblock your bracelet, visit the Bank station. Staff will verify your identity before reactivating it."
+  },
+  "attendeeRefund": {
+    "title": "Request refund",
+    "amount": "Refund amount",
+    "accountPlaceholder": "Phone number or account number",
+    "pendingInfo": "Your request will be reviewed by the Bank team. Refunds are processed at the end of the event or within 48 hours.",
+    "confirmTitle": "Confirm request",
+    "confirmMessage": "Submit a refund request for your remaining balance?",
+    "submit": "Submit request",
+    "successTitle": "Request submitted",
+    "successMessage": "Your refund request has been submitted. The Bank team will contact you once it is processed."
+  },
+  "attendeeLink": {
+    "title": "Link bracelet",
+    "instructions": "Link your bracelet",
+    "instructionsDetail": "Tap your bracelet to link it to your account. You must have received your bracelet at the Bank station first.",
+    "successTitle": "Bracelet linked!",
+    "successMessage": "Your bracelet is now linked to your account. You can view your balance and history here.",
+    "goHome": "Go to home"
+  },
+  "bankRefundRequests": {
+    "title": "Refund requests",
+    "noRequests": "No pending refund requests",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "approve": "Approve",
+    "reject": "Reject",
+    "amount": "Amount",
+    "method": "Method",
+    "accountDetails": "Account details",
+    "processSuccess": "Request processed",
+    "processError": "Error processing request"
+  },
+  "bankTransfer": {
+    "title": "Transfer balance",
+    "oldBracelet": "Old (blocked) bracelet",
+    "newBracelet": "New bracelet",
+    "transferBtn": "Transfer balance",
+    "confirmTitle": "Confirm transfer",
+    "confirmMessage": "Transfer {{amount}} from the blocked bracelet to the new one?",
+    "successTitle": "Balance transferred",
+    "successMessage": "The balance has been transferred to the new bracelet.",
+    "oldBraceletMustBeBlocked": "The old bracelet must be blocked before transferring.",
+    "tapOldBracelet": "Tap blocked bracelet",
+    "tapNewBracelet": "Tap new bracelet"
   },
   "bank": {
     "title": "Bank Station",

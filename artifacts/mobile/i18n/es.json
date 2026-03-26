@@ -71,7 +71,8 @@
     "unknown": "Desconocido",
     "notSet": "No definido",
     "passwordMinLength": "La contraseña debe tener al menos 6 caracteres",
-    "unexpectedError": "Ocurrió un error inesperado"
+    "unexpectedError": "Ocurrió un error inesperado",
+    "endOfList": "No hay más elementos"
   },
   "auth": {
     "title": "Tapee",
@@ -135,6 +136,80 @@
     "tapForHistory": "Toca tu pulsera para ver el historial",
     "uidPlaceholder": "Ej. A1:B2:C3:D4",
     "balanceLabel": "Saldo"
+  },
+  "attendeeHome": {
+    "tab": "Inicio",
+    "greeting": "Bienvenido/a,",
+    "currentBalance": "Saldo actual",
+    "totalBalance": "Saldo total",
+    "noBracelet": "Sin pulsera vinculada",
+    "linkBraceletHint": "Visita la estación bancaria para obtener tu pulsera y vincúlala aquí.",
+    "myBracelets": "Mis pulseras",
+    "blocked": "Bloqueada",
+    "blockedHint": "Esta pulsera está bloqueada. Ve a la estación bancaria para desbloquearla.",
+    "blockBracelet": "Bloquear pulsera",
+    "requestRefund": "Solicitar devolución",
+    "quickActions": "Accesos directos",
+    "history": "Historial",
+    "linkBracelet": "Vincular pulsera"
+  },
+  "attendeeBlock": {
+    "title": "Bloquear pulsera",
+    "confirmMessage": "¿Estás seguro de que deseas bloquear esta pulsera? No podrás hacer compras hasta que vayas a la estación bancaria para desbloquearla.",
+    "blockBtn": "Bloquear pulsera",
+    "blockedTitle": "Pulsera bloqueada",
+    "blockedMessage": "Tu pulsera ha sido bloqueada. Para desbloquearla, ve a la estación bancaria y verifica tu identidad.",
+    "warningTitle": "Antes de bloquear",
+    "warning1": "No podrás realizar compras en ningún stand.",
+    "warning2": "La pulsera solo puede desbloquearse en la estación bancaria con verificación de identidad.",
+    "warning3": "Tu saldo está seguro y no se perderá.",
+    "unlockInfo": "Para desbloquear tu pulsera, visita la estación bancaria. El personal verificará tu identidad antes de reactivarla."
+  },
+  "attendeeRefund": {
+    "title": "Solicitar devolución",
+    "amount": "Monto a devolver",
+    "accountPlaceholder": "Número de teléfono o cuenta",
+    "pendingInfo": "Tu solicitud será revisada por el equipo bancario. Las devoluciones se procesan al final del evento o dentro de 48 horas.",
+    "confirmTitle": "Confirmar solicitud",
+    "confirmMessage": "¿Enviar una solicitud de devolución por tu saldo restante?",
+    "submit": "Enviar solicitud",
+    "successTitle": "Solicitud enviada",
+    "successMessage": "Tu solicitud de devolución ha sido enviada. El equipo bancario te contactará una vez procesada."
+  },
+  "attendeeLink": {
+    "title": "Vincular pulsera",
+    "instructions": "Vincula tu pulsera",
+    "instructionsDetail": "Toca tu pulsera para vincularla a tu cuenta. Debes haber recibido tu pulsera en la estación bancaria primero.",
+    "successTitle": "¡Pulsera vinculada!",
+    "successMessage": "Tu pulsera está vinculada a tu cuenta. Puedes ver tu saldo e historial aquí.",
+    "goHome": "Ir al inicio"
+  },
+  "bankRefundRequests": {
+    "title": "Solicitudes de devolución",
+    "noRequests": "Sin solicitudes de devolución pendientes",
+    "pending": "Pendiente",
+    "approved": "Aprobada",
+    "rejected": "Rechazada",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "amount": "Monto",
+    "method": "Método",
+    "accountDetails": "Datos de cuenta",
+    "processSuccess": "Solicitud procesada",
+    "processError": "Error al procesar la solicitud"
+  },
+  "bankTransfer": {
+    "title": "Transferir saldo",
+    "oldBracelet": "Pulsera antigua (bloqueada)",
+    "newBracelet": "Nueva pulsera",
+    "transferBtn": "Transferir saldo",
+    "confirmTitle": "Confirmar transferencia",
+    "confirmMessage": "¿Transferir {{amount}} de la pulsera bloqueada a la nueva?",
+    "successTitle": "Saldo transferido",
+    "successMessage": "El saldo ha sido transferido a la nueva pulsera.",
+    "oldBraceletMustBeBlocked": "La pulsera antigua debe estar bloqueada antes de transferir.",
+    "tapOldBracelet": "Toca la pulsera bloqueada",
+    "tapNewBracelet": "Toca la nueva pulsera"
   },
   "bank": {
     "title": "Estación Bancaria",

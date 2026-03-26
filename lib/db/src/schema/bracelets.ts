@@ -1,10 +1,12 @@
 import { pgTable, varchar, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { usersTable } from "./auth";
 
 export const braceletsTable = pgTable("bracelets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   nfcUid: varchar("nfc_uid", { length: 64 }).notNull().unique(),
   eventId: varchar("event_id"),
+  attendeeUserId: varchar("attendee_user_id").references(() => usersTable.id),
   attendeeName: varchar("attendee_name", { length: 255 }),
   phone: varchar("phone", { length: 32 }),
   email: varchar("email", { length: 255 }),

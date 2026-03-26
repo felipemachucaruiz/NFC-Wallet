@@ -287,6 +287,25 @@ export default function BankLookupScreen() {
         </Card>
       )}
 
+      <Card>
+        <View style={styles.quickLinks}>
+          <Pressable
+            style={[styles.quickLinkBtn, { backgroundColor: C.primaryLight }]}
+            onPress={() => router.push("/(bank)/refund-requests")}
+          >
+            <Feather name="inbox" size={18} color={C.primary} />
+            <Text style={[styles.quickLinkText, { color: C.primary }]}>{t("bankRefundRequests.title")}</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.quickLinkBtn, { backgroundColor: C.primaryLight }]}
+            onPress={() => router.push("/(bank)/transfer-balance")}
+          >
+            <Feather name="shuffle" size={18} color={C.primary} />
+            <Text style={[styles.quickLinkText, { color: C.primary }]}>{t("bankTransfer.title")}</Text>
+          </Pressable>
+        </View>
+      </Card>
+
       {/* NFC Scan Waiting Modal */}
       <Modal visible={isTapping} transparent animationType="fade">
         <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.6)" }]}>
@@ -363,4 +382,7 @@ const styles = StyleSheet.create({
   scanHint: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
   cancelBtn: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32 },
   cancelText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  quickLinks: { flexDirection: "row", gap: 12 },
+  quickLinkBtn: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, justifyContent: "center" },
+  quickLinkText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });

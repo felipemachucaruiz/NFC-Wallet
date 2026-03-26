@@ -87,6 +87,8 @@ function ClassicTabLayout() {
       <Tabs.Screen name="refund" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="sync-issues" options={{ href: null }} />
+      <Tabs.Screen name="refund-requests" options={{ href: null }} />
+      <Tabs.Screen name="transfer-balance" options={{ href: null }} />
     </Tabs>
   );
 }

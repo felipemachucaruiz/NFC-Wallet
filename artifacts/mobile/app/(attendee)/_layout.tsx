@@ -14,9 +14,9 @@ function NativeTabLayout() {
   const { t } = useTranslation();
   return (
     <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "creditcard", selected: "creditcard.fill" }} />
-        <Label>{t("attendee.balance")}</Label>
+      <NativeTabs.Trigger name="home">
+        <Icon sf={{ default: "house", selected: "house.fill" }} />
+        <Label>{t("attendeeHome.tab")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="history">
         <Icon sf={{ default: "list.bullet", selected: "list.bullet" }} />
@@ -68,11 +68,12 @@ function ClassicTabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
-          title: t("attendee.balance"),
+          title: t("attendeeHome.tab"),
           tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="creditcard.fill" tintColor={color} size={22} /> : <Feather name="credit-card" size={22} color={color} />,
+            isIOS ? <SymbolView name="house.fill" tintColor={color} size={22} /> : <Feather name="home" size={22} color={color} />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -83,7 +84,10 @@ function ClassicTabLayout() {
             isIOS ? <SymbolView name="list.bullet" tintColor={color} size={22} /> : <Feather name="list" size={22} color={color} />,
         }}
       />
+      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
+      <Tabs.Screen name="block-bracelet" options={{ href: null }} />
+      <Tabs.Screen name="refund-request" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -17,6 +17,7 @@ import payoutsRouter from "./payouts";
 import reportsRouter from "./reports";
 import promoterCompaniesRouter from "./promoterCompanies";
 import refundsRouter from "./refunds";
+import attendeeRouter from "./attendee";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(payoutsRouter);
 router.use(reportsRouter);
 router.use(promoterCompaniesRouter);
 router.use(refundsRouter);
+router.use(attendeeRouter);
 
 export default router;
