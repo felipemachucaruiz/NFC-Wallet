@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Alert,
   Modal,
@@ -18,6 +18,7 @@ import {
   useListLocations,
   useGetLocationInventory,
   useUpdateLocationInventoryItem,
+  useListProducts,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
@@ -27,69 +28,114 @@ import { Loading } from "@/components/ui/Loading";
 import { Empty } from "@/components/ui/Empty";
 
 type Location = { id: string; name: string; merchantId: string; active: boolean };
-type InventoryItem = {
+
+type Product = {
   id: string;
+  name: string;
+  category?: string | null;
+  priceCop: number;
+  active: boolean;
+};
+
+type InventoryItem = {
+  id?: string;
   locationId: string;
   productId: string;
-  product?: { id: string; name: string; category?: string | null; priceCop: number };
+  product?: Product;
   quantityOnHand: number;
   restockTrigger: number;
   restockTargetQty: number;
+  hasRecord: boolean;
 };
 
 function LocationInventory({
   location,
+  merchantId,
   C,
 }: {
   location: Location;
+  merchantId: string;
   C: typeof Colors.light;
 }) {
   const { t } = useTranslation();
-  const [adjustTarget, setAdjustTarget] = useState<InventoryItem | null>(null);
-  const [delta, setDelta] = useState("");
+  const [editTarget, setEditTarget] = useState<InventoryItem | null>(null);
+  const [newQty, setNewQty] = useState("");
   const [threshold, setThreshold] = useState("");
 
-  const { data, isLoading, refetch } = useGetLocationInventory(location.id, {
+  const { data: invData, isLoading: invLoading, refetch } = useGetLocationInventory(location.id, {
     query: { enabled: !!location.id, queryKey: ["location-inventory", location.id] },
   });
-  const items: InventoryItem[] =
-    (data as { inventory?: InventoryItem[] } | undefined)?.inventory ?? [];
+  const invItems: InventoryItem[] =
+    ((invData as { inventory?: InventoryItem[] } | undefined)?.inventory ?? []).map((i) => ({
+      ...i,
+      hasRecord: true,
+    }));
+
+  const { data: prodData, isLoading: prodLoading } = useListProducts(
+    { merchantId },
+    { query: { enabled: !!merchantId, queryKey: ["products-for-stock", merchantId] } },
+  );
+  const products: Product[] =
+    ((prodData as { products?: Product[] } | undefined)?.products ?? []).filter((p) => p.active);
 
   const updateInventory = useUpdateLocationInventoryItem();
 
-  const openAdjust = (item: InventoryItem) => {
-    setAdjustTarget(item);
-    setDelta("");
+  const mergedItems: InventoryItem[] = useMemo(() => {
+    const invMap = new Map(invItems.map((i) => [i.productId, i]));
+    return products.map((p) => {
+      const existing = invMap.get(p.id);
+      if (existing) return { ...existing, product: p };
+      return {
+        locationId: location.id,
+        productId: p.id,
+        product: p,
+        quantityOnHand: 0,
+        restockTrigger: 10,
+        restockTargetQty: 50,
+        hasRecord: false,
+      };
+    });
+  }, [products, invItems, location.id]);
+
+  const openEdit = (item: InventoryItem) => {
+    setEditTarget(item);
+    setNewQty(String(item.quantityOnHand));
     setThreshold(String(item.restockTrigger));
   };
 
   const handleSave = async () => {
-    if (!adjustTarget) return;
-    const qtyDelta = delta !== "" ? parseInt(delta, 10) : undefined;
-    const thresh = threshold !== "" ? parseInt(threshold, 10) : undefined;
+    if (!editTarget) return;
+    const targetQty = parseInt(newQty, 10);
+    const thresh = parseInt(threshold, 10);
+    if (isNaN(targetQty) || targetQty < 0) {
+      Alert.alert(t("common.error"), t("merchant_admin.invalidQty"));
+      return;
+    }
+    const delta = targetQty - editTarget.quantityOnHand;
     try {
       await updateInventory.mutateAsync({
         locationId: location.id,
         data: {
-          productId: adjustTarget.productId,
-          quantityAdjustment: qtyDelta !== undefined && !isNaN(qtyDelta) ? qtyDelta : undefined,
-          restockTrigger: thresh !== undefined && !isNaN(thresh) ? thresh : undefined,
+          productId: editTarget.productId,
+          quantityAdjustment: delta,
+          restockTrigger: !isNaN(thresh) ? thresh : undefined,
         },
       });
       Alert.alert(t("common.success"), t("merchant_admin.stockUpdated"));
-      setAdjustTarget(null);
+      setEditTarget(null);
       refetch();
     } catch {
       Alert.alert(t("common.error"), t("common.unknownError"));
     }
   };
 
-  if (isLoading) return <Loading />;
-  if (items.length === 0) {
+  if (invLoading || prodLoading) return <Loading />;
+
+  if (mergedItems.length === 0) {
     return (
       <View style={{ paddingVertical: 8 }}>
         <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" }}>
-          {t("merchant_admin.noStock")}
+          {t("merchant_admin.noProductsYet")}
         </Text>
       </View>
     );
@@ -97,14 +143,20 @@ function LocationInventory({
 
   return (
     <>
-      {items.map((item) => {
-        const isLow =
-          item.restockTrigger > 0 && item.quantityOnHand <= item.restockTrigger;
+      {mergedItems.map((item) => {
+        const isLow = item.restockTrigger > 0 && item.quantityOnHand <= item.restockTrigger && item.hasRecord;
+        const isNew = !item.hasRecord;
         return (
           <Pressable
-            key={item.id}
-            onPress={() => openAdjust(item)}
-            style={[styles.itemCard, { backgroundColor: C.card, borderColor: isLow ? "#ef4444" : C.border }]}
+            key={item.productId}
+            onPress={() => openEdit(item)}
+            style={[
+              styles.itemCard,
+              {
+                backgroundColor: C.card,
+                borderColor: isLow ? "#ef4444" : isNew ? C.primaryLight : C.border,
+              },
+            ]}
           >
             <View style={{ flex: 1 }}>
               <Text style={[styles.itemName, { color: C.text }]} numberOfLines={1}>
@@ -115,14 +167,18 @@ function LocationInventory({
                   {item.product.category}
                 </Text>
               ) : null}
+              {isNew && (
+                <Text style={[styles.itemCat, { color: C.primary }]}>
+                  {t("merchant_admin.tapToSetStock")}
+                </Text>
+              )}
             </View>
             <View style={styles.itemRight}>
-              <Text style={[styles.itemQty, { color: isLow ? "#ef4444" : C.text }]}>
+              {isLow && <Feather name="alert-triangle" size={14} color="#ef4444" />}
+              {isNew && <Feather name="plus-circle" size={16} color={C.primary} />}
+              <Text style={[styles.itemQty, { color: isLow ? "#ef4444" : isNew ? C.primary : C.text }]}>
                 {item.quantityOnHand}
               </Text>
-              {isLow && (
-                <Feather name="alert-triangle" size={14} color="#ef4444" />
-              )}
               <Feather name="chevron-right" size={16} color={C.textMuted} />
             </View>
           </Pressable>
@@ -130,26 +186,25 @@ function LocationInventory({
       })}
 
       <Modal
-        visible={!!adjustTarget}
+        visible={!!editTarget}
         transparent
         animationType="fade"
-        onRequestClose={() => setAdjustTarget(null)}
+        onRequestClose={() => setEditTarget(null)}
       >
         <View style={styles.overlay}>
           <View style={[styles.modalCard, { backgroundColor: C.card }]}>
             <Text style={[styles.modalTitle, { color: C.text }]}>
-              {adjustTarget?.product?.name ?? ""}
+              {editTarget?.product?.name ?? ""}
             </Text>
             <Text style={[styles.modalSub, { color: C.textSecondary }]}>
-              {t("merchant_admin.adjustQty")} · {t("merchant_admin.stockTitle")}:{" "}
-              {adjustTarget?.quantityOnHand ?? 0}
+              {t("merchant_admin.currentStock")}: {editTarget?.quantityOnHand ?? 0} {t("merchant_admin.units")}
             </Text>
             <View style={{ gap: 12, marginBottom: 16 }}>
               <Input
-                label={t("merchant_admin.qtyDelta")}
+                label={t("merchant_admin.setQtyAbsolute")}
                 placeholder="0"
-                value={delta}
-                onChangeText={setDelta}
+                value={newQty}
+                onChangeText={setNewQty}
                 keyboardType="number-pad"
               />
               <Input
@@ -164,7 +219,7 @@ function LocationInventory({
               <Button
                 title={t("common.cancel")}
                 variant="secondary"
-                onPress={() => setAdjustTarget(null)}
+                onPress={() => setEditTarget(null)}
               />
               <Button
                 title={t("common.save")}
@@ -237,7 +292,7 @@ export default function MerchantStockScreen() {
             </Pressable>
             {expandedId === loc.id && (
               <View style={[styles.locationBody, { borderColor: C.border }]}>
-                <LocationInventory location={loc} C={C} />
+                <LocationInventory location={loc} merchantId={merchantId} C={C} />
               </View>
             )}
           </View>
