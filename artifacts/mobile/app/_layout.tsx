@@ -20,6 +20,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PasscodeProvider, usePasscode } from "@/contexts/PasscodeContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { OfflineQueueProvider } from "@/contexts/OfflineQueueContext";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { initI18n } from "@/i18n";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
@@ -126,6 +127,7 @@ export default function RootLayout() {
                         {!splashDone && (
                           <AnimatedSplash onFinished={() => setSplashDone(true)} />
                         )}
+                        <UpdateBanner />
                       </KeyboardProvider>
                     </GestureHandlerRootView>
                   </OfflineQueueProvider>

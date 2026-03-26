@@ -583,5 +583,10 @@
     "companyDeleted": "Empresa eliminada",
     "companySaved": "Empresa guardada",
     "deleteConfirm": "¿Eliminar esta empresa promotora?"
+  },
+  "update": {
+    "downloading": "Descargando actualización…",
+    "ready": "¡Actualización lista!",
+    "restart": "Reiniciar ahora"
   }
 }

@@ -583,5 +583,10 @@
     "companyDeleted": "Company deleted",
     "companySaved": "Company saved",
     "deleteConfirm": "Delete this promoter company?"
+  },
+  "update": {
+    "downloading": "Downloading update…",
+    "ready": "Update ready!",
+    "restart": "Restart now"
   }
 }
