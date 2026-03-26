@@ -281,6 +281,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
 
     let anySuccess = false;
     let anyError = false;
+    let hasNetworkError = false;
     let syncedSpend = 0;
 
     // Dispatch each item in global counter order (one at a time to preserve ordering)
@@ -330,6 +331,8 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           anySuccess = true;
         } catch (err: unknown) {
           anyError = true;
+          const httpErr = err as { status?: number };
+          if (!httpErr.status) hasNetworkError = true;
           const msg = err instanceof Error ? err.message : "Network error";
           q = queueRef.current.map((t) =>
             t.id === item.id
@@ -370,6 +373,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
             anySuccess = true;
           } else {
             anyError = true;
+            if (!httpErr.status) hasNetworkError = true;
             const msg = err instanceof Error ? err.message : "Network error";
             const reason = httpErr.data?.error ?? msg;
             tq = topUpQueueRef.current.map((t) =>
@@ -394,9 +398,9 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
       await updateUnsyncedSpend(newSpend);
     }
 
-    if (anySuccess && !anyError) {
+    if (anySuccess || (anyError && !hasNetworkError)) {
       setIsOnline(true);
-    } else if (anyError && !anySuccess) {
+    } else if (hasNetworkError && !anySuccess) {
       setIsOnline(false);
     }
 
