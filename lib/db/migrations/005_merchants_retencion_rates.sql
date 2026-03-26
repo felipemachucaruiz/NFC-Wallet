@@ -1,0 +1,3 @@
+ALTER TABLE merchants
+  ADD COLUMN IF NOT EXISTS retencion_fuente_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS retencion_ica_rate    NUMERIC(7,4) NOT NULL DEFAULT 0;
