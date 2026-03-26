@@ -138,6 +138,8 @@
     "confirmMessage": "¿Recargar {{amount}} a la pulsera?",
     "topUpSuccess": "Recarga exitosa",
     "topUpError": "Error al recargar",
+    "acercarManilla": "Acercar manilla o tarjeta",
+    "holdSteady": "Mantén firme hasta que suene",
     "newBalance": "Nuevo saldo",
     "shiftSummary": "Resumen de turno",
     "totalCollected": "Total recolectado",

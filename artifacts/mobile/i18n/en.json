@@ -138,6 +138,8 @@
     "confirmMessage": "Top-up {{amount}} to bracelet?",
     "topUpSuccess": "Top-up successful",
     "topUpError": "Top-up error",
+    "acercarManilla": "Bring bracelet or card close",
+    "holdSteady": "Hold steady until it beeps",
     "newBalance": "New balance",
     "shiftSummary": "Shift summary",
     "totalCollected": "Total collected",

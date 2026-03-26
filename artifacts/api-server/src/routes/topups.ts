@@ -39,13 +39,18 @@ router.post(
     }
     const { nfcUid, amountCop, paymentMethod, wompiTransactionId } = parsed.data;
 
-    const [bracelet] = await db
+    let [bracelet] = await db
       .select()
       .from(braceletsTable)
       .where(eq(braceletsTable.nfcUid, nfcUid));
+
+    // Auto-register new bracelets on first top-up
     if (!bracelet) {
-      res.status(404).json({ error: "Bracelet not found" });
-      return;
+      const [created] = await db
+        .insert(braceletsTable)
+        .values({ nfcUid, lastKnownBalanceCop: 0, lastCounter: 0 })
+        .returning();
+      bracelet = created;
     }
 
     const newBalance = bracelet.lastKnownBalanceCop + amountCop;

@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
   Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,7 +23,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
-import { isNfcSupported, scanBracelet, type TagInfo } from "@/utils/nfc";
+import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo } from "@/utils/nfc";
 
 interface BraceletState {
   uid: string;
@@ -70,6 +72,19 @@ export default function BankLookupScreen() {
   const [fetchUid, setFetchUid] = useState<string | null>(null);
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
 
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!isTapping) { pulseAnim.setValue(1); return; }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.25, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isTapping]);
+
   const { data: apiData, isLoading } = useGetBracelet(fetchUid ?? "", {
     query: { enabled: !!fetchUid },
   });
@@ -86,10 +101,18 @@ export default function BankLookupScreen() {
       setTagInfo(result.tagInfo);
       setFetchUid(result.payload.uid);
     } catch (e: unknown) {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      const msg = e instanceof Error ? e.message : "";
+      if (!msg.includes("cancelled") && !msg.includes("cancel") && !msg.includes("Cancel")) {
+        Alert.alert(t("common.error"), t("common.unknownError"));
+      }
     } finally {
       setIsTapping(false);
     }
+  };
+
+  const handleCancelScan = async () => {
+    await cancelNfc();
+    setIsTapping(false);
   };
 
   const handleManualConfirm = () => {
@@ -248,6 +271,33 @@ export default function BankLookupScreen() {
         </Card>
       )}
 
+      {/* NFC Scan Waiting Modal */}
+      <Modal visible={isTapping} transparent animationType="fade">
+        <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.6)" }]}>
+          <View style={[styles.modalBox, { backgroundColor: C.card, alignItems: "center", gap: 24 }]}>
+            <Animated.View
+              style={[
+                styles.nfcPulse,
+                { backgroundColor: C.primaryLight, transform: [{ scale: pulseAnim }] },
+              ]}
+            >
+              <Feather name="wifi" size={48} color={C.primary} />
+            </Animated.View>
+            <View style={{ alignItems: "center", gap: 6 }}>
+              <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
+                {t("bank.acercarManilla")}
+              </Text>
+              <Text style={[styles.scanHint, { color: C.textSecondary }]}>
+                {t("bank.holdSteady")}
+              </Text>
+            </View>
+            <Pressable onPress={handleCancelScan} style={[styles.cancelBtn, { borderColor: C.border }]}>
+              <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("common.cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={showManual} transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <View style={[styles.modalBox, { backgroundColor: C.card }]}>
@@ -287,9 +337,13 @@ const styles = StyleSheet.create({
   alertBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10 },
   alertText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   actionButtons: { flexDirection: "row", gap: 10 },
-  overlay: { flex: 1, justifyContent: "flex-end" },
-  modalBox: { padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 16 },
-  modalTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
+  overlay: { flex: 1, justifyContent: "center", paddingHorizontal: 32 },
+  modalBox: { padding: 32, borderRadius: 24, gap: 16 },
+  modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
   uidInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16, fontFamily: "Inter_400Regular" },
   modalActions: { flexDirection: "row", gap: 12 },
+  nfcPulse: { width: 100, height: 100, borderRadius: 50, alignItems: "center", justifyContent: "center" },
+  scanHint: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
+  cancelBtn: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32 },
+  cancelText: { fontSize: 15, fontFamily: "Inter_500Medium" },
 });
