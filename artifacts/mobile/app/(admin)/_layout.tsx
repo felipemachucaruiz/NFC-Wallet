@@ -8,6 +8,7 @@ import React from "react";
 import { Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { useRoleGuard } from "@/hooks/useRoleGuard";
 
 function NativeTabLayout() {
   const { t } = useTranslation();
@@ -91,6 +92,7 @@ function ClassicTabLayout() {
 }
 
 export default function AdminLayout() {
+  useRoleGuard("admin");
   if (isLiquidGlassAvailable()) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }

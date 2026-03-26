@@ -4,8 +4,10 @@ import React from "react";
 import { Pressable, useColorScheme } from "react-native";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { useRoleGuard } from "@/hooks/useRoleGuard";
 
 export default function MerchantPosLayout() {
+  useRoleGuard("merchant_staff");
   const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
