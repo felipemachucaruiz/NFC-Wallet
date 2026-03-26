@@ -90,7 +90,24 @@
     "featureNfc": "Pagos NFC instantáneos",
     "featureHmac": "HMAC-SHA256 seguro",
     "featureOffline": "Funciona sin conexión",
-    "disclaimer": "Solo para personal autorizado del evento"
+    "disclaimer": "Solo para personal autorizado del evento",
+    "rememberMe": "Mantenerme conectado",
+    "rememberMeHint": "Tu sesión se guardará de forma segura en este dispositivo"
+  },
+  "passcode": {
+    "enterPin": "Ingresa tu PIN",
+    "enterPinHint": "Ingresa tu PIN de 4 dígitos para continuar",
+    "wrongPin": "PIN incorrecto, inténtalo de nuevo",
+    "createPin": "Crear PIN de 4 dígitos",
+    "createPinHint": "Elige un PIN para proteger el acceso",
+    "confirmPin": "Confirmar PIN",
+    "confirmPinHint": "Ingresa el mismo PIN para confirmar",
+    "pinMismatch": "Los PINs no coinciden, inténtalo de nuevo",
+    "promptTitle": "Proteger con PIN",
+    "promptHint": "Añade un PIN de 4 dígitos para proteger el acceso a la app",
+    "setupBtn": "Configurar PIN",
+    "skip": "Ahora no",
+    "logout": "Cerrar sesión"
   },
   "attendee": {
     "balance": "Saldo",

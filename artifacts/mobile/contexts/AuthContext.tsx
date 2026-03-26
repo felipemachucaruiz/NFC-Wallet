@@ -38,7 +38,7 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (identifier: string, password: string) => Promise<string | null>;
+  login: (identifier: string, password: string, rememberMe?: boolean) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -118,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { mounted = false; };
   }, []);
 
-  const login = useCallback(async (identifier: string, password: string): Promise<string | null> => {
+  const login = useCallback(async (identifier: string, password: string, rememberMe = true): Promise<string | null> => {
     try {
       const res = await fetch(`${getApiBase()}/api/auth/login`, {
         method: "POST",
@@ -132,7 +132,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { token: sid } = await res.json() as { token: string };
       const u = await fetchUser(sid);
       if (!u) return "Could not load user profile";
-      await storeToken(sid);
+      if (rememberMe) {
+        await storeToken(sid);
+      } else {
+        await clearToken();
+      }
       setAuthToken(sid);
       setUser(u);
       return null;

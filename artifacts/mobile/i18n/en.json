@@ -90,7 +90,24 @@
     "featureNfc": "Instant NFC payments",
     "featureHmac": "HMAC-SHA256 secured",
     "featureOffline": "Works offline",
-    "disclaimer": "For authorized event staff only"
+    "disclaimer": "For authorized event staff only",
+    "rememberMe": "Keep me signed in",
+    "rememberMeHint": "Your session will be saved securely on this device"
+  },
+  "passcode": {
+    "enterPin": "Enter your PIN",
+    "enterPinHint": "Enter your 4-digit PIN to continue",
+    "wrongPin": "Incorrect PIN, please try again",
+    "createPin": "Create a 4-digit PIN",
+    "createPinHint": "Choose a PIN to protect access",
+    "confirmPin": "Confirm PIN",
+    "confirmPinHint": "Enter the same PIN to confirm",
+    "pinMismatch": "PINs don't match, please try again",
+    "promptTitle": "Protect with PIN",
+    "promptHint": "Add a 4-digit PIN to protect access to the app",
+    "setupBtn": "Set up PIN",
+    "skip": "Not now",
+    "logout": "Sign out"
   },
   "attendee": {
     "balance": "Balance",
