@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { useUpdateUserRole } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { API_BASE_URL } from "@/constants/domain";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -46,7 +47,7 @@ type UserItem = {
   role: string;
 };
 
-const getApiBase = () => `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+const getApiBase = () => API_BASE_URL;
 
 export default function RolesScreen() {
   const { t } = useTranslation();

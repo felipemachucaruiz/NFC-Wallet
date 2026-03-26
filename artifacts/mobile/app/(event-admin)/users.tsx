@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { API_BASE_URL } from "@/constants/domain";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -53,7 +54,7 @@ type Merchant = {
   name: string;
 };
 
-const getApiBase = (): string => `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+const getApiBase = (): string => API_BASE_URL;
 
 export default function EventAdminUsersScreen() {
   const { t } = useTranslation();

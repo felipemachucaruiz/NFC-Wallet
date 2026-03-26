@@ -16,6 +16,7 @@ import {
   useGetTopUpReport,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { API_BASE_URL } from "@/constants/domain";
 import { CopAmount } from "@/components/CopAmount";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
@@ -31,7 +32,7 @@ type BillingRow = {
   platformCommissionEarnedCop: number;
 };
 
-const getApiBase = (): string => `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+const getApiBase = (): string => API_BASE_URL;
 
 export default function ReportsScreen() {
   const { t } = useTranslation();

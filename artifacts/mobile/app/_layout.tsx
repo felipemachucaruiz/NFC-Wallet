@@ -13,6 +13,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@workspace/api-client-react";
+import { API_BASE_URL } from "@/constants/domain";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { PasscodeScreen } from "@/components/PasscodeScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -26,7 +27,7 @@ import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
 import { useTranslation } from "react-i18next";
 
-setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+setBaseUrl(API_BASE_URL);
 
 SplashScreen.preventAutoHideAsync();
 

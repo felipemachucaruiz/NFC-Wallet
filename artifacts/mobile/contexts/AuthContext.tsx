@@ -10,6 +10,7 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { getCurrentAuthUser } from "@workspace/api-client-react";
+import { API_BASE_URL } from "@/constants/domain";
 
 const TOKEN_KEY = "@auth_token";
 
@@ -47,8 +48,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const getApiBase = (): string =>
-  `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+const getApiBase = (): string => API_BASE_URL;
 
 const getStoredToken = async (): Promise<string | null> => {
   try {

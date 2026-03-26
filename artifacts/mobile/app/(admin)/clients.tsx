@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListEvents } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { API_BASE_URL } from "@/constants/domain";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -25,7 +26,7 @@ import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
 
-const getApiBase = () => `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+const getApiBase = () => API_BASE_URL;
 
 type Client = {
   id: string;

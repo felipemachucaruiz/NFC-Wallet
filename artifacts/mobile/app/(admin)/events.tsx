@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { formatDate } from "@/utils/format";
 import { useAuth } from "@/contexts/AuthContext";
+import { API_BASE_URL } from "@/constants/domain";
 
 const STATUS_BADGE: Record<string, "success" | "warning" | "muted" | "info" | "danger"> = {
   active: "success",
@@ -46,7 +47,7 @@ function getEventStatus(event: { active?: boolean; startsAt: string; endsAt: str
   return "active";
 }
 
-const getApiBase = (): string => `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+const getApiBase = (): string => API_BASE_URL;
 
 type OrganizerMode = "none" | "existing" | "new";
 
