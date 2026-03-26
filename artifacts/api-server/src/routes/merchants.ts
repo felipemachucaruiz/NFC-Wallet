@@ -1,5 +1,16 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, merchantsTable, transactionLogsTable, merchantPayoutsTable } from "@workspace/db";
+import {
+  db,
+  merchantsTable,
+  transactionLogsTable,
+  merchantPayoutsTable,
+  locationsTable,
+  productsTable,
+  locationInventoryTable,
+  userLocationAssignmentsTable,
+  restockOrdersTable,
+  stockMovementsTable,
+} from "@workspace/db";
 import { eq, and, gte, lte, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -208,6 +219,57 @@ router.get(
       pendingCop,
       payouts,
     });
+  },
+);
+
+router.delete(
+  "/merchants/:merchantId",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { merchantId } = req.params as { merchantId: string };
+
+    const merchant = await db.query.merchantsTable.findFirst({
+      where: eq(merchantsTable.id, merchantId),
+    });
+    if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+    // Block deletion if any transaction history exists
+    const txCount = await db.$count(transactionLogsTable, eq(transactionLogsTable.merchantId, merchantId));
+    if (txCount > 0) {
+      return res.status(409).json({
+        error: "Cannot delete a merchant with transaction history. Deactivate it instead.",
+      });
+    }
+
+    // Cascade delete in dependency order
+    const locationRows = await db
+      .select({ id: locationsTable.id })
+      .from(locationsTable)
+      .where(eq(locationsTable.merchantId, merchantId));
+    const locationIds = locationRows.map((r) => r.id);
+
+    const productRows = await db
+      .select({ id: productsTable.id })
+      .from(productsTable)
+      .where(eq(productsTable.merchantId, merchantId));
+    const productIds = productRows.map((r) => r.id);
+
+    if (locationIds.length > 0) {
+      await db.delete(locationInventoryTable).where(inArray(locationInventoryTable.locationId, locationIds));
+      await db.delete(userLocationAssignmentsTable).where(inArray(userLocationAssignmentsTable.locationId, locationIds));
+      await db.delete(stockMovementsTable).where(inArray(stockMovementsTable.fromLocationId, locationIds));
+      await db.delete(stockMovementsTable).where(inArray(stockMovementsTable.toLocationId, locationIds));
+      await db.delete(restockOrdersTable).where(inArray(restockOrdersTable.locationId, locationIds));
+      await db.delete(locationsTable).where(inArray(locationsTable.id, locationIds));
+    }
+
+    if (productIds.length > 0) {
+      await db.delete(productsTable).where(inArray(productsTable.id, productIds));
+    }
+
+    await db.delete(merchantsTable).where(eq(merchantsTable.id, merchantId));
+
+    res.json({ success: true });
   },
 );
 

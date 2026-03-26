@@ -19,6 +19,7 @@ import {
   useListMerchants,
   useCreateMerchant,
   useUpdateMerchant,
+  useDeleteMerchant,
   useListEvents,
   useListLocations,
   useCreateLocation,
@@ -236,6 +237,7 @@ export default function MerchantsScreen() {
           onClose={() => setSelectedMerchant(null)}
           onSelectLocation={(loc) => setSelectedLocation(loc)}
           onMerchantUpdated={(updated) => { setSelectedMerchant(updated); refetch(); }}
+          onMerchantDeleted={() => { setSelectedMerchant(null); refetch(); }}
           C={C}
         />
       )}
@@ -256,12 +258,14 @@ function MerchantDetailModal({
   onClose,
   onSelectLocation,
   onMerchantUpdated,
+  onMerchantDeleted,
   C,
 }: {
   merchant: Merchant;
   onClose: () => void;
   onSelectLocation: (loc: Location) => void;
   onMerchantUpdated: (updated: Merchant) => void;
+  onMerchantDeleted: () => void;
   C: typeof Colors.light;
 }) {
   const { t } = useTranslation();
@@ -276,6 +280,34 @@ function MerchantDetailModal({
   const [editActive, setEditActive] = useState(merchant.active !== false);
 
   const updateMerchant = useUpdateMerchant();
+  const deleteMerchant = useDeleteMerchant();
+
+  const handleDelete = () => {
+    Alert.alert(
+      t("admin.deleteMerchant"),
+      t("admin.deleteMerchantConfirm", { name: merchant.name }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteMerchant.mutateAsync({ merchantId: merchant.id });
+              onMerchantDeleted();
+            } catch (err: unknown) {
+              const status = (err as { status?: number })?.status;
+              if (status === 409) {
+                Alert.alert(t("admin.cannotDelete"), t("admin.merchantHasTransactions"));
+              } else {
+                Alert.alert(t("common.error"), t("common.unknownError"));
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleSaveEdit = async () => {
     if (!editName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
@@ -458,6 +490,13 @@ function MerchantDetailModal({
                   onPress={handleSaveEdit}
                 />
               </View>
+              <Button
+                title={t("admin.deleteMerchant")}
+                variant="danger"
+                size="sm"
+                loading={deleteMerchant.isPending}
+                onPress={handleDelete}
+              />
             </View>
           )}
 

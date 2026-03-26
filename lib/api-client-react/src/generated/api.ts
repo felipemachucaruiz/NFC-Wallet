@@ -2347,6 +2347,49 @@ export const useUpdateMerchant = <
   return useMutation(getUpdateMerchantMutationOptions(options));
 };
 
+export const getDeleteMerchantUrl = (merchantId: string) =>
+  `/api/merchants/${merchantId}`;
+
+export const deleteMerchant = async (
+  merchantId: string,
+  options?: SecondParameter<typeof customFetch>,
+): Promise<void> => {
+  await customFetch<void>(getDeleteMerchantUrl(merchantId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteMerchantMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<void, TError, { merchantId: string }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<void, TError, { merchantId: string }, TContext> => {
+  const mutationKey = ["deleteMerchant"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+  const mutationFn: MutationFunction<void, { merchantId: string }> = ({ merchantId }) =>
+    deleteMerchant(merchantId, requestOptions);
+  return { mutationFn, ...mutationOptions };
+};
+
+export const useDeleteMerchant = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<void, TError, { merchantId: string }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<void, TError, { merchantId: string }, TContext> => {
+  return useMutation(getDeleteMerchantMutationOptions(options));
+};
+
 /**
  * @summary Get merchant earnings summary (merchant_admin or admin)
  */
