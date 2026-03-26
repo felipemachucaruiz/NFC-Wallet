@@ -386,7 +386,20 @@
     "outOfStock": "Agotado",
     "invalidQuantity": "Cantidad inválida",
     "additionalNote": "Nota adicional",
-    "confirmAction": "¿Confirmar?"
+    "confirmAction": "¿Confirmar?",
+    "receiveGoods": "Recibir mercancía",
+    "quantityReceived": "Cantidad recibida",
+    "confirmReceive": "Confirmar recepción",
+    "receiveSuccess": "Mercancía ingresada al almacén",
+    "inWarehouse": "En almacén",
+    "buildOrder": "Agregar productos al pedido",
+    "addToOrder": "Agregar",
+    "orderSummary": "Resumen del pedido",
+    "emptyOrder": "Agrega al menos un producto al pedido",
+    "insufficientStock": "Stock insuficiente en almacén para",
+    "confirmDispatch": "Confirmar despacho",
+    "products": "productos",
+    "noProducts": "Sin productos en el almacén"
   },
   "eventAdmin": {
     "dashboard": "Dashboard",
