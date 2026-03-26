@@ -439,9 +439,14 @@ export default function TopUpScreen() {
                 {writeError && (
                   <View style={[styles.errorBox, { backgroundColor: C.dangerLight ?? "#FEE2E2", borderColor: C.danger ?? "#EF4444" }]}>
                     <Feather name="alert-triangle" size={13} color={C.danger ?? "#EF4444"} />
-                    <Text style={[styles.errorText, { color: C.danger ?? "#991B1B" }]}>
-                      {t("bank.writeRetryHint")}
-                    </Text>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <Text style={[styles.errorText, { color: C.danger ?? "#991B1B" }]}>
+                        {t("bank.writeRetryHint")}
+                      </Text>
+                      <Text style={[styles.errorCode, { color: C.danger ?? "#991B1B" }]}>
+                        {writeError}
+                      </Text>
+                    </View>
                   </View>
                 )}
 
@@ -500,7 +505,8 @@ const styles = StyleSheet.create({
   savedBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   savedBadgeText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   errorBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, width: "100%" },
-  errorText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  errorText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  errorCode: { fontSize: 10, fontFamily: "Inter_400Regular", opacity: 0.75, fontVariant: ["tabular-nums"] },
   cancelBtn: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32 },
   cancelText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 });

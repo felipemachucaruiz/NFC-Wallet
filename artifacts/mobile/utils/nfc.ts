@@ -214,8 +214,8 @@ async function writeBraceletNdef(payload: BraceletPayload): Promise<void> {
     throw new Error("NFC_NOT_AVAILABLE");
   }
 
+  // Clear any stale session — do NOT call start() as it resets handler references
   await NfcManager.cancelTechnologyRequest().catch(() => {});
-  await NfcManager.start().catch(() => {});
 
   try {
     await NfcManager.requestTechnology(NfcTech.Ndef);
@@ -288,13 +288,27 @@ export async function writeBraceletMifareClassic(payload: BraceletPayload): Prom
     return writeBraceletNdef(payload);
   }
 
-  // Cancel any stale session from a prior scan before requesting a new one
+  // Clear any stale session — same multi-tech array as scanBracelet so Android
+  // uses the same foreground-dispatch path and keeps mifareClassicHandlerAndroid intact.
+  // Do NOT call NfcManager.start() here — it resets handler references to null.
   await NfcManager.cancelTechnologyRequest().catch(() => {});
-  // Ensure manager is started (idempotent)
-  await NfcManager.start().catch(() => {});
 
   try {
-    await NfcManager.requestTechnology(NfcTech.MifareClassic);
+    await NfcManager.requestTechnology([
+      NfcTech.MifareClassic,
+      NfcTech.MifareUltralight,
+      NfcTech.Ndef,
+      NfcTech.NfcA,
+    ]);
+
+    // Verify the tag is actually MIFARE Classic
+    const tag = await NfcManager.getTag();
+    if (!tag) throw new Error("NFC_NO_TAG");
+    const techTypes = getTagTechTypes(tag);
+    if (!hasTech(techTypes, "MifareClassic")) {
+      throw new Error("TAG_NOT_MIFARE_CLASSIC");
+    }
+
     const mfcHandler = getMfcHandler(NfcManager as unknown as AnyRecord);
     if (!mfcHandler) throw new Error("MIFARE_CLASSIC_HANDLER_UNAVAILABLE");
 
@@ -412,11 +426,16 @@ export async function writeBraceletUltralight(
     return writeBraceletNdef(payload);
   }
 
+  // Clear any stale session — do NOT call start()
   await NfcManager.cancelTechnologyRequest().catch(() => {});
-  await NfcManager.start().catch(() => {});
 
   try {
-    await NfcManager.requestTechnology(NfcTech.MifareUltralight);
+    await NfcManager.requestTechnology([
+      NfcTech.MifareUltralight,
+      NfcTech.MifareClassic,
+      NfcTech.Ndef,
+      NfcTech.NfcA,
+    ]);
     const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
     if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
 
