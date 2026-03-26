@@ -89,14 +89,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(t);
   }, []);
 
-  const fetchUser = useCallback(async (t: string): Promise<AuthUser | null> => {
+  // Returns the user, null if session invalid, or "network_error" if unreachable
+  const fetchUser = useCallback(async (t: string): Promise<AuthUser | null | "network_error"> => {
     try {
       tokenRef.current = t;
       const resp = await getCurrentAuthUser();
       if (resp?.user) return resp.user as AuthUser;
       return null;
     } catch {
-      return null;
+      return "network_error";
     }
   }, []);
 
@@ -105,14 +106,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const stored = await getStoredToken();
       if (stored) {
-        const u = await fetchUser(stored);
+        const result = await fetchUser(stored);
         if (mounted) {
-          if (u) {
+          if (result && result !== "network_error") {
+            // Session is valid — restore the user
             setAuthToken(stored);
-            setUser(u);
-          } else {
+            setUser(result);
+          } else if (result === null) {
+            // Server explicitly rejected session (expired/not found) — clear it
             await clearToken();
           }
+          // "network_error": keep the token, user will try again next launch
         }
       }
       if (mounted) setIsLoading(false);
@@ -165,8 +169,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     const t = tokenRef.current;
     if (!t) return;
-    const u = await fetchUser(t);
-    if (u) setUser(u);
+    const result = await fetchUser(t);
+    if (result && result !== "network_error") setUser(result);
   }, [fetchUser]);
 
   return (

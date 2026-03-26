@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -40,7 +40,8 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [setupStep, setSetupStep] = useState<SetupStep | null>(null);
-  const [firstCode, setFirstCode] = useState("");
+  // useRef avoids stale-closure issues inside PasscodeScreen's setTimeout
+  const firstCodeRef = useRef("");
 
   useEffect(() => {
     if (isAuthenticated && !setupStep) {
@@ -74,33 +75,20 @@ export default function LoginScreen() {
     // Otherwise the useEffect above will navigate to "/"
   };
 
-  const handlePasscodeEntered = async (code: string) => {
-    if (setupStep === "enter") {
-      setFirstCode(code);
-      setSetupStep("confirm");
-    } else if (setupStep === "confirm") {
-      if (code === firstCode) {
-        await setPasscode(code);
-        router.replace("/");
-      } else {
-        // Mismatch — restart entry
-        setFirstCode("");
-        setSetupStep("enter");
-        return "mismatch"; // triggers error in PasscodeScreen
-      }
-    }
-  };
-
   const busy = isLoading || submitting;
 
   // ── Passcode setup screens ─────────────────────────────────────────────────
   if (setupStep === "enter") {
     return (
       <PasscodeScreen
+        key="pin-enter"
         mode="setup"
         title={t("passcode.createPin")}
         subtitle={t("passcode.createPinHint")}
-        onSuccess={(code) => { setFirstCode(code); setSetupStep("confirm"); }}
+        onSuccess={(code) => {
+          firstCodeRef.current = code;
+          setSetupStep("confirm");
+        }}
         onCancel={() => { setSetupStep(null); router.replace("/"); }}
       />
     );
@@ -109,14 +97,19 @@ export default function LoginScreen() {
   if (setupStep === "confirm") {
     return (
       <PasscodeScreen
+        key="pin-confirm"
         mode="confirm"
         title={t("passcode.confirmPin")}
         onSuccess={async (code) => {
-          if (code === firstCode) {
-            await setPasscode(code);
+          if (code === firstCodeRef.current) {
+            try {
+              await setPasscode(code);
+            } catch {
+              // Storage failure — skip PIN, go home
+            }
             router.replace("/");
           } else {
-            setFirstCode("");
+            firstCodeRef.current = "";
             setSetupStep("enter");
           }
         }}
