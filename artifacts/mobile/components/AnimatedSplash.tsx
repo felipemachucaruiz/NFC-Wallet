@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -14,67 +14,40 @@ interface Props {
   onFinished: () => void;
 }
 
-const BRAND_BLUE = "#1A56DB";
-const BRAND_LIGHT = "#EBF1FF";
+const logo = require("../assets/images/tapee-logo.png");
 
 export function AnimatedSplash({ onFinished }: Props) {
-  const scheme = useColorScheme();
-
-  // Logo circle scale + opacity
-  const logoScale = useSharedValue(0.3);
+  const logoScale = useSharedValue(0.6);
   const logoOpacity = useSharedValue(0);
 
-  // Inner icon scale (slight pop after circle appears)
-  const iconScale = useSharedValue(0.5);
-
-  // Text elements
-  const titleOpacity = useSharedValue(0);
-  const titleTranslateY = useSharedValue(16);
   const taglineOpacity = useSharedValue(0);
+  const taglineY = useSharedValue(12);
 
-  // Entire screen fade out at end
   const screenOpacity = useSharedValue(1);
 
   useEffect(() => {
-    // 1. Logo circle springs in
-    logoScale.value = withSpring(1, { damping: 14, stiffness: 160 });
-    logoOpacity.value = withTiming(1, { duration: 300 });
+    logoOpacity.value = withTiming(1, { duration: 350 });
+    logoScale.value = withSpring(1, { damping: 13, stiffness: 140 });
 
-    // 2. Inner icon pops slightly after
-    iconScale.value = withDelay(180, withSpring(1, { damping: 12, stiffness: 200 }));
+    taglineOpacity.value = withDelay(500, withTiming(1, { duration: 400 }));
+    taglineY.value = withDelay(500, withSpring(0, { damping: 18, stiffness: 120 }));
 
-    // 3. Title slides up and fades in
-    titleOpacity.value = withDelay(380, withTiming(1, { duration: 350 }));
-    titleTranslateY.value = withDelay(380, withSpring(0, { damping: 16, stiffness: 120 }));
-
-    // 4. Tagline fades in
-    taglineOpacity.value = withDelay(620, withTiming(1, { duration: 350 }));
-
-    // 5. Hold for a beat, then fade the whole screen out and call onFinished
     screenOpacity.value = withDelay(
-      2000,
+      2200,
       withTiming(0, { duration: 400 }, (finished) => {
         if (finished) runOnJS(onFinished)();
       }),
     );
   }, []);
 
-  const logoCircleStyle = useAnimatedStyle(() => ({
+  const logoStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,
     transform: [{ scale: logoScale.value }],
   }));
 
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: iconScale.value }],
-  }));
-
-  const titleStyle = useAnimatedStyle(() => ({
-    opacity: titleOpacity.value,
-    transform: [{ translateY: titleTranslateY.value }],
-  }));
-
   const taglineStyle = useAnimatedStyle(() => ({
     opacity: taglineOpacity.value,
+    transform: [{ translateY: taglineY.value }],
   }));
 
   const screenStyle = useAnimatedStyle(() => ({
@@ -84,11 +57,11 @@ export function AnimatedSplash({ onFinished }: Props) {
   return (
     <Animated.View style={[styles.container, screenStyle]}>
       <View style={styles.content}>
-        <Animated.View style={[styles.logoCircle, logoCircleStyle]}>
-          <Animated.Text style={[styles.logoEmoji, iconStyle]}>💳</Animated.Text>
-        </Animated.View>
-
-        <Animated.Text style={[styles.appName, titleStyle]}>Tapee</Animated.Text>
+        <Animated.Image
+          source={logo}
+          style={[styles.logo, logoStyle]}
+          resizeMode="contain"
+        />
 
         <Animated.Text style={[styles.tagline, taglineStyle]}>
           Pagos sin efectivo · Eventos sin límites
@@ -105,51 +78,38 @@ export function AnimatedSplash({ onFinished }: Props) {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: BRAND_BLUE,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 999,
   },
   content: {
     alignItems: "center",
-    gap: 20,
+    gap: 28,
+    paddingHorizontal: 40,
   },
-  logoCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 32,
-    backgroundColor: BRAND_LIGHT,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
+  logo: {
+    width: 280,
+    height: 127,
+    shadowColor: "#1A56DB",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
     shadowRadius: 20,
-    elevation: 12,
-  },
-  logoEmoji: {
-    fontSize: 52,
-  },
-  appName: {
-    fontSize: 48,
-    fontFamily: "Inter_700Bold",
-    color: "#FFFFFF",
-    letterSpacing: -1,
   },
   tagline: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.72)",
+    color: "#6B7280",
     letterSpacing: 0.2,
     textAlign: "center",
   },
   poweredBy: {
     position: "absolute",
     bottom: 48,
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Inter_500Medium",
-    color: "rgba(255,255,255,0.4)",
-    letterSpacing: 1,
+    color: "#D1D5DB",
+    letterSpacing: 1.2,
     textTransform: "uppercase",
   },
 });
