@@ -5298,3 +5298,155 @@ export function useGetSnapshot<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Unflag a bracelet (remove ban)
+ */
+export const getUnflagBraceletUrl = (nfcUid: string) => {
+  return `/api/admin/bracelets/${nfcUid}/unflag`;
+};
+
+export const unflagBracelet = async (
+  nfcUid: string,
+  options?: RequestInit,
+): Promise<SuccessEnvelope> => {
+  return customFetch<SuccessEnvelope>(getUnflagBraceletUrl(nfcUid), {
+    ...options,
+    method: "PATCH",
+  });
+};
+
+export const getUnflagBraceletMutationOptions = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unflagBracelet>>,
+    TError,
+    { nfcUid: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unflagBracelet>>,
+  TError,
+  { nfcUid: string },
+  TContext
+> => {
+  const mutationKey = ["unflagBracelet"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unflagBracelet>>,
+    { nfcUid: string }
+  > = (props) => {
+    const { nfcUid } = props ?? {};
+    return unflagBracelet(nfcUid, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnflagBraceletMutationResult = NonNullable<Awaited<ReturnType<typeof unflagBracelet>>>;
+export type UnflagBraceletMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>;
+
+export const useUnflagBracelet = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unflagBracelet>>,
+    TError,
+    { nfcUid: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unflagBracelet>>,
+  TError,
+  { nfcUid: string },
+  TContext
+> => {
+  const mutationOptions = getUnflagBraceletMutationOptions(options);
+  return useMutation(mutationOptions);
+};
+
+/**
+ * @summary Delete a bracelet record (hard delete — transactions preserved)
+ */
+export const getDeleteAdminBraceletUrl = (nfcUid: string) => {
+  return `/api/admin/bracelets/${nfcUid}`;
+};
+
+export const deleteAdminBracelet = async (
+  nfcUid: string,
+  options?: RequestInit,
+): Promise<SuccessEnvelope> => {
+  return customFetch<SuccessEnvelope>(getDeleteAdminBraceletUrl(nfcUid), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteAdminBraceletMutationOptions = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAdminBracelet>>,
+    TError,
+    { nfcUid: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAdminBracelet>>,
+  TError,
+  { nfcUid: string },
+  TContext
+> => {
+  const mutationKey = ["deleteAdminBracelet"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAdminBracelet>>,
+    { nfcUid: string }
+  > = (props) => {
+    const { nfcUid } = props ?? {};
+    return deleteAdminBracelet(nfcUid, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAdminBraceletMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdminBracelet>>>;
+export type DeleteAdminBraceletMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>;
+
+export const useDeleteAdminBracelet = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAdminBracelet>>,
+    TError,
+    { nfcUid: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAdminBracelet>>,
+  TError,
+  { nfcUid: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteAdminBraceletMutationOptions(options);
+  return useMutation(mutationOptions);
+};

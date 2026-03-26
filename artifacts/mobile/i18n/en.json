@@ -61,7 +61,7 @@
     "enterUidTitle": "Enter bracelet UID",
     "uidPlaceholder": "e.g. A1:B2:C3:D4",
     "fillRequired": "Fill in all required fields",
-    "optional": "Optional",
+    "optional": "optional",
     "noOptions": "No options available",
     "nameRequired": "Name required",
     "confirmQuestion": "Confirm?",
@@ -70,8 +70,8 @@
     "inactive": "Inactive",
     "unknown": "Unknown",
     "notSet": "Not set",
-    "optional": "optional",
-    "passwordMinLength": "Password must be at least 6 characters"
+    "passwordMinLength": "Password must be at least 6 characters",
+    "unexpectedError": "An unexpected error occurred"
   },
   "auth": {
     "title": "Tapee",
@@ -249,7 +249,8 @@
     "currentBalance": "Current balance",
     "newBalance": "New balance",
     "enterUid": "Enter bracelet UID",
-    "newSale": "New sale"
+    "newSale": "New sale",
+    "scanError": "Could not read bracelet. Try again."
   },
   "merchant_admin": {
     "title": "Merchant Panel",
@@ -560,7 +561,29 @@
     "eventInactive": "Event inactive",
     "deactivateEvent": "Deactivate",
     "activateEvent": "Activate",
-    "resetPasswordConfirm": "Confirm password change for this user?"
+    "resetPasswordConfirm": "Confirm password change for this user?",
+    "braceletMgmt": "Bracelets",
+    "braceletLookup": "Bracelet Lookup",
+    "scanOrEnterUid": "Scan bracelet or enter UID manually",
+    "enterUidManually": "Enter UID manually",
+    "uidPlaceholder": "e.g. 04:A1:B2:C3",
+    "lookupBracelet": "Look up",
+    "braceletNotFound": "Bracelet not found in the system",
+    "braceletOwner": "Owner",
+    "braceletEvent": "Event",
+    "braceletBalance": "Balance",
+    "braceletCounter": "Transaction count",
+    "braceletStatus": "Status",
+    "braceletFlagged": "Flagged (banned)",
+    "braceletActive": "Active",
+    "unflagBracelet": "Remove ban",
+    "unflagConfirm": "Remove the ban on this bracelet and allow it to be used again?",
+    "unflagSuccess": "Bracelet unbanned successfully",
+    "deleteRecord": "Delete record",
+    "deleteRecordConfirm": "Permanently delete this bracelet from the system? Transaction history is preserved. The physical card can be re-registered.",
+    "deleteRecordSuccess": "Bracelet record deleted",
+    "flagReason": "Ban reason",
+    "noUidEntered": "Please scan or enter a UID first"
   },
   "common_notfound": {
     "title": "Page not found",

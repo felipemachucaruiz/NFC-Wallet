@@ -64,6 +64,52 @@ router.get(
   },
 );
 
+/**
+ * @summary Unflag a bracelet (remove ban)
+ */
+router.patch(
+  "/admin/bracelets/:nfcUid/unflag",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const { nfcUid } = req.params as { nfcUid: string };
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+    if (!bracelet) {
+      res.status(404).json({ error: "Bracelet not found" });
+      return;
+    }
+    const [updated] = await db
+      .update(braceletsTable)
+      .set({ flagged: false, flagReason: null, updatedAt: new Date() })
+      .where(eq(braceletsTable.nfcUid, nfcUid))
+      .returning();
+    res.json(updated);
+  },
+);
+
+/**
+ * @summary Delete a bracelet record (hard delete — transactions preserved)
+ */
+router.delete(
+  "/admin/bracelets/:nfcUid",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const { nfcUid } = req.params as { nfcUid: string };
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+    if (!bracelet) {
+      res.status(404).json({ error: "Bracelet not found" });
+      return;
+    }
+    await db.delete(braceletsTable).where(eq(braceletsTable.nfcUid, nfcUid));
+    res.json({ success: true });
+  },
+);
+
 router.patch(
   "/bracelets/:nfcUid",
   requireRole("bank", "admin"),
