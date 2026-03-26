@@ -5,6 +5,7 @@ import {
   FlatList,
   Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -18,10 +19,21 @@ import { useListMerchants, useCreateMerchant } from "@workspace/api-client-react
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { Empty } from "@/components/ui/Empty";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
+
+type MerchantType = "event_managed" | "external";
+
+type Merchant = {
+  id: string;
+  name: string;
+  commissionRatePercent: string;
+  merchantType?: MerchantType;
+  locationCount?: number;
+};
 
 export default function EventAdminMerchantsScreen() {
   const { t } = useTranslation();
@@ -34,16 +46,10 @@ export default function EventAdminMerchantsScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [merchantName, setMerchantName] = useState("");
   const [commissionRate, setCommissionRate] = useState("15");
+  const [merchantType, setMerchantType] = useState<MerchantType>("event_managed");
 
   const { data, isLoading, refetch } = useListMerchants({});
-  const merchants = (data as {
-    merchants?: Array<{
-      id: string;
-      name: string;
-      commissionRatePercent: number;
-      locationCount?: number;
-    }>
-  } | undefined)?.merchants ?? [];
+  const merchants: Merchant[] = (data as { merchants?: Merchant[] } | undefined)?.merchants ?? [];
 
   const createMerchant = useCreateMerchant();
 
@@ -56,11 +62,13 @@ export default function EventAdminMerchantsScreen() {
           name: merchantName.trim(),
           eventId: user.eventId!,
           commissionRatePercent: String(Number.isNaN(parseFloat(commissionRate)) ? 15 : parseFloat(commissionRate)),
+          merchantType,
         },
       });
       setShowCreate(false);
       setMerchantName("");
       setCommissionRate("15");
+      setMerchantType("event_managed");
       refetch();
     } catch {
       Alert.alert(t("common.error"), t("common.unknownError"));
@@ -95,11 +103,16 @@ export default function EventAdminMerchantsScreen() {
         renderItem={({ item }) => (
           <Card>
             <View style={styles.merchantRow}>
-              <View style={[styles.merchantIcon, { backgroundColor: C.primaryLight }]}>
-                <Feather name="shopping-bag" size={20} color={C.primary} />
+              <View style={[styles.merchantIcon, { backgroundColor: item.merchantType === "external" ? C.warningLight ?? C.inputBg : C.primaryLight }]}>
+                <Feather name="shopping-bag" size={20} color={item.merchantType === "external" ? C.warning ?? C.textSecondary : C.primary} />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, gap: 4 }}>
                 <Text style={[styles.merchantName, { color: C.text }]}>{item.name}</Text>
+                <Badge
+                  label={item.merchantType === "external" ? t("merchant_admin.typeExternal") : t("merchant_admin.typeEventManaged")}
+                  variant={item.merchantType === "external" ? "warning" : "success"}
+                  size="sm"
+                />
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 <Text style={[styles.commRate, { color: C.primary }]}>{item.commissionRatePercent}%</Text>
@@ -114,8 +127,56 @@ export default function EventAdminMerchantsScreen() {
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <ScrollView style={[styles.sheet, { backgroundColor: C.card }]} contentContainerStyle={{ gap: 16, padding: 24 }}>
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("admin.createMerchant")}</Text>
-            <Input label={t("common.name")} value={merchantName} onChangeText={setMerchantName} placeholder={t("admin.merchantNamePlaceholder")} />
-            <Input label={t("admin.commissionRate")} value={commissionRate} onChangeText={setCommissionRate} keyboardType="decimal-pad" placeholder="15" />
+
+            <Input
+              label={t("common.name")}
+              value={merchantName}
+              onChangeText={setMerchantName}
+              placeholder={t("admin.merchantNamePlaceholder")}
+            />
+
+            <Input
+              label={t("admin.commissionRate")}
+              value={commissionRate}
+              onChangeText={setCommissionRate}
+              keyboardType="decimal-pad"
+              placeholder="15"
+            />
+
+            <View style={{ gap: 8 }}>
+              <Text style={[styles.typeLabel, { color: C.textSecondary }]}>{t("merchant_admin.typeLabel")}</Text>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                {(["event_managed", "external"] as MerchantType[]).map((type) => (
+                  <Pressable
+                    key={type}
+                    onPress={() => setMerchantType(type)}
+                    style={[
+                      styles.typeOption,
+                      {
+                        borderColor: merchantType === type ? C.primary : C.border,
+                        backgroundColor: merchantType === type ? C.primaryLight : C.card,
+                        flex: 1,
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name={type === "event_managed" ? "layers" : "briefcase"}
+                      size={16}
+                      color={merchantType === type ? C.primary : C.textMuted}
+                    />
+                    <Text style={[styles.typeOptionText, { color: merchantType === type ? C.primary : C.textSecondary }]}>
+                      {type === "event_managed" ? t("merchant_admin.typeEventManaged") : t("merchant_admin.typeExternal")}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={[styles.typeHint, { color: C.textMuted }]}>
+                {merchantType === "event_managed"
+                  ? t("merchant_admin.typeEventManagedHint")
+                  : t("merchant_admin.typeExternalHint")}
+              </Text>
+            </View>
+
             <View style={styles.sheetActions}>
               <Button title={t("common.cancel")} onPress={() => setShowCreate(false)} variant="secondary" />
               <Button title={t("admin.createMerchant")} onPress={handleCreate} variant="primary" loading={createMerchant.isPending} />
@@ -137,7 +198,11 @@ const styles = StyleSheet.create({
   commRate: { fontSize: 16, fontFamily: "Inter_700Bold" },
   locCount: { fontSize: 12, fontFamily: "Inter_400Regular" },
   overlay: { flex: 1, justifyContent: "flex-end" },
-  sheet: { maxHeight: "80%", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  sheet: { maxHeight: "85%", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   sheetTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
   sheetActions: { flexDirection: "row", gap: 12 },
+  typeLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  typeOption: { padding: 12, borderRadius: 10, borderWidth: 1.5, alignItems: "center", gap: 6 },
+  typeOptionText: { fontSize: 12, fontFamily: "Inter_500Medium", textAlign: "center" },
+  typeHint: { fontSize: 11, fontFamily: "Inter_400Regular" },
 });

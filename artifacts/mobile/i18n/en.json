@@ -339,7 +339,9 @@
     "active": "Active",
     "typeLabel": "Merchant type",
     "typeEventManaged": "Event managed",
-    "typeExternal": "External vendor"
+    "typeExternal": "External vendor",
+    "typeEventManagedHint": "Inventory dispatched from warehouse. Warehouse team manages stock levels.",
+    "typeExternalHint": "Vendor manages their own inventory and product catalog independently."
   },
   "warehouse": {
     "title": "Warehouse",

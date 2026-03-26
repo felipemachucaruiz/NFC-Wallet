@@ -339,7 +339,9 @@
     "active": "Activo",
     "typeLabel": "Tipo de comercio",
     "typeEventManaged": "Gestionado por el evento",
-    "typeExternal": "Comercio externo"
+    "typeExternal": "Comercio externo",
+    "typeEventManagedHint": "El inventario llega desde bodega. El equipo de bodega gestiona los niveles de stock.",
+    "typeExternalHint": "El comercio gestiona su propio inventario y catálogo de productos de forma independiente."
   },
   "warehouse": {
     "title": "Almacén",
