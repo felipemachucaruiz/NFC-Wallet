@@ -12,4 +12,8 @@ export interface CreateRefundBody {
   braceletUid: string;
   refundMethod: RefundMethod;
   notes?: string;
+  /** Updated counter after NFC write (for bracelet sync) */
+  newCounter?: number;
+  /** New bracelet balance after refund (typically 0) */
+  newBalanceCop?: number;
 }

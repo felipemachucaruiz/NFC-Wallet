@@ -568,6 +568,14 @@ export const CreateRefundBody = zod.object({
   braceletUid: zod.string().min(1),
   refundMethod: zod.enum(["cash", "nequi", "bancolombia", "other"]),
   notes: zod.string().optional(),
+  newCounter: zod
+    .number()
+    .optional()
+    .describe("Updated counter after NFC write (for bracelet sync)"),
+  newBalanceCop: zod
+    .number()
+    .optional()
+    .describe("New bracelet balance after refund (typically 0)"),
 });
 
 /**
@@ -609,6 +617,118 @@ export const GetUnclaimedBalancesResponse = zod.object({
     }),
   ),
   totalUnclaimedCop: zod.number(),
+});
+
+/**
+ * @summary List all bracelets for an event (event_admin or admin)
+ */
+export const ListEventBraceletsParams = zod.object({
+  eventId: zod.coerce.string(),
+});
+
+export const listEventBraceletsQueryPageDefault = 1;
+
+export const listEventBraceletsQueryLimitDefault = 50;
+export const listEventBraceletsQueryLimitMax = 200;
+
+export const ListEventBraceletsQueryParams = zod.object({
+  page: zod.coerce.number().min(1).default(listEventBraceletsQueryPageDefault),
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(listEventBraceletsQueryLimitMax)
+    .default(listEventBraceletsQueryLimitDefault),
+  search: zod.coerce.string().optional(),
+});
+
+export const ListEventBraceletsResponse = zod.object({
+  bracelets: zod.array(
+    zod.object({
+      id: zod.string(),
+      nfcUid: zod.string(),
+      eventId: zod.string().nullish(),
+      attendeeName: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      email: zod.string().nullish(),
+      lastKnownBalanceCop: zod.number().nullable(),
+      lastCounter: zod.number().nullish(),
+      flagged: zod.boolean(),
+      flagReason: zod.string().nullish(),
+      maxOfflineSpend: zod.number().nullish(),
+      createdAt: zod.date(),
+      updatedAt: zod.date().optional(),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  limit: zod.number(),
+});
+
+/**
+ * @summary List all transactions for an event (event_admin or admin)
+ */
+export const ListEventTransactionsParams = zod.object({
+  eventId: zod.coerce.string(),
+});
+
+export const listEventTransactionsQueryPageDefault = 1;
+
+export const listEventTransactionsQueryLimitDefault = 50;
+export const listEventTransactionsQueryLimitMax = 200;
+
+export const ListEventTransactionsQueryParams = zod.object({
+  page: zod.coerce
+    .number()
+    .min(1)
+    .default(listEventTransactionsQueryPageDefault),
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(listEventTransactionsQueryLimitMax)
+    .default(listEventTransactionsQueryLimitDefault),
+  merchantId: zod.coerce.string().optional(),
+  search: zod.coerce
+    .string()
+    .optional()
+    .describe("Filter by bracelet UID or merchant name"),
+});
+
+export const ListEventTransactionsResponse = zod.object({
+  transactions: zod.array(
+    zod.object({
+      id: zod.string(),
+      idempotencyKey: zod.string().optional(),
+      braceletUid: zod.string(),
+      locationId: zod.string(),
+      locationName: zod.string().nullish(),
+      merchantId: zod.string(),
+      merchantName: zod.string().nullish(),
+      eventId: zod.string(),
+      grossAmountCop: zod.number(),
+      commissionAmountCop: zod.number(),
+      netAmountCop: zod.number(),
+      newBalanceCop: zod.number(),
+      counter: zod.number(),
+      itemCount: zod.number(),
+      items: zod.array(
+        zod.object({
+          id: zod.string(),
+          productId: zod.string().nullish(),
+          productName: zod.string().nullable(),
+          unitPrice: zod.number(),
+          quantity: zod.number(),
+          ivaAmountCop: zod.number(),
+        }),
+      ),
+      performedByUserId: zod.string().nullish(),
+      offlineCreatedAt: zod.date().nullish(),
+      syncedAt: zod.date().nullish(),
+      createdAt: zod.date(),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  limit: zod.number(),
 });
 
 /**
@@ -1663,6 +1783,7 @@ export const GetRevenueReportResponse = zod.object({
  * @summary Top-up report by payment method and bank user (bank or admin)
  */
 export const GetTopUpReportQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
   from: zod.date().optional(),
   to: zod.date().optional(),
   promoterCompanyId: zod.coerce.string().optional(),
@@ -2048,4 +2169,97 @@ export const GetAnalyticsHeatmapResponse = zod.object({
       totalCop: zod.number(),
     }),
   ),
+});
+
+/**
+ * @summary List fraud alerts (admin or event_admin)
+ */
+export const GetFraudAlertsQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  status: zod.enum(["open", "reviewed", "dismissed"]).optional(),
+  severity: zod.enum(["low", "medium", "high", "critical"]).optional(),
+});
+
+export const GetFraudAlertsResponse = zod.object({
+  alerts: zod.array(
+    zod.object({
+      id: zod.string(),
+      eventId: zod.string(),
+      type: zod.enum([
+        "double_location",
+        "offline_volume_anomaly",
+        "high_value_staff",
+        "balance_increase_no_topup",
+        "manual_report",
+        "hmac_invalid",
+      ]),
+      severity: zod.enum(["low", "medium", "high", "critical"]),
+      entityType: zod.enum(["bracelet", "pos", "staff"]),
+      entityId: zod.string(),
+      description: zod.string(),
+      reportedBy: zod.string().nullish(),
+      status: zod.enum(["open", "reviewed", "dismissed"]),
+      createdAt: zod.date(),
+      updatedAt: zod.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Update fraud alert status (admin or event_admin)
+ */
+export const PatchFraudAlertParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const PatchFraudAlertBody = zod.object({
+  status: zod.enum(["open", "reviewed", "dismissed"]),
+});
+
+export const PatchFraudAlertResponse = zod.object({
+  id: zod.string(),
+  eventId: zod.string(),
+  type: zod.enum([
+    "double_location",
+    "offline_volume_anomaly",
+    "high_value_staff",
+    "balance_increase_no_topup",
+    "manual_report",
+    "hmac_invalid",
+  ]),
+  severity: zod.enum(["low", "medium", "high", "critical"]),
+  entityType: zod.enum(["bracelet", "pos", "staff"]),
+  entityId: zod.string(),
+  description: zod.string(),
+  reportedBy: zod.string().nullish(),
+  status: zod.enum(["open", "reviewed", "dismissed"]),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
+});
+
+/**
+ * @summary Report a suspicious bracelet (bank, merchant, or event_admin)
+ */
+
+export const ReportSuspiciousBraceletBody = zod.object({
+  nfcUid: zod.string().min(1),
+  reason: zod.enum([
+    "wrong_balance",
+    "strange_behavior",
+    "damaged_bracelet",
+    "other",
+  ]),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Register Expo push notification token for the authenticated user
+ */
+
+export const RegisterPushTokenBody = zod.object({
+  token: zod.string().min(1),
+});
+
+export const RegisterPushTokenResponse = zod.object({
+  ok: zod.boolean().optional(),
 });

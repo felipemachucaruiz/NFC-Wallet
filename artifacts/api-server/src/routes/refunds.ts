@@ -12,6 +12,8 @@ const createRefundSchema = z.object({
   braceletUid: z.string().min(1),
   refundMethod: z.enum(refundMethods),
   notes: z.string().optional(),
+  newCounter: z.number().int().optional(),
+  newBalanceCop: z.number().int().optional(),
 });
 
 router.post(
@@ -29,7 +31,7 @@ router.post(
       return;
     }
 
-    const { braceletUid, refundMethod, notes } = parsed.data;
+    const { braceletUid, refundMethod, notes, newCounter } = parsed.data;
 
     const [bracelet] = await db
       .select()
@@ -46,6 +48,11 @@ router.post(
       return;
     }
 
+    if (newCounter !== undefined && newCounter <= (bracelet.lastCounter ?? 0)) {
+      res.status(400).json({ error: "Invalid counter: must be greater than current counter" });
+      return;
+    }
+
     const amountCop = bracelet.lastKnownBalanceCop;
     const eventId = bracelet.eventId;
 
@@ -54,24 +61,35 @@ router.post(
       return;
     }
 
-    const [refund] = await db
-      .insert(refundsTable)
-      .values({
-        braceletUid,
-        eventId,
-        amountCop,
-        refundMethod,
-        notes,
-        performedByUserId: req.user.id,
-      })
-      .returning();
+    const result = await db.transaction(async (tx) => {
+      const [refund] = await tx
+        .insert(refundsTable)
+        .values({
+          braceletUid,
+          eventId,
+          amountCop,
+          refundMethod,
+          notes,
+          performedByUserId: req.user.id,
+        })
+        .returning();
 
-    await db
-      .update(braceletsTable)
-      .set({ lastKnownBalanceCop: 0, updatedAt: new Date() })
-      .where(eq(braceletsTable.nfcUid, braceletUid));
+      const braceletUpdate: Record<string, unknown> = {
+        lastKnownBalanceCop: 0,
+        updatedAt: new Date(),
+      };
+      if (newCounter !== undefined) {
+        braceletUpdate.lastCounter = newCounter;
+      }
+      await tx
+        .update(braceletsTable)
+        .set(braceletUpdate)
+        .where(eq(braceletsTable.nfcUid, braceletUid));
 
-    res.status(201).json({ refund, amountCop });
+      return refund;
+    });
+
+    res.status(201).json({ refund: result, amountCop });
   },
 );
 

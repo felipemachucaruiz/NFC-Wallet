@@ -72,7 +72,7 @@ export default function EventAdminReportsScreen() {
   const eventId = user?.eventId ?? undefined;
 
   const { data: revenueData, isLoading: revLoading } = useGetRevenueReport(eventId ? { eventId } : {});
-  const { data: topUpData, isLoading: topUpLoading } = useGetTopUpReport({});
+  const { data: topUpData, isLoading: topUpLoading } = useGetTopUpReport(eventId ? { eventId } : {});
   const { data: inventoryData, isLoading: invLoading } = useGetInventoryReport(eventId ? { eventId } : {});
   const { data: unclaimedData, isLoading: unclaimedLoading } = useGetUnclaimedBalances(
     eventId ?? "",

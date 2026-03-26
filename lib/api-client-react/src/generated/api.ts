@@ -42,17 +42,17 @@ import type {
   ErrorEnvelope,
   Event,
   ForbiddenResponse,
+  FraudAlert,
+  FraudAlertsListResponse,
   GetAnalyticsHeatmapParams,
   GetAnalyticsSalesByHourParams,
   GetAnalyticsStockAlertsParams,
   GetAnalyticsSummaryParams,
   GetAnalyticsTopMerchantsParams,
   GetAnalyticsTopProductsParams,
-  FraudAlert,
-  FraudAlertsListResponse,
-  GetFraudAlertsParams,
   GetFiscalSummary200,
   GetFiscalSummaryParams,
+  GetFraudAlertsParams,
   GetInventoryReportParams,
   GetLocationInventory200,
   GetMerchantEarningsParams,
@@ -65,6 +65,10 @@ import type {
   HealthStatus,
   InternalErrorResponse,
   InventoryReport,
+  ListEventBracelets200,
+  ListEventBraceletsParams,
+  ListEventTransactions200,
+  ListEventTransactionsParams,
   ListEvents200,
   ListEventsParams,
   ListLocations200,
@@ -94,10 +98,9 @@ import type {
   MerchantEarnings,
   MerchantPayout,
   MobileTokenExchangeRequest,
-  PatchFraudAlertBody,
-  RegisterPushTokenBody,
   MobileTokenExchangeSuccess,
   NotFoundResponse,
+  PatchFraudAlertBody,
   PayoutTransactionsResponse,
   Product,
   PromoterCompany,
@@ -105,6 +108,8 @@ import type {
   RefundReport,
   RefundResult,
   RegisterBraceletBody,
+  RegisterPushToken200,
+  RegisterPushTokenBody,
   ResetMerchantStaffPasswordBody,
   RestockOrder,
   RevenueReport,
@@ -2930,6 +2935,258 @@ export function useGetUnclaimedBalances<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetUnclaimedBalancesQueryOptions(eventId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all bracelets for an event (event_admin or admin)
+ */
+export const getListEventBraceletsUrl = (
+  eventId: string,
+  params?: ListEventBraceletsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/events/${eventId}/bracelets?${stringifiedParams}`
+    : `/api/events/${eventId}/bracelets`;
+};
+
+export const listEventBracelets = async (
+  eventId: string,
+  params?: ListEventBraceletsParams,
+  options?: RequestInit,
+): Promise<ListEventBracelets200> => {
+  return customFetch<ListEventBracelets200>(
+    getListEventBraceletsUrl(eventId, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListEventBraceletsQueryKey = (
+  eventId: string,
+  params?: ListEventBraceletsParams,
+) => {
+  return [
+    `/api/events/${eventId}/bracelets`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListEventBraceletsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listEventBracelets>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  eventId: string,
+  params?: ListEventBraceletsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEventBracelets>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListEventBraceletsQueryKey(eventId, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listEventBracelets>>
+  > = ({ signal }) =>
+    listEventBracelets(eventId, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!eventId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listEventBracelets>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListEventBraceletsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listEventBracelets>>
+>;
+export type ListEventBraceletsQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary List all bracelets for an event (event_admin or admin)
+ */
+
+export function useListEventBracelets<
+  TData = Awaited<ReturnType<typeof listEventBracelets>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  eventId: string,
+  params?: ListEventBraceletsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEventBracelets>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEventBraceletsQueryOptions(
+    eventId,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all transactions for an event (event_admin or admin)
+ */
+export const getListEventTransactionsUrl = (
+  eventId: string,
+  params?: ListEventTransactionsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/events/${eventId}/transactions?${stringifiedParams}`
+    : `/api/events/${eventId}/transactions`;
+};
+
+export const listEventTransactions = async (
+  eventId: string,
+  params?: ListEventTransactionsParams,
+  options?: RequestInit,
+): Promise<ListEventTransactions200> => {
+  return customFetch<ListEventTransactions200>(
+    getListEventTransactionsUrl(eventId, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListEventTransactionsQueryKey = (
+  eventId: string,
+  params?: ListEventTransactionsParams,
+) => {
+  return [
+    `/api/events/${eventId}/transactions`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListEventTransactionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listEventTransactions>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  eventId: string,
+  params?: ListEventTransactionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEventTransactions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListEventTransactionsQueryKey(eventId, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listEventTransactions>>
+  > = ({ signal }) =>
+    listEventTransactions(eventId, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!eventId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listEventTransactions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListEventTransactionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listEventTransactions>>
+>;
+export type ListEventTransactionsQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary List all transactions for an event (event_admin or admin)
+ */
+
+export function useListEventTransactions<
+  TData = Awaited<ReturnType<typeof listEventTransactions>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  eventId: string,
+  params?: ListEventTransactionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEventTransactions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEventTransactionsQueryOptions(
+    eventId,
+    params,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -7640,16 +7897,20 @@ export function useGetAnalyticsHeatmap<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-// ─── Fraud Alerts ──────────────────────────────────────────────────────────────
-
+/**
+ * @summary List fraud alerts (admin or event_admin)
+ */
 export const getGetFraudAlertsUrl = (params?: GetFraudAlertsParams) => {
   const normalizedParams = new URLSearchParams();
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) normalizedParams.append(key, String(value));
-    });
-  }
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
   const stringifiedParams = normalizedParams.toString();
+
   return stringifiedParams.length > 0
     ? `/api/fraud-alerts?${stringifiedParams}`
     : `/api/fraud-alerts`;
@@ -7665,8 +7926,9 @@ export const getFraudAlerts = async (
   });
 };
 
-export const getGetFraudAlertsQueryKey = (params?: GetFraudAlertsParams) =>
-  [`/api/fraud-alerts`, ...(params ? [params] : [])] as const;
+export const getGetFraudAlertsQueryKey = (params?: GetFraudAlertsParams) => {
+  return [`/api/fraud-alerts`, ...(params ? [params] : [])] as const;
+};
 
 export const getGetFraudAlertsQueryOptions = <
   TData = Awaited<ReturnType<typeof getFraudAlerts>>,
@@ -7674,14 +7936,22 @@ export const getGetFraudAlertsQueryOptions = <
 >(
   params?: GetFraudAlertsParams,
   options?: {
-    query?: UseQueryOptions<Awaited<ReturnType<typeof getFraudAlerts>>, TError, TData>;
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getFraudAlerts>>,
+      TError,
+      TData
+    >;
     request?: SecondParameter<typeof customFetch>;
   },
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
+
   const queryKey = queryOptions?.queryKey ?? getGetFraudAlertsQueryKey(params);
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFraudAlerts>>> = ({ signal }) =>
-    getFraudAlerts(params, { signal, ...requestOptions });
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFraudAlerts>>> = ({
+    signal,
+  }) => getFraudAlerts(params, { signal, ...requestOptions });
+
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getFraudAlerts>>,
     TError,
@@ -7689,27 +7959,53 @@ export const getGetFraudAlertsQueryOptions = <
   > & { queryKey: QueryKey };
 };
 
+export type GetFraudAlertsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFraudAlerts>>
+>;
+export type GetFraudAlertsQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary List fraud alerts (admin or event_admin)
+ */
+
 export function useGetFraudAlerts<
   TData = Awaited<ReturnType<typeof getFraudAlerts>>,
   TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
 >(
   params?: GetFraudAlertsParams,
   options?: {
-    query?: UseQueryOptions<Awaited<ReturnType<typeof getFraudAlerts>>, TError, TData>;
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getFraudAlerts>>,
+      TError,
+      TData
+    >;
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetFraudAlertsQueryOptions(params, options);
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
+/**
+ * @summary Update fraud alert status (admin or event_admin)
+ */
+export const getPatchFraudAlertUrl = (id: string) => {
+  return `/api/fraud-alerts/${id}`;
+};
+
 export const patchFraudAlert = async (
   id: string,
-  patchFraudAlertBody: BodyType<PatchFraudAlertBody>,
+  patchFraudAlertBody: PatchFraudAlertBody,
   options?: RequestInit,
 ): Promise<FraudAlert> => {
-  return customFetch<FraudAlert>(`/api/fraud-alerts/${id}`, {
+  return customFetch<FraudAlert>(getPatchFraudAlertUrl(id), {
     ...options,
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -7718,7 +8014,9 @@ export const patchFraudAlert = async (
 };
 
 export const getPatchFraudAlertMutationOptions = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7736,7 +8034,9 @@ export const getPatchFraudAlertMutationOptions = <
 > => {
   const mutationKey = ["patchFraudAlert"];
   const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey }, request: undefined };
@@ -7746,14 +8046,28 @@ export const getPatchFraudAlertMutationOptions = <
     { id: string; data: BodyType<PatchFraudAlertBody> }
   > = (props) => {
     const { id, data } = props ?? {};
+
     return patchFraudAlert(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
+export type PatchFraudAlertMutationResult = NonNullable<
+  Awaited<ReturnType<typeof patchFraudAlert>>
+>;
+export type PatchFraudAlertMutationBody = BodyType<PatchFraudAlertBody>;
+export type PatchFraudAlertMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Update fraud alert status (admin or event_admin)
+ */
 export const usePatchFraudAlert = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7772,11 +8086,18 @@ export const usePatchFraudAlert = <
   return useMutation(getPatchFraudAlertMutationOptions(options));
 };
 
+/**
+ * @summary Report a suspicious bracelet (bank, merchant, or event_admin)
+ */
+export const getReportSuspiciousBraceletUrl = () => {
+  return `/api/fraud-alerts/report`;
+};
+
 export const reportSuspiciousBracelet = async (
-  manualFraudReportBody: BodyType<ManualFraudReportBody>,
+  manualFraudReportBody: ManualFraudReportBody,
   options?: RequestInit,
 ): Promise<FraudAlert> => {
-  return customFetch<FraudAlert>(`/api/fraud-alerts/report`, {
+  return customFetch<FraudAlert>(getReportSuspiciousBraceletUrl(), {
     ...options,
     method: "POST",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -7785,7 +8106,9 @@ export const reportSuspiciousBracelet = async (
 };
 
 export const getReportSuspiciousBraceletMutationOptions = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TError = ErrorType<
+    BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7803,7 +8126,9 @@ export const getReportSuspiciousBraceletMutationOptions = <
 > => {
   const mutationKey = ["reportSuspiciousBracelet"];
   const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey }, request: undefined };
@@ -7813,14 +8138,29 @@ export const getReportSuspiciousBraceletMutationOptions = <
     { data: BodyType<ManualFraudReportBody> }
   > = (props) => {
     const { data } = props ?? {};
+
     return reportSuspiciousBracelet(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
+export type ReportSuspiciousBraceletMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reportSuspiciousBracelet>>
+>;
+export type ReportSuspiciousBraceletMutationBody =
+  BodyType<ManualFraudReportBody>;
+export type ReportSuspiciousBraceletMutationError = ErrorType<
+  BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Report a suspicious bracelet (bank, merchant, or event_admin)
+ */
 export const useReportSuspiciousBracelet = <
-  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TError = ErrorType<
+    BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -7839,15 +8179,22 @@ export const useReportSuspiciousBracelet = <
   return useMutation(getReportSuspiciousBraceletMutationOptions(options));
 };
 
+/**
+ * @summary Register Expo push notification token for the authenticated user
+ */
+export const getRegisterPushTokenUrl = () => {
+  return `/api/push-token`;
+};
+
 export const registerPushToken = async (
-  registerPushTokenBody: BodyType<RegisterPushTokenBody>,
-  options?: SecondParameter<typeof customFetch>,
-): Promise<{ ok: boolean }> => {
-  return customFetch<{ ok: boolean }>(`/api/push-token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    data: registerPushTokenBody,
+  registerPushTokenBody: RegisterPushTokenBody,
+  options?: RequestInit,
+): Promise<RegisterPushToken200> => {
+  return customFetch<RegisterPushToken200>(getRegisterPushTokenUrl(), {
     ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerPushTokenBody),
   });
 };
 
@@ -7858,27 +8205,48 @@ export const getRegisterPushTokenMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof registerPushToken>>,
     TError,
-    BodyType<RegisterPushTokenBody>,
+    { data: BodyType<RegisterPushTokenBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof registerPushToken>>,
   TError,
-  BodyType<RegisterPushTokenBody>,
+  { data: BodyType<RegisterPushTokenBody> },
   TContext
 > => {
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
   const mutationKey = ["registerPushToken"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof registerPushToken>>,
-    BodyType<RegisterPushTokenBody>
-  > = (data) => {
+    { data: BodyType<RegisterPushTokenBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
     return registerPushToken(data, requestOptions);
   };
-  return { mutationKey, mutationFn, ...mutationOptions };
+
+  return { mutationFn, ...mutationOptions };
 };
 
+export type RegisterPushTokenMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerPushToken>>
+>;
+export type RegisterPushTokenMutationBody = BodyType<RegisterPushTokenBody>;
+export type RegisterPushTokenMutationError = ErrorType<
+  BadRequestResponse | UnauthorizedResponse
+>;
+
+/**
+ * @summary Register Expo push notification token for the authenticated user
+ */
 export const useRegisterPushToken = <
   TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
   TContext = unknown,
@@ -7886,14 +8254,14 @@ export const useRegisterPushToken = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof registerPushToken>>,
     TError,
-    BodyType<RegisterPushTokenBody>,
+    { data: BodyType<RegisterPushTokenBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof registerPushToken>>,
   TError,
-  BodyType<RegisterPushTokenBody>,
+  { data: BodyType<RegisterPushTokenBody> },
   TContext
 > => {
   return useMutation(getRegisterPushTokenMutationOptions(options));

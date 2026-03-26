@@ -262,6 +262,10 @@ export interface CreateRefundBody {
   braceletUid: string;
   refundMethod: RefundMethod;
   notes?: string;
+  /** Updated counter after NFC write (for bracelet sync) */
+  newCounter?: number;
+  /** New bracelet balance after refund (typically 0) */
+  newBalanceCop?: number;
 }
 
 export interface RefundResult {
@@ -982,6 +986,185 @@ export interface SnapshotExport {
   payouts?: MerchantPayout[];
 }
 
+export type FraudAlertType =
+  (typeof FraudAlertType)[keyof typeof FraudAlertType];
+
+export const FraudAlertType = {
+  double_location: "double_location",
+  offline_volume_anomaly: "offline_volume_anomaly",
+  high_value_staff: "high_value_staff",
+  balance_increase_no_topup: "balance_increase_no_topup",
+  manual_report: "manual_report",
+  hmac_invalid: "hmac_invalid",
+} as const;
+
+export type FraudAlertSeverity =
+  (typeof FraudAlertSeverity)[keyof typeof FraudAlertSeverity];
+
+export const FraudAlertSeverity = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
+export type FraudAlertEntityType =
+  (typeof FraudAlertEntityType)[keyof typeof FraudAlertEntityType];
+
+export const FraudAlertEntityType = {
+  bracelet: "bracelet",
+  pos: "pos",
+  staff: "staff",
+} as const;
+
+export type FraudAlertStatusProperty =
+  (typeof FraudAlertStatusProperty)[keyof typeof FraudAlertStatusProperty];
+
+export const FraudAlertStatusProperty = {
+  open: "open",
+  reviewed: "reviewed",
+  dismissed: "dismissed",
+} as const;
+
+export interface FraudAlert {
+  id: string;
+  eventId: string;
+  type: FraudAlertType;
+  severity: FraudAlertSeverity;
+  entityType: FraudAlertEntityType;
+  entityId: string;
+  description: string;
+  /** @nullable */
+  reportedBy?: string | null;
+  status: FraudAlertStatusProperty;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type FraudAlertStatus =
+  (typeof FraudAlertStatus)[keyof typeof FraudAlertStatus];
+
+export const FraudAlertStatus = {
+  open: "open",
+  reviewed: "reviewed",
+  dismissed: "dismissed",
+} as const;
+
+export interface FraudAlertsListResponse {
+  alerts: FraudAlert[];
+}
+
+export type PatchFraudAlertBodyStatus =
+  (typeof PatchFraudAlertBodyStatus)[keyof typeof PatchFraudAlertBodyStatus];
+
+export const PatchFraudAlertBodyStatus = {
+  open: "open",
+  reviewed: "reviewed",
+  dismissed: "dismissed",
+} as const;
+
+export interface PatchFraudAlertBody {
+  status: PatchFraudAlertBodyStatus;
+}
+
+export type ManualReportReason =
+  (typeof ManualReportReason)[keyof typeof ManualReportReason];
+
+export const ManualReportReason = {
+  wrong_balance: "wrong_balance",
+  strange_behavior: "strange_behavior",
+  damaged_bracelet: "damaged_bracelet",
+  other: "other",
+} as const;
+
+export interface ManualFraudReportBody {
+  /** @minLength 1 */
+  nfcUid: string;
+  reason: ManualReportReason;
+  notes?: string;
+}
+
+export interface RegisterPushTokenBody {
+  /** @minLength 1 */
+  token: string;
+}
+
+export interface EventBracelet {
+  id: string;
+  nfcUid: string;
+  /** @nullable */
+  eventId?: string | null;
+  /** @nullable */
+  attendeeName?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  lastKnownBalanceCop: number | null;
+  /** @nullable */
+  lastCounter?: number | null;
+  flagged: boolean;
+  /** @nullable */
+  flagReason?: string | null;
+  /** @nullable */
+  maxOfflineSpend?: number | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ListEventBracelets200 {
+  bracelets: EventBracelet[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface TransactionLineItemSummary {
+  id: string;
+  /** @nullable */
+  productId?: string | null;
+  /** @nullable */
+  productName: string | null;
+  unitPrice: number;
+  quantity: number;
+  ivaAmountCop: number;
+}
+
+export interface EventTransaction {
+  id: string;
+  idempotencyKey?: string;
+  braceletUid: string;
+  locationId: string;
+  /** @nullable */
+  locationName?: string | null;
+  merchantId: string;
+  /** @nullable */
+  merchantName?: string | null;
+  eventId: string;
+  grossAmountCop: number;
+  commissionAmountCop: number;
+  netAmountCop: number;
+  newBalanceCop: number;
+  counter: number;
+  itemCount: number;
+  items: TransactionLineItemSummary[];
+  /** @nullable */
+  performedByUserId?: string | null;
+  /** @nullable */
+  offlineCreatedAt?: string | null;
+  /** @nullable */
+  syncedAt?: string | null;
+  createdAt: string;
+}
+
+export interface ListEventTransactions200 {
+  transactions: EventTransaction[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 /**
  * Invalid request body or parameters.
  */
@@ -1059,6 +1242,36 @@ export type ListEvents200 = {
 
 export type ListPromoterCompanies200 = {
   companies: PromoterCompany[];
+};
+
+export type ListEventBraceletsParams = {
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  limit?: number;
+  search?: string;
+};
+
+export type ListEventTransactionsParams = {
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  limit?: number;
+  merchantId?: string;
+  /**
+   * Filter by bracelet UID or merchant name
+   */
+  search?: string;
 };
 
 export type ListMerchantsParams = {
@@ -1163,6 +1376,7 @@ export type GetRevenueReportParams = {
 };
 
 export type GetTopUpReportParams = {
+  eventId?: string;
   from?: string;
   to?: string;
   promoterCompanyId?: string;
@@ -1230,61 +1444,32 @@ export type GetAnalyticsHeatmapParams = {
   from?: string;
   to?: string;
 };
-export type FraudAlertType =
-  | "double_location"
-  | "offline_volume_anomaly"
-  | "high_value_staff"
-  | "balance_increase_no_topup"
-  | "manual_report"
-  | "hmac_invalid";
-
-export type FraudAlertSeverity = "low" | "medium" | "high" | "critical";
-
-export type FraudAlertEntityType = "bracelet" | "pos" | "staff";
-
-export type FraudAlertStatus = "open" | "reviewed" | "dismissed";
-
-export interface FraudAlert {
-  id: string;
-  eventId: string;
-  type: FraudAlertType;
-  severity: FraudAlertSeverity;
-  entityType: FraudAlertEntityType;
-  entityId: string;
-  description: string;
-  /** @nullable */
-  reportedBy: string | null;
-  status: FraudAlertStatus;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FraudAlertsListResponse {
-  alerts: FraudAlert[];
-}
 
 export type GetFraudAlertsParams = {
   eventId?: string;
-  status?: FraudAlertStatus;
-  severity?: FraudAlertSeverity;
+  status?: GetFraudAlertsStatus;
+  severity?: GetFraudAlertsSeverity;
 };
 
-export interface PatchFraudAlertBody {
-  status: FraudAlertStatus;
-}
+export type GetFraudAlertsStatus =
+  (typeof GetFraudAlertsStatus)[keyof typeof GetFraudAlertsStatus];
 
-export type ManualReportReason =
-  | "wrong_balance"
-  | "strange_behavior"
-  | "damaged_bracelet"
-  | "other";
+export const GetFraudAlertsStatus = {
+  open: "open",
+  reviewed: "reviewed",
+  dismissed: "dismissed",
+} as const;
 
-export interface ManualFraudReportBody {
-  nfcUid: string;
-  reason: ManualReportReason;
-  notes?: string;
-}
+export type GetFraudAlertsSeverity =
+  (typeof GetFraudAlertsSeverity)[keyof typeof GetFraudAlertsSeverity];
 
-export interface RegisterPushTokenBody {
-  token: string;
-}
+export const GetFraudAlertsSeverity = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  critical: "critical",
+} as const;
+
+export type RegisterPushToken200 = {
+  ok?: boolean;
+};

@@ -947,5 +947,25 @@
     "alertsCount": "{{count}} alerta(s)",
     "filterBySeverity": "Severidad",
     "noEventAlerts": "Sin alertas para este evento"
+  },
+  "wristbands": {
+    "title": "Pulseras",
+    "total": "pulseras",
+    "searchPlaceholder": "Buscar por UID NFC o nombre...",
+    "flagged": "Marcada",
+    "unregistered": "Sin registrar",
+    "registered": "Registrada",
+    "noBalance": "Sin actividad",
+    "empty": "No hay pulseras registradas para este evento"
+  },
+  "transactions": {
+    "title": "Transacciones",
+    "total": "transacciones",
+    "unknownMerchant": "Comercio desconocido",
+    "offline": "Offline",
+    "items": "productos",
+    "empty": "No se encontraron transacciones para este evento",
+    "searchPlaceholder": "Buscar por comercio o pulsera",
+    "unknownProduct": "Producto desconocido"
   }
 }

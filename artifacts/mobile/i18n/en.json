@@ -958,5 +958,25 @@
     "alertsCount": "{{count}} alert(s)",
     "filterBySeverity": "Severity",
     "noEventAlerts": "No alerts for this event"
+  },
+  "wristbands": {
+    "title": "Wristbands",
+    "total": "wristbands",
+    "searchPlaceholder": "Search by NFC UID or name...",
+    "flagged": "Flagged",
+    "unregistered": "Unregistered",
+    "registered": "Registered",
+    "noBalance": "No activity",
+    "empty": "No wristbands registered for this event"
+  },
+  "transactions": {
+    "title": "Transactions",
+    "total": "transactions",
+    "unknownMerchant": "Unknown merchant",
+    "offline": "Offline",
+    "items": "items",
+    "empty": "No transactions found for this event",
+    "searchPlaceholder": "Search by merchant or wristband",
+    "unknownProduct": "Unknown product"
   }
 }

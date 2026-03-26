@@ -5,10 +5,8 @@
  * Contactless cashless event payment system API (Colombia market)
  * OpenAPI spec version: 0.1.0
  */
+import type { FraudAlert } from "./fraudAlert";
 
-export type GetTopUpReportParams = {
-  eventId?: string;
-  from?: Date;
-  to?: Date;
-  promoterCompanyId?: string;
-};
+export interface FraudAlertsListResponse {
+  alerts: FraudAlert[];
+}

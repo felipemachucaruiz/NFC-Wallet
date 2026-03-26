@@ -6,9 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetTopUpReportParams = {
-  eventId?: string;
-  from?: Date;
-  to?: Date;
-  promoterCompanyId?: string;
-};
+export interface RegisterPushTokenBody {
+  /** @minLength 1 */
+  token: string;
+}

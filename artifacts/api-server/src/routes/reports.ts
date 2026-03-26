@@ -285,7 +285,7 @@ router.get(
   "/reports/topups",
   requireRole("admin", "event_admin"),
   async (req: Request, res: Response) => {
-    const { from, to, promoterCompanyId } = req.query as { from?: string; to?: string; promoterCompanyId?: string };
+    const { from, to, promoterCompanyId, eventId } = req.query as { from?: string; to?: string; promoterCompanyId?: string; eventId?: string };
     const user = req.user!;
 
     type TopUpRow = typeof topUpsTable.$inferSelect;
@@ -344,6 +344,12 @@ router.get(
       if (from) topUpConditions.push(gte(topUpsTable.createdAt, new Date(from)));
       if (to) topUpConditions.push(lte(topUpsTable.createdAt, new Date(to)));
       const topUps = await db.select().from(topUpsTable).where(and(...topUpConditions));
+      res.json(await buildTopUpSummary(topUps));
+      return;
+    }
+
+    if (eventId) {
+      const topUps = await getTopUpsForEventIds([eventId], from, to);
       res.json(await buildTopUpSummary(topUps));
       return;
     }

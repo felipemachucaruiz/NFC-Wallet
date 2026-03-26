@@ -1,8 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable } from "@workspace/db";
-import { eq, sql, and } from "drizzle-orm";
+import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable } from "@workspace/db";
+import { eq, sql, and, ilike, or, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -360,6 +360,192 @@ router.get(
       .where(and(eq(braceletsTable.eventId, eventId), eq(braceletsTable.flagged, true)));
 
     res.json({ flaggedBracelets: flagged });
+  }
+);
+
+router.get(
+  "/events/:eventId/bracelets",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const eventId = req.params.eventId as string;
+    const user = req.user!;
+
+    if (user.role === "event_admin") {
+      const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
+      const ownsSingleEvent = user.eventId === eventId;
+      if (!userCompanyId && !ownsSingleEvent) {
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
+      if (userCompanyId) {
+        const [eventForCompany] = await db
+          .select({ promoterCompanyId: eventsTable.promoterCompanyId })
+          .from(eventsTable)
+          .where(eq(eventsTable.id, eventId));
+        if (!eventForCompany || eventForCompany.promoterCompanyId !== userCompanyId) {
+          res.status(403).json({ error: "Access denied" });
+          return;
+        }
+      }
+    }
+
+    const page = Math.max(1, parseInt(req.query.page as string ?? "1", 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string ?? "50", 10) || 50));
+    const search = req.query.search as string | undefined;
+    const offset = (page - 1) * limit;
+
+    const conditions = [eq(braceletsTable.eventId, eventId)];
+    if (search) {
+      conditions.push(
+        or(
+          ilike(braceletsTable.nfcUid, `%${search}%`),
+          ilike(braceletsTable.attendeeName, `%${search}%`),
+        )!
+      );
+    }
+
+    const whereClause = and(...conditions);
+
+    const [totalRow] = await db
+      .select({ total: count() })
+      .from(braceletsTable)
+      .where(whereClause);
+
+    const bracelets = await db
+      .select()
+      .from(braceletsTable)
+      .where(whereClause)
+      .orderBy(braceletsTable.createdAt)
+      .limit(limit)
+      .offset(offset);
+
+    res.json({ bracelets, total: totalRow?.total ?? 0, page, limit });
+  }
+);
+
+router.get(
+  "/events/:eventId/transactions",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const eventId = req.params.eventId as string;
+    const user = req.user!;
+
+    if (user.role === "event_admin") {
+      const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
+      const ownsSingleEvent = user.eventId === eventId;
+      if (!userCompanyId && !ownsSingleEvent) {
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
+      if (userCompanyId) {
+        const [eventForCompany] = await db
+          .select({ promoterCompanyId: eventsTable.promoterCompanyId })
+          .from(eventsTable)
+          .where(eq(eventsTable.id, eventId));
+        if (!eventForCompany || eventForCompany.promoterCompanyId !== userCompanyId) {
+          res.status(403).json({ error: "Access denied" });
+          return;
+        }
+      }
+    }
+
+    const page = Math.max(1, parseInt(req.query.page as string ?? "1", 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string ?? "50", 10) || 50));
+    const merchantId = req.query.merchantId as string | undefined;
+    const search = req.query.search as string | undefined;
+    const offset = (page - 1) * limit;
+
+    const conditions = [eq(transactionLogsTable.eventId, eventId)];
+    if (merchantId) {
+      conditions.push(eq(transactionLogsTable.merchantId, merchantId));
+    }
+    if (search) {
+      conditions.push(
+        or(
+          ilike(transactionLogsTable.braceletUid, `%${search}%`),
+          ilike(merchantsTable.name, `%${search}%`),
+        )!
+      );
+    }
+
+    const whereClause = and(...conditions);
+
+    const countQuery = db
+      .select({ total: count() })
+      .from(transactionLogsTable)
+      .where(whereClause);
+    const [totalRow] = await (search
+      ? countQuery.leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id))
+      : countQuery);
+
+    const txRows = await db
+      .select({
+        id: transactionLogsTable.id,
+        idempotencyKey: transactionLogsTable.idempotencyKey,
+        braceletUid: transactionLogsTable.braceletUid,
+        locationId: transactionLogsTable.locationId,
+        merchantId: transactionLogsTable.merchantId,
+        eventId: transactionLogsTable.eventId,
+        grossAmountCop: transactionLogsTable.grossAmountCop,
+        commissionAmountCop: transactionLogsTable.commissionAmountCop,
+        netAmountCop: transactionLogsTable.netAmountCop,
+        newBalanceCop: transactionLogsTable.newBalanceCop,
+        counter: transactionLogsTable.counter,
+        performedByUserId: transactionLogsTable.performedByUserId,
+        offlineCreatedAt: transactionLogsTable.offlineCreatedAt,
+        syncedAt: transactionLogsTable.syncedAt,
+        createdAt: transactionLogsTable.createdAt,
+        merchantName: merchantsTable.name,
+        locationName: locationsTable.name,
+      })
+      .from(transactionLogsTable)
+      .leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id))
+      .leftJoin(locationsTable, eq(transactionLogsTable.locationId, locationsTable.id))
+      .where(whereClause)
+      .orderBy(sql`${transactionLogsTable.createdAt} DESC`)
+      .limit(limit)
+      .offset(offset);
+
+    const txIds = txRows.map((r) => r.id);
+    const lineItemsMap = new Map<string, { id: string; productId: string | null; productName: string | null; unitPrice: number; quantity: number; ivaAmountCop: number }[]>();
+    if (txIds.length > 0) {
+      const lineItems = await db
+        .select({
+          id: transactionLineItemsTable.id,
+          transactionLogId: transactionLineItemsTable.transactionLogId,
+          productId: transactionLineItemsTable.productId,
+          productName: transactionLineItemsTable.productNameSnapshot,
+          unitPrice: transactionLineItemsTable.unitPriceSnapshot,
+          quantity: transactionLineItemsTable.quantity,
+          ivaAmountCop: transactionLineItemsTable.ivaAmountCop,
+        })
+        .from(transactionLineItemsTable)
+        .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map(id => sql`${id}`), sql`, `)}]::text[])`);
+      for (const li of lineItems) {
+        if (!lineItemsMap.has(li.transactionLogId)) {
+          lineItemsMap.set(li.transactionLogId, []);
+        }
+        lineItemsMap.get(li.transactionLogId)!.push({
+          id: li.id,
+          productId: li.productId,
+          productName: li.productName,
+          unitPrice: li.unitPrice,
+          quantity: li.quantity,
+          ivaAmountCop: li.ivaAmountCop,
+        });
+      }
+    }
+
+    const transactions = txRows.map((tx) => {
+      const items = lineItemsMap.get(tx.id) ?? [];
+      return {
+        ...tx,
+        itemCount: items.length,
+        items,
+      };
+    });
+
+    res.json({ transactions, total: totalRow?.total ?? 0, page, limit });
   }
 );
 

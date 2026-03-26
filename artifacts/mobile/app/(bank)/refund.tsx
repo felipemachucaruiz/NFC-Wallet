@@ -92,14 +92,16 @@ export default function RefundScreen() {
           onPress: async () => {
             setStep("writing");
             try {
+              let nfcCounter: number | undefined;
               const newCounter = counter + 1;
-              const newHmac = await computeHmac(0, newCounter, hmacSecret);
 
               if (isNfcSupported()) {
+                const newHmac = await computeHmac(0, newCounter, hmacSecret);
                 await writeBracelet(
                   { uid, balance: 0, counter: newCounter, hmac: newHmac },
                   tagInfoFromParams ?? undefined
                 );
+                nfcCounter = newCounter;
               }
 
               const result = await createRefund.mutateAsync({
@@ -107,6 +109,7 @@ export default function RefundScreen() {
                   braceletUid: uid,
                   refundMethod,
                   notes: notes.trim() || undefined,
+                  ...(nfcCounter !== undefined ? { newCounter: nfcCounter, newBalanceCop: 0 } : {}),
                 },
               });
 

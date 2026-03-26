@@ -801,6 +801,95 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /events/{eventId}/bracelets:
+    get:
+      tags: [Events]
+      operationId: listEventBracelets
+      summary: List all bracelets for an event (event_admin or admin)
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated list of bracelets for the event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListEventBracelets200'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /events/{eventId}/transactions:
+    get:
+      tags: [Events]
+      operationId: listEventTransactions
+      summary: List all transactions for an event (event_admin or admin)
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: merchantId
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Filter by bracelet UID or merchant name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated list of transactions for the event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListEventTransactions200'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ── Top-ups ──────────────────────────────────────────────────────────────────
   /topups:
     post:
@@ -1865,6 +1954,11 @@ paths:
       operationId: getTopUpReport
       summary: Top-up report by payment method and bank user (bank or admin)
       parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
         - name: from
           in: query
           required: false
@@ -2260,6 +2354,122 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+
+  # ── Fraud Alerts ─────────────────────────────────────────────────────────────
+  /fraud-alerts:
+    get:
+      tags: [FraudAlerts]
+      operationId: getFraudAlerts
+      summary: List fraud alerts (admin or event_admin)
+      parameters:
+        - name: eventId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, reviewed, dismissed]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+      responses:
+        '200':
+          description: List of fraud alerts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudAlertsListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /fraud-alerts/{id}:
+    patch:
+      tags: [FraudAlerts]
+      operationId: patchFraudAlert
+      summary: Update fraud alert status (admin or event_admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchFraudAlertBody'
+      responses:
+        '200':
+          description: Updated fraud alert.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudAlert'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /fraud-alerts/report:
+    post:
+      tags: [FraudAlerts]
+      operationId: reportSuspiciousBracelet
+      summary: Report a suspicious bracelet (bank, merchant, or event_admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualFraudReportBody'
+      responses:
+        '201':
+          description: Fraud alert created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudAlert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Push Tokens ───────────────────────────────────────────────────────────────
+  /push-token:
+    post:
+      tags: [PushTokens]
+      operationId: registerPushToken
+      summary: Register Expo push notification token for the authenticated user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPushTokenBody'
+      responses:
+        '200':
+          description: Push token registered.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
 components:
   parameters:
@@ -2699,6 +2909,12 @@ components:
           $ref: '#/components/schemas/RefundMethod'
         notes:
           type: string
+        newCounter:
+          type: integer
+          description: Updated counter after NFC write (for bracelet sync)
+        newBalanceCop:
+          type: integer
+          description: New bracelet balance after refund (typically 0)
 
     RefundResult:
       type: object
@@ -3869,3 +4085,209 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MerchantPayout'
+
+    FraudAlert:
+      type: object
+      required: [id, eventId, type, severity, entityType, entityId, description, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        eventId:
+          type: string
+        type:
+          type: string
+          enum: [double_location, offline_volume_anomaly, high_value_staff, balance_increase_no_topup, manual_report, hmac_invalid]
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        entityType:
+          type: string
+          enum: [bracelet, pos, staff]
+        entityId:
+          type: string
+        description:
+          type: string
+        reportedBy:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [open, reviewed, dismissed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    FraudAlertStatus:
+      type: string
+      enum: [open, reviewed, dismissed]
+
+    FraudAlertsListResponse:
+      type: object
+      required: [alerts]
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/FraudAlert'
+
+    PatchFraudAlertBody:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [open, reviewed, dismissed]
+
+    ManualReportReason:
+      type: string
+      enum: [wrong_balance, strange_behavior, damaged_bracelet, other]
+
+    ManualFraudReportBody:
+      type: object
+      required: [nfcUid, reason]
+      properties:
+        nfcUid:
+          type: string
+          minLength: 1
+        reason:
+          $ref: '#/components/schemas/ManualReportReason'
+        notes:
+          type: string
+
+    RegisterPushTokenBody:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
+
+    EventBracelet:
+      type: object
+      required: [id, nfcUid, lastKnownBalanceCop, flagged, createdAt]
+      properties:
+        id:
+          type: string
+        nfcUid:
+          type: string
+        eventId:
+          type: [string, 'null']
+        attendeeName:
+          type: [string, 'null']
+        phone:
+          type: [string, 'null']
+        email:
+          type: [string, 'null']
+        lastKnownBalanceCop:
+          type: [integer, 'null']
+        lastCounter:
+          type: [integer, 'null']
+        flagged:
+          type: boolean
+        flagReason:
+          type: [string, 'null']
+        maxOfflineSpend:
+          type: [integer, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ListEventBracelets200:
+      type: object
+      required: [bracelets, total, page, limit]
+      properties:
+        bracelets:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventBracelet'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    TransactionLineItemSummary:
+      type: object
+      required: [id, productName, unitPrice, quantity, ivaAmountCop]
+      properties:
+        id:
+          type: string
+        productId:
+          type: [string, 'null']
+        productName:
+          type: [string, 'null']
+        unitPrice:
+          type: integer
+        quantity:
+          type: integer
+        ivaAmountCop:
+          type: integer
+
+    EventTransaction:
+      type: object
+      required: [id, braceletUid, locationId, merchantId, eventId, grossAmountCop, commissionAmountCop, netAmountCop, newBalanceCop, counter, createdAt, itemCount, items]
+      properties:
+        id:
+          type: string
+        idempotencyKey:
+          type: string
+        braceletUid:
+          type: string
+        locationId:
+          type: string
+        locationName:
+          type: [string, 'null']
+        merchantId:
+          type: string
+        merchantName:
+          type: [string, 'null']
+        eventId:
+          type: string
+        grossAmountCop:
+          type: integer
+        commissionAmountCop:
+          type: integer
+        netAmountCop:
+          type: integer
+        newBalanceCop:
+          type: integer
+        counter:
+          type: integer
+        itemCount:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionLineItemSummary'
+        performedByUserId:
+          type: [string, 'null']
+        offlineCreatedAt:
+          type: [string, 'null']
+          format: date-time
+        syncedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    ListEventTransactions200:
+      type: object
+      required: [transactions, total, page, limit]
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventTransaction'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer

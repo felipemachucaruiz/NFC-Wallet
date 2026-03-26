@@ -6,9 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetTopUpReportParams = {
-  eventId?: string;
-  from?: Date;
-  to?: Date;
-  promoterCompanyId?: string;
+export type ListEventBraceletsParams = {
+  /**
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * @minimum 1
+   * @maximum 200
+   */
+  limit?: number;
+  search?: string;
 };

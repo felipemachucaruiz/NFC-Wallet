@@ -31,6 +31,14 @@ function NativeTabLayout() {
         <Icon sf={{ default: "person.3", selected: "person.3.fill" }} />
         <Label>{t("eventAdmin.users")}</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="wristbands">
+        <Icon sf={{ default: "personalhotspot", selected: "personalhotspot" }} />
+        <Label>{t("wristbands.title")}</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="transactions">
+        <Icon sf={{ default: "list.bullet.rectangle", selected: "list.bullet.rectangle.fill" }} />
+        <Label>{t("transactions.title")}</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="inventory">
         <Icon sf={{ default: "shippingbox", selected: "shippingbox.fill" }} />
         <Label>{t("inventory.tab")}</Label>
@@ -103,6 +111,8 @@ function ClassicTabLayout() {
       <Tabs.Screen name="promoter-summary" options={{ href: hasPromoterCompany ? undefined : null, title: t("eventAdmin.promoterSummary"), tabBarIcon: ({ color }) => <Feather name="briefcase" size={22} color={color} /> }} />
       <Tabs.Screen name="merchants" options={{ title: t("eventAdmin.merchants"), tabBarIcon: ({ color }) => <Feather name="shopping-bag" size={22} color={color} /> }} />
       <Tabs.Screen name="users" options={{ title: t("eventAdmin.users"), tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} /> }} />
+      <Tabs.Screen name="wristbands" options={{ title: t("wristbands.title"), tabBarIcon: ({ color }) => <Feather name="credit-card" size={22} color={color} /> }} />
+      <Tabs.Screen name="transactions" options={{ title: t("transactions.title"), tabBarIcon: ({ color }) => <Feather name="list" size={22} color={color} /> }} />
       <Tabs.Screen name="inventory" options={{ title: t("inventory.tab"), tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />
       <Tabs.Screen name="analytics" options={{ title: t("analytics.title"), tabBarIcon: ({ color }) => <Feather name="activity" size={22} color={color} /> }} />
       <Tabs.Screen name="reports" options={{ title: t("eventAdmin.reports"), tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} /> }} />

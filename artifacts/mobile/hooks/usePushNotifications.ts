@@ -32,7 +32,7 @@ export function usePushNotifications(isAuthenticated: boolean) {
 
       const tokenData = await Notifications.getExpoPushTokenAsync();
       if (!cancelled) {
-        registerToken.mutate({ token: tokenData.data });
+        registerToken.mutate({ data: { token: tokenData.data } });
       }
     })();
 
