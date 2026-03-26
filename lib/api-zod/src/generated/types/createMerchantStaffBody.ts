@@ -5,9 +5,12 @@
  * Contactless cashless event payment system API (Colombia market)
  * OpenAPI spec version: 0.1.0
  */
-import type { UnclaimedBracelet } from "./unclaimedBracelet";
 
-export interface UnclaimedBalancesResponse {
-  bracelets: UnclaimedBracelet[];
-  totalUnclaimedCop: number;
-}
+export type CreateMerchantStaffBody = {
+  /** @minLength 3 */
+  username: string;
+  /** @minLength 6 */
+  password: string;
+  firstName?: string;
+  lastName?: string;
+};

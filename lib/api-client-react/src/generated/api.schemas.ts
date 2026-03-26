@@ -88,6 +88,20 @@ export interface SigningKeyResponse {
   hmacSecret: string;
 }
 
+export type InventoryMode = (typeof InventoryMode)[keyof typeof InventoryMode];
+
+export const InventoryMode = {
+  location_based: "location_based",
+  centralized_warehouse: "centralized_warehouse",
+} as const;
+
+export type MerchantType = (typeof MerchantType)[keyof typeof MerchantType];
+
+export const MerchantType = {
+  event_managed: "event_managed",
+  external: "external",
+} as const;
+
 export interface UserProfile {
   id: string;
   /** @nullable */
@@ -163,6 +177,7 @@ export interface Event {
   /** @nullable */
   endsAt?: string | null;
   active: boolean;
+  inventoryMode?: InventoryMode;
   createdAt: string;
 }
 
@@ -173,6 +188,7 @@ export interface CreateEventBody {
   venueAddress?: string;
   startsAt?: string;
   endsAt?: string;
+  inventoryMode?: InventoryMode;
 }
 
 export interface UpdateEventBody {
@@ -183,6 +199,7 @@ export interface UpdateEventBody {
   startsAt?: string;
   endsAt?: string;
   active?: boolean;
+  inventoryMode?: InventoryMode;
 }
 
 export interface Bracelet {
@@ -274,6 +291,7 @@ export interface UnclaimedBracelet {
 
 export interface UnclaimedBalancesResponse {
   bracelets: UnclaimedBracelet[];
+  totalUnclaimedCop: number;
 }
 
 export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];
@@ -343,6 +361,7 @@ export interface Merchant {
   /** @nullable */
   description?: string | null;
   commissionRatePercent: string;
+  merchantType?: MerchantType;
   active: boolean;
   createdAt: string;
 }
@@ -354,6 +373,7 @@ export interface CreateMerchantBody {
   description?: string;
   /** @pattern ^\d+(\.\d{1,2})?$ */
   commissionRatePercent: string;
+  merchantType?: MerchantType;
 }
 
 export interface UpdateMerchantBody {
@@ -362,6 +382,7 @@ export interface UpdateMerchantBody {
   description?: string;
   /** @pattern ^\d+(\.\d{1,2})?$ */
   commissionRatePercent?: string;
+  merchantType?: MerchantType;
   active?: boolean;
 }
 
@@ -398,6 +419,8 @@ export interface MerchantEarnings {
   cogsCop: number;
   grossProfitCop: number;
   profitMarginPercent: number;
+  /** Alias for profitMarginPercent */
+  marginPercent: number;
   totalCommissionCop: number;
   netEarnedCop: number;
   totalPaidOutCop: number;
@@ -695,6 +718,26 @@ export interface CreatePayoutBody {
   paidAt: string;
 }
 
+export interface PayoutTransactionsResponse {
+  payout: MerchantPayout;
+  transactions: TransactionLog[];
+}
+
+export interface RefundMethodBreakdown {
+  totalCop: number;
+  count: number;
+}
+
+export type RefundReportByRefundMethod = {
+  [key: string]: RefundMethodBreakdown;
+};
+
+export interface RefundReport {
+  totalRefundedCop: number;
+  count: number;
+  byRefundMethod: RefundReportByRefundMethod;
+}
+
 export interface RevenueReportRow {
   grossSalesCop: number;
   cogsCop: number;
@@ -822,6 +865,24 @@ export type ListUsers200 = {
   users: UserProfile[];
 };
 
+export type ListMerchantStaff200 = {
+  staff: UserProfile[];
+};
+
+export type CreateMerchantStaffBody = {
+  /** @minLength 3 */
+  username: string;
+  /** @minLength 6 */
+  password: string;
+  firstName?: string;
+  lastName?: string;
+};
+
+export type ResetMerchantStaffPasswordBody = {
+  /** @minLength 6 */
+  newPassword: string;
+};
+
 export type ListEventsParams = {
   promoterCompanyId?: string;
 };
@@ -939,6 +1000,12 @@ export type GetTopUpReportParams = {
   from?: string;
   to?: string;
   promoterCompanyId?: string;
+};
+
+export type GetRefundsReportParams = {
+  eventId?: string;
+  from?: string;
+  to?: string;
 };
 
 export type GetInventoryReportParams = {

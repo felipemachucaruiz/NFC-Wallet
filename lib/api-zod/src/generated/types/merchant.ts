@@ -5,6 +5,7 @@
  * Contactless cashless event payment system API (Colombia market)
  * OpenAPI spec version: 0.1.0
  */
+import type { MerchantType } from "./merchantType";
 
 export interface Merchant {
   id: string;
@@ -13,6 +14,7 @@ export interface Merchant {
   /** @nullable */
   description?: string | null;
   commissionRatePercent: string;
+  merchantType?: MerchantType;
   active: boolean;
   createdAt: Date;
 }

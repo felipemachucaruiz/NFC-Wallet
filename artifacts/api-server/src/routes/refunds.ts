@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, braceletsTable, refundsTable } from "@workspace/db";
-import { eq, and, gt, desc } from "drizzle-orm";
+import { eq, and, gt, gte, lte, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -119,7 +119,52 @@ router.get(
       latestRefund: latestRefundByUid[b.nfcUid] ?? null,
     }));
 
-    res.json({ bracelets: result });
+    const totalUnclaimedCop = result.reduce((s, b) => s + b.lastKnownBalanceCop, 0);
+
+    res.json({ bracelets: result, totalUnclaimedCop });
+  },
+);
+
+router.get(
+  "/reports/refunds",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId, from, to } = req.query as { eventId?: string; from?: string; to?: string };
+    const user = req.user!;
+
+    const conditions = [];
+
+    if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.json({ totalRefundedCop: 0, count: 0, byRefundMethod: {} });
+        return;
+      }
+      conditions.push(eq(refundsTable.eventId, user.eventId));
+    } else {
+      if (eventId) conditions.push(eq(refundsTable.eventId, eventId));
+    }
+
+    if (from) conditions.push(gte(refundsTable.createdAt, new Date(from)));
+    if (to) conditions.push(lte(refundsTable.createdAt, new Date(to)));
+
+    const refunds = await db
+      .select()
+      .from(refundsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    const totalRefundedCop = refunds.reduce((s, r) => s + r.amountCop, 0);
+    const count = refunds.length;
+    const byRefundMethod: Record<string, { totalCop: number; count: number }> = {};
+
+    for (const r of refunds) {
+      if (!byRefundMethod[r.refundMethod]) {
+        byRefundMethod[r.refundMethod] = { totalCop: 0, count: 0 };
+      }
+      byRefundMethod[r.refundMethod].totalCop += r.amountCop;
+      byRefundMethod[r.refundMethod].count += 1;
+    }
+
+    res.json({ totalRefundedCop, count, byRefundMethod });
   },
 );
 

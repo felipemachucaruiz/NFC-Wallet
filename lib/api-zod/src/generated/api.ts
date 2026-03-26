@@ -197,6 +197,73 @@ export const UpdateUserRoleResponse = zod.object({
 });
 
 /**
+ * @summary List merchant_staff for the logged-in merchant_admin
+ */
+export const ListMerchantStaffResponse = zod.object({
+  staff: zod.array(
+    zod.object({
+      id: zod.string(),
+      email: zod.string().nullish(),
+      firstName: zod.string().nullish(),
+      lastName: zod.string().nullish(),
+      profileImageUrl: zod.string().nullish(),
+      role: zod.enum([
+        "attendee",
+        "bank",
+        "merchant_staff",
+        "merchant_admin",
+        "warehouse_admin",
+        "event_admin",
+        "admin",
+      ]),
+      createdAt: zod.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a new merchant_staff user for the logged-in merchant_admin
+ */
+export const createMerchantStaffBodyUsernameMin = 3;
+
+export const createMerchantStaffBodyPasswordMin = 6;
+
+export const CreateMerchantStaffBody = zod.object({
+  username: zod.string().min(createMerchantStaffBodyUsernameMin),
+  password: zod.string().min(createMerchantStaffBodyPasswordMin),
+  firstName: zod.string().optional(),
+  lastName: zod.string().optional(),
+});
+
+/**
+ * @summary Reset password for a merchant_staff member
+ */
+export const ResetMerchantStaffPasswordParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const resetMerchantStaffPasswordBodyNewPasswordMin = 6;
+
+export const ResetMerchantStaffPasswordBody = zod.object({
+  newPassword: zod.string().min(resetMerchantStaffPasswordBodyNewPasswordMin),
+});
+
+export const ResetMerchantStaffPasswordResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Remove a merchant_staff member from the merchant
+ */
+export const DeleteMerchantStaffParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const DeleteMerchantStaffResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
  * @summary List all events
  */
 export const ListEventsQueryParams = zod.object({
@@ -213,6 +280,9 @@ export const ListEventsResponse = zod.object({
       startsAt: zod.date().nullish(),
       endsAt: zod.date().nullish(),
       active: zod.boolean(),
+      inventoryMode: zod
+        .enum(["location_based", "centralized_warehouse"])
+        .optional(),
       createdAt: zod.date(),
     }),
   ),
@@ -228,6 +298,9 @@ export const CreateEventBody = zod.object({
   venueAddress: zod.string().optional(),
   startsAt: zod.date().optional(),
   endsAt: zod.date().optional(),
+  inventoryMode: zod
+    .enum(["location_based", "centralized_warehouse"])
+    .optional(),
 });
 
 /**
@@ -245,6 +318,9 @@ export const GetEventResponse = zod.object({
   startsAt: zod.date().nullish(),
   endsAt: zod.date().nullish(),
   active: zod.boolean(),
+  inventoryMode: zod
+    .enum(["location_based", "centralized_warehouse"])
+    .optional(),
   createdAt: zod.date(),
 });
 
@@ -262,6 +338,9 @@ export const UpdateEventBody = zod.object({
   startsAt: zod.date().optional(),
   endsAt: zod.date().optional(),
   active: zod.boolean().optional(),
+  inventoryMode: zod
+    .enum(["location_based", "centralized_warehouse"])
+    .optional(),
 });
 
 export const UpdateEventResponse = zod.object({
@@ -272,6 +351,9 @@ export const UpdateEventResponse = zod.object({
   startsAt: zod.date().nullish(),
   endsAt: zod.date().nullish(),
   active: zod.boolean(),
+  inventoryMode: zod
+    .enum(["location_based", "centralized_warehouse"])
+    .optional(),
   createdAt: zod.date(),
 });
 
@@ -447,6 +529,38 @@ export const UpdateBraceletContactResponse = zod.object({
 });
 
 /**
+ * @summary Remove tamper flag from a bracelet (admin only)
+ */
+export const UnflagBraceletParams = zod.object({
+  nfcUid: zod.coerce.string(),
+});
+
+export const UnflagBraceletResponse = zod.object({
+  id: zod.string(),
+  nfcUid: zod.string(),
+  eventId: zod.string().nullish(),
+  attendeeName: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  email: zod.string().nullish(),
+  lastKnownBalanceCop: zod.number(),
+  lastCounter: zod.number(),
+  flagged: zod.boolean(),
+  flagReason: zod.string().nullish(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Hard-delete a bracelet (admin only; transactions preserved)
+ */
+export const DeleteAdminBraceletParams = zod.object({
+  nfcUid: zod.coerce.string(),
+});
+
+export const DeleteAdminBraceletResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
  * @summary Issue a bracelet refund (bank or admin)
  */
 
@@ -494,6 +608,7 @@ export const GetUnclaimedBalancesResponse = zod.object({
         .optional(),
     }),
   ),
+  totalUnclaimedCop: zod.number(),
 });
 
 /**
@@ -556,6 +671,7 @@ export const ListMerchantsResponse = zod.object({
       name: zod.string(),
       description: zod.string().nullish(),
       commissionRatePercent: zod.string(),
+      merchantType: zod.enum(["event_managed", "external"]).optional(),
       active: zod.boolean(),
       createdAt: zod.date(),
     }),
@@ -577,6 +693,7 @@ export const CreateMerchantBody = zod.object({
   commissionRatePercent: zod
     .string()
     .regex(createMerchantBodyCommissionRatePercentRegExp),
+  merchantType: zod.enum(["event_managed", "external"]).optional(),
 });
 
 /**
@@ -592,6 +709,7 @@ export const GetMerchantResponse = zod.object({
   name: zod.string(),
   description: zod.string().nullish(),
   commissionRatePercent: zod.string(),
+  merchantType: zod.enum(["event_managed", "external"]).optional(),
   active: zod.boolean(),
   createdAt: zod.date(),
 });
@@ -614,6 +732,7 @@ export const UpdateMerchantBody = zod.object({
     .string()
     .regex(updateMerchantBodyCommissionRatePercentRegExp)
     .optional(),
+  merchantType: zod.enum(["event_managed", "external"]).optional(),
   active: zod.boolean().optional(),
 });
 
@@ -623,8 +742,20 @@ export const UpdateMerchantResponse = zod.object({
   name: zod.string(),
   description: zod.string().nullish(),
   commissionRatePercent: zod.string(),
+  merchantType: zod.enum(["event_managed", "external"]).optional(),
   active: zod.boolean(),
   createdAt: zod.date(),
+});
+
+/**
+ * @summary Delete a merchant (admin or event_admin; blocked if transactions exist)
+ */
+export const DeleteMerchantParams = zod.object({
+  merchantId: zod.coerce.string(),
+});
+
+export const DeleteMerchantResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**
@@ -646,6 +777,7 @@ export const GetMerchantEarningsResponse = zod.object({
   cogsCop: zod.number(),
   grossProfitCop: zod.number(),
   profitMarginPercent: zod.number(),
+  marginPercent: zod.number().describe("Alias for profitMarginPercent"),
   totalCommissionCop: zod.number(),
   netEarnedCop: zod.number(),
   totalPaidOutCop: zod.number(),
@@ -853,6 +985,13 @@ export const UpdateProductResponse = zod.object({
   costCop: zod.number(),
   active: zod.boolean(),
   createdAt: zod.date(),
+});
+
+/**
+ * @summary Delete a product (admin, merchant_admin, or event_admin)
+ */
+export const DeleteProductParams = zod.object({
+  productId: zod.coerce.string(),
 });
 
 /**
@@ -1245,6 +1384,63 @@ export const CreatePayoutBody = zod.object({
 });
 
 /**
+ * @summary List transactions included in a specific payout (admin or merchant_admin)
+ */
+export const GetPayoutTransactionsParams = zod.object({
+  payoutId: zod.coerce.string(),
+});
+
+export const GetPayoutTransactionsResponse = zod.object({
+  payout: zod.object({
+    id: zod.string(),
+    merchantId: zod.string(),
+    eventId: zod.string(),
+    periodFrom: zod.date(),
+    periodTo: zod.date(),
+    grossSalesCop: zod.number(),
+    commissionCop: zod.number(),
+    netPayoutCop: zod.number(),
+    paymentMethod: zod.enum(["transfer", "nequi", "cash", "other"]),
+    referenceNote: zod.string().nullish(),
+    performedByUserId: zod.string(),
+    paidAt: zod.date(),
+    createdAt: zod.date(),
+  }),
+  transactions: zod.array(
+    zod.object({
+      id: zod.string(),
+      idempotencyKey: zod.string(),
+      braceletUid: zod.string(),
+      locationId: zod.string(),
+      merchantId: zod.string(),
+      eventId: zod.string(),
+      grossAmountCop: zod.number(),
+      commissionAmountCop: zod.number(),
+      netAmountCop: zod.number(),
+      newBalanceCop: zod.number(),
+      counter: zod.number(),
+      performedByUserId: zod.string().nullish(),
+      offlineCreatedAt: zod.date().nullish(),
+      syncedAt: zod.date().nullish(),
+      createdAt: zod.date(),
+      lineItems: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            transactionLogId: zod.string(),
+            productId: zod.string().nullish(),
+            productNameSnapshot: zod.string(),
+            unitPriceSnapshot: zod.number(),
+            unitCostSnapshot: zod.number(),
+            quantity: zod.number(),
+          }),
+        )
+        .optional(),
+    }),
+  ),
+});
+
+/**
  * @summary Revenue report (admin or merchant_admin)
  */
 export const GetRevenueReportQueryParams = zod.object({
@@ -1324,6 +1520,27 @@ export const GetTopUpReportResponse = zod.object({
 });
 
 /**
+ * @summary Refund report by payment method (admin or event_admin)
+ */
+export const GetRefundsReportQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const GetRefundsReportResponse = zod.object({
+  totalRefundedCop: zod.number(),
+  count: zod.number(),
+  byRefundMethod: zod.record(
+    zod.string(),
+    zod.object({
+      totalCop: zod.number(),
+      count: zod.number(),
+    }),
+  ),
+});
+
+/**
  * @summary Inventory status report (warehouse_admin, merchant_admin, or admin)
  */
 export const GetInventoryReportQueryParams = zod.object({
@@ -1377,6 +1594,9 @@ export const GetSnapshotResponse = zod.object({
       startsAt: zod.date().nullish(),
       endsAt: zod.date().nullish(),
       active: zod.boolean(),
+      inventoryMode: zod
+        .enum(["location_based", "centralized_warehouse"])
+        .optional(),
       createdAt: zod.date(),
     })
     .optional(),
@@ -1388,6 +1608,7 @@ export const GetSnapshotResponse = zod.object({
         name: zod.string(),
         description: zod.string().nullish(),
         commissionRatePercent: zod.string(),
+        merchantType: zod.enum(["event_managed", "external"]).optional(),
         active: zod.boolean(),
         createdAt: zod.date(),
       }),

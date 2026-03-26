@@ -5,6 +5,7 @@
  * Contactless cashless event payment system API (Colombia market)
  * OpenAPI spec version: 0.1.0
  */
+import type { InventoryMode } from "./inventoryMode";
 
 export interface Event {
   id: string;
@@ -18,5 +19,6 @@ export interface Event {
   /** @nullable */
   endsAt?: Date | null;
   active: boolean;
+  inventoryMode?: InventoryMode;
   createdAt: Date;
 }

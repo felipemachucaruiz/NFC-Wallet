@@ -16,6 +16,7 @@ import {
   useGetTopUpReport,
   useGetInventoryReport,
   useGetUnclaimedBalances,
+  useGetRefundsReport,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
@@ -24,7 +25,7 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
 
-type ReportTab = "revenue" | "topups" | "inventory" | "unclaimed";
+type ReportTab = "revenue" | "topups" | "inventory" | "unclaimed" | "refunds";
 type UnclaimedFilter = "all" | "pending" | "refunded";
 
 interface RefundRecord {
@@ -52,6 +53,11 @@ interface UnclaimedBracelet {
   latestRefund: RefundRecord | null;
 }
 
+interface RefundMethodBreakdown {
+  totalCop: number;
+  count: number;
+}
+
 export default function EventAdminReportsScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
@@ -72,27 +78,41 @@ export default function EventAdminReportsScreen() {
     eventId ?? "",
     { query: { enabled: !!eventId && activeTab === "unclaimed" } },
   );
+  const { data: refundsData, isLoading: refundsLoading } = useGetRefundsReport(
+    eventId ? { eventId } : {},
+    { query: { enabled: activeTab === "refunds" } },
+  );
 
   const revenue = revenueData as Record<string, number | undefined> | undefined;
   const topUps = topUpData as Record<string, number | string | Array<Record<string, unknown>> | undefined> | undefined;
   const inventory = inventoryData as Record<string, number | Array<Record<string, unknown>> | undefined> | undefined;
 
-  const unclaimedBracelets = (
-    (unclaimedData as { bracelets?: UnclaimedBracelet[] } | undefined)?.bracelets ?? []
-  ).filter((b) => {
+  const unclaimedRaw = (unclaimedData as { bracelets?: UnclaimedBracelet[]; totalUnclaimedCop?: number } | undefined);
+  const unclaimedBracelets = (unclaimedRaw?.bracelets ?? []).filter((b) => {
     if (unclaimedFilter === "pending") return !b.latestRefund;
     if (unclaimedFilter === "refunded") return !!b.latestRefund;
     return true;
   });
+  const totalUnclaimedCop = unclaimedRaw?.totalUnclaimedCop;
+
+  const refunds = refundsData as { totalRefundedCop?: number; count?: number; byRefundMethod?: Record<string, RefundMethodBreakdown> } | undefined;
 
   const tabs: { key: ReportTab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
     { key: "revenue", label: t("admin.revenueReport"), icon: "trending-up" },
     { key: "topups", label: t("admin.topUpReport"), icon: "plus-circle" },
     { key: "inventory", label: t("admin.inventoryReport"), icon: "package" },
     { key: "unclaimed", label: t("eventAdmin.unclaimed"), icon: "rotate-ccw" },
+    { key: "refunds", label: t("eventAdmin.refundsReport"), icon: "corner-down-left" },
   ];
 
   const isLoading = revLoading || topUpLoading || invLoading;
+
+  const refundMethodLabels: Record<string, string> = {
+    cash: t("bank.refundMethodCash"),
+    nequi: t("bank.refundMethodNequi"),
+    bancolombia: t("bank.refundMethodBancolombia"),
+    other: t("bank.refundMethodOther"),
+  };
 
   return (
     <ScrollView
@@ -134,7 +154,7 @@ export default function EventAdminReportsScreen() {
         </View>
       </ScrollView>
 
-      {activeTab !== "unclaimed" && isLoading ? (
+      {activeTab !== "unclaimed" && activeTab !== "refunds" && isLoading ? (
         <Loading label={t("common.loading")} />
       ) : (
         <>
@@ -209,6 +229,15 @@ export default function EventAdminReportsScreen() {
                   {t("eventAdmin.unclaimedSubtitle")}
                 </Text>
               </View>
+
+              {totalUnclaimedCop !== undefined && (
+                <Card padding={16}>
+                  <View style={styles.reportRow}>
+                    <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("eventAdmin.totalUnclaimed")}</Text>
+                    <CopAmount amount={totalUnclaimedCop} size={18} />
+                  </View>
+                </Card>
+              )}
 
               <View style={[styles.filterRow, { backgroundColor: C.inputBg }]}>
                 {(["all", "pending", "refunded"] as UnclaimedFilter[]).map((f) => (
@@ -290,6 +319,65 @@ export default function EventAdminReportsScreen() {
               )}
             </View>
           )}
+
+          {activeTab === "refunds" && (
+            <View style={{ gap: 12 }}>
+              <Text style={[styles.unclaimedSubtitle, { color: C.textSecondary }]}>
+                {t("eventAdmin.refundsReportTitle")}
+              </Text>
+
+              {refundsLoading ? (
+                <Loading label={t("common.loading")} />
+              ) : (
+                <>
+                  <Card padding={16}>
+                    <View style={styles.reportRow}>
+                      <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("eventAdmin.totalRefunded")}</Text>
+                      <CopAmount amount={refunds?.totalRefundedCop} size={18} />
+                    </View>
+                  </Card>
+
+                  <Card padding={16}>
+                    <View style={styles.reportRow}>
+                      <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("eventAdmin.refundCount")}</Text>
+                      <Text style={[styles.countValue, { color: C.text }]}>{refunds?.count ?? 0}</Text>
+                    </View>
+                  </Card>
+
+                  {refunds?.byRefundMethod && Object.keys(refunds.byRefundMethod).length > 0 && (
+                    <Card padding={16}>
+                      <Text style={[styles.sectionHeader, { color: C.textSecondary, marginBottom: 12 }]}>
+                        {t("eventAdmin.byRefundMethod")}
+                      </Text>
+                      <View style={{ gap: 10 }}>
+                        {Object.entries(refunds.byRefundMethod).map(([method, data]) => (
+                          <View key={method} style={styles.methodRow}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.methodName, { color: C.text }]}>
+                                {refundMethodLabels[method] ?? method}
+                              </Text>
+                              <Text style={[styles.methodCount, { color: C.textMuted }]}>
+                                {data.count} {t("merchant_admin.transactions")}
+                              </Text>
+                            </View>
+                            <CopAmount amount={data.totalCop} size={16} />
+                          </View>
+                        ))}
+                      </View>
+                    </Card>
+                  )}
+
+                  {(!refunds || refunds.count === 0) && (
+                    <Card padding={24}>
+                      <Text style={[styles.emptyText, { color: C.textMuted }]}>
+                        {t("eventAdmin.noRefunds")}
+                      </Text>
+                    </Card>
+                  )}
+                </>
+              )}
+            </View>
+          )}
         </>
       )}
     </ScrollView>
@@ -318,4 +406,8 @@ const styles = StyleSheet.create({
   contactDetails: { borderTopWidth: 1, paddingTop: 8, gap: 4 },
   contactRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   contactText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  sectionHeader: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  methodRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  methodName: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  methodCount: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

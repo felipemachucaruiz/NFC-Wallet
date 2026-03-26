@@ -3,6 +3,7 @@ import {
   db,
   merchantsTable,
   transactionLogsTable,
+  transactionLineItemsTable,
   merchantPayoutsTable,
   locationsTable,
   productsTable,
@@ -11,7 +12,7 @@ import {
   restockOrdersTable,
   stockMovementsTable,
 } from "@workspace/db";
-import { eq, and, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -188,7 +189,15 @@ router.get(
     const totalCommissionCop = txRows.reduce((s, r) => s + r.commissionAmountCop, 0);
     const netEarnedCop = txRows.reduce((s, r) => s + r.netAmountCop, 0);
 
-    const cogsCop = 0;
+    const txIds = txRows.map((r) => r.id);
+    let cogsCop = 0;
+    if (txIds.length > 0) {
+      const lineItemRows = await db
+        .select()
+        .from(transactionLineItemsTable)
+        .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map((id) => sql`${id}`), sql`, `)}]::text[])`);
+      cogsCop = lineItemRows.reduce((s, li) => s + li.unitCostSnapshot * li.quantity, 0);
+    }
 
     const grossProfitCop = grossSalesCop - cogsCop;
     const profitMarginPercent = grossSalesCop > 0
@@ -213,6 +222,7 @@ router.get(
       cogsCop,
       grossProfitCop,
       profitMarginPercent,
+      marginPercent: profitMarginPercent,
       totalCommissionCop,
       netEarnedCop,
       totalPaidOutCop,

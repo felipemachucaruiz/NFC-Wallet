@@ -13,6 +13,8 @@ export interface MerchantEarnings {
   cogsCop: number;
   grossProfitCop: number;
   profitMarginPercent: number;
+  /** Alias for profitMarginPercent */
+  marginPercent: number;
   totalCommissionCop: number;
   netEarnedCop: number;
   totalPaidOutCop: number;

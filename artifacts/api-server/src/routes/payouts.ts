@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, merchantPayoutsTable, transactionLogsTable } from "@workspace/db";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, asc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -95,6 +95,44 @@ router.post(
       .returning();
 
     res.status(201).json(payout);
+  },
+);
+
+router.get(
+  "/payouts/:payoutId/transactions",
+  requireRole("admin", "merchant_admin"),
+  async (req: Request, res: Response) => {
+    const { payoutId } = req.params as { payoutId: string };
+
+    const [payout] = await db
+      .select()
+      .from(merchantPayoutsTable)
+      .where(eq(merchantPayoutsTable.id, payoutId));
+
+    if (!payout) {
+      res.status(404).json({ error: "Payout not found" });
+      return;
+    }
+
+    if (req.user!.role === "merchant_admin" && req.user!.merchantId !== payout.merchantId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const transactions = await db
+      .select()
+      .from(transactionLogsTable)
+      .where(
+        and(
+          eq(transactionLogsTable.merchantId, payout.merchantId),
+          eq(transactionLogsTable.eventId, payout.eventId),
+          gte(transactionLogsTable.createdAt, payout.periodFrom),
+          lte(transactionLogsTable.createdAt, payout.periodTo),
+        ),
+      )
+      .orderBy(asc(transactionLogsTable.createdAt));
+
+    res.json({ payout, transactions });
   },
 );
 
