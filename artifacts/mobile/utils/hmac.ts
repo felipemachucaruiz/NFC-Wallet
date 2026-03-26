@@ -1,4 +1,4 @@
-import * as Crypto from "expo-crypto";
+import CryptoJS from "crypto-js";
 
 export interface BraceletPayload {
   uid: string;
@@ -7,31 +7,14 @@ export interface BraceletPayload {
   hmac: string;
 }
 
-function toHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 export async function computeHmac(
   balance: number,
   counter: number,
   secret: string
 ): Promise<string> {
   const message = `${balance}:${counter}`;
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    new TextEncoder().encode(message)
-  );
-  return toHex(signature);
+  const signature = CryptoJS.HmacSHA256(message, secret);
+  return signature.toString(CryptoJS.enc.Hex);
 }
 
 export async function verifyHmac(
