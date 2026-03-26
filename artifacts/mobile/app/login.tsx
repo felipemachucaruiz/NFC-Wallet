@@ -27,7 +27,7 @@ type SetupStep = "prompt" | "enter" | "confirm";
 export default function LoginScreen() {
   const { t } = useTranslation();
   const { login, isAuthenticated, isLoading } = useAuth();
-  const { hasPasscode, setPasscode } = usePasscode();
+  const { hasPasscode, setPasscode, skipPinPrompt, onLoginAttempted } = usePasscode();
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
@@ -70,7 +70,11 @@ export default function LoginScreen() {
     }
     // Offer passcode setup if remember-me is on and no passcode set yet
     if (rememberMe && !hasPasscode && Platform.OS !== "web") {
-      setSetupStep("prompt");
+      const shouldShow = await onLoginAttempted();
+      if (shouldShow) {
+        setSetupStep("prompt");
+        return;
+      }
     }
     // Otherwise the useEffect above will navigate to "/"
   };
@@ -205,7 +209,11 @@ export default function LoginScreen() {
               <View style={styles.promptActions}>
                 <Button
                   title={t("passcode.skip")}
-                  onPress={() => { setSetupStep(null); router.replace("/"); }}
+                  onPress={async () => {
+                    await skipPinPrompt();
+                    setSetupStep(null);
+                    router.replace("/");
+                  }}
                   variant="ghost"
                   size="md"
                 />
