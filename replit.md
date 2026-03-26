@@ -63,6 +63,32 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages
 - `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly`
 
+## Mobile OTA Update Workflow (EAS Update)
+
+`expo-updates` is configured. JS/TS changes do NOT require a new APK — push them OTA in ~60 seconds.
+
+**Push an update (from workspace root):**
+```bash
+cd artifacts/mobile
+pnpm run update -- --message "Description of changes"
+# or for development channel:
+pnpm run update:dev -- --message "Description of changes"
+```
+
+**When you DO need a full APK build:**
+- New native module added (NFC, camera, etc.)
+- `app.json` permissions or splash changes
+- Major Expo SDK upgrade
+
+**EAS config:**
+- Account: `felipemachucadj` (already logged in)
+- Project ID: `26d76893-d65f-457a-b2eb-7fa177110638`
+- Channels: `preview` (production-like APK), `development` (dev client APK)
+- Runtime version policy: `appVersion` — tied to the version field in app.json
+- Dashboard: https://expo.dev/accounts/felipemachucadj/projects/mobile/updates
+
+**Note:** The next APK build (`pnpm run build:apk`) will embed expo-updates so devices can auto-receive OTA updates on launch.
+
 ## Packages
 
 ### `artifacts/api-server` (`@workspace/api-server`)
