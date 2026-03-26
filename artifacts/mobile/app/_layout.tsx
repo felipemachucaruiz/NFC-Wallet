@@ -13,6 +13,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl } from "@workspace/api-client-react";
+import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -56,18 +57,21 @@ export default function RootLayout() {
     Inter_700Bold,
   });
   const [i18nReady, setI18nReady] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
     initI18n().then(() => setI18nReady(true));
   }, []);
 
+  const appReady = (fontsLoaded || !!fontError) && i18nReady;
+
   useEffect(() => {
-    if ((fontsLoaded || fontError) && i18nReady) {
+    if (appReady) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, i18nReady]);
+  }, [appReady]);
 
-  if ((!fontsLoaded && !fontError) || !i18nReady) return null;
+  if (!appReady) return null;
 
   return (
     <SafeAreaProvider>
@@ -80,6 +84,9 @@ export default function RootLayout() {
                   <GestureHandlerRootView style={{ flex: 1 }}>
                     <KeyboardProvider>
                       <RootLayoutNav />
+                      {!splashDone && (
+                        <AnimatedSplash onFinished={() => setSplashDone(true)} />
+                      )}
                     </KeyboardProvider>
                   </GestureHandlerRootView>
                 </OfflineQueueProvider>
