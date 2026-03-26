@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, transactionLogsTable, transactionLineItemsTable, productsTable, locationInventoryTable, braceletsTable, merchantsTable, locationsTable, restockOrdersTable, userLocationAssignmentsTable, stockMovementsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthUser } from "@workspace/api-zod";
 import { z } from "zod";
@@ -42,17 +42,23 @@ async function checkLocationAccess(
       return { error: "Access denied: location does not belong to your merchant" };
     }
     if (user.role === "merchant_staff") {
-      const [assignment] = await db
-        .select()
+      const [{ value: totalAssignments }] = await db
+        .select({ value: count() })
         .from(userLocationAssignmentsTable)
-        .where(
-          and(
-            eq(userLocationAssignmentsTable.locationId, locationId),
-            eq(userLocationAssignmentsTable.userId, user.id),
-          ),
-        );
-      if (!assignment) {
-        return { error: "Access denied: you are not assigned to this location" };
+        .where(eq(userLocationAssignmentsTable.userId, user.id));
+      if (totalAssignments > 0) {
+        const [assignment] = await db
+          .select()
+          .from(userLocationAssignmentsTable)
+          .where(
+            and(
+              eq(userLocationAssignmentsTable.locationId, locationId),
+              eq(userLocationAssignmentsTable.userId, user.id),
+            ),
+          );
+        if (!assignment) {
+          return { error: "Access denied: you are not assigned to this location" };
+        }
       }
     }
   }
