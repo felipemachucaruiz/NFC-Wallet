@@ -12,7 +12,7 @@ const ROLE_HOME: Record<string, string> = {
   admin: "/(admin)/",
 };
 
-export function useRoleGuard(requiredRole: string) {
+export function useRoleGuard(requiredRole: string): { isReady: boolean } {
   const { user, isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
@@ -26,4 +26,7 @@ export function useRoleGuard(requiredRole: string) {
       router.replace(home);
     }
   }, [isLoading, isAuthenticated, user?.role, requiredRole]);
+
+  const isAuthorized = !isLoading && isAuthenticated && !!user && user.role === requiredRole;
+  return { isReady: isAuthorized };
 }

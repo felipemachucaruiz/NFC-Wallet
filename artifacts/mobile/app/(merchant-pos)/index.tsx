@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
+  BackHandler,
   FlatList,
   Platform,
   Pressable,
@@ -15,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useListLocations, useListProducts, useGetLocationInventory } from "@workspace/api-client-react";
+import { useListLocations, useGetLocationInventory } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Badge } from "@/components/ui/Badge";
@@ -39,6 +40,20 @@ export default function MerchantPosScreen() {
   const { pendingCount } = useOfflineQueue();
 
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (selectedLocationId) {
+          setSelectedLocationId(null);
+          return true;
+        }
+        return true;
+      });
+      return () => subscription.remove();
+    }, [selectedLocationId]),
+  );
+
   const [activeTab, setActiveTab] = useState<"catalog" | "cart">("catalog");
   const [search, setSearch] = useState("");
 
@@ -49,8 +64,8 @@ export default function MerchantPosScreen() {
     query: { enabled: !!selectedLocationId },
   });
   const inventory = (inventoryData as {
-    items?: Array<{ product: { id: string; name: string; priceCop: number; costCop: number }; quantityAvailable: number }>
-  } | undefined)?.items ?? [];
+    inventory?: Array<{ product: { id: string; name: string; priceCop: number; costCop: number }; quantityOnHand: number }>
+  } | undefined)?.inventory ?? [];
 
   const filtered = inventory.filter((item) =>
     item.product.name.toLowerCase().includes(search.toLowerCase())
@@ -139,8 +154,8 @@ export default function MerchantPosScreen() {
               renderItem={({ item }) => {
                 const cartItem = cartItems.find((c) => c.productId === item.product.id);
                 const qty = cartItem?.quantity ?? 0;
-                const outOfStock = item.quantityAvailable === 0;
-                const lowStock = item.quantityAvailable > 0 && item.quantityAvailable <= 5;
+                const outOfStock = item.quantityOnHand === 0;
+                const lowStock = item.quantityOnHand > 0 && item.quantityOnHand <= 5;
                 return (
                   <View style={[styles.productCard, {
                     backgroundColor: C.card,
@@ -157,9 +172,9 @@ export default function MerchantPosScreen() {
                       {outOfStock ? (
                         <Badge label={t("pos.outOfStock")} variant="danger" size="sm" />
                       ) : lowStock ? (
-                        <Badge label={`${item.quantityAvailable} ${t("pos.stock")}`} variant="warning" size="sm" />
+                        <Badge label={`${item.quantityOnHand} ${t("pos.stock")}`} variant="warning" size="sm" />
                       ) : (
-                        <Text style={[styles.stockText, { color: C.textMuted }]}>{item.quantityAvailable} {t("warehouse.units")}</Text>
+                        <Text style={[styles.stockText, { color: C.textMuted }]}>{item.quantityOnHand} {t("warehouse.units")}</Text>
                       )}
                     </View>
                     {!outOfStock && (
@@ -171,7 +186,7 @@ export default function MerchantPosScreen() {
                             name: item.product.name,
                             priceCop: item.product.priceCop,
                             costCop: item.product.costCop,
-                            stockAvailable: item.quantityAvailable,
+                            stockAvailable: item.quantityOnHand,
                           })}
                           testID={`add-product-${item.product.id}`}
                         >
@@ -193,7 +208,7 @@ export default function MerchantPosScreen() {
                               name: item.product.name,
                               priceCop: item.product.priceCop,
                               costCop: item.product.costCop,
-                              stockAvailable: item.quantityAvailable,
+                              stockAvailable: item.quantityOnHand,
                             })}
                           >
                             <Feather name="plus" size={14} color="#fff" />

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, locationsTable, userLocationAssignmentsTable, usersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
@@ -28,6 +28,28 @@ router.get("/locations", requireAuth, async (req: Request, res: Response) => {
   if (isMerchantScoped(user)) {
     if (!user.merchantId) {
       res.json({ locations: [] });
+      return;
+    }
+    if (user.role === "merchant_staff") {
+      const assignments = await db
+        .select({ locationId: userLocationAssignmentsTable.locationId })
+        .from(userLocationAssignmentsTable)
+        .where(eq(userLocationAssignmentsTable.userId, (user as { id: string }).id));
+      const assignedIds = assignments.map((a) => a.locationId);
+      if (assignedIds.length === 0) {
+        res.json({ locations: [] });
+        return;
+      }
+      const locations = await db
+        .select()
+        .from(locationsTable)
+        .where(
+          and(
+            eq(locationsTable.merchantId, user.merchantId),
+            inArray(locationsTable.id, assignedIds),
+          ),
+        );
+      res.json({ locations });
       return;
     }
     const locations = await db

@@ -5,7 +5,7 @@ import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -89,7 +89,16 @@ function ClassicTabLayout() {
 }
 
 export default function AttendeeLayout() {
-  useRoleGuard("attendee");
+  const { isReady } = useRoleGuard("attendee");
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: C.background }}>
+        <ActivityIndicator color={C.primary} />
+      </View>
+    );
+  }
   if (isLiquidGlassAvailable()) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }
