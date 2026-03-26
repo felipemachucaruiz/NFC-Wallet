@@ -77,6 +77,7 @@ router.get(
     const [braceletAgg] = await db
       .select({
         pendingBalanceCop: sql<number>`COALESCE(SUM(${braceletsTable.lastKnownBalanceCop}), 0)`.mapWith(Number),
+        braceletCount: sql<number>`COUNT(*)`.mapWith(Number),
       })
       .from(braceletsTable)
       .where(braceletConditions.length > 0 ? and(...braceletConditions) : undefined);
@@ -117,6 +118,7 @@ router.get(
       pendingBalanceCop: braceletAgg?.pendingBalanceCop ?? 0,
       transactionCount: txAgg?.transactionCount ?? 0,
       topUpCount,
+      braceletCount: braceletAgg?.braceletCount ?? 0,
     });
   },
 );

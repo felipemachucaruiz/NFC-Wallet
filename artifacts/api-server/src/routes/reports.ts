@@ -22,31 +22,36 @@ router.get(
     const user = req.user!;
 
     const conditions = [];
+    let topUpEventIds: string[] | null = null;
+
+    const emptyRevenue = { totalSalesCop: 0, totalCogsCop: 0, grossProfitCop: 0, totalCommissionsCop: 0, netOwedToMerchantsCop: 0, transactionCount: 0, totalTopUpsCop: 0, topUpCount: 0, braceletCount: 0, totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] };
 
     if (user.role === "event_admin") {
       const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
       if (userCompanyId) {
         const companyEventIds = await getEventIdsByPromoterCompany(userCompanyId);
         if (companyEventIds.length === 0) {
-          res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
+          res.json(emptyRevenue);
           return;
         }
+        topUpEventIds = companyEventIds;
         conditions.push(inArray(transactionLogsTable.eventId, companyEventIds));
         if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
         if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
         if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
       } else {
         if (!user.eventId) {
-          res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
+          res.json(emptyRevenue);
           return;
         }
+        topUpEventIds = [user.eventId!];
         conditions.push(eq(transactionLogsTable.eventId, user.eventId));
         if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
         if (locationId) conditions.push(eq(transactionLogsTable.locationId, locationId));
       }
     } else if (user.role === "merchant_admin") {
       if (!user.merchantId) {
-        res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
+        res.json(emptyRevenue);
         return;
       }
       if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
@@ -63,11 +68,13 @@ router.get(
       if (promoterCompanyId) {
         const companyEventIds = await getEventIdsByPromoterCompany(promoterCompanyId);
         if (companyEventIds.length === 0) {
-          res.json({ totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] });
+          res.json(emptyRevenue);
           return;
         }
+        topUpEventIds = companyEventIds;
         conditions.push(inArray(transactionLogsTable.eventId, companyEventIds));
       } else if (eventId) {
+        topUpEventIds = [eventId];
         conditions.push(eq(transactionLogsTable.eventId, eventId));
       }
       if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
@@ -231,7 +238,33 @@ router.get(
       })),
     }));
 
-    res.json({ totals, byMerchant });
+    let totalTopUpsCop = 0;
+    let topUpCount = 0;
+    let braceletCount = 0;
+    if (topUpEventIds !== null && topUpEventIds.length > 0) {
+      const eventTopUps = await getTopUpsForEventIds(topUpEventIds, from, to);
+      totalTopUpsCop = eventTopUps.reduce((s, t) => s + t.amountCop, 0);
+      topUpCount = eventTopUps.length;
+      const [bAgg] = await db
+        .select({ count: sql<number>`COUNT(*)`.mapWith(Number) })
+        .from(braceletsTable)
+        .where(inArray(braceletsTable.eventId, topUpEventIds));
+      braceletCount = bAgg?.count ?? 0;
+    }
+
+    res.json({
+      totalSalesCop: totals.grossSalesCop,
+      totalCogsCop: totals.cogsCop,
+      grossProfitCop: totals.grossProfitCop,
+      totalCommissionsCop: totals.commissionCop,
+      netOwedToMerchantsCop: totals.netCop,
+      transactionCount: totals.transactionCount,
+      totalTopUpsCop,
+      topUpCount,
+      braceletCount,
+      totals,
+      byMerchant,
+    });
   },
 );
 
@@ -258,6 +291,9 @@ router.get(
     type TopUpRow = typeof topUpsTable.$inferSelect;
     const buildTopUpSummary = async (topUps: TopUpRow[]) => {
       const totalCop = topUps.reduce((s, t) => s + t.amountCop, 0);
+      const totalCount = topUps.length;
+      const averageAmountCop = totalCount > 0 ? Math.round(totalCop / totalCount) : 0;
+      const uniqueBraceletsCount = new Set(topUps.map((t) => t.braceletUid)).size;
       const byPaymentMethod: Record<string, number> = {};
       const byUserMap = new Map<string, { totalCop: number; count: number }>();
       for (const t of topUps) {
@@ -273,7 +309,7 @@ router.get(
         const data = byUserMap.get(uid)!;
         return { userId: uid, firstName: usr?.firstName ?? null, lastName: usr?.lastName ?? null, totalCop: data.totalCop, count: data.count };
       });
-      return { totalCop, byPaymentMethod, byUser };
+      return { totalCop, totalAmountCop: totalCop, totalCount, averageAmountCop, uniqueBraceletsCount, byPaymentMethod, byUser };
     };
 
     // event_admin: scope top-ups to their event via bracelet.eventId
