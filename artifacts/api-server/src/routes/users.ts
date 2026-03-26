@@ -200,6 +200,150 @@ router.patch(
   },
 );
 
+/**
+ * @summary List merchant_staff for the logged-in merchant_admin's merchant
+ */
+router.get(
+  "/merchant/staff",
+  requireRole("merchant_admin"),
+  async (req: Request, res: Response) => {
+    const merchantId = req.user!.merchantId;
+    if (!merchantId) {
+      res.status(403).json({ error: "No merchant associated with your account" });
+      return;
+    }
+    const staff = await db
+      .select({
+        id: usersTable.id,
+        username: usersTable.username,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        role: usersTable.role,
+        createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .where(and(eq(usersTable.merchantId, merchantId), eq(usersTable.role, "merchant_staff")));
+    res.json({ staff });
+  },
+);
+
+/**
+ * @summary Create a new merchant_staff user for the logged-in merchant_admin
+ */
+router.post(
+  "/merchant/staff",
+  requireRole("merchant_admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({
+      username: z.string().min(3),
+      password: z.string().min(6),
+      firstName: z.string().min(1).optional(),
+      lastName: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid request" });
+      return;
+    }
+    const merchantId = req.user!.merchantId;
+    if (!merchantId) {
+      res.status(403).json({ error: "No merchant associated with your account" });
+      return;
+    }
+    const { username, password, firstName, lastName } = parsed.data;
+    const normalizedUsername = username.trim().toLowerCase();
+    const [dup] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.username, normalizedUsername));
+    if (dup) {
+      res.status(409).json({ error: "Username already taken" });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    const [newUser] = await db
+      .insert(usersTable)
+      .values({
+        username: normalizedUsername,
+        passwordHash,
+        firstName: firstName ?? null,
+        lastName: lastName ?? null,
+        role: "merchant_staff",
+        merchantId,
+        eventId: req.user!.eventId ?? null,
+      })
+      .returning({
+        id: usersTable.id,
+        username: usersTable.username,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        role: usersTable.role,
+      });
+    res.status(201).json(newUser);
+  },
+);
+
+/**
+ * @summary Reset password for a merchant_staff belonging to the merchant_admin's merchant
+ */
+router.patch(
+  "/merchant/staff/:userId/password",
+  requireRole("merchant_admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({ newPassword: z.string().min(6) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Password must be at least 6 characters" });
+      return;
+    }
+    const merchantId = req.user!.merchantId;
+    if (!merchantId) {
+      res.status(403).json({ error: "No merchant associated with your account" });
+      return;
+    }
+    const [target] = await db
+      .select()
+      .from(usersTable)
+      .where(and(eq(usersTable.id, req.params.userId as string), eq(usersTable.merchantId, merchantId), eq(usersTable.role, "merchant_staff")));
+    if (!target) {
+      res.status(404).json({ error: "Staff member not found" });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    await db
+      .update(usersTable)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(usersTable.id, req.params.userId as string));
+    res.json({ success: true });
+  },
+);
+
+/**
+ * @summary Remove a merchant_staff member from the merchant
+ */
+router.delete(
+  "/merchant/staff/:userId",
+  requireRole("merchant_admin"),
+  async (req: Request, res: Response) => {
+    const merchantId = req.user!.merchantId;
+    if (!merchantId) {
+      res.status(403).json({ error: "No merchant associated with your account" });
+      return;
+    }
+    const [target] = await db
+      .select()
+      .from(usersTable)
+      .where(and(eq(usersTable.id, req.params.userId as string), eq(usersTable.merchantId, merchantId), eq(usersTable.role, "merchant_staff")));
+    if (!target) {
+      res.status(404).json({ error: "Staff member not found" });
+      return;
+    }
+    await db.delete(usersTable).where(eq(usersTable.id, req.params.userId as string));
+    res.json({ success: true });
+  },
+);
+
 router.get("/users/me", requireAuth, async (req: Request, res: Response) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });

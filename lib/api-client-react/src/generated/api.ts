@@ -5450,3 +5450,187 @@ export const useDeleteAdminBracelet = <
   const mutationOptions = getDeleteAdminBraceletMutationOptions(options);
   return useMutation(mutationOptions);
 };
+
+// ─── Merchant Staff Management ────────────────────────────────────────────────
+
+export interface MerchantStaffMember {
+  id: string;
+  username: string | null;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+  createdAt: string;
+}
+
+export interface MerchantStaffListResponse {
+  staff: MerchantStaffMember[];
+}
+
+export interface CreateMerchantStaffBody {
+  username: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export interface ResetMerchantStaffPasswordBody {
+  newPassword: string;
+}
+
+export const getListMerchantStaffUrl = () => `/api/merchant/staff`;
+export const getCreateMerchantStaffUrl = () => `/api/merchant/staff`;
+export const getResetMerchantStaffPasswordUrl = (userId: string) => `/api/merchant/staff/${userId}/password`;
+export const getDeleteMerchantStaffUrl = (userId: string) => `/api/merchant/staff/${userId}`;
+
+export const listMerchantStaff = async (options?: RequestInit): Promise<MerchantStaffListResponse> =>
+  customFetch<MerchantStaffListResponse>(getListMerchantStaffUrl(), { ...options, method: "GET" });
+
+export const getListMerchantStaffQueryKey = () => [`/api/merchant/staff`] as const;
+
+export const getListMerchantStaffQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMerchantStaff>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listMerchantStaff>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryOptions<Awaited<ReturnType<typeof listMerchantStaff>>, TError, TData> => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getListMerchantStaffQueryKey();
+  return {
+    queryKey,
+    queryFn: ({ signal }) => listMerchantStaff({ signal, ...requestOptions }),
+    ...queryOptions,
+  };
+};
+
+export const useListMerchantStaff = <
+  TData = Awaited<ReturnType<typeof listMerchantStaff>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listMerchantStaff>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } => {
+  const queryOptions = getListMerchantStaffQueryOptions(options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return { ...query, queryKey: queryOptions.queryKey };
+};
+
+export const createMerchantStaff = async (
+  body: CreateMerchantStaffBody,
+  options?: RequestInit,
+): Promise<MerchantStaffMember> =>
+  customFetch<MerchantStaffMember>(getCreateMerchantStaffUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(body),
+  });
+
+export const getCreateMerchantStaffMutationOptions = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof createMerchantStaff>>, TError, { data: BodyType<CreateMerchantStaffBody> }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof createMerchantStaff>>, TError, { data: BodyType<CreateMerchantStaffBody> }, TContext> => {
+  const mutationKey = ["createMerchantStaff"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMerchantStaff>>, { data: BodyType<CreateMerchantStaffBody> }> = (props) => {
+    const { data } = props ?? {};
+    return createMerchantStaff(data, requestOptions);
+  };
+  return { mutationFn, ...mutationOptions };
+};
+
+export const useCreateMerchantStaff = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof createMerchantStaff>>, TError, { data: BodyType<CreateMerchantStaffBody> }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<Awaited<ReturnType<typeof createMerchantStaff>>, TError, { data: BodyType<CreateMerchantStaffBody> }, TContext> => {
+  const mutationOptions = getCreateMerchantStaffMutationOptions(options);
+  return useMutation(mutationOptions);
+};
+
+export const resetMerchantStaffPassword = async (
+  userId: string,
+  body: ResetMerchantStaffPasswordBody,
+  options?: RequestInit,
+): Promise<SuccessEnvelope> =>
+  customFetch<SuccessEnvelope>(getResetMerchantStaffPasswordUrl(userId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(body),
+  });
+
+export const getResetMerchantStaffPasswordMutationOptions = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, TError, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, TError, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }, TContext> => {
+  const mutationKey = ["resetMerchantStaffPassword"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }> = (props) => {
+    const { userId, data } = props ?? {};
+    return resetMerchantStaffPassword(userId, data, requestOptions);
+  };
+  return { mutationFn, ...mutationOptions };
+};
+
+export const useResetMerchantStaffPassword = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, TError, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<Awaited<ReturnType<typeof resetMerchantStaffPassword>>, TError, { userId: string; data: BodyType<ResetMerchantStaffPasswordBody> }, TContext> => {
+  const mutationOptions = getResetMerchantStaffPasswordMutationOptions(options);
+  return useMutation(mutationOptions);
+};
+
+export const deleteMerchantStaff = async (userId: string, options?: RequestInit): Promise<SuccessEnvelope> =>
+  customFetch<SuccessEnvelope>(getDeleteMerchantStaffUrl(userId), { ...options, method: "DELETE" });
+
+export const getDeleteMerchantStaffMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteMerchantStaff>>, TError, { userId: string }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<Awaited<ReturnType<typeof deleteMerchantStaff>>, TError, { userId: string }, TContext> => {
+  const mutationKey = ["deleteMerchantStaff"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMerchantStaff>>, { userId: string }> = (props) => {
+    const { userId } = props ?? {};
+    return deleteMerchantStaff(userId, requestOptions);
+  };
+  return { mutationFn, ...mutationOptions };
+};
+
+export const useDeleteMerchantStaff = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteMerchantStaff>>, TError, { userId: string }, TContext>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<Awaited<ReturnType<typeof deleteMerchantStaff>>, TError, { userId: string }, TContext> => {
+  const mutationOptions = getDeleteMerchantStaffMutationOptions(options);
+  return useMutation(mutationOptions);
+};
