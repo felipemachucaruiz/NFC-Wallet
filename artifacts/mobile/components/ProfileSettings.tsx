@@ -59,12 +59,20 @@ export function ProfileSettings() {
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
-        paddingTop: isWeb ? 67 : insets.top + 16,
+        paddingTop: isWeb ? 24 : insets.top + 8,
         paddingBottom: isWeb ? 34 : insets.bottom + 16,
         paddingHorizontal: 20,
         gap: 20,
       }}
     >
+      <Pressable
+        onPress={() => router.back()}
+        style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.5 : 1 }]}
+        hitSlop={12}
+      >
+        <Feather name="arrow-left" size={22} color={C.text} />
+      </Pressable>
+
       <Text style={[styles.pageTitle, { color: C.text }]}>
         {t("common.settings")}
       </Text>
@@ -167,6 +175,7 @@ export function ProfileSettings() {
 }
 
 const styles = StyleSheet.create({
+  backBtn: { alignSelf: "flex-start", padding: 4 },
   pageTitle: { fontSize: 28, fontFamily: "Inter_700Bold" },
   userRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   avatar: {
