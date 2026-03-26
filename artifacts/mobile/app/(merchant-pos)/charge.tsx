@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useLogTransaction, useGetSigningKey } from "@workspace/api-client-react";
+import { useLogTransaction, useGetSigningKey, useReportTamper } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
@@ -88,6 +88,7 @@ export default function ChargeScreen() {
   const hmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
 
   const logTransaction = useLogTransaction();
+  const reportTamper = useReportTamper();
 
   const [step, setStep] = useState<ChargeStep>("waiting");
   const [braceletBalance, setBraceletBalance] = useState<number | null>(null);
@@ -105,6 +106,12 @@ export default function ChargeScreen() {
     }
     if (!hmacOk) {
       setStep("hmac_fail");
+      try {
+        await reportTamper.mutateAsync({
+          data: { nfcUid: uid, reason: "HMAC mismatch detected at merchant POS" },
+        });
+      } catch {
+      }
       return;
     }
     if (balance < total) {
