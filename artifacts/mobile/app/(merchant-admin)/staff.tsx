@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Alert,
   Modal,
@@ -8,8 +8,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
   useColorScheme,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -18,6 +20,9 @@ import {
   useCreateMerchantStaff,
   useResetMerchantStaffPassword,
   useDeleteMerchantStaff,
+  useListLocations,
+  useAssignUserToLocation,
+  useRemoveUserFromLocation,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
@@ -25,6 +30,8 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { Empty } from "@/components/ui/Empty";
+import { useAuth } from "@/contexts/AuthContext";
+import { API_BASE_URL } from "@/constants/domain";
 
 type StaffMember = {
   id: string;
@@ -36,16 +43,28 @@ type StaffMember = {
   createdAt: string;
 };
 
+type Location = {
+  id: string;
+  name: string;
+  active: boolean;
+};
+
 export default function MerchantStaffScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { token } = useAuth();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+  const [locationStaff, setLocationStaff] = useState<StaffMember | null>(null);
+  const [pendingLocationIds, setPendingLocationIds] = useState<Set<string>>(new Set());
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+  const [savingLocations, setSavingLocations] = useState(false);
 
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -57,9 +76,16 @@ export default function MerchantStaffScreen() {
   const { data, isLoading, refetch } = useListMerchantStaff();
   const staff = (data as { staff?: StaffMember[] } | undefined)?.staff ?? [];
 
+  const { data: locData } = useListLocations();
+  const allLocations: Location[] = ((locData as { locations?: Location[] } | undefined)?.locations ?? []).filter(
+    (l) => l.active !== false,
+  );
+
   const createStaff = useCreateMerchantStaff();
   const resetPwd = useResetMerchantStaffPassword();
   const deleteStaff = useDeleteMerchantStaff();
+  const assignLocation = useAssignUserToLocation();
+  const removeLocation = useRemoveUserFromLocation();
 
   const resetAddForm = () => {
     setNewUsername("");
@@ -146,6 +172,72 @@ export default function MerchantStaffScreen() {
     setShowPasswordModal(true);
   };
 
+  const openManageLocations = useCallback(
+    async (member: StaffMember) => {
+      setLocationStaff(member);
+      setLoadingAssignments(true);
+      setPendingLocationIds(new Set());
+      setShowLocationModal(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/locations/staff-assignments/${member.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const body = (await res.json()) as { locationIds: string[] };
+          setPendingLocationIds(new Set(body.locationIds));
+        }
+      } catch {
+        // Leave empty — saving with no selections means "all locations" fallback
+      } finally {
+        setLoadingAssignments(false);
+      }
+    },
+    [token],
+  );
+
+  const toggleLocation = (id: string) => {
+    setPendingLocationIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSaveLocations = async () => {
+    if (!locationStaff) return;
+    setSavingLocations(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/locations/staff-assignments/${locationStaff.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const currentIds: string[] = res.ok
+        ? ((await res.json()) as { locationIds: string[] }).locationIds
+        : [];
+      const currentSet = new Set(currentIds);
+
+      const toAssign = [...pendingLocationIds].filter((id) => !currentSet.has(id));
+      const toRemove = currentIds.filter((id) => !pendingLocationIds.has(id));
+
+      await Promise.all([
+        ...toAssign.map((locationId) =>
+          assignLocation.mutateAsync({ locationId, data: { userId: locationStaff.id } }),
+        ),
+        ...toRemove.map((locationId) =>
+          removeLocation.mutateAsync({ locationId, data: { userId: locationStaff.id } }),
+        ),
+      ]);
+
+      setShowLocationModal(false);
+      setLocationStaff(null);
+      Alert.alert(t("common.success"), t("merchant_admin.locationAssignmentSaved"));
+    } catch {
+      Alert.alert(t("common.error"), t("common.unexpectedError"));
+    } finally {
+      setSavingLocations(false);
+    }
+  };
+
   const displayName = (m: StaffMember) =>
     [m.firstName, m.lastName].filter(Boolean).join(" ") || m.username || m.id;
 
@@ -180,6 +272,13 @@ export default function MerchantStaffScreen() {
                   <Text style={[styles.memberUsername, { color: C.textSecondary }]}>@{member.username}</Text>
                 </View>
                 <View style={styles.memberActions}>
+                  <Button
+                    label={t("merchant_admin.manageLocations")}
+                    onPress={() => openManageLocations(member)}
+                    variant="secondary"
+                    size="sm"
+                    icon="map-pin"
+                  />
                   <Button
                     label={t("merchant_admin.resetPassword")}
                     onPress={() => openResetPassword(member)}
@@ -278,6 +377,65 @@ export default function MerchantStaffScreen() {
           </View>
         </ScrollView>
       </Modal>
+
+      {/* Manage Locations Modal */}
+      <Modal visible={showLocationModal} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setShowLocationModal(false)}>
+        <ScrollView
+          style={[styles.modal, { backgroundColor: C.background }]}
+          contentContainerStyle={[styles.modalContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: C.text }]}>
+              {locationStaff ? t("merchant_admin.staffLocationsTitle", { name: displayName(locationStaff) }) : ""}
+            </Text>
+            <Feather name="x" size={22} color={C.textSecondary} onPress={() => setShowLocationModal(false)} />
+          </View>
+
+          <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+            {t("merchant_admin.staffLocationsSubtitle")}
+          </Text>
+
+          {loadingAssignments ? (
+            <ActivityIndicator color={C.primary} style={{ marginTop: 24 }} />
+          ) : allLocations.length === 0 ? (
+            <Empty message={t("merchant_admin.noLocations")} />
+          ) : (
+            allLocations.map((loc) => {
+              const checked = pendingLocationIds.has(loc.id);
+              return (
+                <TouchableOpacity
+                  key={loc.id}
+                  onPress={() => toggleLocation(loc.id)}
+                  style={[
+                    styles.locationRow,
+                    {
+                      backgroundColor: checked ? C.primary + "18" : C.card,
+                      borderColor: checked ? C.primary : C.border,
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, { borderColor: checked ? C.primary : C.border, backgroundColor: checked ? C.primary : "transparent" }]}>
+                    {checked && <Feather name="check" size={12} color="#fff" />}
+                  </View>
+                  <Text style={[styles.locationName, { color: C.text }]}>{loc.name}</Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
+
+          <View style={[styles.modalActions, { marginTop: 16 }]}>
+            <Button label={t("common.cancel")} onPress={() => setShowLocationModal(false)} variant="secondary" style={styles.modalBtn} />
+            <Button
+              label={t("common.save")}
+              onPress={handleSaveLocations}
+              variant="primary"
+              loading={savingLocations}
+              style={styles.modalBtn}
+            />
+          </View>
+        </ScrollView>
+      </Modal>
     </>
   );
 }
@@ -299,4 +457,22 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold", flex: 1 },
   modalActions: { flexDirection: "row", gap: 10, marginTop: 8 },
   modalBtn: { flex: 1 },
+  subtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: -8 },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  locationName: { fontSize: 15, fontFamily: "Inter_500Medium", flex: 1 },
 });

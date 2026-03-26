@@ -36,18 +36,18 @@ router.get("/locations", requireAuth, async (req: Request, res: Response) => {
         .from(userLocationAssignmentsTable)
         .where(eq(userLocationAssignmentsTable.userId, (user as { id: string }).id));
       const assignedIds = assignments.map((a) => a.locationId);
-      if (assignedIds.length === 0) {
-        res.json({ locations: [] });
-        return;
-      }
+      // If no specific assignments exist, fall back to all merchant locations
+      // so newly created staff can still operate without requiring admin setup first.
       const locations = await db
         .select()
         .from(locationsTable)
         .where(
-          and(
-            eq(locationsTable.merchantId, user.merchantId),
-            inArray(locationsTable.id, assignedIds),
-          ),
+          assignedIds.length > 0
+            ? and(
+                eq(locationsTable.merchantId, user.merchantId),
+                inArray(locationsTable.id, assignedIds),
+              )
+            : eq(locationsTable.merchantId, user.merchantId),
         );
       res.json({ locations });
       return;
@@ -321,6 +321,35 @@ router.delete(
         ),
       );
     res.json({ success: true });
+  },
+);
+
+// GET /locations/staff-assignments/:userId — returns locationIds assigned to a specific staff member
+router.get(
+  "/locations/staff-assignments/:userId",
+  requireRole("admin", "merchant_admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const user = req.user!;
+    const targetUserId = req.params.userId as string;
+
+    if (user.role === "merchant_admin") {
+      // Verify target user belongs to this merchant
+      const [target] = await db
+        .select({ id: usersTable.id, merchantId: usersTable.merchantId })
+        .from(usersTable)
+        .where(eq(usersTable.id, targetUserId));
+      if (!target || target.merchantId !== user.merchantId) {
+        res.status(403).json({ error: "User not in your merchant" });
+        return;
+      }
+    }
+
+    const assignments = await db
+      .select({ locationId: userLocationAssignmentsTable.locationId })
+      .from(userLocationAssignmentsTable)
+      .where(eq(userLocationAssignmentsTable.userId, targetUserId));
+
+    res.json({ locationIds: assignments.map((a) => a.locationId) });
   },
 );
 
