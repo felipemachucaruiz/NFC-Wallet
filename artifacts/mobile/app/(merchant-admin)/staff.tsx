@@ -166,7 +166,7 @@ export default function MerchantStaffScreen() {
       >
         <View style={styles.header}>
           <Text style={[styles.heading, { color: C.text }]}>{t("merchant_admin.staffManagement")}</Text>
-          <Button label={t("merchant_admin.addStaff")} onPress={() => { resetAddForm(); setShowAddModal(true); }} variant="primary" size="sm" />
+          <Button label={t("merchant_admin.addStaff")} onPress={() => { resetAddForm(); setShowAddModal(true); }} variant="primary" size="sm" icon="user-plus" />
         </View>
 
         {staff.length === 0 ? (
@@ -185,12 +185,14 @@ export default function MerchantStaffScreen() {
                     onPress={() => openResetPassword(member)}
                     variant="secondary"
                     size="sm"
+                    icon="key"
                   />
                   <Button
                     label={t("merchant_admin.removeStaff")}
                     onPress={() => handleDelete(member)}
                     variant="danger"
                     size="sm"
+                    icon="trash-2"
                   />
                 </View>
               </View>

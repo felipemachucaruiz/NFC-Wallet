@@ -1,9 +1,12 @@
+import { Feather } from "@expo/vector-icons";
 import React from "react";
 import {
   ActivityIndicator,
   Pressable,
+  StyleProp,
   StyleSheet,
   Text,
+  ViewStyle,
   useColorScheme,
 } from "react-native";
 import Colors from "@/constants/colors";
@@ -12,7 +15,8 @@ type Variant = "primary" | "secondary" | "danger" | "ghost" | "success";
 type Size = "sm" | "md" | "lg";
 
 interface ButtonProps {
-  title: string;
+  title?: string;
+  label?: string;
   onPress: () => void;
   variant?: Variant;
   size?: Size;
@@ -20,10 +24,13 @@ interface ButtonProps {
   disabled?: boolean;
   fullWidth?: boolean;
   testID?: string;
+  style?: StyleProp<ViewStyle>;
+  icon?: React.ComponentProps<typeof Feather>["name"];
 }
 
 export function Button({
   title,
+  label,
   onPress,
   variant = "primary",
   size = "md",
@@ -31,9 +38,13 @@ export function Button({
   disabled = false,
   fullWidth = false,
   testID,
+  style,
+  icon,
 }: ButtonProps) {
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  const displayText = title ?? label ?? "";
 
   const bg: Record<Variant, string> = {
     primary: C.primary,
@@ -53,6 +64,7 @@ export function Button({
 
   const padV: Record<Size, number> = { sm: 8, md: 14, lg: 18 };
   const fSize: Record<Size, number> = { sm: 13, md: 15, lg: 16 };
+  const iconSize: Record<Size, number> = { sm: 14, md: 16, lg: 18 };
 
   const isDisabled = disabled || loading;
 
@@ -71,19 +83,30 @@ export function Button({
           borderWidth: variant === "ghost" ? 0 : 0,
           borderColor: C.border,
         },
+        style,
       ]}
     >
       {loading ? (
         <ActivityIndicator color={textColor[variant]} size="small" />
       ) : (
-        <Text
-          style={[
-            styles.text,
-            { color: textColor[variant], fontSize: fSize[size] },
-          ]}
-        >
-          {title}
-        </Text>
+        <>
+          {icon && (
+            <Feather
+              name={icon}
+              size={iconSize[size]}
+              color={textColor[variant]}
+              style={styles.icon}
+            />
+          )}
+          <Text
+            style={[
+              styles.text,
+              { color: textColor[variant], fontSize: fSize[size] },
+            ]}
+          >
+            {displayText}
+          </Text>
+        </>
       )}
     </Pressable>
   );
@@ -101,5 +124,8 @@ const styles = StyleSheet.create({
   text: {
     fontFamily: "Inter_600SemiBold",
     textAlign: "center",
+  },
+  icon: {
+    marginRight: 6,
   },
 });
