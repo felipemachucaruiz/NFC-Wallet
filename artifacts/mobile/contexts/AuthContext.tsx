@@ -31,6 +31,8 @@ export interface AuthUser {
   role: UserRole;
   merchantId: string | null;
   eventId?: string | null;
+  merchantName?: string | null;
+  eventName?: string | null;
 }
 
 interface AuthContextValue {

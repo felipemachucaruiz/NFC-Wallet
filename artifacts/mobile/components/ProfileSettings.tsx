@@ -86,6 +86,33 @@ export function ProfileSettings() {
             </Text>
           </View>
         </View>
+
+        {(user?.merchantName || user?.eventName) ? (
+          <View style={[styles.contextRow, { borderTopColor: C.separator }]}>
+            {user.merchantName ? (
+              <View style={styles.contextItem}>
+                <Feather name="shopping-bag" size={13} color={C.textMuted} />
+                <Text style={[styles.contextLabel, { color: C.textMuted }]}>
+                  {t("common.merchant")}
+                </Text>
+                <Text style={[styles.contextValue, { color: C.textSecondary }]} numberOfLines={1}>
+                  {user.merchantName}
+                </Text>
+              </View>
+            ) : null}
+            {user.eventName ? (
+              <View style={styles.contextItem}>
+                <Feather name="calendar" size={13} color={C.textMuted} />
+                <Text style={[styles.contextLabel, { color: C.textMuted }]}>
+                  {t("common.event")}
+                </Text>
+                <Text style={[styles.contextValue, { color: C.textSecondary }]} numberOfLines={1}>
+                  {user.eventName}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </Card>
 
       <View>
@@ -152,6 +179,27 @@ const styles = StyleSheet.create({
   userName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   userEmail: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   userRole: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 4 },
+  contextRow: {
+    borderTopWidth: 1,
+    marginTop: 14,
+    paddingTop: 14,
+    gap: 10,
+  },
+  contextItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  contextLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    width: 70,
+  },
+  contextValue: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    flex: 1,
+  },
   sectionLabel: {
     fontSize: 12,
     fontFamily: "Inter_600SemiBold",
