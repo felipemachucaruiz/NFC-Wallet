@@ -45,6 +45,7 @@ function ClassicTabLayout() {
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const isWeb = Platform.OS === "web";
+  const isIOS = Platform.OS === "ios";
   const isDark = scheme === "dark";
 
   return (
