@@ -1,10 +1,11 @@
 import React, { useEffect } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withRepeat,
   withSequence,
   withSpring,
   withTiming,
@@ -20,6 +21,9 @@ export function AnimatedSplash({ onFinished }: Props) {
   const logoScale = useSharedValue(0.6);
   const logoOpacity = useSharedValue(0);
 
+  const glowScale = useSharedValue(1);
+  const glowOpacity = useSharedValue(0);
+
   const taglineOpacity = useSharedValue(0);
   const taglineY = useSharedValue(12);
 
@@ -29,11 +33,27 @@ export function AnimatedSplash({ onFinished }: Props) {
     logoOpacity.value = withTiming(1, { duration: 350 });
     logoScale.value = withSpring(1, { damping: 13, stiffness: 140 });
 
+    glowScale.value = withDelay(
+      420,
+      withRepeat(withTiming(1.7, { duration: 1300 }), -1, false),
+    );
+    glowOpacity.value = withDelay(
+      420,
+      withRepeat(
+        withSequence(
+          withTiming(0.5, { duration: 150 }),
+          withTiming(0, { duration: 1150 }),
+        ),
+        -1,
+        false,
+      ),
+    );
+
     taglineOpacity.value = withDelay(500, withTiming(1, { duration: 400 }));
     taglineY.value = withDelay(500, withSpring(0, { damping: 18, stiffness: 120 }));
 
     screenOpacity.value = withDelay(
-      2200,
+      2800,
       withTiming(0, { duration: 400 }, (finished) => {
         if (finished) runOnJS(onFinished)();
       }),
@@ -43,6 +63,11 @@ export function AnimatedSplash({ onFinished }: Props) {
   const logoStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,
     transform: [{ scale: logoScale.value }],
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+    transform: [{ scale: glowScale.value }],
   }));
 
   const taglineStyle = useAnimatedStyle(() => ({
@@ -57,11 +82,14 @@ export function AnimatedSplash({ onFinished }: Props) {
   return (
     <Animated.View style={[styles.container, screenStyle]}>
       <View style={styles.content}>
-        <Animated.Image
-          source={logo}
-          style={[styles.logo, logoStyle]}
-          resizeMode="contain"
-        />
+        <View style={styles.logoWrapper}>
+          <Animated.View style={[styles.glow, glowStyle]} />
+          <Animated.Image
+            source={logo}
+            style={[styles.logo, logoStyle]}
+            resizeMode="contain"
+          />
+        </View>
 
         <Animated.Text style={[styles.tagline, taglineStyle]}>
           Pagos sin efectivo · Eventos sin límites
@@ -88,13 +116,20 @@ const styles = StyleSheet.create({
     gap: 28,
     paddingHorizontal: 40,
   },
+  logoWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  glow: {
+    position: "absolute",
+    width: 300,
+    height: 136,
+    borderRadius: 26,
+    backgroundColor: "#1A56DB",
+  },
   logo: {
     width: 280,
     height: 127,
-    shadowColor: "#1A56DB",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
   },
   tagline: {
     fontSize: 14,
