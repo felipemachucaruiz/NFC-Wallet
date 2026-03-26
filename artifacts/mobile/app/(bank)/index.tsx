@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
+import { useFocusEffect } from "expo-router";
 import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo } from "@/utils/nfc";
 
 interface BraceletState {
@@ -71,6 +72,15 @@ export default function BankLookupScreen() {
   const [manualUid, setManualUid] = useState("");
   const [fetchUid, setFetchUid] = useState<string | null>(null);
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
+
+  // Reset scan state whenever this screen comes back into focus (e.g. after topup/refund)
+  useFocusEffect(
+    useCallback(() => {
+      setBracelet(null);
+      setFetchUid(null);
+      setTagInfo(null);
+    }, [])
+  );
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
