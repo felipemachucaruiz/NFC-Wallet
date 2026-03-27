@@ -971,7 +971,13 @@
     "createdAt": "Detected",
     "alertsCount": "{{count}} alert(s)",
     "filterBySeverity": "Severity",
-    "noEventAlerts": "No alerts for this event"
+    "noEventAlerts": "No alerts for this event",
+    "descriptionHmacInvalid": "HMAC verification failed for bracelet {{entityId}}. The bracelet was automatically quarantined and blocked from further transactions.",
+    "descriptionDoubleLocation": "Bracelet {{entityId}} was detected at two different merchant locations within a short time window. Possible cloning or relay attack.",
+    "descriptionOfflineVolume": "An unusual number of offline transactions was recorded for {{entityId}}. This may indicate manipulation of the offline counter.",
+    "descriptionHighValueStaff": "Staff member {{entityId}} processed one or more unusually high-value transactions. Manual review recommended.",
+    "descriptionBalanceIncrease": "The balance of bracelet {{entityId}} increased without a corresponding top-up record. Possible unauthorized credit injection.",
+    "descriptionManualReport": "A manual report was submitted for {{entityId}}. Review the attached notes for details."
   },
   "wristbands": {
     "title": "Wristbands",

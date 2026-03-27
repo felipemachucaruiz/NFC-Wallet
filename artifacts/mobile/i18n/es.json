@@ -960,7 +960,13 @@
     "createdAt": "Detectado",
     "alertsCount": "{{count}} alerta(s)",
     "filterBySeverity": "Severidad",
-    "noEventAlerts": "Sin alertas para este evento"
+    "noEventAlerts": "Sin alertas para este evento",
+    "descriptionHmacInvalid": "La verificación HMAC falló para la pulsera {{entityId}}. La pulsera fue puesta en cuarentena automáticamente y bloqueada para futuras transacciones.",
+    "descriptionDoubleLocation": "La pulsera {{entityId}} fue detectada en dos comercios distintos en un intervalo corto de tiempo. Posible clonación o ataque de retransmisión.",
+    "descriptionOfflineVolume": "Se registró un número inusual de transacciones offline para {{entityId}}. Esto puede indicar manipulación del contador offline.",
+    "descriptionHighValueStaff": "El miembro del staff {{entityId}} procesó una o más transacciones de valor inusualmente alto. Se recomienda revisión manual.",
+    "descriptionBalanceIncrease": "El saldo de la pulsera {{entityId}} aumentó sin una recarga correspondiente. Posible inyección de crédito no autorizada.",
+    "descriptionManualReport": "Se envió un reporte manual para {{entityId}}. Revisa las notas adjuntas para más detalles."
   },
   "wristbands": {
     "title": "Pulseras",

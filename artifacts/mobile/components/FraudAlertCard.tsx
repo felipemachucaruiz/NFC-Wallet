@@ -43,6 +43,16 @@ export function FraudAlertCard({ alert, onMarkReviewed, onDismiss, isUpdating }:
     hmac_invalid: t("fraud.typeHmacInvalid"),
   };
 
+  const typeDescriptions: Record<FraudAlert["type"], string> = {
+    hmac_invalid: t("fraud.descriptionHmacInvalid", { entityId: alert.entityId }),
+    double_location: t("fraud.descriptionDoubleLocation", { entityId: alert.entityId }),
+    offline_volume_anomaly: t("fraud.descriptionOfflineVolume", { entityId: alert.entityId }),
+    high_value_staff: t("fraud.descriptionHighValueStaff", { entityId: alert.entityId }),
+    balance_increase_no_topup: t("fraud.descriptionBalanceIncrease", { entityId: alert.entityId }),
+    // manual_report: show the raw description (contains user-entered reason + notes)
+    manual_report: alert.description,
+  };
+
   const statusColors: Record<FraudAlert["status"], "muted" | "warning" | "success" | "danger"> = {
     open: "danger",
     reviewed: "warning",
@@ -91,7 +101,7 @@ export function FraudAlertCard({ alert, onMarkReviewed, onDismiss, isUpdating }:
           </Text>
 
           <Text style={[styles.description, { color: C.textSecondary }]} numberOfLines={3}>
-            {alert.description}
+            {typeDescriptions[alert.type]}
           </Text>
 
           <Text style={[styles.date, { color: C.textMuted }]}>
