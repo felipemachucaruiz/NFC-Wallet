@@ -112,6 +112,7 @@ export default function TopUpScreen() {
   const [writeError, setWriteError] = useState<string | null>(null);
   const submittingRef = useRef(false);
   const writingRef = useRef(false);
+  const cancelledRef = useRef(false);
 
   const [attendeeName, setAttendeeName] = useState(params.attendeeName ?? "");
   const [phone, setPhone] = useState(params.phone ?? "");
@@ -139,9 +140,16 @@ export default function TopUpScreen() {
       setWriteError(null);
       submittingRef.current = false;
       writingRef.current = false;
+      cancelledRef.current = false;
       setAttendeeName(params.attendeeName ?? "");
       setPhone(params.phone ?? "");
       setEmail(params.email ?? "");
+      return () => {
+        cancelledRef.current = true;
+        cancelNfc().catch(() => {});
+        writingRef.current = false;
+        submittingRef.current = false;
+      };
     }, [params.attendeeName, params.phone, params.email])
   );
 
@@ -192,6 +200,7 @@ export default function TopUpScreen() {
       return;
     }
     submittingRef.current = true;
+    cancelledRef.current = false;
 
     if (!hmacSecret) {
       Alert.alert(t("common.error"), t("bank.noSigningKey"));
@@ -208,7 +217,7 @@ export default function TopUpScreen() {
     }
   };
 
-  // ─── Step 2: User taps button → start NFC write ──────────────────────────────
+  // ─── Step 2: Auto-start NFC write ────────────────────────────────────────────
   const handleStartWrite = async () => {
     if (writingRef.current) return;
     writingRef.current = true;
@@ -234,6 +243,7 @@ export default function TopUpScreen() {
       void syncToServer(true);
       setStep("success");
     } catch (e: unknown) {
+      if (cancelledRef.current) return;
       const msg = e instanceof Error ? e.message : String(e);
       console.warn("[TopUp] NFC write failed:", msg);
       writingRef.current = false;
@@ -242,20 +252,27 @@ export default function TopUpScreen() {
     }
   };
 
+  // ─── Auto-start NFC write when tap_write step is entered ────────────────────
+  useEffect(() => {
+    if (step === "tap_write") {
+      handleStartWrite();
+    }
+  }, [step]);
+
   const handleSkipWrite = async () => {
+    cancelledRef.current = true;
     await cancelNfc().catch(() => {});
     writingRef.current = false;
     submittingRef.current = false;
-    // Do NOT enqueue: bracelet was never written — abort the operation entirely
     setStep("form");
     Alert.alert(t("common.error"), t("bank.nfcWriteWarning"));
   };
 
   const handleCancelWriting = async () => {
+    cancelledRef.current = true;
     await cancelNfc().catch(() => {});
     writingRef.current = false;
     submittingRef.current = false;
-    // Do NOT enqueue: write was cancelled before completion — return to form
     setStep("form");
   };
 
@@ -456,7 +473,7 @@ export default function TopUpScreen() {
                 </Pressable>
               </>
             ) : (
-              // ── tap_write: ask user to tap card ──
+              // ── tap_write: NFC write starting automatically ──
               <>
                 <Animated.View
                   style={[styles.nfcPulse, { backgroundColor: C.primaryLight, transform: [{ scale: pulseAnim }] }]}
@@ -485,13 +502,6 @@ export default function TopUpScreen() {
                   </View>
                 )}
 
-                <Button
-                  title={t("bank.tapNow")}
-                  onPress={handleStartWrite}
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                />
                 <Pressable onPress={handleSkipWrite} style={[styles.cancelBtn, { borderColor: C.border }]}>
                   <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("bank.skipWrite")}</Text>
                 </Pressable>

@@ -1,9 +1,12 @@
 import { Feather } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Alert,
+  Animated,
+  Modal,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -20,7 +23,7 @@ import { Card } from "@/components/ui/Card";
 import { useCart } from "@/contexts/CartContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { isNfcSupported, scanAndWriteBracelet, type TagInfo } from "@/utils/nfc";
+import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type TagInfo } from "@/utils/nfc";
 import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCOP } from "@/utils/format";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
@@ -86,8 +89,13 @@ export default function ChargeScreen() {
   const params = useLocalSearchParams<{ locationId: string }>();
   const locationId = params.locationId ?? "";
 
-  const { items: cartItems, total, clearCart } = useCart();
+  const { items: cartItems, total: liveTotal, clearCart } = useCart();
   const { enqueue, cachedHmacSecret, updateCachedHmacSecret, updateOfflineLimits, isOfflineLimitReached, unsyncedSpendCop, offlineSyncLimit, syncNow } = useOfflineQueue();
+
+  const [snapshotItems] = useState(() => [...cartItems]);
+  const [snapshotTotal] = useState(() => liveTotal);
+  const displayItems = snapshotItems.length > 0 ? snapshotItems : cartItems;
+  const total = snapshotTotal > 0 ? snapshotTotal : liveTotal;
   const { data: keyData } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
@@ -114,12 +122,29 @@ export default function ChargeScreen() {
   const [manualUid, setManualUid] = useState("");
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [nfcModalVisible, setNfcModalVisible] = useState(false);
+  const scanningRef = useRef(false);
+  const cancelledRef = useRef(false);
 
   const shortfall = braceletBalance != null ? total - braceletBalance : 0;
 
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const isNfcStep = nfcModalVisible;
+    if (!isNfcStep) { pulseAnim.setValue(1); return; }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.3, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [nfcModalVisible]);
+
   const logAndFinish = async (uid: string, newBalance: number, newCounter: number) => {
     setStep("logging");
-    const lineItems = cartItems.map((i) => ({
+    const lineItems = snapshotItems.map((i) => ({
       productId: i.productId,
       quantity: i.quantity,
       unitPriceCop: i.priceCop,
@@ -180,15 +205,20 @@ export default function ChargeScreen() {
     await logAndFinish(uid, newBalance, newCounter);
   };
 
-  const handleTap = async () => {
+  const startNfcScan = async () => {
+    if (scanningRef.current) return;
+    cancelledRef.current = false;
     if (isOfflineLimitReached) {
+      setNfcModalVisible(false);
       setStep("offline_limit");
       return;
     }
     if (!isNfcSupported()) {
+      setNfcModalVisible(false);
       setStep("manual_input");
       return;
     }
+    scanningRef.current = true;
     setStep("reading");
     let aborted = false;
     let uid = "";
@@ -198,7 +228,6 @@ export default function ChargeScreen() {
       await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
         setTagInfo(detectedTagInfo);
 
-        // HMAC verification
         setStep("verifying");
         let hmacOk = true;
         if (hmacSecret && payload.hmac) {
@@ -207,6 +236,7 @@ export default function ChargeScreen() {
         if (!hmacOk) {
           setStep("hmac_fail");
           aborted = true;
+          setNfcModalVisible(false);
           try {
             await reportTamper.mutateAsync({
               data: { nfcUid: payload.uid, reason: "HMAC mismatch detected at merchant POS" },
@@ -215,16 +245,15 @@ export default function ChargeScreen() {
           return null;
         }
 
-        // Balance check
         if (payload.balance < total) {
           setBraceletBalance(payload.balance);
           setBraceletUid(payload.uid);
           setStep("insufficient");
           aborted = true;
+          setNfcModalVisible(false);
           return null;
         }
 
-        // Compute updated values and write in the same NFC session
         uid = payload.uid;
         newBalance = payload.balance - total;
         newCounter = payload.counter + 1;
@@ -233,16 +262,29 @@ export default function ChargeScreen() {
         return { uid, balance: newBalance, counter: newCounter, hmac: newHmac };
       });
     } catch {
-      if (!aborted) {
+      if (!aborted && !cancelledRef.current) {
+        scanningRef.current = false;
+        setNfcModalVisible(false);
         setStep("waiting");
         Alert.alert(t("common.error"), t("pos.readError"));
       }
+      scanningRef.current = false;
       return;
     }
 
+    scanningRef.current = false;
     if (!aborted) {
+      setNfcModalVisible(false);
       await logAndFinish(uid, newBalance, newCounter);
     }
+  };
+
+  const handleCancelNfcModal = async () => {
+    cancelledRef.current = true;
+    await cancelNfc().catch(() => {});
+    scanningRef.current = false;
+    setNfcModalVisible(false);
+    setStep("waiting");
   };
 
   const handleManualConfirm = async () => {
@@ -260,6 +302,26 @@ export default function ChargeScreen() {
       Alert.alert(t("common.error"), t("pos.syncError"));
     }
   };
+
+  const stepRef = useRef(step);
+  stepRef.current = step;
+
+  useFocusEffect(
+    useCallback(() => {
+      cancelledRef.current = false;
+      if (stepRef.current === "waiting" && isNfcSupported() && !isOfflineLimitReached) {
+        setNfcModalVisible(true);
+        scanningRef.current = false;
+        startNfcScan();
+      }
+      return () => {
+        cancelledRef.current = true;
+        cancelNfc().catch(() => {});
+        scanningRef.current = false;
+        setNfcModalVisible(false);
+      };
+    }, [isOfflineLimitReached])
+  );
 
   const StepIcon = () => {
     const icons: Partial<Record<ChargeStep, { icon: string; color: string; bg: string }>> = {
@@ -282,12 +344,14 @@ export default function ChargeScreen() {
     );
   };
 
+  const isNfcActiveStep = step === "reading" || step === "verifying" || step === "writing" || step === "logging";
+
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <OfflineBanner syncIssuesRoute={"/(merchant-pos)/sync-issues"} />
       <View style={styles.cartSummary}>
         <Card padding={16} style={{ marginHorizontal: 20, marginTop: 8 }}>
-          {cartItems.slice(0, 3).map((item) => (
+          {displayItems.slice(0, 3).map((item) => (
             <View key={item.productId} style={styles.lineItem}>
               <Text style={[styles.lineItemName, { color: C.textSecondary }]}>
                 {item.quantity}× {item.name}
@@ -295,9 +359,9 @@ export default function ChargeScreen() {
               <CopAmount amount={item.priceCop * item.quantity} size={13} bold={false} color={C.textSecondary} />
             </View>
           ))}
-          {cartItems.length > 3 && (
+          {displayItems.length > 3 && (
             <Text style={[styles.moreItems, { color: C.textMuted }]}>
-              {t("pos.moreItems", { count: cartItems.length - 3 })}
+              {t("pos.moreItems", { count: displayItems.length - 3 })}
             </Text>
           )}
           <View style={[styles.totalRow, { borderTopColor: C.separator }]}>
@@ -356,23 +420,42 @@ export default function ChargeScreen() {
       </View>
 
       <View style={[styles.bottom, { paddingBottom: isWeb ? 34 : insets.bottom + 16, paddingHorizontal: 20 }]}>
-        {step === "waiting" && (
+        {step === "waiting" && !isNfcSupported() && (
           <Button
-            title={isNfcSupported() ? t("pos.tapBracelet") : t("pos.enterUid")}
-            onPress={handleTap}
+            title={t("pos.enterUid")}
+            onPress={() => setStep("manual_input")}
             variant="primary"
             size="lg"
             fullWidth
             testID="charge-tap-btn"
           />
         )}
-        {(step === "reading" || step === "verifying" || step === "writing" || step === "logging") && (
+        {step === "waiting" && isNfcSupported() && (
+          <Button
+            title={t("pos.tapBracelet")}
+            onPress={() => {
+              setNfcModalVisible(true);
+              scanningRef.current = false;
+              startNfcScan();
+            }}
+            variant="primary"
+            size="lg"
+            fullWidth
+            testID="charge-tap-btn"
+          />
+        )}
+        {isNfcActiveStep && !nfcModalVisible && (
           <Button title={t("common.loading")} onPress={() => {}} loading variant="primary" size="lg" fullWidth />
         )}
         {step === "insufficient" && (
           <View style={{ gap: 10 }}>
             <Button title={t("pos.goToBank")} onPress={() => {}} variant="secondary" size="lg" fullWidth />
-            <Button title={t("common.retry")} onPress={() => setStep("waiting")} variant="primary" size="lg" fullWidth />
+            <Button title={t("common.retry")} onPress={() => {
+              setStep("waiting");
+              setNfcModalVisible(true);
+              scanningRef.current = false;
+              startNfcScan();
+            }} variant="primary" size="lg" fullWidth />
           </View>
         )}
         {step === "hmac_fail" && (
@@ -431,6 +514,33 @@ export default function ChargeScreen() {
         )}
       </View>
 
+      {/* ── NFC Scan Modal (auto-starts on focus) ── */}
+      <Modal
+        visible={nfcModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelNfcModal}
+      >
+        <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.65)" }]}>
+          <View style={[styles.modalBox, { backgroundColor: C.card }]}>
+            <Animated.View
+              style={[styles.nfcPulse, { backgroundColor: C.primaryLight, transform: [{ scale: pulseAnim }] }]}
+            >
+              <Feather name="wifi" size={48} color={C.primary} />
+            </Animated.View>
+            <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
+              {isNfcActiveStep ? t("pos.reading") : t("bank.acercarManilla")}
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>
+              {t("bank.holdSteady")}
+            </Text>
+            <Pressable onPress={handleCancelNfcModal} style={[styles.cancelBtn, { borderColor: C.border }]}>
+              <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("common.cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <SuspiciousReportModal
         visible={showReportModal}
         onClose={() => setShowReportModal(false)}
@@ -459,4 +569,11 @@ const styles = StyleSheet.create({
   balanceLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
   bottom: { gap: 10 },
   uidInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 16, fontFamily: "Inter_400Regular" },
+  overlay: { flex: 1, justifyContent: "center", paddingHorizontal: 28 },
+  modalBox: { padding: 32, borderRadius: 24, gap: 16, alignItems: "center" },
+  nfcPulse: { width: 100, height: 100, borderRadius: 50, alignItems: "center", justifyContent: "center" },
+  modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  modalSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8 },
+  cancelBtn: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32 },
+  cancelText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 });
