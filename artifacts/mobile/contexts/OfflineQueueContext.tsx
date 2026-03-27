@@ -311,9 +311,13 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
             (r) => r.idempotencyKey === item.id
           );
 
-          if (!syncResult || syncResult.status === "created" || syncResult.status === "duplicate") {
+          const failReason = syncResult?.error ?? "";
+          const isFlaggedRejection = failReason.toLowerCase().includes("flagged");
+          if (!syncResult || syncResult.status === "created" || syncResult.status === "duplicate" || isFlaggedRejection) {
+            // Auto-dismiss flagged-bracelet rejections — bracelet is already quarantined
+            // server-side; event_admin tracks it there. No point surfacing to merchant.
             q = queueRef.current.filter((t) => t.id !== item.id);
-            syncedSpend += item.grossAmountCop;
+            if (!isFlaggedRejection) syncedSpend += item.grossAmountCop;
           } else {
             q = queueRef.current.map((t) =>
               t.id === item.id
@@ -321,7 +325,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
                     ...t,
                     status: "failed" as const,
                     failCount: t.failCount + 1,
-                    failReason: syncResult.error ?? "Unknown error",
+                    failReason: failReason || "Unknown error",
                   }
                 : t
             );
@@ -366,16 +370,17 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           anySuccess = true;
         } catch (err: unknown) {
           const httpErr = err as { status?: number; data?: { error?: string } };
-          if (httpErr.status === 409) {
-            // Duplicate — idempotent success
+          const msg = err instanceof Error ? err.message : "Network error";
+          const reason = httpErr.data?.error ?? msg;
+          const isTopUpFlagged = reason.toLowerCase().includes("flagged");
+          if (httpErr.status === 409 || isTopUpFlagged) {
+            // Duplicate or flagged bracelet — auto-dismiss silently
             tq = topUpQueueRef.current.filter((t) => t.id !== item.id);
             await updateTopUpQueue(tq);
             anySuccess = true;
           } else {
             anyError = true;
             if (!httpErr.status) hasNetworkError = true;
-            const msg = err instanceof Error ? err.message : "Network error";
-            const reason = httpErr.data?.error ?? msg;
             tq = topUpQueueRef.current.map((t) =>
               t.id === item.id
                 ? {
