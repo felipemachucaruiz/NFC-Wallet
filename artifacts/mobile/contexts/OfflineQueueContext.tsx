@@ -312,12 +312,18 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           );
 
           const failReason = syncResult?.error ?? "";
-          const isFlaggedRejection = failReason.toLowerCase().includes("flagged");
-          if (!syncResult || syncResult.status === "created" || syncResult.status === "duplicate" || isFlaggedRejection) {
-            // Auto-dismiss flagged-bracelet rejections — bracelet is already quarantined
-            // server-side; event_admin tracks it there. No point surfacing to merchant.
+          const r = failReason.toLowerCase();
+          // Permanent rejections the merchant cannot resolve — auto-dismiss silently:
+          //   "flagged"           → bracelet quarantined by admin, already tracked server-side
+          //   "counter replay"    → another device already synced a higher counter (offline race)
+          //   "insufficient"      → double-spend from two offline devices, goods already given
+          const isPermanentRejection =
+            r.includes("flagged") ||
+            r.includes("counter replay") ||
+            (r.includes("insufficient") && r.includes("balance"));
+          if (!syncResult || syncResult.status === "created" || syncResult.status === "duplicate" || isPermanentRejection) {
             q = queueRef.current.filter((t) => t.id !== item.id);
-            if (!isFlaggedRejection) syncedSpend += item.grossAmountCop;
+            if (!isPermanentRejection) syncedSpend += item.grossAmountCop;
           } else {
             q = queueRef.current.map((t) =>
               t.id === item.id
@@ -371,10 +377,13 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         } catch (err: unknown) {
           const httpErr = err as { status?: number; data?: { error?: string } };
           const msg = err instanceof Error ? err.message : "Network error";
-          const reason = httpErr.data?.error ?? msg;
-          const isTopUpFlagged = reason.toLowerCase().includes("flagged");
-          if (httpErr.status === 409 || isTopUpFlagged) {
-            // Duplicate or flagged bracelet — auto-dismiss silently
+          const reason = (httpErr.data?.error ?? msg).toLowerCase();
+          const isTopUpPermanent =
+            reason.includes("flagged") ||
+            reason.includes("counter replay") ||
+            (reason.includes("insufficient") && reason.includes("balance"));
+          if (httpErr.status === 409 || isTopUpPermanent) {
+            // Duplicate or permanent rejection — auto-dismiss silently
             tq = topUpQueueRef.current.filter((t) => t.id !== item.id);
             await updateTopUpQueue(tq);
             anySuccess = true;
