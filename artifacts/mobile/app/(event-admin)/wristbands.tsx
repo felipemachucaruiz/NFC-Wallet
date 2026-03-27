@@ -82,7 +82,7 @@ export default function WristbandsScreen() {
               {item.nfcUid}
             </Text>
             {item.flagged && (
-              <Badge label={t("wristbands.flagged")} variant="error" />
+              <Badge label={t("wristbands.flagged")} variant="danger" />
             )}
           </View>
           {item.attendeeName ? (
