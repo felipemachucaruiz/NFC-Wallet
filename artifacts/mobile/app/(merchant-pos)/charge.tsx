@@ -20,7 +20,7 @@ import { Card } from "@/components/ui/Card";
 import { useCart } from "@/contexts/CartContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { isNfcSupported, scanBracelet, writeBracelet, type TagInfo } from "@/utils/nfc";
+import { isNfcSupported, scanAndWriteBracelet, type TagInfo } from "@/utils/nfc";
 import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCOP } from "@/utils/format";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
@@ -117,41 +117,7 @@ export default function ChargeScreen() {
 
   const shortfall = braceletBalance != null ? total - braceletBalance : 0;
 
-  const processCharge = async (uid: string, balance: number, counter: number, hmac: string, detectedTagInfo?: TagInfo) => {
-    setStep("verifying");
-    let hmacOk = true;
-    if (hmacSecret && hmac) {
-      hmacOk = await verifyHmac(balance, counter, hmac, hmacSecret);
-    }
-    if (!hmacOk) {
-      setStep("hmac_fail");
-      try {
-        await reportTamper.mutateAsync({
-          data: { nfcUid: uid, reason: "HMAC mismatch detected at merchant POS" },
-        });
-      } catch {
-      }
-      return;
-    }
-    if (balance < total) {
-      setBraceletBalance(balance);
-      setBraceletUid(uid);
-      setStep("insufficient");
-      return;
-    }
-    const newBalance = balance - total;
-    const newCounter = counter + 1;
-    setStep("writing");
-    const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
-    if (isNfcSupported()) {
-      try {
-        await writeBracelet({ uid, balance: newBalance, counter: newCounter, hmac: newHmac }, detectedTagInfo);
-      } catch {
-        Alert.alert(t("common.error"), t("pos.writeError"));
-        setStep("waiting");
-        return;
-      }
-    }
+  const logAndFinish = async (uid: string, newBalance: number, newCounter: number) => {
     setStep("logging");
     const lineItems = cartItems.map((i) => ({
       productId: i.productId,
@@ -172,10 +138,6 @@ export default function ChargeScreen() {
           offlineCreatedAt: new Date().toISOString(),
         },
       });
-      clearCart();
-      setStep("success");
-      setBraceletBalance(newBalance);
-      setBraceletUid(uid);
     } catch {
       await enqueue({
         locationId,
@@ -185,11 +147,37 @@ export default function ChargeScreen() {
         lineItems,
         grossAmountCop: total,
       });
-      clearCart();
-      setStep("success");
-      setBraceletBalance(newBalance);
-      setBraceletUid(uid);
     }
+    clearCart();
+    setStep("success");
+    setBraceletBalance(newBalance);
+    setBraceletUid(uid);
+  };
+
+  const processCharge = async (uid: string, balance: number, counter: number, hmac: string) => {
+    setStep("verifying");
+    let hmacOk = true;
+    if (hmacSecret && hmac) {
+      hmacOk = await verifyHmac(balance, counter, hmac, hmacSecret);
+    }
+    if (!hmacOk) {
+      setStep("hmac_fail");
+      try {
+        await reportTamper.mutateAsync({
+          data: { nfcUid: uid, reason: "HMAC mismatch detected at merchant POS" },
+        });
+      } catch {}
+      return;
+    }
+    if (balance < total) {
+      setBraceletBalance(balance);
+      setBraceletUid(uid);
+      setStep("insufficient");
+      return;
+    }
+    const newBalance = balance - total;
+    const newCounter = counter + 1;
+    await logAndFinish(uid, newBalance, newCounter);
   };
 
   const handleTap = async () => {
@@ -202,13 +190,58 @@ export default function ChargeScreen() {
       return;
     }
     setStep("reading");
+    let aborted = false;
+    let uid = "";
+    let newBalance = 0;
+    let newCounter = 0;
     try {
-      const result = await scanBracelet();
-      setTagInfo(result.tagInfo);
-      await processCharge(result.payload.uid, result.payload.balance, result.payload.counter, result.payload.hmac, result.tagInfo);
+      await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
+        setTagInfo(detectedTagInfo);
+
+        // HMAC verification
+        setStep("verifying");
+        let hmacOk = true;
+        if (hmacSecret && payload.hmac) {
+          hmacOk = await verifyHmac(payload.balance, payload.counter, payload.hmac, hmacSecret);
+        }
+        if (!hmacOk) {
+          setStep("hmac_fail");
+          aborted = true;
+          try {
+            await reportTamper.mutateAsync({
+              data: { nfcUid: payload.uid, reason: "HMAC mismatch detected at merchant POS" },
+            });
+          } catch {}
+          return null;
+        }
+
+        // Balance check
+        if (payload.balance < total) {
+          setBraceletBalance(payload.balance);
+          setBraceletUid(payload.uid);
+          setStep("insufficient");
+          aborted = true;
+          return null;
+        }
+
+        // Compute updated values and write in the same NFC session
+        uid = payload.uid;
+        newBalance = payload.balance - total;
+        newCounter = payload.counter + 1;
+        setStep("writing");
+        const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
+        return { uid, balance: newBalance, counter: newCounter, hmac: newHmac };
+      });
     } catch {
-      setStep("waiting");
-      Alert.alert(t("common.error"), t("pos.readError"));
+      if (!aborted) {
+        setStep("waiting");
+        Alert.alert(t("common.error"), t("pos.readError"));
+      }
+      return;
+    }
+
+    if (!aborted) {
+      await logAndFinish(uid, newBalance, newCounter);
     }
   };
 
