@@ -123,26 +123,28 @@ export function ProfileSettings() {
         ) : null}
       </Card>
 
-      <View>
-        <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
-          {t("common.tools")}
-        </Text>
-        <Card padding={8} style={{ marginTop: 8 }}>
-          <Pressable
-            onPress={() => router.push("/check-balance")}
-            style={({ pressed }) => [
-              styles.langRow,
-              { backgroundColor: pressed ? C.inputBg : "transparent" },
-            ]}
-          >
-            <Feather name="wifi" size={16} color={C.textSecondary} style={{ marginRight: 6 }} />
-            <Text style={[styles.langLabel, { color: C.text, flex: 1 }]}>
-              {t("checkBalance.title")}
-            </Text>
-            <Feather name="chevron-right" size={18} color={C.textMuted} />
-          </Pressable>
-        </Card>
-      </View>
+      {user?.role !== "event_admin" && (
+        <View>
+          <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+            {t("common.tools")}
+          </Text>
+          <Card padding={8} style={{ marginTop: 8 }}>
+            <Pressable
+              onPress={() => router.push("/check-balance")}
+              style={({ pressed }) => [
+                styles.langRow,
+                { backgroundColor: pressed ? C.inputBg : "transparent" },
+              ]}
+            >
+              <Feather name="wifi" size={16} color={C.textSecondary} style={{ marginRight: 6 }} />
+              <Text style={[styles.langLabel, { color: C.text, flex: 1 }]}>
+                {t("checkBalance.title")}
+              </Text>
+              <Feather name="chevron-right" size={18} color={C.textMuted} />
+            </Pressable>
+          </Card>
+        </View>
+      )}
 
       <View>
         <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
