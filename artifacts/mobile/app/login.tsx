@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   inner: { flexGrow: 1, paddingHorizontal: 28, paddingVertical: 40, gap: 28, justifyContent: "center" },
   logoSection: { alignItems: "center", gap: 12 },
-  logoImage: { width: "75%", maxWidth: 300, aspectRatio: 684 / 290 },
+  logoImage: { width: "72%", maxWidth: 280, aspectRatio: 1199 / 435 },
   subtitle: { fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
   form: { gap: 14 },
   rememberRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 4 },
