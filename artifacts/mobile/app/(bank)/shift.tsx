@@ -19,13 +19,13 @@ import { Empty } from "@/components/ui/Empty";
 import { Loading } from "@/components/ui/Loading";
 import { formatDateTime } from "@/utils/format";
 
-type PaymentMethod = "cash" | "card_external" | "nequi" | "bancolombia" | "other";
+type PaymentMethod = "cash" | "card_external" | "nequi_transfer" | "bancolombia_transfer" | "other";
 
 const METHOD_ICONS: Record<PaymentMethod, React.ComponentProps<typeof Feather>["name"]> = {
   cash: "dollar-sign",
   card_external: "credit-card",
-  nequi: "smartphone",
-  bancolombia: "home",
+  nequi_transfer: "smartphone",
+  bancolombia_transfer: "home",
   other: "more-horizontal",
 };
 
@@ -88,7 +88,12 @@ export default function ShiftSummaryScreen() {
                   {Object.entries(byMethod).map(([method, total], idx) => {
                     const m = method as PaymentMethod;
                     const icon = METHOD_ICONS[m] ?? "circle";
-                    const label = t(`bank.${m === "card_external" ? "cardExternal" : m}`);
+                    const methodKey =
+                      m === "card_external" ? "cardExternal" :
+                      m === "nequi_transfer" ? "nequi" :
+                      m === "bancolombia_transfer" ? "bancolombia" :
+                      m;
+                    const label = t(`bank.${methodKey}`);
                     return (
                       <View key={method}>
                         {idx > 0 && <View style={[styles.divider, { backgroundColor: C.separator }]} />}

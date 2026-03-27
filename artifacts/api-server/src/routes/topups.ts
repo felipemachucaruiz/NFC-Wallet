@@ -203,10 +203,15 @@ router.get(
       return;
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    const COLOMBIA_OFFSET_MS = -5 * 60 * 60 * 1000;
+    const nowUtcMs = Date.now();
+    const nowColombiaMs = nowUtcMs + COLOMBIA_OFFSET_MS;
+    const colombiaDate = new Date(nowColombiaMs);
+    const yy = colombiaDate.getUTCFullYear();
+    const mm = colombiaDate.getUTCMonth();
+    const dd = colombiaDate.getUTCDate();
+    const todayStart = new Date(Date.UTC(yy, mm, dd, 0, 0, 0, 0) - COLOMBIA_OFFSET_MS);
+    const todayEnd = new Date(Date.UTC(yy, mm, dd, 23, 59, 59, 999) - COLOMBIA_OFFSET_MS);
 
     const topUps = await db
       .select()
