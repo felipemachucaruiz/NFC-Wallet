@@ -855,7 +855,19 @@
     "dismissAction": "Anular y eliminar",
     "dismiss": "Anular / descartar",
     "supervisorOnly": "Se requiere supervisor",
-    "supervisorRequired": "Solo supervisores (admin o event admin) pueden anular transacciones fallidas."
+    "supervisorRequired": "Solo supervisores (admin o event admin) pueden anular transacciones fallidas.",
+    "errors": {
+      "flaggedBracelet": "Pulsera bloqueada, no puede usarse",
+      "notRegistered": "Pulsera no registrada en el sistema",
+      "counterReplay": "Transacción ya procesada (contador duplicado)",
+      "insufficientBalance": "Saldo insuficiente en la pulsera",
+      "locationNotFound": "Ubicación no encontrada",
+      "locationAccessDenied": "Acceso denegado a la ubicación",
+      "merchantNotFound": "Comercio no encontrado",
+      "productNotFound": "Producto no encontrado",
+      "networkError": "Error de red — verifica la conexión",
+      "unknownError": "Error desconocido"
+    }
   },
   "analytics": {
     "title": "Analítica",

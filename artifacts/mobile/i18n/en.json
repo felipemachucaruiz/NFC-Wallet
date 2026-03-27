@@ -866,7 +866,19 @@
     "dismissAction": "Void & remove",
     "dismiss": "Void / dismiss",
     "supervisorOnly": "Supervisor required",
-    "supervisorRequired": "Only supervisors (admin or event admin) can void failed transactions."
+    "supervisorRequired": "Only supervisors (admin or event admin) can void failed transactions.",
+    "errors": {
+      "flaggedBracelet": "Bracelet is blocked and cannot be used",
+      "notRegistered": "Bracelet not registered in the system",
+      "counterReplay": "Transaction already processed (duplicate counter)",
+      "insufficientBalance": "Insufficient bracelet balance",
+      "locationNotFound": "Location not found",
+      "locationAccessDenied": "Location access denied",
+      "merchantNotFound": "Merchant not found",
+      "productNotFound": "Product not found",
+      "networkError": "Network error — check connection",
+      "unknownError": "Unknown error"
+    }
   },
   "analytics": {
     "title": "Analytics",

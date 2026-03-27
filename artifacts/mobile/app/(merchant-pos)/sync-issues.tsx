@@ -21,6 +21,21 @@ import { CopAmount } from "@/components/CopAmount";
 import { useOfflineQueue, type QueuedItem } from "@/contexts/OfflineQueueContext";
 import { useAuth } from "@/contexts/AuthContext";
 
+function translateFailReason(reason: string | undefined, t: (key: string) => string): string {
+  if (!reason) return t("syncIssues.errors.unknownError");
+  const r = reason.toLowerCase();
+  if (r.includes("flagged")) return t("syncIssues.errors.flaggedBracelet");
+  if (r.includes("not registered")) return t("syncIssues.errors.notRegistered");
+  if (r.includes("counter replay") || r.includes("counter")) return t("syncIssues.errors.counterReplay");
+  if (r.includes("insufficient") && r.includes("balance")) return t("syncIssues.errors.insufficientBalance");
+  if (r.includes("location not found")) return t("syncIssues.errors.locationNotFound");
+  if (r.includes("access denied") || r.includes("not assigned")) return t("syncIssues.errors.locationAccessDenied");
+  if (r.includes("merchant not found")) return t("syncIssues.errors.merchantNotFound");
+  if (r.includes("product") && r.includes("not found")) return t("syncIssues.errors.productNotFound");
+  if (r.includes("network") || r.includes("fetch") || r.includes("connection")) return t("syncIssues.errors.networkError");
+  return reason;
+}
+
 export default function MerchantSyncIssuesScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
@@ -139,7 +154,7 @@ export default function MerchantSyncIssuesScreen() {
                     style={[styles.errorText, { color: C.danger }]}
                     numberOfLines={2}
                   >
-                    {item.failReason}
+                    {translateFailReason(item.failReason, t)}
                   </Text>
                 </View>
               )}
