@@ -214,7 +214,7 @@
   "bank": {
     "title": "Estación Bancaria",
     "lookup": "Buscar pulsera",
-    "lookupSubtitle": "Toca la pulsera o ingresa el UID manualmente",
+    "lookupSubtitle": "Acerca la pulsera al teléfono para ver el saldo",
     "tapOrEnter": "Toca pulsera o ingresa UID",
     "tapBracelet": "Toca la pulsera",
     "manualUid": "UID manual",

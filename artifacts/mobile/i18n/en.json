@@ -214,7 +214,7 @@
   "bank": {
     "title": "Bank Station",
     "lookup": "Bracelet lookup",
-    "lookupSubtitle": "Tap bracelet or enter UID manually",
+    "lookupSubtitle": "Hold the bracelet against the phone to check the balance",
     "tapOrEnter": "Tap bracelet or enter UID",
     "tapBracelet": "Tap bracelet",
     "manualUid": "Manual UID",
