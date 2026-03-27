@@ -23,7 +23,7 @@ import { isNfcSupported, scanBracelet, scanAndWriteBracelet, cancelNfc } from "@
 import { computeHmac } from "@/utils/hmac";
 import { customFetch } from "@workspace/api-client-react";
 import { useGetSigningKey } from "@workspace/api-client-react";
-import { getCachedHmacSecret } from "@/contexts/OfflineQueueContext";
+import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 
 type BraceletInfo = {
   nfcUid: string;
@@ -66,7 +66,7 @@ export default function CheckBalanceScreen() {
 
   const { data: keyData } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret?: string } | undefined)?.hmacSecret ?? "";
-  const cachedHmacSecret = getCachedHmacSecret();
+  const { cachedHmacSecret } = useOfflineQueue();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
 
   const loadServerData = useCallback(async (uid: string) => {
