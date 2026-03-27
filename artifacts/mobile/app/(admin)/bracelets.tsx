@@ -16,13 +16,18 @@ import {
   useGetBracelet,
   useUnflagBracelet,
   useDeleteAdminBracelet,
+  useGetSigningKey,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CopAmount } from "@/components/CopAmount";
-import { isNfcSupported, scanBracelet } from "@/utils/nfc";
+import { isNfcSupported, scanBracelet, scanAndWriteBracelet } from "@/utils/nfc";
+import { computeHmac } from "@/utils/hmac";
+import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { API_BASE_URL } from "@/constants/domain";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
 export default function BraceletsAdminScreen() {
@@ -35,13 +40,21 @@ export default function BraceletsAdminScreen() {
   const [uid, setUid] = useState("");
   const [searchUid, setSearchUid] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const { data: bracelet, isLoading, error, refetch } = useGetBracelet(searchUid, {
-    query: { enabled: !!searchUid, retry: false },
+    query: { queryKey: ["bracelet", searchUid], enabled: !!searchUid },
   });
 
   const unflag = useUnflagBracelet();
   const deleteBracelet = useDeleteAdminBracelet();
+
+  const { data: keyData } = useGetSigningKey();
+  const networkHmacSecret = (keyData as unknown as { hmacSecret?: string } | undefined)?.hmacSecret ?? "";
+  const { cachedHmacSecret } = useOfflineQueue();
+  const hmacSecret = networkHmacSecret || cachedHmacSecret;
+
+  const { token } = useAuth();
 
   const handleScan = async () => {
     if (!isNfcSupported()) return;
@@ -84,6 +97,62 @@ export default function BraceletsAdminScreen() {
               refetch();
             } catch {
               Alert.alert(t("common.error"), t("common.unexpectedError"));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleResetBalance = () => {
+    Alert.alert(
+      t("admin.resetBalance"),
+      t("admin.resetBalanceConfirm"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("admin.resetBalance"),
+          style: "destructive",
+          onPress: async () => {
+            if (!isNfcSupported()) {
+              Alert.alert(t("common.error"), t("checkBalance.nfcNotSupported"));
+              return;
+            }
+            if (!hmacSecret) {
+              Alert.alert(t("common.error"), t("common.unknownError"));
+              return;
+            }
+            setResetting(true);
+            try {
+              await scanAndWriteBracelet(async (payload, tagInfo) => {
+                if (payload.uid !== searchUid) {
+                  Alert.alert(t("common.error"), t("checkBalance.wrongBracelet"));
+                  return null;
+                }
+                const newCounter = tagInfo?.type === "MIFARE_CLASSIC"
+                  ? (payload.counter ?? 0)
+                  : (payload.counter ?? 0) + 1;
+                const newHmac = await computeHmac(0, newCounter, hmacSecret);
+                return { uid: payload.uid, balance: 0, counter: newCounter, hmac: newHmac };
+              });
+
+              await fetch(`${API_BASE_URL}/admin/bracelets/${searchUid}/reset-balance`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              });
+
+              Alert.alert(t("common.success"), t("admin.resetBalanceSuccess"));
+              refetch();
+            } catch (e: unknown) {
+              const msg = (e instanceof Error ? e.message : String(e)) ?? "";
+              if (!msg.includes("cancelled") && !msg.includes("UserCancel")) {
+                Alert.alert(t("common.error"), t("admin.resetBalanceError"));
+              }
+            } finally {
+              setResetting(false);
             }
           },
         },
@@ -228,6 +297,13 @@ export default function BraceletsAdminScreen() {
                 style={styles.actionBtn}
               />
             )}
+            <Button
+              label={t("admin.resetBalance")}
+              onPress={handleResetBalance}
+              variant="secondary"
+              loading={resetting}
+              style={styles.actionBtn}
+            />
             <Button
               label={t("admin.deleteRecord")}
               onPress={handleDelete}
