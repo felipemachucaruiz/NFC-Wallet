@@ -1801,6 +1801,52 @@ export const GetTopUpReportResponse = zod.object({
       count: zod.number(),
     }),
   ),
+  bySource: zod.object({
+    bank: zod.object({
+      totalCop: zod.number(),
+      count: zod.number(),
+    }),
+    digital: zod.object({
+      totalCop: zod.number(),
+      count: zod.number(),
+    }),
+  }),
+});
+
+/**
+ * @summary Initiate a digital top-up via Nequi or PSE (Wompi)
+ */
+
+export const initiateDigitalTopUpBodyAmountCopMin = 1000;
+
+export const InitiateDigitalTopUpBody = zod.object({
+  braceletUid: zod.string().min(1),
+  amountCop: zod.number().min(initiateDigitalTopUpBodyAmountCopMin),
+  paymentMethod: zod.enum(["nequi", "pse"]),
+  phoneNumber: zod.string().optional(),
+  bankCode: zod.string().optional(),
+});
+
+/**
+ * @summary Poll status of a digital top-up payment intent
+ */
+export const GetDigitalTopUpStatusParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetDigitalTopUpStatusResponse = zod.object({
+  intentId: zod.string(),
+  status: zod.enum(["pending", "success", "failed"]),
+  topUpId: zod.string().nullish(),
+});
+
+/**
+ * @summary Wompi webhook receiver (HMAC-validated)
+ */
+export const HandleWompiWebhookBody = zod.record(zod.string(), zod.unknown());
+
+export const HandleWompiWebhookResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**

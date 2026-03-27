@@ -288,6 +288,8 @@ router.get(
     const { from, to, promoterCompanyId, eventId } = req.query as { from?: string; to?: string; promoterCompanyId?: string; eventId?: string };
     const user = req.user!;
 
+    const DIGITAL_PAYMENT_METHODS = new Set(["nequi_transfer", "bancolombia_transfer", "nequi", "pse"]);
+
     type TopUpRow = typeof topUpsTable.$inferSelect;
     const buildTopUpSummary = async (topUps: TopUpRow[]) => {
       const totalCop = topUps.reduce((s, t) => s + t.amountCop, 0);
@@ -296,11 +298,22 @@ router.get(
       const uniqueBraceletsCount = new Set(topUps.map((t) => t.braceletUid)).size;
       const byPaymentMethod: Record<string, number> = {};
       const byUserMap = new Map<string, { totalCop: number; count: number }>();
+      let bankTotalCop = 0;
+      let bankCount = 0;
+      let digitalTotalCop = 0;
+      let digitalCount = 0;
       for (const t of topUps) {
         byPaymentMethod[t.paymentMethod] = (byPaymentMethod[t.paymentMethod] ?? 0) + t.amountCop;
         if (!byUserMap.has(t.performedByUserId)) byUserMap.set(t.performedByUserId, { totalCop: 0, count: 0 });
         const u = byUserMap.get(t.performedByUserId)!;
         u.totalCop += t.amountCop; u.count += 1;
+        if (DIGITAL_PAYMENT_METHODS.has(t.paymentMethod) && t.wompiTransactionId) {
+          digitalTotalCop += t.amountCop;
+          digitalCount += 1;
+        } else {
+          bankTotalCop += t.amountCop;
+          bankCount += 1;
+        }
       }
       const userIds = [...byUserMap.keys()];
       const users = userIds.length > 0 ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds)) : [];
@@ -309,7 +322,11 @@ router.get(
         const data = byUserMap.get(uid)!;
         return { userId: uid, firstName: usr?.firstName ?? null, lastName: usr?.lastName ?? null, totalCop: data.totalCop, count: data.count };
       });
-      return { totalCop, totalAmountCop: totalCop, totalCount, averageAmountCop, uniqueBraceletsCount, byPaymentMethod, byUser };
+      const bySource = {
+        bank: { totalCop: bankTotalCop, count: bankCount },
+        digital: { totalCop: digitalTotalCop, count: digitalCount },
+      };
+      return { totalCop, totalAmountCop: totalCop, totalCount, averageAmountCop, uniqueBraceletsCount, byPaymentMethod, byUser, bySource };
     };
 
     // event_admin: scope top-ups to their event via bracelet.eventId
@@ -318,7 +335,7 @@ router.get(
       if (userCompanyId) {
         const companyEventIds = await getEventIdsByPromoterCompany(userCompanyId);
         if (companyEventIds.length === 0) {
-          res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [] });
+          res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { totalCop: 0, count: 0 }, digital: { totalCop: 0, count: 0 } } });
           return;
         }
         const topUps = await getTopUpsForEventIds(companyEventIds, from, to);
@@ -326,7 +343,7 @@ router.get(
         return;
       }
       if (!user.eventId) {
-        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [] });
+        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { totalCop: 0, count: 0 }, digital: { totalCop: 0, count: 0 } } });
         return;
       }
       const eventBracelets = await db
@@ -335,7 +352,7 @@ router.get(
         .where(eq(braceletsTable.eventId, user.eventId));
       const braceletUids = eventBracelets.map((b) => b.nfcUid);
       if (braceletUids.length === 0) {
-        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [] });
+        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { totalCop: 0, count: 0 }, digital: { totalCop: 0, count: 0 } } });
         return;
       }
       const topUpConditions = [
@@ -357,7 +374,7 @@ router.get(
     if (promoterCompanyId) {
       const companyEventIds = await getEventIdsByPromoterCompany(promoterCompanyId);
       if (companyEventIds.length === 0) {
-        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [] });
+        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { totalCop: 0, count: 0 }, digital: { totalCop: 0, count: 0 } } });
         return;
       }
       const topUps = await getTopUpsForEventIds(companyEventIds, from, to);

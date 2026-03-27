@@ -20,6 +20,7 @@ import refundsRouter from "./refunds";
 import attendeeRouter from "./attendee";
 import analyticsRouter from "./analytics";
 import fraudAlertsRouter from "./fraudAlerts";
+import paymentsRouter from "./payments";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(refundsRouter);
 router.use(attendeeRouter);
 router.use(analyticsRouter);
 router.use(fraudAlertsRouter);
+router.use(paymentsRouter);
 
 export default router;

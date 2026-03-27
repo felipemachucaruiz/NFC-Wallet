@@ -88,6 +88,8 @@ function ClassicTabLayout() {
       <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="block-bracelet" options={{ href: null }} />
       <Tabs.Screen name="refund-request" options={{ href: null }} />
+      <Tabs.Screen name="top-up-digital" options={{ href: null }} />
+      <Tabs.Screen name="payment-status/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

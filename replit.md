@@ -121,6 +121,9 @@ Express 5 API server. All routes under `/api` prefix.
 - `GET|POST /payouts`, `PATCH /payouts/:id` — merchant payouts
 - `GET /reports/revenue`, `GET /reports/topups`, `GET /reports/inventory` — reports
 - `POST /admin/tamper-report`, `GET /admin/snapshot` — admin
+- `POST /payments/initiate` — digital top-up initiation via Wompi (Nequi/PSE)
+- `GET /payments/:id/status` — poll digital payment status
+- `POST /payments/webhook` — Wompi webhook (HMAC-validated)
 
 ### `lib/db` (`@workspace/db`)
 
@@ -129,6 +132,7 @@ Drizzle ORM + PostgreSQL. Schema tables:
 - `warehouses`, `warehouse_inventory`, `location_inventory`
 - `restock_orders`, `stock_movements`, `user_location_assignments`
 - `bracelets`, `transaction_logs`, `transaction_line_items`, `top_ups`, `merchant_payouts`
+- `wompi_payment_intents` — digital payment intents (Nequi/PSE via Wompi)
 
 - `pnpm --filter @workspace/db run push` — push schema to DB
 
@@ -155,3 +159,12 @@ Utility scripts. Run: `pnpm --filter @workspace/scripts run <script>`
 - `SESSION_SECRET` — Express session secret
 - `PORT` — server port (default 8080)
 - `REPLIT_DOMAINS` — for OIDC redirect URIs
+- `WOMPI_BASE_URL` — Wompi API base URL (default: `https://sandbox.wompi.co/v1`; production: `https://production.wompi.co/v1`)
+- `WOMPI_PUBLIC_KEY` — Wompi public key (required for digital top-ups)
+- `WOMPI_PRIVATE_KEY` — Wompi private key (required for digital top-ups)
+- `WOMPI_EVENTS_SECRET` — Wompi webhook signature secret (for checksum validation)
+- `APP_URL` — Public app URL (used for PSE redirect_url)
+
+## Pending Setup
+
+- **Wompi keys not yet configured**: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_EVENTS_SECRET`, and `APP_URL` must be added as secrets before digital top-ups (Nequi/PSE) will work. Get sandbox keys from https://commerce.wompi.co

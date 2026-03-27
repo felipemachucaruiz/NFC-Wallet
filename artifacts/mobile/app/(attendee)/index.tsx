@@ -183,6 +183,19 @@ export default function AttendeeBalanceScreen() {
             fullWidth
           />
         )}
+        <Button
+          title="Recargar digitalmente (Nequi / PSE)"
+          onPress={() =>
+            router.push({
+              pathname: "/(attendee)/top-up-digital" as never,
+              params: { braceletUid: bracelet?.uid ?? "" },
+            })
+          }
+          variant="secondary"
+          size="md"
+          fullWidth
+          icon="smartphone"
+        />
       </View>
 
       <Modal visible={showManualUid} transparent animationType="slide">

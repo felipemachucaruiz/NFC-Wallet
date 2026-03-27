@@ -1988,6 +1988,89 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  # ── Digital Payments (Wompi) ─────────────────────────────────────────────────
+  /payments/initiate:
+    post:
+      tags: [TopUps]
+      operationId: initiateDigitalTopUp
+      summary: Initiate a digital top-up via Nequi or PSE (Wompi)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitiateDigitalTopUpBody'
+      responses:
+        '201':
+          description: Payment intent created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WompiPaymentIntentResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: Payment gateway error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /payments/{id}/status:
+    get:
+      tags: [TopUps]
+      operationId: getDigitalTopUpStatus
+      summary: Poll status of a digital top-up payment intent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment intent status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WompiPaymentIntentStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/webhook:
+    post:
+      tags: [TopUps]
+      operationId: handleWompiWebhook
+      summary: Wompi webhook receiver (HMAC-validated)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook received.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /reports/refunds:
     get:
       tags: [Reports]
@@ -3833,7 +3916,7 @@ components:
 
     TopUpReport:
       type: object
-      required: [totalCop, byPaymentMethod, byUser]
+      required: [totalCop, byPaymentMethod, byUser, bySource]
       properties:
         totalCop:
           type: integer
@@ -3857,6 +3940,73 @@ components:
                 type: integer
               count:
                 type: integer
+        bySource:
+          type: object
+          required: [bank, digital]
+          properties:
+            bank:
+              type: object
+              required: [totalCop, count]
+              properties:
+                totalCop:
+                  type: integer
+                count:
+                  type: integer
+            digital:
+              type: object
+              required: [totalCop, count]
+              properties:
+                totalCop:
+                  type: integer
+                count:
+                  type: integer
+
+    WompiPaymentIntentResult:
+      type: object
+      required: [intentId, status, paymentMethod]
+      properties:
+        intentId:
+          type: string
+        status:
+          type: string
+          enum: [pending, success, failed]
+        paymentMethod:
+          type: string
+          enum: [nequi, pse]
+        wompiTransactionId:
+          type: [string, 'null']
+        redirectUrl:
+          type: [string, 'null']
+
+    WompiPaymentIntentStatus:
+      type: object
+      required: [intentId, status]
+      properties:
+        intentId:
+          type: string
+        status:
+          type: string
+          enum: [pending, success, failed]
+        topUpId:
+          type: [string, 'null']
+
+    InitiateDigitalTopUpBody:
+      type: object
+      required: [braceletUid, amountCop, paymentMethod]
+      properties:
+        braceletUid:
+          type: string
+          minLength: 1
+        amountCop:
+          type: integer
+          minimum: 1000
+        paymentMethod:
+          type: string
+          enum: [nequi, pse]
+        phoneNumber:
+          type: string
+        bankCode:
+          type: string
 
     InventoryReport:
       type: object

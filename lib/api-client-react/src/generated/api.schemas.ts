@@ -858,10 +858,87 @@ export type TopUpReportByUserItem = {
   count: number;
 };
 
+export type TopUpReportBySourceBank = {
+  totalCop: number;
+  count: number;
+};
+
+export type TopUpReportBySourceDigital = {
+  totalCop: number;
+  count: number;
+};
+
+export type TopUpReportBySource = {
+  bank: TopUpReportBySourceBank;
+  digital: TopUpReportBySourceDigital;
+};
+
 export interface TopUpReport {
   totalCop: number;
   byPaymentMethod: TopUpReportByPaymentMethod;
   byUser: TopUpReportByUserItem[];
+  bySource: TopUpReportBySource;
+}
+
+export type WompiPaymentIntentResultStatus =
+  (typeof WompiPaymentIntentResultStatus)[keyof typeof WompiPaymentIntentResultStatus];
+
+export const WompiPaymentIntentResultStatus = {
+  pending: "pending",
+  success: "success",
+  failed: "failed",
+} as const;
+
+export type WompiPaymentIntentResultPaymentMethod =
+  (typeof WompiPaymentIntentResultPaymentMethod)[keyof typeof WompiPaymentIntentResultPaymentMethod];
+
+export const WompiPaymentIntentResultPaymentMethod = {
+  nequi: "nequi",
+  pse: "pse",
+} as const;
+
+export interface WompiPaymentIntentResult {
+  intentId: string;
+  status: WompiPaymentIntentResultStatus;
+  paymentMethod: WompiPaymentIntentResultPaymentMethod;
+  /** @nullable */
+  wompiTransactionId?: string | null;
+  /** @nullable */
+  redirectUrl?: string | null;
+}
+
+export type WompiPaymentIntentStatusStatus =
+  (typeof WompiPaymentIntentStatusStatus)[keyof typeof WompiPaymentIntentStatusStatus];
+
+export const WompiPaymentIntentStatusStatus = {
+  pending: "pending",
+  success: "success",
+  failed: "failed",
+} as const;
+
+export interface WompiPaymentIntentStatus {
+  intentId: string;
+  status: WompiPaymentIntentStatusStatus;
+  /** @nullable */
+  topUpId?: string | null;
+}
+
+export type InitiateDigitalTopUpBodyPaymentMethod =
+  (typeof InitiateDigitalTopUpBodyPaymentMethod)[keyof typeof InitiateDigitalTopUpBodyPaymentMethod];
+
+export const InitiateDigitalTopUpBodyPaymentMethod = {
+  nequi: "nequi",
+  pse: "pse",
+} as const;
+
+export interface InitiateDigitalTopUpBody {
+  /** @minLength 1 */
+  braceletUid: string;
+  /** @minimum 1000 */
+  amountCop: number;
+  paymentMethod: InitiateDigitalTopUpBodyPaymentMethod;
+  phoneNumber?: string;
+  bankCode?: string;
 }
 
 export type InventoryReportItemsItem = {
@@ -1381,6 +1458,8 @@ export type GetTopUpReportParams = {
   to?: string;
   promoterCompanyId?: string;
 };
+
+export type HandleWompiWebhookBody = { [key: string]: unknown };
 
 export type GetRefundsReportParams = {
   eventId?: string;

@@ -9,6 +9,8 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "card_external",
   "nequi_transfer",
   "bancolombia_transfer",
+  "nequi",
+  "pse",
   "other",
 ]);
 

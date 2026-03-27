@@ -62,7 +62,9 @@ import type {
   GetTopUpReportParams,
   GetWarehouseInventory200,
   HandleBrowserLoginCallbackParams,
+  HandleWompiWebhookBody,
   HealthStatus,
+  InitiateDigitalTopUpBody,
   InternalErrorResponse,
   InventoryReport,
   ListEventBracelets200,
@@ -142,6 +144,8 @@ import type {
   Warehouse,
   WarehouseDispatchBody,
   WarehouseInventoryItem,
+  WompiPaymentIntentResult,
+  WompiPaymentIntentStatus,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -6791,6 +6795,296 @@ export function useGetTopUpReport<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Initiate a digital top-up via Nequi or PSE (Wompi)
+ */
+export const getInitiateDigitalTopUpUrl = () => {
+  return `/api/payments/initiate`;
+};
+
+export const initiateDigitalTopUp = async (
+  initiateDigitalTopUpBody: InitiateDigitalTopUpBody,
+  options?: RequestInit,
+): Promise<WompiPaymentIntentResult> => {
+  return customFetch<WompiPaymentIntentResult>(getInitiateDigitalTopUpUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(initiateDigitalTopUpBody),
+  });
+};
+
+export const getInitiateDigitalTopUpMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+    | ErrorEnvelope
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof initiateDigitalTopUp>>,
+    TError,
+    { data: BodyType<InitiateDigitalTopUpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof initiateDigitalTopUp>>,
+  TError,
+  { data: BodyType<InitiateDigitalTopUpBody> },
+  TContext
+> => {
+  const mutationKey = ["initiateDigitalTopUp"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof initiateDigitalTopUp>>,
+    { data: BodyType<InitiateDigitalTopUpBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return initiateDigitalTopUp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type InitiateDigitalTopUpMutationResult = NonNullable<
+  Awaited<ReturnType<typeof initiateDigitalTopUp>>
+>;
+export type InitiateDigitalTopUpMutationBody =
+  BodyType<InitiateDigitalTopUpBody>;
+export type InitiateDigitalTopUpMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+  | ErrorEnvelope
+>;
+
+/**
+ * @summary Initiate a digital top-up via Nequi or PSE (Wompi)
+ */
+export const useInitiateDigitalTopUp = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+    | ErrorEnvelope
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof initiateDigitalTopUp>>,
+    TError,
+    { data: BodyType<InitiateDigitalTopUpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof initiateDigitalTopUp>>,
+  TError,
+  { data: BodyType<InitiateDigitalTopUpBody> },
+  TContext
+> => {
+  return useMutation(getInitiateDigitalTopUpMutationOptions(options));
+};
+
+/**
+ * @summary Poll status of a digital top-up payment intent
+ */
+export const getGetDigitalTopUpStatusUrl = (id: string) => {
+  return `/api/payments/${id}/status`;
+};
+
+export const getDigitalTopUpStatus = async (
+  id: string,
+  options?: RequestInit,
+): Promise<WompiPaymentIntentStatus> => {
+  return customFetch<WompiPaymentIntentStatus>(
+    getGetDigitalTopUpStatusUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetDigitalTopUpStatusQueryKey = (id: string) => {
+  return [`/api/payments/${id}/status`] as const;
+};
+
+export const getGetDigitalTopUpStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDigitalTopUpStatus>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDigitalTopUpStatus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetDigitalTopUpStatusQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDigitalTopUpStatus>>
+  > = ({ signal }) => getDigitalTopUpStatus(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDigitalTopUpStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDigitalTopUpStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDigitalTopUpStatus>>
+>;
+export type GetDigitalTopUpStatusQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Poll status of a digital top-up payment intent
+ */
+
+export function useGetDigitalTopUpStatus<
+  TData = Awaited<ReturnType<typeof getDigitalTopUpStatus>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDigitalTopUpStatus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDigitalTopUpStatusQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Wompi webhook receiver (HMAC-validated)
+ */
+export const getHandleWompiWebhookUrl = () => {
+  return `/api/payments/webhook`;
+};
+
+export const handleWompiWebhook = async (
+  handleWompiWebhookBody: HandleWompiWebhookBody,
+  options?: RequestInit,
+): Promise<SuccessEnvelope> => {
+  return customFetch<SuccessEnvelope>(getHandleWompiWebhookUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(handleWompiWebhookBody),
+  });
+};
+
+export const getHandleWompiWebhookMutationOptions = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof handleWompiWebhook>>,
+    TError,
+    { data: BodyType<HandleWompiWebhookBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof handleWompiWebhook>>,
+  TError,
+  { data: BodyType<HandleWompiWebhookBody> },
+  TContext
+> => {
+  const mutationKey = ["handleWompiWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof handleWompiWebhook>>,
+    { data: BodyType<HandleWompiWebhookBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return handleWompiWebhook(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type HandleWompiWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof handleWompiWebhook>>
+>;
+export type HandleWompiWebhookMutationBody = BodyType<HandleWompiWebhookBody>;
+export type HandleWompiWebhookMutationError = ErrorType<
+  BadRequestResponse | UnauthorizedResponse
+>;
+
+/**
+ * @summary Wompi webhook receiver (HMAC-validated)
+ */
+export const useHandleWompiWebhook = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof handleWompiWebhook>>,
+    TError,
+    { data: BodyType<HandleWompiWebhookBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof handleWompiWebhook>>,
+  TError,
+  { data: BodyType<HandleWompiWebhookBody> },
+  TContext
+> => {
+  return useMutation(getHandleWompiWebhookMutationOptions(options));
+};
 
 /**
  * @summary Refund report by payment method (admin or event_admin)

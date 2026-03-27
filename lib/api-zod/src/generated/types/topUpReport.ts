@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { TopUpReportByPaymentMethod } from "./topUpReportByPaymentMethod";
+import type { TopUpReportBySource } from "./topUpReportBySource";
 import type { TopUpReportByUserItem } from "./topUpReportByUserItem";
 
 export interface TopUpReport {
   totalCop: number;
   byPaymentMethod: TopUpReportByPaymentMethod;
   byUser: TopUpReportByUserItem[];
+  bySource: TopUpReportBySource;
 }
