@@ -9,6 +9,7 @@ import Animated, {
   withSequence,
   withSpring,
   withTiming,
+  Easing,
 } from "react-native-reanimated";
 
 interface Props {
@@ -17,12 +18,74 @@ interface Props {
 
 const logo = require("../assets/images/tapee-logo.png");
 
+const LOGO_W = 260;
+const LOGO_H = LOGO_W / (1199 / 435);
+
+const GLOW_LAYERS = [
+  { scaleMax: 1.10, opacityMax: 0.30, delay: 0 },
+  { scaleMax: 1.20, opacityMax: 0.20, delay: 120 },
+  { scaleMax: 1.32, opacityMax: 0.13, delay: 240 },
+  { scaleMax: 1.46, opacityMax: 0.07, delay: 360 },
+];
+
+const PULSE_DURATION = 1400;
+const GLOW_START_DELAY = 400;
+
+function GlowLayer({
+  scaleMax,
+  opacityMax,
+  delay,
+}: {
+  scaleMax: number;
+  opacityMax: number;
+  delay: number;
+}) {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    scale.value = withDelay(
+      GLOW_START_DELAY + delay,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 0 }),
+          withTiming(scaleMax, { duration: PULSE_DURATION, easing: Easing.out(Easing.cubic) }),
+        ),
+        -1,
+        false,
+      ),
+    );
+
+    opacity.value = withDelay(
+      GLOW_START_DELAY + delay,
+      withRepeat(
+        withSequence(
+          withTiming(opacityMax, { duration: 80, easing: Easing.out(Easing.quad) }),
+          withTiming(0, { duration: PULSE_DURATION - 80, easing: Easing.in(Easing.cubic) }),
+        ),
+        -1,
+        false,
+      ),
+    );
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.Image
+      source={logo}
+      style={[styles.glowLayer, style]}
+      resizeMode="contain"
+    />
+  );
+}
+
 export function AnimatedSplash({ onFinished }: Props) {
   const logoScale = useSharedValue(0.6);
   const logoOpacity = useSharedValue(0);
-
-  const glowScale = useSharedValue(1);
-  const glowOpacity = useSharedValue(0);
 
   const taglineOpacity = useSharedValue(0);
   const taglineY = useSharedValue(12);
@@ -30,30 +93,14 @@ export function AnimatedSplash({ onFinished }: Props) {
   const screenOpacity = useSharedValue(1);
 
   useEffect(() => {
-    logoOpacity.value = withTiming(1, { duration: 350 });
+    logoOpacity.value = withTiming(1, { duration: 380 });
     logoScale.value = withSpring(1, { damping: 13, stiffness: 140 });
 
-    glowScale.value = withDelay(
-      420,
-      withRepeat(withTiming(1.7, { duration: 1300 }), -1, false),
-    );
-    glowOpacity.value = withDelay(
-      420,
-      withRepeat(
-        withSequence(
-          withTiming(0.5, { duration: 150 }),
-          withTiming(0, { duration: 1150 }),
-        ),
-        -1,
-        false,
-      ),
-    );
-
-    taglineOpacity.value = withDelay(500, withTiming(1, { duration: 400 }));
-    taglineY.value = withDelay(500, withSpring(0, { damping: 18, stiffness: 120 }));
+    taglineOpacity.value = withDelay(520, withTiming(1, { duration: 400 }));
+    taglineY.value = withDelay(520, withSpring(0, { damping: 18, stiffness: 120 }));
 
     screenOpacity.value = withDelay(
-      2800,
+      2900,
       withTiming(0, { duration: 400 }, (finished) => {
         if (finished) runOnJS(onFinished)();
       }),
@@ -63,11 +110,6 @@ export function AnimatedSplash({ onFinished }: Props) {
   const logoStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,
     transform: [{ scale: logoScale.value }],
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-    transform: [{ scale: glowScale.value }],
   }));
 
   const taglineStyle = useAnimatedStyle(() => ({
@@ -83,7 +125,9 @@ export function AnimatedSplash({ onFinished }: Props) {
     <Animated.View style={[styles.container, screenStyle]}>
       <View style={styles.content}>
         <View style={styles.logoWrapper}>
-          <Animated.View style={[styles.glow, glowStyle]} />
+          {GLOW_LAYERS.map((layer, i) => (
+            <GlowLayer key={i} {...layer} />
+          ))}
           <Animated.Image
             source={logo}
             style={[styles.logo, logoStyle]}
@@ -119,17 +163,19 @@ const styles = StyleSheet.create({
   logoWrapper: {
     alignItems: "center",
     justifyContent: "center",
+    width: LOGO_W * 1.5,
+    height: LOGO_H * 1.5,
   },
-  glow: {
+  glowLayer: {
     position: "absolute",
-    width: 300,
-    height: 136,
-    borderRadius: 26,
-    backgroundColor: "#1A56DB",
+    width: LOGO_W,
+    height: LOGO_H,
+    tintColor: "#3B6FE8",
   },
   logo: {
-    width: 280,
-    height: 127,
+    position: "absolute",
+    width: LOGO_W,
+    height: LOGO_H,
   },
   tagline: {
     fontSize: 14,
