@@ -248,7 +248,7 @@
     "nfcWriteWarning": "Recarga guardada. No se pudo escribir en la pulsera — acércala al teléfono para sincronizar en el próximo cobro.",
     "skipWrite": "Omitir — terminar sin escribir la tarjeta",
     "savedOk": "Recarga guardada",
-    "tapToWriteHint": "Pon la tarjeta o pulsera plana contra la parte trasera del teléfono y luego toca el botón de abajo.",
+    "tapToWriteHint": "Pon la pulsera plana contra la parte trasera del teléfono — se escribirá automáticamente.",
     "tapNow": "Acercar tarjeta ahora",
     "writeRetryHint": "No se pudo escribir. Asegúrate de que la tarjeta esté plana contra el teléfono e intenta de nuevo.",
     "braceletReady": "Pulsera lista",
