@@ -12,10 +12,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import { router } from "expo-router";
 import { useListEventBracelets } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
@@ -129,10 +131,21 @@ export default function WristbandsScreen() {
           },
         ]}
       >
-        <Text style={[styles.title, { color: C.text }]}>{t("wristbands.title")}</Text>
-        <Text style={[styles.subtitle, { color: C.textMuted }]}>
-          {total > 0 ? `${total} ${t("wristbands.total")}` : ""}
-        </Text>
+        <View style={styles.titleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: C.text }]}>{t("wristbands.title")}</Text>
+            <Text style={[styles.subtitle, { color: C.textMuted }]}>
+              {total > 0 ? `${total} ${t("wristbands.total")}` : ""}
+            </Text>
+          </View>
+          <Button
+            title={t("checkBalance.title")}
+            onPress={() => router.push("/check-balance")}
+            variant="secondary"
+            size="sm"
+            icon="credit-card"
+          />
+        </View>
 
         <View style={[styles.searchRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
           <Feather name="search" size={16} color={C.textMuted} />
@@ -215,6 +228,7 @@ export default function WristbandsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingBottom: 12, gap: 4 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   title: { fontSize: 26, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 4 },
   searchRow: {
