@@ -37,6 +37,7 @@ export const productsTable = pgTable("products", {
   ivaRate: numeric("iva_rate", { precision: 5, scale: 2 }).notNull().default("0"),
   ivaExento: boolean("iva_exento").notNull().default(false),
   active: boolean("active").notNull().default(true),
+  imageUrl: varchar("image_url", { length: 1024 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

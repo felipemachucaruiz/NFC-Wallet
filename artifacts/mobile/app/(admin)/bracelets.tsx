@@ -26,8 +26,7 @@ import { CopAmount } from "@/components/CopAmount";
 import { isNfcSupported, scanBracelet, scanAndWriteBracelet } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { API_BASE_URL } from "@/constants/domain";
+import { customFetch } from "@workspace/api-client-react";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
 export default function BraceletsAdminScreen() {
@@ -53,8 +52,6 @@ export default function BraceletsAdminScreen() {
   const networkHmacSecret = (keyData as unknown as { hmacSecret?: string } | undefined)?.hmacSecret ?? "";
   const { cachedHmacSecret } = useOfflineQueue();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
-
-  const { token } = useAuth();
 
   const handleScan = async () => {
     if (!isNfcSupported()) return;
@@ -136,13 +133,7 @@ export default function BraceletsAdminScreen() {
                 return { uid: payload.uid, balance: 0, counter: newCounter, hmac: newHmac };
               });
 
-              await fetch(`${API_BASE_URL}/admin/bracelets/${searchUid}/reset-balance`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-              });
+              await customFetch(`/api/admin/bracelets/${searchUid}/reset-balance`, { method: "POST" });
 
               Alert.alert(t("common.success"), t("admin.resetBalanceSuccess"));
               refetch();
