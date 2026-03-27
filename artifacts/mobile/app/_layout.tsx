@@ -24,6 +24,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { OfflineQueueProvider } from "@/contexts/OfflineQueueContext";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { initI18n } from "@/i18n";
+import { initNfc } from "@/utils/nfc";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
 import { useTranslation } from "react-i18next";
@@ -103,6 +104,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     initI18n().then(() => setI18nReady(true));
+    initNfc();
   }, []);
 
   const appReady = (fontsLoaded || !!fontError) && i18nReady;
