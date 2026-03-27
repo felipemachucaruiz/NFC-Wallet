@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { Empty } from "@/components/ui/Empty";
 import { useInventoryMode } from "@/hooks/useInventoryMode";
+import { useMerchantType } from "@/hooks/useMerchantType";
 
 type Location = { id: string; name: string; merchantId: string; active: boolean };
 
@@ -243,6 +244,7 @@ export default function MerchantStockScreen() {
   const isWeb = Platform.OS === "web";
   const { user } = useAuth();
   const { inventoryMode } = useInventoryMode();
+  const { isExternal } = useMerchantType();
 
   const merchantId = user?.merchantId ?? "";
 
@@ -271,7 +273,15 @@ export default function MerchantStockScreen() {
       <Text style={[styles.title, { color: C.text }]}>{t("merchant_admin.stockTitle")}</Text>
       <Text style={[styles.subtitle, { color: C.textSecondary }]}>{t("merchant_admin.stockSubtitle")}</Text>
 
-      {inventoryMode === "location_based" && (
+      {isExternal ? (
+        <View style={[styles.selfManagedBanner, { backgroundColor: C.primaryLight, borderColor: C.primary + "44" }]}>
+          <Feather name="briefcase" size={16} color={C.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.selfManagedTitle, { color: C.primary }]}>{t("merchant_admin.externalMerchantStock")}</Text>
+            <Text style={[styles.selfManagedDesc, { color: C.textSecondary }]}>{t("merchant_admin.externalMerchantStockDesc")}</Text>
+          </View>
+        </View>
+      ) : inventoryMode === "location_based" ? (
         <View style={[styles.selfManagedBanner, { backgroundColor: C.primaryLight, borderColor: C.primary + "44" }]}>
           <Feather name="check-circle" size={16} color={C.primary} />
           <View style={{ flex: 1 }}>
@@ -279,7 +289,7 @@ export default function MerchantStockScreen() {
             <Text style={[styles.selfManagedDesc, { color: C.textSecondary }]}>{t("eventAdmin.selfManagedStockDesc")}</Text>
           </View>
         </View>
-      )}
+      ) : null}
 
       {isLoading ? (
         <Loading />

@@ -17,6 +17,14 @@ async function resolveEventId(user: { eventId?: string | null; merchantId?: stri
   return null;
 }
 
+async function getMerchantType(merchantId: string): Promise<"event_managed" | "external" | null> {
+  const [merchant] = await db
+    .select({ merchantType: merchantsTable.merchantType })
+    .from(merchantsTable)
+    .where(eq(merchantsTable.id, merchantId));
+  return (merchant?.merchantType as "event_managed" | "external") ?? null;
+}
+
 const router: IRouter = Router();
 
 router.get(
@@ -25,6 +33,19 @@ router.get(
   async (req: Request, res: Response) => {
     const { status, locationId } = req.query as { status?: string; locationId?: string };
     const user = req.user!;
+
+    if (user.role === "merchant_admin") {
+      if (!user.merchantId) {
+        res.json({ orders: [] });
+        return;
+      }
+      // External merchants do not participate in warehouse/restock flows
+      const merchantType = await getMerchantType(user.merchantId);
+      if (merchantType === "external") {
+        res.json({ orders: [], isExternalMerchant: true });
+        return;
+      }
+    }
 
     if (user.role !== "admin") {
       const eventId = await resolveEventId(user);
@@ -42,15 +63,10 @@ router.get(
     if (status) conditions.push(eq(restockOrdersTable.status, status as "pending" | "approved" | "dispatched" | "rejected"));
 
     if (user.role === "merchant_admin") {
-      if (!user.merchantId) {
-        res.json({ orders: [] });
-        return;
-      }
-
       const merchantLocations = await db
         .select({ id: locationsTable.id })
         .from(locationsTable)
-        .where(eq(locationsTable.merchantId, user.merchantId));
+        .where(eq(locationsTable.merchantId, user.merchantId!));
 
       if (merchantLocations.length === 0) {
         res.json({ orders: [] });
@@ -123,6 +139,15 @@ router.post(
       }
     }
 
+    // Block restock orders for external merchant locations
+    if (location.merchantId) {
+      const merchantType = await getMerchantType(location.merchantId);
+      if (merchantType === "external") {
+        res.status(409).json({ error: "Restock orders are not available for external merchants. External merchants manage their own inventory independently." });
+        return;
+      }
+    }
+
     if (location.eventId) {
       const inventoryMode = await getEventInventoryMode(location.eventId);
       if (inventoryMode === "location_based") {
@@ -163,12 +188,22 @@ router.patch(
       .select({ locationId: restockOrdersTable.locationId })
       .from(restockOrdersTable)
       .where(eq(restockOrdersTable.id, req.params.orderId as string));
+
     if (existingOrder) {
       const [location] = await db
-        .select({ eventId: locationsTable.eventId })
+        .select({ eventId: locationsTable.eventId, merchantId: locationsTable.merchantId })
         .from(locationsTable)
         .where(eq(locationsTable.id, existingOrder.locationId));
+
       if (location) {
+        // Block warehouse operations targeting external merchant locations
+        if (location.merchantId) {
+          const merchantType = await getMerchantType(location.merchantId);
+          if (merchantType === "external") {
+            res.status(409).json({ error: "Cannot process warehouse operations for external merchant locations." });
+            return;
+          }
+        }
         const inventoryMode = await getEventInventoryMode(location.eventId);
         if (inventoryMode === "location_based") {
           res.status(409).json({ error: "Restock order approval is not available in location-based inventory mode. Switch the event to Centralized Warehouse mode to use this feature." });

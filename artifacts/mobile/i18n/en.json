@@ -434,6 +434,8 @@
     "qtyDelta": "Adjustment (+ add / - remove)",
     "restockTrigger": "Low-stock alert threshold",
     "stockUpdated": "Stock updated",
+    "externalMerchantStock": "External Vendor — Self-Managed",
+    "externalMerchantStockDesc": "You manage your own inventory independently. Set stock levels directly without warehouse requests.",
     "inactive": "Inactive",
     "active": "Active",
     "typeLabel": "Merchant type",

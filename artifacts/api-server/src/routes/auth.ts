@@ -93,15 +93,17 @@ router.get("/auth/user", async (req: Request, res: Response) => {
 
   const u = req.user;
   let merchantName: string | null = null;
+  let merchantType: string | null = null;
   let eventName: string | null = null;
 
   try {
     if (u.merchantId) {
       const [merchant] = await db
-        .select({ name: merchantsTable.name })
+        .select({ name: merchantsTable.name, merchantType: merchantsTable.merchantType })
         .from(merchantsTable)
         .where(eq(merchantsTable.id, u.merchantId));
       merchantName = merchant?.name ?? null;
+      merchantType = merchant?.merchantType ?? null;
     }
     if (u.eventId) {
       const [event] = await db
@@ -119,6 +121,7 @@ router.get("/auth/user", async (req: Request, res: Response) => {
     user: {
       ...GetCurrentAuthUserResponse.parse({ user: u }).user,
       merchantName,
+      merchantType,
       eventName,
     },
   });

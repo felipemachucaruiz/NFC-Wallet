@@ -434,6 +434,8 @@
     "qtyDelta": "Ajuste (+ agregar / - retirar)",
     "restockTrigger": "Alerta de stock bajo",
     "stockUpdated": "Stock actualizado",
+    "externalMerchantStock": "Comercio Externo — Autogestión",
+    "externalMerchantStockDesc": "Gestionas tu inventario de forma independiente. Ajusta los niveles de stock directamente sin solicitudes al almacén.",
     "inactive": "Inactivo",
     "active": "Activo",
     "typeLabel": "Tipo de comercio",

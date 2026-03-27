@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, stockMovementsTable, warehouseInventoryTable, locationInventoryTable, restockOrdersTable, locationsTable, warehousesTable } from "@workspace/db";
+import { db, stockMovementsTable, warehouseInventoryTable, locationInventoryTable, restockOrdersTable, locationsTable, warehousesTable, merchantsTable } from "@workspace/db";
 import { eq, and, gte, lte, or, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess } from "../lib/ownershipGuards";
@@ -119,6 +119,22 @@ router.post(
     if (inventoryMode === "location_based") {
       res.status(409).json({ error: "Warehouse dispatch is not available in location-based inventory mode. Switch the event to Centralized Warehouse mode to use this feature." });
       return;
+    }
+
+    // Block warehouse dispatch to external merchant locations
+    const [destLocation] = await db
+      .select({ merchantId: locationsTable.merchantId })
+      .from(locationsTable)
+      .where(eq(locationsTable.id, locationId));
+    if (destLocation?.merchantId) {
+      const [destMerchant] = await db
+        .select({ merchantType: merchantsTable.merchantType })
+        .from(merchantsTable)
+        .where(eq(merchantsTable.id, destLocation.merchantId));
+      if (destMerchant?.merchantType === "external") {
+        res.status(409).json({ error: "Cannot dispatch from warehouse to an external merchant location. External merchants manage their own inventory independently." });
+        return;
+      }
     }
 
     const movement = await db.transaction(async (tx) => {

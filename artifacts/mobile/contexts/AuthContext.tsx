@@ -36,6 +36,8 @@ export interface AuthUser {
   eventId?: string | null;
   promoterCompanyId?: string | null;
   merchantName?: string | null;
+  /** "event_managed" = uses warehouse flows; "external" = self-managed inventory */
+  merchantType?: string | null;
   eventName?: string | null;
 }
 
