@@ -34,6 +34,7 @@ type BraceletInfo = {
 
 type TxEntry = {
   id: string;
+  type?: "charge" | "topup";
   grossAmountCop: number;
   newBalanceCop: number;
   createdAt: string;
@@ -267,34 +268,45 @@ export default function CheckBalanceScreen() {
               <Text style={[styles.noTxText, { color: C.textMuted }]}>{t("checkBalance.noTx")}</Text>
             </Card>
           ) : (
-            transactions.map((tx) => (
-              <Card key={tx.id} style={styles.txCard}>
-                <View style={styles.txRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.txMerchant, { color: C.text }]} numberOfLines={1}>
-                      {tx.merchantName ?? "—"}
-                    </Text>
-                    {tx.locationName && (
-                      <Text style={[styles.txLocation, { color: C.textMuted }]} numberOfLines={1}>
-                        {tx.locationName}
+            transactions.map((tx) => {
+              const isTopup = tx.type === "topup";
+              const amountColor = isTopup ? C.success ?? "#16a34a" : C.danger;
+              const amountValue = isTopup ? tx.grossAmountCop : -tx.grossAmountCop;
+              const label = isTopup
+                ? (tx.merchantName ?? t("bank.topUpLabel"))
+                : (tx.merchantName ?? "—");
+              return (
+                <Card key={tx.id} style={styles.txCard}>
+                  <View style={styles.txRow}>
+                    <View style={[styles.txTypeIcon, { backgroundColor: isTopup ? "#dcfce7" : "#fee2e2" }]}>
+                      <Feather name={isTopup ? "arrow-down-circle" : "arrow-up-circle"} size={16} color={amountColor} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.txMerchant, { color: C.text }]} numberOfLines={1}>
+                        {label}
                       </Text>
-                    )}
-                    <Text style={[styles.txDate, { color: C.textMuted }]}>
-                      {formatDate(tx.offlineCreatedAt ?? tx.createdAt)}
-                    </Text>
+                      {tx.locationName && (
+                        <Text style={[styles.txLocation, { color: C.textMuted }]} numberOfLines={1}>
+                          {tx.locationName}
+                        </Text>
+                      )}
+                      <Text style={[styles.txDate, { color: C.textMuted }]}>
+                        {formatDate(tx.offlineCreatedAt ?? tx.createdAt)}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: "flex-end", gap: 2 }}>
+                      <CopAmount
+                        amount={amountValue}
+                        style={[styles.txAmount, { color: amountColor }]}
+                      />
+                      <Text style={[styles.txBalance, { color: C.textMuted }]}>
+                        → {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(tx.newBalanceCop)}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={{ alignItems: "flex-end", gap: 2 }}>
-                    <CopAmount
-                      amount={-tx.grossAmountCop}
-                      style={[styles.txAmount, { color: C.danger }]}
-                    />
-                    <Text style={[styles.txBalance, { color: C.textMuted }]}>
-                      → {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(tx.newBalanceCop)}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-            ))
+                </Card>
+              );
+            })
           )}
         </>
       )}
@@ -331,7 +343,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5 },
   noTxText: { textAlign: "center", fontFamily: "Inter_400Regular", fontSize: 14, paddingVertical: 8 },
   txCard: { padding: 12 },
-  txRow: { flexDirection: "row", gap: 12 },
+  txRow: { flexDirection: "row", gap: 10, alignItems: "center" },
+  txTypeIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   txMerchant: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   txLocation: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
   txDate: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 4 },

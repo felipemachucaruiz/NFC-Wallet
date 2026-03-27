@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable } from "@workspace/db";
+import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -90,22 +90,65 @@ router.get(
     const limitStr = req.query.limit as string | undefined;
     const limit = Math.min(Math.max(parseInt(limitStr ?? "5", 10) || 5, 1), 20);
 
-    const transactions = await db
-      .select({
-        id: transactionLogsTable.id,
-        grossAmountCop: transactionLogsTable.grossAmountCop,
-        newBalanceCop: transactionLogsTable.newBalanceCop,
-        createdAt: transactionLogsTable.createdAt,
-        offlineCreatedAt: transactionLogsTable.offlineCreatedAt,
-        merchantName: merchantsTable.name,
-        locationName: locationsTable.name,
-      })
-      .from(transactionLogsTable)
-      .leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id))
-      .leftJoin(locationsTable, eq(transactionLogsTable.locationId, locationsTable.id))
-      .where(eq(transactionLogsTable.braceletUid, nfcUid))
-      .orderBy(desc(transactionLogsTable.createdAt))
-      .limit(limit);
+    const [charges, topups] = await Promise.all([
+      db
+        .select({
+          id: transactionLogsTable.id,
+          grossAmountCop: transactionLogsTable.grossAmountCop,
+          newBalanceCop: transactionLogsTable.newBalanceCop,
+          createdAt: transactionLogsTable.createdAt,
+          offlineCreatedAt: transactionLogsTable.offlineCreatedAt,
+          merchantName: merchantsTable.name,
+          locationName: locationsTable.name,
+        })
+        .from(transactionLogsTable)
+        .leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id))
+        .leftJoin(locationsTable, eq(transactionLogsTable.locationId, locationsTable.id))
+        .where(eq(transactionLogsTable.braceletUid, nfcUid))
+        .orderBy(desc(transactionLogsTable.createdAt))
+        .limit(limit),
+      db
+        .select({
+          id: topUpsTable.id,
+          grossAmountCop: topUpsTable.amountCop,
+          newBalanceCop: topUpsTable.newBalanceCop,
+          createdAt: topUpsTable.createdAt,
+          offlineCreatedAt: topUpsTable.offlineCreatedAt,
+          agentName: usersTable.name,
+          paymentMethod: topUpsTable.paymentMethod,
+        })
+        .from(topUpsTable)
+        .leftJoin(usersTable, eq(topUpsTable.performedByUserId, usersTable.id))
+        .where(eq(topUpsTable.braceletUid, nfcUid))
+        .orderBy(desc(topUpsTable.createdAt))
+        .limit(limit),
+    ]);
+
+    const chargeRows = charges.map((c) => ({
+      id: c.id,
+      type: "charge" as const,
+      grossAmountCop: c.grossAmountCop,
+      newBalanceCop: c.newBalanceCop,
+      createdAt: c.createdAt,
+      offlineCreatedAt: c.offlineCreatedAt,
+      merchantName: c.merchantName ?? null,
+      locationName: c.locationName ?? null,
+    }));
+
+    const topupRows = topups.map((t) => ({
+      id: t.id,
+      type: "topup" as const,
+      grossAmountCop: t.grossAmountCop,
+      newBalanceCop: t.newBalanceCop,
+      createdAt: t.createdAt,
+      offlineCreatedAt: t.offlineCreatedAt,
+      merchantName: t.agentName ?? null,
+      locationName: t.paymentMethod ?? null,
+    }));
+
+    const transactions = [...chargeRows, ...topupRows]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
 
     res.json({ transactions });
   },
