@@ -72,7 +72,8 @@
     "notSet": "No definido",
     "passwordMinLength": "La contraseña debe tener al menos 6 caracteres",
     "unexpectedError": "Ocurrió un error inesperado",
-    "endOfList": "No hay más elementos"
+    "endOfList": "No hay más elementos",
+    "more": "Más"
   },
   "auth": {
     "title": "Tapee",
@@ -583,7 +584,8 @@
     "flaggedBracelets": "Pulseras Flaggeadas",
     "flaggedBraceletsDescription": "Pulseras marcadas automáticamente por discrepancias de balance o exceso de límite offline.",
     "noFlaggedBracelets": "No hay pulseras flaggeadas en este evento.",
-    "flaggedBracelets_alert": "Toca para revisar en Configuración del evento"
+    "flaggedBracelets_alert": "Toca para revisar en Configuración del evento",
+    "more": "Más"
   },
   "inventory": {
     "tab": "Inventario",

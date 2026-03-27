@@ -4,12 +4,11 @@ import { Tabs, router } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { EventProvider } from "@/contexts/EventContext";
-import { useAuth } from "@/contexts/AuthContext";
 
 function NativeTabLayout() {
   const { t } = useTranslation();
@@ -19,49 +18,21 @@ function NativeTabLayout() {
         <Icon sf={{ default: "chart.pie", selected: "chart.pie.fill" }} />
         <Label>{t("eventAdmin.dashboard")}</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="promoter-summary">
-        <Icon sf={{ default: "building.2", selected: "building.2.fill" }} />
-        <Label>{t("eventAdmin.promoterSummary")}</Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="merchants">
         <Icon sf={{ default: "storefront", selected: "storefront.fill" }} />
         <Label>{t("eventAdmin.merchants")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="users">
-        <Icon sf={{ default: "person.3", selected: "person.3.fill" }} />
-        <Label>{t("eventAdmin.users")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="wristbands">
-        <Icon sf={{ default: "personalhotspot", selected: "personalhotspot" }} />
-        <Label>{t("wristbands.title")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="transactions">
-        <Icon sf={{ default: "list.bullet.rectangle", selected: "list.bullet.rectangle.fill" }} />
-        <Label>{t("transactions.title")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="inventory">
-        <Icon sf={{ default: "shippingbox", selected: "shippingbox.fill" }} />
-        <Label>{t("inventory.tab")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="analytics">
-        <Icon sf={{ default: "waveform.path.ecg", selected: "waveform.path.ecg" }} />
-        <Label>{t("analytics.title")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="reports">
-        <Icon sf={{ default: "doc.chart", selected: "doc.chart.fill" }} />
-        <Label>{t("eventAdmin.reports")}</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="fraud-alerts">
         <Icon sf={{ default: "exclamationmark.shield", selected: "exclamationmark.shield.fill" }} />
         <Label>{t("fraud.alertsTitle")}</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="event-settings">
-        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
-        <Label>{t("eventAdmin.inventorySettings")}</Label>
+      <NativeTabs.Trigger name="reports">
+        <Icon sf={{ default: "doc.chart", selected: "doc.chart.fill" }} />
+        <Label>{t("eventAdmin.reports")}</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
-        <Label>{t("common.settings")}</Label>
+      <NativeTabs.Trigger name="more">
+        <Icon sf={{ default: "ellipsis.circle", selected: "ellipsis.circle.fill" }} />
+        <Label>{t("eventAdmin.more")}</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -69,8 +40,6 @@ function NativeTabLayout() {
 
 function ClassicTabLayout() {
   const { t } = useTranslation();
-  const { user } = useAuth();
-  const hasPromoterCompany = !!user?.promoterCompanyId;
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const isWeb = Platform.OS === "web";
@@ -83,11 +52,6 @@ function ClassicTabLayout() {
         headerStyle: { backgroundColor: C.card },
         headerTintColor: C.text,
         headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
-        headerRight: () => (
-          <Pressable onPress={() => router.push("/settings")} style={{ marginRight: 16 }}>
-            <Feather name="settings" size={20} color={C.textSecondary} />
-          </Pressable>
-        ),
         tabBarActiveTintColor: C.primary,
         tabBarInactiveTintColor: C.tabIconDefault,
         tabBarStyle: {
@@ -105,19 +69,54 @@ function ClassicTabLayout() {
             <View style={[StyleSheet.absoluteFill, { backgroundColor: C.card }]} />
           ) : null,
         tabBarLabelStyle: { fontSize: 10, fontFamily: "Inter_500Medium" },
+        headerShown: false,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: t("eventAdmin.dashboard"), tabBarIcon: ({ color }) => <Feather name="pie-chart" size={22} color={color} /> }} />
-      <Tabs.Screen name="promoter-summary" options={{ href: hasPromoterCompany ? undefined : null, title: t("eventAdmin.promoterSummary"), tabBarIcon: ({ color }) => <Feather name="briefcase" size={22} color={color} /> }} />
-      <Tabs.Screen name="merchants" options={{ title: t("eventAdmin.merchants"), tabBarIcon: ({ color }) => <Feather name="shopping-bag" size={22} color={color} /> }} />
-      <Tabs.Screen name="users" options={{ title: t("eventAdmin.users"), tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} /> }} />
-      <Tabs.Screen name="wristbands" options={{ title: t("wristbands.title"), tabBarIcon: ({ color }) => <Feather name="credit-card" size={22} color={color} /> }} />
-      <Tabs.Screen name="transactions" options={{ title: t("transactions.title"), tabBarIcon: ({ color }) => <Feather name="list" size={22} color={color} /> }} />
-      <Tabs.Screen name="inventory" options={{ title: t("inventory.tab"), tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />
-      <Tabs.Screen name="analytics" options={{ title: t("analytics.title"), tabBarIcon: ({ color }) => <Feather name="activity" size={22} color={color} /> }} />
-      <Tabs.Screen name="reports" options={{ title: t("eventAdmin.reports"), tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} /> }} />
-      <Tabs.Screen name="fraud-alerts" options={{ title: t("fraud.alertsTitle"), tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }} />
-      <Tabs.Screen name="event-settings" options={{ title: t("eventAdmin.inventorySettings"), tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} /> }} />
+      {/* Primary 5 tabs */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: t("eventAdmin.dashboard"),
+          tabBarIcon: ({ color }) => <Feather name="pie-chart" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="merchants"
+        options={{
+          title: t("eventAdmin.merchants"),
+          tabBarIcon: ({ color }) => <Feather name="shopping-bag" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="fraud-alerts"
+        options={{
+          title: t("fraud.alertsTitle"),
+          tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          title: t("eventAdmin.reports"),
+          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="more"
+        options={{
+          title: t("eventAdmin.more"),
+          tabBarIcon: ({ color }) => <Feather name="grid" size={22} color={color} />,
+        }}
+      />
+
+      {/* Hidden from tab bar — accessible via More screen */}
+      <Tabs.Screen name="users" options={{ href: null }} />
+      <Tabs.Screen name="wristbands" options={{ href: null }} />
+      <Tabs.Screen name="transactions" options={{ href: null }} />
+      <Tabs.Screen name="inventory" options={{ href: null }} />
+      <Tabs.Screen name="analytics" options={{ href: null }} />
+      <Tabs.Screen name="promoter-summary" options={{ href: null }} />
+      <Tabs.Screen name="event-settings" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );

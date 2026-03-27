@@ -72,7 +72,8 @@
     "notSet": "Not set",
     "passwordMinLength": "Password must be at least 6 characters",
     "unexpectedError": "An unexpected error occurred",
-    "endOfList": "No more items"
+    "endOfList": "No more items",
+    "more": "More"
   },
   "auth": {
     "title": "Tapee",
@@ -594,7 +595,8 @@
     "flaggedBracelets": "Flagged Bracelets",
     "flaggedBraceletsDescription": "Bracelets automatically flagged for balance discrepancies or offline limit violations.",
     "noFlaggedBracelets": "No flagged bracelets for this event.",
-    "flaggedBracelets_alert": "Tap to review in Event Settings"
+    "flaggedBracelets_alert": "Tap to review in Event Settings",
+    "more": "More"
   },
   "inventory": {
     "tab": "Inventory",
