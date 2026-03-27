@@ -191,12 +191,16 @@ export default function BankLookupScreen() {
 
   const handleTopUp = () => {
     if (!bracelet) return;
-    const apiBalance = apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance;
+    // When NFC was scanned, the tag is the wallet — trust it over stale server value.
+    // For manual UID entry (tagInfo is null), fall back to the API balance.
+    const startBalance = tagInfo
+      ? bracelet.balance
+      : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance);
     router.push({
       pathname: "/(bank)/topup",
       params: {
         uid: bracelet.uid,
-        balance: String(apiBalance),
+        balance: String(startBalance),
         counter: String(bracelet.counter),
         hmac: bracelet.hmac,
         tagType: tagInfo?.type ?? "",
@@ -211,12 +215,14 @@ export default function BankLookupScreen() {
 
   const handleRefund = () => {
     if (!bracelet) return;
-    const apiBalance = apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance;
+    const startBalance = tagInfo
+      ? bracelet.balance
+      : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance);
     router.push({
       pathname: "/(bank)/refund",
       params: {
         uid: bracelet.uid,
-        balance: String(apiBalance),
+        balance: String(startBalance),
         counter: String(bracelet.counter),
         hmac: bracelet.hmac,
         tagType: tagInfo?.type ?? "",
@@ -229,7 +235,11 @@ export default function BankLookupScreen() {
     });
   };
 
-  const displayBalance = apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet?.balance ?? 0;
+  // NFC tag is the physical wallet — prefer its balance when it was scanned.
+  // Fall back to server value only for manual UID entry (no NFC tagInfo).
+  const displayBalance = tagInfo
+    ? (bracelet?.balance ?? 0)
+    : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet?.balance ?? 0);
   const isFlagged = apiRecord?.isFlagged ?? false;
 
   return (
