@@ -227,21 +227,6 @@ export default function LoginScreen() {
             </View>
           )}
 
-          <View style={styles.features}>
-            {[
-              { icon: "zap" as const, text: t("auth.featureNfc") },
-              { icon: "shield" as const, text: t("auth.featureHmac") },
-              { icon: "wifi-off" as const, text: t("auth.featureOffline") },
-            ].map((f) => (
-              <View key={f.icon} style={styles.featureRow}>
-                <View style={[styles.featureIcon, { backgroundColor: C.primaryLight }]}>
-                  <Feather name={f.icon} size={18} color={C.primary} />
-                </View>
-                <Text style={[styles.featureText, { color: C.textSecondary }]}>{f.text}</Text>
-              </View>
-            ))}
-          </View>
-
           <Text style={[styles.disclaimer, { color: C.textMuted }]}>{t("auth.disclaimer")}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -251,12 +236,12 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  inner: { flexGrow: 1, paddingHorizontal: 28, paddingVertical: 12, gap: 12, justifyContent: "center" },
-  logoSection: { alignItems: "center", gap: 4 },
-  logoImage: { width: "65%", maxWidth: 210, aspectRatio: 1199 / 435 },
-  subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
-  form: { gap: 8 },
-  rememberRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 2 },
+  inner: { flexGrow: 1, paddingHorizontal: 28, paddingVertical: 20, gap: 20, justifyContent: "center" },
+  logoSection: { alignItems: "center", gap: 8 },
+  logoImage: { width: "78%", maxWidth: 300, aspectRatio: 1199 / 435 },
+  subtitle: { fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center" },
+  form: { gap: 12 },
+  rememberRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 2 },
   checkbox: {
     width: 20,
     height: 20,
