@@ -74,8 +74,8 @@ export default function CheckBalanceScreen() {
     setServerLoading(true);
     try {
       const [infoRes, txRes] = await Promise.all([
-        customFetch<BraceletInfo>(`/bracelets/${uid}`, "GET"),
-        customFetch<{ transactions: TxEntry[] }>(`/bracelets/${uid}/transactions?limit=5`, "GET"),
+        customFetch<BraceletInfo>(`/api/bracelets/${uid}`),
+        customFetch<{ transactions: TxEntry[] }>(`/api/bracelets/${uid}/transactions?limit=5`),
       ]);
       setBracelet(infoRes ?? null);
       setTransactions(txRes?.transactions ?? []);
@@ -147,7 +147,7 @@ export default function CheckBalanceScreen() {
               });
 
               // Sync the DB reset
-              await customFetch(`/admin/bracelets/${result.uid}/reset-balance`, "POST");
+              await customFetch(`/api/admin/bracelets/${result.uid}/reset-balance`, { method: "POST" });
 
               setResult((prev) => prev ? { ...prev, balance: 0 } : prev);
               setBracelet((prev) => prev);
