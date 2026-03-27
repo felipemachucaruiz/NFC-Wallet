@@ -309,18 +309,13 @@ export default function ChargeScreen() {
   useFocusEffect(
     useCallback(() => {
       cancelledRef.current = false;
-      if (stepRef.current === "waiting" && isNfcSupported() && !isOfflineLimitReached) {
-        setNfcModalVisible(true);
-        scanningRef.current = false;
-        startNfcScan();
-      }
       return () => {
         cancelledRef.current = true;
         cancelNfc().catch(() => {});
         scanningRef.current = false;
         setNfcModalVisible(false);
       };
-    }, [isOfflineLimitReached])
+    }, [])
   );
 
   const StepIcon = () => {
@@ -514,7 +509,7 @@ export default function ChargeScreen() {
         )}
       </View>
 
-      {/* ── NFC Scan Modal (auto-starts on focus) ── */}
+      {/* ── NFC Scan Modal ── */}
       <Modal
         visible={nfcModalVisible}
         transparent
