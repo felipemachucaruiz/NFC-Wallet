@@ -75,13 +75,47 @@ export default function BankLookupScreen() {
   const [fetchUid, setFetchUid] = useState<string | null>(null);
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const scanningRef = useRef(false);
+  const cancelledRef = useRef(false);
 
-  // Reset scan state whenever this screen comes back into focus (e.g. after topup/refund)
+  // Auto-start NFC scan when screen comes into focus (e.g. opening or returning from topup/refund)
   useFocusEffect(
     useCallback(() => {
       setBracelet(null);
       setFetchUid(null);
       setTagInfo(null);
+      scanningRef.current = false;
+      cancelledRef.current = false;
+
+      if (isNfcSupported()) {
+        setIsTapping(true);
+        scanningRef.current = true;
+        scanBracelet()
+          .then((result) => {
+            if (cancelledRef.current) return;
+            setBracelet(result.payload);
+            setTagInfo(result.tagInfo);
+            setFetchUid(result.payload.uid);
+          })
+          .catch((e: unknown) => {
+            if (cancelledRef.current) return;
+            const msg = e instanceof Error ? e.message : "";
+            if (!msg.includes("cancelled") && !msg.includes("cancel") && !msg.includes("Cancel")) {
+              // Silently fail — user can tap the button manually
+            }
+          })
+          .finally(() => {
+            if (!cancelledRef.current) setIsTapping(false);
+            scanningRef.current = false;
+          });
+      }
+
+      return () => {
+        cancelledRef.current = true;
+        cancelNfc().catch(() => {});
+        scanningRef.current = false;
+        setIsTapping(false);
+      };
     }, [])
   );
 
@@ -107,24 +141,32 @@ export default function BankLookupScreen() {
       setShowManual(true);
       return;
     }
+    if (scanningRef.current) return;
+    cancelledRef.current = false;
+    scanningRef.current = true;
     setIsTapping(true);
     try {
       const result = await scanBracelet();
+      if (cancelledRef.current) return;
       setBracelet(result.payload);
       setTagInfo(result.tagInfo);
       setFetchUid(result.payload.uid);
     } catch (e: unknown) {
+      if (cancelledRef.current) return;
       const msg = e instanceof Error ? e.message : "";
       if (!msg.includes("cancelled") && !msg.includes("cancel") && !msg.includes("Cancel")) {
         Alert.alert(t("common.error"), t("common.unknownError"));
       }
     } finally {
-      setIsTapping(false);
+      scanningRef.current = false;
+      if (!cancelledRef.current) setIsTapping(false);
     }
   };
 
   const handleCancelScan = async () => {
+    cancelledRef.current = true;
     await cancelNfc();
+    scanningRef.current = false;
     setIsTapping(false);
   };
 
