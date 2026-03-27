@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useListMerchants, useCreateMerchant, useUpdateMerchant } from "@workspace/api-client-react";
+import { useListMerchants, useCreateMerchant, useUpdateMerchant, customFetch } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -53,6 +53,7 @@ export default function EventAdminMerchantsScreen() {
   const [editingMerchant, setEditingMerchant] = useState<Merchant | null>(null);
   const [fiscalFuente, setFiscalFuente] = useState("0");
   const [fiscalICA, setFiscalICA] = useState("0");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useListMerchants({});
   const merchants: Merchant[] = (data as { merchants?: Merchant[] } | undefined)?.merchants ?? [];
@@ -82,6 +83,36 @@ export default function EventAdminMerchantsScreen() {
     } catch {
       Alert.alert(t("common.error"), t("common.unknownError"));
     }
+  };
+
+  const handleDeleteMerchant = (merchant: Merchant) => {
+    Alert.alert(
+      t("admin.deleteMerchant"),
+      t("admin.deleteMerchantConfirm", { name: merchant.name }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("admin.deleteMerchant"),
+          style: "destructive",
+          onPress: async () => {
+            setDeletingId(merchant.id);
+            try {
+              await customFetch(`/api/merchants/${merchant.id}`, { method: "DELETE" });
+              refetch();
+            } catch (e: unknown) {
+              const msg = (e as { data?: { error?: string } })?.data?.error ?? "";
+              if (msg.includes("transaction history")) {
+                Alert.alert(t("admin.cannotDelete"), t("admin.merchantHasTransactions"));
+              } else {
+                Alert.alert(t("common.error"), t("common.unknownError"));
+              }
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleCreate = async () => {
@@ -159,6 +190,14 @@ export default function EventAdminMerchantsScreen() {
                 >
                   <Feather name="percent" size={12} color={C.textSecondary} />
                   <Text style={[styles.fiscalBtnText, { color: C.textSecondary }]}>{t("merchant_admin.fiscalSettings")}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleDeleteMerchant(item)}
+                  disabled={deletingId === item.id}
+                  style={[styles.fiscalBtn, { backgroundColor: "#fee2e2" }]}
+                >
+                  <Feather name="trash-2" size={12} color="#dc2626" />
+                  <Text style={[styles.fiscalBtnText, { color: "#dc2626" }]}>{t("admin.deleteMerchant")}</Text>
                 </Pressable>
               </View>
             </View>

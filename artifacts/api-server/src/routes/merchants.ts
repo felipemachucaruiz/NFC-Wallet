@@ -11,6 +11,7 @@ import {
   userLocationAssignmentsTable,
   restockOrdersTable,
   stockMovementsTable,
+  usersTable,
 } from "@workspace/db";
 import { eq, and, gte, lte, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
@@ -256,11 +257,19 @@ router.delete(
   requireRole("admin", "event_admin"),
   async (req: Request, res: Response) => {
     const { merchantId } = req.params as { merchantId: string };
+    const user = req.user!;
 
     const merchant = await db.query.merchantsTable.findFirst({
       where: eq(merchantsTable.id, merchantId),
     });
     if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+    // event_admin may only delete merchants belonging to their own event
+    if (user.role === "event_admin") {
+      if (!user.eventId || merchant.eventId !== user.eventId) {
+        return res.status(403).json({ error: "Access denied: merchant does not belong to your event" });
+      }
+    }
 
     // Block deletion if any transaction history exists
     const txCount = await db.$count(transactionLogsTable, eq(transactionLogsTable.merchantId, merchantId));
@@ -295,6 +304,11 @@ router.delete(
     if (productIds.length > 0) {
       await db.delete(productsTable).where(inArray(productsTable.id, productIds));
     }
+
+    // Delete all merchant_admin and merchant_staff users linked to this merchant
+    await db
+      .delete(usersTable)
+      .where(eq(usersTable.merchantId, merchantId));
 
     await db.delete(merchantsTable).where(eq(merchantsTable.id, merchantId));
 
