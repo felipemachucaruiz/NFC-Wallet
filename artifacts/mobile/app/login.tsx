@@ -251,9 +251,9 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  inner: { flexGrow: 1, paddingHorizontal: 28, paddingVertical: 40, gap: 28, justifyContent: "center" },
-  logoSection: { alignItems: "center", gap: 12 },
-  logoImage: { width: "72%", maxWidth: 280, aspectRatio: 1199 / 435 },
+  inner: { flexGrow: 1, paddingHorizontal: 28, paddingVertical: 24, gap: 20, justifyContent: "center" },
+  logoSection: { alignItems: "center", gap: 6 },
+  logoImage: { width: "70%", maxWidth: 260, aspectRatio: 1199 / 435 },
   subtitle: { fontSize: 16, fontFamily: "Inter_400Regular", textAlign: "center" },
   form: { gap: 14 },
   rememberRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 4 },
