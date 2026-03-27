@@ -7,7 +7,7 @@ const DOUBLE_LOCATION_WINDOW_MS = 5 * 60 * 1000;
 const HIGH_VALUE_WINDOW_MS = 10 * 60 * 1000;
 const HIGH_VALUE_COUNT_THRESHOLD = 5;
 
-async function createAlert(params: {
+export async function createAlert(params: {
   eventId: string;
   type: "double_location" | "offline_volume_anomaly" | "high_value_staff" | "balance_increase_no_topup" | "manual_report" | "hmac_invalid";
   severity: "low" | "medium" | "high" | "critical";

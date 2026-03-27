@@ -3,6 +3,8 @@ import { db, transactionLogsTable, transactionLineItemsTable, topUpsTable, merch
 import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
+import { createAlert } from "../lib/fraudDetection";
+import type { AuthUser } from "@workspace/api-zod";
 
 async function getEventIdsByPromoterCompany(promoterCompanyId: string): Promise<string[]> {
   const rows = await db
@@ -531,11 +533,31 @@ router.post(
       return;
     }
     const { nfcUid, reason } = parsed.data;
+    const user = req.user as AuthUser | undefined;
 
+    // Flag the bracelet
     await db
       .update(braceletsTable)
       .set({ flagged: true, flagReason: reason ?? "HMAC verification failed", updatedAt: new Date() })
       .where(eq(braceletsTable.nfcUid, nfcUid));
+
+    // Also create a fraud alert so event_admin is notified immediately
+    const [bracelet] = await db
+      .select({ eventId: braceletsTable.eventId })
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+
+    if (bracelet?.eventId) {
+      void createAlert({
+        eventId: bracelet.eventId,
+        type: "hmac_invalid",
+        severity: "critical",
+        entityType: "bracelet",
+        entityId: nfcUid,
+        description: `HMAC verification failed for bracelet ${nfcUid}. Bracelet has been quarantined automatically. Reason: ${reason ?? "HMAC mismatch detected at merchant POS"}.`,
+        reportedBy: user?.id ?? null,
+      });
+    }
 
     res.json({ success: true });
   },
