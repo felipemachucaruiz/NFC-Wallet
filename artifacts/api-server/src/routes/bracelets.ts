@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, eventsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { requireRole } from "../middlewares/requireRole";
+import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -60,9 +60,12 @@ router.post(
   },
 );
 
+/**
+ * @summary Get bracelet by NFC UID — any authenticated user can check a bracelet
+ */
 router.get(
   "/bracelets/:nfcUid",
-  requireRole("bank", "admin", "merchant_staff", "merchant_admin"),
+  requireAuth,
   async (req: Request, res: Response) => {
     const [bracelet] = await db
       .select()
@@ -73,6 +76,38 @@ router.get(
       return;
     }
     res.json(bracelet);
+  },
+);
+
+/**
+ * @summary Get recent transactions for a bracelet — any authenticated user
+ */
+router.get(
+  "/bracelets/:nfcUid/transactions",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const { nfcUid } = req.params as { nfcUid: string };
+    const limitStr = req.query.limit as string | undefined;
+    const limit = Math.min(Math.max(parseInt(limitStr ?? "5", 10) || 5, 1), 20);
+
+    const transactions = await db
+      .select({
+        id: transactionLogsTable.id,
+        grossAmountCop: transactionLogsTable.grossAmountCop,
+        newBalanceCop: transactionLogsTable.newBalanceCop,
+        createdAt: transactionLogsTable.createdAt,
+        offlineCreatedAt: transactionLogsTable.offlineCreatedAt,
+        merchantName: merchantsTable.name,
+        locationName: locationsTable.name,
+      })
+      .from(transactionLogsTable)
+      .leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id))
+      .leftJoin(locationsTable, eq(transactionLogsTable.locationId, locationsTable.id))
+      .where(eq(transactionLogsTable.braceletUid, nfcUid))
+      .orderBy(desc(transactionLogsTable.createdAt))
+      .limit(limit);
+
+    res.json({ transactions });
   },
 );
 
@@ -95,6 +130,33 @@ router.patch(
     const [updated] = await db
       .update(braceletsTable)
       .set({ flagged: false, flagReason: null, updatedAt: new Date() })
+      .where(eq(braceletsTable.nfcUid, nfcUid))
+      .returning();
+    res.json(updated);
+  },
+);
+
+/**
+ * @summary Reset a bracelet's balance to zero (admin only).
+ * The NFC tag must also be physically written by the caller; this endpoint
+ * syncs the server-side lastKnownBalanceCop to 0.
+ */
+router.post(
+  "/admin/bracelets/:nfcUid/reset-balance",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const { nfcUid } = req.params as { nfcUid: string };
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+    if (!bracelet) {
+      res.status(404).json({ error: "Bracelet not found" });
+      return;
+    }
+    const [updated] = await db
+      .update(braceletsTable)
+      .set({ lastKnownBalanceCop: 0, updatedAt: new Date() })
       .where(eq(braceletsTable.nfcUid, nfcUid))
       .returning();
     res.json(updated);

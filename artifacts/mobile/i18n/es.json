@@ -17,6 +17,7 @@
     "logout": "Cerrar sesión",
     "settings": "Configuración",
     "language": "Idioma",
+    "tools": "Herramientas",
     "merchant": "Comercio",
     "event": "Evento",
     "spanish": "Español",
@@ -813,7 +814,11 @@
     "deleteRecordConfirm": "¿Eliminar permanentemente esta pulsera del sistema? El historial de transacciones se conserva. La tarjeta física puede volver a registrarse.",
     "deleteRecordSuccess": "Registro de pulsera eliminado",
     "flagReason": "Motivo de bloqueo",
-    "noUidEntered": "Por favor escanea o ingresa un UID primero"
+    "noUidEntered": "Por favor escanea o ingresa un UID primero",
+    "resetBalance": "Resetear saldo",
+    "resetBalanceConfirm": "Esto escribirá cero en el tag NFC de la pulsera y reseteará su saldo en el sistema. Escanea la pulsera para confirmar.",
+    "resetBalanceSuccess": "Saldo reseteado a cero",
+    "resetBalanceError": "No se pudo resetear el saldo"
   },
   "common_notfound": {
     "title": "Página no encontrada",
@@ -989,5 +994,24 @@
     "empty": "No se encontraron transacciones para este evento",
     "searchPlaceholder": "Buscar por comercio o pulsera",
     "unknownProduct": "Producto desconocido"
+  },
+  "checkBalance": {
+    "title": "Consultar Pulsera",
+    "subtitle": "Escanea cualquier pulsera para ver su saldo y cobros recientes",
+    "scanBtn": "Escanear Pulsera",
+    "scanning": "Escaneando...",
+    "balance": "Saldo",
+    "braceletId": "ID de Pulsera",
+    "owner": "Titular",
+    "event": "Evento",
+    "recentTx": "Transacciones Recientes",
+    "noTx": "No se encontraron transacciones para esta pulsera",
+    "nfcNotSupported": "NFC no está disponible en este dispositivo",
+    "flagged": "Bloqueada",
+    "wrongBracelet": "Pulsera incorrecta — por favor escanea la misma pulsera nuevamente",
+    "resetBalance": "Resetear saldo a cero",
+    "resetBalanceConfirm": "Esto escribirá 0 en el tag NFC de la pulsera y reseteará su saldo en el sistema. Escanea la pulsera para confirmar.",
+    "resetBalanceSuccess": "Saldo reseteado a cero exitosamente",
+    "resetBalanceError": "No se pudo resetear el saldo. Intenta nuevamente."
   }
 }

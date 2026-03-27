@@ -17,6 +17,7 @@
     "logout": "Logout",
     "settings": "Settings",
     "language": "Language",
+    "tools": "Tools",
     "merchant": "Merchant",
     "event": "Event",
     "spanish": "Español",
@@ -824,7 +825,11 @@
     "deleteRecordConfirm": "Permanently delete this bracelet from the system? Transaction history is preserved. The physical card can be re-registered.",
     "deleteRecordSuccess": "Bracelet record deleted",
     "flagReason": "Ban reason",
-    "noUidEntered": "Please scan or enter a UID first"
+    "noUidEntered": "Please scan or enter a UID first",
+    "resetBalance": "Reset balance",
+    "resetBalanceConfirm": "This will write zero to the bracelet's NFC tag and reset its balance in the system. Scan the bracelet to confirm.",
+    "resetBalanceSuccess": "Balance reset to zero",
+    "resetBalanceError": "Failed to reset balance"
   },
   "common_notfound": {
     "title": "Page not found",
@@ -1000,5 +1005,24 @@
     "empty": "No transactions found for this event",
     "searchPlaceholder": "Search by merchant or wristband",
     "unknownProduct": "Unknown product"
+  },
+  "checkBalance": {
+    "title": "Check Bracelet",
+    "subtitle": "Scan any bracelet to see its balance and recent charges",
+    "scanBtn": "Scan Bracelet",
+    "scanning": "Scanning...",
+    "balance": "Balance",
+    "braceletId": "Bracelet ID",
+    "owner": "Owner",
+    "event": "Event",
+    "recentTx": "Recent Transactions",
+    "noTx": "No transactions found for this bracelet",
+    "nfcNotSupported": "NFC is not available on this device",
+    "flagged": "Flagged",
+    "wrongBracelet": "Wrong bracelet scanned — please scan the same bracelet again",
+    "resetBalance": "Reset balance to zero",
+    "resetBalanceConfirm": "This will write 0 to the bracelet's NFC tag and reset its balance in the system. Scan the bracelet to confirm.",
+    "resetBalanceSuccess": "Balance reset to zero successfully",
+    "resetBalanceError": "Failed to reset balance. Please try again."
   }
 }
