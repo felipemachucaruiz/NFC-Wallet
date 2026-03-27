@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Modal,
@@ -42,6 +42,12 @@ export function SuspiciousReportModal({ visible, onClose, prefillUid }: Props) {
   const [uid, setUid] = useState(prefillUid ?? "");
   const [reason, setReason] = useState<ManualReportReason>("wrong_balance");
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (visible) {
+      setUid(prefillUid ?? "");
+    }
+  }, [visible, prefillUid]);
 
   const reportMutation = useReportSuspiciousBracelet();
 
