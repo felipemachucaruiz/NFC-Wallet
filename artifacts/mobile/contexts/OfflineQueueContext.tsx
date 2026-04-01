@@ -33,6 +33,7 @@ export interface QueuedTransaction {
     unitCostCop: number;
   }>;
   grossAmountCop: number;
+  hmac?: string;
   createdAt: string;
   status: "pending" | "syncing" | "failed";
   failCount: number;
@@ -47,6 +48,7 @@ export interface QueuedTopUp {
   paymentMethod: string;
   newBalance: number;
   newCounter: number;
+  hmac?: string;
   createdAt: string;
   status: "pending" | "syncing" | "failed";
   failCount: number;
@@ -302,6 +304,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
                   quantity: li.quantity,
                 })),
                 offlineCreatedAt: item.createdAt,
+                ...(item.hmac ? { hmac: item.hmac } : {}),
               },
             ],
           });
@@ -369,6 +372,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
               newBalance: item.newBalance,
               newCounter: item.newCounter,
               offlineCreatedAt: item.createdAt,
+              ...(item.hmac ? { hmac: item.hmac } : {}),
             }),
           });
           tq = topUpQueueRef.current.filter((t) => t.id !== item.id);

@@ -86,6 +86,10 @@ export interface MobileTokenExchangeSuccess {
 
 export interface SigningKeyResponse {
   hmacSecret: string;
+  legacyHmacSecret?: string | null;
+  useKdf?: boolean;
+  offlineSyncLimit?: number | null;
+  maxOfflineSpendPerBracelet?: number | null;
 }
 
 export type InventoryMode = (typeof InventoryMode)[keyof typeof InventoryMode];
@@ -735,6 +739,7 @@ export interface LogTransactionBody {
   /** @minItems 1 */
   lineItems: TransactionLineItemInput[];
   offlineCreatedAt?: string;
+  hmac?: string;
 }
 
 export interface SyncTransactionsBody {

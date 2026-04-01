@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useUpdateBraceletContact, useGetSigningKey } from "@workspace/api-client-react";
+import { useUpdateBraceletContact, useGetSigningKey, type SigningKeyResponse } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
@@ -234,7 +234,7 @@ export default function TopUpScreen() {
           desfireAesKey
         );
       } else {
-        const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
+        const newHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
         await writeBracelet(
           { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
           tagInfoFromParams ?? undefined
@@ -248,6 +248,7 @@ export default function TopUpScreen() {
         paymentMethod,
         newBalance,
         newCounter,
+        hmac: newHmac,
       });
       submittingRef.current = false;
       void syncToServer(true);

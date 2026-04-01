@@ -1,11 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, transactionLogsTable, transactionLineItemsTable, productsTable, locationInventoryTable, braceletsTable, merchantsTable, locationsTable, restockOrdersTable, userLocationAssignmentsTable, stockMovementsTable } from "@workspace/db";
+import { db, transactionLogsTable, transactionLineItemsTable, productsTable, locationInventoryTable, braceletsTable, eventsTable, merchantsTable, locationsTable, restockOrdersTable, userLocationAssignmentsTable, stockMovementsTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import type { AuthUser } from "@workspace/api-zod";
 import { z } from "zod";
 import { getEventInventoryMode } from "./events";
 import { runFraudDetection, runSyncFraudDetection } from "../lib/fraudDetection";
+import { deriveEventKey, verifyBraceletHmac } from "../lib/kdf";
 
 const router: IRouter = Router();
 
@@ -22,6 +23,7 @@ const logTransactionSchema = z.object({
   counter: z.number().int().min(0),
   lineItems: z.array(lineItemInputSchema).min(1),
   offlineCreatedAt: z.string().optional(),
+  hmac: z.string().optional(),
 });
 
 type LogTransactionInput = z.infer<typeof logTransactionSchema>;
@@ -108,6 +110,67 @@ async function processTransaction(
     const expectedNewBalance = bracelet.lastKnownBalanceCop - input.newBalance;
     if (expectedNewBalance < 0) {
       return { status: "error", error: "Insufficient bracelet balance" };
+    }
+  }
+
+  // Server-side HMAC verification
+  // Resolve the event's HMAC configuration regardless of whether the client sent an HMAC
+  {
+    const eventId = bracelet.eventId ?? null;
+    const candidateKeys: string[] = [];
+    let useKdf = false;
+
+    if (eventId) {
+      const [event] = await db
+        .select({ useKdf: eventsTable.useKdf, hmacSecret: eventsTable.hmacSecret })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, eventId));
+
+      if (event?.useKdf) {
+        useKdf = true;
+        const masterKey = process.env.HMAC_MASTER_KEY;
+        if (!masterKey) {
+          return { status: "error", error: "Server configuration error: HMAC_MASTER_KEY not configured" };
+        }
+        // Primary key: KDF-derived event key
+        candidateKeys.push(deriveEventKey(masterKey, eventId));
+        // Fallback: pre-KDF per-event key so existing bracelets keep working during migration
+        if (event.hmacSecret) candidateKeys.push(event.hmacSecret);
+      } else if (event?.hmacSecret) {
+        candidateKeys.push(event.hmacSecret);
+      }
+    }
+
+    // Always include global HMAC_SECRET as the final fallback candidate.
+    // This covers: (a) event-null bracelets, (b) events with no per-event key,
+    // and (c) KDF events whose bracelets were originally signed with the global
+    // secret before a per-event key or KDF was set up.
+    const globalSecret = process.env.HMAC_SECRET;
+    if (globalSecret && !candidateKeys.includes(globalSecret)) {
+      candidateKeys.push(globalSecret);
+    }
+
+    if (candidateKeys.length > 0) {
+      if (useKdf && !input.hmac) {
+        // KDF-enabled events require HMAC for all transactions — no bypass allowed
+        return { status: "error", error: "HMAC_REQUIRED: Bracelet signature required for this event" };
+      }
+
+      if (input.hmac) {
+        // Verify the signature written on the chip.
+        // Tries all candidate keys: derived key first (KDF), then pre-KDF legacy key,
+        // each with UID-bound payload (new format) and without UID (old format).
+        const { valid } = verifyBraceletHmac(
+          input.newBalance,
+          input.counter,
+          input.hmac,
+          candidateKeys,
+          input.nfcUid,
+        );
+        if (!valid) {
+          return { status: "error", error: "HMAC_UID_MISMATCH: Bracelet signature invalid — possible clone or tamper detected" };
+        }
+      }
     }
   }
 

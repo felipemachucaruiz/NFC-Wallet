@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useLogTransaction, useGetSigningKey, useReportTamper, useGetEvent } from "@workspace/api-client-react";
+import { useLogTransaction, useGetSigningKey, useReportTamper, useGetEvent, type SigningKeyResponse } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
@@ -118,9 +118,17 @@ export default function ChargeScreen() {
   const displayItems = snapshotItems.length > 0 ? snapshotItems : cartItems;
   const total = snapshotTotal > 0 ? snapshotTotal : liveTotal;
   const { data: keyData } = useGetSigningKey();
-  const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
-  const desfireAesKey = (keyData as unknown as { desfireAesKey?: string } | undefined)?.desfireAesKey ?? "";
+  const keyDataTyped = keyData as unknown as {
+    hmacSecret?: string;
+    legacyHmacSecret?: string | null;
+    desfireAesKey?: string;
+    offlineSyncLimit?: number;
+  } | undefined;
+  const networkHmacSecret = keyDataTyped?.hmacSecret ?? "";
+  const legacyHmacSecret = keyDataTyped?.legacyHmacSecret ?? null;
+  const desfireAesKey = keyDataTyped?.desfireAesKey ?? "";
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
+  const legacyKeysForScan = legacyHmacSecret ? [legacyHmacSecret] : [];
 
   React.useEffect(() => {
     if (networkHmacSecret) {
@@ -129,11 +137,10 @@ export default function ChargeScreen() {
   }, [networkHmacSecret, updateCachedHmacSecret]);
 
   React.useEffect(() => {
-    const keyDataTyped = keyData as unknown as { offlineSyncLimit?: number } | undefined;
     if (keyDataTyped?.offlineSyncLimit) {
       updateOfflineLimits(keyDataTyped.offlineSyncLimit);
     }
-  }, [keyData, updateOfflineLimits]);
+  }, [keyDataTyped?.offlineSyncLimit, updateOfflineLimits]);
 
   const logTransaction = useLogTransaction();
   const reportTamper = useReportTamper();
@@ -164,7 +171,7 @@ export default function ChargeScreen() {
     return () => loop.stop();
   }, [nfcModalVisible]);
 
-  const logAndFinish = async (uid: string, newBalance: number, newCounter: number) => {
+  const logAndFinish = async (uid: string, newBalance: number, newCounter: number, newHmac?: string) => {
     setStep("logging");
     const lineItems = snapshotItems.map((i) => ({
       productId: i.productId,
@@ -183,6 +190,7 @@ export default function ChargeScreen() {
           counter: newCounter,
           lineItems: lineItems.map((li) => ({ productId: li.productId, quantity: li.quantity })),
           offlineCreatedAt: new Date().toISOString(),
+          ...(newHmac ? { hmac: newHmac } : {}),
         },
       });
     } catch {
@@ -193,6 +201,7 @@ export default function ChargeScreen() {
         counter: newCounter,
         lineItems,
         grossAmountCop: total,
+        hmac: newHmac,
       });
     }
     clearCart();
@@ -205,7 +214,7 @@ export default function ChargeScreen() {
     setStep("verifying");
     let hmacOk = true;
     if (hmacSecret && hmac) {
-      hmacOk = await verifyHmac(balance, counter, hmac, hmacSecret);
+      hmacOk = await verifyHmac(balance, counter, hmac, hmacSecret, uid, legacyKeysForScan);
     }
     if (!hmacOk) {
       setStep("hmac_fail");
@@ -246,6 +255,7 @@ export default function ChargeScreen() {
     let uid = "";
     let newBalance = 0;
     let newCounter = 0;
+    let writtenHmac = "";
 
     const onlyDesfire = configuredAllowedTypes.length === 1 && configuredAllowedTypes[0] === "desfire_ev3";
 
@@ -313,7 +323,7 @@ export default function ChargeScreen() {
           setStep("verifying");
           let hmacOk = true;
           if (hmacSecret && payload.hmac) {
-            hmacOk = await verifyHmac(payload.balance, payload.counter, payload.hmac, hmacSecret);
+            hmacOk = await verifyHmac(payload.balance, payload.counter, payload.hmac, hmacSecret, payload.uid, legacyKeysForScan);
           }
           if (!hmacOk) {
             setStep("hmac_fail");
@@ -340,8 +350,8 @@ export default function ChargeScreen() {
           newBalance = payload.balance - total;
           newCounter = payload.counter + 1;
           setStep("writing");
-          const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
-          return { uid, balance: newBalance, counter: newCounter, hmac: newHmac };
+          writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
+          return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
         }, { expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x" });
       } catch {
         if (!aborted && !cancelledRef.current) {
@@ -358,7 +368,7 @@ export default function ChargeScreen() {
     scanningRef.current = false;
     if (!aborted) {
       setNfcModalVisible(false);
-      await logAndFinish(uid, newBalance, newCounter);
+      await logAndFinish(uid, newBalance, newCounter, writtenHmac || undefined);
     }
   };
 

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, eventsTable, merchantsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { deriveEventKey } from "../lib/kdf";
 
 const router: IRouter = Router();
 
@@ -47,6 +48,7 @@ router.get(
     const [event] = await db
       .select({
         hmacSecret: eventsTable.hmacSecret,
+        useKdf: eventsTable.useKdf,
         offlineSyncLimit: eventsTable.offlineSyncLimit,
         maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
         nfcChipType: eventsTable.nfcChipType,
@@ -60,10 +62,37 @@ router.get(
       return;
     }
 
+    // KDF path: derive event key from master key
+    if (event.useKdf) {
+      const masterKey = process.env.HMAC_MASTER_KEY;
+      if (!masterKey) {
+        res.status(500).json({ error: "HMAC_MASTER_KEY not configured" });
+        return;
+      }
+      const derivedKey = deriveEventKey(masterKey, eventId);
+      // Return the pre-KDF legacy key so the POS can verify bracelets that were
+      // signed before KDF was enabled. Falls back to global HMAC_SECRET for events
+      // that never had a per-event key and used the global secret directly.
+      const response: Record<string, unknown> = {
+        hmacSecret: derivedKey,
+        legacyHmacSecret: event.hmacSecret ?? process.env.HMAC_SECRET ?? null,
+        useKdf: true,
+        offlineSyncLimit: event.offlineSyncLimit,
+        maxOfflineSpendPerBracelet: event.maxOfflineSpendPerBracelet,
+        nfcChipType: event.nfcChipType,
+      };
+      if (event.nfcChipType === "desfire_ev3" && event.desfireAesKey) {
+        response.desfireAesKey = event.desfireAesKey;
+      }
+      res.json(response);
+      return;
+    }
+
     if (event.hmacSecret) {
       // Event has its own key (standard path)
       const response: Record<string, unknown> = {
         hmacSecret: event.hmacSecret,
+        useKdf: false,
         offlineSyncLimit: event.offlineSyncLimit,
         maxOfflineSpendPerBracelet: event.maxOfflineSpendPerBracelet,
         nfcChipType: event.nfcChipType,
@@ -81,12 +110,17 @@ router.get(
       res.status(500).json({ error: "HMAC_SECRET not configured and event has no per-event key" });
       return;
     }
-    res.json({
+    const response: Record<string, unknown> = {
       hmacSecret,
+      useKdf: false,
       offlineSyncLimit: event.offlineSyncLimit,
       maxOfflineSpendPerBracelet: event.maxOfflineSpendPerBracelet,
       nfcChipType: event.nfcChipType,
-    });
+    };
+    if (event.nfcChipType === "desfire_ev3" && event.desfireAesKey) {
+      response.desfireAesKey = event.desfireAesKey;
+    }
+    res.json(response);
   },
 );
 

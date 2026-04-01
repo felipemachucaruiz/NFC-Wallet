@@ -19,6 +19,7 @@ export const eventsTable = pgTable("events", {
   pulepId: varchar("pulep_id", { length: 100 }),
   inventoryMode: inventoryModeEnum("inventory_mode").notNull().default("location_based"),
   hmacSecret: varchar("hmac_secret", { length: 128 }),
+  useKdf: boolean("use_kdf").notNull().default(true),
   nfcChipType: nfcChipTypeEnum("nfc_chip_type").notNull().default("ntag_21x"),
   allowedNfcTypes: jsonb("allowed_nfc_types").$type<string[]>().notNull().default(sql`'["ntag_21x"]'::jsonb`),
   offlineSyncLimit: integer("offline_sync_limit").notNull().default(500000),
