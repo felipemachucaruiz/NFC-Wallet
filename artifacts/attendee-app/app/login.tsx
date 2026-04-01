@@ -5,8 +5,10 @@ import { router } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useEffect, useState } from "react";
 import {
+  FlatList,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -24,6 +26,28 @@ const loginBgVideo = require("@/assets/login-bg.mp4");
 
 type AuthTab = "login" | "register";
 
+const COUNTRY_CODES = [
+  { code: "+57", flag: "🇨🇴", name: "Colombia" },
+  { code: "+1", flag: "🇺🇸", name: "Estados Unidos" },
+  { code: "+52", flag: "🇲🇽", name: "México" },
+  { code: "+54", flag: "🇦🇷", name: "Argentina" },
+  { code: "+55", flag: "🇧🇷", name: "Brasil" },
+  { code: "+56", flag: "🇨🇱", name: "Chile" },
+  { code: "+51", flag: "🇵🇪", name: "Perú" },
+  { code: "+58", flag: "🇻🇪", name: "Venezuela" },
+  { code: "+593", flag: "🇪🇨", name: "Ecuador" },
+  { code: "+595", flag: "🇵🇾", name: "Paraguay" },
+  { code: "+598", flag: "🇺🇾", name: "Uruguay" },
+  { code: "+591", flag: "🇧🇴", name: "Bolivia" },
+  { code: "+34", flag: "🇪🇸", name: "España" },
+  { code: "+44", flag: "🇬🇧", name: "Reino Unido" },
+  { code: "+49", flag: "🇩🇪", name: "Alemania" },
+  { code: "+33", flag: "🇫🇷", name: "Francia" },
+  { code: "+39", flag: "🇮🇹", name: "Italia" },
+  { code: "+81", flag: "🇯🇵", name: "Japón" },
+  { code: "+86", flag: "🇨🇳", name: "China" },
+];
+
 export default function LoginScreen() {
   const { t } = useTranslation();
   const { login, register, isAuthenticated, isLoading } = useAuth();
@@ -37,6 +61,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [countryCode, setCountryCode] = useState(COUNTRY_CODES[0]);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +101,8 @@ export default function LoginScreen() {
     if (tab === "login") {
       err = await login(email.trim(), password, keepLoggedIn);
     } else {
-      err = await register(email.trim(), password, firstName.trim(), lastName.trim());
+      const fullPhone = phoneNumber.trim() ? `${countryCode.code}${phoneNumber.trim()}` : undefined;
+      err = await register(email.trim(), password, firstName.trim(), lastName.trim(), fullPhone);
     }
     setSubmitting(false);
     if (err) setError(err);
@@ -150,6 +178,25 @@ export default function LoginScreen() {
                 onChangeText={setLastName}
                 autoCapitalize="words"
               />
+              <View style={styles.phoneRow}>
+                <Pressable
+                  style={[styles.countryCodeBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
+                  onPress={() => setShowCountryPicker(true)}
+                >
+                  <Text style={styles.flagText}>{countryCode.flag}</Text>
+                  <Text style={[styles.dialCodeText, { color: C.text }]}>{countryCode.code}</Text>
+                  <Feather name="chevron-down" size={13} color={C.textMuted} />
+                </Pressable>
+                <TextInput
+                  style={[inputStyle, { flex: 1 }]}
+                  placeholder={t("auth.phonePlaceholder")}
+                  placeholderTextColor={C.textMuted}
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                />
+              </View>
             </>
           )}
 
@@ -242,6 +289,45 @@ export default function LoginScreen() {
           ))}
         </View>
       </KeyboardAvoidingView>
+
+      {/* Country code picker modal */}
+      <Modal
+        visible={showCountryPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCountryPicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowCountryPicker(false)}>
+          <View style={[styles.modalSheet, { backgroundColor: "#1a1a1a", borderColor: "rgba(255,255,255,0.1)" }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t("auth.selectCountry")}</Text>
+              <Pressable onPress={() => setShowCountryPicker(false)}>
+                <Feather name="x" size={20} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+            </View>
+            <FlatList
+              data={COUNTRY_CODES}
+              keyExtractor={(item) => item.code + item.name}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[
+                    styles.countryItem,
+                    item.code === countryCode.code && { backgroundColor: "rgba(0,241,255,0.08)" },
+                  ]}
+                  onPress={() => { setCountryCode(item); setShowCountryPicker(false); }}
+                >
+                  <Text style={styles.countryFlag}>{item.flag}</Text>
+                  <Text style={styles.countryName}>{item.name}</Text>
+                  <Text style={styles.countryDial}>{item.code}</Text>
+                  {item.code === countryCode.code && (
+                    <Feather name="check" size={15} color="#00f1ff" />
+                  )}
+                </Pressable>
+              )}
+            />
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -373,6 +459,75 @@ const styles = StyleSheet.create({
   featureText: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.45)",
+  },
+  phoneRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  countryCodeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 11,
+    paddingHorizontal: 10,
+    paddingVertical: 11,
+  },
+  flagText: {
+    fontSize: 16,
+  },
+  dialCodeText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    maxHeight: "65%",
+    paddingTop: 8,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: "rgba(255,255,255,0.85)",
+  },
+  countryItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+  },
+  countryFlag: {
+    fontSize: 20,
+  },
+  countryName: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.8)",
+  },
+  countryDial: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
     color: "rgba(255,255,255,0.45)",
   },
 });

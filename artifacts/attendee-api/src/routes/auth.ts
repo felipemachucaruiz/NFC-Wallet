@@ -167,6 +167,7 @@ const CreateAccountBody = z.object({
   password: z.string().min(6),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
+  phone: z.string().max(30).optional(),
 }).refine((d) => d.email || d.username, {
   message: "Either email or username is required",
 });
@@ -178,7 +179,7 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
     return;
   }
 
-  const { email, username, password, firstName, lastName } = parsed.data;
+  const { email, username, password, firstName, lastName, phone } = parsed.data;
   const normalizedEmail = email ? email.toLowerCase().trim() : null;
   const normalizedUsername = username ? username.trim().toLowerCase() : null;
 
@@ -201,6 +202,7 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
       passwordHash,
       firstName: firstName ?? null,
       lastName: lastName ?? null,
+      phone: phone ?? null,
       role: "attendee",
     })
     .returning();

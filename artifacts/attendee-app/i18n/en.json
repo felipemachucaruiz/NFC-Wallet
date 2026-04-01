@@ -43,7 +43,10 @@
     "networkError": "Cannot connect to server",
     "logoutConfirm": "Sign out?",
     "keepMeLoggedIn": "Keep me logged in",
-    "keepMeLoggedInHint": "Your session will be saved securely on this device."
+    "keepMeLoggedInHint": "Your session will be saved securely on this device.",
+    "phone": "Phone number",
+    "phonePlaceholder": "300 000 0000",
+    "selectCountry": "Select country"
   },
   "home": {
     "tab": "Home",

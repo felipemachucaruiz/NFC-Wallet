@@ -43,7 +43,10 @@
     "networkError": "No se puede conectar al servidor",
     "logoutConfirm": "¿Cerrar sesión?",
     "keepMeLoggedIn": "Mantenerme conectado",
-    "keepMeLoggedInHint": "Tu sesión se guardará de forma segura en este dispositivo."
+    "keepMeLoggedInHint": "Tu sesión se guardará de forma segura en este dispositivo.",
+    "phone": "Número celular",
+    "phonePlaceholder": "300 000 0000",
+    "selectCountry": "Seleccionar país"
   },
   "home": {
     "tab": "Inicio",

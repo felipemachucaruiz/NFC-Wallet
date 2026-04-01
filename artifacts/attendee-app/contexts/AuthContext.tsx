@@ -28,7 +28,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (identifier: string, password: string, keepMeLoggedIn?: boolean) => Promise<string | null>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<string | null>;
+  register: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -143,14 +143,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    phone?: string
   ): Promise<string | null> => {
     try {
       // Step 1: Create the account
       const createRes = await fetch(`${API_BASE_URL}/api/auth/create-account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, firstName, lastName }),
+        body: JSON.stringify({ email, password, firstName, lastName, phone }),
       });
       if (!createRes.ok) {
         const body = await createRes.json().catch(() => ({}));

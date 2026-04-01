@@ -35,6 +35,7 @@ export const usersTable = pgTable("users", {
   eventId: varchar("event_id"),
   promoterCompanyId: varchar("promoter_company_id"),
   expoPushToken: varchar("expo_push_token"),
+  phone: varchar("phone", { length: 30 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
