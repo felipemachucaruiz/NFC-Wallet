@@ -9,6 +9,7 @@ import {
   merchantsTable,
   eventsTable,
   attendeeRefundRequestsTable,
+  usersTable,
 } from "@workspace/db";
 import { eq, and, desc, inArray, lte } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
@@ -258,13 +259,27 @@ router.post(
       return;
     }
 
+    // Fetch the authenticated user to auto-populate bracelet owner info
+    const [user] = await db
+      .select({
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        email: usersTable.email,
+        phone: usersTable.phone,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+
+    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || null;
+
     const updates: Partial<typeof braceletsTable.$inferInsert> = {
       attendeeUserId: userId,
       updatedAt: new Date(),
+      // Auto-fill owner info from the authenticated user account
+      attendeeName: fullName ?? parsed.data.attendeeName ?? undefined,
+      email: user?.email ?? undefined,
+      phone: user?.phone ?? undefined,
     };
-    if (parsed.data.attendeeName) {
-      updates.attendeeName = parsed.data.attendeeName;
-    }
 
     const [updated] = await db
       .update(braceletsTable)
