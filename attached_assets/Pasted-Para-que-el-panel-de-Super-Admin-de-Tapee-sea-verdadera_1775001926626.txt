@@ -1,0 +1,61 @@
+Para que el panel de Super Admin de Tapee sea verdaderamente escalable, la implementación de este "Selector de Hardware" debe ser tanto visual como funcional. Al seleccionar una tecnología, el sistema no solo cambia un icono, sino que debe cargar el conjunto de llaves y protocolos (APDU vs NDEF) específicos para ese evento.
+
+Aquí tienes la propuesta de cómo integrar esta funcionalidad en tu panel SaaS:
+
+🖥️ Interfaz del Selector de Hardware (UI/UX)
+En la sección de Configuración del Evento, añadiremos un módulo de "Tecnología de Acceso".
+
+Opciones de Selección:
+[ ] NTAG 213 / 215 / 216 (Protocolo Type 2 - NDEF)
+
+Uso recomendado: Eventos masivos de bajo costo / Corta duración.
+
+[ ] MIFARE Classic 1K/4K (Protocolo Propietario NXP)
+
+Uso recomendado: Compatibilidad con hardware antiguo (Legacy).
+
+[ ] MIFARE DESFire EV3 (Protocolo IsoDep - Grado Bancario)
+
+Uso recomendado: Eventos VIP, preventas de alto valor, máxima seguridad.
+
+⚙️ Cambios en el Backend (Drizzle ORM)
+Debes actualizar la tabla events para soportar esta configuración dinámica. Esto permitirá que la App de Expo sepa qué librería de comunicación activar.
+
+TypeScript
+// Esquema propuesto para la tabla de eventos
+export const events = pgTable('events', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  // ... otros campos
+  allowed_nfc_types: jsonb('allowed_nfc_types').default(['NTAG_21X']), // Array de tipos permitidos
+  crypto_standard: text('crypto_standard').default('HMAC_SHA256'), // 'HMAC_SHA256' o 'AES_128_DESFIRE'
+});
+🛠️ Lógica de Integración para MIFARE DESFire EV3
+A diferencia de las NTAG que ya tienes (donde escribes en páginas), la integración de DESFire EV3 requiere que tu App Expo envíe comandos nativos.
+
+Pasos de configuración al activar el Checkmark:
+Creación del AID (Application ID): El sistema reservará un espacio de memoria exclusivo para Tapee en el chip (ej: 0xABC123).
+
+Configuración de Archivos Nativos: * Se crea un Standard Data File para el nombre del asistente.
+
+Se crea un Value File para el saldo (esto permite que el chip maneje el balance de forma interna).
+
+Key Injection: El Admin generará las 3 llaves maestras AES para ese evento, que se inyectarán en la pulsera al momento del registro.
+
+📋 Hoja de Ruta para Replit (Copy-Paste)
+Para completar la integración de la DESFire EV3, añade estas tareas a tu Sprint:
+
+[ ] Actualizar lib/api-spec: Añadir el campo supportedHardware en el esquema de creación de eventos.
+
+[ ] Middleware de Hardware: En la App Mobile, crear un "NFC Factory" que detecte qué tipo de chip está configurado para el evento actual y decida si usa Ndef.write (NTAG) o IsoDep.transceive (DESFire).
+
+[ ] Simulador de DESFire: Dado que DESFire es más complejo, crea una función de prueba en el Portal de Admin para "Formatear Pulsera" que limpie el chip y cree la estructura de archivos de Tapee desde cero.
+
+[ ] Alerta de Compatibilidad: Si el Admin selecciona DESFire, mostrar un aviso: "Asegúrese de que todos los dispositivos POS del staff soporten el protocolo IsoDep (Android 8.0+)".
+
+🚀 Ventaja Comercial de este Selector
+Al tener este panel, puedes ofrecer niveles de servicio (Tiers):
+
+Tier Básico: NTAG + Seguridad HMAC (Ideal para ferias locales).
+
+Tier Enterprise: DESFire EV3 + AES-128 + Seguro Antifraude (Ideal para festivales como el Estéreo Picnic o conciertos de talla mundial).
