@@ -92,7 +92,9 @@
     "submit": "Pay",
     "submitting": "Initiating payment...",
     "total": "Total",
-    "minAmount": "Minimum amount: $1,000"
+    "minAmount": "Minimum amount: $1,000",
+    "uidPlaceholder": "UID printed on the wristband",
+    "uidHint": "Enter the code with or without colons (e.g. A1B2C3D4 or A1:B2:C3:D4)"
   },
   "paymentStatus": {
     "title": "Payment status",

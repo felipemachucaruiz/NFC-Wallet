@@ -43,6 +43,12 @@ const PSE_BANKS = [
   { code: "1637", name: "Scotiabank Colpatria" },
 ];
 
+function normalizeUid(raw: string): string {
+  const clean = raw.replace(/[:\s\-]/g, "").toUpperCase();
+  if (clean.length === 0) return "";
+  return clean.match(/.{1,2}/g)?.join(":") ?? clean;
+}
+
 export default function TopUpScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
@@ -183,12 +189,29 @@ export default function TopUpScreen() {
               </Text>
             </Pressable>
           )}
-          {braceletUid.length > 0 && !bracelets.find(b => b.uid === braceletUid) && (
-            <View style={[styles.scannedUid, { backgroundColor: C.primaryLight }]}>
-              <Feather name="check-circle" size={14} color={C.primary} />
-              <Text style={[styles.scannedUidText, { color: C.primary }]}>{braceletUid}</Text>
+          <View style={styles.manualRow}>
+            <View style={[styles.manualInputWrap, { backgroundColor: C.inputBg, borderColor: braceletUid && !bracelets.find(b => b.uid === braceletUid) ? C.primary : C.border }]}>
+              <Feather name="hash" size={15} color={C.textMuted} style={{ marginRight: 6 }} />
+              <TextInput
+                style={[styles.manualInput, { color: C.text }]}
+                placeholder={t("topUp.uidPlaceholder")}
+                placeholderTextColor={C.textMuted}
+                value={braceletUid}
+                onChangeText={(v) => setBraceletUid(normalizeUid(v))}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={11}
+              />
+              {braceletUid.length > 0 && (
+                <Pressable onPress={() => setBraceletUid("")}>
+                  <Feather name="x" size={16} color={C.textMuted} />
+                </Pressable>
+              )}
             </View>
-          )}
+          </View>
+          <Text style={[styles.uidHint, { color: C.textMuted }]}>
+            {t("topUp.uidHint")}
+          </Text>
         </Card>
 
         <Card style={{ gap: 12 }}>
@@ -372,14 +395,27 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   nfcBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  scannedUid: {
+  manualRow: { marginTop: 4 },
+  manualInputWrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    padding: 10,
-    borderRadius: 10,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  scannedUidText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  manualInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 1,
+  },
+  uidHint: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginTop: 4,
+    paddingHorizontal: 2,
+  },
   amountGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   amountChip: {
     borderWidth: 1.5,
