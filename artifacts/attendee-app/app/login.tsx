@@ -264,8 +264,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   wordmark: {
-    width: 120,
-    height: 120,
+    width: "85%",
+    maxWidth: 340,
+    aspectRatio: 864 / 326,
   },
   appSubtitle: {
     fontSize: 14,
