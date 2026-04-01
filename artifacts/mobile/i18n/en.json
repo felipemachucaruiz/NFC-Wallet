@@ -459,7 +459,19 @@
     "retencionFuenteRate": "Withholding rate (fuente, %)",
     "retencionICARate": "ICA rate (%)",
     "fiscalSettings": "Tax settings",
-    "fiscalSettingsHint": "These rates are applied to all sales from this merchant"
+    "fiscalSettingsHint": "These rates are applied to all sales from this merchant",
+    "transferStock": "Transfer stock",
+    "transferBtn": "Transfer",
+    "transferModalTitle": "Transfer stock",
+    "transferFrom": "From",
+    "transferTo": "To location",
+    "transferToPlaceholder": "Select destination",
+    "transferQty": "Quantity to transfer",
+    "transferQtyPlaceholder": "e.g. 10",
+    "transferInvalidQty": "Enter a valid quantity (1 or more).",
+    "transferSameLocation": "Origin and destination must be different.",
+    "transferSuccess": "Stock transferred successfully",
+    "transferAvailable": "Available: {{qty}} units"
   },
   "warehouse": {
     "title": "Warehouse",

@@ -459,7 +459,19 @@
     "retencionFuenteRate": "Retención en la fuente (%)",
     "retencionICARate": "Tasa ICA (%)",
     "fiscalSettings": "Configuración fiscal",
-    "fiscalSettingsHint": "Estas tasas se aplican a todas las ventas de este comercio"
+    "fiscalSettingsHint": "Estas tasas se aplican a todas las ventas de este comercio",
+    "transferStock": "Transferir stock",
+    "transferBtn": "Transferir",
+    "transferModalTitle": "Transferir stock",
+    "transferFrom": "Desde",
+    "transferTo": "Ubicación destino",
+    "transferToPlaceholder": "Seleccionar destino",
+    "transferQty": "Cantidad a transferir",
+    "transferQtyPlaceholder": "Ej. 10",
+    "transferInvalidQty": "Ingresa una cantidad válida (1 o más).",
+    "transferSameLocation": "El origen y destino deben ser diferentes.",
+    "transferSuccess": "Stock transferido exitosamente",
+    "transferAvailable": "Disponible: {{qty}} unidades"
   },
   "warehouse": {
     "title": "Almacén",
