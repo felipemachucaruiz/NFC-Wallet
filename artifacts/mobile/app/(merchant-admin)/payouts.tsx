@@ -14,7 +14,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useListPayouts, useGetPayoutTransactions, useGetMerchantEarnings } from "@workspace/api-client-react";
+import { useListPayouts, useGetPayoutTransactions, useGetMerchantEarnings, customFetch } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
@@ -47,6 +48,21 @@ interface Transaction {
   commissionAmountCop: number;
   netAmountCop: number;
   createdAt: string;
+  offlineCreatedAt?: string | null;
+  locationName?: string | null;
+}
+
+interface MerchantEarnings {
+  grossSalesCop: number;
+  cogsCop: number;
+  grossProfitCop: number;
+  profitMarginPercent: number;
+  totalCommissionCop: number;
+  netEarnedCop: number;
+  totalPaidOutCop: number;
+  pendingCop: number;
+  totalIvaCop: number;
+  totalRetencionesCop: number;
 }
 
 function PayoutTransactionsModal({
@@ -133,14 +149,22 @@ export default function MerchantPayoutsScreen() {
     { merchantId: user?.merchantId ?? "" },
     { query: { enabled: !!user?.merchantId } }
   );
-  const { data: earningsData } = useGetMerchantEarnings(
+  const { data: earningsData, refetch: refetchEarnings } = useGetMerchantEarnings(
     user?.merchantId ?? "",
     {},
     { query: { enabled: !!user?.merchantId } }
   );
 
+  const merchantId = user?.merchantId ?? "";
+  const { data: txData, isLoading: txLoading, refetch: refetchTx } = useQuery({
+    queryKey: ["merchant-transactions", merchantId],
+    queryFn: () => customFetch(`/api/merchants/${encodeURIComponent(merchantId)}/transactions?limit=100`) as Promise<{ transactions: Transaction[] }>,
+    enabled: !!merchantId,
+  });
+
   const payouts = ((data as { payouts?: Payout[] } | undefined)?.payouts ?? []);
-  const earnings = earningsData as { cogsCop?: number; grossProfitCop?: number; profitMarginPercent?: number } | undefined;
+  const earnings = earningsData as MerchantEarnings | undefined;
+  const allTransactions = txData?.transactions ?? [];
 
   if (isLoading) return <Loading label={t("common.loading")} />;
 
@@ -159,7 +183,7 @@ export default function MerchantPayoutsScreen() {
           gap: 12,
         }}
         style={{ backgroundColor: C.background }}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={C.primary} />}
+        refreshControl={<RefreshControl refreshing={isLoading || txLoading} onRefresh={() => { refetch(); refetchEarnings(); refetchTx(); }} tintColor={C.primary} />}
         ListHeaderComponent={() => (
           <>
             <Text style={[styles.title, { color: C.text }]}>{t("merchant_admin.payouts")}</Text>
@@ -168,13 +192,23 @@ export default function MerchantPayoutsScreen() {
               <View style={[styles.earningsCard, { backgroundColor: C.card, borderColor: C.border }]}>
                 <Text style={[styles.earningsTitle, { color: C.text }]}>{t("merchant_admin.salesSummary")}</Text>
                 <View style={styles.earningsRow}>
+                  <Text style={[styles.earningsLabel, { color: C.textSecondary }]}>{t("merchant_admin.totalSalesLabel")}</Text>
+                  <CopAmount amount={earnings.grossSalesCop ?? 0} size={15} positive />
+                </View>
+                <View style={styles.earningsRow}>
                   <Text style={[styles.earningsLabel, { color: C.textSecondary }]}>{t("merchant_admin.cogsLabel")}</Text>
-                  <CopAmount amount={earnings.cogsCop} size={15} />
+                  <CopAmount amount={earnings.cogsCop ?? 0} size={15} />
                 </View>
                 <View style={styles.earningsRow}>
                   <Text style={[styles.earningsLabel, { color: C.textSecondary }]}>{t("merchant_admin.grossProfitLabel")}</Text>
-                  <CopAmount amount={earnings.grossProfitCop} size={15} positive />
+                  <CopAmount amount={earnings.grossProfitCop ?? 0} size={15} positive />
                 </View>
+                {earnings.totalCommissionCop > 0 && (
+                  <View style={styles.earningsRow}>
+                    <Text style={[styles.earningsLabel, { color: C.textSecondary }]}>{t("merchant_admin.commissionLabel")}</Text>
+                    <CopAmount amount={earnings.totalCommissionCop} size={15} />
+                  </View>
+                )}
                 {earnings.profitMarginPercent !== undefined && (
                   <View style={styles.earningsRow}>
                     <Text style={[styles.earningsLabel, { color: C.textSecondary }]}>{t("merchant_admin.profitMargin")}</Text>
@@ -182,6 +216,12 @@ export default function MerchantPayoutsScreen() {
                       label={`${earnings.profitMarginPercent.toFixed(1)}%`}
                       variant={earnings.profitMarginPercent >= 0 ? "success" : "danger"}
                     />
+                  </View>
+                )}
+                {earnings.pendingCop > 0 && (
+                  <View style={[styles.earningsRow, styles.pendingRow]}>
+                    <Text style={[styles.earningsLabel, { color: C.warning }]}>{t("merchant_admin.pendingLabel")}</Text>
+                    <CopAmount amount={earnings.pendingCop} size={15} color={C.warning} />
                   </View>
                 )}
               </View>
@@ -193,6 +233,39 @@ export default function MerchantPayoutsScreen() {
                 <CopAmount amount={totalPaid} size={28} color={C.success} />
               </View>
             )}
+
+            {allTransactions.length > 0 && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={[styles.sectionTitle, { color: C.text }]}>{t("merchant_admin.recentTransactions")}</Text>
+                {allTransactions.slice(0, 30).map((tx) => (
+                  <View key={tx.id} style={[styles.txCard, { backgroundColor: C.card, borderColor: C.border, marginBottom: 8 }]}>
+                    <View style={styles.txRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.txUid, { color: C.textSecondary }]} numberOfLines={1}>
+                          {tx.locationName ? `${tx.locationName} · ` : ""}{tx.braceletUid}
+                        </Text>
+                        <Text style={[styles.txDate, { color: C.textMuted }]}>{formatDate(tx.offlineCreatedAt ?? tx.createdAt)}</Text>
+                      </View>
+                      <View style={styles.txAmounts}>
+                        <CopAmount amount={tx.grossAmountCop} size={15} positive />
+                        {tx.commissionAmountCop > 0 && (
+                          <Text style={[styles.txComm, { color: C.textMuted }]}>
+                            comisión: -{tx.commissionAmountCop.toLocaleString("es-CO")}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                ))}
+                {allTransactions.length > 30 && (
+                  <Text style={[styles.txDate, { color: C.textMuted, textAlign: "center", marginBottom: 4 }]}>
+                    +{allTransactions.length - 30} {t("common.more")}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            <Text style={[styles.sectionTitle, { color: C.text }]}>{t("merchant_admin.payoutsSection")}</Text>
           </>
         )}
         ListEmptyComponent={() => (
@@ -247,6 +320,8 @@ const styles = StyleSheet.create({
   earningsTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginBottom: 4 },
   earningsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   earningsLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  pendingRow: { marginTop: 4, paddingTop: 4 },
+  sectionTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold", marginTop: 8, marginBottom: 6 },
   payoutCard: { borderWidth: 1, borderRadius: 14, padding: 14 },
   payoutRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   payIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },

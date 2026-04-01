@@ -13,7 +13,7 @@ import {
   stockMovementsTable,
   usersTable,
 } from "@workspace/db";
-import { eq, and, gte, lte, inArray, sql } from "drizzle-orm";
+import { eq, and, gte, lte, inArray, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -249,6 +249,54 @@ router.get(
       totalNetoCop,
       payouts,
     });
+  },
+);
+
+/**
+ * @summary List recent transactions for a merchant (merchant_admin or admin)
+ */
+router.get(
+  "/merchants/:merchantId/transactions",
+  requireRole("admin", "merchant_admin"),
+  async (req: Request, res: Response) => {
+    const merchantId = req.params.merchantId as string;
+
+    if (req.user!.role === "merchant_admin" && req.user!.merchantId !== merchantId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const { eventId, from, to, limit: limitStr } = req.query as {
+      eventId?: string;
+      from?: string;
+      to?: string;
+      limit?: string;
+    };
+    const limitNum = Math.min(Math.max(parseInt(limitStr ?? "50", 10) || 50, 1), 200);
+
+    const conditions = [eq(transactionLogsTable.merchantId, merchantId)];
+    if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
+    if (from) conditions.push(gte(transactionLogsTable.createdAt, new Date(from)));
+    if (to) conditions.push(lte(transactionLogsTable.createdAt, new Date(to)));
+
+    const rows = await db
+      .select({
+        id: transactionLogsTable.id,
+        braceletUid: transactionLogsTable.braceletUid,
+        grossAmountCop: transactionLogsTable.grossAmountCop,
+        commissionAmountCop: transactionLogsTable.commissionAmountCop,
+        netAmountCop: transactionLogsTable.netAmountCop,
+        createdAt: transactionLogsTable.createdAt,
+        offlineCreatedAt: transactionLogsTable.offlineCreatedAt,
+        locationName: locationsTable.name,
+      })
+      .from(transactionLogsTable)
+      .leftJoin(locationsTable, eq(transactionLogsTable.locationId, locationsTable.id))
+      .where(and(...conditions))
+      .orderBy(desc(transactionLogsTable.createdAt))
+      .limit(limitNum);
+
+    res.json({ transactions: rows, total: rows.length });
   },
 );
 
