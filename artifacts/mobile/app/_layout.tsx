@@ -47,7 +47,13 @@ const queryClient = new QueryClient({
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#0a0a0a' },
+        animation: 'fade_from_bottom',
+      }}
+    >
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="self-service" />
@@ -134,7 +140,7 @@ export default function RootLayout() {
                 <AppWithPasscode>
                   <CartProvider>
                     <OfflineQueueProvider>
-                      <GestureHandlerRootView style={{ flex: 1 }}>
+                      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
                         <KeyboardProvider>
                           <RootLayoutNav />
                           {!splashDone && (
