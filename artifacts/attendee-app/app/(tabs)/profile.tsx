@@ -67,7 +67,7 @@ export default function ProfileScreen() {
     );
   };
 
-  const statusVariant = (status: string): "success" | "warning" | "danger" | "neutral" => {
+  const statusVariant = (status: string): "success" | "warning" | "danger" | "muted" => {
     if (status === "approved") return "success";
     if (status === "rejected") return "danger";
     return "warning";
