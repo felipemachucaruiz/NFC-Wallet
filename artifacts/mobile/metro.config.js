@@ -15,4 +15,11 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
+// Exclude non-source directories from Metro's file watcher to prevent ENOENT crashes
+// when temporary directories in .local/skills/ are created and deleted during testing
+config.resolver.blockList = [
+  /\/\.local\/.*/,
+  /\/\.git\/.*/,
+];
+
 module.exports = config;
