@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0a0a0a" },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.58)",
+    backgroundColor: "rgba(0,0,0,0.65)",
   },
   inner: { flexGrow: 1, paddingHorizontal: 28, paddingVertical: 20, gap: 20, justifyContent: "center" },
   logoSection: { alignItems: "center", gap: 8 },
