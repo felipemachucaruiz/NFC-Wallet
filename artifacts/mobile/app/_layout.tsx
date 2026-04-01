@@ -50,6 +50,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
+      <Stack.Screen name="self-service" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="(attendee)" />
       <Stack.Screen name="(bank)" />

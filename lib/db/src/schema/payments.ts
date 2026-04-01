@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, varchar, integer, timestamp, text } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, varchar, integer, timestamp, text, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { usersTable } from "./auth";
 
@@ -26,7 +26,8 @@ export const wompiPaymentIntentsTable = pgTable("wompi_payment_intents", {
   redirectUrl: text("redirect_url"),
   status: wompiPaymentStatusEnum("status").notNull().default("pending"),
   topUpId: varchar("top_up_id"),
-  performedByUserId: varchar("performed_by_user_id").notNull().references(() => usersTable.id),
+  performedByUserId: varchar("performed_by_user_id").references(() => usersTable.id),
+  selfService: boolean("self_service").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

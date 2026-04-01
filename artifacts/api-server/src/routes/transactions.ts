@@ -349,6 +349,8 @@ async function processTransaction(
           flagReason: `Balance discrepancy during sync: expected ${expectedNewBalance} COP but device reported ${input.newBalance} COP (diff: ${discrepancy} COP). Tx: ${txLog.id}`,
           lastKnownBalanceCop: input.newBalance,
           lastCounter: input.counter,
+          pendingSync: false,
+          pendingBalanceCop: 0,
           updatedAt: new Date(),
         })
         .where(eq(braceletsTable.nfcUid, input.nfcUid));
@@ -374,6 +376,8 @@ async function processTransaction(
           flagReason: `Single offline transaction amount ${grossAmountCop} COP exceeds bracelet max offline spend limit ${bracelet.maxOfflineSpend} COP. Tx: ${txLog.id}`,
           lastKnownBalanceCop: input.newBalance,
           lastCounter: input.counter,
+          pendingSync: false,
+          pendingBalanceCop: 0,
           updatedAt: new Date(),
         })
         .where(eq(braceletsTable.nfcUid, input.nfcUid));
@@ -387,12 +391,14 @@ async function processTransaction(
   }
 
   if (!wasFlagged) {
-    // Update bracelet server-side record
+    // Update bracelet server-side record and clear any pending self-service sync
     await db
       .update(braceletsTable)
       .set({
         lastKnownBalanceCop: input.newBalance,
         lastCounter: input.counter,
+        pendingSync: false,
+        pendingBalanceCop: 0,
         updatedAt: new Date(),
       })
       .where(eq(braceletsTable.nfcUid, input.nfcUid));

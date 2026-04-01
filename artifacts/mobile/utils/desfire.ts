@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import CryptoJS from "crypto-js";
 import type { BraceletPayload } from "./hmac";
 
 let NfcManager: typeof import("react-native-nfc-manager").default | null = null;
@@ -132,9 +133,8 @@ function computeTransactionMac(
   aesKeyHex: string
 ): string {
   const message = `${uid}:${counter}:${newBalance}`;
-  const keyBytes = Buffer.from(aesKeyHex, "hex");
-  const crypto = require("crypto") as typeof import("crypto");
-  const mac = crypto.createHmac("sha256", keyBytes).update(message).digest("hex");
+  const keyWordArray = CryptoJS.enc.Hex.parse(aesKeyHex);
+  const mac = CryptoJS.HmacSHA256(message, keyWordArray).toString(CryptoJS.enc.Hex);
   return mac.slice(0, 16);
 }
 

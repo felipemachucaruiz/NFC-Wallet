@@ -1,0 +1,312 @@
+import { Router, type IRouter, type Request, type Response } from "express";
+import { db, braceletsTable, eventsTable, wompiPaymentIntentsTable, topUpsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { z } from "zod";
+
+const router: IRouter = Router();
+
+const WOMPI_BASE_URL = process.env.WOMPI_BASE_URL || "https://sandbox.wompi.co/v1";
+const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY || "";
+const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY || "";
+
+async function fetchWompiAcceptanceToken(): Promise<string> {
+  if (!WOMPI_PUBLIC_KEY) throw new Error("WOMPI_PUBLIC_KEY not configured");
+  const res = await fetch(`${WOMPI_BASE_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
+  if (!res.ok) throw new Error("Failed to fetch Wompi acceptance token");
+  const data = await res.json() as { data: { presigned_acceptance: { acceptance_token: string } } };
+  return data.data.presigned_acceptance.acceptance_token;
+}
+
+router.get(
+  "/public/bracelet-lookup",
+  async (req: Request, res: Response) => {
+    const uid = (req.query.uid as string | undefined)?.trim().toUpperCase();
+    if (!uid || uid.length < 4) {
+      res.status(400).json({ error: "uid query param is required" });
+      return;
+    }
+
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, uid));
+
+    if (!bracelet) {
+      res.status(404).json({ error: "BRACELET_NOT_FOUND" });
+      return;
+    }
+
+    if (bracelet.flagged) {
+      res.status(403).json({ error: "BRACELET_FLAGGED" });
+      return;
+    }
+
+    let eventName: string | null = null;
+    let eventActive = false;
+    if (bracelet.eventId) {
+      const [event] = await db
+        .select({ name: eventsTable.name, active: eventsTable.active })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, bracelet.eventId));
+      eventName = event?.name ?? null;
+      eventActive = event?.active ?? false;
+    }
+
+    res.json({
+      uid: bracelet.nfcUid,
+      balanceCop: bracelet.lastKnownBalanceCop,
+      pendingSync: bracelet.pendingSync,
+      attendeeName: bracelet.attendeeName ?? null,
+      eventName,
+      eventActive,
+    });
+  },
+);
+
+const selfServiceInitiateSchema = z.object({
+  braceletUid: z.string().min(1),
+  amountCop: z.number().int().min(1000),
+  paymentMethod: z.enum(["nequi", "pse"]),
+  phoneNumber: z.string().optional(),
+  bankCode: z.string().optional(),
+  contactEmail: z.string().email().optional(),
+});
+
+router.post(
+  "/public/topup/initiate",
+  async (req: Request, res: Response) => {
+    if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
+      res.status(503).json({ error: "Payment gateway not configured" });
+      return;
+    }
+
+    const parsed = selfServiceInitiateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const { braceletUid, amountCop, paymentMethod, phoneNumber, bankCode, contactEmail } = parsed.data;
+
+    if (paymentMethod === "nequi" && !phoneNumber) {
+      res.status(400).json({ error: "phoneNumber is required for Nequi payments" });
+      return;
+    }
+    if (paymentMethod === "pse" && !bankCode) {
+      res.status(400).json({ error: "bankCode is required for PSE payments" });
+      return;
+    }
+
+    const uid = braceletUid.trim().toUpperCase();
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, uid));
+
+    if (!bracelet) {
+      res.status(404).json({ error: "Número de pulsera no encontrado. Verifica el número impreso en tu pulsera." });
+      return;
+    }
+
+    if (bracelet.flagged) {
+      res.status(403).json({ error: "Esta pulsera ha sido bloqueada. Contacta al organizador del evento." });
+      return;
+    }
+
+    const customerEmail = contactEmail ?? `selfservice_${uid.toLowerCase()}@evento.local`;
+    const reference = `ss_${uid}_${Date.now()}`;
+
+    let wompiTransactionId: string | undefined;
+    let redirectUrl: string | undefined;
+
+    try {
+      const acceptanceToken = await fetchWompiAcceptanceToken();
+      const amountCentavos = amountCop * 100;
+
+      if (paymentMethod === "nequi") {
+        const wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: { type: "NEQUI", phone_number: phoneNumber },
+          reference,
+          acceptance_token: acceptanceToken,
+        };
+        const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${WOMPI_PRIVATE_KEY}` },
+          body: JSON.stringify(wompiBody),
+        });
+        const wompiData = await wompiRes.json() as { data?: { id: string }; error?: unknown };
+        if (!wompiRes.ok || !wompiData.data) {
+          res.status(502).json({ error: "No se pudo iniciar el pago Nequi. Verifica el número y vuelve a intentar." });
+          return;
+        }
+        wompiTransactionId = wompiData.data.id;
+      } else {
+        const wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "PSE",
+            user_type: 0,
+            user_legal_id_type: "CC",
+            user_legal_id: "1234567890",
+            financial_institution_code: bankCode,
+            payment_description: "Recarga pulsera evento",
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+          redirect_url: `${process.env.APP_URL ?? "https://example.com"}/payment-return`,
+        };
+        const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${WOMPI_PRIVATE_KEY}` },
+          body: JSON.stringify(wompiBody),
+        });
+        const wompiData = await wompiRes.json() as { data?: { id: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: unknown };
+        if (!wompiRes.ok || !wompiData.data) {
+          res.status(502).json({ error: "No se pudo iniciar el pago PSE. Vuelve a intentar." });
+          return;
+        }
+        wompiTransactionId = wompiData.data.id;
+        redirectUrl = wompiData.data.payment_method?.extra?.async_payment_url;
+      }
+    } catch {
+      res.status(502).json({ error: "Pasarela de pago no disponible. Intenta más tarde." });
+      return;
+    }
+
+    const [intent] = await db
+      .insert(wompiPaymentIntentsTable)
+      .values({
+        braceletUid: uid,
+        amountCop,
+        paymentMethod,
+        phoneNumber,
+        bankCode,
+        wompiTransactionId,
+        wompiReference: reference,
+        redirectUrl,
+        status: "pending",
+        selfService: true,
+      })
+      .returning();
+
+    res.status(201).json({
+      intentId: intent.id,
+      status: intent.status,
+      paymentMethod,
+      wompiTransactionId,
+      redirectUrl: redirectUrl ?? null,
+    });
+  },
+);
+
+router.get(
+  "/public/topup/status/:intentId",
+  async (req: Request, res: Response) => {
+    const { intentId } = req.params as { intentId: string };
+    const [intent] = await db
+      .select()
+      .from(wompiPaymentIntentsTable)
+      .where(and(eq(wompiPaymentIntentsTable.id, intentId), eq(wompiPaymentIntentsTable.selfService, true)));
+
+    if (!intent) {
+      res.status(404).json({ error: "Intent not found" });
+      return;
+    }
+
+    if ((intent.status === "pending" || intent.status === "processing") && intent.wompiTransactionId && WOMPI_PRIVATE_KEY) {
+      try {
+        const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions/${intent.wompiTransactionId}`, {
+          headers: { Authorization: `Bearer ${WOMPI_PRIVATE_KEY}` },
+        });
+        const wompiData = await wompiRes.json() as { data?: { status: string } };
+        if (wompiRes.ok && wompiData.data) {
+          const wompiStatus = wompiData.data.status;
+          if (wompiStatus === "APPROVED") {
+            await processSelfServicePayment(intent.id, intent.wompiTransactionId!);
+            const [updated] = await db.select().from(wompiPaymentIntentsTable).where(eq(wompiPaymentIntentsTable.id, intentId));
+            res.json({ intentId: updated.id, status: updated.status });
+            return;
+          } else if (["DECLINED", "ERROR", "VOIDED"].includes(wompiStatus)) {
+            await db.update(wompiPaymentIntentsTable)
+              .set({ status: "failed", updatedAt: new Date() })
+              .where(eq(wompiPaymentIntentsTable.id, intentId));
+            res.json({ intentId, status: "failed" });
+            return;
+          }
+        }
+      } catch {
+      }
+    }
+
+    const clientStatus = intent.status === "processing" ? "pending" : intent.status;
+    res.json({ intentId: intent.id, status: clientStatus });
+  },
+);
+
+export async function processSelfServicePayment(intentId: string, wompiTransactionId: string) {
+  await db.transaction(async (tx) => {
+    const claimed = await tx
+      .update(wompiPaymentIntentsTable)
+      .set({ status: "processing", updatedAt: new Date() })
+      .where(and(
+        eq(wompiPaymentIntentsTable.id, intentId),
+        eq(wompiPaymentIntentsTable.status, "pending"),
+      ))
+      .returning();
+
+    if (claimed.length === 0) return;
+    const intent = claimed[0];
+
+    let [bracelet] = await tx
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, intent.braceletUid));
+
+    if (!bracelet) {
+      const [created] = await tx
+        .insert(braceletsTable)
+        .values({ nfcUid: intent.braceletUid, lastKnownBalanceCop: 0, lastCounter: 0 })
+        .returning();
+      bracelet = created;
+    }
+
+    const newBalance = bracelet.lastKnownBalanceCop + intent.amountCop;
+    const newCounter = bracelet.lastCounter + 1;
+
+    const [topUp] = await tx
+      .insert(topUpsTable)
+      .values({
+        braceletUid: intent.braceletUid,
+        amountCop: intent.amountCop,
+        paymentMethod: intent.paymentMethod,
+        performedByUserId: null,
+        wompiTransactionId,
+        status: "completed",
+        newBalanceCop: newBalance,
+        newCounter,
+      })
+      .returning();
+
+    await tx
+      .update(braceletsTable)
+      .set({
+        lastKnownBalanceCop: newBalance,
+        lastCounter: newCounter,
+        pendingSync: true,
+        pendingBalanceCop: newBalance,
+        updatedAt: new Date(),
+      })
+      .where(eq(braceletsTable.nfcUid, intent.braceletUid));
+
+    await tx
+      .update(wompiPaymentIntentsTable)
+      .set({ status: "success", topUpId: topUp.id, updatedAt: new Date() })
+      .where(eq(wompiPaymentIntentsTable.id, intentId));
+  });
+}
+
+export default router;

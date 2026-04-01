@@ -74,7 +74,6 @@ function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolea
   }
   return allowedNfcTypes.includes("ntag_21x");
 }
-}
 
 export default function BankLookupScreen() {
   const { t } = useTranslation();
@@ -253,15 +252,29 @@ export default function BankLookupScreen() {
     phone?: string | null;
     email?: string | null;
     lastKnownBalanceCop?: number;
+    pendingSync?: boolean;
+    pendingBalanceCop?: number;
   } | undefined;
+
+  // When pendingSync=true a self-service top-up was applied server-side but not yet
+  // written to the chip. We must use the server balance as the source of truth —
+  // even when NFC was scanned — so the bank operator topups from the correct base.
+  const hasPendingSync = apiRecord?.pendingSync === true;
+  const serverBalance = apiRecord?.pendingBalanceCop
+    ? apiRecord.pendingBalanceCop
+    : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop);
+
+  const resolveStartBalance = () => {
+    if (!bracelet) return 0;
+    if (hasPendingSync && serverBalance !== undefined) return serverBalance;
+    return tagInfo
+      ? bracelet.balance
+      : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance);
+  };
 
   const handleTopUp = () => {
     if (!bracelet) return;
-    // When NFC was scanned, the tag is the wallet — trust it over stale server value.
-    // For manual UID entry (tagInfo is null), fall back to the API balance.
-    const startBalance = tagInfo
-      ? bracelet.balance
-      : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance);
+    const startBalance = resolveStartBalance();
     router.push({
       pathname: "/(bank)/topup",
       params: {
@@ -281,9 +294,7 @@ export default function BankLookupScreen() {
 
   const handleRefund = () => {
     if (!bracelet) return;
-    const startBalance = tagInfo
-      ? bracelet.balance
-      : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance);
+    const startBalance = resolveStartBalance();
     router.push({
       pathname: "/(bank)/refund",
       params: {
@@ -301,11 +312,13 @@ export default function BankLookupScreen() {
     });
   };
 
-  // NFC tag is the physical wallet — prefer its balance when it was scanned.
-  // Fall back to server value only for manual UID entry (no NFC tagInfo).
-  const displayBalance = tagInfo
-    ? (bracelet?.balance ?? 0)
-    : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet?.balance ?? 0);
+  // When pendingSync=true use server balance as display so operator sees correct balance.
+  // Otherwise trust the NFC chip (scanned) or fall back to server (manual entry).
+  const displayBalance = hasPendingSync && serverBalance !== undefined
+    ? serverBalance
+    : tagInfo
+      ? (bracelet?.balance ?? 0)
+      : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet?.balance ?? 0);
   const isFlagged = apiRecord?.isFlagged ?? false;
 
   return (
@@ -366,15 +379,30 @@ export default function BankLookupScreen() {
                   {tagInfo && <TagBadge tagInfo={tagInfo} colors={C} />}
                 </View>
                 {isFlagged && <Badge label={t("bank.flagged")} variant="danger" />}
+                {hasPendingSync && <Badge label="Recarga pendiente" variant="warning" />}
               </View>
 
               <View style={[styles.divider, { backgroundColor: C.separator }]} />
+
+              {hasPendingSync && (
+                <View style={[styles.alertBox, { backgroundColor: C.warningLight, borderColor: C.warning }]}>
+                  <Feather name="clock" size={15} color={C.warning} />
+                  <Text style={[styles.alertText, { color: C.warning }]}>
+                    Esta pulsera tiene una recarga self-service pendiente. El saldo mostrado ya incluye esa recarga. Al hacer topup aquí, se tomará este saldo como base.
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.balanceSection}>
                 <Text style={[styles.balanceLabel, { color: C.textSecondary }]}>
                   {t("bank.currentBalance")}
                 </Text>
                 <CopAmount amount={displayBalance} size={36} />
+                {hasPendingSync && (
+                  <Text style={[styles.pendingSyncNote, { color: C.warning }]}>
+                    Incluye recarga self-service • se sincronizará al tocar
+                  </Text>
+                )}
               </View>
 
               {isFlagged ? (
@@ -504,8 +532,9 @@ const styles = StyleSheet.create({
   divider: { height: 1 },
   balanceSection: { alignItems: "center", gap: 4, paddingVertical: 8 },
   balanceLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  alertBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10 },
-  alertText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  alertBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "transparent" },
+  alertText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 18 },
+  pendingSyncNote: { fontSize: 11, fontFamily: "Inter_500Medium", textAlign: "center", marginTop: 2 },
   actionButtons: { flexDirection: "row", gap: 10 },
   overlay: { flex: 1, justifyContent: "center", paddingHorizontal: 32 },
   modalBox: { padding: 32, borderRadius: 24, gap: 16 },

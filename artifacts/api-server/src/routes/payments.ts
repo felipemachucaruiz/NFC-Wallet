@@ -4,6 +4,7 @@ import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable }
 import { eq, and } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
+import { processSelfServicePayment } from "./selfService";
 
 const router: IRouter = Router();
 
@@ -352,7 +353,11 @@ router.post(
           .where(eq(wompiPaymentIntentsTable.wompiTransactionId, txData.id));
 
         if (intent && intent.status === "pending") {
-          await processSuccessfulPayment(intent.id, txData.id);
+          if (intent.selfService) {
+            await processSelfServicePayment(intent.id, txData.id);
+          } else {
+            await processSuccessfulPayment(intent.id, txData.id);
+          }
         }
       } else if (txData.status === "DECLINED" || txData.status === "ERROR" || txData.status === "VOIDED") {
         const [intent] = await db

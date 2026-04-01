@@ -141,6 +141,8 @@ router.post(
       .set({
         lastKnownBalanceCop: newBalance,
         lastCounter: newCounter,
+        pendingSync: false,
+        pendingBalanceCop: 0,
         updatedAt: new Date(),
       })
       .where(eq(braceletsTable.nfcUid, nfcUid));

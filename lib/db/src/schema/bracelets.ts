@@ -15,6 +15,8 @@ export const braceletsTable = pgTable("bracelets", {
   maxOfflineSpend: integer("max_offline_spend"),
   flagged: boolean("flagged").notNull().default(false),
   flagReason: text("flag_reason"),
+  pendingSync: boolean("pending_sync").notNull().default(false),
+  pendingBalanceCop: integer("pending_balance_cop").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -249,6 +249,18 @@ export default function LoginScreen() {
             </View>
           )}
 
+          <View style={styles.selfServiceRow}>
+            <Text style={[styles.selfServiceLabel, { color: "rgba(255,255,255,0.45)" }]}>
+              ¿Quieres recargar tu pulsera?
+            </Text>
+            <Pressable onPress={() => router.push("/self-service" as never)} style={styles.selfServiceBtn}>
+              <Feather name="credit-card" size={14} color="rgba(255,255,255,0.7)" />
+              <Text style={[styles.selfServiceBtnText, { color: "rgba(255,255,255,0.7)" }]}>
+                Recargar sin cuenta
+              </Text>
+            </Pressable>
+          </View>
+
           <Text style={[styles.disclaimer, { color: "rgba(255,255,255,0.35)" }]}>{t("auth.disclaimer")}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -293,5 +305,9 @@ const styles = StyleSheet.create({
   promptTitle: { fontSize: 15, fontFamily: "Inter_700Bold", textAlign: "center" },
   promptHint: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
   promptActions: { flexDirection: "row", gap: 10, marginTop: 2 },
+  selfServiceRow: { alignItems: "center", gap: 4 },
+  selfServiceLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  selfServiceBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
+  selfServiceBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   disclaimer: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center" },
 });
