@@ -534,6 +534,7 @@ export interface UpdateProductBody {
   ivaRate?: string;
   /** Producto excluido de IVA */
   ivaExento?: boolean;
+  imageUrl?: string | null;
 }
 
 export interface LocationInventoryItem {

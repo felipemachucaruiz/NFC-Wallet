@@ -90,7 +90,7 @@ export default function MerchantProductsScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
         quality: 0.7,
         base64: false,
@@ -404,7 +404,7 @@ export default function MerchantProductsScreen() {
       )}
 
       {isLoading ? (
-        <Loading />
+        <Loading full={false} />
       ) : products.length === 0 ? (
         <Empty
           title={t("merchant_admin.noProducts")}
@@ -415,9 +415,9 @@ export default function MerchantProductsScreen() {
         products.map((product) => (
           <View key={product.id} style={[styles.productCard, { backgroundColor: C.card, borderColor: C.border }]}>
             <View style={styles.productRow}>
-              {product.imageUrl ? (
+              {product.imageUrl && resolveImageUrl(product.imageUrl) ? (
                 <Image
-                  source={{ uri: resolveImageUrl(product.imageUrl) ?? product.imageUrl }}
+                  source={{ uri: resolveImageUrl(product.imageUrl)! }}
                   style={styles.productThumbnail}
                   contentFit="cover"
                 />
