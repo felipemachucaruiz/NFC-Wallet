@@ -63,7 +63,9 @@
     "nfcNotSupported": "Tu dispositivo no soporta NFC",
     "braceletSelected": "Pulsera seleccionada",
     "quickActions": "Acciones rápidas",
-    "history": "Historial"
+    "history": "Historial",
+    "addBracelet": "Escanear / Agregar pulsera",
+    "addTopUp": "Agregar / Recargar"
   },
   "history": {
     "tab": "Historial",

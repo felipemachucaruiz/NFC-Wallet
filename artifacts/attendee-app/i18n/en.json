@@ -63,7 +63,9 @@
     "nfcNotSupported": "Your device doesn't support NFC",
     "braceletSelected": "Wristband selected",
     "quickActions": "Quick actions",
-    "history": "History"
+    "history": "History",
+    "addBracelet": "Scan / Add Wristband",
+    "addTopUp": "Add / Top Up"
   },
   "history": {
     "tab": "History",

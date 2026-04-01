@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -24,6 +25,8 @@ import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyBracelets } from "@/hooks/useAttendeeApi";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
+
+const NFC_TAG_IMAGE = require("@/assets/images/tapee-nfc-tag.png");
 
 type BraceletItem = {
   uid: string;
@@ -66,6 +69,8 @@ export default function HomeScreen() {
         const matched = bracelets.find((b) => b.uid === uid);
         if (matched) {
           Alert.alert(t("home.braceletSelected"), uid);
+        } else {
+          router.push({ pathname: "/top-up", params: { braceletUid: uid } });
         }
       }
     } catch {
@@ -145,6 +150,12 @@ export default function HomeScreen() {
               <Text style={[styles.emptySubtitle, { color: C.textSecondary }]}>
                 {t("home.linkBraceletHint")}
               </Text>
+              <Button
+                title={t("home.addBracelet")}
+                onPress={() => router.push("/top-up")}
+                variant="primary"
+                style={styles.addBraceletBtn}
+              />
             </View>
           )}
         </View>
@@ -157,33 +168,34 @@ export default function HomeScreen() {
               {t("home.myBracelets")}
             </Text>
             {bracelets.map((b) => (
-              <Card key={b.uid} style={{ marginBottom: 10 }}>
-                <View style={styles.braceletRow}>
-                  <View style={[
-                    styles.nfcIcon,
-                    {
-                      backgroundColor: b.flagged ? C.dangerLight : C.primaryLight,
-                      borderWidth: selectedUid === b.uid ? 2 : 0,
-                      borderColor: C.primary,
-                    },
-                  ]}>
-                    <Feather
-                      name="wifi"
-                      size={20}
-                      color={b.flagged ? C.danger : C.primary}
+              <Card key={b.uid} style={{ marginBottom: 10, padding: 0, overflow: "hidden" }}>
+                <View style={styles.braceletCardInner}>
+                  <View style={styles.nfcTagContainer}>
+                    <Image
+                      source={NFC_TAG_IMAGE}
+                      style={styles.nfcTagImage}
+                      resizeMode="contain"
                     />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.braceletUid, { color: C.text }]}>{b.uid}</Text>
-                    {b.event && (
-                      <Text style={[styles.braceletEvent, { color: C.textMuted }]}>
-                        {b.event.name}
-                      </Text>
+                    <View style={styles.nfcTagOverlay}>
+                      <Text style={styles.nfcTagUid}>{b.uid}</Text>
+                    </View>
+                    {selectedUid === b.uid && (
+                      <View style={[styles.nfcTagSelected, { borderColor: C.primary }]} />
                     )}
                   </View>
-                  <View style={{ alignItems: "flex-end", gap: 4 }}>
-                    <CopAmount amount={b.balanceCop} size={16} />
-                    {b.flagged && <Badge label={t("home.blocked")} variant="danger" />}
+
+                  <View style={styles.braceletInfo}>
+                    <View style={{ flex: 1 }}>
+                      {b.event && (
+                        <Text style={[styles.braceletEvent, { color: C.textMuted }]}>
+                          {b.event.name}
+                        </Text>
+                      )}
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                        <CopAmount amount={b.balanceCop} size={18} />
+                        {b.flagged && <Badge label={t("home.blocked")} variant="danger" />}
+                      </View>
+                    </View>
                   </View>
                 </View>
 
@@ -251,20 +263,20 @@ export default function HomeScreen() {
               </View>
               <Text style={[styles.quickLabel, { color: C.text }]}>{t("home.history")}</Text>
             </Pressable>
-            {bracelets.length > 0 && (
-              <Pressable
-                style={[styles.quickCard, { backgroundColor: C.card, borderColor: C.border }]}
-                onPress={() => router.push({
-                  pathname: "/top-up",
-                  params: { braceletUid: activeBracelet?.uid ?? "" },
-                })}
-              >
-                <View style={[styles.quickIcon, { backgroundColor: C.primaryLight }]}>
-                  <Feather name="plus-circle" size={22} color={C.primary} />
-                </View>
-                <Text style={[styles.quickLabel, { color: C.text }]}>{t("home.topUp")}</Text>
-              </Pressable>
-            )}
+            <Pressable
+              style={[styles.quickCard, { backgroundColor: C.card, borderColor: C.border }]}
+              onPress={() => router.push({
+                pathname: "/top-up",
+                params: bracelets.length > 0 ? { braceletUid: activeBracelet?.uid ?? "" } : {},
+              })}
+            >
+              <View style={[styles.quickIcon, { backgroundColor: C.primaryLight }]}>
+                <Feather name="plus-circle" size={22} color={C.primary} />
+              </View>
+              <Text style={[styles.quickLabel, { color: C.text }]}>
+                {bracelets.length === 0 ? t("home.addTopUp") : t("home.topUp")}
+              </Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -321,6 +333,7 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 80, height: 80, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
   emptySubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  addBraceletBtn: { marginTop: 4, minWidth: 200 },
   content: { paddingTop: 24, gap: 8 },
   section: { gap: 10, marginBottom: 16 },
   sectionTitle: {
@@ -330,16 +343,53 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 4,
   },
-  braceletRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  nfcIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  braceletUid: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  braceletEvent: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  braceletCardInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    gap: 14,
+  },
+  nfcTagContainer: {
+    width: 120,
+    height: 76,
+    position: "relative",
+  },
+  nfcTagImage: {
+    width: 120,
+    height: 76,
+    borderRadius: 10,
+  },
+  nfcTagOverlay: {
+    position: "absolute",
+    bottom: 8,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  nfcTagUid: {
+    fontSize: 9,
+    fontFamily: "Inter_600SemiBold",
+    color: "rgba(255,255,255,0.75)",
+    letterSpacing: 0.8,
+  },
+  nfcTagSelected: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: 10,
+    borderWidth: 2,
+  },
+  braceletInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  braceletEvent: { fontSize: 12, fontFamily: "Inter_400Regular" },
   braceletActions: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
     borderTopWidth: 1,
-    marginTop: 12,
+    marginHorizontal: 12,
+    marginBottom: 12,
     paddingTop: 12,
   },
   actionBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -351,7 +401,8 @@ const styles = StyleSheet.create({
     gap: 6,
     padding: 10,
     borderRadius: 8,
-    marginTop: 10,
+    margin: 12,
+    marginTop: 0,
   },
   flaggedText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
   quickGrid: { flexDirection: "row", gap: 12 },
