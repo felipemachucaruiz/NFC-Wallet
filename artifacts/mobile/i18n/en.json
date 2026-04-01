@@ -476,7 +476,8 @@
     "transferInvalidQty": "Enter a valid quantity (1 or more).",
     "transferSameLocation": "Origin and destination must be different.",
     "transferSuccess": "Stock transferred successfully",
-    "transferAvailable": "Available: {{qty}} units"
+    "transferAvailable": "Available: {{qty}} units",
+    "units": "units"
   },
   "warehouse": {
     "title": "Warehouse",

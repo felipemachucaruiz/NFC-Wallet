@@ -476,7 +476,8 @@
     "transferInvalidQty": "Ingresa una cantidad válida (1 o más).",
     "transferSameLocation": "El origen y destino deben ser diferentes.",
     "transferSuccess": "Stock transferido exitosamente",
-    "transferAvailable": "Disponible: {{qty}} unidades"
+    "transferAvailable": "Disponible: {{qty}} unidades",
+    "units": "unidades"
   },
   "warehouse": {
     "title": "Almacén",
