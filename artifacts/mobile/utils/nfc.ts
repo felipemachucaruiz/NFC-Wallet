@@ -22,6 +22,7 @@ export type TagType =
   | "NTAG216"
   | "MIFARE_ULTRALIGHT"
   | "MIFARE_CLASSIC"
+  | "DESFIRE_EV3"
   | "NDEF";
 
 export interface TagInfo {
@@ -42,6 +43,7 @@ const NTAG_USER_MEMORY_END_PAGE: Record<TagType, number> = {
   NTAG216: 226,
   MIFARE_ULTRALIGHT: 15,
   MIFARE_CLASSIC: 0,
+  DESFIRE_EV3: 0,
   NDEF: 0,
 };
 
@@ -99,6 +101,10 @@ async function readUltralightCCByte(): Promise<number | null> {
 }
 
 export async function detectTagType(techTypes: string[]): Promise<TagInfo> {
+  if (hasTech(techTypes, "IsoDep") && !hasTech(techTypes, "MifareUltralight") && !hasTech(techTypes, "MifareClassic")) {
+    return { type: "DESFIRE_EV3", label: "DESFire EV3", memoryBytes: 8192 };
+  }
+
   if (hasTech(techTypes, "MifareClassic")) {
     return { type: "MIFARE_CLASSIC", label: "MIFARE Classic", memoryBytes: 1024 };
   }

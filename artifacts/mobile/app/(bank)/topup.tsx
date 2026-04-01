@@ -24,6 +24,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { isNfcSupported, writeBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
+import { writeDesfireBracelet, type DesfireTagInfo } from "@/utils/desfire";
 import { computeHmac } from "@/utils/hmac";
 import { formatCOP, parseCOPInput } from "@/utils/format";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
@@ -120,6 +121,8 @@ export default function TopUpScreen() {
 
   const { data: keyData } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
+  const desfireAesKey = (keyData as unknown as { desfireAesKey?: string; nfcChipType?: string } | undefined)?.desfireAesKey ?? "";
+  const nfcChipType = (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
   const { enqueueTopUp, cachedHmacSecret, updateCachedHmacSecret, syncNow } = useOfflineQueue();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
 
@@ -225,11 +228,18 @@ export default function TopUpScreen() {
     setStep("writing");
 
     try {
-      const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
-      await writeBracelet(
-        { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
-        tagInfoFromParams ?? undefined
-      );
+      if (nfcChipType === "desfire_ev3") {
+        await writeDesfireBracelet(
+          { uid, balance: newBalance, counter: newCounter, hmac: "" },
+          desfireAesKey
+        );
+      } else {
+        const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
+        await writeBracelet(
+          { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
+          tagInfoFromParams ?? undefined
+        );
+      }
       writingRef.current = false;
       // Write succeeded — enqueue for server sync
       await enqueueTopUp({

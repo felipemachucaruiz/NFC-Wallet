@@ -18,6 +18,27 @@ function generateHmacSecret(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
+function generateDesfireAesKey(): string {
+  return crypto.randomBytes(16).toString("hex");
+}
+
+function verifyDesfireTransactionMac(
+  aesKey: string,
+  uid: string,
+  counter: number,
+  newBalance: number,
+  mac: string,
+): boolean {
+  try {
+    const keyBuf = Buffer.from(aesKey, "hex");
+    const message = `${uid}:${counter}:${newBalance}`;
+    const hmac = crypto.createHmac("sha256", keyBuf).update(message).digest("hex");
+    return hmac.slice(0, 16) === mac.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 const router: IRouter = Router();
 
 const createEventSchema = z.object({
@@ -30,8 +51,8 @@ const createEventSchema = z.object({
   capacity: z.number().int().positive().optional(),
   promoterCompanyId: z.string().optional(),
   pulepId: z.string().optional(),
-  nfcChipType: z.enum(["ntag_21x", "mifare_classic"]).optional(),
-  allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic"])).min(1).optional(),
+  nfcChipType: z.enum(["ntag_21x", "mifare_classic", "desfire_ev3"]).optional(),
+  allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic", "desfire_ev3"])).min(1).optional(),
   offlineSyncLimit: z.number().int().positive().optional(),
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
   eventAdmin: z.object({
@@ -54,8 +75,8 @@ const updateEventSchema = z.object({
   promoterCompanyId: z.string().nullable().optional(),
   pulepId: z.string().nullable().optional(),
   inventoryMode: z.enum(["location_based", "centralized_warehouse"]).optional(),
-  nfcChipType: z.enum(["ntag_21x", "mifare_classic"]).optional(),
-  allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic"])).min(1).optional(),
+  nfcChipType: z.enum(["ntag_21x", "mifare_classic", "desfire_ev3"]).optional(),
+  allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic", "desfire_ev3"])).min(1).optional(),
   offlineSyncLimit: z.number().int().positive().optional(),
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
 });
@@ -165,6 +186,7 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
       offlineSyncLimit: eventsTable.offlineSyncLimit,
       maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
       hasHmacSecret: eventsTable.hmacSecret,
+      hasDesfireKey: eventsTable.desfireAesKey,
       createdAt: eventsTable.createdAt,
       updatedAt: eventsTable.updatedAt,
     })
@@ -176,8 +198,8 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
     return;
   }
 
-  const { hasHmacSecret, ...rest } = row;
-  res.json({ ...rest, hasHmacSecret: !!hasHmacSecret });
+  const { hasHmacSecret, hasDesfireKey, ...rest } = row;
+  res.json({ ...rest, hasHmacSecret: !!hasHmacSecret, hasDesfireKey: !!hasDesfireKey });
 });
 
 router.post("/events", requireRole("admin"), async (req: Request, res: Response) => {
@@ -352,6 +374,98 @@ router.post(
     );
 
     res.json({ success: true, rotatedAt: new Date().toISOString() });
+  }
+);
+
+router.post(
+  "/events/:eventId/generate-desfire-key",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const eventId = req.params.eventId as string;
+    const user = req.user!;
+
+    if (user.role === "event_admin" && user.eventId !== eventId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [event] = await db
+      .select({ id: eventsTable.id, nfcChipType: eventsTable.nfcChipType })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId));
+
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    if (event.nfcChipType !== "desfire_ev3") {
+      res.status(400).json({ error: "Event is not configured for DESFire EV3" });
+      return;
+    }
+
+    const newKey = generateDesfireAesKey();
+
+    await db
+      .update(eventsTable)
+      .set({ desfireAesKey: newKey, updatedAt: new Date() })
+      .where(eq(eventsTable.id, eventId));
+
+    res.json({ success: true, generatedAt: new Date().toISOString() });
+  }
+);
+
+router.post(
+  "/events/:eventId/validate-desfire-mac",
+  requireRole("admin", "event_admin", "merchant_admin", "merchant_staff"),
+  async (req: Request, res: Response) => {
+    const eventId = req.params.eventId as string;
+    const user = req.user!;
+
+    if (
+      (user.role === "event_admin" && user.eventId !== eventId) ||
+      (user.role === "merchant_admin" || user.role === "merchant_staff") && user.eventId !== eventId
+    ) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const parsed = z.object({
+      uid: z.string().min(1),
+      counter: z.number().int().min(0),
+      newBalance: z.number().int().min(0),
+      transactionMac: z.string().min(1),
+    }).safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const [event] = await db
+      .select({ desfireAesKey: eventsTable.desfireAesKey, nfcChipType: eventsTable.nfcChipType })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId));
+
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    if (event.nfcChipType !== "desfire_ev3") {
+      res.status(400).json({ error: "Event is not configured for DESFire EV3" });
+      return;
+    }
+
+    if (!event.desfireAesKey) {
+      res.status(400).json({ error: "DESFire AES key not configured for this event" });
+      return;
+    }
+
+    const { uid, counter, newBalance, transactionMac } = parsed.data;
+    const valid = verifyDesfireTransactionMac(event.desfireAesKey, uid, counter, newBalance, transactionMac);
+
+    res.json({ valid, uid, counter, newBalance });
   }
 );
 

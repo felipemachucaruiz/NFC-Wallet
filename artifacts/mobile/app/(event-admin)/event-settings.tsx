@@ -33,6 +33,7 @@ type EventDetail = {
   nfcChipType?: NfcChipType;
   allowedNfcTypes?: NfcChipType[];
   hasHmacSecret?: boolean;
+  hasDesfireKey?: boolean;
   offlineSyncLimit?: number;
   maxOfflineSpendPerBracelet?: number;
 };
@@ -40,6 +41,7 @@ type EventDetail = {
 type ConfirmModal =
   | { type: "inventory"; pendingMode: InventoryMode }
   | { type: "rotate_key" }
+  | { type: "generate_desfire_key" }
   | null;
 
 function NfcChipCheckbox({
@@ -185,6 +187,7 @@ export default function EventSettingsScreen() {
 
   const [selectedAllowedTypes, setSelectedAllowedTypes] = useState<NfcChipType[]>(["ntag_21x"]);
   const [isSavingChipType, setIsSavingChipType] = useState(false);
+  const [isGeneratingDesfireKey, setIsGeneratingDesfireKey] = useState(false);
 
   React.useEffect(() => {
     if (event) {
@@ -235,6 +238,20 @@ export default function EventSettingsScreen() {
         Alert.alert(t("common.error"), t("eventAdmin.signingKeyRotateFailed"));
       } finally {
         setIsRotating(false);
+      }
+    } else if (confirmModal?.type === "generate_desfire_key") {
+      setIsGeneratingDesfireKey(true);
+      setConfirmModal(null);
+      try {
+        await customFetch(`/api/events/${user.eventId}/generate-desfire-key`, {
+          method: "POST",
+        });
+        refetch();
+        Alert.alert(t("common.success"), t("eventAdmin.desfireKeyGenerated"));
+      } catch {
+        Alert.alert(t("common.error"), t("eventAdmin.desfireKeyGenerateFailed"));
+      } finally {
+        setIsGeneratingDesfireKey(false);
       }
     }
   };
@@ -460,6 +477,14 @@ export default function EventSettingsScreen() {
             checked={selectedAllowedTypes.includes("mifare_classic")}
             onToggle={() => handleToggleChipType("mifare_classic")}
           />
+          <NfcChipOption
+            chipType="desfire_ev3"
+            title={t("eventAdmin.desfireEv3")}
+            description={t("eventAdmin.desfireEv3Desc")}
+            icon="shield"
+            selected={selectedChipType === "desfire_ev3"}
+            onPress={() => setSelectedChipType("desfire_ev3")}
+          />
         </View>
 
         {selectedAllowedTypes.includes("mifare_classic") && (
@@ -468,6 +493,17 @@ export default function EventSettingsScreen() {
               <Feather name="alert-triangle" size={16} color={C.warning} style={{ marginTop: 1 }} />
               <Text style={[styles.infoText, { color: C.text }]}>
                 {t("eventAdmin.mifareClassicWarning")}
+              </Text>
+            </View>
+          </Card>
+        )}
+
+        {selectedChipType === "desfire_ev3" && (
+          <Card style={[styles.infoCard, { borderColor: C.primary + "55", backgroundColor: C.primaryLight }]} padding={14}>
+            <View style={styles.infoRow}>
+              <Feather name="info" size={16} color={C.primary} style={{ marginTop: 1 }} />
+              <Text style={[styles.infoText, { color: C.text }]}>
+                {t("eventAdmin.desfireEv3Compatibility")}
               </Text>
             </View>
           </Card>
@@ -482,6 +518,48 @@ export default function EventSettingsScreen() {
           loading={isSavingChipType}
           disabled={!allowedTypesChanged}
         />
+
+        {currentChipType === "desfire_ev3" && (
+          <>
+            <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
+            <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.desfireAesKey")}</Text>
+            <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+              {t("eventAdmin.desfireAesKeyDescription")}
+            </Text>
+            <Card padding={16} style={{ borderColor: C.border, borderWidth: 1 }}>
+              <View style={styles.keyRow}>
+                <View style={[styles.keyIconBox, { backgroundColor: C.primaryLight }]}>
+                  <Feather name="lock" size={20} color={C.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.keyLabel, { color: C.text }]}>{t("eventAdmin.desfireAesKeyLabel")}</Text>
+                  <Text style={[styles.keyValue, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>
+                    {event?.hasDesfireKey ? "••••••••••••••••••••••••••••••••" : t("eventAdmin.noKeySet")}
+                  </Text>
+                </View>
+              </View>
+              <Button
+                title={isGeneratingDesfireKey ? t("common.loading") : (event?.hasDesfireKey ? t("eventAdmin.regenerateDesfireKey") : t("eventAdmin.generateDesfireKey"))}
+                onPress={() => setConfirmModal({ type: "generate_desfire_key" })}
+                variant={event?.hasDesfireKey ? "danger" : "primary"}
+                size="md"
+                fullWidth
+                style={{ marginTop: 12 }}
+                loading={isGeneratingDesfireKey}
+              />
+            </Card>
+            {event?.hasDesfireKey && (
+              <Card style={[styles.infoCard, { borderColor: C.danger + "55", backgroundColor: C.dangerLight }]} padding={14}>
+                <View style={styles.infoRow}>
+                  <Feather name="alert-octagon" size={16} color={C.danger} style={{ marginTop: 1 }} />
+                  <Text style={[styles.infoText, { color: C.text }]}>
+                    {t("eventAdmin.desfireKeyRotateWarning")}
+                  </Text>
+                </View>
+              </Card>
+            )}
+          </>
+        )}
 
         <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
 
@@ -547,6 +625,18 @@ export default function EventSettingsScreen() {
                 {t("eventAdmin.rotateKeyWarning")}
               </Text>
             </>
+          ) : confirmModal?.type === "generate_desfire_key" ? (
+            <>
+              <View style={[styles.warningIconBox, { backgroundColor: C.primaryLight }]}>
+                <Feather name="lock" size={32} color={C.primary} />
+              </View>
+              <Text style={[styles.confirmTitle, { color: C.text }]}>
+                {t("eventAdmin.generateDesfireKey")}
+              </Text>
+              <Text style={[styles.confirmDesc, { color: C.textSecondary }]}>
+                {t("eventAdmin.desfireKeyConfirmDesc")}
+              </Text>
+            </>
           ) : (
             <>
               <View style={[styles.warningIconBox, { backgroundColor: C.warningLight }]}>
@@ -580,12 +670,18 @@ export default function EventSettingsScreen() {
               fullWidth
             />
             <Button
-              title={confirmModal?.type === "rotate_key" ? t("eventAdmin.confirmRotate") : t("common.confirm")}
+              title={
+                confirmModal?.type === "rotate_key"
+                  ? t("eventAdmin.confirmRotate")
+                  : confirmModal?.type === "generate_desfire_key"
+                    ? t("common.confirm")
+                    : t("common.confirm")
+              }
               onPress={handleConfirm}
               variant={confirmModal?.type === "rotate_key" ? "danger" : "primary"}
               size="lg"
               fullWidth
-              loading={updateEvent.isPending || isRotating}
+              loading={updateEvent.isPending || isRotating || isGeneratingDesfireKey}
             />
           </View>
         </View>

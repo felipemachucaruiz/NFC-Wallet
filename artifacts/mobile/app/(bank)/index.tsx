@@ -24,7 +24,9 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useFocusEffect } from "expo-router";
-import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
+import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo, type TagType, type NfcChipTypeHint } from "@/utils/nfc";
+import { readDesfireBracelet } from "@/utils/desfire";
+import { useGetSigningKey } from "@workspace/api-client-react";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -64,11 +66,14 @@ const tagBadgeStyles = StyleSheet.create({
 });
 
 function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolean {
-  const isMifareClassic = tagType === "MIFARE_CLASSIC";
-  if (isMifareClassic) {
+  if (tagType === "DESFIRE_EV3") {
+    return allowedNfcTypes.includes("desfire_ev3");
+  }
+  if (tagType === "MIFARE_CLASSIC") {
     return allowedNfcTypes.includes("mifare_classic");
   }
   return allowedNfcTypes.includes("ntag_21x");
+}
 }
 
 export default function BankLookupScreen() {
@@ -86,6 +91,15 @@ export default function BankLookupScreen() {
   const configuredAllowedTypes: NfcChipType[] = eventTyped?.allowedNfcTypes ?? [eventTyped?.nfcChipType ?? "ntag_21x"];
   const configuredAllowedTypesRef = useRef<NfcChipType[]>(configuredAllowedTypes);
   configuredAllowedTypesRef.current = configuredAllowedTypes;
+
+  const configuredChipType = eventTyped?.nfcChipType ?? "ntag_21x";
+  const configuredChipTypeRef = useRef<NfcChipType>(configuredChipType);
+  configuredChipTypeRef.current = configuredChipType;
+
+  const { data: keyData } = useGetSigningKey();
+  const desfireAesKey = (keyData as unknown as { desfireAesKey?: string } | undefined)?.desfireAesKey ?? "";
+  const desfireAesKeyRef = useRef(desfireAesKey);
+  desfireAesKeyRef.current = desfireAesKey;
 
   const [bracelet, setBracelet] = useState<BraceletState | null>(null);
   const [isTapping, setIsTapping] = useState(false);
@@ -109,12 +123,19 @@ export default function BankLookupScreen() {
       if (isNfcSupported()) {
         setIsTapping(true);
         scanningRef.current = true;
-        scanBracelet({ expectedChipType: configuredAllowedTypesRef.current.includes("mifare_classic") && configuredAllowedTypesRef.current.length === 1 ? "mifare_classic" : "ntag_21x" })
+        const chipType = configuredChipTypeRef.current;
+        const scanPromise = chipType === "desfire_ev3"
+          ? readDesfireBracelet(desfireAesKeyRef.current).then((payload) => ({
+              payload,
+              tagInfo: { type: "DESFIRE_EV3" as TagType, label: "MIFARE DESFire EV3", memoryBytes: 0 } satisfies TagInfo,
+            }))
+          : scanBracelet({ expectedChipType: (configuredAllowedTypesRef.current.includes("mifare_classic") && configuredAllowedTypesRef.current.length === 1 ? "mifare_classic" : "ntag_21x") as NfcChipTypeHint });
+        scanPromise
           .then((result) => {
             if (cancelledRef.current) return;
             if (!isChipAllowed(result.tagInfo.type, configuredAllowedTypesRef.current)) {
               const allowedLabels = configuredAllowedTypesRef.current
-                .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x"))
+                .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : ct === "desfire_ev3" ? "DESFire EV3" : "NTAG 21x"))
                 .join(", ");
               Alert.alert(
                 t("common.error"),
@@ -123,7 +144,7 @@ export default function BankLookupScreen() {
               return;
             }
             setBracelet(result.payload);
-            setTagInfo(result.tagInfo);
+            setTagInfo(result.tagInfo as TagInfo);
             setFetchUid(result.payload.uid);
           })
           .catch((e: unknown) => {
@@ -175,11 +196,17 @@ export default function BankLookupScreen() {
     scanningRef.current = true;
     setIsTapping(true);
     try {
-      const result = await scanBracelet({ expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x" });
+      let result: { payload: BraceletState; tagInfo: TagInfo };
+      if (configuredChipType === "desfire_ev3") {
+        const payload = await readDesfireBracelet(desfireAesKey);
+        result = { payload, tagInfo: { type: "DESFIRE_EV3" as TagType, label: "MIFARE DESFire EV3", memoryBytes: 0 } };
+      } else {
+        result = await scanBracelet({ expectedChipType: (configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x") as NfcChipTypeHint });
+      }
       if (cancelledRef.current) return;
       if (!isChipAllowed(result.tagInfo.type, configuredAllowedTypes)) {
         const allowedLabels = configuredAllowedTypes
-          .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x"))
+          .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : ct === "desfire_ev3" ? "DESFire EV3" : "NTAG 21x"))
           .join(", ");
         Alert.alert(
           t("common.error"),

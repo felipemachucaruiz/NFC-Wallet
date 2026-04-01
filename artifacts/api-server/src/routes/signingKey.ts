@@ -49,6 +49,8 @@ router.get(
         hmacSecret: eventsTable.hmacSecret,
         offlineSyncLimit: eventsTable.offlineSyncLimit,
         maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
+        nfcChipType: eventsTable.nfcChipType,
+        desfireAesKey: eventsTable.desfireAesKey,
       })
       .from(eventsTable)
       .where(eq(eventsTable.id, eventId));
@@ -60,11 +62,16 @@ router.get(
 
     if (event.hmacSecret) {
       // Event has its own key (standard path)
-      res.json({
+      const response: Record<string, unknown> = {
         hmacSecret: event.hmacSecret,
         offlineSyncLimit: event.offlineSyncLimit,
         maxOfflineSpendPerBracelet: event.maxOfflineSpendPerBracelet,
-      });
+        nfcChipType: event.nfcChipType,
+      };
+      if (event.nfcChipType === "desfire_ev3" && event.desfireAesKey) {
+        response.desfireAesKey = event.desfireAesKey;
+      }
+      res.json(response);
       return;
     }
 
@@ -78,6 +85,7 @@ router.get(
       hmacSecret,
       offlineSyncLimit: event.offlineSyncLimit,
       maxOfflineSpendPerBracelet: event.maxOfflineSpendPerBracelet,
+      nfcChipType: event.nfcChipType,
     });
   },
 );

@@ -24,6 +24,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
+import { scanAndWriteDesfireBracelet, type DesfireTagInfo } from "@/utils/desfire";
 import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCOP } from "@/utils/format";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
@@ -86,6 +87,9 @@ function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolea
   if (isMifareClassic) {
     return allowedNfcTypes.includes("mifare_classic");
   }
+  if (tagType === "DESFIRE_EV3") {
+    return allowedNfcTypes.includes("desfire_ev3");
+  }
   return allowedNfcTypes.includes("ntag_21x");
 }
 
@@ -115,6 +119,7 @@ export default function ChargeScreen() {
   const total = snapshotTotal > 0 ? snapshotTotal : liveTotal;
   const { data: keyData } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
+  const desfireAesKey = (keyData as unknown as { desfireAesKey?: string } | undefined)?.desfireAesKey ?? "";
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
 
   React.useEffect(() => {
@@ -137,7 +142,7 @@ export default function ChargeScreen() {
   const [braceletBalance, setBraceletBalance] = useState<number | null>(null);
   const [braceletUid, setBraceletUid] = useState<string | null>(null);
   const [manualUid, setManualUid] = useState("");
-  const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
+  const [tagInfo, setTagInfo] = useState<TagInfo | DesfireTagInfo | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [nfcModalVisible, setNfcModalVisible] = useState(false);
   const scanningRef = useRef(false);
@@ -241,66 +246,113 @@ export default function ChargeScreen() {
     let uid = "";
     let newBalance = 0;
     let newCounter = 0;
-    try {
-      await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
-        setTagInfo(detectedTagInfo);
 
-        if (!isChipAllowed(detectedTagInfo.type, configuredAllowedTypes)) {
-          const allowedLabels = configuredAllowedTypes
-            .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x"))
-            .join(", ");
-          aborted = true;
-          setNfcModalVisible(false);
-          setStep("waiting");
-          Alert.alert(
-            t("common.error"),
-            t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: detectedTagInfo.label }),
-          );
-          return null;
-        }
+    const onlyDesfire = configuredAllowedTypes.length === 1 && configuredAllowedTypes[0] === "desfire_ev3";
 
-        setStep("verifying");
-        let hmacOk = true;
-        if (hmacSecret && payload.hmac) {
-          hmacOk = await verifyHmac(payload.balance, payload.counter, payload.hmac, hmacSecret);
-        }
-        if (!hmacOk) {
-          setStep("hmac_fail");
-          aborted = true;
-          setNfcModalVisible(false);
-          try {
-            await reportTamper.mutateAsync({
-              data: { nfcUid: payload.uid, reason: "HMAC mismatch detected at merchant POS" },
-            });
-          } catch {}
-          return null;
-        }
-
-        if (payload.balance < total) {
-          setBraceletBalance(payload.balance);
-          setBraceletUid(payload.uid);
-          setStep("insufficient");
-          aborted = true;
-          setNfcModalVisible(false);
-          return null;
-        }
-
-        uid = payload.uid;
-        newBalance = payload.balance - total;
-        newCounter = payload.counter + 1;
-        setStep("writing");
-        const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
-        return { uid, balance: newBalance, counter: newCounter, hmac: newHmac };
-      }, { expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x" });
-    } catch {
-      if (!aborted && !cancelledRef.current) {
+    if (onlyDesfire) {
+      if (!desfireAesKey) {
         scanningRef.current = false;
         setNfcModalVisible(false);
         setStep("waiting");
-        Alert.alert(t("common.error"), t("pos.readError"));
+        Alert.alert(t("common.error"), t("pos.desfireNoKey"));
+        return;
       }
-      scanningRef.current = false;
-      return;
+      try {
+        await scanAndWriteDesfireBracelet(async (payload, detectedTagInfo) => {
+          setTagInfo(detectedTagInfo);
+          setStep("verifying");
+
+          if (payload.balance < total) {
+            setBraceletBalance(payload.balance);
+            setBraceletUid(payload.uid);
+            setStep("insufficient");
+            aborted = true;
+            setNfcModalVisible(false);
+            return null;
+          }
+
+          uid = payload.uid;
+          newBalance = payload.balance - total;
+          newCounter = payload.counter + 1;
+          setStep("writing");
+          return { uid, balance: newBalance, counter: newCounter, hmac: payload.hmac };
+        }, desfireAesKey);
+      } catch {
+        if (!aborted && !cancelledRef.current) {
+          scanningRef.current = false;
+          setNfcModalVisible(false);
+          setStep("waiting");
+          Alert.alert(t("common.error"), t("pos.readError"));
+        }
+        scanningRef.current = false;
+        return;
+      }
+    } else {
+      try {
+        await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
+          setTagInfo(detectedTagInfo);
+
+          if (!isChipAllowed(detectedTagInfo.type, configuredAllowedTypes)) {
+            const allowedLabels = configuredAllowedTypes
+              .map((ct) => {
+                if (ct === "mifare_classic") return "MIFARE Classic";
+                if (ct === "desfire_ev3") return "DESFire EV3";
+                return "NTAG 21x";
+              })
+              .join(", ");
+            aborted = true;
+            setNfcModalVisible(false);
+            setStep("waiting");
+            Alert.alert(
+              t("common.error"),
+              t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: detectedTagInfo.label }),
+            );
+            return null;
+          }
+
+          setStep("verifying");
+          let hmacOk = true;
+          if (hmacSecret && payload.hmac) {
+            hmacOk = await verifyHmac(payload.balance, payload.counter, payload.hmac, hmacSecret);
+          }
+          if (!hmacOk) {
+            setStep("hmac_fail");
+            aborted = true;
+            setNfcModalVisible(false);
+            try {
+              await reportTamper.mutateAsync({
+                data: { nfcUid: payload.uid, reason: "HMAC mismatch detected at merchant POS" },
+              });
+            } catch {}
+            return null;
+          }
+
+          if (payload.balance < total) {
+            setBraceletBalance(payload.balance);
+            setBraceletUid(payload.uid);
+            setStep("insufficient");
+            aborted = true;
+            setNfcModalVisible(false);
+            return null;
+          }
+
+          uid = payload.uid;
+          newBalance = payload.balance - total;
+          newCounter = payload.counter + 1;
+          setStep("writing");
+          const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
+          return { uid, balance: newBalance, counter: newCounter, hmac: newHmac };
+        }, { expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x" });
+      } catch {
+        if (!aborted && !cancelledRef.current) {
+          scanningRef.current = false;
+          setNfcModalVisible(false);
+          setStep("waiting");
+          Alert.alert(t("common.error"), t("pos.readError"));
+        }
+        scanningRef.current = false;
+        return;
+      }
     }
 
     scanningRef.current = false;

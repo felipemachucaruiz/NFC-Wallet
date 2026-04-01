@@ -3,7 +3,7 @@ import { useGetEvent } from "@workspace/api-client-react";
 import type { InventoryMode } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type NfcChipType = "ntag_21x" | "mifare_classic";
+export type NfcChipType = "ntag_21x" | "mifare_classic" | "desfire_ev3";
 
 interface EventContextValue {
   inventoryMode: InventoryMode;

@@ -335,7 +335,8 @@
     "offlineLimitReached": "Límite offline alcanzado",
     "offlineLimitDetail": "Gastado sin sincronizar: {{spent}} de {{limit}} permitidos. Sincroniza antes de continuar.",
     "syncNow": "Sincronizar ahora",
-    "syncError": "Error al sincronizar"
+    "syncError": "Error al sincronizar",
+    "desfireNoKey": "Clave AES DESFire no configurada. Contacta al administrador del evento."
   },
   "merchant_admin": {
     "title": "Panel Merchant",
@@ -613,6 +614,18 @@
     "nfcChipSaved": "Tipo de pulsera guardado",
     "nfcChipSaveFailed": "Error al guardar el tipo de pulsera",
     "nfcChipMismatch": "Tipo de chip no coincide: esperado {{expected}}, detectado {{detected}}. La transacción continuará.",
+    "desfireEv3": "MIFARE DESFire EV3",
+    "desfireEv3Desc": "Chip NFC de grado bancario con autenticación mutua AES-128 y protección anti-corte.",
+    "desfireEv3Compatibility": "Requiere Android 8.0+ con soporte IsoDep. No compatible con iOS.",
+    "desfireAesKey": "Clave AES-128 DESFire",
+    "desfireAesKeyDescription": "Clave maestra AES-128 usada para autenticación de pulseras DESFire EV3 y generación de Transaction MAC",
+    "desfireAesKeyLabel": "Clave maestra AES-128",
+    "generateDesfireKey": "Generar clave AES",
+    "regenerateDesfireKey": "Regenerar clave AES",
+    "desfireKeyGenerated": "Clave AES DESFire generada. Formatea las pulseras antes del evento.",
+    "desfireKeyGenerateFailed": "Error al generar la clave AES DESFire",
+    "desfireKeyConfirmDesc": "Esto generará una nueva clave maestra AES-128 para pulseras DESFire EV3. Todas las pulseras deberán ser reformateadas con la nueva clave.",
+    "desfireKeyRotateWarning": "Regenerar la clave AES requerirá que todas las pulseras DESFire sean reformateadas. Esta acción no puede deshacerse.",
     "more": "Más"
   },
   "inventory": {

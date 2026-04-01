@@ -335,7 +335,8 @@
     "offlineLimitReached": "Offline limit reached",
     "offlineLimitDetail": "Unsynced spend: {{spent}} of {{limit}} allowed. Please sync before continuing.",
     "syncNow": "Sync now",
-    "syncError": "Error syncing"
+    "syncError": "Error syncing",
+    "desfireNoKey": "DESFire AES key not configured. Contact your event administrator."
   },
   "merchant_admin": {
     "title": "Merchant Panel",
@@ -624,6 +625,18 @@
     "nfcChipSaved": "Wristband type saved",
     "nfcChipSaveFailed": "Failed to save wristband type",
     "nfcChipMismatch": "Chip type mismatch: expected {{expected}}, detected {{detected}}. Transaction will proceed.",
+    "desfireEv3": "MIFARE DESFire EV3",
+    "desfireEv3Desc": "Bank-grade NFC chip with AES-128 mutual authentication and anti-tearing protection.",
+    "desfireEv3Compatibility": "Requires Android 8.0+ with IsoDep support. Not compatible with iOS.",
+    "desfireAesKey": "DESFire AES-128 Key",
+    "desfireAesKeyDescription": "AES-128 master key used for DESFire EV3 bracelet authentication and Transaction MAC generation",
+    "desfireAesKeyLabel": "AES-128 Master Key",
+    "generateDesfireKey": "Generate AES Key",
+    "regenerateDesfireKey": "Regenerate AES Key",
+    "desfireKeyGenerated": "DESFire AES key generated. Format bracelets before the event.",
+    "desfireKeyGenerateFailed": "Failed to generate DESFire AES key",
+    "desfireKeyConfirmDesc": "This will generate a new AES-128 master key for DESFire EV3 bracelets. All bracelets must be reformatted with the new key.",
+    "desfireKeyRotateWarning": "Regenerating the AES key will require all DESFire bracelets to be reformatted. This cannot be undone.",
     "more": "More"
   },
   "inventory": {
