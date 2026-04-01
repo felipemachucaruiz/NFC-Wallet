@@ -1,7 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import * as ImageManipulator from "expo-image-manipulator";
 import { Image } from "expo-image";
 import React, { useState } from "react";
 import { Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
@@ -81,48 +80,31 @@ export default function MerchantProductsScreen() {
   };
 
   const pickImage = async () => {
-    if (Platform.OS !== "web") {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(t("common.error"), t("merchant_admin.photoPermissionDenied"));
-        return;
-      }
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: false,
-      quality: 1,
-      base64: false,
-    });
-
-    if (!result.canceled && result.assets.length > 0) {
-      const asset = result.assets[0];
-      const originalWidth = asset.width ?? 0;
-      const originalHeight = asset.height ?? 0;
-      const maxDim = 1024;
-      const needsResize = originalWidth > maxDim || originalHeight > maxDim;
-
-      let finalUri = asset.uri;
-      if (needsResize) {
-        const scale = Math.min(maxDim / originalWidth, maxDim / originalHeight);
-        const manipulated = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          [{ resize: { width: Math.round(originalWidth * scale), height: Math.round(originalHeight * scale) } }],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
-        );
-        finalUri = manipulated.uri;
-      } else {
-        const manipulated = await ImageManipulator.manipulateAsync(
-          asset.uri,
-          [],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
-        );
-        finalUri = manipulated.uri;
+    try {
+      if (Platform.OS !== "web") {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(t("common.error"), t("merchant_admin.photoPermissionDenied"));
+          return;
+        }
       }
 
-      setPendingImageUri(finalUri);
-      setForm((f) => ({ ...f, imageUrl: finalUri }));
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: false,
+        quality: 0.7,
+        base64: false,
+        exif: false,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        setPendingImageUri(uri);
+        setForm((f) => ({ ...f, imageUrl: uri }));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert(t("common.error"), msg);
     }
   };
 
