@@ -60,7 +60,7 @@ const clearToken = async (): Promise<void> => {
 
 async function fetchCurrentUser(token: string): Promise<AuthUser | null | "network_error"> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    const res = await fetch(`${API_BASE_URL}/api/auth/user`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.status === 401 || res.status === 403) return null;
@@ -146,16 +146,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     lastName: string
   ): Promise<string | null> => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      // Step 1: Create the account
+      const createRes = await fetch(`${API_BASE_URL}/api/auth/create-account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, firstName, lastName, role: "attendee" }),
+        body: JSON.stringify({ email, password, firstName, lastName }),
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+      if (!createRes.ok) {
+        const body = await createRes.json().catch(() => ({}));
         return (body as { error?: string }).error ?? "Error al registrarse";
       }
-      const { token: sid } = await res.json() as { token: string };
+
+      // Step 2: Auto-login to get a session token
+      const loginRes = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: email, password }),
+      });
+      if (!loginRes.ok) {
+        return "Cuenta creada. Por favor inicia sesión.";
+      }
+      const { token: sid } = await loginRes.json() as { token: string };
       const u = await fetchCurrentUser(sid);
       if (!u) return "No se pudo cargar el perfil";
       if (u === "network_error") return "Error de red";
