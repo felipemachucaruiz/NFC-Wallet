@@ -54,7 +54,7 @@ export function UpdateBanner() {
 
   if (phase === "idle") return null;
 
-  const bgColor = phase === "ready" ? "#16a34a" : "#1A56DB";
+  const bgColor = phase === "ready" ? "#22c55e" : "#00f1ff";
   const bottomOffset = insets.bottom + 16;
 
   return (

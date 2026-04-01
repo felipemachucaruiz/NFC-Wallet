@@ -7,12 +7,12 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tapee",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0a0a0a"
     },
     "ios": {
       "supportsTablet": false,
@@ -24,7 +24,7 @@
       "package": "com.tapee.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#1A56DB"
+        "backgroundColor": "#0a0a0a"
       },
       "permissions": [
         "android.permission.NFC",

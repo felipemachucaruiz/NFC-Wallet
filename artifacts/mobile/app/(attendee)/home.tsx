@@ -61,7 +61,7 @@ export default function AttendeeHomeScreen() {
       }
     >
       <LinearGradient
-        colors={scheme === "dark" ? ["#0A0F1E", "#0D1B3E"] : ["#EFF6FF", "#DBEAFE"]}
+        colors={scheme === "dark" ? ["#0a0a0a", "#111111"] : ["#EFF6FF", "#DBEAFE"]}
         style={styles.heroGradient}
       >
         <View style={[styles.topBar, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>

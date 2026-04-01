@@ -126,7 +126,7 @@ export default function LoginScreen() {
   return (
     <View style={[styles.container, { backgroundColor: C.background, paddingTop: isWeb ? 67 : insets.top }]}>
       <LinearGradient
-        colors={scheme === "dark" ? ["#0A0F1E", "#0D1B3E", "#0A0F1E"] : ["#EFF6FF", "#DBEAFE", "#F0F4F8"]}
+        colors={scheme === "dark" ? ["#0a0a0a", "#111111", "#0a0a0a"] : ["#EFF6FF", "#DBEAFE", "#F0F4F8"]}
         style={StyleSheet.absoluteFill}
       />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>

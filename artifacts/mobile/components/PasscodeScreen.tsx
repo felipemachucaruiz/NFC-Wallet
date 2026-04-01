@@ -74,7 +74,7 @@ export function PasscodeScreen({ mode, onSuccess, onCancel, title, subtitle }: P
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={isDark ? ["#060B18", "#0D1B3E", "#060B18"] : ["#1A56DB", "#1e3a8a", "#1A56DB"]}
+        colors={isDark ? ["#0a0a0a", "#111111", "#0a0a0a"] : ["#1A56DB", "#1e3a8a", "#1A56DB"]}
         style={StyleSheet.absoluteFill}
       />
 

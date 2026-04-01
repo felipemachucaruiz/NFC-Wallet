@@ -22,9 +22,9 @@ const LOGO_W = 260;
 const LOGO_H = LOGO_W / (1199 / 435);
 
 const GLOW_LAYERS = [
-  { scaleMax: 1.10, opacityMax: 0.30, delay: 0 },
-  { scaleMax: 1.20, opacityMax: 0.20, delay: 120 },
-  { scaleMax: 1.32, opacityMax: 0.13, delay: 240 },
+  { scaleMax: 1.10, opacityMax: 0.35, delay: 0 },
+  { scaleMax: 1.20, opacityMax: 0.22, delay: 120 },
+  { scaleMax: 1.32, opacityMax: 0.14, delay: 240 },
   { scaleMax: 1.46, opacityMax: 0.07, delay: 360 },
 ];
 
@@ -150,7 +150,7 @@ export function AnimatedSplash({ onFinished }: Props) {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0a0a0a",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 999,
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: LOGO_W,
     height: LOGO_H,
-    tintColor: "#3B6FE8",
+    tintColor: "#00f1ff",
   },
   logo: {
     position: "absolute",
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
-    color: "#6B7280",
+    color: "#a1a1aa",
     letterSpacing: 0.2,
     textAlign: "center",
   },
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     bottom: 48,
     fontSize: 11,
     fontFamily: "Inter_500Medium",
-    color: "#D1D5DB",
+    color: "#52525b",
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },

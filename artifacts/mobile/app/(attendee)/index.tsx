@@ -109,7 +109,7 @@ export default function AttendeeBalanceScreen() {
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <LinearGradient
-        colors={scheme === "dark" ? ["#0A0F1E", "#0D1B3E"] : ["#EFF6FF", "#DBEAFE"]}
+        colors={scheme === "dark" ? ["#0a0a0a", "#111111"] : ["#EFF6FF", "#DBEAFE"]}
         style={StyleSheet.absoluteFill}
       />
 

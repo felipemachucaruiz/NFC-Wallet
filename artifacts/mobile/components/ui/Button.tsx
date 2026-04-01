@@ -68,6 +68,9 @@ export function Button({
 
   const isDisabled = disabled || loading;
 
+  const isDark = scheme === "dark";
+  const showCyanGlow = variant === "primary" && isDark && !isDisabled;
+
   return (
     <Pressable
       onPress={onPress}
@@ -82,6 +85,11 @@ export function Button({
           alignSelf: fullWidth ? "stretch" : "auto",
           borderWidth: variant === "ghost" ? 0 : 0,
           borderColor: C.border,
+          shadowColor: showCyanGlow ? "#00f1ff" : "transparent",
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: showCyanGlow ? 0.45 : 0,
+          shadowRadius: showCyanGlow ? 12 : 0,
+          elevation: showCyanGlow ? 8 : 2,
         },
         style,
       ]}
