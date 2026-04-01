@@ -3,7 +3,6 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -42,6 +41,8 @@ export default function ProfileScreen() {
   const refunds = ((refundsData as { refundRequests?: RefundRequest[] } | undefined)?.refundRequests ?? []);
 
   const [currentLang, setCurrentLang] = useState(i18n.language);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLanguage = async (lang: string) => {
     await setStoredLanguage(lang);
@@ -49,22 +50,10 @@ export default function ProfileScreen() {
     setCurrentLang(lang);
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      t("auth.logoutConfirm"),
-      undefined,
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("common.logout"),
-          style: "destructive",
-          onPress: async () => {
-            await logout();
-            router.replace("/login");
-          },
-        },
-      ]
-    );
+  const handleLogoutConfirm = async () => {
+    setLoggingOut(true);
+    await logout();
+    router.replace("/login");
   };
 
   const statusVariant = (status: string): "success" | "warning" | "danger" | "muted" => {
@@ -166,13 +155,41 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      <Pressable
-        onPress={handleLogout}
-        style={[styles.logoutBtn, { backgroundColor: C.dangerLight, borderColor: C.danger }]}
-      >
-        <Feather name="log-out" size={18} color={C.danger} />
-        <Text style={[styles.logoutText, { color: C.danger }]}>{t("profile.logout")}</Text>
-      </Pressable>
+      {!showLogoutConfirm ? (
+        <Pressable
+          onPress={() => setShowLogoutConfirm(true)}
+          style={[styles.logoutBtn, { backgroundColor: C.dangerLight, borderColor: C.danger }]}
+        >
+          <Feather name="log-out" size={18} color={C.danger} />
+          <Text style={[styles.logoutText, { color: C.danger }]}>{t("profile.logout")}</Text>
+        </Pressable>
+      ) : (
+        <View style={[styles.logoutConfirm, { backgroundColor: C.dangerLight, borderColor: C.danger }]}>
+          <Text style={[styles.logoutConfirmText, { color: C.danger }]}>
+            {t("auth.logoutConfirm")}
+          </Text>
+          <View style={styles.logoutConfirmBtns}>
+            <Pressable
+              onPress={() => setShowLogoutConfirm(false)}
+              style={[styles.logoutCancelBtn, { backgroundColor: C.card, borderColor: C.border }]}
+            >
+              <Text style={[styles.logoutCancelText, { color: C.textSecondary }]}>
+                {t("common.cancel")}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleLogoutConfirm}
+              disabled={loggingOut}
+              style={[styles.logoutConfirmBtn, { backgroundColor: C.danger, opacity: loggingOut ? 0.6 : 1 }]}
+            >
+              <Feather name="log-out" size={15} color="#fff" />
+              <Text style={styles.logoutConfirmBtnText}>
+                {loggingOut ? "..." : t("common.logout")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -221,4 +238,41 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  logoutConfirm: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    gap: 14,
+  },
+  logoutConfirmText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
+  },
+  logoutConfirmBtns: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  logoutCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  logoutCancelText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  logoutConfirmBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  logoutConfirmBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
 });
