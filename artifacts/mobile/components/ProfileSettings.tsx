@@ -1,8 +1,8 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import i18n, { setStoredLanguage, SUPPORTED_LANGUAGES } from "@/i18n";
@@ -18,18 +18,13 @@ export function ProfileSettings() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const isWeb = Platform.OS === "web";
 
-  const handleLogout = () => {
-    Alert.alert(t("auth.logoutConfirm"), undefined, [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("auth.logout"),
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          router.replace("/login");
-        },
-      },
-    ]);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogoutConfirm = async () => {
+    setLoggingOut(true);
+    await logout();
+    router.replace("/login");
   };
 
   const changeLang = async (code: string) => {
@@ -170,21 +165,46 @@ export function ProfileSettings() {
         </Card>
       </View>
 
-      <Pressable
-        onPress={handleLogout}
-        style={({ pressed }) => [
-          styles.logoutBtn,
-          {
-            backgroundColor: C.dangerLight,
-            opacity: pressed ? 0.8 : 1,
-          },
-        ]}
-      >
-        <Feather name="log-out" size={18} color={C.danger} />
-        <Text style={[styles.logoutText, { color: C.danger }]}>
-          {t("auth.logout")}
-        </Text>
-      </Pressable>
+      {!showLogoutConfirm ? (
+        <Pressable
+          onPress={() => setShowLogoutConfirm(true)}
+          style={({ pressed }) => [
+            styles.logoutBtn,
+            { backgroundColor: C.dangerLight, borderColor: C.danger, opacity: pressed ? 0.8 : 1 },
+          ]}
+        >
+          <Feather name="log-out" size={18} color={C.danger} />
+          <Text style={[styles.logoutText, { color: C.danger }]}>
+            {t("auth.logout")}
+          </Text>
+        </Pressable>
+      ) : (
+        <View style={[styles.logoutConfirm, { backgroundColor: C.dangerLight, borderColor: C.danger }]}>
+          <Text style={[styles.logoutConfirmText, { color: C.danger }]}>
+            {t("auth.logoutConfirm")}
+          </Text>
+          <View style={styles.logoutConfirmBtns}>
+            <Pressable
+              onPress={() => setShowLogoutConfirm(false)}
+              style={[styles.logoutCancelBtn, { backgroundColor: C.card, borderColor: C.border }]}
+            >
+              <Text style={[styles.logoutCancelText, { color: C.textSecondary }]}>
+                {t("common.cancel")}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleLogoutConfirm}
+              disabled={loggingOut}
+              style={[styles.logoutConfirmBtn, { backgroundColor: C.danger, opacity: loggingOut ? 0.6 : 1 }]}
+            >
+              <Feather name="log-out" size={15} color="#fff" />
+              <Text style={styles.logoutConfirmBtnText}>
+                {loggingOut ? "..." : t("auth.logout")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -246,7 +266,46 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 16,
     borderRadius: 14,
+    borderWidth: 1,
     marginTop: 4,
   },
   logoutText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  logoutConfirm: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    gap: 14,
+    marginTop: 4,
+  },
+  logoutConfirmText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
+  },
+  logoutConfirmBtns: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  logoutCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  logoutCancelText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  logoutConfirmBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  logoutConfirmBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
 });
