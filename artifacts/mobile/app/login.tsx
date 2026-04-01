@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Image,
@@ -22,6 +23,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Colors from "@/constants/colors";
 
+const loginBgVideo = require("@/assets/login-bg.mp4");
+
 type SetupStep = "prompt" | "enter" | "confirm";
 
 export default function LoginScreen() {
@@ -40,8 +43,13 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [setupStep, setSetupStep] = useState<SetupStep | null>(null);
-  // useRef avoids stale-closure issues inside PasscodeScreen's setTimeout
   const firstCodeRef = useRef("");
+
+  const player = useVideoPlayer(!isWeb ? loginBgVideo : null, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
 
   useEffect(() => {
     if (isAuthenticated && !setupStep) {
@@ -68,7 +76,6 @@ export default function LoginScreen() {
       }
       return;
     }
-    // Offer passcode setup if remember-me is on and no passcode set yet
     if (rememberMe && !hasPasscode && Platform.OS !== "web") {
       const shouldShow = await onLoginAttempted();
       if (shouldShow) {
@@ -76,7 +83,6 @@ export default function LoginScreen() {
         return;
       }
     }
-    // Otherwise the useEffect above will navigate to "/"
   };
 
   const busy = isLoading || submitting;
@@ -124,11 +130,27 @@ export default function LoginScreen() {
 
   // ── Main login form ────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { backgroundColor: C.background, paddingTop: isWeb ? 67 : insets.top }]}>
-      <LinearGradient
-        colors={scheme === "dark" ? ["#0a0a0a", "#111111", "#0a0a0a"] : ["#EFF6FF", "#DBEAFE", "#F0F4F8"]}
-        style={StyleSheet.absoluteFill}
-      />
+    <View style={[styles.container, { paddingTop: isWeb ? 67 : insets.top }]}>
+      {/* Background — video on native, gradient on web */}
+      {!isWeb ? (
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          nativeControls={false}
+          allowsFullscreen={false}
+          allowsPictureInPicture={false}
+        />
+      ) : (
+        <LinearGradient
+          colors={["#0a0a0a", "#111111", "#0a0a0a"]}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+
+      {/* Black overlay */}
+      <View style={styles.overlay} />
+
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
           contentContainerStyle={[styles.inner, { paddingBottom: isWeb ? 34 : insets.bottom + 20 }]}
@@ -137,7 +159,7 @@ export default function LoginScreen() {
         >
           <View style={styles.logoSection}>
             <Image source={require("@/assets/images/tapee-logo.png")} style={styles.logoImage} resizeMode="contain" />
-            <Text style={[styles.subtitle, { color: C.textSecondary }]}>{t("auth.subtitle")}</Text>
+            <Text style={[styles.subtitle, { color: "rgba(255,255,255,0.65)" }]}>{t("auth.subtitle")}</Text>
           </View>
 
           <View style={styles.form}>
@@ -175,8 +197,8 @@ export default function LoginScreen() {
                 {rememberMe && <Feather name="check" size={13} color="#fff" />}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.rememberLabel, { color: C.text }]}>{t("auth.rememberMe")}</Text>
-                <Text style={[styles.rememberHint, { color: C.textMuted }]}>{t("auth.rememberMeHint")}</Text>
+                <Text style={[styles.rememberLabel, { color: "#ffffff" }]}>{t("auth.rememberMe")}</Text>
+                <Text style={[styles.rememberHint, { color: "rgba(255,255,255,0.5)" }]}>{t("auth.rememberMeHint")}</Text>
               </View>
             </Pressable>
 
@@ -200,12 +222,12 @@ export default function LoginScreen() {
 
           {/* Passcode setup prompt */}
           {setupStep === "prompt" && (
-            <View style={[styles.promptBox, { backgroundColor: C.card, borderColor: C.border }]}>
+            <View style={[styles.promptBox, { backgroundColor: "rgba(17,17,17,0.9)", borderColor: "rgba(255,255,255,0.1)" }]}>
               <View style={[styles.promptIcon, { backgroundColor: C.primaryLight }]}>
                 <Feather name="shield" size={22} color={C.primary} />
               </View>
-              <Text style={[styles.promptTitle, { color: C.text }]}>{t("passcode.promptTitle")}</Text>
-              <Text style={[styles.promptHint, { color: C.textSecondary }]}>{t("passcode.promptHint")}</Text>
+              <Text style={[styles.promptTitle, { color: "#ffffff" }]}>{t("passcode.promptTitle")}</Text>
+              <Text style={[styles.promptHint, { color: "rgba(255,255,255,0.6)" }]}>{t("passcode.promptHint")}</Text>
               <View style={styles.promptActions}>
                 <Button
                   title={t("passcode.skip")}
@@ -227,7 +249,7 @@ export default function LoginScreen() {
             </View>
           )}
 
-          <Text style={[styles.disclaimer, { color: C.textMuted }]}>{t("auth.disclaimer")}</Text>
+          <Text style={[styles.disclaimer, { color: "rgba(255,255,255,0.35)" }]}>{t("auth.disclaimer")}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -235,7 +257,11 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: "#0a0a0a" },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.58)",
+  },
   inner: { flexGrow: 1, paddingHorizontal: 28, paddingVertical: 20, gap: 20, justifyContent: "center" },
   logoSection: { alignItems: "center", gap: 8 },
   logoImage: { width: "78%", maxWidth: 300, aspectRatio: 1199 / 435 },
@@ -267,9 +293,5 @@ const styles = StyleSheet.create({
   promptTitle: { fontSize: 15, fontFamily: "Inter_700Bold", textAlign: "center" },
   promptHint: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
   promptActions: { flexDirection: "row", gap: 10, marginTop: 2 },
-  features: { gap: 8 },
-  featureRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  featureIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  featureText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   disclaimer: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center" },
 });
