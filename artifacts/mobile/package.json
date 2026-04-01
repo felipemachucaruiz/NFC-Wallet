@@ -73,7 +73,7 @@
     "expo-notifications": "^0.32.16",
     "expo-secure-store": "^15.0.8",
     "expo-updates": "~29.0.16",
-    "expo-video": "^55.0.11",
+    "expo-video": "~3.0.16",
     "i18next": "^25.10.9",
     "react-i18next": "^16.6.5",
     "react-native-nfc-manager": "^3.17.2"
