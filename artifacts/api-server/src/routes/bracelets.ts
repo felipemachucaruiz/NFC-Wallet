@@ -114,7 +114,8 @@ router.get(
           newBalanceCop: topUpsTable.newBalanceCop,
           createdAt: topUpsTable.createdAt,
           offlineCreatedAt: topUpsTable.offlineCreatedAt,
-          agentName: usersTable.name,
+          agentFirstName: usersTable.firstName,
+          agentLastName: usersTable.lastName,
           paymentMethod: topUpsTable.paymentMethod,
         })
         .from(topUpsTable)
@@ -142,7 +143,7 @@ router.get(
       newBalanceCop: t.newBalanceCop,
       createdAt: t.createdAt,
       offlineCreatedAt: t.offlineCreatedAt,
-      merchantName: t.agentName ?? null,
+      merchantName: [t.agentFirstName, t.agentLastName].filter(Boolean).join(" ") || null,
       locationName: t.paymentMethod ?? null,
     }));
 
