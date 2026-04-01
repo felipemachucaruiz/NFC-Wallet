@@ -228,13 +228,14 @@ export default function TopUpScreen() {
     setStep("writing");
 
     try {
+      let newHmac = "";
       if (nfcChipType === "desfire_ev3") {
         await writeDesfireBracelet(
           { uid, balance: newBalance, counter: newCounter, hmac: "" },
           desfireAesKey
         );
       } else {
-        const newHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
+        newHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
         await writeBracelet(
           { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
           tagInfoFromParams ?? undefined
