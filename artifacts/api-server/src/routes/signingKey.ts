@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, eventsTable, merchantsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { requireAttestation } from "../middlewares/requireAttestation";
 import { deriveEventKey } from "../lib/kdf";
 
 const router: IRouter = Router();
@@ -9,6 +10,7 @@ const router: IRouter = Router();
 router.get(
   "/auth/signing-key",
   requireRole("bank", "merchant_staff", "merchant_admin", "admin", "event_admin"),
+  requireAttestation,
   async (req: Request, res: Response) => {
     const proto = req.headers["x-forwarded-proto"] ?? (req.secure ? "https" : "http");
     const isHttps = proto === "https" || (Array.isArray(proto) && proto[0] === "https");

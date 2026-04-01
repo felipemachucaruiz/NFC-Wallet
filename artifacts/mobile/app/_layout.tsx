@@ -19,6 +19,7 @@ import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { PasscodeScreen } from "@/components/PasscodeScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AttestationProvider } from "@/contexts/AttestationContext";
 import { PasscodeProvider, usePasscode } from "@/contexts/PasscodeContext";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { CartProvider } from "@/contexts/CartContext";
@@ -128,21 +129,23 @@ export default function RootLayout() {
         <I18nextProvider i18n={i18n}>
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
-              <AppWithPasscode>
-                <CartProvider>
-                  <OfflineQueueProvider>
-                    <GestureHandlerRootView style={{ flex: 1 }}>
-                      <KeyboardProvider>
-                        <RootLayoutNav />
-                        {!splashDone && (
-                          <AnimatedSplash onFinished={() => setSplashDone(true)} />
-                        )}
-                        <UpdateBanner />
-                      </KeyboardProvider>
-                    </GestureHandlerRootView>
-                  </OfflineQueueProvider>
-                </CartProvider>
-              </AppWithPasscode>
+              <AttestationProvider>
+                <AppWithPasscode>
+                  <CartProvider>
+                    <OfflineQueueProvider>
+                      <GestureHandlerRootView style={{ flex: 1 }}>
+                        <KeyboardProvider>
+                          <RootLayoutNav />
+                          {!splashDone && (
+                            <AnimatedSplash onFinished={() => setSplashDone(true)} />
+                          )}
+                          <UpdateBanner />
+                        </KeyboardProvider>
+                      </GestureHandlerRootView>
+                    </OfflineQueueProvider>
+                  </CartProvider>
+                </AppWithPasscode>
+              </AttestationProvider>
             </AuthProvider>
           </QueryClientProvider>
         </I18nextProvider>

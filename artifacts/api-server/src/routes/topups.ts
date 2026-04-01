@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, braceletsTable, eventsTable, topUpsTable, usersTable } from "@workspace/db";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { requireAttestation } from "../middlewares/requireAttestation";
 import { z } from "zod";
 import { deriveEventKey, computeBraceletHmac, verifyBraceletHmac } from "../lib/kdf";
 
@@ -72,6 +73,7 @@ async function resolveHmacKey(eventId: string | null): Promise<HmacKeyResult> {
 router.post(
   "/topups",
   requireRole("bank", "admin"),
+  requireAttestation,
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });
@@ -164,6 +166,7 @@ const syncTopUpSchema = z.object({
 router.post(
   "/topups/sync",
   requireRole("bank", "admin"),
+  requireAttestation,
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });

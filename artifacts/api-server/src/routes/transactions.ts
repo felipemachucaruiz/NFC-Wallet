@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, transactionLogsTable, transactionLineItemsTable, productsTable, locationInventoryTable, braceletsTable, eventsTable, merchantsTable, locationsTable, restockOrdersTable, userLocationAssignmentsTable, stockMovementsTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
+import { requireAttestation } from "../middlewares/requireAttestation";
 import type { AuthUser } from "@workspace/api-zod";
 import { z } from "zod";
 import { getEventInventoryMode } from "./events";
@@ -418,6 +419,7 @@ async function processTransaction(
 router.post(
   "/transactions/log",
   requireRole("merchant_staff", "merchant_admin", "admin"),
+  requireAttestation,
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });
@@ -446,6 +448,7 @@ router.post(
 router.post(
   "/transactions/sync",
   requireRole("merchant_staff", "merchant_admin", "admin"),
+  requireAttestation,
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });
