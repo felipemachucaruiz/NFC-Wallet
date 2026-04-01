@@ -1,7 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, braceletsTable, eventsTable, wompiPaymentIntentsTable, topUpsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { usersTable } from "@workspace/db";
+import { eq, and, isNull } from "drizzle-orm";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
@@ -308,5 +310,96 @@ export async function processSelfServicePayment(intentId: string, wompiTransacti
       .where(eq(wompiPaymentIntentsTable.id, intentId));
   });
 }
+
+const registerAttendeeSchema = z.object({
+  braceletUid: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+});
+
+/**
+ * POST /public/register-attendee
+ * Creates a Tapee attendee account from the self-service screen.
+ * Links the bracelet to the new account immediately.
+ * No auth required — public endpoint.
+ */
+router.post(
+  "/public/register-attendee",
+  async (req: Request, res: Response) => {
+    const parsed = registerAttendeeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Datos inválidos", details: parsed.error.flatten() });
+      return;
+    }
+
+    const { braceletUid, email, password, firstName, lastName } = parsed.data;
+    const uid = braceletUid.trim().toUpperCase();
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check email not already registered
+    const [existingUser] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, normalizedEmail));
+
+    if (existingUser) {
+      res.status(409).json({ error: "EMAIL_TAKEN", message: "Este correo ya está registrado. Inicia sesión en la app." });
+      return;
+    }
+
+    // Check bracelet exists
+    const [bracelet] = await db
+      .select({ nfcUid: braceletsTable.nfcUid, attendeeUserId: braceletsTable.attendeeUserId })
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, uid));
+
+    if (!bracelet) {
+      res.status(404).json({ error: "BRACELET_NOT_FOUND", message: "Pulsera no encontrada." });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await db.transaction(async (tx) => {
+      const [newUser] = await tx
+        .insert(usersTable)
+        .values({
+          email: normalizedEmail,
+          firstName: firstName ?? null,
+          lastName: lastName ?? null,
+          passwordHash,
+          role: "attendee",
+        })
+        .returning({ id: usersTable.id, email: usersTable.email, firstName: usersTable.firstName });
+
+      // Link bracelet to the new account (only if not already linked)
+      await tx
+        .update(braceletsTable)
+        .set({
+          attendeeUserId: newUser.id,
+          attendeeName: firstName ? `${firstName}${lastName ? ` ${lastName}` : ""}` : null,
+          email: normalizedEmail,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(braceletsTable.nfcUid, uid),
+            // Don't overwrite an existing link
+            isNull(braceletsTable.attendeeUserId),
+          ),
+        );
+
+      res.status(201).json({
+        success: true,
+        userId: newUser.id,
+        email: newUser.email,
+        firstName: newUser.firstName,
+        message: "Cuenta creada exitosamente. Ya puedes iniciar sesión en Tapee.",
+      });
+    });
+  },
+);
 
 export default router;
