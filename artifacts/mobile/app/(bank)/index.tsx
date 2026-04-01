@@ -243,6 +243,7 @@ export default function BankLookupScreen() {
     lastKnownBalanceCop?: number;
     pendingSync?: boolean;
     pendingBalanceCop?: number;
+    eventId?: string | null;
   } | undefined;
 
   // When pendingSync=true a self-service top-up was applied server-side but not yet
@@ -309,6 +310,7 @@ export default function BankLookupScreen() {
       ? (bracelet?.balance ?? 0)
       : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet?.balance ?? 0);
   const isFlagged = apiRecord?.isFlagged ?? false;
+  const isWrongEvent = !!apiRecord && !!apiRecord.eventId && !!user?.eventId && apiRecord.eventId !== user.eventId;
 
   return (
     <>
@@ -368,6 +370,7 @@ export default function BankLookupScreen() {
                   {tagInfo && <TagBadge tagInfo={tagInfo} colors={C} />}
                 </View>
                 {isFlagged && <Badge label={t("bank.flagged")} variant="danger" />}
+                {isWrongEvent && <Badge label={t("bank.wrongEvent")} variant="danger" />}
                 {hasPendingSync && <Badge label="Recarga pendiente" variant="warning" />}
               </View>
 
@@ -394,7 +397,14 @@ export default function BankLookupScreen() {
                 )}
               </View>
 
-              {isFlagged ? (
+              {isWrongEvent ? (
+                <View style={[styles.alertBox, { backgroundColor: C.dangerLight }]}>
+                  <Feather name="alert-triangle" size={16} color={C.danger} />
+                  <Text style={[styles.alertText, { color: C.danger }]}>
+                    {t("bank.wrongEventDetail")}
+                  </Text>
+                </View>
+              ) : isFlagged ? (
                 <View style={[styles.alertBox, { backgroundColor: C.dangerLight }]}>
                   <Feather name="alert-triangle" size={16} color={C.danger} />
                   <Text style={[styles.alertText, { color: C.danger }]}>

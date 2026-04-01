@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable } from "@workspace/db";
+import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable } from "@workspace/db";
 import { eq, sql, and, ilike, or, count } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -672,6 +672,118 @@ router.get(
     });
 
     res.json({ transactions, total: totalRow?.total ?? 0, page, limit });
+  }
+);
+
+/**
+ * POST /events/:eventId/close
+ * Admin-only: close an event.
+ * - Sets event.active = false
+ * - Flags all bracelets in the event (flagged = true, flagReason = "Evento cerrado")
+ * - Creates pending attendee_refund_request records for every bracelet with balance > 0
+ */
+router.post(
+  "/events/:eventId/close",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { eventId } = req.params as { eventId: string };
+
+    if (req.user.role === "event_admin" && req.user.eventId !== eventId) {
+      res.status(403).json({ error: "Forbidden: cannot close another event" });
+      return;
+    }
+
+    const [event] = await db
+      .select({ id: eventsTable.id, active: eventsTable.active, name: eventsTable.name })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId));
+
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    if (!event.active) {
+      res.status(409).json({ error: "Event is already closed" });
+      return;
+    }
+
+    // Perform the close in a DB transaction for atomicity
+    const result = await db.transaction(async (tx) => {
+      // 1. Mark event as inactive
+      await tx
+        .update(eventsTable)
+        .set({ active: false, updatedAt: new Date() })
+        .where(eq(eventsTable.id, eventId));
+
+      // 2. Get all bracelets for this event
+      const bracelets = await tx
+        .select()
+        .from(braceletsTable)
+        .where(eq(braceletsTable.eventId, eventId));
+
+      // 3. Flag all bracelets and collect those with a remaining balance
+      const braceletsWithBalance = bracelets.filter((b) => b.lastKnownBalanceCop > 0);
+
+      if (bracelets.length > 0) {
+        await tx
+          .update(braceletsTable)
+          .set({
+            flagged: true,
+            flagReason: "Evento cerrado",
+            updatedAt: new Date(),
+          })
+          .where(eq(braceletsTable.eventId, eventId));
+      }
+
+      // 4. Create pending refund requests for bracelets with balance > 0
+      let refundRequestsCreated = 0;
+      for (const bracelet of braceletsWithBalance) {
+        // Only create if no pending refund request already exists for this bracelet+event
+        const [existing] = await tx
+          .select({ id: attendeeRefundRequestsTable.id })
+          .from(attendeeRefundRequestsTable)
+          .where(
+            and(
+              eq(attendeeRefundRequestsTable.braceletUid, bracelet.nfcUid),
+              eq(attendeeRefundRequestsTable.eventId, eventId),
+              eq(attendeeRefundRequestsTable.status, "pending"),
+            ),
+          );
+
+        if (!existing) {
+          // Use attendeeUserId if linked, otherwise use the system admin performing the close
+          const attendeeUserId = bracelet.attendeeUserId ?? req.user.id;
+          await tx.insert(attendeeRefundRequestsTable).values({
+            attendeeUserId,
+            braceletUid: bracelet.nfcUid,
+            eventId,
+            amountCop: bracelet.lastKnownBalanceCop,
+            refundMethod: "cash",
+            notes: "Solicitud automática generada al cerrar el evento",
+            status: "pending",
+          });
+          refundRequestsCreated++;
+        }
+      }
+
+      return {
+        braceletsFlagged: bracelets.length,
+        refundRequestsCreated,
+      };
+    });
+
+    res.json({
+      success: true,
+      eventId,
+      braceletsFlagged: result.braceletsFlagged,
+      refundRequestsCreated: result.refundRequestsCreated,
+    });
   }
 );
 

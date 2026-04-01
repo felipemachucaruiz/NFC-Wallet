@@ -19,6 +19,7 @@ import type { NfcChipType } from "@/contexts/EventContext";
 type EventDetail = {
   id: string;
   name: string;
+  active?: boolean;
   inventoryMode?: InventoryMode;
   nfcChipType?: NfcChipType;
   allowedNfcTypes?: NfcChipType[];
@@ -32,6 +33,7 @@ type ConfirmModal =
   | { type: "inventory"; pendingMode: InventoryMode }
   | { type: "rotate_key" }
   | { type: "generate_desfire_key" }
+  | { type: "close_event" }
   | null;
 
 function NfcChipCheckbox({
@@ -170,6 +172,7 @@ export default function EventSettingsScreen() {
 
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>(null);
   const [isRotating, setIsRotating] = useState(false);
+  const [isClosingEvent, setIsClosingEvent] = useState(false);
 
   const [offlineSyncLimit, setOfflineSyncLimit] = useState<string>("");
   const [maxOfflineSpendPerBracelet, setMaxOfflineSpendPerBracelet] = useState<string>("");
@@ -242,6 +245,27 @@ export default function EventSettingsScreen() {
         Alert.alert(t("common.error"), t("eventAdmin.desfireKeyGenerateFailed"));
       } finally {
         setIsGeneratingDesfireKey(false);
+      }
+    } else if (confirmModal?.type === "close_event") {
+      setIsClosingEvent(true);
+      setConfirmModal(null);
+      try {
+        const result = await customFetch(`/api/events/${user.eventId}/close`, {
+          method: "POST",
+        }) as { braceletsFlagged?: number; refundRequestsCreated?: number } | undefined;
+        refetch();
+        queryClient.invalidateQueries({ queryKey: ["event-context", user.eventId] });
+        Alert.alert(
+          t("eventAdmin.eventClosed"),
+          t("eventAdmin.eventClosedDetail", {
+            flagged: result?.braceletsFlagged ?? 0,
+            refunds: result?.refundRequestsCreated ?? 0,
+          }),
+        );
+      } catch {
+        Alert.alert(t("common.error"), t("eventAdmin.eventCloseFailed"));
+      } finally {
+        setIsClosingEvent(false);
       }
     }
   };
@@ -553,6 +577,32 @@ export default function EventSettingsScreen() {
 
         <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
 
+        <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.closeEventSection")}</Text>
+        <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+          {t("eventAdmin.closeEventDescription")}
+        </Text>
+
+        <Card style={[styles.infoCard, { borderColor: C.danger + "55", backgroundColor: C.dangerLight }]} padding={14}>
+          <View style={styles.infoRow}>
+            <Feather name="alert-octagon" size={16} color={C.danger} style={{ marginTop: 1 }} />
+            <Text style={[styles.infoText, { color: C.text }]}>
+              {t("eventAdmin.closeEventWarning")}
+            </Text>
+          </View>
+        </Card>
+
+        <Button
+          title={isClosingEvent ? t("common.processing") : t("eventAdmin.closeEvent")}
+          onPress={() => setConfirmModal({ type: "close_event" })}
+          variant="danger"
+          size="md"
+          fullWidth
+          loading={isClosingEvent}
+          disabled={event?.active === false}
+        />
+
+        <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
+
         <View style={styles.sectionHeaderRow}>
           <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.flaggedBracelets")}</Text>
           <Pressable onPress={() => refetchFlagged()} style={styles.refreshBtn}>
@@ -603,7 +653,19 @@ export default function EventSettingsScreen() {
         <View style={[styles.confirmModal, { backgroundColor: C.background }]}>
           <View style={styles.modalHandle} />
 
-          {confirmModal?.type === "rotate_key" ? (
+          {confirmModal?.type === "close_event" ? (
+            <>
+              <View style={[styles.warningIconBox, { backgroundColor: C.dangerLight }]}>
+                <Feather name="lock" size={32} color={C.danger} />
+              </View>
+              <Text style={[styles.confirmTitle, { color: C.text }]}>
+                {t("eventAdmin.closeEvent")}
+              </Text>
+              <Text style={[styles.confirmDesc, { color: C.textSecondary }]}>
+                {t("eventAdmin.closeEventConfirmDesc")}
+              </Text>
+            </>
+          ) : confirmModal?.type === "rotate_key" ? (
             <>
               <View style={[styles.warningIconBox, { backgroundColor: C.dangerLight }]}>
                 <Feather name="alert-octagon" size={32} color={C.danger} />
@@ -663,15 +725,15 @@ export default function EventSettingsScreen() {
               title={
                 confirmModal?.type === "rotate_key"
                   ? t("eventAdmin.confirmRotate")
-                  : confirmModal?.type === "generate_desfire_key"
-                    ? t("common.confirm")
+                  : confirmModal?.type === "close_event"
+                    ? t("eventAdmin.closeEventConfirm")
                     : t("common.confirm")
               }
               onPress={handleConfirm}
-              variant={confirmModal?.type === "rotate_key" ? "danger" : "primary"}
+              variant={confirmModal?.type === "rotate_key" || confirmModal?.type === "close_event" ? "danger" : "primary"}
               size="lg"
               fullWidth
-              loading={updateEvent.isPending || isRotating || isGeneratingDesfireKey}
+              loading={updateEvent.isPending || isRotating || isGeneratingDesfireKey || isClosingEvent}
             />
           </View>
         </View>

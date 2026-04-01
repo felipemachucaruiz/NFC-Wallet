@@ -101,6 +101,42 @@ async function processTransaction(
   if (bracelet.flagged) {
     return { status: "error", error: "Bracelet is flagged and cannot be used" };
   }
+
+  // Resolve merchant early so we can check event scoping
+  const accessResult = await checkLocationAccess(input.locationId, user);
+  if ("error" in accessResult) {
+    return { status: "error", error: accessResult.error };
+  }
+  const { location: locationForEventCheck } = accessResult;
+  const [merchantForEventCheck] = await db
+    .select()
+    .from(merchantsTable)
+    .where(eq(merchantsTable.id, locationForEventCheck.merchantId));
+  if (!merchantForEventCheck) {
+    return { status: "error", error: "Merchant not found" };
+  }
+
+  // Event-scoping guard: when the merchant station is event-scoped, the bracelet must
+  // belong to the exact same event. A bracelet with eventId=null is treated as a mismatch
+  // (not as a wildcard) when the station has a known event.
+  if (merchantForEventCheck.eventId) {
+    if (!bracelet.eventId || bracelet.eventId !== merchantForEventCheck.eventId) {
+      return { status: "error", error: "BRACELET_WRONG_EVENT: Esta pulsera pertenece a otro evento" };
+    }
+  }
+
+  // Closed-event guard: reject if the bracelet's event is inactive
+  const eventIdForCheck = bracelet.eventId ?? merchantForEventCheck.eventId;
+  if (eventIdForCheck) {
+    const [braceletEvent] = await db
+      .select({ active: eventsTable.active })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventIdForCheck));
+    if (braceletEvent && !braceletEvent.active) {
+      return { status: "error", error: "BRACELET_WRONG_EVENT: Este evento ha sido cerrado y la pulsera no puede usarse" };
+    }
+  }
+
   // Counter must be strictly increasing to prevent rollback/replay
   if (bracelet.lastCounter !== null && input.counter <= bracelet.lastCounter) {
     return { status: "error", error: `Counter replay detected: submitted ${input.counter} ≤ stored ${bracelet.lastCounter}` };
@@ -175,21 +211,9 @@ async function processTransaction(
     }
   }
 
-  // Ownership + staff assignment check
-  const accessResult = await checkLocationAccess(input.locationId, user);
-  if ("error" in accessResult) {
-    return { status: "error", error: accessResult.error };
-  }
-  const { location } = accessResult;
-
-  // Resolve merchant from location
-  const [merchant] = await db
-    .select()
-    .from(merchantsTable)
-    .where(eq(merchantsTable.id, location.merchantId));
-  if (!merchant) {
-    return { status: "error", error: "Merchant not found" };
-  }
+  // Use the already-resolved location and merchant from event-scoping check above
+  const location = locationForEventCheck;
+  const merchant = merchantForEventCheck;
 
   // Resolve products and compute totals
   let grossAmountCop = 0;

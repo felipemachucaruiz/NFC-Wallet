@@ -285,7 +285,9 @@
     "writingZero": "Borrando saldo de pulsera...",
     "noSigningKey": "Clave de firma no disponible. Por favor conéctate a la red primero.",
     "savedOffline": "Recarga en cola para sincronizar. Se sincronizará cuando haya conexión.",
-    "nfcRequired": "Este dispositivo no soporta NFC. Se debe escribir la pulsera antes de registrar una recarga."
+    "nfcRequired": "Este dispositivo no soporta NFC. Se debe escribir la pulsera antes de registrar una recarga.",
+    "wrongEvent": "Evento incorrecto",
+    "wrongEventDetail": "Esta pulsera pertenece a otro evento y no puede ser recargada aquí."
   },
   "pos": {
     "title": "Punto de Venta",
@@ -336,7 +338,9 @@
     "offlineLimitDetail": "Gastado sin sincronizar: {{spent}} de {{limit}} permitidos. Sincroniza antes de continuar.",
     "syncNow": "Sincronizar ahora",
     "syncError": "Error al sincronizar",
-    "desfireNoKey": "Clave AES DESFire no configurada. Contacta al administrador del evento."
+    "desfireNoKey": "Clave AES DESFire no configurada. Contacta al administrador del evento.",
+    "wrongEvent": "Pulsera de otro evento",
+    "wrongEventDetail": "Esta pulsera pertenece a otro evento o el evento está cerrado. No se puede procesar el cobro."
   },
   "merchant_admin": {
     "title": "Panel Merchant",
@@ -631,7 +635,16 @@
     "desfireKeyGenerateFailed": "Error al generar la clave AES DESFire",
     "desfireKeyConfirmDesc": "Esto generará una nueva clave maestra AES-128 para pulseras DESFire EV3. Todas las pulseras deberán ser reformateadas con la nueva clave.",
     "desfireKeyRotateWarning": "Regenerar la clave AES requerirá que todas las pulseras DESFire sean reformateadas. Esta acción no puede deshacerse.",
-    "more": "Más"
+    "more": "Más",
+    "closeEventSection": "Cerrar evento",
+    "closeEventDescription": "Cierra el evento permanentemente. Las pulseras quedarán bloqueadas y se generarán solicitudes de reembolso automáticas para los saldos pendientes.",
+    "closeEventWarning": "Esta acción no se puede deshacer. Todas las pulseras quedarán bloqueadas y el evento no podrá reactivarse.",
+    "closeEvent": "Cerrar Evento",
+    "closeEventConfirmDesc": "¿Estás seguro de que deseas cerrar el evento? Todas las pulseras activas serán bloqueadas y se generarán solicitudes de reembolso para saldos pendientes.",
+    "closeEventConfirm": "Sí, cerrar evento",
+    "eventClosed": "Evento cerrado",
+    "eventClosedDetail": "El evento ha sido cerrado. {{flagged}} pulsera(s) bloqueada(s) y {{refunds}} solicitud(es) de reembolso generada(s).",
+    "eventCloseFailed": "Error al cerrar el evento"
   },
   "inventory": {
     "tab": "Inventario",

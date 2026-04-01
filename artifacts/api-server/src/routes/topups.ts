@@ -101,11 +101,35 @@ router.post(
         .returning();
       bracelet = created;
     } else if (!bracelet.eventId && bankEventId) {
-      // Backfill missing event_id on existing bracelets
+      // Backfill missing event_id on existing bracelets; update local variable immediately
       await db
         .update(braceletsTable)
         .set({ eventId: bankEventId })
         .where(eq(braceletsTable.nfcUid, nfcUid));
+      bracelet = { ...bracelet, eventId: bankEventId };
+    }
+
+    // Cross-event guard: when the bank station is event-scoped, the bracelet must belong
+    // to the exact same event. A null bracelet eventId (after backfill attempt) means the
+    // bracelet has no associated event — treat as mismatch when station is event-scoped.
+    if (bankEventId) {
+      if (!bracelet.eventId || bracelet.eventId !== bankEventId) {
+        res.status(400).json({ error: "BRACELET_WRONG_EVENT: Esta pulsera pertenece a otro evento" });
+        return;
+      }
+    }
+
+    // Closed-event guard: reject top-up if the bracelet's event is inactive
+    const effectiveEventIdForCheck = bracelet.eventId ?? bankEventId;
+    if (effectiveEventIdForCheck) {
+      const [braceletEvent] = await db
+        .select({ active: eventsTable.active })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, effectiveEventIdForCheck));
+      if (braceletEvent && !braceletEvent.active) {
+        res.status(400).json({ error: "BRACELET_WRONG_EVENT: Este evento ha sido cerrado y la pulsera no puede usarse" });
+        return;
+      }
     }
 
     const effectiveEventId = bracelet.eventId ?? bankEventId;
@@ -210,6 +234,29 @@ router.post(
         .update(braceletsTable)
         .set({ eventId: syncBankEventId })
         .where(eq(braceletsTable.nfcUid, nfcUid));
+      bracelet = { ...bracelet, eventId: syncBankEventId };
+    }
+
+    // Cross-event guard: when the bank station is event-scoped, the bracelet must belong
+    // to the exact same event. A null bracelet eventId (after backfill attempt) is a mismatch.
+    if (syncBankEventId) {
+      if (!bracelet.eventId || bracelet.eventId !== syncBankEventId) {
+        res.status(400).json({ error: "BRACELET_WRONG_EVENT: Esta pulsera pertenece a otro evento" });
+        return;
+      }
+    }
+
+    // Closed-event guard: reject sync top-up if bracelet's event is inactive
+    const syncEffectiveEventIdForCheck = bracelet.eventId ?? syncBankEventId;
+    if (syncEffectiveEventIdForCheck) {
+      const [syncBraceletEvent] = await db
+        .select({ active: eventsTable.active })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, syncEffectiveEventIdForCheck));
+      if (syncBraceletEvent && !syncBraceletEvent.active) {
+        res.status(400).json({ error: "BRACELET_WRONG_EVENT: Este evento ha sido cerrado y la pulsera no puede usarse" });
+        return;
+      }
     }
 
     // Counter must be strictly increasing

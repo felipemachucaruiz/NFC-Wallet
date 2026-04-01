@@ -285,7 +285,9 @@
     "writingZero": "Zeroing bracelet...",
     "noSigningKey": "Signing key not available. Please connect to the network first.",
     "savedOffline": "Top-up queued for sync. Will be synced when online.",
-    "nfcRequired": "This device does not support NFC. A bracelet must be written before a top-up can be recorded."
+    "nfcRequired": "This device does not support NFC. A bracelet must be written before a top-up can be recorded.",
+    "wrongEvent": "Wrong event",
+    "wrongEventDetail": "This bracelet belongs to a different event and cannot be topped up here."
   },
   "pos": {
     "title": "Point of Sale",
@@ -336,7 +338,9 @@
     "offlineLimitDetail": "Unsynced spend: {{spent}} of {{limit}} allowed. Please sync before continuing.",
     "syncNow": "Sync now",
     "syncError": "Error syncing",
-    "desfireNoKey": "DESFire AES key not configured. Contact your event administrator."
+    "desfireNoKey": "DESFire AES key not configured. Contact your event administrator.",
+    "wrongEvent": "Bracelet from another event",
+    "wrongEventDetail": "This bracelet belongs to a different event or the event is closed. The charge cannot be processed."
   },
   "merchant_admin": {
     "title": "Merchant Panel",
@@ -642,7 +646,16 @@
     "desfireKeyGenerateFailed": "Failed to generate DESFire AES key",
     "desfireKeyConfirmDesc": "This will generate a new AES-128 master key for DESFire EV3 bracelets. All bracelets must be reformatted with the new key.",
     "desfireKeyRotateWarning": "Regenerating the AES key will require all DESFire bracelets to be reformatted. This cannot be undone.",
-    "more": "More"
+    "more": "More",
+    "closeEventSection": "Close Event",
+    "closeEventDescription": "Permanently close this event. All bracelets will be blocked and automatic refund requests will be created for pending balances.",
+    "closeEventWarning": "This action cannot be undone. All bracelets will be blocked and the event cannot be reactivated.",
+    "closeEvent": "Close Event",
+    "closeEventConfirmDesc": "Are you sure you want to close this event? All active bracelets will be blocked and refund requests will be created for pending balances.",
+    "closeEventConfirm": "Yes, close event",
+    "eventClosed": "Event closed",
+    "eventClosedDetail": "The event has been closed. {{flagged}} bracelet(s) blocked and {{refunds}} refund request(s) created.",
+    "eventCloseFailed": "Failed to close event"
   },
   "inventory": {
     "tab": "Inventory",

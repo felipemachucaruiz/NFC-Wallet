@@ -31,7 +31,8 @@ type ChargeStep =
   | "logging"
   | "success"
   | "manual_input"
-  | "offline_limit";
+  | "offline_limit"
+  | "wrong_event";
 
 const STEP_KEYS: Record<ChargeStep, string> = {
   waiting: "pos.tapBracelet",
@@ -44,6 +45,7 @@ const STEP_KEYS: Record<ChargeStep, string> = {
   success: "pos.chargeSuccess",
   manual_input: "bank.manualUid",
   offline_limit: "pos.offlineLimitReached",
+  wrong_event: "pos.wrongEvent",
 };
 
 function TagBadge({ tagInfo, colors }: { tagInfo: TagInfo; colors: typeof Colors.light }) {
@@ -196,7 +198,12 @@ export default function ChargeScreen() {
           ...(newHmac ? { hmac: newHmac } : {}),
         },
       });
-    } catch {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("BRACELET_WRONG_EVENT")) {
+        setStep("wrong_event");
+        return;
+      }
       await enqueue({
         locationId,
         nfcUid: uid,
@@ -431,6 +438,7 @@ export default function ChargeScreen() {
       hmac_fail: { icon: "alert-triangle", color: C.danger, bg: C.dangerLight },
       insufficient: { icon: "alert-circle", color: C.warning, bg: C.warningLight },
       offline_limit: { icon: "wifi-off", color: C.danger, bg: C.dangerLight },
+      wrong_event: { icon: "slash", color: C.danger, bg: C.dangerLight },
     };
     const s = icons[step];
     if (!s) return null;
@@ -471,7 +479,7 @@ export default function ChargeScreen() {
       <View style={styles.centerSection}>
         <StepIcon />
 
-        {step !== "success" && step !== "hmac_fail" && step !== "insufficient" && step !== "manual_input" && step !== "offline_limit" && (
+        {step !== "success" && step !== "hmac_fail" && step !== "insufficient" && step !== "manual_input" && step !== "offline_limit" && step !== "wrong_event" && (
           <Text style={[styles.stepTitle, { color: C.text }]}>{t(STEP_KEYS[step] || "pos.tapBracelet")}</Text>
         )}
 
@@ -501,6 +509,13 @@ export default function ChargeScreen() {
           <View style={styles.insufficientBox}>
             <Text style={[styles.stepTitle, { color: C.danger }]}>{t("pos.hmacFailed")}</Text>
             <Text style={[styles.shortfallText, { color: C.textSecondary }]}>{t("pos.hmacFailedDetail")}</Text>
+          </View>
+        )}
+
+        {step === "wrong_event" && (
+          <View style={styles.insufficientBox}>
+            <Text style={[styles.stepTitle, { color: C.danger }]}>{t("pos.wrongEvent")}</Text>
+            <Text style={[styles.shortfallText, { color: C.textSecondary }]}>{t("pos.wrongEventDetail")}</Text>
           </View>
         )}
 
@@ -557,6 +572,9 @@ export default function ChargeScreen() {
         )}
         {step === "hmac_fail" && (
           <Button title={t("common.cancel")} onPress={() => router.back()} variant="danger" size="lg" fullWidth />
+        )}
+        {step === "wrong_event" && (
+          <Button title={t("common.back")} onPress={() => router.back()} variant="danger" size="lg" fullWidth />
         )}
         {step === "offline_limit" && (
           <View style={{ gap: 10 }}>
