@@ -4,7 +4,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Image,
   Platform,
   Pressable,
@@ -23,7 +22,7 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyBracelets } from "@/hooks/useAttendeeApi";
+import { useMyBracelets, useLinkBracelet } from "@/hooks/useAttendeeApi";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
 
 const NFC_TAG_IMAGE = require("@/assets/images/tapee-nfc-tag.png");
@@ -54,6 +53,9 @@ export default function HomeScreen() {
   const [nfcAvailable, setNfcAvailable] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  const [nfcFeedback, setNfcFeedback] = useState<"success" | "already" | "error" | null>(null);
+
+  const { mutate: linkBracelet } = useLinkBracelet();
 
   useEffect(() => {
     isNfcSupported().then(setNfcAvailable);
@@ -61,6 +63,7 @@ export default function HomeScreen() {
 
   const handleNfcScan = async () => {
     if (scanning) return;
+    setNfcFeedback(null);
     setScanning(true);
     try {
       const uid = await scanBraceletUID();
@@ -68,22 +71,21 @@ export default function HomeScreen() {
         setSelectedUid(uid);
         const matched = bracelets.find((b) => b.uid === uid);
         if (matched) {
-          Alert.alert(t("home.braceletSelected"), uid);
+          setNfcFeedback("already");
+          setTimeout(() => setNfcFeedback(null), 3000);
         } else {
-          Alert.alert(
-            t("home.nfcDetected"),
-            t("home.nfcDetectedHint"),
-            [
-              {
-                text: t("home.addBraceletAction"),
-                onPress: () => router.push({ pathname: "/add-bracelet", params: { prefillUid: uid } }),
+          linkBracelet(
+            { uid },
+            {
+              onSuccess: () => {
+                setNfcFeedback("success");
+                setTimeout(() => setNfcFeedback(null), 3000);
               },
-              {
-                text: t("home.topUpAction"),
-                onPress: () => router.push({ pathname: "/top-up", params: { braceletUid: uid } }),
+              onError: () => {
+                setNfcFeedback("error");
+                setTimeout(() => setNfcFeedback(null), 3000);
               },
-              { text: t("common.cancel"), style: "cancel" },
-            ]
+            }
           );
         }
       }
@@ -122,16 +124,40 @@ export default function HomeScreen() {
               disabled={scanning}
               style={[
                 styles.nfcFab,
-                { backgroundColor: scanning ? C.primaryLight : "rgba(0,241,255,0.15)", borderColor: C.primary },
+                nfcFeedback === "success"
+                  ? { backgroundColor: "rgba(34,197,94,0.15)", borderColor: "#22c55e" }
+                  : nfcFeedback === "already"
+                  ? { backgroundColor: "rgba(0,241,255,0.15)", borderColor: C.primary }
+                  : nfcFeedback === "error"
+                  ? { backgroundColor: "rgba(239,68,68,0.15)", borderColor: "#ef4444" }
+                  : { backgroundColor: scanning ? C.primaryLight : "rgba(0,241,255,0.15)", borderColor: C.primary },
               ]}
             >
               <Feather
-                name={scanning ? "loader" : "wifi"}
+                name={
+                  nfcFeedback === "success" ? "check-circle" :
+                  nfcFeedback === "error" ? "alert-circle" :
+                  scanning ? "loader" : "wifi"
+                }
                 size={18}
-                color={C.primary}
+                color={
+                  nfcFeedback === "success" ? "#22c55e" :
+                  nfcFeedback === "error" ? "#ef4444" :
+                  C.primary
+                }
               />
-              <Text style={[styles.nfcFabText, { color: C.primary }]}>
-                {scanning ? t("home.scanning") : t("home.scanBracelet")}
+              <Text style={[
+                styles.nfcFabText,
+                {
+                  color: nfcFeedback === "success" ? "#22c55e" :
+                         nfcFeedback === "error" ? "#ef4444" :
+                         C.primary,
+                },
+              ]}>
+                {nfcFeedback === "success" ? t("home.braceletLinked") :
+                 nfcFeedback === "already" ? t("home.braceletSelected") :
+                 nfcFeedback === "error" ? t("common.error") :
+                 scanning ? t("home.scanning") : t("home.scanBracelet")}
               </Text>
             </Pressable>
           )}
