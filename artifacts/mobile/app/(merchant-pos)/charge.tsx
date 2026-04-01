@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useLogTransaction, useGetSigningKey, useReportTamper, useGetEvent, type SigningKeyResponse } from "@workspace/api-client-react";
+import { useLogTransaction, useGetSigningKey, useReportTamper, useGetEvent, customFetch, type SigningKeyResponse } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
@@ -171,6 +171,19 @@ export default function ChargeScreen() {
     return () => loop.stop();
   }, [nfcModalVisible]);
 
+  const fetchServerPendingBalance = async (uid: string): Promise<number | null> => {
+    try {
+      const data = await customFetch(`/api/bracelets/${encodeURIComponent(uid)}`) as {
+        pendingSync?: boolean;
+        pendingBalanceCop?: number | null;
+      } | null;
+      if (data?.pendingSync && data?.pendingBalanceCop && data.pendingBalanceCop > 0) {
+        return data.pendingBalanceCop;
+      }
+    } catch {}
+    return null;
+  };
+
   const logAndFinish = async (uid: string, newBalance: number, newCounter: number, newHmac?: string) => {
     setStep("logging");
     const lineItems = snapshotItems.map((i) => ({
@@ -272,8 +285,11 @@ export default function ChargeScreen() {
           setTagInfo(detectedTagInfo);
           setStep("verifying");
 
-          if (payload.balance < total) {
-            setBraceletBalance(payload.balance);
+          const serverPending = await fetchServerPendingBalance(payload.uid);
+          const effectiveBalance = serverPending !== null ? serverPending : payload.balance;
+
+          if (effectiveBalance < total) {
+            setBraceletBalance(effectiveBalance);
             setBraceletUid(payload.uid);
             setStep("insufficient");
             aborted = true;
@@ -282,7 +298,7 @@ export default function ChargeScreen() {
           }
 
           uid = payload.uid;
-          newBalance = payload.balance - total;
+          newBalance = effectiveBalance - total;
           newCounter = payload.counter + 1;
           setStep("writing");
           return { uid, balance: newBalance, counter: newCounter, hmac: payload.hmac };
@@ -337,8 +353,11 @@ export default function ChargeScreen() {
             return null;
           }
 
-          if (payload.balance < total) {
-            setBraceletBalance(payload.balance);
+          const serverPending = await fetchServerPendingBalance(payload.uid);
+          const effectiveBalance = serverPending !== null ? serverPending : payload.balance;
+
+          if (effectiveBalance < total) {
+            setBraceletBalance(effectiveBalance);
             setBraceletUid(payload.uid);
             setStep("insufficient");
             aborted = true;
@@ -347,7 +366,7 @@ export default function ChargeScreen() {
           }
 
           uid = payload.uid;
-          newBalance = payload.balance - total;
+          newBalance = effectiveBalance - total;
           newCounter = payload.counter + 1;
           setStep("writing");
           writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);

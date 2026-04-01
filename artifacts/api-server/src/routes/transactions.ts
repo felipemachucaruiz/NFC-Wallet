@@ -337,7 +337,31 @@ async function processTransaction(
   // Coherence check for sync batch: validate balance against known server history
   let wasFlagged = false;
   if (isSyncBatch && bracelet.lastKnownBalanceCop !== null) {
-    // Expected new balance = last known balance - gross amount charged
+    // If a self-service top-up is pending, the chip balance is stale (the top-up was
+    // recorded on the server but not yet written to the chip). In this case we skip the
+    // normal discrepancy check and instead reconcile: the authoritative new balance is
+    // pendingBalanceCop minus what was just charged, regardless of what the chip reported.
+    if (bracelet.pendingSync && bracelet.pendingBalanceCop !== null && bracelet.pendingBalanceCop > 0) {
+      const reconciledBalance = Math.max(0, bracelet.pendingBalanceCop - grossAmountCop);
+      await db
+        .update(braceletsTable)
+        .set({
+          lastKnownBalanceCop: reconciledBalance,
+          lastCounter: input.counter,
+          pendingSync: false,
+          pendingBalanceCop: 0,
+          updatedAt: new Date(),
+        })
+        .where(eq(braceletsTable.nfcUid, input.nfcUid));
+
+      return {
+        status: "created",
+        transaction: { ...txLog, lineItems: insertedLineItems },
+        flagged: false,
+      };
+    }
+
+    // Standard discrepancy check: expected new balance = last known balance - gross amount charged
     const expectedNewBalance = bracelet.lastKnownBalanceCop - grossAmountCop;
     const discrepancy = Math.abs(expectedNewBalance - input.newBalance);
     if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
