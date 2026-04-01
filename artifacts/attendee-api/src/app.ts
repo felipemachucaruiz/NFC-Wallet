@@ -5,14 +5,12 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
-import { ipAllowlistMiddleware } from "./middlewares/ipAllowlist";
+import { generalLimiter, authLimiter } from "./middlewares/rateLimiter";
 
 const app: Express = express();
 
-// Only trust proxy headers when explicitly enabled (TRUSTED_PROXY=true).
-// The IP allowlist middleware uses raw socket address by default to prevent
-// X-Forwarded-For spoofing. Set TRUSTED_PROXY=true in production when behind
-// Replit's mTLS proxy or another trusted reverse proxy.
+// Only trust proxy headers when explicitly enabled in production (TRUSTED_PROXY=true).
+// Rate limiting uses raw socket address by default to prevent X-Forwarded-For spoofing.
 if (process.env.TRUSTED_PROXY === "true") {
   app.set("trust proxy", 1);
 }
@@ -40,7 +38,21 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(ipAllowlistMiddleware);
+
+app.use(generalLimiter);
+
+app.use(
+  [
+    "/api/auth/login",
+    "/api/auth/logout",
+    "/api/auth/create-account",
+    "/api/mobile-auth/token-exchange",
+    "/api/mobile-auth/logout",
+    "/api/attendee/me/refund-request",
+  ],
+  authLimiter,
+);
+
 app.use(authMiddleware);
 
 app.use("/api", router);

@@ -8,7 +8,7 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
-import { API_BASE_URL } from "@/constants/domain";
+import { ATTENDEE_API_BASE_URL } from "@/constants/domain";
 
 type Step = "lookup" | "payment" | "processing" | "done" | "failed";
 type PayMethod = "nequi" | "pse";
@@ -106,7 +106,7 @@ export default function SelfServiceScreen() {
     setLookupError(null);
     try {
       const res = await fetch(
-        `${API_BASE_URL}/api/public/bracelet-lookup?uid=${encodeURIComponent(trimmedUid)}`,
+        `${ATTENDEE_API_BASE_URL}/api/public/bracelet-lookup?uid=${encodeURIComponent(trimmedUid)}`,
       );
       const data = (await res.json()) as BraceletInfo & { error?: string };
       if (!res.ok) {
@@ -145,7 +145,7 @@ export default function SelfServiceScreen() {
     setRegistering(true);
     setRegError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/public/register-attendee`, {
+      const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/public/register-attendee`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -180,7 +180,7 @@ export default function SelfServiceScreen() {
         return;
       }
       try {
-        const res = await fetch(`${API_BASE_URL}/api/public/topup/status/${id}`);
+        const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/public/topup/status/${id}`);
         const data = (await res.json()) as { status: string };
         if (data.status === "success") {
           stopPolling();
@@ -208,7 +208,7 @@ export default function SelfServiceScreen() {
       if (method === "nequi") body.phoneNumber = phone.replace(/\D/g, "");
       else body.bankCode = selectedBank!.code;
 
-      const res = await fetch(`${API_BASE_URL}/api/public/topup/initiate`, {
+      const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/public/topup/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

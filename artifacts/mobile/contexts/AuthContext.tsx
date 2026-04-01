@@ -9,8 +9,7 @@ import React, {
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
-import { getCurrentAuthUser } from "@workspace/api-client-react";
-import { API_BASE_URL } from "@/constants/domain";
+import { ATTENDEE_API_BASE_URL, API_BASE_URL } from "@/constants/domain";
 import { clearSigningKeyCache } from "@/utils/signingKeyCache";
 import { clearInMemoryCachedHmacSecret } from "@/contexts/OfflineQueueContext";
 
@@ -53,7 +52,10 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const getApiBase = (): string => API_BASE_URL;
+const STAFF_ROLES: readonly string[] = ["bank", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"];
+
+const getAuthBase = (role?: string): string =>
+  role && STAFF_ROLES.includes(role) ? API_BASE_URL : ATTENDEE_API_BASE_URL;
 
 const getStoredToken = async (): Promise<string | null> => {
   try {
@@ -94,21 +96,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(t);
   }, []);
 
-  // Returns the user, null if session explicitly rejected (401), or "network_error" if unreachable
+  // Returns the user, null if session explicitly rejected (401/403), or "network_error" if unreachable.
+  // Tries attendee-api first (fast path for attendees); on network errors also tries api-server
+  // so staff tokens issued by api-server are also recognised.
   const fetchUser = useCallback(async (t: string): Promise<AuthUser | null | "network_error"> => {
-    try {
-      tokenRef.current = t;
-      const resp = await getCurrentAuthUser();
-      if (resp?.user) return resp.user as AuthUser;
-      return null;
-    } catch (err: unknown) {
-      // Distinguish 401/403 (session genuinely invalid) from network failures
-      if (err && typeof err === "object" && "status" in err) {
-        const status = (err as { status: number }).status;
-        if (status === 401 || status === 403) return null;
+    const tryFetch = async (baseUrl: string): Promise<AuthUser | null | "network_error"> => {
+      try {
+        const res = await fetch(`${baseUrl}/api/auth/user`, {
+          headers: { Authorization: `Bearer ${t}` },
+        });
+        if (res.status === 401 || res.status === 403) return null;
+        if (!res.ok) return "network_error";
+        const body = await res.json() as { user: AuthUser | null };
+        return body?.user ?? null;
+      } catch {
+        return "network_error";
       }
-      return "network_error";
-    }
+    };
+
+    const attendeeResult = await tryFetch(ATTENDEE_API_BASE_URL);
+    if (attendeeResult !== "network_error") return attendeeResult;
+
+    // If attendee-api is unreachable or token is staff-issued, try api-server
+    return tryFetch(API_BASE_URL);
   }, []);
 
   // On startup: try to restore session with up to RETRY_COUNT retries
@@ -151,14 +161,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (identifier: string, password: string, rememberMe = true): Promise<string | null> => {
     try {
-      const res = await fetch(`${getApiBase()}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+      const body = JSON.stringify({ identifier, password });
+      const headers = { "Content-Type": "application/json" };
+
+      // Try attendee-api first (attendees); on 403 "staff must use portal" try api-server
+      let res = await fetch(`${ATTENDEE_API_BASE_URL}/api/auth/login`, {
+        method: "POST", headers, body,
       });
+      if (res.status === 403) {
+        // Account is a staff account — retry against the internal api-server
+        res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+          method: "POST", headers, body,
+        });
+      }
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        return (body as { error?: string }).error ?? "Invalid credentials";
+        const data = await res.json().catch(() => ({}));
+        return (data as { error?: string }).error ?? "Invalid credentials";
       }
       const { token: sid } = await res.json() as { token: string };
       const u = await fetchUser(sid);
@@ -181,7 +199,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const t = tokenRef.current;
       if (t) {
-        await fetch(`${getApiBase()}/api/auth/logout`, {
+        // Route logout to the same service that issued the token
+        const logoutBase = getAuthBase(user?.role ?? undefined);
+        await fetch(`${logoutBase}/api/auth/logout`, {
           method: "POST",
           headers: { Authorization: `Bearer ${t}` },
         });
@@ -192,7 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearInMemoryCachedHmacSecret();
     setAuthToken(null);
     setUser(null);
-  }, []);
+  }, [user]);
 
   const refreshUser = useCallback(async () => {
     const t = tokenRef.current;

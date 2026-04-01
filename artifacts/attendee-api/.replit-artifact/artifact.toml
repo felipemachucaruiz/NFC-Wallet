@@ -1,0 +1,32 @@
+kind = "api"
+  previewPath = "/attendee-api"
+  title = "Attendee API"
+  version = "1.0.0"
+  id = "attendee-api-service"
+
+  [[services]]
+  localPort = 3001
+  name = "Attendee API"
+  paths = ["/attendee-api"]
+
+  [services.development]
+  run = "PORT=3001 pnpm --filter @workspace/attendee-api run dev"
+
+  [services.production]
+
+  [services.production.build]
+  args = ["pnpm", "--filter", "@workspace/attendee-api", "run", "build"]
+
+  [services.production.build.env]
+  NODE_ENV = "production"
+
+  [services.production.run]
+  args = ["node", "--enable-source-maps", "artifacts/attendee-api/dist/index.mjs"]
+
+  [services.production.run.env]
+  PORT = "3001"
+  NODE_ENV = "production"
+
+  [services.production.health.startup]
+  path = "/api/healthz"
+  

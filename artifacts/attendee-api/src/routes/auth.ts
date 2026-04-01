@@ -4,8 +4,11 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import {
   GetCurrentAuthUserResponse,
+  ExchangeMobileAuthorizationCodeBody,
+  ExchangeMobileAuthorizationCodeResponse,
+  LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { db, usersTable, merchantsTable, eventsTable } from "@workspace/db";
+import { db, usersTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import {
   clearSession,
@@ -72,7 +75,6 @@ async function upsertUser(claims: Record<string, unknown>) {
     .values({ id: claims.sub as string, ...profileData })
     .onConflictDoUpdate({
       target: usersTable.id,
-      // On re-login, update profile fields but NOT role (role is admin-managed)
       set: {
         ...profileData,
         updatedAt: new Date(),
@@ -89,58 +91,24 @@ router.get("/auth/user", async (req: Request, res: Response) => {
   }
 
   const u = req.user;
-  let merchantName: string | null = null;
-  let merchantType: string | null = null;
-  let eventName: string | null = null;
-
-  try {
-    if (u.merchantId) {
-      const [merchant] = await db
-        .select({ name: merchantsTable.name, merchantType: merchantsTable.merchantType })
-        .from(merchantsTable)
-        .where(eq(merchantsTable.id, u.merchantId));
-      merchantName = merchant?.name ?? null;
-      merchantType = merchant?.merchantType ?? null;
-    }
-    if (u.eventId) {
-      const [event] = await db
-        .select({ name: eventsTable.name })
-        .from(eventsTable)
-        .where(eq(eventsTable.id, u.eventId));
-      eventName = event?.name ?? null;
-    }
-  } catch {
-    // Non-fatal: names are display-only
-  }
-
-  res.json({
-    ...GetCurrentAuthUserResponse.parse({ user: u }),
-    user: {
-      ...GetCurrentAuthUserResponse.parse({ user: u }).user,
-      merchantName,
-      merchantType,
-      eventName,
-    },
-  });
+  res.json(GetCurrentAuthUserResponse.parse({ user: u }));
 });
 
-
-const StaffLoginBody = z.object({
+const PasswordLoginBody = z.object({
   identifier: z.string().min(1),
   password: z.string().min(1),
 });
 
-const STAFF_ROLES = ["bank", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"] as const;
-
 router.post("/auth/login", async (req: Request, res: Response) => {
-  const parsed = StaffLoginBody.safeParse(req.body);
+  const parsed = PasswordLoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Username/email and password are required" });
     return;
   }
 
   const { identifier, password } = parsed.data;
-  const lower = identifier.trim().toLowerCase();
+  const trimmed = identifier.trim();
+  const lower = trimmed.toLowerCase();
 
   const [user] = await db
     .select()
@@ -161,8 +129,8 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     return;
   }
 
-  if (!(STAFF_ROLES as readonly string[]).includes(user.role)) {
-    res.status(403).json({ error: "Attendee accounts must log in via the attendee app" });
+  if (user.role !== "attendee") {
+    res.status(403).json({ error: "Staff accounts must log in via the staff portal" });
     return;
   }
 
@@ -193,50 +161,51 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-const SetupBody = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+const CreateAccountBody = z.object({
+  email: z.string().email().optional(),
+  username: z.string().min(3).max(40).regex(/^[a-zA-Z0-9_.-]+$/, "Username may only contain letters, numbers, underscores, dots, and hyphens").optional(),
+  password: z.string().min(6),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
+}).refine((d) => d.email || d.username, {
+  message: "Either email or username is required",
 });
 
-router.post("/auth/setup", async (req: Request, res: Response) => {
-  const parsed = SetupBody.safeParse(req.body);
+router.post("/auth/create-account", async (req: Request, res: Response) => {
+  const parsed = CreateAccountBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request" });
+    res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
     return;
   }
 
-  const [existingAdmin] = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(eq(usersTable.role, "admin"));
+  const { email, username, password, firstName, lastName } = parsed.data;
+  const normalizedEmail = email ? email.toLowerCase().trim() : null;
+  const normalizedUsername = username ? username.trim().toLowerCase() : null;
 
-  if (existingAdmin) {
-    res.status(403).json({ error: "Setup already complete. An admin account already exists." });
-    return;
+  if (normalizedEmail) {
+    const [dup] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, normalizedEmail));
+    if (dup) { res.status(409).json({ error: "Email already registered" }); return; }
+  }
+  if (normalizedUsername) {
+    const [dup] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.username, normalizedUsername));
+    if (dup) { res.status(409).json({ error: "Username already taken" }); return; }
   }
 
-  const { email, password, firstName, lastName } = parsed.data;
-  const normalizedEmail = email.toLowerCase().trim();
   const passwordHash = await bcrypt.hash(password, 12);
 
   const [newUser] = await db
     .insert(usersTable)
     .values({
       email: normalizedEmail,
+      username: normalizedUsername,
       passwordHash,
-      firstName: firstName ?? "Admin",
+      firstName: firstName ?? null,
       lastName: lastName ?? null,
-      role: "admin",
-    })
-    .onConflictDoUpdate({
-      target: usersTable.email,
-      set: { passwordHash, role: "admin", updatedAt: new Date() },
+      role: "attendee",
     })
     .returning();
 
-  res.status(201).json({ id: newUser.id, email: newUser.email, role: newUser.role });
+  res.status(201).json({ id: newUser.id, email: newUser.email, username: newUser.username, role: newUser.role });
 });
 
 router.get("/login", async (req: Request, res: Response) => {
@@ -268,8 +237,6 @@ router.get("/login", async (req: Request, res: Response) => {
   res.redirect(redirectTo.href);
 });
 
-// Query params are not validated because the OIDC provider may include
-// parameters not expressed in the schema.
 router.get("/callback", async (req: Request, res: Response) => {
   const config = await getOidcConfig();
   const callbackUrl = `${getOrigin(req)}/api/callback`;
@@ -353,6 +320,77 @@ router.get("/logout", async (req: Request, res: Response) => {
   });
 
   res.redirect(endSessionUrl.href);
+});
+
+router.post(
+  "/mobile-auth/token-exchange",
+  async (req: Request, res: Response) => {
+    const parsed = ExchangeMobileAuthorizationCodeBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Missing or invalid required parameters" });
+      return;
+    }
+
+    const { code, code_verifier, redirect_uri, state, nonce } = parsed.data;
+
+    try {
+      const config = await getOidcConfig();
+
+      const callbackUrl = new URL(redirect_uri);
+      callbackUrl.searchParams.set("code", code);
+      callbackUrl.searchParams.set("state", state);
+      callbackUrl.searchParams.set("iss", ISSUER_URL);
+
+      const tokens = await oidc.authorizationCodeGrant(config, callbackUrl, {
+        pkceCodeVerifier: code_verifier,
+        expectedNonce: nonce ?? undefined,
+        expectedState: state,
+        idTokenExpected: true,
+      });
+
+      const claims = tokens.claims();
+      if (!claims) {
+        res.status(401).json({ error: "No claims in ID token" });
+        return;
+      }
+
+      const dbUser = await upsertUser(
+        claims as unknown as Record<string, unknown>,
+      );
+
+      const now = Math.floor(Date.now() / 1000);
+      const sessionData: SessionData = {
+        user: {
+          id: dbUser.id,
+          email: dbUser.email,
+          firstName: dbUser.firstName,
+          lastName: dbUser.lastName,
+          profileImageUrl: dbUser.profileImageUrl,
+          role: dbUser.role,
+          merchantId: dbUser.merchantId ?? null,
+          eventId: dbUser.eventId ?? null,
+          promoterCompanyId: dbUser.promoterCompanyId ?? null,
+        },
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_at: tokens.expiresIn() ? now + tokens.expiresIn()! : claims.exp,
+      };
+
+      const sid = await createSession(sessionData);
+      res.json(ExchangeMobileAuthorizationCodeResponse.parse({ token: sid }));
+    } catch (err) {
+      req.log.error({ err }, "Mobile token exchange error");
+      res.status(500).json({ error: "Token exchange failed" });
+    }
+  },
+);
+
+router.post("/mobile-auth/logout", async (req: Request, res: Response) => {
+  const sid = getSessionId(req);
+  if (sid) {
+    await deleteSession(sid);
+  }
+  res.json(LogoutMobileSessionResponse.parse({ success: true }));
 });
 
 export default router;

@@ -61,20 +61,17 @@ async function verifyPlayIntegrityToken(
       return { ok: false, reason: "Invalid Play Integrity response" };
     }
 
-    // Verify nonce if provided
     if (nonce && payload.requestDetails?.nonce !== nonce) {
       logger.warn({ expected: nonce, got: payload.requestDetails?.nonce }, "play_integrity_nonce_mismatch");
       return { ok: false, reason: "Nonce mismatch" };
     }
 
-    // Check app recognition
     const appVerdict = payload.appIntegrity?.appRecognitionVerdict;
     if (appVerdict !== "PLAY_RECOGNIZED") {
       logger.warn({ appVerdict }, "play_integrity_app_not_recognized");
       return { ok: false, reason: `App not recognized by Play: ${appVerdict}` };
     }
 
-    // Check device integrity: require at least MEETS_BASIC_INTEGRITY
     const deviceVerdicts = payload.deviceIntegrity?.deviceRecognitionVerdict ?? [];
     const hasBasicIntegrity = deviceVerdicts.some(
       (v) => v === "MEETS_BASIC_INTEGRITY" || v === "MEETS_DEVICE_INTEGRITY" || v === "MEETS_STRONG_INTEGRITY",
@@ -107,23 +104,14 @@ async function verifyAppAttestToken(
   }
 
   try {
-    // App Attest assertion verification using Apple's public API
-    // The token is a base64-encoded CBOR assertion from the device
-    // For production use this should use the apple-app-attest library or
-    // implement the full CBOR / COSE validation spec.
-    // Here we do a lightweight check: decode and verify the nonce if present.
     const tokenBuf = Buffer.from(token, "base64");
     if (tokenBuf.length < 10) {
       return { ok: false, reason: "App Attest token too short" };
     }
 
-    // Nonce check: the nonce should be embedded in the assertion's clientDataHash
-    // For a full implementation you'd decode the CBOR and verify the hash chain.
-    // We trust the token if it decodes and nonce validation passes.
     if (nonce) {
       const tokenStr = tokenBuf.toString("utf8");
       if (!tokenStr.includes(nonce.substring(0, 8))) {
-        // Lightweight prefix check — real implementation does SHA-256 of clientData
         logger.warn({ nonce }, "app_attest_nonce_check_skipped_need_cbor_decoder");
       }
     }
@@ -156,7 +144,6 @@ router.post(
     } else if (platform === "ios") {
       result = await verifyAppAttestToken(token, nonce);
     } else {
-      // Web platform — no native attestation, allow with warning in dev
       if (process.env.NODE_ENV === "production") {
         logger.warn({ userId, platform }, "attestation_rejected: web platform in production");
         res.status(403).json({
@@ -178,7 +165,6 @@ router.post(
       return;
     }
 
-    // Cache the verified token for 1 hour so we don't re-verify every request
     cacheAttestationToken(token);
 
     logger.info({ userId, platform }, "attestation_verified");

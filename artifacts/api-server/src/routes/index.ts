@@ -17,13 +17,10 @@ import payoutsRouter from "./payouts";
 import reportsRouter from "./reports";
 import promoterCompaniesRouter from "./promoterCompanies";
 import refundsRouter from "./refunds";
-import attendeeRouter from "./attendee";
 import analyticsRouter from "./analytics";
 import fraudAlertsRouter from "./fraudAlerts";
-import paymentsRouter from "./payments";
-import attestationRouter from "./attestation";
-import selfServiceRouter from "./selfService";
 import storageRouter from "./storage";
+import bankAttendeeRouter from "./bankAttendee";
 
 const router: IRouter = Router();
 
@@ -45,12 +42,9 @@ router.use(payoutsRouter);
 router.use(reportsRouter);
 router.use(promoterCompaniesRouter);
 router.use(refundsRouter);
-router.use(attendeeRouter);
 router.use(analyticsRouter);
 router.use(fraudAlertsRouter);
-router.use(paymentsRouter);
-router.use(attestationRouter);
-router.use(selfServiceRouter);
 router.use(storageRouter);
+router.use(bankAttendeeRouter);
 
 export default router;

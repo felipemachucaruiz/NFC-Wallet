@@ -5,7 +5,9 @@ import React, { useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useInitiateDigitalTopUp } from "@workspace/api-client-react";
+import { useMutation } from "@tanstack/react-query";
+import { ATTENDEE_API_BASE_URL } from "@/constants/domain";
+import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -62,7 +64,23 @@ export default function TopUpDigitalScreen() {
   const [selectedBank, setSelectedBank] = useState<{ code: string; name: string } | null>(null);
   const [showBankPicker, setShowBankPicker] = useState(false);
 
-  const { mutate: initiatePayment, isPending } = useInitiateDigitalTopUp();
+  const { token } = useAuth();
+  const { mutate: initiatePayment, isPending } = useMutation({
+    mutationFn: async (body: { braceletUid: string; amountCop: number; paymentMethod: "nequi" | "pse"; phoneNumber?: string; bankCode?: string }) => {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/payments/initiate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error ?? res.statusText);
+      }
+      return res.json() as Promise<{ intentId: string; status: string; redirectUrl?: string | null }>;
+    },
+  });
 
   const effectiveAmount = selectedAmount ?? (customAmount ? parseInt(customAmount.replace(/\D/g, ""), 10) : 0);
 
@@ -88,26 +106,22 @@ export default function TopUpDigitalScreen() {
       body.bankCode = selectedBank!.code;
     }
 
-    initiatePayment(
-      { data: body },
-      {
-        onSuccess: (data) => {
-          const result = data as { intentId: string; status: string; redirectUrl?: string | null };
-          router.push({
-            pathname: "/(attendee)/payment-status/[id]" as never,
-            params: {
-              id: result.intentId,
-              redirectUrl: result.redirectUrl ?? "",
-              paymentMethod: method,
-            },
-          });
-        },
-        onError: (err: unknown) => {
-          const msg = (err as { message?: string }).message ?? t("common.unknownError");
-          Alert.alert(t("common.error"), msg);
-        },
+    initiatePayment(body, {
+      onSuccess: (result) => {
+        router.push({
+          pathname: "/(attendee)/payment-status/[id]" as never,
+          params: {
+            id: result.intentId,
+            redirectUrl: result.redirectUrl ?? "",
+            paymentMethod: method,
+          },
+        });
       },
-    );
+      onError: (err: unknown) => {
+        const msg = (err as { message?: string }).message ?? t("common.unknownError");
+        Alert.alert(t("common.error"), msg);
+      },
+    });
   };
 
   return (

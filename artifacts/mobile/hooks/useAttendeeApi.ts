@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { API_BASE_URL } from "@/constants/domain";
+import { ATTENDEE_API_BASE_URL, API_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
 
 function useAuthHeaders() {
@@ -20,7 +20,7 @@ export function useMyBracelets() {
   const headers = useAuthHeaders();
   return useQuery({
     queryKey: ["attendee", "bracelets"],
-    queryFn: () => apiFetch(`${API_BASE_URL}/api/attendee/me/bracelets`, headers),
+    queryFn: () => apiFetch(`${ATTENDEE_API_BASE_URL}/api/attendee/me/bracelets`, headers),
     enabled: !!headers.Authorization,
     refetchInterval: 15_000,
     staleTime: 10_000,
@@ -30,8 +30,8 @@ export function useMyBracelets() {
 export function useMyTransactions(cursor?: string) {
   const headers = useAuthHeaders();
   const url = cursor
-    ? `${API_BASE_URL}/api/attendee/me/transactions?cursor=${encodeURIComponent(cursor)}`
-    : `${API_BASE_URL}/api/attendee/me/transactions`;
+    ? `${ATTENDEE_API_BASE_URL}/api/attendee/me/transactions?cursor=${encodeURIComponent(cursor)}`
+    : `${ATTENDEE_API_BASE_URL}/api/attendee/me/transactions`;
   return useQuery({
     queryKey: ["attendee", "transactions", cursor ?? "initial"],
     queryFn: () => apiFetch<{ transactions: unknown[]; nextCursor: string | null }>(url, headers),
@@ -43,7 +43,7 @@ export function useMyRefundRequests() {
   const headers = useAuthHeaders();
   return useQuery({
     queryKey: ["attendee", "refundRequests"],
-    queryFn: () => apiFetch(`${API_BASE_URL}/api/attendee/me/refund-requests`, headers),
+    queryFn: () => apiFetch(`${ATTENDEE_API_BASE_URL}/api/attendee/me/refund-requests`, headers),
     enabled: !!headers.Authorization,
   });
 }
@@ -53,7 +53,7 @@ export function useBlockBracelet() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ uid, reason }: { uid: string; reason?: string }) => {
-      const res = await fetch(`${API_BASE_URL}/api/attendee/me/bracelets/${uid}/block`, {
+      const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/attendee/me/bracelets/${uid}/block`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
@@ -80,7 +80,7 @@ export function useSubmitRefundRequest() {
       accountDetails?: string;
       notes?: string;
     }) => {
-      const res = await fetch(`${API_BASE_URL}/api/attendee/me/refund-request`, {
+      const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/attendee/me/refund-request`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify(data),

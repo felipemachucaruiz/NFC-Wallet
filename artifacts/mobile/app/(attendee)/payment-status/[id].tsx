@@ -5,7 +5,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useGetDigitalTopUpStatus } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import { ATTENDEE_API_BASE_URL } from "@/constants/domain";
+import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 
@@ -34,12 +36,23 @@ export default function PaymentStatusScreen() {
   const [hasRedirected, setHasRedirected] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const { token } = useAuth();
+
   const {
     data: statusData,
     refetch,
     isError,
-  } = useGetDigitalTopUpStatus(intentId, {
-    query: { enabled: !!intentId, refetchInterval: false } as never,
+  } = useQuery({
+    queryKey: ["payment-status", intentId],
+    queryFn: async () => {
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/payments/${intentId}/status`, { headers });
+      if (!res.ok) throw new Error(res.statusText);
+      return res.json() as Promise<{ status: string }>;
+    },
+    enabled: !!intentId,
+    refetchInterval: false,
   });
 
   const status: PaymentStatus = (statusData as { status?: string } | undefined)?.status as PaymentStatus ?? "pending";

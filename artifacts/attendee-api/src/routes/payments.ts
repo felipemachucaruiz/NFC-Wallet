@@ -31,7 +31,7 @@ const initiatePaymentSchema = z.object({
 
 router.post(
   "/payments/initiate",
-  requireRole("attendee", "bank", "admin"),
+  requireRole("attendee"),
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });
@@ -184,7 +184,7 @@ router.post(
 
 router.get(
   "/payments/:id/status",
-  requireRole("attendee", "bank", "admin"),
+  requireRole("attendee"),
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });

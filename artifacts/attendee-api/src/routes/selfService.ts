@@ -366,12 +366,6 @@ const registerAttendeeSchema = z.object({
   lastName: z.string().min(1).optional(),
 });
 
-/**
- * POST /public/register-attendee
- * Creates a Tapee attendee account from the self-service screen.
- * Links the bracelet to the new account immediately.
- * No auth required — public endpoint.
- */
 router.post(
   "/public/register-attendee",
   async (req: Request, res: Response) => {
@@ -389,7 +383,6 @@ router.post(
     }
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check email not already registered
     const [existingUser] = await db
       .select({ id: usersTable.id })
       .from(usersTable)
@@ -400,7 +393,6 @@ router.post(
       return;
     }
 
-    // Check bracelet exists
     const [bracelet] = await db
       .select({ nfcUid: braceletsTable.nfcUid, attendeeUserId: braceletsTable.attendeeUserId })
       .from(braceletsTable)
@@ -425,7 +417,6 @@ router.post(
         })
         .returning({ id: usersTable.id, email: usersTable.email, firstName: usersTable.firstName });
 
-      // Link bracelet to the new account (only if not already linked)
       await tx
         .update(braceletsTable)
         .set({
@@ -437,7 +428,6 @@ router.post(
         .where(
           and(
             eq(braceletsTable.nfcUid, uid),
-            // Don't overwrite an existing link
             isNull(braceletsTable.attendeeUserId),
           ),
         );

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
-import { customFetch } from "@workspace/api-client-react";
+import { ATTENDEE_API_BASE_URL } from "@/constants/domain";
 
 const ATTESTATION_TTL_MS = 60 * 60 * 1000; // 1 hour — matches server-side cache
 
@@ -96,10 +96,13 @@ export function useAttestation() {
 
       const platform = getPlatform();
 
-      const result = await customFetch("/api/attestation/verify", {
+      const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/attestation/verify`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: nativeToken, platform, nonce }),
-      }) as AttestationResult;
+      });
+      if (!res.ok) throw new Error(`Attestation failed: ${res.status}`);
+      const result = await res.json() as AttestationResult;
 
       if (result.verified) {
         stateRef.current = { token: nativeToken, verifiedAt: Date.now() };
