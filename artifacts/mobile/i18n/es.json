@@ -1048,6 +1048,7 @@
     "event": "Evento",
     "recentTx": "Transacciones Recientes",
     "noTx": "No se encontraron transacciones para esta pulsera",
+    "fetchError": "No se pudo cargar el historial",
     "nfcNotSupported": "NFC no está disponible en este dispositivo",
     "flagged": "Bloqueada",
     "wrongBracelet": "Pulsera incorrecta — por favor escanea la misma pulsera nuevamente",

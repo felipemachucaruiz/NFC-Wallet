@@ -63,6 +63,7 @@ export default function CheckBalanceScreen() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [bracelet, setBracelet] = useState<BraceletInfo | null>(null);
   const [transactions, setTransactions] = useState<TxEntry[]>([]);
+  const [txError, setTxError] = useState(false);
   const [serverLoading, setServerLoading] = useState(false);
 
   const { data: keyData } = useGetSigningKey();
@@ -72,16 +73,23 @@ export default function CheckBalanceScreen() {
 
   const loadServerData = useCallback(async (uid: string) => {
     setServerLoading(true);
+    setTxError(false);
     try {
-      const [infoRes, txRes] = await Promise.all([
+      const [infoResult, txResult] = await Promise.allSettled([
         customFetch<BraceletInfo>(`/api/bracelets/${uid}`),
         customFetch<{ transactions: TxEntry[] }>(`/api/bracelets/${uid}/transactions?limit=5`),
       ]);
-      setBracelet(infoRes ?? null);
-      setTransactions(txRes?.transactions ?? []);
-    } catch {
-      setBracelet(null);
-      setTransactions([]);
+      if (infoResult.status === "fulfilled") {
+        setBracelet(infoResult.value ?? null);
+      } else {
+        setBracelet(null);
+      }
+      if (txResult.status === "fulfilled") {
+        setTransactions(txResult.value?.transactions ?? []);
+      } else {
+        setTransactions([]);
+        setTxError(true);
+      }
     } finally {
       setServerLoading(false);
     }
@@ -263,6 +271,10 @@ export default function CheckBalanceScreen() {
 
           {serverLoading ? (
             <Loading />
+          ) : txError ? (
+            <Card>
+              <Text style={[styles.noTxText, { color: C.danger }]}>{t("checkBalance.fetchError")}</Text>
+            </Card>
           ) : transactions.length === 0 ? (
             <Card>
               <Text style={[styles.noTxText, { color: C.textMuted }]}>{t("checkBalance.noTx")}</Text>
