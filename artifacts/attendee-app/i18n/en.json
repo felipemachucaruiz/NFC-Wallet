@@ -176,6 +176,11 @@
     "successTitle": "Request submitted",
     "successMessage": "The bank team will contact you once it's processed."
   },
+  "update": {
+    "downloading": "Downloading update…",
+    "ready": "Update ready!",
+    "restart": "Restart now"
+  },
   "profile": {
     "tab": "Profile",
     "title": "My Profile",
