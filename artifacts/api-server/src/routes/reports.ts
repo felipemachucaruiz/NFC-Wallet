@@ -26,7 +26,7 @@ router.get(
     const conditions = [];
     let topUpEventIds: string[] | null = null;
 
-    const emptyRevenue = { totalSalesCop: 0, totalCogsCop: 0, grossProfitCop: 0, totalCommissionsCop: 0, netOwedToMerchantsCop: 0, transactionCount: 0, totalTopUpsCop: 0, topUpCount: 0, braceletCount: 0, totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] };
+    const emptyRevenue = { totalSalesCop: 0, totalCogsCop: 0, grossProfitCop: 0, totalCommissionsCop: 0, platformRevenueCop: 0, netOwedToMerchantsCop: 0, transactionCount: 0, totalTopUpsCop: 0, topUpCount: 0, braceletCount: 0, totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] };
 
     if (user.role === "event_admin") {
       const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
@@ -252,6 +252,21 @@ router.get(
         .from(braceletsTable)
         .where(inArray(braceletsTable.eventId, topUpEventIds));
       braceletCount = bAgg?.count ?? 0;
+    } else if (topUpEventIds === null && user.role === "admin") {
+      const topUpConditions = [];
+      if (from) topUpConditions.push(gte(topUpsTable.createdAt, new Date(from)));
+      if (to) topUpConditions.push(lte(topUpsTable.createdAt, new Date(to)));
+      const allTopUps = await db.select().from(topUpsTable).where(topUpConditions.length > 0 ? and(...topUpConditions) : undefined);
+      totalTopUpsCop = allTopUps.reduce((s, t) => s + t.amountCop, 0);
+      topUpCount = allTopUps.length;
+      const braceletConditions = [];
+      if (from) braceletConditions.push(gte(braceletsTable.createdAt, new Date(from)));
+      if (to) braceletConditions.push(lte(braceletsTable.createdAt, new Date(to)));
+      const [bAgg] = await db
+        .select({ count: sql<number>`COUNT(*)`.mapWith(Number) })
+        .from(braceletsTable)
+        .where(braceletConditions.length > 0 ? and(...braceletConditions) : undefined);
+      braceletCount = bAgg?.count ?? 0;
     }
 
     res.json({
@@ -259,6 +274,7 @@ router.get(
       totalCogsCop: totals.cogsCop,
       grossProfitCop: totals.grossProfitCop,
       totalCommissionsCop: totals.commissionCop,
+      platformRevenueCop: totals.commissionCop,
       netOwedToMerchantsCop: totals.netCop,
       transactionCount: totals.transactionCount,
       totalTopUpsCop,
