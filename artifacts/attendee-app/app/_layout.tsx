@@ -8,8 +8,9 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as Updates from "expo-updates";
 import React, { useEffect, useState } from "react";
-import { Appearance, Platform } from "react-native";
+import { Alert, Appearance, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -61,6 +62,23 @@ function AppInner() {
   return <RootLayoutNav />;
 }
 
+async function checkAndApplyUpdate() {
+  if (Platform.OS === "web" || !Updates.isEnabled) return;
+  try {
+    const result = await Updates.checkForUpdateAsync();
+    if (result.isAvailable) {
+      await Updates.fetchUpdateAsync();
+      Alert.alert(
+        "Update available",
+        "A new version of the app has been downloaded. The app will restart now.",
+        [{ text: "OK", onPress: () => Updates.reloadAsync() }],
+        { cancelable: false }
+      );
+    }
+  } catch {
+  }
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -74,6 +92,7 @@ export default function RootLayout() {
   useEffect(() => {
     initI18n().then(() => setI18nReady(true));
     initNfc();
+    void checkAndApplyUpdate();
   }, []);
 
   const appReady = (fontsLoaded || !!fontError) && i18nReady;
