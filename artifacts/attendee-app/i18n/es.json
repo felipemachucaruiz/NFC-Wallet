@@ -41,7 +41,9 @@
     "fillFields": "Por favor completa todos los campos",
     "passwordMinLength": "La contraseña debe tener al menos 6 caracteres",
     "networkError": "No se puede conectar al servidor",
-    "logoutConfirm": "¿Cerrar sesión?"
+    "logoutConfirm": "¿Cerrar sesión?",
+    "keepMeLoggedIn": "Mantenerme conectado",
+    "keepMeLoggedInHint": "Tu sesión se guardará de forma segura en este dispositivo."
   },
   "home": {
     "tab": "Inicio",

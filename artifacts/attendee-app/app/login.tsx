@@ -40,6 +40,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
   const player = useVideoPlayer(!isWeb ? loginBgVideo : null, (p) => {
     p.loop = true;
@@ -71,7 +72,7 @@ export default function LoginScreen() {
     setSubmitting(true);
     let err: string | null = null;
     if (tab === "login") {
-      err = await login(email.trim(), password);
+      err = await login(email.trim(), password, keepLoggedIn);
     } else {
       err = await register(email.trim(), password, firstName.trim(), lastName.trim());
     }
@@ -180,6 +181,29 @@ export default function LoginScreen() {
               <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={C.textSecondary} />
             </Pressable>
           </View>
+
+          {tab === "login" && (
+            <Pressable
+              onPress={() => setKeepLoggedIn((v) => !v)}
+              style={styles.keepRow}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: keepLoggedIn }}
+            >
+              <View style={[
+                styles.checkbox,
+                {
+                  backgroundColor: keepLoggedIn ? "#00f1ff" : "rgba(255,255,255,0.07)",
+                  borderColor: keepLoggedIn ? "#00f1ff" : "rgba(255,255,255,0.18)",
+                },
+              ]}>
+                {keepLoggedIn && <Feather name="check" size={11} color="#000" />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.keepLabel}>{t("auth.keepMeLoggedIn")}</Text>
+                <Text style={styles.keepHint}>{t("auth.keepMeLoggedInHint")}</Text>
+              </View>
+            </Pressable>
+          )}
 
           {error && (
             <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
@@ -302,6 +326,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     flex: 1,
+  },
+  keepRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 2,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  keepLabel: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: "rgba(255,255,255,0.85)",
+  },
+  keepHint: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.4)",
+    marginTop: 1,
   },
   features: {
     gap: 7,

@@ -41,7 +41,9 @@
     "fillFields": "Please fill in all required fields",
     "passwordMinLength": "Password must be at least 6 characters",
     "networkError": "Cannot connect to server",
-    "logoutConfirm": "Sign out?"
+    "logoutConfirm": "Sign out?",
+    "keepMeLoggedIn": "Keep me logged in",
+    "keepMeLoggedInHint": "Your session will be saved securely on this device."
   },
   "home": {
     "tab": "Home",

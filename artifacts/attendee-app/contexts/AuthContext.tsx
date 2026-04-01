@@ -27,7 +27,7 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (identifier: string, password: string) => Promise<string | null>;
+  login: (identifier: string, password: string, keepMeLoggedIn?: boolean) => Promise<string | null>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { mounted = false; };
   }, []);
 
-  const login = useCallback(async (identifier: string, password: string): Promise<string | null> => {
+  const login = useCallback(async (identifier: string, password: string, keepMeLoggedIn = true): Promise<string | null> => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const u = await fetchCurrentUser(sid);
       if (!u) return "No se pudo cargar el perfil";
       if (u === "network_error") return "Error de red";
-      await storeToken(sid);
+      if (keepMeLoggedIn) await storeToken(sid);
       setAuthToken(sid);
       setUser(u as AuthUser);
       return null;
