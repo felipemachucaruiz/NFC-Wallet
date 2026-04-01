@@ -1,5 +1,6 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import React from "react";
-import { ActivityIndicator, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import Colors from "@/constants/colors";
 
 interface LoadingProps {

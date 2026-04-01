@@ -1,14 +1,7 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleProp,
-  StyleSheet,
-  Text,
-  ViewStyle,
-  useColorScheme,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from "react-native";
 import Colors from "@/constants/colors";
 
 type Variant = "primary" | "secondary" | "danger" | "ghost" | "success";

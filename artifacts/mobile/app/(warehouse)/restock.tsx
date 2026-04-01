@@ -1,15 +1,7 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import {
-  Alert,
-  FlatList,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from "react-native";
+import { Alert, FlatList, Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListRestockOrders, useUpdateRestockOrder } from "@workspace/api-client-react";

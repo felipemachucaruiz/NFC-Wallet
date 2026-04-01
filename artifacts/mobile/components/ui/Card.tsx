@@ -1,5 +1,6 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import React from "react";
-import { Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import Colors from "@/constants/colors";
 
 interface CardProps {

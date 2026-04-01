@@ -1,19 +1,8 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState, useRef } from "react";
-import {
-  Alert,
-  Linking,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useColorScheme,
-  ActivityIndicator,
-} from "react-native";
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";

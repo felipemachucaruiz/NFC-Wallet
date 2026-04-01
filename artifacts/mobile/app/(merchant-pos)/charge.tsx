@@ -1,18 +1,8 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import {
-  Alert,
-  Animated,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useColorScheme,
-} from "react-native";
+import { Alert, Animated, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useLogTransaction, useGetSigningKey, useReportTamper, useGetEvent, customFetch, type SigningKeyResponse } from "@workspace/api-client-react";

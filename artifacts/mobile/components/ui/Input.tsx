@@ -1,12 +1,6 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import React from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-  useColorScheme,
-} from "react-native";
+import { StyleSheet, Text, TextInput, TextInputProps, View } from "react-native";
 import Colors from "@/constants/colors";
 
 interface InputProps extends TextInputProps {

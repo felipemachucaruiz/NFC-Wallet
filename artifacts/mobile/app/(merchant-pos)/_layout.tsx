@@ -1,7 +1,8 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Stack, router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { ActivityIndicator, Pressable, View, useColorScheme } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";

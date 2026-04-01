@@ -1,15 +1,8 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import {
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-} from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 

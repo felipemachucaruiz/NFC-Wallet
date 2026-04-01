@@ -1,20 +1,9 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import {
-  BackHandler,
-  FlatList,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useColorScheme,
-} from "react-native";
+import { BackHandler, FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListLocations, useGetLocationInventory } from "@workspace/api-client-react";
