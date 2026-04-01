@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0a0a0a" },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.82)",
+    backgroundColor: "rgba(0,0,0,0.88)",
   },
   inner: {
     flex: 1,
