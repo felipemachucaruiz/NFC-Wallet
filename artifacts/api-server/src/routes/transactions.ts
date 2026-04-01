@@ -91,7 +91,7 @@ async function processTransaction(
   }
 
   // Bracelet existence + integrity checks
-  const [bracelet] = await db
+  let [bracelet] = await db
     .select()
     .from(braceletsTable)
     .where(eq(braceletsTable.nfcUid, input.nfcUid));
@@ -117,10 +117,18 @@ async function processTransaction(
   }
 
   // Event-scoping guard: when the merchant station is event-scoped, the bracelet must
-  // belong to the exact same event. A bracelet with eventId=null is treated as a mismatch
-  // (not as a wildcard) when the station has a known event.
+  // belong to the exact same event. A bracelet with eventId=null is a new/unassigned
+  // bracelet — adopt it into this event. Only reject if it is already tied to a
+  // different event (true cross-event fraud).
   if (merchantForEventCheck.eventId) {
-    if (!bracelet.eventId || bracelet.eventId !== merchantForEventCheck.eventId) {
+    if (!bracelet.eventId) {
+      // Backfill: assign this bracelet to the station's event on first use
+      await db
+        .update(braceletsTable)
+        .set({ eventId: merchantForEventCheck.eventId })
+        .where(eq(braceletsTable.nfcUid, bracelet.nfcUid));
+      bracelet = { ...bracelet, eventId: merchantForEventCheck.eventId };
+    } else if (bracelet.eventId !== merchantForEventCheck.eventId) {
       return { status: "error", error: "BRACELET_WRONG_EVENT: Esta pulsera pertenece a otro evento" };
     }
   }
