@@ -107,7 +107,7 @@ export default function MerchantEarningsScreen() {
         <>
           <View style={[styles.netOwedCard, { backgroundColor: C.primary }]}>
             <Text style={styles.netOwedLabel}>{t("merchant_admin.netOwed")}</Text>
-            <CopAmount amount={earnings?.pendingCop} size={44} color="#fff" />
+            <CopAmount amount={earnings?.pendingCop} size={44} color="#0a0a0a" />
             <View style={styles.rateRow}>
               <Text style={styles.rateText}>
                 {t("merchant_admin.marginLabel")}: {formatPercent(earnings?.profitMarginPercent)}
@@ -186,9 +186,9 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
-  netOwedLabel: { color: "rgba(255,255,255,0.8)", fontFamily: "Inter_500Medium", fontSize: 14 },
+  netOwedLabel: { color: "rgba(0,0,0,0.7)", fontFamily: "Inter_500Medium", fontSize: 14 },
   rateRow: { flexDirection: "row", gap: 16 },
-  rateText: { color: "rgba(255,255,255,0.7)", fontFamily: "Inter_400Regular", fontSize: 13 },
+  rateText: { color: "rgba(0,0,0,0.6)", fontFamily: "Inter_400Regular", fontSize: 13 },
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   metricIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   metricLabel: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 4 },

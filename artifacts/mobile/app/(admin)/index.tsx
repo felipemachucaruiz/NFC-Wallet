@@ -82,10 +82,10 @@ export default function AdminDashboardScreen() {
             <View style={styles.platformRow}>
               <View>
                 <Text style={styles.platformLabel}>{t("admin.platformRevenue")}</Text>
-                <CopAmount amount={revenue?.platformRevenueCop} size={38} color="#fff" />
+                <CopAmount amount={revenue?.platformRevenueCop} size={38} color="#0a0a0a" />
               </View>
-              <View style={[styles.platformIconBox, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-                <Feather name="zap" size={28} color="#fff" />
+              <View style={[styles.platformIconBox, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
+                <Feather name="zap" size={28} color="#0a0a0a" />
               </View>
             </View>
             <View style={styles.platformStats}>
@@ -142,12 +142,12 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 100, fontFamily: "Inter_500Medium", fontSize: 13, borderWidth: 1 },
   platformCard: { borderRadius: 20 },
   platformRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  platformLabel: { color: "rgba(255,255,255,0.8)", fontFamily: "Inter_500Medium", fontSize: 13, marginBottom: 4 },
+  platformLabel: { color: "rgba(0,0,0,0.7)", fontFamily: "Inter_500Medium", fontSize: 13, marginBottom: 4 },
   platformIconBox: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   platformStats: { flexDirection: "row", gap: 16, marginTop: 16 },
   statPill: { flex: 1, alignItems: "center" },
-  statValue: { color: "#fff", fontSize: 20, fontFamily: "Inter_700Bold" },
-  statLabel: { color: "rgba(255,255,255,0.7)", fontSize: 11, fontFamily: "Inter_400Regular" },
+  statValue: { color: "#0a0a0a", fontSize: 20, fontFamily: "Inter_700Bold" },
+  statLabel: { color: "rgba(0,0,0,0.6)", fontSize: 11, fontFamily: "Inter_400Regular" },
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   kpiIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   kpiLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginBottom: 4 },
