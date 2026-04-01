@@ -2,8 +2,10 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,6 +20,8 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
+
+const loginBgVideo = require("@/assets/login-bg.mp4");
 
 type AuthTab = "login" | "register";
 
@@ -37,6 +41,12 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const player = useVideoPlayer(!isWeb ? loginBgVideo : null, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -76,176 +86,200 @@ export default function LoginScreen() {
   ];
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <LinearGradient
-        colors={["#050505", "#0a0a0a", "#111111"]}
-        style={StyleSheet.absoluteFill}
-      />
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          {
-            paddingTop: isWeb ? 80 : insets.top + 40,
-            paddingBottom: isWeb ? 40 : insets.bottom + 24,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.hero}>
-          <View style={[styles.logoBox, { backgroundColor: "rgba(0,241,255,0.12)" }]}>
-            <Feather name="wifi" size={36} color="#00f1ff" />
-          </View>
-          <Text style={styles.appName}>{t("auth.title")}</Text>
-          <Text style={[styles.appSubtitle, { color: C.textSecondary }]}>
-            {t("auth.subtitle")}
-          </Text>
-        </View>
+    <View style={[styles.container, { paddingTop: isWeb ? 67 : insets.top }]}>
+      {/* Background — video on native, gradient on web */}
+      {!isWeb ? (
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          nativeControls={false}
+          allowsPictureInPicture={false}
+        />
+      ) : (
+        <LinearGradient
+          colors={["#0a0a0a", "#111111", "#0a0a0a"]}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
 
-        <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
-          <View style={[styles.tabRow, { borderColor: C.border }]}>
-            {(["login", "register"] as AuthTab[]).map((t_) => (
+      {/* Black overlay */}
+      <View style={styles.overlay} />
+
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scroll,
+            {
+              paddingBottom: isWeb ? 40 : insets.bottom + 24,
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Tapee branding header */}
+          <View style={styles.logoSection}>
+            <Image
+              source={require("@/assets/images/tapee-logo.png")}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Image
+              source={require("@/assets/images/tapee-letters-white.png")}
+              style={styles.wordmark}
+              resizeMode="contain"
+            />
+            <Text style={[styles.appSubtitle, { color: "rgba(255,255,255,0.65)" }]}>
+              {t("auth.subtitle")}
+            </Text>
+          </View>
+
+          <View style={[styles.card, { backgroundColor: "rgba(17,17,17,0.88)", borderColor: "rgba(255,255,255,0.1)" }]}>
+            <View style={[styles.tabRow, { borderColor: "rgba(255,255,255,0.1)" }]}>
+              {(["login", "register"] as AuthTab[]).map((t_) => (
+                <Pressable
+                  key={t_}
+                  onPress={() => { setTab(t_); setError(null); }}
+                  style={[
+                    styles.tabBtn,
+                    tab === t_ && { backgroundColor: C.primaryLight },
+                  ]}
+                >
+                  <Text style={[
+                    styles.tabText,
+                    { color: tab === t_ ? C.primary : "rgba(255,255,255,0.5)" },
+                  ]}>
+                    {t_ === "login" ? t("auth.loginTab") : t("auth.registerTab")}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {tab === "register" && (
+              <>
+                <TextInput
+                  style={inputStyle}
+                  placeholder={t("auth.firstNamePlaceholder")}
+                  placeholderTextColor={C.textMuted}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                />
+                <TextInput
+                  style={inputStyle}
+                  placeholder={t("auth.lastNamePlaceholder")}
+                  placeholderTextColor={C.textMuted}
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                />
+              </>
+            )}
+
+            <TextInput
+              style={inputStyle}
+              placeholder={t("auth.emailPlaceholder")}
+              placeholderTextColor={C.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+            />
+
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[inputStyle, { flex: 1 }]}
+                placeholder={t("auth.passwordPlaceholder")}
+                placeholderTextColor={C.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoComplete={tab === "login" ? "current-password" : "new-password"}
+              />
               <Pressable
-                key={t_}
-                onPress={() => { setTab(t_); setError(null); }}
-                style={[
-                  styles.tabBtn,
-                  tab === t_ && { backgroundColor: C.primaryLight },
-                ]}
+                onPress={() => setShowPassword((v) => !v)}
+                style={[styles.eyeBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
               >
-                <Text style={[
-                  styles.tabText,
-                  { color: tab === t_ ? C.primary : C.textSecondary },
-                ]}>
-                  {t_ === "login" ? t("auth.loginTab") : t("auth.registerTab")}
-                </Text>
+                <Feather
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={18}
+                  color={C.textSecondary}
+                />
               </Pressable>
+            </View>
+
+            {error && (
+              <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
+                <Feather name="alert-circle" size={14} color={C.danger} />
+                <Text style={[styles.errorText, { color: C.danger }]}>{error}</Text>
+              </View>
+            )}
+
+            <Button
+              title={
+                submitting
+                  ? (tab === "login" ? t("auth.signingIn") : t("auth.signingUp"))
+                  : (tab === "login" ? t("auth.signIn") : t("auth.signUp"))
+              }
+              onPress={handleSubmit}
+              loading={submitting}
+              disabled={submitting}
+              variant="primary"
+              size="lg"
+              fullWidth
+            />
+          </View>
+
+          <View style={styles.features}>
+            {[
+              { icon: "shield" as const, text: "Pagos NFC seguros" },
+              { icon: "clock" as const, text: "Historial en tiempo real" },
+              { icon: "refresh-cw" as const, text: "Devoluciones rápidas" },
+            ].map((f) => (
+              <View key={f.icon} style={styles.featureRow}>
+                <View style={[styles.featureIcon, { backgroundColor: "rgba(0,241,255,0.08)" }]}>
+                  <Feather name={f.icon} size={14} color="#00f1ff" />
+                </View>
+                <Text style={[styles.featureText, { color: "rgba(255,255,255,0.5)" }]}>{f.text}</Text>
+              </View>
             ))}
           </View>
-
-          {tab === "register" && (
-            <>
-              <TextInput
-                style={inputStyle}
-                placeholder={t("auth.firstNamePlaceholder")}
-                placeholderTextColor={C.textMuted}
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-              />
-              <TextInput
-                style={inputStyle}
-                placeholder={t("auth.lastNamePlaceholder")}
-                placeholderTextColor={C.textMuted}
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-              />
-            </>
-          )}
-
-          <TextInput
-            style={inputStyle}
-            placeholder={t("auth.emailPlaceholder")}
-            placeholderTextColor={C.textMuted}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-          />
-
-          <View style={styles.passwordRow}>
-            <TextInput
-              style={[inputStyle, { flex: 1 }]}
-              placeholder={t("auth.passwordPlaceholder")}
-              placeholderTextColor={C.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoComplete={tab === "login" ? "current-password" : "new-password"}
-            />
-            <Pressable
-              onPress={() => setShowPassword((v) => !v)}
-              style={[styles.eyeBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
-            >
-              <Feather
-                name={showPassword ? "eye-off" : "eye"}
-                size={18}
-                color={C.textSecondary}
-              />
-            </Pressable>
-          </View>
-
-          {error && (
-            <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
-              <Feather name="alert-circle" size={14} color={C.danger} />
-              <Text style={[styles.errorText, { color: C.danger }]}>{error}</Text>
-            </View>
-          )}
-
-          <Button
-            title={
-              submitting
-                ? (tab === "login" ? t("auth.signingIn") : t("auth.signingUp"))
-                : (tab === "login" ? t("auth.signIn") : t("auth.signUp"))
-            }
-            onPress={handleSubmit}
-            loading={submitting}
-            disabled={submitting}
-            variant="primary"
-            size="lg"
-            fullWidth
-          />
-        </View>
-
-        <View style={styles.features}>
-          {[
-            { icon: "shield" as const, text: "Pagos NFC seguros" },
-            { icon: "clock" as const, text: "Historial en tiempo real" },
-            { icon: "refresh-cw" as const, text: "Devoluciones rápidas" },
-          ].map((f) => (
-            <View key={f.icon} style={styles.featureRow}>
-              <View style={[styles.featureIcon, { backgroundColor: "rgba(0,241,255,0.08)" }]}>
-                <Feather name={f.icon} size={14} color="#00f1ff" />
-              </View>
-              <Text style={[styles.featureText, { color: C.textSecondary }]}>{f.text}</Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#0a0a0a" },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.82)",
+  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    gap: 28,
+    paddingVertical: 20,
+    gap: 24,
+    justifyContent: "center",
   },
-  hero: {
+  logoSection: {
     alignItems: "center",
     gap: 10,
   },
-  logoBox: {
-    width: 76,
-    height: 76,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
+  logoImage: {
+    width: 72,
+    height: 72,
+    aspectRatio: 1199 / 435,
   },
-  appName: {
-    fontSize: 32,
-    fontFamily: "Inter_700Bold",
-    color: "#fff",
-    letterSpacing: -0.5,
+  wordmark: {
+    width: "70%",
+    maxWidth: 260,
+    height: 52,
   },
   appSubtitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
   },

@@ -15,6 +15,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { initI18n } from "@/i18n";
 import { initNfc } from "@/utils/nfc";
@@ -61,6 +62,7 @@ export default function RootLayout() {
     Inter_700Bold,
   });
   const [i18nReady, setI18nReady] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
     initI18n().then(() => setI18nReady(true));
@@ -86,6 +88,9 @@ export default function RootLayout() {
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
                   <AppInner />
+                  {!splashDone && (
+                    <AnimatedSplash onFinished={() => setSplashDone(true)} />
+                  )}
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </AuthProvider>
