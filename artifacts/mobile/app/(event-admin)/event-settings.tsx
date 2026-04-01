@@ -477,13 +477,13 @@ export default function EventSettingsScreen() {
             checked={selectedAllowedTypes.includes("mifare_classic")}
             onToggle={() => handleToggleChipType("mifare_classic")}
           />
-          <NfcChipOption
+          <NfcChipCheckbox
             chipType="desfire_ev3"
             title={t("eventAdmin.desfireEv3")}
             description={t("eventAdmin.desfireEv3Desc")}
             icon="shield"
-            selected={selectedChipType === "desfire_ev3"}
-            onPress={() => setSelectedChipType("desfire_ev3")}
+            checked={selectedAllowedTypes.includes("desfire_ev3")}
+            onToggle={() => handleToggleChipType("desfire_ev3")}
           />
         </View>
 
@@ -498,7 +498,7 @@ export default function EventSettingsScreen() {
           </Card>
         )}
 
-        {selectedChipType === "desfire_ev3" && (
+        {selectedAllowedTypes.includes("desfire_ev3") && (
           <Card style={[styles.infoCard, { borderColor: C.primary + "55", backgroundColor: C.primaryLight }]} padding={14}>
             <View style={styles.infoRow}>
               <Feather name="info" size={16} color={C.primary} style={{ marginTop: 1 }} />
@@ -519,7 +519,7 @@ export default function EventSettingsScreen() {
           disabled={!allowedTypesChanged}
         />
 
-        {currentChipType === "desfire_ev3" && (
+        {selectedAllowedTypes.includes("desfire_ev3") && (
           <>
             <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
             <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.desfireAesKey")}</Text>
