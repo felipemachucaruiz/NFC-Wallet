@@ -1,0 +1,325 @@
+import { useColorScheme } from "@/hooks/useColorScheme";
+import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import Colors from "@/constants/colors";
+import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/contexts/AuthContext";
+
+type AuthTab = "login" | "register";
+
+export default function LoginScreen() {
+  const { t } = useTranslation();
+  const { login, register, isAuthenticated, isLoading } = useAuth();
+  const insets = useSafeAreaInsets();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+  const isWeb = Platform.OS === "web";
+
+  const [tab, setTab] = useState<AuthTab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/(tabs)/home");
+    }
+  }, [isAuthenticated, isLoading]);
+
+  const handleSubmit = async () => {
+    setError(null);
+    if (!email.trim() || !password) {
+      setError(t("auth.fillFields"));
+      return;
+    }
+    if (password.length < 6) {
+      setError(t("auth.passwordMinLength"));
+      return;
+    }
+    if (tab === "register" && (!firstName.trim() || !lastName.trim())) {
+      setError(t("auth.fillFields"));
+      return;
+    }
+
+    setSubmitting(true);
+    let err: string | null = null;
+    if (tab === "login") {
+      err = await login(email.trim(), password);
+    } else {
+      err = await register(email.trim(), password, firstName.trim(), lastName.trim());
+    }
+    setSubmitting(false);
+    if (err) setError(err);
+  };
+
+  const inputStyle = [
+    styles.input,
+    { backgroundColor: C.inputBg, borderColor: C.border, color: C.text },
+  ];
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <LinearGradient
+        colors={["#050505", "#0a0a0a", "#111111"]}
+        style={StyleSheet.absoluteFill}
+      />
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          {
+            paddingTop: isWeb ? 80 : insets.top + 40,
+            paddingBottom: isWeb ? 40 : insets.bottom + 24,
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.hero}>
+          <View style={[styles.logoBox, { backgroundColor: "rgba(0,241,255,0.12)" }]}>
+            <Feather name="wifi" size={36} color="#00f1ff" />
+          </View>
+          <Text style={styles.appName}>{t("auth.title")}</Text>
+          <Text style={[styles.appSubtitle, { color: C.textSecondary }]}>
+            {t("auth.subtitle")}
+          </Text>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
+          <View style={[styles.tabRow, { borderColor: C.border }]}>
+            {(["login", "register"] as AuthTab[]).map((t_) => (
+              <Pressable
+                key={t_}
+                onPress={() => { setTab(t_); setError(null); }}
+                style={[
+                  styles.tabBtn,
+                  tab === t_ && { backgroundColor: C.primaryLight },
+                ]}
+              >
+                <Text style={[
+                  styles.tabText,
+                  { color: tab === t_ ? C.primary : C.textSecondary },
+                ]}>
+                  {t_ === "login" ? t("auth.loginTab") : t("auth.registerTab")}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {tab === "register" && (
+            <>
+              <TextInput
+                style={inputStyle}
+                placeholder={t("auth.firstNamePlaceholder")}
+                placeholderTextColor={C.textMuted}
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+              />
+              <TextInput
+                style={inputStyle}
+                placeholder={t("auth.lastNamePlaceholder")}
+                placeholderTextColor={C.textMuted}
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+              />
+            </>
+          )}
+
+          <TextInput
+            style={inputStyle}
+            placeholder={t("auth.emailPlaceholder")}
+            placeholderTextColor={C.textMuted}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+          />
+
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[inputStyle, { flex: 1 }]}
+              placeholder={t("auth.passwordPlaceholder")}
+              placeholderTextColor={C.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoComplete={tab === "login" ? "current-password" : "new-password"}
+            />
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              style={[styles.eyeBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
+            >
+              <Feather
+                name={showPassword ? "eye-off" : "eye"}
+                size={18}
+                color={C.textSecondary}
+              />
+            </Pressable>
+          </View>
+
+          {error && (
+            <View style={[styles.errorBox, { backgroundColor: C.dangerLight }]}>
+              <Feather name="alert-circle" size={14} color={C.danger} />
+              <Text style={[styles.errorText, { color: C.danger }]}>{error}</Text>
+            </View>
+          )}
+
+          <Button
+            title={
+              submitting
+                ? (tab === "login" ? t("auth.signingIn") : t("auth.signingUp"))
+                : (tab === "login" ? t("auth.signIn") : t("auth.signUp"))
+            }
+            onPress={handleSubmit}
+            loading={submitting}
+            disabled={submitting}
+            variant="primary"
+            size="lg"
+            fullWidth
+          />
+        </View>
+
+        <View style={styles.features}>
+          {[
+            { icon: "shield" as const, text: "Pagos NFC seguros" },
+            { icon: "clock" as const, text: "Historial en tiempo real" },
+            { icon: "refresh-cw" as const, text: "Devoluciones rápidas" },
+          ].map((f) => (
+            <View key={f.icon} style={styles.featureRow}>
+              <View style={[styles.featureIcon, { backgroundColor: "rgba(0,241,255,0.08)" }]}>
+                <Feather name={f.icon} size={14} color="#00f1ff" />
+              </View>
+              <Text style={[styles.featureText, { color: C.textSecondary }]}>{f.text}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    gap: 28,
+  },
+  hero: {
+    alignItems: "center",
+    gap: 10,
+  },
+  logoBox: {
+    width: 76,
+    height: 76,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  appName: {
+    fontSize: 32,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    letterSpacing: -0.5,
+  },
+  appSubtitle: {
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+  },
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    gap: 12,
+  },
+  tabRow: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 4,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 11,
+  },
+  tabText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  passwordRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  eyeBtn: {
+    borderWidth: 1,
+    borderRadius: 12,
+    width: 50,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+  },
+  errorText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    flex: 1,
+  },
+  features: {
+    gap: 10,
+    alignItems: "center",
+  },
+  featureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  featureIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featureText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+  },
+});

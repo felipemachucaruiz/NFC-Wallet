@@ -39,7 +39,8 @@ pnpm workspace monorepo using TypeScript.
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
 │   ├── api-server/         # Express API server (port from $PORT env, default 8080)
-│   └── mobile/             # Expo React Native app (6 role-based portals)
+│   ├── mobile/             # Expo React Native app (6 role-based portals) — port 18115
+│   └── attendee-app/       # Expo React Native consumer wallet app — port 18116
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
@@ -92,6 +93,27 @@ pnpm run update:dev -- --message "Description of changes"
 **Note:** The next APK build (`pnpm run build:apk`) will embed expo-updates so devices can auto-receive OTA updates on launch.
 
 ## Packages
+
+### `artifacts/attendee-app` (`@workspace/attendee-app`)
+
+Consumer-facing Expo mobile wallet app for event attendees. Tapee Black dark theme (cyan accents on #0a0a0a), NFC read-only support, push notifications, i18n (ES/EN).
+
+**Screens:**
+- `login.tsx` — sign in + register (attendee role only)
+- `(tabs)/home.tsx` — bracelet cards with balance, quick actions, NFC scan
+- `(tabs)/history.tsx` — paginated transaction history
+- `(tabs)/profile.tsx` — profile, refund requests list, language switcher, logout
+- `top-up.tsx` — digital top-up via Nequi or PSE bank portal
+- `block-bracelet.tsx` — block/freeze a wristband
+- `refund-request.tsx` — submit a refund request
+- `payment-status/[id].tsx` — polls payment intent status
+
+**Key patterns:**
+- Auth is pure fetch (no `api-client-react` dependency) — token stored in `expo-secure-store`
+- API hooks in `hooks/useAttendeeApi.ts` using `@tanstack/react-query`
+- NFC is read-only (`utils/nfc.ts`) — attendees scan to identify bracelets
+- Push tokens registered at `POST /api/attendee/me/push-token`
+- Port: 18116
 
 ### `artifacts/api-server` (`@workspace/api-server`)
 

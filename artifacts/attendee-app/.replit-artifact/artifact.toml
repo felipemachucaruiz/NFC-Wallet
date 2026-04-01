@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/attendee-app/"
+title = "Tapee Attendee"
+version = "1.0.0"
+id = "artifacts/attendee-app"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/attendee-app/" ]
+localPort = 18116
+
+[services.development]
+run = "pnpm --filter @workspace/attendee-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/attendee-app", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/attendee-app", "run", "serve" ]
+
+[services.env]
+PORT = "18116"
+BASE_PATH = "/attendee-app/"
