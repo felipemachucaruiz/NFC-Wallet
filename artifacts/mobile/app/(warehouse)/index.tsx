@@ -174,7 +174,7 @@ export default function WarehouseStockScreen() {
                 </Text>
               </View>
               <View style={{ alignItems: "flex-end", gap: 4 }}>
-                <Text style={[styles.qty, { color: C.text }]}>{item.quantityOnHand}</Text>
+                <Text style={[styles.qty, { color: isOut ? C.danger : isLow ? C.warning : C.success }]}>{item.quantityOnHand}</Text>
                 {isOut ? (
                   <Badge label={t("warehouse.outOfStock")} variant="danger" size="sm" />
                 ) : isLow ? (

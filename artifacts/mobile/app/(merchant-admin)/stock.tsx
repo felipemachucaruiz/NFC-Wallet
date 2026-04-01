@@ -147,18 +147,15 @@ function LocationInventory({
     <>
       {mergedItems.map((item) => {
         const isLow = item.restockTrigger > 0 && item.quantityOnHand <= item.restockTrigger && item.hasRecord;
+        const isAlmostLow = !isLow && item.restockTrigger > 0 && item.quantityOnHand <= item.restockTrigger * 2 && item.hasRecord;
         const isNew = !item.hasRecord;
+        const qtyColor = isLow ? C.danger : isAlmostLow ? C.warning : isNew ? C.primary : C.success;
+        const borderColor = isLow ? C.danger + "66" : isAlmostLow ? C.warning + "66" : isNew ? C.primaryLight : C.border;
         return (
           <Pressable
             key={item.productId}
             onPress={() => openEdit(item)}
-            style={[
-              styles.itemCard,
-              {
-                backgroundColor: C.card,
-                borderColor: isLow ? "#ef4444" : isNew ? C.primaryLight : C.border,
-              },
-            ]}
+            style={[styles.itemCard, { backgroundColor: C.card, borderColor }]}
           >
             <View style={{ flex: 1 }}>
               <Text style={[styles.itemName, { color: C.text }]} numberOfLines={1}>
@@ -176,11 +173,19 @@ function LocationInventory({
               )}
             </View>
             <View style={styles.itemRight}>
-              {isLow && <Feather name="alert-triangle" size={14} color="#ef4444" />}
+              {isLow && <Feather name="alert-triangle" size={14} color={C.danger} />}
+              {isAlmostLow && <Feather name="alert-triangle" size={14} color={C.warning} />}
               {isNew && <Feather name="plus-circle" size={16} color={C.primary} />}
-              <Text style={[styles.itemQty, { color: isLow ? "#ef4444" : isNew ? C.primary : C.text }]}>
-                {item.quantityOnHand}
-              </Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={[styles.itemQty, { color: qtyColor }]}>
+                  {item.quantityOnHand}
+                </Text>
+                {!isNew && (
+                  <Text style={[styles.itemUnits, { color: C.textMuted }]}>
+                    {t("merchant_admin.units")}
+                  </Text>
+                )}
+              </View>
               <Feather name="chevron-right" size={16} color={C.textMuted} />
             </View>
           </Pressable>
@@ -356,6 +361,7 @@ const styles = StyleSheet.create({
   itemCat: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   itemRight: { flexDirection: "row", alignItems: "center", gap: 6 },
   itemQty: { fontSize: 18, fontFamily: "Inter_700Bold", minWidth: 32, textAlign: "right" },
+  itemUnits: { fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "right", marginTop: -2 },
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
