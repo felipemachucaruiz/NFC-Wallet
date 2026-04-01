@@ -292,7 +292,13 @@ export default function MerchantProductsScreen() {
     }
   };
 
-  const currentImageUri = pendingImageUri ?? (editingProduct ? form.imageUrl : null);
+  const resolveImageUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    if (url.startsWith("/api/")) return `${API_BASE_URL}${url}`;
+    return url;
+  };
+
+  const currentImageUri = pendingImageUri ?? resolveImageUrl(editingProduct ? form.imageUrl : null);
 
   if (!merchantId) return null;
 
@@ -429,7 +435,7 @@ export default function MerchantProductsScreen() {
             <View style={styles.productRow}>
               {product.imageUrl ? (
                 <Image
-                  source={{ uri: product.imageUrl }}
+                  source={{ uri: resolveImageUrl(product.imageUrl) ?? product.imageUrl }}
                   style={styles.productThumbnail}
                   contentFit="cover"
                 />

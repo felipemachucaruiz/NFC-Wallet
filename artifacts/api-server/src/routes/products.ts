@@ -60,7 +60,7 @@ const updateProductSchema = z.object({
   active: z.boolean().optional(),
   ivaRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   ivaExento: z.boolean().optional(),
-  imageUrl: z.string().url().nullable().optional(),
+  imageUrl: z.union([z.string().url(), z.string().startsWith("/api/")]).nullable().optional(),
 });
 
 router.get("/products", requireAuth, async (req: Request, res: Response) => {
@@ -323,9 +323,7 @@ router.post(
         resumable: false,
       });
 
-      await file.makePublic();
-
-      const imageUrl = `https://storage.googleapis.com/${bucketId}/${objectName}`;
+      const imageUrl = `/api/storage/objects/${objectName}`;
 
       const [updated] = await db
         .update(productsTable)

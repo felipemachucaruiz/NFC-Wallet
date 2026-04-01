@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListLocations, useGetLocationInventory } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { API_BASE_URL } from "@/constants/domain";
 import { CopAmount } from "@/components/CopAmount";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -155,7 +156,7 @@ export default function MerchantPosScreen() {
                   }]}>
                     {item.product.imageUrl ? (
                       <Image
-                        source={{ uri: item.product.imageUrl }}
+                        source={{ uri: item.product.imageUrl.startsWith("/api/") ? `${API_BASE_URL}${item.product.imageUrl}` : item.product.imageUrl }}
                         style={[styles.productIconBg, { borderRadius: 12 }]}
                         contentFit="cover"
                       />

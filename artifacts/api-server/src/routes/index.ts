@@ -23,6 +23,7 @@ import fraudAlertsRouter from "./fraudAlerts";
 import paymentsRouter from "./payments";
 import attestationRouter from "./attestation";
 import selfServiceRouter from "./selfService";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(fraudAlertsRouter);
 router.use(paymentsRouter);
 router.use(attestationRouter);
 router.use(selfServiceRouter);
+router.use(storageRouter);
 
 export default router;
