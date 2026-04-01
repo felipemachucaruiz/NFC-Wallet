@@ -1,0 +1,40 @@
+Tapee Pulse Pay - Design System & Brand Manual
+Este documento define la estética "Cyber-Fintech Premium" implementada en la plataforma Tapee, detallando los códigos Hex y la psicología operativa detrás de cada elección de color.
+
+1. Colores Base y Fondos (Profundidad)
+Usados para fondos principales, tarjetas (cards) y modales. Aportan una estética de grado bancario ultraseguro y "pantalla de datos" sin fatigar la vista del usuario en eventos nocturnos.
+
+Negro Abismal (Fondo Primario): #0a0a0a
+Uso: El canvas infinito de toda la web.
+Psicología: Inmersión total. Reduce drásticamente la fatiga visual en la oscuridad y eleva inmediatamente la percepción de valor de la marca (SaaS Premium).
+Carbón Translúcido (Fondos Elevados): #111111 / #1a1a1a
+Uso: Paneles, tarjetas de Ecosistema, tablas comparativas y modales.
+Psicología: Crea elevación tridimensional sobre el negro abismal (Glassmorphism oscuro) lo que separa la información sin tener que usar bordes grises o líneas pesadas que ensucian el diseño.
+2. Acentos Principales (El Pulso Tecnológico)
+Son los colores de identidad de marca, acción y conversión (Ej: Botones CTA principales, logos, flashes tácticos).
+
+Cyan Eléctrico (Color de Marca Core): #00f1ff
+Uso: Botón principal "Blindar mi Evento", íconos tecnológicos, destellos de neón (glows) y textos destacados clave ("Cashless").
+Psicología: Transmite fluidez criptográfica, velocidad pura del escaneo NFC (luz de láser) y conectividad limpia. Es el color de la innovación indiscutible.
+Ámbar de Lealtad (Acento Estratégico): #fbbf24
+Uso: Puntos Colombia, íconos de advertencia en inventarios, y textos semánticos especiales.
+Psicología: Aporta calidez humana (fuego/dinero) en contraposición al Azul frío. Es rico, llamativo y retiene fuertemente la atención para destacar asociaciones de alto valor.
+3. Estados Semánticos y Operacionales
+Fundamentales para el diseño UX/UI lógico (feedback instantáneo para el usuario, diagramas de arquitectura en tiempo real, validaciones de seguridad).
+
+Verde Éxito (Success): #22c55e
+Uso: Pagos NFC aprobados, animaciones de "Transacción Exitosa", hardware sincronizado.
+Psicología: Autorización sin fricción. Dinero recibido.
+Rojo Bloqueo (Error / Fraud): #ef4444
+Uso: Fraude detectado (UID de hardware alterado), chips en lista negra, sistema desconectado.
+Psicología: Tono agresivo de alarma de grado militar que dicta acción y protección inmediata.
+4. Tipografía y Textos
+La lectura debe sentirse técnica, profesional, y altamente escaneable gracias al fuerte contraste.
+
+Texto Primario (Títulos H1, H2, H3): #ffffff (Blanco Puro)
+Uso: Atrae la mirada inmediatamente hacia los títulos y datos duros (ej. "100% Offline").
+Texto Secundario (Párrafos y Datos menores): #a1a1aa (Gris Metálico/Zinc)
+Uso: Párrafos de descripción largos y labels de formularios.
+Psicología: Al no ser 100% blanco puro (que "encandila" en pantallas AMOLED oscuras), permite que el usuario navegue durante 15 minutos leyendo todos tus argumentos de venta sin irritar su vista.
+Fuente Oficial (Familia): Inter o Geist (Google Fonts / Vercel Fonts).
+Tonalidad: Transmite la legibilidad perfecta de los lenguajes de programación combinada con la modernidad del Silicon Valley UI.
