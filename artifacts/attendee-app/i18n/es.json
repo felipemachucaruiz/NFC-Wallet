@@ -180,6 +180,7 @@
   },
   "update": {
     "downloading": "Descargando actualización…",
+    "reloading": "Aplicando actualización…",
     "ready": "¡Actualización lista!",
     "restart": "Reiniciar ahora"
   },

@@ -1,78 +1,114 @@
-import { useColorScheme } from "@/hooks/useColorScheme";
-import { Feather } from "@expo/vector-icons";
 import * as Updates from "expo-updates";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  AppState,
+  Animated,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
-type Phase = "idle" | "downloading" | "ready";
+type Phase = "idle" | "downloading" | "reloading";
+
+const AUTO_RELOAD_DELAY_MS = 2500;
 
 export function UpdateBanner() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const isDark = useColorScheme() === "dark";
   const [phase, setPhase] = useState<Phase>("idle");
   const slideAnim = useRef(new Animated.Value(80)).current;
-  const hasChecked = useRef(false);
+  const isChecking = useRef(false);
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Slide the banner in/out
-  useEffect(() => {
+  const slideIn = () =>
     Animated.spring(slideAnim, {
-      toValue: phase === "idle" ? 80 : 0,
+      toValue: 0,
       useNativeDriver: true,
-      bounciness: 6,
+      bounciness: 5,
     }).start();
+
+  const slideOut = () =>
+    Animated.spring(slideAnim, {
+      toValue: 80,
+      useNativeDriver: true,
+      bounciness: 5,
+    }).start();
+
+  useEffect(() => {
+    if (phase === "idle") {
+      slideOut();
+    } else {
+      slideIn();
+    }
   }, [phase]);
 
-  useEffect(() => {
-    // Only run on device with expo-updates (not in dev/Expo Go without updates)
-    if (Platform.OS === "web" || __DEV__ || hasChecked.current) return;
-    hasChecked.current = true;
-
-    (async () => {
-      try {
-        const check = await Updates.checkForUpdateAsync();
-        if (!check.isAvailable) return;
-        setPhase("downloading");
-        await Updates.fetchUpdateAsync();
-        setPhase("ready");
-      } catch {
-        // Silently fail — update check is best-effort
-        setPhase("idle");
+  const checkAndApply = async () => {
+    if (
+      Platform.OS === "web" ||
+      __DEV__ ||
+      isChecking.current
+    ) return;
+    isChecking.current = true;
+    try {
+      const check = await Updates.checkForUpdateAsync();
+      if (!check.isAvailable) {
+        isChecking.current = false;
+        return;
       }
-    })();
+      setPhase("downloading");
+      await Updates.fetchUpdateAsync();
+      setPhase("reloading");
+      // Auto-reload after brief delay so user sees the banner
+      reloadTimer.current = setTimeout(async () => {
+        try {
+          await Updates.reloadAsync();
+        } catch {
+          setPhase("idle");
+          isChecking.current = false;
+        }
+      }, AUTO_RELOAD_DELAY_MS);
+    } catch {
+      setPhase("idle");
+      isChecking.current = false;
+    }
+  };
+
+  // Check on launch
+  useEffect(() => {
+    checkAndApply();
+    return () => {
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+    };
+  }, []);
+
+  // Check every time app comes to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        isChecking.current = false; // reset so foreground check can run
+        checkAndApply();
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   if (phase === "idle") return null;
-
-  const bgColor = phase === "ready" ? "#22c55e" : "#00f1ff";
-  const bottomOffset = insets.bottom + 16;
 
   return (
     <Animated.View
       style={[
         styles.banner,
-        { backgroundColor: bgColor, bottom: bottomOffset, transform: [{ translateY: slideAnim }] },
+        { bottom: insets.bottom + 16, transform: [{ translateY: slideAnim }] },
       ]}
     >
-      {phase === "downloading" ? (
-        <>
-          <ActivityIndicator color="#fff" size="small" />
-          <Text style={styles.text}>{t("update.downloading")}</Text>
-        </>
-      ) : (
-        <>
-          <Feather name="check-circle" size={18} color="#fff" />
-          <Text style={styles.text}>{t("update.ready")}</Text>
-          <Pressable
-            onPress={() => Updates.reloadAsync()}
-            style={({ pressed }) => [styles.restartBtn, pressed && styles.restartBtnPressed]}
-          >
-            <Text style={styles.restartText}>{t("update.restart")}</Text>
-          </Pressable>
-        </>
-      )}
+      <ActivityIndicator color="#fff" size="small" />
+      <Text style={styles.text}>
+        {phase === "downloading" ? t("update.downloading") : t("update.reloading")}
+      </Text>
     </Animated.View>
   );
 }
@@ -88,9 +124,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 14,
+    backgroundColor: "#00b4cc",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.22,
     shadowRadius: 8,
     elevation: 8,
     zIndex: 999,
@@ -99,20 +136,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
-    color: "#fff",
-  },
-  restartBtn: {
-    backgroundColor: "rgba(255,255,255,0.22)",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  restartBtnPressed: {
-    backgroundColor: "rgba(255,255,255,0.38)",
-  },
-  restartText: {
-    fontSize: 13,
-    fontFamily: "Inter_700Bold",
     color: "#fff",
   },
 });
