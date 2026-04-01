@@ -7,6 +7,14 @@ import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
+const VALID_UID_HEX_LENGTHS = new Set([8, 14, 20]);
+
+function normalizeUid(input: string): string | null {
+  const hex = input.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+  if (!VALID_UID_HEX_LENGTHS.has(hex.length)) return null;
+  return hex.match(/.{2}/g)!.join(":");
+}
+
 const WOMPI_BASE_URL = process.env.WOMPI_BASE_URL || "https://sandbox.wompi.co/v1";
 const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY || "";
 const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY || "";
@@ -22,9 +30,10 @@ async function fetchWompiAcceptanceToken(): Promise<string> {
 router.get(
   "/public/bracelet-lookup",
   async (req: Request, res: Response) => {
-    const uid = (req.query.uid as string | undefined)?.trim().toUpperCase();
-    if (!uid || uid.length < 4) {
-      res.status(400).json({ error: "uid query param is required" });
+    const rawUid = (req.query.uid as string | undefined) ?? "";
+    const uid = normalizeUid(rawUid);
+    if (!uid) {
+      res.status(400).json({ error: "uid query param is required and must be valid hex" });
       return;
     }
 
@@ -115,7 +124,11 @@ router.post(
       return;
     }
 
-    const uid = braceletUid.trim().toUpperCase();
+    const uid = normalizeUid(braceletUid);
+    if (!uid) {
+      res.status(400).json({ error: "braceletUid must be a valid hex UID" });
+      return;
+    }
     let [bracelet] = await db
       .select()
       .from(braceletsTable)
@@ -369,7 +382,11 @@ router.post(
     }
 
     const { braceletUid, email, password, firstName, lastName } = parsed.data;
-    const uid = braceletUid.trim().toUpperCase();
+    const uid = normalizeUid(braceletUid);
+    if (!uid) {
+      res.status(400).json({ error: "braceletUid must be a valid hex UID" });
+      return;
+    }
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check email not already registered
