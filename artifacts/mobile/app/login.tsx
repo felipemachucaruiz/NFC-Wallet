@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Image,
@@ -23,8 +22,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Colors from "@/constants/colors";
 
-const loginBgVideo = require("@/assets/login-bg.mp4");
-
 type SetupStep = "prompt" | "enter" | "confirm";
 
 export default function LoginScreen() {
@@ -44,12 +41,6 @@ export default function LoginScreen() {
 
   const [setupStep, setSetupStep] = useState<SetupStep | null>(null);
   const firstCodeRef = useRef("");
-
-  const player = useVideoPlayer(!isWeb ? loginBgVideo : null, (p) => {
-    p.loop = true;
-    p.muted = true;
-    p.play();
-  });
 
   useEffect(() => {
     if (isAuthenticated && !setupStep) {
@@ -131,25 +122,11 @@ export default function LoginScreen() {
   // ── Main login form ────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { paddingTop: isWeb ? 67 : insets.top }]}>
-      {/* Background — video on native, gradient on web */}
-      {!isWeb ? (
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          nativeControls={false}
-          allowsFullscreen={false}
-          allowsPictureInPicture={false}
-        />
-      ) : (
-        <LinearGradient
-          colors={["#0a0a0a", "#111111", "#0a0a0a"]}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
-
-      {/* Black overlay */}
-      <View style={styles.overlay} />
+      {/* Background gradient */}
+      <LinearGradient
+        colors={["#0a0a0a", "#111111", "#0a0a0a"]}
+        style={StyleSheet.absoluteFill}
+      />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
@@ -258,10 +235,6 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0a0a0a" },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.58)",
-  },
   inner: { flexGrow: 1, paddingHorizontal: 28, paddingVertical: 20, gap: 20, justifyContent: "center" },
   logoSection: { alignItems: "center", gap: 8 },
   logoImage: { width: "78%", maxWidth: 300, aspectRatio: 1199 / 435 },
