@@ -41,20 +41,25 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(generalLimiter);
 
+const RATE_LIMITED_PATHS = [
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/create-account",
+  "/api/mobile-auth/token-exchange",
+  "/api/mobile-auth/logout",
+  "/api/attendee/me/refund-request",
+];
+
+// Also apply rate limits via proxy prefix (Replit path-based routing doesn't strip prefix)
 app.use(
-  [
-    "/api/auth/login",
-    "/api/auth/logout",
-    "/api/auth/create-account",
-    "/api/mobile-auth/token-exchange",
-    "/api/mobile-auth/logout",
-    "/api/attendee/me/refund-request",
-  ],
+  [...RATE_LIMITED_PATHS, ...RATE_LIMITED_PATHS.map((p) => `/attendee-api${p}`)],
   authLimiter,
 );
 
 app.use(authMiddleware);
 
+// Mount at /api (direct localhost access) and /attendee-api/api (Replit proxy)
 app.use("/api", router);
+app.use("/attendee-api/api", router);
 
 export default app;

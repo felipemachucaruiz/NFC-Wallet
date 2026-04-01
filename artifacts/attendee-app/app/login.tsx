@@ -120,11 +120,6 @@ export default function LoginScreen() {
           {/* Tapee branding header */}
           <View style={styles.logoSection}>
             <Image
-              source={require("@/assets/images/tapee-logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-            <Image
               source={require("@/assets/images/tapee-letters-white.png")}
               style={styles.wordmark}
               resizeMode="contain"
@@ -268,15 +263,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  logoImage: {
-    width: 72,
-    height: 72,
-    aspectRatio: 1199 / 435,
-  },
   wordmark: {
-    width: "70%",
-    maxWidth: 260,
-    height: 52,
+    width: "80%",
+    maxWidth: 300,
+    height: 72,
   },
   appSubtitle: {
     fontSize: 14,
