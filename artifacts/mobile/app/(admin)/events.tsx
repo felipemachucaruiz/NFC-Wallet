@@ -66,6 +66,8 @@ type PromoterCompany = {
   nit: string | null;
 };
 
+type NfcChipType = "ntag_21x" | "mifare_classic";
+
 type EventItem = {
   id: string;
   name: string;
@@ -78,6 +80,7 @@ type EventItem = {
   promoterCompanyId?: string | null;
   promoterCompanyName?: string | null;
   pulepId?: string | null;
+  nfcChipType?: NfcChipType | null;
 };
 
 export default function EventsScreen() {
@@ -108,6 +111,8 @@ export default function EventsScreen() {
   const [isCreating, setIsCreating] = useState(false);
 
   // Organizer section (create only)
+  const [nfcChipType, setNfcChipType] = useState<NfcChipType>("ntag_21x");
+
   const [organizerMode, setOrganizerMode] = useState<OrganizerMode>("none");
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [clientSearch, setClientSearch] = useState("");
@@ -186,6 +191,7 @@ export default function EventsScreen() {
     setPlatformCommission("0"); setCapacity(""); setSelectedCompanyId(""); setPulepId("");
     setAdminEmail(""); setAdminPassword(""); setAdminFirstName("");
     setOrganizerMode("none"); setSelectedClientId(""); setClientSearch("");
+    setNfcChipType("ntag_21x");
   };
 
   const openEdit = (item: EventItem) => {
@@ -198,6 +204,7 @@ export default function EventsScreen() {
     setSelectedCompanyId(item.promoterCompanyId ?? "");
     setPulepId(item.pulepId ?? "");
     setEditActive(item.active !== false);
+    setNfcChipType(item.nfcChipType ?? "ntag_21x");
     setEditingEvent(item);
   };
 
@@ -231,6 +238,7 @@ export default function EventsScreen() {
         capacity: capacity.trim() ? parseInt(capacity.trim(), 10) : undefined,
         promoterCompanyId: selectedCompanyId,
         pulepId: pulepId.trim() || undefined,
+        nfcChipType,
       };
 
       if (organizerMode === "new" && adminEmail.trim()) {
@@ -295,6 +303,7 @@ export default function EventsScreen() {
         promoterCompanyId: selectedCompanyId,
         pulepId: pulepId.trim() || null,
         active: editActive,
+        nfcChipType,
       };
 
       const res = await fetch(`${getApiBase()}/api/events/${editingEvent.id}`, {
@@ -421,6 +430,7 @@ export default function EventsScreen() {
               capacity={capacity} setCapacity={setCapacity}
               companies={companies} selectedCompanyId={selectedCompanyId} setSelectedCompanyId={setSelectedCompanyId}
               pulepId={pulepId} setPulepId={setPulepId}
+              nfcChipType={nfcChipType} setNfcChipType={setNfcChipType}
             />
 
             {/* Organizer section */}
@@ -578,6 +588,7 @@ export default function EventsScreen() {
               capacity={capacity} setCapacity={setCapacity}
               companies={companies} selectedCompanyId={selectedCompanyId} setSelectedCompanyId={setSelectedCompanyId}
               pulepId={pulepId} setPulepId={setPulepId}
+              nfcChipType={nfcChipType} setNfcChipType={setNfcChipType}
             />
 
             <View style={styles.sheetActions}>
@@ -604,6 +615,7 @@ function EventFormFields({
   capacity, setCapacity,
   companies, selectedCompanyId, setSelectedCompanyId,
   pulepId, setPulepId,
+  nfcChipType, setNfcChipType,
 }: {
   C: Colors;
   t: (key: string) => string;
@@ -615,6 +627,7 @@ function EventFormFields({
   capacity: string; setCapacity: (v: string) => void;
   companies: PromoterCompany[]; selectedCompanyId: string; setSelectedCompanyId: (v: string) => void;
   pulepId: string; setPulepId: (v: string) => void;
+  nfcChipType: NfcChipType; setNfcChipType: (v: NfcChipType) => void;
 }) {
   return (
     <>
@@ -685,6 +698,43 @@ function EventFormFields({
         placeholder={t("admin.pulepIdPlaceholder")}
         autoCapitalize="none"
       />
+
+      {/* NFC Chip Type */}
+      <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+        {t("eventAdmin.nfcChipSettings")}
+      </Text>
+      {(["ntag_21x", "mifare_classic"] as NfcChipType[]).map((chip) => {
+        const isSelected = nfcChipType === chip;
+        const label = chip === "ntag_21x" ? t("eventAdmin.ntag21x") : t("eventAdmin.mifareClassic");
+        const desc = chip === "ntag_21x" ? t("eventAdmin.ntag21xDesc") : t("eventAdmin.mifareClassicDesc");
+        return (
+          <Pressable
+            key={chip}
+            onPress={() => setNfcChipType(chip)}
+            style={[
+              styles.clientOption,
+              {
+                backgroundColor: isSelected ? C.primary + "18" : C.inputBg,
+                borderColor: isSelected ? C.primary : C.border,
+              },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.clientOptionName, { color: isSelected ? C.primary : C.text }]}>{label}</Text>
+              <Text style={[styles.clientOptionSub, { color: C.textMuted }]}>{desc}</Text>
+            </View>
+            {isSelected && <Feather name="check-circle" size={18} color={C.primary} />}
+          </Pressable>
+        );
+      })}
+      {nfcChipType === "mifare_classic" && (
+        <View style={[styles.clientOption, { backgroundColor: C.warning + "18", borderColor: C.warning }]}>
+          <Feather name="alert-triangle" size={16} color={C.warning} />
+          <Text style={[styles.clientOptionSub, { color: C.warning, flex: 1 }]}>
+            {t("eventAdmin.mifareClassicWarning")}
+          </Text>
+        </View>
+      )}
     </>
   );
 }

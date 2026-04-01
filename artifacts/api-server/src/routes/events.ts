@@ -30,6 +30,7 @@ const createEventSchema = z.object({
   capacity: z.number().int().positive().optional(),
   promoterCompanyId: z.string().optional(),
   pulepId: z.string().optional(),
+  nfcChipType: z.enum(["ntag_21x", "mifare_classic"]).optional(),
   offlineSyncLimit: z.number().int().positive().optional(),
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
   eventAdmin: z.object({
@@ -52,6 +53,7 @@ const updateEventSchema = z.object({
   promoterCompanyId: z.string().nullable().optional(),
   pulepId: z.string().nullable().optional(),
   inventoryMode: z.enum(["location_based", "centralized_warehouse"]).optional(),
+  nfcChipType: z.enum(["ntag_21x", "mifare_classic"]).optional(),
   offlineSyncLimit: z.number().int().positive().optional(),
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
 });
@@ -70,6 +72,7 @@ const SAFE_EVENT_FIELDS = {
   promoterCompanyName: promoterCompaniesTable.companyName,
   pulepId: eventsTable.pulepId,
   inventoryMode: eventsTable.inventoryMode,
+  nfcChipType: eventsTable.nfcChipType,
   offlineSyncLimit: eventsTable.offlineSyncLimit,
   maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
   createdAt: eventsTable.createdAt,
@@ -154,6 +157,7 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
       promoterCompanyName: promoterCompaniesTable.companyName,
       pulepId: eventsTable.pulepId,
       inventoryMode: eventsTable.inventoryMode,
+      nfcChipType: eventsTable.nfcChipType,
       offlineSyncLimit: eventsTable.offlineSyncLimit,
       maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
       hasHmacSecret: eventsTable.hmacSecret,
@@ -178,7 +182,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, offlineSyncLimit, maxOfflineSpendPerBracelet, eventAdmin } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, offlineSyncLimit, maxOfflineSpendPerBracelet, eventAdmin } = parsed.data;
 
   // Pre-validate event admin email uniqueness BEFORE inserting event (atomicity)
   let normalizedAdminEmail: string | null = null;
@@ -212,6 +216,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
         capacity: capacity ?? null,
         promoterCompanyId: promoterCompanyId ?? null,
         pulepId: pulepId ?? null,
+        nfcChipType: nfcChipType ?? "ntag_21x",
         hmacSecret,
         offlineSyncLimit: offlineSyncLimit ?? 500000,
         maxOfflineSpendPerBracelet: maxOfflineSpendPerBracelet ?? 200000,
@@ -269,7 +274,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, offlineSyncLimit, maxOfflineSpendPerBracelet } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, offlineSyncLimit, maxOfflineSpendPerBracelet } = parsed.data;
 
   const updateData: Record<string, unknown> = {
     ...(name !== undefined && { name }),
@@ -282,6 +287,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(promoterCompanyId !== undefined && { promoterCompanyId }),
     ...(pulepId !== undefined && { pulepId }),
     ...(inventoryMode !== undefined && { inventoryMode }),
+    ...(nfcChipType !== undefined && { nfcChipType }),
     ...(offlineSyncLimit !== undefined && { offlineSyncLimit }),
     ...(maxOfflineSpendPerBracelet !== undefined && { maxOfflineSpendPerBracelet }),
     updatedAt: new Date(),

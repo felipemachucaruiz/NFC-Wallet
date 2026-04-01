@@ -492,7 +492,9 @@ async function detectTagTypeIos(): Promise<TagInfo> {
   }
 }
 
-export async function scanBracelet(): Promise<ScanResult> {
+export type NfcChipTypeHint = "ntag_21x" | "mifare_classic";
+
+export async function scanBracelet(opts?: { expectedChipType?: NfcChipTypeHint }): Promise<ScanResult> {
   if (!NfcManager || !NfcTech || !Ndef) {
     throw new Error("NFC_NOT_AVAILABLE");
   }
@@ -520,14 +522,16 @@ export async function scanBracelet(): Promise<ScanResult> {
     }
   }
 
-  // Android: single NFC session — detect tag type AND read data without re-requesting
+  // Android: single NFC session — detect tag type AND read data without re-requesting.
+  // Prioritize the expected chip technology first so Android foreground dispatch
+  // picks it up in a single pass, while keeping others as fallback.
+  const preferMifare = opts?.expectedChipType === "mifare_classic";
   try {
-    await NfcManager.requestTechnology([
-      NfcTech.MifareClassic,
-      NfcTech.MifareUltralight,
-      NfcTech.Ndef,
-      NfcTech.NfcA,
-    ]);
+    await NfcManager.requestTechnology(
+      preferMifare
+        ? [NfcTech.MifareClassic, NfcTech.MifareUltralight, NfcTech.Ndef, NfcTech.NfcA]
+        : [NfcTech.MifareUltralight, NfcTech.MifareClassic, NfcTech.Ndef, NfcTech.NfcA]
+    );
     const tag = await NfcManager.getTag();
     if (!tag) throw new Error("NFC_NO_TAG");
 
@@ -657,7 +661,8 @@ export async function cancelNfc(): Promise<void> {
  * Returns the read payload, the detected tag type, and whether a write occurred.
  */
 export async function scanAndWriteBracelet(
-  onRead: (payload: BraceletPayload, tagInfo: TagInfo) => Promise<BraceletPayload | null>
+  onRead: (payload: BraceletPayload, tagInfo: TagInfo) => Promise<BraceletPayload | null>,
+  opts?: { expectedChipType?: NfcChipTypeHint }
 ): Promise<{ payload: BraceletPayload; tagInfo: TagInfo; written: boolean }> {
   if (!NfcManager || !NfcTech || !Ndef) {
     throw new Error("NFC_NOT_AVAILABLE");
@@ -699,14 +704,15 @@ export async function scanAndWriteBracelet(
     }
   }
 
-  // ── Android: request all tech types once, then read + write in same session ──
+  // ── Android: request all tech types once, then read + write in same session.
+  // Prioritize the expected chip technology first for better foreground dispatch.
+  const preferMifareWrite = opts?.expectedChipType === "mifare_classic";
   try {
-    await NfcManager.requestTechnology([
-      NfcTech.MifareClassic,
-      NfcTech.MifareUltralight,
-      NfcTech.Ndef,
-      NfcTech.NfcA,
-    ]);
+    await NfcManager.requestTechnology(
+      preferMifareWrite
+        ? [NfcTech.MifareClassic, NfcTech.MifareUltralight, NfcTech.Ndef, NfcTech.NfcA]
+        : [NfcTech.MifareUltralight, NfcTech.MifareClassic, NfcTech.Ndef, NfcTech.NfcA]
+    );
     const tag = await NfcManager.getTag();
     if (!tag) throw new Error("NFC_NO_TAG");
 

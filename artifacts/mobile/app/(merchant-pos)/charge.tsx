@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useLogTransaction, useGetSigningKey, useReportTamper } from "@workspace/api-client-react";
+import { useLogTransaction, useGetSigningKey, useReportTamper, useGetEvent } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
@@ -23,10 +23,12 @@ import { Card } from "@/components/ui/Card";
 import { useCart } from "@/contexts/CartContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type TagInfo } from "@/utils/nfc";
+import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
 import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCOP } from "@/utils/format";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
+import { useAuth } from "@/contexts/AuthContext";
+import type { NfcChipType } from "@/contexts/EventContext";
 
 type ChargeStep =
   | "waiting"
@@ -79,12 +81,25 @@ const tagBadgeStyles = StyleSheet.create({
   text: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 });
 
+function isChipCompatible(tagType: TagType, nfcChipType: NfcChipType): boolean {
+  if (nfcChipType === "mifare_classic") {
+    return tagType === "MIFARE_CLASSIC";
+  }
+  return tagType !== "MIFARE_CLASSIC";
+}
+
 export default function ChargeScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+
+  const { user } = useAuth();
+  const { data: eventData } = useGetEvent(user?.eventId ?? "", {
+    query: { enabled: !!user?.eventId },
+  });
+  const configuredChipType: NfcChipType = (eventData as { nfcChipType?: NfcChipType } | undefined)?.nfcChipType ?? "ntag_21x";
 
   const params = useLocalSearchParams<{ locationId: string }>();
   const locationId = params.locationId ?? "";
@@ -228,6 +243,14 @@ export default function ChargeScreen() {
       await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
         setTagInfo(detectedTagInfo);
 
+        if (!isChipCompatible(detectedTagInfo.type, configuredChipType)) {
+          const expectedLabel = configuredChipType === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x";
+          Alert.alert(
+            t("common.warning"),
+            t("eventAdmin.nfcChipMismatch", { expected: expectedLabel, detected: detectedTagInfo.label }),
+          );
+        }
+
         setStep("verifying");
         let hmacOk = true;
         if (hmacSecret && payload.hmac) {
@@ -260,7 +283,7 @@ export default function ChargeScreen() {
         setStep("writing");
         const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
         return { uid, balance: newBalance, counter: newCounter, hmac: newHmac };
-      });
+      }, { expectedChipType: configuredChipType });
     } catch {
       if (!aborted && !cancelledRef.current) {
         scanningRef.current = false;

@@ -3,14 +3,18 @@ import { useGetEvent } from "@workspace/api-client-react";
 import type { InventoryMode } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 
+export type NfcChipType = "ntag_21x" | "mifare_classic";
+
 interface EventContextValue {
   inventoryMode: InventoryMode;
+  nfcChipType: NfcChipType;
   isLoading: boolean;
   refetch: () => void;
 }
 
 const EventContext = createContext<EventContextValue>({
   inventoryMode: "location_based",
+  nfcChipType: "ntag_21x",
   isLoading: false,
   refetch: () => {},
 });
@@ -23,11 +27,12 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     { query: { enabled: !!user?.eventId, queryKey: ["event-context", user?.eventId] } },
   );
 
-  const event = eventData as { inventoryMode?: InventoryMode } | undefined;
+  const event = eventData as { inventoryMode?: InventoryMode; nfcChipType?: NfcChipType } | undefined;
   const inventoryMode: InventoryMode = event?.inventoryMode ?? "location_based";
+  const nfcChipType: NfcChipType = event?.nfcChipType ?? "ntag_21x";
 
   return (
-    <EventContext.Provider value={{ inventoryMode, isLoading, refetch }}>
+    <EventContext.Provider value={{ inventoryMode, nfcChipType, isLoading, refetch }}>
       {children}
     </EventContext.Provider>
   );

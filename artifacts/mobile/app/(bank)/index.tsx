@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useGetBracelet } from "@workspace/api-client-react";
+import { useGetBracelet, useGetEvent } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Badge } from "@/components/ui/Badge";
@@ -24,9 +24,11 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useFocusEffect } from "expo-router";
-import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo } from "@/utils/nfc";
+import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
+import { useAuth } from "@/contexts/AuthContext";
+import type { NfcChipType } from "@/contexts/EventContext";
 
 interface BraceletState {
   uid: string;
@@ -61,12 +63,27 @@ const tagBadgeStyles = StyleSheet.create({
   text: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 });
 
+function isChipCompatible(tagType: TagType, nfcChipType: NfcChipType): boolean {
+  if (nfcChipType === "mifare_classic") {
+    return tagType === "MIFARE_CLASSIC";
+  }
+  return tagType !== "MIFARE_CLASSIC";
+}
+
 export default function BankLookupScreen() {
   const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+
+  const { user } = useAuth();
+  const { data: eventData } = useGetEvent(user?.eventId ?? "", {
+    query: { enabled: !!user?.eventId },
+  });
+  const configuredChipType: NfcChipType = (eventData as { nfcChipType?: NfcChipType } | undefined)?.nfcChipType ?? "ntag_21x";
+  const configuredChipTypeRef = useRef<NfcChipType>(configuredChipType);
+  configuredChipTypeRef.current = configuredChipType;
 
   const [bracelet, setBracelet] = useState<BraceletState | null>(null);
   const [isTapping, setIsTapping] = useState(false);
@@ -90,12 +107,19 @@ export default function BankLookupScreen() {
       if (isNfcSupported()) {
         setIsTapping(true);
         scanningRef.current = true;
-        scanBracelet()
+        scanBracelet({ expectedChipType: configuredChipTypeRef.current })
           .then((result) => {
             if (cancelledRef.current) return;
             setBracelet(result.payload);
             setTagInfo(result.tagInfo);
             setFetchUid(result.payload.uid);
+            if (!isChipCompatible(result.tagInfo.type, configuredChipTypeRef.current)) {
+              const expectedLabel = configuredChipTypeRef.current === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x";
+              Alert.alert(
+                t("common.warning"),
+                t("eventAdmin.nfcChipMismatch", { expected: expectedLabel, detected: result.tagInfo.label }),
+              );
+            }
           })
           .catch((e: unknown) => {
             if (cancelledRef.current) return;
@@ -146,11 +170,18 @@ export default function BankLookupScreen() {
     scanningRef.current = true;
     setIsTapping(true);
     try {
-      const result = await scanBracelet();
+      const result = await scanBracelet({ expectedChipType: configuredChipType });
       if (cancelledRef.current) return;
       setBracelet(result.payload);
       setTagInfo(result.tagInfo);
       setFetchUid(result.payload.uid);
+      if (!isChipCompatible(result.tagInfo.type, configuredChipType)) {
+        const expectedLabel = configuredChipType === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x";
+        Alert.alert(
+          t("common.warning"),
+          t("eventAdmin.nfcChipMismatch", { expected: expectedLabel, detected: result.tagInfo.label }),
+        );
+      }
     } catch (e: unknown) {
       if (cancelledRef.current) return;
       const msg = e instanceof Error ? e.message : "";

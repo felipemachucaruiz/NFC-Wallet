@@ -3,6 +3,8 @@ import { sql } from "drizzle-orm";
 
 export const inventoryModeEnum = pgEnum("inventory_mode", ["location_based", "centralized_warehouse"]);
 
+export const nfcChipTypeEnum = pgEnum("nfc_chip_type", ["ntag_21x", "mifare_classic"]);
+
 export const eventsTable = pgTable("events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 255 }).notNull(),
@@ -17,6 +19,7 @@ export const eventsTable = pgTable("events", {
   pulepId: varchar("pulep_id", { length: 100 }),
   inventoryMode: inventoryModeEnum("inventory_mode").notNull().default("location_based"),
   hmacSecret: varchar("hmac_secret", { length: 128 }),
+  nfcChipType: nfcChipTypeEnum("nfc_chip_type").notNull().default("ntag_21x"),
   offlineSyncLimit: integer("offline_sync_limit").notNull().default(500000),
   maxOfflineSpendPerBracelet: integer("max_offline_spend_per_bracelet").notNull().default(200000),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

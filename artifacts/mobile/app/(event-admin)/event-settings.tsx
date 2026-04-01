@@ -24,11 +24,13 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
+import type { NfcChipType } from "@/contexts/EventContext";
 
 type EventDetail = {
   id: string;
   name: string;
   inventoryMode?: InventoryMode;
+  nfcChipType?: NfcChipType;
   hasHmacSecret?: boolean;
   offlineSyncLimit?: number;
   maxOfflineSpendPerBracelet?: number;
@@ -38,6 +40,55 @@ type ConfirmModal =
   | { type: "inventory"; pendingMode: InventoryMode }
   | { type: "rotate_key" }
   | null;
+
+function NfcChipOption({
+  chipType,
+  title,
+  description,
+  icon,
+  selected,
+  onPress,
+}: {
+  chipType: NfcChipType;
+  title: string;
+  description: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.modeOption,
+        {
+          backgroundColor: selected ? C.primaryLight : C.card,
+          borderColor: selected ? C.primary : C.border,
+        },
+      ]}
+    >
+      <View style={[styles.modeIconBox, { backgroundColor: selected ? C.primary + "22" : C.inputBg }]}>
+        <Feather name={icon} size={22} color={selected ? C.primary : C.textMuted} />
+      </View>
+      <View style={{ flex: 1, gap: 3 }}>
+        <View style={styles.modeTitleRow}>
+          <Text style={[styles.modeTitle, { color: selected ? C.primary : C.text }]}>
+            {title}
+          </Text>
+          {selected && (
+            <View style={[styles.activeBadge, { backgroundColor: C.primary }]}>
+              <Text style={styles.activeBadgeText}>Active</Text>
+            </View>
+          )}
+        </View>
+        <Text style={[styles.modeDesc, { color: C.textSecondary }]}>{description}</Text>
+      </View>
+    </Pressable>
+  );
+}
 
 function InventoryModeOption({
   mode,
@@ -113,6 +164,7 @@ export default function EventSettingsScreen() {
 
   const event = eventData as EventDetail | undefined;
   const currentMode: InventoryMode = event?.inventoryMode ?? "location_based";
+  const currentChipType: NfcChipType = event?.nfcChipType ?? "ntag_21x";
 
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>(null);
   const [isRotating, setIsRotating] = useState(false);
@@ -121,12 +173,16 @@ export default function EventSettingsScreen() {
   const [maxOfflineSpendPerBracelet, setMaxOfflineSpendPerBracelet] = useState<string>("");
   const [isSavingLimits, setIsSavingLimits] = useState(false);
 
+  const [selectedChipType, setSelectedChipType] = useState<NfcChipType>("ntag_21x");
+  const [isSavingChipType, setIsSavingChipType] = useState(false);
+
   React.useEffect(() => {
     if (event) {
       setOfflineSyncLimit(String(event.offlineSyncLimit ?? 500000));
       setMaxOfflineSpendPerBracelet(String(event.maxOfflineSpendPerBracelet ?? 200000));
+      setSelectedChipType(event.nfcChipType ?? "ntag_21x");
     }
-  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet]);
+  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType]);
 
   const updateEvent = useUpdateEvent();
   const queryClient = useQueryClient();
@@ -199,6 +255,25 @@ export default function EventSettingsScreen() {
       Alert.alert(t("common.error"), t("common.error"));
     } finally {
       setIsSavingLimits(false);
+    }
+  };
+
+  const handleSaveChipType = async () => {
+    if (!user?.eventId) return;
+    if (selectedChipType === currentChipType) return;
+    setIsSavingChipType(true);
+    try {
+      await customFetch(`/api/events/${user.eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ nfcChipType: selectedChipType }),
+      });
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ["event-context", user.eventId] });
+      Alert.alert(t("common.success"), t("eventAdmin.nfcChipSaved"));
+    } catch {
+      Alert.alert(t("common.error"), t("eventAdmin.nfcChipSaveFailed"));
+    } finally {
+      setIsSavingChipType(false);
     }
   };
 
@@ -335,6 +410,53 @@ export default function EventSettingsScreen() {
             loading={isSavingLimits}
           />
         </Card>
+
+        <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
+
+        <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.nfcChipSettings")}</Text>
+        <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+          {t("eventAdmin.nfcChipSettingsDescription")}
+        </Text>
+
+        <View style={styles.modesContainer}>
+          <NfcChipOption
+            chipType="ntag_21x"
+            title={t("eventAdmin.ntag21x")}
+            description={t("eventAdmin.ntag21xDesc")}
+            icon="wifi"
+            selected={selectedChipType === "ntag_21x"}
+            onPress={() => setSelectedChipType("ntag_21x")}
+          />
+          <NfcChipOption
+            chipType="mifare_classic"
+            title={t("eventAdmin.mifareClassic")}
+            description={t("eventAdmin.mifareClassicDesc")}
+            icon="cpu"
+            selected={selectedChipType === "mifare_classic"}
+            onPress={() => setSelectedChipType("mifare_classic")}
+          />
+        </View>
+
+        {selectedChipType === "mifare_classic" && (
+          <Card style={[styles.infoCard, { borderColor: C.warning + "55", backgroundColor: C.warningLight }]} padding={14}>
+            <View style={styles.infoRow}>
+              <Feather name="alert-triangle" size={16} color={C.warning} style={{ marginTop: 1 }} />
+              <Text style={[styles.infoText, { color: C.text }]}>
+                {t("eventAdmin.mifareClassicWarning")}
+              </Text>
+            </View>
+          </Card>
+        )}
+
+        <Button
+          title={t("common.save")}
+          onPress={handleSaveChipType}
+          variant="primary"
+          size="md"
+          fullWidth
+          loading={isSavingChipType}
+          disabled={selectedChipType === currentChipType}
+        />
 
         <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
 
