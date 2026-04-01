@@ -97,6 +97,28 @@ export function useSubmitRefundRequest() {
   });
 }
 
+export function useLinkBracelet() {
+  const headers = useAuthHeaders();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ uid, attendeeName }: { uid: string; attendeeName?: string }) => {
+      const res = await fetch(`${API_BASE_URL}/api/attendee/me/bracelets/link`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, attendeeName }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? res.statusText);
+      }
+      return res.json() as Promise<{ uid: string; balanceCop: number; attendeeName?: string | null }>;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["attendee", "bracelets"] });
+    },
+  });
+}
+
 export function useInitiateTopUp() {
   const headers = useAuthHeaders();
   return useMutation({

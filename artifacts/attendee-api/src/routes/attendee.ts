@@ -194,6 +194,92 @@ router.get(
   }
 );
 
+const linkBraceletSchema = z.object({
+  uid: z.string().min(1),
+  attendeeName: z.string().optional(),
+});
+
+function normalizeUidLocal(input: string): string | null {
+  const hex = input.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+  const VALID_HEX_LENGTHS = new Set([8, 14, 20]);
+  if (!VALID_HEX_LENGTHS.has(hex.length)) return null;
+  return hex.match(/.{2}/g)!.join(":");
+}
+
+router.post(
+  "/attendee/me/bracelets/link",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    const userId = req.user.id;
+
+    const parsed = linkBraceletSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "uid is required" });
+      return;
+    }
+
+    const uid = normalizeUidLocal(parsed.data.uid);
+    if (!uid) {
+      res.status(400).json({ error: "Invalid UID format. Must be 4, 7, or 10 hex bytes." });
+      return;
+    }
+
+    let [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, uid));
+
+    if (!bracelet) {
+      const [created] = await db
+        .insert(braceletsTable)
+        .values({ nfcUid: uid, lastKnownBalanceCop: 0, lastCounter: 0, pendingSync: false })
+        .onConflictDoNothing()
+        .returning();
+      if (created) {
+        bracelet = created;
+      } else {
+        const [existing] = await db.select().from(braceletsTable).where(eq(braceletsTable.nfcUid, uid));
+        bracelet = existing;
+      }
+    }
+
+    if (!bracelet) {
+      res.status(500).json({ error: "Failed to resolve bracelet" });
+      return;
+    }
+
+    if (bracelet.attendeeUserId && bracelet.attendeeUserId !== userId) {
+      res.status(409).json({ error: "BRACELET_ALREADY_LINKED" });
+      return;
+    }
+
+    if (bracelet.flagged) {
+      res.status(403).json({ error: "BRACELET_FLAGGED" });
+      return;
+    }
+
+    const updates: Partial<typeof braceletsTable.$inferInsert> = {
+      attendeeUserId: userId,
+      updatedAt: new Date(),
+    };
+    if (parsed.data.attendeeName) {
+      updates.attendeeName = parsed.data.attendeeName;
+    }
+
+    const [updated] = await db
+      .update(braceletsTable)
+      .set(updates)
+      .where(eq(braceletsTable.nfcUid, uid))
+      .returning();
+
+    res.json({
+      uid: updated.nfcUid,
+      balanceCop: updated.lastKnownBalanceCop,
+      attendeeName: updated.attendeeName,
+    });
+  }
+);
+
 router.post(
   "/attendee/me/bracelets/:uid/block",
   requireRole("attendee"),

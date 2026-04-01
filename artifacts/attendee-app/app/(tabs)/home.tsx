@@ -70,7 +70,21 @@ export default function HomeScreen() {
         if (matched) {
           Alert.alert(t("home.braceletSelected"), uid);
         } else {
-          router.push({ pathname: "/top-up", params: { braceletUid: uid } });
+          Alert.alert(
+            t("home.nfcDetected"),
+            t("home.nfcDetectedHint"),
+            [
+              {
+                text: t("home.addBraceletAction"),
+                onPress: () => router.push({ pathname: "/add-bracelet", params: { prefillUid: uid } }),
+              },
+              {
+                text: t("home.topUpAction"),
+                onPress: () => router.push({ pathname: "/top-up", params: { braceletUid: uid } }),
+              },
+              { text: t("common.cancel"), style: "cancel" },
+            ]
+          );
         }
       }
     } catch {
@@ -152,7 +166,7 @@ export default function HomeScreen() {
               </Text>
               <Button
                 title={t("home.addBracelet")}
-                onPress={() => router.push("/top-up")}
+                onPress={() => router.push("/add-bracelet")}
                 variant="primary"
                 style={styles.addBraceletBtn}
               />
@@ -265,18 +279,27 @@ export default function HomeScreen() {
             </Pressable>
             <Pressable
               style={[styles.quickCard, { backgroundColor: C.card, borderColor: C.border }]}
-              onPress={() => router.push({
-                pathname: "/top-up",
-                params: bracelets.length > 0 ? { braceletUid: activeBracelet?.uid ?? "" } : {},
-              })}
+              onPress={() => router.push("/add-bracelet")}
             >
               <View style={[styles.quickIcon, { backgroundColor: C.primaryLight }]}>
-                <Feather name="plus-circle" size={22} color={C.primary} />
+                <Feather name="wifi" size={22} color={C.primary} />
               </View>
-              <Text style={[styles.quickLabel, { color: C.text }]}>
-                {bracelets.length === 0 ? t("home.addTopUp") : t("home.topUp")}
-              </Text>
+              <Text style={[styles.quickLabel, { color: C.text }]}>{t("home.addBracelet")}</Text>
             </Pressable>
+            {bracelets.length > 0 && (
+              <Pressable
+                style={[styles.quickCard, { backgroundColor: C.card, borderColor: C.border }]}
+                onPress={() => router.push({
+                  pathname: "/top-up",
+                  params: { braceletUid: activeBracelet?.uid ?? "" },
+                })}
+              >
+                <View style={[styles.quickIcon, { backgroundColor: C.primaryLight }]}>
+                  <Feather name="plus-circle" size={22} color={C.primary} />
+                </View>
+                <Text style={[styles.quickLabel, { color: C.text }]}>{t("home.topUp")}</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </View>

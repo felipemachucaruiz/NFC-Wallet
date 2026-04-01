@@ -47,6 +47,7 @@ function RootLayoutNav() {
       <Stack.Screen name="login" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="top-up" />
+      <Stack.Screen name="add-bracelet" />
       <Stack.Screen name="block-bracelet" />
       <Stack.Screen name="refund-request" />
       <Stack.Screen name="payment-status/[id]" />
