@@ -423,6 +423,8 @@
     "noProducts": "Sin productos. Agrega tu primer producto.",
     "priceRequired": "El precio es obligatorio",
     "nameRequired": "El nombre del producto es obligatorio",
+    "addPhoto": "Agregar foto",
+    "photoPermissionDenied": "Se denegó el permiso para acceder a las fotos.",
     "stockTitle": "Mi Stock",
     "stockSubtitle": "Ajusta el stock por punto de venta",
     "noStock": "Sin artículos en inventario.",

@@ -1,4 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import multer from "multer";
+import { randomUUID } from "crypto";
+import { Storage } from "@google-cloud/storage";
 import { db, productsTable, merchantsTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
@@ -6,6 +9,38 @@ import { assertProductAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
 
 const router: IRouter = Router();
+
+const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
+
+const objectStorageClient = new Storage({
+  credentials: {
+    audience: "replit",
+    subject_token_type: "access_token",
+    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+    type: "external_account",
+    credential_source: {
+      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+      format: {
+        type: "json",
+        subject_token_field_name: "access_token",
+      },
+    },
+    universe_domain: "googleapis.com",
+  },
+  projectId: "",
+} as ConstructorParameters<typeof Storage>[0]);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"));
+    }
+  },
+});
 
 const createProductSchema = z.object({
   merchantId: z.string().min(1),
@@ -25,6 +60,7 @@ const updateProductSchema = z.object({
   active: z.boolean().optional(),
   ivaRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   ivaExento: z.boolean().optional(),
+  imageUrl: z.string().url().nullable().optional(),
 });
 
 router.get("/products", requireAuth, async (req: Request, res: Response) => {
@@ -213,9 +249,11 @@ router.patch(
       }
     }
 
+    const { imageUrl, ...restData } = parsed.data;
+    const setFields = { ...restData, updatedAt: new Date(), ...(imageUrl !== undefined ? { imageUrl } : {}) };
     const [product] = await db
       .update(productsTable)
-      .set({ ...parsed.data, updatedAt: new Date() })
+      .set(setFields)
       .where(eq(productsTable.id, productId))
       .returning();
     if (!product) {
@@ -223,6 +261,87 @@ router.patch(
       return;
     }
     res.json(product);
+  },
+);
+
+router.post(
+  "/products/:productId/image",
+  requireRole("admin", "merchant_admin", "event_admin"),
+  upload.single("image"),
+  async (req: Request, res: Response) => {
+    const productId = req.params.productId as string;
+    const user = req.user!;
+
+    if (!req.file) {
+      res.status(400).json({ error: "No image file provided" });
+      return;
+    }
+
+    if (!req.file.mimetype.startsWith("image/")) {
+      res.status(400).json({ error: "Only image files are allowed" });
+      return;
+    }
+
+    // Access control and pre-upload product existence validation
+    if (user.role === "merchant_admin") {
+      const result = await assertProductAccess(productId, user);
+      if ("error" in result) {
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+    } else if (user.role === "event_admin") {
+      if (!user.eventId) {
+        res.status(403).json({ error: "No event associated with your account" });
+        return;
+      }
+      const [product] = await db.select().from(productsTable).where(eq(productsTable.id, productId));
+      if (!product) { res.status(404).json({ error: "Product not found" }); return; }
+      const [merchant] = await db.select({ id: merchantsTable.id, eventId: merchantsTable.eventId }).from(merchantsTable).where(eq(merchantsTable.id, product.merchantId));
+      if (!merchant || merchant.eventId !== user.eventId) {
+        res.status(403).json({ error: "Product does not belong to your event" });
+        return;
+      }
+    } else {
+      // admin role: validate product exists before uploading to storage
+      const [product] = await db.select({ id: productsTable.id }).from(productsTable).where(eq(productsTable.id, productId));
+      if (!product) { res.status(404).json({ error: "Product not found" }); return; }
+    }
+
+    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+    if (!bucketId) {
+      res.status(500).json({ error: "Object storage not configured" });
+      return;
+    }
+
+    try {
+      const objectName = `product-images/${randomUUID()}`;
+      const bucket = objectStorageClient.bucket(bucketId);
+      const file = bucket.file(objectName);
+
+      await file.save(req.file.buffer, {
+        metadata: { contentType: req.file.mimetype },
+        resumable: false,
+      });
+
+      await file.makePublic();
+
+      const imageUrl = `https://storage.googleapis.com/${bucketId}/${objectName}`;
+
+      const [updated] = await db
+        .update(productsTable)
+        .set({ imageUrl, updatedAt: new Date() })
+        .where(eq(productsTable.id, productId))
+        .returning();
+
+      if (!updated) {
+        res.status(404).json({ error: "Product not found" });
+        return;
+      }
+
+      res.json({ imageUrl });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to upload image" });
+    }
   },
 );
 

@@ -68,6 +68,7 @@
     "crypto-js": "^4.2.0",
     "expo-auth-session": "^7.0.10",
     "expo-crypto": "~15.0.8",
+    "expo-image-manipulator": "^55.0.11",
     "expo-localization": "^17.0.8",
     "expo-notifications": "^0.32.16",
     "expo-secure-store": "^15.0.8",

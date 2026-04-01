@@ -15,7 +15,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Used to select product photos."
+      }
     },
     "android": {
       "package": "com.tapee.app",
@@ -26,7 +29,9 @@
       "permissions": [
         "android.permission.NFC",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
       ]
     },
     "web": {
@@ -55,7 +60,13 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "react-native-nfc-manager",
-      "expo-updates"
+      "expo-updates",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app needs access to your photos to upload product images."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

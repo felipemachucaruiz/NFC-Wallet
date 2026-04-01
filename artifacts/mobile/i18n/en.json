@@ -423,6 +423,8 @@
     "noProducts": "No products yet. Add your first product.",
     "priceRequired": "Price is required",
     "nameRequired": "Product name is required",
+    "addPhoto": "Add photo",
+    "photoPermissionDenied": "Permission to access photos was denied.",
     "stockTitle": "My Stock",
     "stockSubtitle": "Adjust your stock per location",
     "noStock": "No inventory items.",

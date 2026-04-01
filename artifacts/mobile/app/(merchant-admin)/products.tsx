@@ -1,4 +1,7 @@
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
+import { Image } from "expo-image";
 import React, { useState } from "react";
 import {
   Alert,
@@ -22,6 +25,7 @@ import {
 } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { API_BASE_URL } from "@/constants/domain";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -38,6 +42,7 @@ type Product = {
   ivaRate: string;
   ivaExento: boolean;
   active: boolean;
+  imageUrl?: string | null;
 };
 
 type FormState = {
@@ -47,9 +52,10 @@ type FormState = {
   costCop: string;
   ivaRate: string;
   ivaExento: boolean;
+  imageUrl: string | null;
 };
 
-const emptyForm: FormState = { name: "", category: "", priceCop: "", costCop: "", ivaRate: "0", ivaExento: false };
+const emptyForm: FormState = { name: "", category: "", priceCop: "", costCop: "", ivaRate: "0", ivaExento: false, imageUrl: null };
 
 export default function MerchantProductsScreen() {
   const { t } = useTranslation();
@@ -57,11 +63,13 @@ export default function MerchantProductsScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [pendingImageUri, setPendingImageUri] = useState<string | null>(null);
 
   const merchantId = user?.merchantId ?? "";
 
@@ -79,6 +87,91 @@ export default function MerchantProductsScreen() {
     setForm(emptyForm);
     setShowAddForm(false);
     setEditingProduct(null);
+    setPendingImageUri(null);
+  };
+
+  const pickImage = async () => {
+    if (Platform.OS !== "web") {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(t("common.error"), t("merchant_admin.photoPermissionDenied"));
+        return;
+      }
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 1,
+      base64: false,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const originalWidth = asset.width ?? 0;
+      const originalHeight = asset.height ?? 0;
+      const maxDim = 1024;
+      const needsResize = originalWidth > maxDim || originalHeight > maxDim;
+
+      let finalUri = asset.uri;
+      if (needsResize) {
+        const scale = Math.min(maxDim / originalWidth, maxDim / originalHeight);
+        const manipulated = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ resize: { width: Math.round(originalWidth * scale), height: Math.round(originalHeight * scale) } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+        finalUri = manipulated.uri;
+      } else {
+        const manipulated = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+        finalUri = manipulated.uri;
+      }
+
+      setPendingImageUri(finalUri);
+      setForm((f) => ({ ...f, imageUrl: finalUri }));
+    }
+  };
+
+  const removeImage = () => {
+    setPendingImageUri(null);
+    setForm((f) => ({ ...f, imageUrl: null }));
+  };
+
+  const uploadImageForProduct = async (productId: string): Promise<string> => {
+    if (!pendingImageUri) throw new Error("No image selected");
+
+    setUploadingImage(true);
+    try {
+      const filename = pendingImageUri.split("/").pop() ?? "image.jpg";
+      const formData = new FormData();
+      formData.append("image", {
+        uri: pendingImageUri,
+        name: filename,
+        type: "image/jpeg",
+      } as unknown as Blob);
+
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const response = await fetch(`${API_BASE_URL}/api/products/${productId}/image`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Image upload failed");
+      }
+      const responseData = await response.json() as { imageUrl: string };
+      return responseData.imageUrl;
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -89,7 +182,7 @@ export default function MerchantProductsScreen() {
     if (isNaN(price) || price < 0) { Alert.alert(t("common.error"), t("merchant_admin.priceRequired")); return; }
     const ivaRateVal = form.ivaExento ? "0" : (parseFloat(form.ivaRate || "0").toFixed(2));
     try {
-      await createProduct.mutateAsync({
+      const created = await createProduct.mutateAsync({
         data: {
           merchantId,
           name: form.name.trim(),
@@ -100,6 +193,17 @@ export default function MerchantProductsScreen() {
           ivaExento: form.ivaExento,
         },
       });
+      const createdProduct = created as Product;
+      if (pendingImageUri && createdProduct?.id) {
+        try {
+          await uploadImageForProduct(createdProduct.id);
+        } catch (imgErr) {
+          const msg = imgErr instanceof Error ? imgErr.message : t("common.unknownError");
+          Alert.alert(t("common.error"), msg);
+          refetch();
+          return;
+        }
+      }
       Alert.alert(t("common.success"), t("merchant_admin.productCreated"));
       resetForm();
       refetch();
@@ -115,6 +219,20 @@ export default function MerchantProductsScreen() {
     const cost = parseInt(form.costCop || "0", 10);
     const ivaRateVal = form.ivaExento ? "0" : (parseFloat(form.ivaRate || "0").toFixed(2));
     try {
+      if (pendingImageUri) {
+        try {
+          await uploadImageForProduct(editingProduct.id);
+        } catch (imgErr) {
+          const msg = imgErr instanceof Error ? imgErr.message : t("common.unknownError");
+          Alert.alert(t("common.error"), msg);
+          return;
+        }
+      } else if (form.imageUrl === null && editingProduct.imageUrl !== null) {
+        await updateProduct.mutateAsync({
+          productId: editingProduct.id,
+          data: { imageUrl: null },
+        });
+      }
       await updateProduct.mutateAsync({
         productId: editingProduct.id,
         data: {
@@ -159,6 +277,7 @@ export default function MerchantProductsScreen() {
 
   const startEdit = (product: Product) => {
     setEditingProduct(product);
+    setPendingImageUri(null);
     setForm({
       name: product.name,
       category: product.category ?? "",
@@ -166,6 +285,7 @@ export default function MerchantProductsScreen() {
       costCop: product.costCop ? String(product.costCop) : "",
       ivaRate: product.ivaRate ?? "0",
       ivaExento: product.ivaExento ?? false,
+      imageUrl: product.imageUrl ?? null,
     });
     setShowAddForm(false);
   };
@@ -181,6 +301,8 @@ export default function MerchantProductsScreen() {
       Alert.alert(t("common.error"), t("common.unknownError"));
     }
   };
+
+  const currentImageUri = pendingImageUri ?? (editingProduct ? form.imageUrl : null);
 
   if (!merchantId) return null;
 
@@ -199,7 +321,7 @@ export default function MerchantProductsScreen() {
         <Text style={[styles.title, { color: C.text }]}>{t("merchant_admin.products")}</Text>
         {!showAddForm && !editingProduct && (
           <Pressable
-            onPress={() => { setShowAddForm(true); setForm(emptyForm); }}
+            onPress={() => { setShowAddForm(true); setForm(emptyForm); setPendingImageUri(null); }}
             style={[styles.addBtn, { backgroundColor: C.primary }]}
           >
             <Feather name="plus" size={18} color="#fff" />
@@ -214,6 +336,33 @@ export default function MerchantProductsScreen() {
             {editingProduct ? t("merchant_admin.editProduct") : t("merchant_admin.addProduct")}
           </Text>
           <View style={{ gap: 12 }}>
+            <View style={styles.imagePickerRow}>
+              <Pressable
+                onPress={pickImage}
+                style={[styles.imagePicker, { backgroundColor: C.inputBg, borderColor: C.border }]}
+              >
+                {currentImageUri ? (
+                  <Image
+                    source={{ uri: currentImageUri }}
+                    style={styles.imagePreview}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={styles.imagePickerPlaceholder}>
+                    <Feather name="camera" size={22} color={C.textMuted} />
+                    <Text style={[styles.imagePickerText, { color: C.textMuted }]}>{t("merchant_admin.addPhoto")}</Text>
+                  </View>
+                )}
+              </Pressable>
+              {currentImageUri && (
+                <Pressable
+                  onPress={removeImage}
+                  style={[styles.removeImageBtn, { backgroundColor: "#fee2e2" }]}
+                >
+                  <Feather name="x" size={14} color="#ef4444" />
+                </Pressable>
+              )}
+            </View>
             <Input
               label={t("merchant_admin.productName")}
               placeholder={t("merchant_admin.productNamePlaceholder")}
@@ -270,7 +419,7 @@ export default function MerchantProductsScreen() {
             <Button
               title={editingProduct ? t("common.save") : t("merchant_admin.addProduct")}
               onPress={editingProduct ? handleUpdate : handleCreate}
-              loading={createProduct.isPending || updateProduct.isPending}
+              loading={createProduct.isPending || updateProduct.isPending || uploadingImage}
             />
           </View>
         </View>
@@ -288,6 +437,17 @@ export default function MerchantProductsScreen() {
         products.map((product) => (
           <View key={product.id} style={[styles.productCard, { backgroundColor: C.card, borderColor: C.border }]}>
             <View style={styles.productRow}>
+              {product.imageUrl ? (
+                <Image
+                  source={{ uri: product.imageUrl }}
+                  style={styles.productThumbnail}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={[styles.productThumbnailPlaceholder, { backgroundColor: C.inputBg }]}>
+                  <Feather name="package" size={18} color={C.textMuted} />
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <View style={styles.productNameRow}>
                   <Text style={[styles.productName, { color: C.text }]} numberOfLines={1}>
@@ -363,4 +523,12 @@ const styles = StyleSheet.create({
   ivaHint: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   ivaBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 3 },
   ivaBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  imagePickerRow: { position: "relative", alignSelf: "flex-start" },
+  imagePicker: { width: 80, height: 80, borderRadius: 12, borderWidth: 1, overflow: "hidden" },
+  imagePreview: { width: 80, height: 80 },
+  imagePickerPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4 },
+  imagePickerText: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  removeImageBtn: { position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  productThumbnail: { width: 48, height: 48, borderRadius: 10 },
+  productThumbnailPlaceholder: { width: 48, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 });

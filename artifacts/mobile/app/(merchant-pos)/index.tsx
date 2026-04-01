@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -64,7 +65,7 @@ export default function MerchantPosScreen() {
     query: { enabled: !!selectedLocationId },
   });
   const inventory = (inventoryData as {
-    inventory?: Array<{ product: { id: string; name: string; priceCop: number; costCop: number }; quantityOnHand: number }>
+    inventory?: Array<{ product: { id: string; name: string; priceCop: number; costCop: number; imageUrl?: string | null }; quantityOnHand: number }>
   } | undefined)?.inventory ?? [];
 
   const filtered = inventory.filter((item) =>
@@ -163,9 +164,17 @@ export default function MerchantPosScreen() {
                     borderWidth: qty > 0 ? 2 : 1,
                     flex: 1,
                   }]}>
-                    <View style={[styles.productIconBg, { backgroundColor: outOfStock ? C.dangerLight : C.primaryLight }]}>
-                      <Feather name="package" size={24} color={outOfStock ? C.danger : C.primary} />
-                    </View>
+                    {item.product.imageUrl ? (
+                      <Image
+                        source={{ uri: item.product.imageUrl }}
+                        style={[styles.productIconBg, { borderRadius: 12 }]}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={[styles.productIconBg, { backgroundColor: outOfStock ? C.dangerLight : C.primaryLight }]}>
+                        <Feather name="package" size={24} color={outOfStock ? C.danger : C.primary} />
+                      </View>
+                    )}
                     <Text style={[styles.productName, { color: C.text }]} numberOfLines={2}>{item.product.name}</Text>
                     <CopAmount amount={item.product.priceCop} size={16} />
                     <View style={styles.stockRow}>
