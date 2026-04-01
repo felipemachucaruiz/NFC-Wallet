@@ -261,7 +261,7 @@ export default function MerchantPayoutsScreen() {
         ListEmptyComponent={() => (
           <Empty icon="credit-card" title={t("merchant_admin.noPayout")} />
         )}
-        scrollEnabled={!!payouts.length}
+        scrollEnabled
         renderItem={({ item }) => (
           <Pressable onPress={() => setSelectedPayoutId(item.id)}>
             <View style={[styles.payoutCard, { backgroundColor: C.card, borderColor: C.border }]}>
