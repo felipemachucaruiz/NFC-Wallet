@@ -63,11 +63,12 @@ const tagBadgeStyles = StyleSheet.create({
   text: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 });
 
-function isChipCompatible(tagType: TagType, nfcChipType: NfcChipType): boolean {
-  if (nfcChipType === "mifare_classic") {
-    return tagType === "MIFARE_CLASSIC";
+function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolean {
+  const isMifareClassic = tagType === "MIFARE_CLASSIC";
+  if (isMifareClassic) {
+    return allowedNfcTypes.includes("mifare_classic");
   }
-  return tagType !== "MIFARE_CLASSIC";
+  return allowedNfcTypes.includes("ntag_21x");
 }
 
 export default function BankLookupScreen() {
@@ -81,9 +82,10 @@ export default function BankLookupScreen() {
   const { data: eventData } = useGetEvent(user?.eventId ?? "", {
     query: { enabled: !!user?.eventId },
   });
-  const configuredChipType: NfcChipType = (eventData as { nfcChipType?: NfcChipType } | undefined)?.nfcChipType ?? "ntag_21x";
-  const configuredChipTypeRef = useRef<NfcChipType>(configuredChipType);
-  configuredChipTypeRef.current = configuredChipType;
+  const eventTyped = eventData as { nfcChipType?: NfcChipType; allowedNfcTypes?: NfcChipType[] } | undefined;
+  const configuredAllowedTypes: NfcChipType[] = eventTyped?.allowedNfcTypes ?? [eventTyped?.nfcChipType ?? "ntag_21x"];
+  const configuredAllowedTypesRef = useRef<NfcChipType[]>(configuredAllowedTypes);
+  configuredAllowedTypesRef.current = configuredAllowedTypes;
 
   const [bracelet, setBracelet] = useState<BraceletState | null>(null);
   const [isTapping, setIsTapping] = useState(false);
@@ -107,19 +109,22 @@ export default function BankLookupScreen() {
       if (isNfcSupported()) {
         setIsTapping(true);
         scanningRef.current = true;
-        scanBracelet({ expectedChipType: configuredChipTypeRef.current })
+        scanBracelet({ expectedChipType: configuredAllowedTypesRef.current.includes("mifare_classic") && configuredAllowedTypesRef.current.length === 1 ? "mifare_classic" : "ntag_21x" })
           .then((result) => {
             if (cancelledRef.current) return;
+            if (!isChipAllowed(result.tagInfo.type, configuredAllowedTypesRef.current)) {
+              const allowedLabels = configuredAllowedTypesRef.current
+                .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x"))
+                .join(", ");
+              Alert.alert(
+                t("common.error"),
+                t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: result.tagInfo.label }),
+              );
+              return;
+            }
             setBracelet(result.payload);
             setTagInfo(result.tagInfo);
             setFetchUid(result.payload.uid);
-            if (!isChipCompatible(result.tagInfo.type, configuredChipTypeRef.current)) {
-              const expectedLabel = configuredChipTypeRef.current === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x";
-              Alert.alert(
-                t("common.warning"),
-                t("eventAdmin.nfcChipMismatch", { expected: expectedLabel, detected: result.tagInfo.label }),
-              );
-            }
           })
           .catch((e: unknown) => {
             if (cancelledRef.current) return;
@@ -170,18 +175,21 @@ export default function BankLookupScreen() {
     scanningRef.current = true;
     setIsTapping(true);
     try {
-      const result = await scanBracelet({ expectedChipType: configuredChipType });
+      const result = await scanBracelet({ expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x" });
       if (cancelledRef.current) return;
+      if (!isChipAllowed(result.tagInfo.type, configuredAllowedTypes)) {
+        const allowedLabels = configuredAllowedTypes
+          .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x"))
+          .join(", ");
+        Alert.alert(
+          t("common.error"),
+          t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: result.tagInfo.label }),
+        );
+        return;
+      }
       setBracelet(result.payload);
       setTagInfo(result.tagInfo);
       setFetchUid(result.payload.uid);
-      if (!isChipCompatible(result.tagInfo.type, configuredChipType)) {
-        const expectedLabel = configuredChipType === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x";
-        Alert.alert(
-          t("common.warning"),
-          t("eventAdmin.nfcChipMismatch", { expected: expectedLabel, detected: result.tagInfo.label }),
-        );
-      }
     } catch (e: unknown) {
       if (cancelledRef.current) return;
       const msg = e instanceof Error ? e.message : "";

@@ -8,6 +8,7 @@ export type NfcChipType = "ntag_21x" | "mifare_classic";
 interface EventContextValue {
   inventoryMode: InventoryMode;
   nfcChipType: NfcChipType;
+  allowedNfcTypes: NfcChipType[];
   isLoading: boolean;
   refetch: () => void;
 }
@@ -15,6 +16,7 @@ interface EventContextValue {
 const EventContext = createContext<EventContextValue>({
   inventoryMode: "location_based",
   nfcChipType: "ntag_21x",
+  allowedNfcTypes: ["ntag_21x"],
   isLoading: false,
   refetch: () => {},
 });
@@ -27,12 +29,13 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     { query: { enabled: !!user?.eventId, queryKey: ["event-context", user?.eventId] } },
   );
 
-  const event = eventData as { inventoryMode?: InventoryMode; nfcChipType?: NfcChipType } | undefined;
+  const event = eventData as { inventoryMode?: InventoryMode; nfcChipType?: NfcChipType; allowedNfcTypes?: NfcChipType[] } | undefined;
   const inventoryMode: InventoryMode = event?.inventoryMode ?? "location_based";
   const nfcChipType: NfcChipType = event?.nfcChipType ?? "ntag_21x";
+  const allowedNfcTypes: NfcChipType[] = event?.allowedNfcTypes ?? [nfcChipType];
 
   return (
-    <EventContext.Provider value={{ inventoryMode, nfcChipType, isLoading, refetch }}>
+    <EventContext.Provider value={{ inventoryMode, nfcChipType, allowedNfcTypes, isLoading, refetch }}>
       {children}
     </EventContext.Provider>
   );

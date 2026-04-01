@@ -81,11 +81,12 @@ const tagBadgeStyles = StyleSheet.create({
   text: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 });
 
-function isChipCompatible(tagType: TagType, nfcChipType: NfcChipType): boolean {
-  if (nfcChipType === "mifare_classic") {
-    return tagType === "MIFARE_CLASSIC";
+function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolean {
+  const isMifareClassic = tagType === "MIFARE_CLASSIC";
+  if (isMifareClassic) {
+    return allowedNfcTypes.includes("mifare_classic");
   }
-  return tagType !== "MIFARE_CLASSIC";
+  return allowedNfcTypes.includes("ntag_21x");
 }
 
 export default function ChargeScreen() {
@@ -99,7 +100,8 @@ export default function ChargeScreen() {
   const { data: eventData } = useGetEvent(user?.eventId ?? "", {
     query: { enabled: !!user?.eventId },
   });
-  const configuredChipType: NfcChipType = (eventData as { nfcChipType?: NfcChipType } | undefined)?.nfcChipType ?? "ntag_21x";
+  const eventTyped = eventData as { nfcChipType?: NfcChipType; allowedNfcTypes?: NfcChipType[] } | undefined;
+  const configuredAllowedTypes: NfcChipType[] = eventTyped?.allowedNfcTypes ?? [eventTyped?.nfcChipType ?? "ntag_21x"];
 
   const params = useLocalSearchParams<{ locationId: string }>();
   const locationId = params.locationId ?? "";
@@ -243,12 +245,18 @@ export default function ChargeScreen() {
       await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
         setTagInfo(detectedTagInfo);
 
-        if (!isChipCompatible(detectedTagInfo.type, configuredChipType)) {
-          const expectedLabel = configuredChipType === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x";
+        if (!isChipAllowed(detectedTagInfo.type, configuredAllowedTypes)) {
+          const allowedLabels = configuredAllowedTypes
+            .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : "NTAG 21x"))
+            .join(", ");
+          aborted = true;
+          setNfcModalVisible(false);
+          setStep("waiting");
           Alert.alert(
-            t("common.warning"),
-            t("eventAdmin.nfcChipMismatch", { expected: expectedLabel, detected: detectedTagInfo.label }),
+            t("common.error"),
+            t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: detectedTagInfo.label }),
           );
+          return null;
         }
 
         setStep("verifying");
@@ -283,7 +291,7 @@ export default function ChargeScreen() {
         setStep("writing");
         const newHmac = await computeHmac(newBalance, newCounter, hmacSecret);
         return { uid, balance: newBalance, counter: newCounter, hmac: newHmac };
-      }, { expectedChipType: configuredChipType });
+      }, { expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x" });
     } catch {
       if (!aborted && !cancelledRef.current) {
         scanningRef.current = false;

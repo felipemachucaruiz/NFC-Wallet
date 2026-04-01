@@ -31,6 +31,7 @@ type EventDetail = {
   name: string;
   inventoryMode?: InventoryMode;
   nfcChipType?: NfcChipType;
+  allowedNfcTypes?: NfcChipType[];
   hasHmacSecret?: boolean;
   offlineSyncLimit?: number;
   maxOfflineSpendPerBracelet?: number;
@@ -41,50 +42,59 @@ type ConfirmModal =
   | { type: "rotate_key" }
   | null;
 
-function NfcChipOption({
+function NfcChipCheckbox({
   chipType,
   title,
   description,
   icon,
-  selected,
-  onPress,
+  checked,
+  onToggle,
 }: {
   chipType: NfcChipType;
   title: string;
   description: string;
   icon: React.ComponentProps<typeof Feather>["name"];
-  selected: boolean;
-  onPress: () => void;
+  checked: boolean;
+  onToggle: () => void;
 }) {
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={onToggle}
       style={[
         styles.modeOption,
         {
-          backgroundColor: selected ? C.primaryLight : C.card,
-          borderColor: selected ? C.primary : C.border,
+          backgroundColor: checked ? C.primaryLight : C.card,
+          borderColor: checked ? C.primary : C.border,
         },
       ]}
     >
-      <View style={[styles.modeIconBox, { backgroundColor: selected ? C.primary + "22" : C.inputBg }]}>
-        <Feather name={icon} size={22} color={selected ? C.primary : C.textMuted} />
+      <View style={[styles.modeIconBox, { backgroundColor: checked ? C.primary + "22" : C.inputBg }]}>
+        <Feather name={icon} size={22} color={checked ? C.primary : C.textMuted} />
       </View>
       <View style={{ flex: 1, gap: 3 }}>
         <View style={styles.modeTitleRow}>
-          <Text style={[styles.modeTitle, { color: selected ? C.primary : C.text }]}>
+          <Text style={[styles.modeTitle, { color: checked ? C.primary : C.text }]}>
             {title}
           </Text>
-          {selected && (
+          {checked && (
             <View style={[styles.activeBadge, { backgroundColor: C.primary }]}>
               <Text style={styles.activeBadgeText}>Active</Text>
             </View>
           )}
         </View>
         <Text style={[styles.modeDesc, { color: C.textSecondary }]}>{description}</Text>
+      </View>
+      <View style={[
+        styles.checkboxBox,
+        {
+          borderColor: checked ? C.primary : C.border,
+          backgroundColor: checked ? C.primary : "transparent",
+        },
+      ]}>
+        {checked && <Feather name="check" size={14} color="#fff" />}
       </View>
     </Pressable>
   );
@@ -164,7 +174,7 @@ export default function EventSettingsScreen() {
 
   const event = eventData as EventDetail | undefined;
   const currentMode: InventoryMode = event?.inventoryMode ?? "location_based";
-  const currentChipType: NfcChipType = event?.nfcChipType ?? "ntag_21x";
+  const currentAllowedTypes: NfcChipType[] = event?.allowedNfcTypes ?? [event?.nfcChipType ?? "ntag_21x"];
 
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>(null);
   const [isRotating, setIsRotating] = useState(false);
@@ -173,16 +183,17 @@ export default function EventSettingsScreen() {
   const [maxOfflineSpendPerBracelet, setMaxOfflineSpendPerBracelet] = useState<string>("");
   const [isSavingLimits, setIsSavingLimits] = useState(false);
 
-  const [selectedChipType, setSelectedChipType] = useState<NfcChipType>("ntag_21x");
+  const [selectedAllowedTypes, setSelectedAllowedTypes] = useState<NfcChipType[]>(["ntag_21x"]);
   const [isSavingChipType, setIsSavingChipType] = useState(false);
 
   React.useEffect(() => {
     if (event) {
       setOfflineSyncLimit(String(event.offlineSyncLimit ?? 500000));
       setMaxOfflineSpendPerBracelet(String(event.maxOfflineSpendPerBracelet ?? 200000));
-      setSelectedChipType(event.nfcChipType ?? "ntag_21x");
+      const types = event.allowedNfcTypes ?? [event.nfcChipType ?? "ntag_21x"];
+      setSelectedAllowedTypes(types);
     }
-  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType]);
+  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes]);
 
   const updateEvent = useUpdateEvent();
   const queryClient = useQueryClient();
@@ -258,14 +269,28 @@ export default function EventSettingsScreen() {
     }
   };
 
+  const handleToggleChipType = (chipType: NfcChipType) => {
+    setSelectedAllowedTypes((prev) => {
+      if (prev.includes(chipType)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((t) => t !== chipType);
+      }
+      return [...prev, chipType];
+    });
+  };
+
+  const allowedTypesChanged =
+    selectedAllowedTypes.length !== currentAllowedTypes.length ||
+    !selectedAllowedTypes.every((t) => currentAllowedTypes.includes(t));
+
   const handleSaveChipType = async () => {
     if (!user?.eventId) return;
-    if (selectedChipType === currentChipType) return;
+    if (!allowedTypesChanged) return;
     setIsSavingChipType(true);
     try {
       await customFetch(`/api/events/${user.eventId}`, {
         method: "PATCH",
-        body: JSON.stringify({ nfcChipType: selectedChipType }),
+        body: JSON.stringify({ allowedNfcTypes: selectedAllowedTypes }),
       });
       refetch();
       queryClient.invalidateQueries({ queryKey: ["event-context", user.eventId] });
@@ -419,25 +444,25 @@ export default function EventSettingsScreen() {
         </Text>
 
         <View style={styles.modesContainer}>
-          <NfcChipOption
+          <NfcChipCheckbox
             chipType="ntag_21x"
             title={t("eventAdmin.ntag21x")}
             description={t("eventAdmin.ntag21xDesc")}
             icon="wifi"
-            selected={selectedChipType === "ntag_21x"}
-            onPress={() => setSelectedChipType("ntag_21x")}
+            checked={selectedAllowedTypes.includes("ntag_21x")}
+            onToggle={() => handleToggleChipType("ntag_21x")}
           />
-          <NfcChipOption
+          <NfcChipCheckbox
             chipType="mifare_classic"
             title={t("eventAdmin.mifareClassic")}
             description={t("eventAdmin.mifareClassicDesc")}
             icon="cpu"
-            selected={selectedChipType === "mifare_classic"}
-            onPress={() => setSelectedChipType("mifare_classic")}
+            checked={selectedAllowedTypes.includes("mifare_classic")}
+            onToggle={() => handleToggleChipType("mifare_classic")}
           />
         </View>
 
-        {selectedChipType === "mifare_classic" && (
+        {selectedAllowedTypes.includes("mifare_classic") && (
           <Card style={[styles.infoCard, { borderColor: C.warning + "55", backgroundColor: C.warningLight }]} padding={14}>
             <View style={styles.infoRow}>
               <Feather name="alert-triangle" size={16} color={C.warning} style={{ marginTop: 1 }} />
@@ -455,7 +480,7 @@ export default function EventSettingsScreen() {
           size="md"
           fullWidth
           loading={isSavingChipType}
-          disabled={selectedChipType === currentChipType}
+          disabled={!allowedTypesChanged}
         />
 
         <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
@@ -743,6 +768,16 @@ const styles = StyleSheet.create({
   },
   refreshBtn: {
     padding: 6,
+  },
+  checkboxBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    flexShrink: 0,
   },
   flaggedRow: {
     flexDirection: "row",
