@@ -48,7 +48,7 @@ type RefundRequest = {
   createdAt: string;
 };
 
-type NfcStep = "idle" | "tap" | "writing" | "done";
+type NfcStep = "idle" | "tap" | "writing" | "error" | "done";
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
@@ -95,7 +95,7 @@ export default function BankRefundRequestsScreen() {
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (nfcStep !== "tap" && nfcStep !== "writing") {
+    if (nfcStep !== "tap" && nfcStep !== "writing" && nfcStep !== "error") {
       pulseAnim.setValue(1);
       return;
     }
@@ -211,7 +211,7 @@ export default function BankRefundRequestsScreen() {
           },
         },
       ]);
-      setNfcStep("tap");
+      setNfcStep("error");
     }
   }, [activeRequest, nfcChipType, desfireAesKey, networkHmacSecret, t, confirmChipZero]);
 
@@ -236,7 +236,7 @@ export default function BankRefundRequestsScreen() {
 
   if (isLoading) return <Loading label={t("common.loading")} />;
 
-  if (nfcStep === "tap" || nfcStep === "writing") {
+  if (nfcStep === "tap" || nfcStep === "writing" || nfcStep === "error") {
     return (
       <View style={[styles.nfcOverlay, { backgroundColor: C.background }]}>
         <Animated.View
