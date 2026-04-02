@@ -40,8 +40,12 @@ export function usePushNotifications(isAuthenticated: boolean) {
       } catch {}
     })();
 
-    responseListenerRef.current = Notifications.addNotificationResponseReceivedListener(() => {
-      router.push("/(tabs)/history");
+    responseListenerRef.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown> | null;
+      // Only navigate if the notification explicitly requests it
+      if (data?.navigate === "history") {
+        router.push("/(tabs)/history");
+      }
     });
 
     return () => {
