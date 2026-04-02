@@ -767,9 +767,15 @@ router.post(
     }
 
     if (pendingRefundCount > 0 && force) {
-      console.warn(
-        `[AUDIT] Event "${event.name}" (${eventId}) force-closed by user ${req.user.id} with ${pendingRefundCount} unresolved pending refund request(s).`
-      );
+      console.error(JSON.stringify({
+        level: "AUDIT",
+        action: "FORCE_CLOSE_EVENT",
+        eventId,
+        eventName: event.name,
+        actorUserId: req.user.id,
+        pendingRefundCount,
+        timestamp: new Date().toISOString(),
+      }));
     }
 
     // Perform the close in a DB transaction for atomicity

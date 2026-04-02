@@ -284,7 +284,17 @@ export default function EventSettingsScreen() {
       }) as { pendingRefundCount: number };
       setConfirmModal({ type: "close_event", pendingRefundCount: result.pendingRefundCount ?? 0 });
     } catch {
-      setConfirmModal({ type: "close_event", pendingRefundCount: 0 });
+      Alert.alert(
+        t("common.error"),
+        t("eventAdmin.closeEventRefundCheckFailed"),
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("common.retry"),
+            onPress: handleCloseEventPress,
+          },
+        ]
+      );
     } finally {
       setIsCheckingRefunds(false);
     }

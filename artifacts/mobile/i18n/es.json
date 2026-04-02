@@ -658,7 +658,8 @@
     "eventClosedDetail": "El evento ha sido cerrado. {{flagged}} pulsera(s) bloqueada(s) y {{refunds}} solicitud(es) de reembolso generada(s).",
     "eventCloseFailed": "Error al cerrar el evento",
     "closeEventPendingWarning": "{{count}} solicitud(es) de reembolso pendiente(s) deben resolverse antes de cerrar. Si cierras forzosamente, estos asistentes no recibirán sus reembolsos automáticamente.",
-    "forceCloseEvent": "Forzar cierre de todas formas"
+    "forceCloseEvent": "Forzar cierre de todas formas",
+    "closeEventRefundCheckFailed": "No se pudo verificar las solicitudes de reembolso pendientes. Por favor, reintenta antes de cerrar el evento."
   },
   "inventory": {
     "tab": "Inventario",

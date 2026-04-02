@@ -669,7 +669,8 @@
     "eventClosedDetail": "The event has been closed. {{flagged}} bracelet(s) blocked and {{refunds}} refund request(s) created.",
     "eventCloseFailed": "Failed to close event",
     "closeEventPendingWarning": "{{count}} pending refund request(s) must be resolved before closing. If you force close, these attendees will not receive their refunds automatically.",
-    "forceCloseEvent": "Force close anyway"
+    "forceCloseEvent": "Force close anyway",
+    "closeEventRefundCheckFailed": "Could not verify pending refund requests. Please retry before closing the event."
   },
   "inventory": {
     "tab": "Inventory",
