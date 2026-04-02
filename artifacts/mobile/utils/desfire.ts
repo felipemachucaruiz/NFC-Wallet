@@ -226,6 +226,82 @@ export async function writeDesfireBracelet(
   }
 }
 
+/**
+ * zeroDesfireBracelet — Scan a DESFire bracelet, debit its full balance to zero,
+ * increment the counter, and commit.
+ * Returns the zeroed payload (uid, counter+1, mac), or throws if the UID doesn't
+ * match `expectedUid` or the chip has no balance to debit.
+ *
+ * NOTE: Uses DESFIRE_CMD_DEBIT (not CREDIT) — debiting the full current balance
+ * brings a value file from N to 0, whereas CREDIT(0) is a no-op.
+ */
+export async function zeroDesfireBracelet(
+  expectedUid: string,
+  aesKeyHex: string
+): Promise<{ uid: string; counter: number; transactionMac: string }> {
+  if (!NfcManager || !NfcTech) throw new Error("NFC_NOT_AVAILABLE");
+
+  if (Platform.OS === "ios") {
+    throw new Error("DESFIRE_NOT_SUPPORTED_ON_IOS");
+  }
+
+  try {
+    await NfcManager.requestTechnology([NfcTech.IsoDep]);
+    const tag = await NfcManager.getTag();
+    if (!tag) throw new Error("NFC_NO_TAG");
+
+    const uid = getUid(tag);
+    if (uid !== expectedUid) {
+      throw new Error(`WRONG_BRACELET:${expectedUid}`);
+    }
+
+    const isoDepHandler = getIsoDepHandler(NfcManager as unknown as AnyRecord);
+    if (!isoDepHandler) throw new Error("ISODEP_HANDLER_UNAVAILABLE");
+
+    const selectAppCmd = buildApdu(DESFIRE_CMD_SELECT_APPLICATION, DESFIRE_AID);
+    const selectResp = await isoDepHandler.transceive(selectAppCmd);
+    checkStatus(selectResp);
+
+    const getValueCmd = buildApdu(DESFIRE_CMD_GET_VALUE, [0x01]);
+    const valueResp = await isoDepHandler.transceive(getValueCmd);
+    checkStatus(valueResp);
+
+    if (valueResp.length < 6) throw new Error("DESFIRE_INVALID_VALUE_RESPONSE");
+    const currentBalance = readInt32LE(valueResp, 0);
+
+    const readDataCmd = buildApdu(DESFIRE_CMD_READ_DATA, [0x02, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00]);
+    const dataResp = await isoDepHandler.transceive(readDataCmd);
+    checkStatus(dataResp);
+
+    let counter = 0;
+    if (dataResp.length >= 4) {
+      counter = readInt32LE(dataResp, 0);
+    }
+
+    if (currentBalance > 0) {
+      const debitBytes = writeInt32LE(currentBalance);
+      const debitCmd = buildApdu(DESFIRE_CMD_DEBIT, [0x01, ...debitBytes]);
+      const debitResp = await isoDepHandler.transceive(debitCmd);
+      checkStatus(debitResp);
+    }
+
+    const newCounter = counter + 1;
+    const counterBytes = writeInt32LE(newCounter);
+    const writeDataCmd = buildApdu(DESFIRE_CMD_WRITE_DATA, [0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, ...counterBytes]);
+    const writeResp = await isoDepHandler.transceive(writeDataCmd);
+    checkStatus(writeResp);
+
+    const commitCmd = buildApdu(DESFIRE_CMD_COMMIT, []);
+    const commitResp = await isoDepHandler.transceive(commitCmd);
+    checkStatus(commitResp);
+
+    const mac = computeTransactionMac(uid, newCounter, 0, aesKeyHex);
+    return { uid, counter: newCounter, transactionMac: mac };
+  } finally {
+    await NfcManager.cancelTechnologyRequest().catch(() => {});
+  }
+}
+
 export async function formatDesfireBracelet(aesKeyHex: string): Promise<string> {
   if (!NfcManager || !NfcTech) throw new Error("NFC_NOT_AVAILABLE");
 

@@ -29,7 +29,7 @@ import {
   useConfirmChipZero,
 } from "@/hooks/useAttendeeApi";
 import { isNfcSupported, scanAndWriteBracelet } from "@/utils/nfc";
-import { scanAndWriteDesfireBracelet } from "@/utils/desfire";
+import { zeroDesfireBracelet } from "@/utils/desfire";
 import { computeHmac } from "@/utils/hmac";
 import type { BraceletPayload } from "@/utils/hmac";
 
@@ -140,7 +140,10 @@ export default function BankRefundRequestsScreen() {
               setActiveRequest(request);
               setNfcStep("tap");
             } else {
-              Alert.alert(t("common.success"), t("bankRefundRequests.processSuccess"));
+              Alert.alert(
+                t("common.success"),
+                `${t("bankRefundRequests.processSuccess")}\n${t("bankRefundRequests.skipChipZeroWarning")}`
+              );
             }
           } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : t("common.unknownError");
@@ -159,18 +162,14 @@ export default function BankRefundRequestsScreen() {
 
     try {
       if (nfcChipType === "desfire_ev3") {
-        await scanAndWriteDesfireBracelet(
-          async (payload, _tagInfo) => {
-            if (payload.uid !== activeRequest.braceletUid) {
-              throw new Error(
-                t("bankRefundRequests.wrongBracelet").replace("{{uid}}", activeRequest.braceletUid)
-              );
-            }
-            return { uid: payload.uid, balance: 0, counter: payload.counter + 1, hmac: "" };
-          },
-          desfireAesKey
-        );
+        if (!desfireAesKey) {
+          throw new Error(t("bank.noSigningKey"));
+        }
+        await zeroDesfireBracelet(activeRequest.braceletUid, desfireAesKey);
       } else {
+        if (!networkHmacSecret) {
+          throw new Error(t("bank.noSigningKey"));
+        }
         await scanAndWriteBracelet(
           async (payload, _tagInfo) => {
             if (payload.uid !== activeRequest.braceletUid) {
@@ -179,9 +178,7 @@ export default function BankRefundRequestsScreen() {
               );
             }
             const newCounter = payload.counter + 1;
-            const newHmac = networkHmacSecret
-              ? await computeHmac(0, newCounter, networkHmacSecret, payload.uid)
-              : "";
+            const newHmac = await computeHmac(0, newCounter, networkHmacSecret, payload.uid);
             return { uid: payload.uid, balance: 0, counter: newCounter, hmac: newHmac } as BraceletPayload;
           }
         );
@@ -195,7 +192,13 @@ export default function BankRefundRequestsScreen() {
     } catch (e: unknown) {
       if (cancelledRef.current) { writingRef.current = false; return; }
       writingRef.current = false;
-      const msg = e instanceof Error ? e.message : String(e);
+      let msg = e instanceof Error ? e.message : String(e);
+      if (msg.startsWith("WRONG_BRACELET:")) {
+        msg = t("bankRefundRequests.wrongBracelet").replace(
+          "{{uid}}",
+          activeRequest?.braceletUid ?? ""
+        );
+      }
       Alert.alert(t("common.error"), msg, [
         {
           text: t("bankRefundRequests.skipChipZero"),
