@@ -20,6 +20,7 @@ type RefundRequest = {
   braceletUid: string;
   eventId: string;
   amountCop: number;
+  liveAmountCop?: number | null;
   refundMethod: "cash" | "nequi" | "bancolombia" | "other";
   accountDetails?: string | null;
   notes?: string | null;
@@ -132,8 +133,13 @@ export default function BankRefundRequestsScreen() {
 
             <View style={styles.details}>
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: C.textSecondary }]}>{t("bankRefundRequests.amount")}</Text>
-                <CopAmount amount={item.amountCop} positive />
+                <Text style={[styles.detailLabel, { color: C.textSecondary }]}>
+                  {item.status === "pending" ? t("bankRefundRequests.currentBalance") : t("bankRefundRequests.amount")}
+                </Text>
+                <CopAmount
+                  amount={item.status === "pending" && item.liveAmountCop != null ? item.liveAmountCop : item.amountCop}
+                  positive
+                />
               </View>
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, { color: C.textSecondary }]}>{t("bankRefundRequests.method")}</Text>

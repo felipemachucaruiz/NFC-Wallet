@@ -196,6 +196,7 @@
     "approve": "Approve",
     "reject": "Reject",
     "amount": "Amount",
+    "currentBalance": "Current balance",
     "method": "Method",
     "accountDetails": "Account details",
     "processSuccess": "Request processed",

@@ -196,6 +196,7 @@
     "approve": "Aprobar",
     "reject": "Rechazar",
     "amount": "Monto",
+    "currentBalance": "Saldo actual",
     "method": "Método",
     "accountDetails": "Datos de cuenta",
     "processSuccess": "Solicitud procesada",

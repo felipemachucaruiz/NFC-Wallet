@@ -56,17 +56,35 @@ router.post(
 /**
  * GET /bank/attendee-refund-requests
  * List all attendee refund requests (for Bank staff).
+ * Pending requests include liveAmountCop from the bracelet's current balance
+ * so staff always see the current value before approving, not the stale snapshot.
  */
 router.get(
   "/bank/attendee-refund-requests",
   requireRole("bank", "admin", "event_admin"),
   async (_req: Request, res: Response) => {
-    const requests = await db
-      .select()
+    const rows = await db
+      .select({
+        id: attendeeRefundRequestsTable.id,
+        attendeeUserId: attendeeRefundRequestsTable.attendeeUserId,
+        braceletUid: attendeeRefundRequestsTable.braceletUid,
+        eventId: attendeeRefundRequestsTable.eventId,
+        amountCop: attendeeRefundRequestsTable.amountCop,
+        refundMethod: attendeeRefundRequestsTable.refundMethod,
+        accountDetails: attendeeRefundRequestsTable.accountDetails,
+        notes: attendeeRefundRequestsTable.notes,
+        status: attendeeRefundRequestsTable.status,
+        processedByUserId: attendeeRefundRequestsTable.processedByUserId,
+        processedAt: attendeeRefundRequestsTable.processedAt,
+        createdAt: attendeeRefundRequestsTable.createdAt,
+        updatedAt: attendeeRefundRequestsTable.updatedAt,
+        liveAmountCop: braceletsTable.lastKnownBalanceCop,
+      })
       .from(attendeeRefundRequestsTable)
+      .leftJoin(braceletsTable, eq(braceletsTable.nfcUid, attendeeRefundRequestsTable.braceletUid))
       .orderBy(desc(attendeeRefundRequestsTable.createdAt));
 
-    res.json({ requests });
+    res.json({ requests: rows });
   }
 );
 
