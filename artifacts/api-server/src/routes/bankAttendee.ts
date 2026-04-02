@@ -114,7 +114,15 @@ router.post(
           .where(eq(braceletsTable.nfcUid, request.braceletUid))
           .for("update");
 
-        const liveAmountCop = bracelet?.lastKnownBalanceCop ?? request.amountCop;
+        if (!bracelet) throw Object.assign(new Error("Bracelet not found"), { status: 404 });
+
+        const liveAmountCop = bracelet.lastKnownBalanceCop;
+
+        // If approving but the bracelet already has no balance, a concurrent
+        // refund already went through — return conflict so this attempt loses
+        if (parsed.data.status === "approved" && liveAmountCop <= 0) {
+          throw Object.assign(new Error("BALANCE_ALREADY_REFUNDED"), { status: 409 });
+        }
 
         const [result] = await tx
           .update(attendeeRefundRequestsTable)
@@ -129,7 +137,7 @@ router.post(
           .where(eq(attendeeRefundRequestsTable.id, id))
           .returning();
 
-        if (parsed.data.status === "approved" && liveAmountCop > 0) {
+        if (parsed.data.status === "approved") {
           await tx
             .update(braceletsTable)
             .set({ lastKnownBalanceCop: 0, updatedAt: new Date() })
@@ -146,6 +154,8 @@ router.post(
       const message = err.message ?? "Processing failed";
       if (message === "ALREADY_PROCESSED") {
         res.status(409).json({ error: "Request has already been processed" });
+      } else if (message === "BALANCE_ALREADY_REFUNDED") {
+        res.status(409).json({ error: "Balance has already been refunded by a concurrent operation" });
       } else {
         res.status(status).json({ error: message });
       }
