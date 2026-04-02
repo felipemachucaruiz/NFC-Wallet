@@ -171,13 +171,18 @@ router.post(
     } catch (e: unknown) {
       const err = e as { message?: string; status?: number };
       const status = err.status ?? 500;
-      const message = err.message ?? "Processing failed";
+      const message = err.message ?? "";
       if (message === "ALREADY_PROCESSED") {
         res.status(409).json({ error: "Request has already been processed" });
       } else if (message === "BALANCE_ALREADY_REFUNDED") {
         res.status(409).json({ error: "Balance has already been refunded by a concurrent operation" });
+      } else if (message === "Request not found") {
+        res.status(404).json({ error: "Refund request not found" });
+      } else if (message === "Bracelet not found") {
+        res.status(404).json({ error: "Bracelet not found" });
       } else {
-        res.status(status).json({ error: message });
+        // Do not surface internal error messages to clients
+        res.status(status >= 400 && status < 600 ? status : 500).json({ error: "Processing failed" });
       }
     }
   }
