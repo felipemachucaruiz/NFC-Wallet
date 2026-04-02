@@ -53,7 +53,7 @@ export default function HomeScreen() {
   const [nfcAvailable, setNfcAvailable] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
-  const [nfcFeedback, setNfcFeedback] = useState<"success" | "already" | "error" | null>(null);
+  const [nfcFeedback, setNfcFeedback] = useState<"success" | "already" | "event_limit" | "error" | null>(null);
 
   const { mutate: linkBracelet } = useLinkBracelet();
 
@@ -81,8 +81,12 @@ export default function HomeScreen() {
                 setNfcFeedback("success");
                 setTimeout(() => setNfcFeedback(null), 3000);
               },
-              onError: () => {
-                setNfcFeedback("error");
+              onError: (err) => {
+                if (err.message === "ONE_BRACELET_PER_EVENT") {
+                  setNfcFeedback("event_limit");
+                } else {
+                  setNfcFeedback("error");
+                }
                 setTimeout(() => setNfcFeedback(null), 3000);
               },
             }
@@ -128,7 +132,7 @@ export default function HomeScreen() {
                   ? { backgroundColor: "rgba(34,197,94,0.15)", borderColor: "#22c55e" }
                   : nfcFeedback === "already"
                   ? { backgroundColor: "rgba(0,241,255,0.15)", borderColor: C.primary }
-                  : nfcFeedback === "error"
+                  : nfcFeedback === "event_limit" || nfcFeedback === "error"
                   ? { backgroundColor: "rgba(239,68,68,0.15)", borderColor: "#ef4444" }
                   : { backgroundColor: scanning ? C.primaryLight : "rgba(0,241,255,0.15)", borderColor: C.primary },
               ]}
@@ -136,13 +140,13 @@ export default function HomeScreen() {
               <Feather
                 name={
                   nfcFeedback === "success" ? "check-circle" :
-                  nfcFeedback === "error" ? "alert-circle" :
+                  nfcFeedback === "event_limit" || nfcFeedback === "error" ? "alert-circle" :
                   scanning ? "loader" : "wifi"
                 }
                 size={18}
                 color={
                   nfcFeedback === "success" ? "#22c55e" :
-                  nfcFeedback === "error" ? "#ef4444" :
+                  nfcFeedback === "event_limit" || nfcFeedback === "error" ? "#ef4444" :
                   C.primary
                 }
               />
@@ -150,12 +154,13 @@ export default function HomeScreen() {
                 styles.nfcFabText,
                 {
                   color: nfcFeedback === "success" ? "#22c55e" :
-                         nfcFeedback === "error" ? "#ef4444" :
+                         nfcFeedback === "event_limit" || nfcFeedback === "error" ? "#ef4444" :
                          C.primary,
                 },
               ]}>
                 {nfcFeedback === "success" ? t("home.braceletLinked") :
                  nfcFeedback === "already" ? t("home.braceletSelected") :
+                 nfcFeedback === "event_limit" ? t("addBracelet.eventLimitTitle") :
                  nfcFeedback === "error" ? t("common.error") :
                  scanning ? t("home.scanning") : t("home.scanBracelet")}
               </Text>

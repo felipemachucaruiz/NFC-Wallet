@@ -26,7 +26,7 @@ function normalizeUid(raw: string): string {
   return clean.match(/.{1,2}/g)?.join(":") ?? clean;
 }
 
-type State = "idle" | "scanning" | "linking" | "success" | "error" | "already";
+type State = "idle" | "scanning" | "linking" | "success" | "error" | "already" | "event_limit";
 
 export default function AddBraceletScreen() {
   const { t } = useTranslation();
@@ -73,6 +73,8 @@ export default function AddBraceletScreen() {
         onError: (err) => {
           if (err.message === "BRACELET_ALREADY_LINKED") {
             setState("already");
+          } else if (err.message === "ONE_BRACELET_PER_EVENT") {
+            setState("event_limit");
           } else if (err.message === "BRACELET_FLAGGED") {
             setErrorMsg(t("addBracelet.flaggedMsg"));
             setState("error");
@@ -151,6 +153,16 @@ export default function AddBraceletScreen() {
           <Feather name="link" size={48} color={C.primary} />
           <Text style={[styles.resultTitle, { color: C.primary }]}>{t("addBracelet.alreadyLinkedTitle")}</Text>
           <Text style={[styles.resultSub, { color: C.textSecondary }]}>{t("addBracelet.alreadyLinkedMsg")}</Text>
+          <Button title={t("common.back")} onPress={() => router.back()} variant="primary" style={{ marginTop: 8 }} />
+        </View>
+      )}
+
+      {/* Event limit state */}
+      {state === "event_limit" && (
+        <View style={[styles.resultCard, { backgroundColor: C.dangerLight, borderColor: C.danger }]}>
+          <Feather name="shield" size={48} color={C.danger} />
+          <Text style={[styles.resultTitle, { color: C.danger }]}>{t("addBracelet.eventLimitTitle")}</Text>
+          <Text style={[styles.resultSub, { color: C.textSecondary }]}>{t("addBracelet.eventLimitMsg")}</Text>
           <Button title={t("common.back")} onPress={() => router.back()} variant="primary" style={{ marginTop: 8 }} />
         </View>
       )}

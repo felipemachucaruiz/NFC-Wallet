@@ -11,7 +11,7 @@ import {
   attendeeRefundRequestsTable,
   usersTable,
 } from "@workspace/db";
-import { eq, and, desc, inArray, lte } from "drizzle-orm";
+import { eq, and, ne, desc, inArray, lte } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -257,6 +257,25 @@ router.post(
     if (bracelet.flagged) {
       res.status(403).json({ error: "BRACELET_FLAGGED" });
       return;
+    }
+
+    // One bracelet per event per user — prevents a bad actor from linking
+    // another person's bracelet and claiming their refund
+    if (bracelet.eventId) {
+      const [eventConflict] = await db
+        .select({ id: braceletsTable.id })
+        .from(braceletsTable)
+        .where(
+          and(
+            eq(braceletsTable.attendeeUserId, userId),
+            eq(braceletsTable.eventId, bracelet.eventId),
+            ne(braceletsTable.nfcUid, uid)
+          )
+        );
+      if (eventConflict) {
+        res.status(409).json({ error: "ONE_BRACELET_PER_EVENT" });
+        return;
+      }
     }
 
     // Fetch the authenticated user to auto-populate bracelet owner info

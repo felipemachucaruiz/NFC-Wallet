@@ -95,7 +95,9 @@
     "alreadyLinkedTitle": "Ya vinculada",
     "alreadyLinkedMsg": "Esta pulsera ya está vinculada a otra cuenta.",
     "flaggedTitle": "Pulsera bloqueada",
-    "flaggedMsg": "Esta pulsera está bloqueada. Ve a la estación bancaria del evento."
+    "flaggedMsg": "Esta pulsera está bloqueada. Ve a la estación bancaria del evento.",
+    "eventLimitTitle": "Una pulsera por evento",
+    "eventLimitMsg": "Ya tienes una pulsera vinculada para este evento. Solo se permite una por persona."
   },
   "history": {
     "tab": "Historial",

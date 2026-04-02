@@ -95,7 +95,9 @@
     "alreadyLinkedTitle": "Already linked",
     "alreadyLinkedMsg": "This wristband is already linked to another account.",
     "flaggedTitle": "Wristband blocked",
-    "flaggedMsg": "This wristband is blocked. Visit the bank station at the event."
+    "flaggedMsg": "This wristband is blocked. Visit the bank station at the event.",
+    "eventLimitTitle": "One wristband per event",
+    "eventLimitMsg": "You already have a wristband linked for this event. Only one is allowed per person."
   },
   "history": {
     "tab": "History",
