@@ -63,7 +63,7 @@ export default function AttendeeRefundRequestScreen() {
               setStep("success");
             } catch (e: unknown) {
               const msg = e instanceof Error ? e.message : "";
-              if (msg.includes("REFUND_REQUEST_ALREADY_PENDING")) {
+              if (msg === "REFUND_REQUEST_ALREADY_PENDING") {
                 Alert.alert(
                   t("attendeeRefund.alreadyPendingTitle"),
                   t("attendeeRefund.alreadyPendingMessage")

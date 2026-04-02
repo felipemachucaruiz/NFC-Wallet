@@ -4,7 +4,7 @@ import {
   braceletsTable,
   attendeeRefundRequestsTable,
 } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
