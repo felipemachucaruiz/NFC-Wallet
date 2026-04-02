@@ -86,7 +86,21 @@ router.post(
     } catch (e: unknown) {
       const err = e as { message?: string; httpStatus?: number };
       const status = err.httpStatus ?? 500;
-      res.status(status).json({ error: err.message ?? "Refund failed" });
+      const message = err.message ?? "";
+      // Only surface known, safe domain errors to the client
+      const knownErrors = new Set([
+        "Bracelet not found",
+        "BALANCE_ALREADY_REFUNDED",
+        "Invalid counter: must be greater than current counter",
+        "Bracelet is not associated with an event",
+      ]);
+      if (knownErrors.has(message)) {
+        res.status(status).json({ error: message === "BALANCE_ALREADY_REFUNDED"
+          ? "Balance has already been refunded by a concurrent operation"
+          : message });
+      } else {
+        res.status(status >= 400 && status < 600 ? status : 500).json({ error: "Refund failed" });
+      }
     }
   },
 );
