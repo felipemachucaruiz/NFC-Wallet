@@ -217,7 +217,7 @@ export default function HomeScreen() {
                       resizeMode="contain"
                     />
                     <View style={styles.nfcTagOverlay}>
-                      <Text style={styles.nfcTagUid}>{b.uid}</Text>
+                      <Text style={styles.nfcTagUid}>{b.uid.replace(/:/g, "")}</Text>
                     </View>
                     {selectedUid === b.uid && (
                       <View style={[styles.nfcTagSelected, { borderColor: C.primary }]} />
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   },
   nfcTagOverlay: {
     position: "absolute",
-    bottom: 8,
+    bottom: 18,
     left: 0,
     right: 0,
     alignItems: "center",
