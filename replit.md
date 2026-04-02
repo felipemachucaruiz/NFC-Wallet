@@ -195,7 +195,8 @@ Both apps pin the Tapee API TLS certificate using `react-native-ssl-pinning@1.6.
 ### How it works
 - `artifacts/mobile/utils/pinnedFetch.ts` and `artifacts/attendee-app/utils/pinnedFetch.ts` wrap all API `fetch` calls with cert pinning for Tapee API domains.
 - Pinning is domain-aware: only Tapee API hostnames (`API_DOMAIN` / `ATTENDEE_API_BASE_URL` host) are pinned. Auth endpoints (OIDC) are NOT pinned.
-- The native module gracefully degrades if not compiled into the binary (logs a warning; falls back to standard `fetch`).
+- **Release builds** (`__DEV__ === false`): if the native module is not compiled in, `pinnedFetch` **throws a hard error** for any Tapee API request — fail-closed, no silent bypass.
+- **Development/Expo Go builds** (`__DEV__ === true`): if the native module is absent, `pinnedFetch` logs a warning and falls back to standard `fetch` so the JS bundle can be tested without a native rebuild.
 - Cert files (`.cer`, DER format) live in `assets/certs/` in each app and are copied to native directories by the `withSslPinning` Expo config plugin during EAS prebuild.
 - Active cert filenames are controlled by `EXPO_PUBLIC_SSL_CERTS` (comma-separated, without extension). Defaults to `tapee_api`.
 
