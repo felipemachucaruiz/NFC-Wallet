@@ -20,6 +20,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
 let _attestationTokenGetter: AttestationTokenGetter | null = null;
+let _fetchImpl: typeof fetch | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -51,6 +52,21 @@ export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
  */
 export function setAttestationTokenGetter(getter: AttestationTokenGetter | null): void {
   _attestationTokenGetter = getter;
+}
+
+/**
+ * Override the `fetch` implementation used by `customFetch`.
+ *
+ * Call this at app startup with a certificate-pinned fetch wrapper so that
+ * all API calls go through TLS certificate validation.  Pass `null` to
+ * restore the default global `fetch`.
+ *
+ * The provided implementation is called with the same `(input, init)` API
+ * as the standard Fetch API; it is responsible for pinning only the domains
+ * it cares about and forwarding everything else to the standard `fetch`.
+ */
+export function setFetchImplementation(impl: typeof fetch | null): void {
+  _fetchImpl = impl;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -377,7 +393,8 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  const activeFetch = _fetchImpl ?? fetch;
+  const response = await activeFetch(input, { ...init, method, headers });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

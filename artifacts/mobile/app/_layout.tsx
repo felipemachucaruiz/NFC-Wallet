@@ -13,7 +13,7 @@ import { Appearance, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { setBaseUrl } from "@workspace/api-client-react";
+import { setBaseUrl, setFetchImplementation } from "@workspace/api-client-react";
 import { API_BASE_URL } from "@/constants/domain";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { PasscodeScreen } from "@/components/PasscodeScreen";
@@ -27,6 +27,7 @@ import { OfflineQueueProvider } from "@/contexts/OfflineQueueContext";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { initI18n } from "@/i18n";
 import { initNfc } from "@/utils/nfc";
+import { pinnedFetch } from "@/utils/pinnedFetch";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
 import { useTranslation } from "react-i18next";
@@ -36,6 +37,7 @@ if (Platform.OS !== "web") {
 }
 
 setBaseUrl(API_BASE_URL);
+setFetchImplementation(pinnedFetch);
 
 SplashScreen.preventAutoHideAsync();
 

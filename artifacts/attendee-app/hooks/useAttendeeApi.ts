@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
+import { pinnedFetch } from "@/utils/pinnedFetch";
 
 function useAuthHeaders() {
   const { token } = useAuth();
@@ -8,7 +9,7 @@ function useAuthHeaders() {
 }
 
 async function apiFetch<T>(url: string, headers: Record<string, string>): Promise<T> {
-  const res = await fetch(url, {
+  const res = await pinnedFetch(url, {
     headers: { ...headers, "Content-Type": "application/json" },
     cache: "no-store",
   });
@@ -56,7 +57,7 @@ export function useBlockBracelet() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ uid, reason }: { uid: string; reason?: string }) => {
-      const res = await fetch(`${API_BASE_URL}/api/attendee/me/bracelets/${uid}/block`, {
+      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/bracelets/${uid}/block`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
@@ -83,7 +84,7 @@ export function useSubmitRefundRequest() {
       accountDetails?: string;
       notes?: string;
     }) => {
-      const res = await fetch(`${API_BASE_URL}/api/attendee/me/refund-request`, {
+      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/refund-request`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -105,7 +106,7 @@ export function useLinkBracelet() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ uid, attendeeName }: { uid: string; attendeeName?: string }) => {
-      const res = await fetch(`${API_BASE_URL}/api/attendee/me/bracelets/link`, {
+      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/bracelets/link`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ uid, attendeeName }),
@@ -132,7 +133,7 @@ export function useInitiateTopUp() {
       phoneNumber?: string;
       bankCode?: string;
     }) => {
-      const res = await fetch(`${API_BASE_URL}/api/payments/initiate`, {
+      const res = await pinnedFetch(`${API_BASE_URL}/api/payments/initiate`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -160,7 +161,7 @@ export function useRegisterPushToken() {
   const headers = useAuthHeaders();
   return useMutation({
     mutationFn: async (token: string) => {
-      const res = await fetch(`${API_BASE_URL}/api/attendee/me/push-token`, {
+      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/push-token`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
