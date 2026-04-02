@@ -399,13 +399,13 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   nfcTagContainer: {
-    width: 145,
-    height: 92,
+    width: 160,
+    height: 102,
     position: "relative",
   },
   nfcTagImage: {
-    width: 145,
-    height: 92,
+    width: 160,
+    height: 102,
     borderRadius: 10,
   },
   nfcTagOverlay: {
