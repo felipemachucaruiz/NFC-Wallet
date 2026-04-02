@@ -177,7 +177,9 @@
     "confirmMessage": "¿Enviar una solicitud de devolución por tu saldo restante?",
     "submit": "Enviar solicitud",
     "successTitle": "Solicitud enviada",
-    "successMessage": "Tu solicitud de devolución ha sido enviada. El equipo bancario te contactará una vez procesada."
+    "successMessage": "Tu solicitud de devolución ha sido enviada. El equipo bancario te contactará una vez procesada.",
+    "alreadyPendingTitle": "Solicitud ya pendiente",
+    "alreadyPendingMessage": "Ya tienes una solicitud de devolución pendiente para esta pulsera. Por favor espera a que sea procesada."
   },
   "attendeeLink": {
     "title": "Vincular pulsera",

@@ -177,7 +177,9 @@
     "confirmMessage": "Submit a refund request for your remaining balance?",
     "submit": "Submit request",
     "successTitle": "Request submitted",
-    "successMessage": "Your refund request has been submitted. The Bank team will contact you once it is processed."
+    "successMessage": "Your refund request has been submitted. The Bank team will contact you once it is processed.",
+    "alreadyPendingTitle": "Request already pending",
+    "alreadyPendingMessage": "You already have a pending refund request for this wristband. Please wait for it to be processed."
   },
   "attendeeLink": {
     "title": "Link bracelet",

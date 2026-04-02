@@ -62,8 +62,15 @@ export default function AttendeeRefundRequestScreen() {
               });
               setStep("success");
             } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : t("common.unknownError");
-              Alert.alert(t("common.error"), msg);
+              const msg = e instanceof Error ? e.message : "";
+              if (msg.includes("REFUND_REQUEST_ALREADY_PENDING")) {
+                Alert.alert(
+                  t("attendeeRefund.alreadyPendingTitle"),
+                  t("attendeeRefund.alreadyPendingMessage")
+                );
+              } else {
+                Alert.alert(t("common.error"), msg || t("common.unknownError"));
+              }
             }
           },
         },
