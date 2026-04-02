@@ -184,8 +184,7 @@ export default function LoginScreen() {
                   onPress={() => setShowCountryPicker(true)}
                 >
                   <Text style={styles.flagText}>{countryCode.flag}</Text>
-                  <Text style={[styles.dialCodeText, { color: C.text }]}>{countryCode.code}</Text>
-                  <Feather name="chevron-down" size={13} color={C.textMuted} />
+                  <Feather name="chevron-down" size={12} color={C.textMuted} />
                 </Pressable>
                 <TextInput
                   style={[inputStyle, { flex: 1 }]}
@@ -350,8 +349,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   wordmark: {
-    width: "48%",
-    maxWidth: 190,
+    width: "55%",
+    maxWidth: 200,
     aspectRatio: 864 / 326,
   },
   appSubtitle: {
@@ -468,14 +467,16 @@ const styles = StyleSheet.create({
   countryCodeBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 4,
     borderWidth: 1,
     borderRadius: 11,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 11,
+    minWidth: 62,
   },
   flagText: {
-    fontSize: 16,
+    fontSize: 22,
   },
   dialCodeText: {
     fontSize: 13,
