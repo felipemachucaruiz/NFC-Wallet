@@ -1,9 +1,20 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
-import { Alert, FlatList, Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  FlatList,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import { useGetSigningKey } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
@@ -12,7 +23,15 @@ import { Empty } from "@/components/ui/Empty";
 import { Loading } from "@/components/ui/Loading";
 import { Badge } from "@/components/ui/Badge";
 import { formatDateTime } from "@/utils/format";
-import { useBankRefundRequests, useProcessRefundRequest } from "@/hooks/useAttendeeApi";
+import {
+  useBankRefundRequests,
+  useProcessRefundRequest,
+  useConfirmChipZero,
+} from "@/hooks/useAttendeeApi";
+import { isNfcSupported, scanAndWriteBracelet } from "@/utils/nfc";
+import { scanAndWriteDesfireBracelet } from "@/utils/desfire";
+import { computeHmac } from "@/utils/hmac";
+import type { BraceletPayload } from "@/utils/hmac";
 
 type RefundRequest = {
   id: string;
@@ -25,8 +44,11 @@ type RefundRequest = {
   accountDetails?: string | null;
   notes?: string | null;
   status: "pending" | "approved" | "rejected";
+  chipZeroed: boolean;
   createdAt: string;
 };
+
+type NfcStep = "idle" | "tap" | "writing" | "done";
 
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
@@ -50,23 +72,52 @@ export default function BankRefundRequestsScreen() {
   const isWeb = Platform.OS === "web";
 
   const [filter, setFilter] = useState<"all" | "pending">("pending");
+  const [nfcStep, setNfcStep] = useState<NfcStep>("idle");
+  const [activeRequest, setActiveRequest] = useState<RefundRequest | null>(null);
+
+  const writingRef = useRef(false);
+  const cancelledRef = useRef(false);
 
   const { data, isLoading, refetch, isRefetching } = useBankRefundRequests();
   const processRequest = useProcessRefundRequest();
+  const confirmChipZero = useConfirmChipZero();
+
+  const { data: keyData } = useGetSigningKey();
+  const networkHmacSecret =
+    (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
+  const desfireAesKey =
+    (keyData as unknown as { desfireAesKey?: string } | undefined)?.desfireAesKey ?? "";
+  const nfcChipType =
+    (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
 
   const requests = (data as { requests?: RefundRequest[] } | undefined)?.requests ?? [];
   const filtered = filter === "pending" ? requests.filter((r) => r.status === "pending") : requests;
 
-  const handleProcess = (id: string, status: "approved" | "rejected") => {
-    const label = status === "approved" ? t("bankRefundRequests.approve") : t("bankRefundRequests.reject");
-    Alert.alert(label, `${label}?`, [
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (nfcStep !== "tap" && nfcStep !== "writing") {
+      pulseAnim.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.3, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [nfcStep, pulseAnim]);
+
+  const handleReject = (id: string) => {
+    Alert.alert(t("bankRefundRequests.reject"), `${t("bankRefundRequests.reject")}?`, [
       { text: t("common.cancel"), style: "cancel" },
       {
-        text: label,
-        style: status === "rejected" ? "destructive" : "default",
+        text: t("bankRefundRequests.reject"),
+        style: "destructive",
         onPress: async () => {
           try {
-            await processRequest.mutateAsync({ id, status });
+            await processRequest.mutateAsync({ id, status: "rejected" });
             Alert.alert(t("common.success"), t("bankRefundRequests.processSuccess"));
           } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : t("common.unknownError");
@@ -77,7 +128,175 @@ export default function BankRefundRequestsScreen() {
     ]);
   };
 
+  const handleApprove = (request: RefundRequest) => {
+    Alert.alert(t("bankRefundRequests.approve"), `${t("bankRefundRequests.approve")}?`, [
+      { text: t("common.cancel"), style: "cancel" },
+      {
+        text: t("bankRefundRequests.approve"),
+        onPress: async () => {
+          try {
+            await processRequest.mutateAsync({ id: request.id, status: "approved" });
+            if (isNfcSupported() && !isWeb) {
+              setActiveRequest(request);
+              setNfcStep("tap");
+            } else {
+              Alert.alert(t("common.success"), t("bankRefundRequests.processSuccess"));
+            }
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : t("common.unknownError");
+            Alert.alert(t("common.error"), msg);
+          }
+        },
+      },
+    ]);
+  };
+
+  const doNfcWrite = useCallback(async () => {
+    if (writingRef.current || !activeRequest) return;
+    writingRef.current = true;
+    cancelledRef.current = false;
+    setNfcStep("writing");
+
+    try {
+      if (nfcChipType === "desfire_ev3") {
+        await scanAndWriteDesfireBracelet(
+          async (payload, _tagInfo) => {
+            if (payload.uid !== activeRequest.braceletUid) {
+              throw new Error(
+                t("bankRefundRequests.wrongBracelet").replace("{{uid}}", activeRequest.braceletUid)
+              );
+            }
+            return { uid: payload.uid, balance: 0, counter: payload.counter + 1, hmac: "" };
+          },
+          desfireAesKey
+        );
+      } else {
+        await scanAndWriteBracelet(
+          async (payload, _tagInfo) => {
+            if (payload.uid !== activeRequest.braceletUid) {
+              throw new Error(
+                t("bankRefundRequests.wrongBracelet").replace("{{uid}}", activeRequest.braceletUid)
+              );
+            }
+            const newCounter = payload.counter + 1;
+            const newHmac = networkHmacSecret
+              ? await computeHmac(0, newCounter, networkHmacSecret, payload.uid)
+              : "";
+            return { uid: payload.uid, balance: 0, counter: newCounter, hmac: newHmac } as BraceletPayload;
+          }
+        );
+      }
+
+      if (cancelledRef.current) { writingRef.current = false; return; }
+
+      await confirmChipZero.mutateAsync(activeRequest.id);
+      writingRef.current = false;
+      setNfcStep("done");
+    } catch (e: unknown) {
+      if (cancelledRef.current) { writingRef.current = false; return; }
+      writingRef.current = false;
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert(t("common.error"), msg, [
+        {
+          text: t("bankRefundRequests.skipChipZero"),
+          onPress: handleSkip,
+        },
+        {
+          text: t("common.retry"),
+          onPress: () => {
+            setNfcStep("tap");
+          },
+        },
+      ]);
+      setNfcStep("tap");
+    }
+  }, [activeRequest, nfcChipType, desfireAesKey, networkHmacSecret, t, confirmChipZero]);
+
+  useEffect(() => {
+    if (nfcStep === "tap") {
+      doNfcWrite();
+    }
+  }, [nfcStep, doNfcWrite]);
+
+  const handleSkip = useCallback(() => {
+    cancelledRef.current = true;
+    writingRef.current = false;
+    setNfcStep("idle");
+    setActiveRequest(null);
+    Alert.alert(t("common.warning") ?? "Warning", t("bankRefundRequests.skipChipZeroWarning"));
+  }, [t]);
+
+  const handleDismissSuccess = useCallback(() => {
+    setNfcStep("idle");
+    setActiveRequest(null);
+  }, []);
+
   if (isLoading) return <Loading label={t("common.loading")} />;
+
+  if (nfcStep === "tap" || nfcStep === "writing") {
+    return (
+      <View style={[styles.nfcOverlay, { backgroundColor: C.background }]}>
+        <Animated.View
+          style={[
+            styles.nfcIconWrap,
+            { backgroundColor: C.primaryLight, transform: [{ scale: pulseAnim }] },
+          ]}
+        >
+          <Feather name="wifi" size={48} color={C.primary} />
+        </Animated.View>
+        <Text style={[styles.nfcTitle, { color: C.text }]}>
+          {nfcStep === "writing"
+            ? t("bankRefundRequests.chipZeroing")
+            : t("bankRefundRequests.tapToFinalize")}
+        </Text>
+        <Text style={[styles.nfcSubtitle, { color: C.textSecondary }]}>
+          {t("bankRefundRequests.tapToFinalizeSubtitle")}
+        </Text>
+        {activeRequest && (
+          <View style={[styles.nfcUidPill, { backgroundColor: C.card, borderColor: C.border }]}>
+            <Feather name="cpu" size={13} color={C.textMuted} />
+            <Text style={[styles.nfcUidText, { color: C.textMuted }]}>{activeRequest.braceletUid}</Text>
+          </View>
+        )}
+        {nfcStep === "tap" && (
+          <TouchableOpacity
+            onPress={handleSkip}
+            style={[styles.skipBtn, { borderColor: C.border }]}
+          >
+            <Text style={[styles.skipText, { color: C.textSecondary }]}>
+              {t("bankRefundRequests.skipChipZero")}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  if (nfcStep === "done") {
+    return (
+      <View style={[styles.nfcOverlay, { backgroundColor: C.background }]}>
+        <View style={[styles.nfcIconWrap, { backgroundColor: C.successLight }]}>
+          <Feather name="check-circle" size={48} color={C.success} />
+        </View>
+        <Text style={[styles.nfcTitle, { color: C.text }]}>
+          {t("bankRefundRequests.chipZeroSuccess")}
+        </Text>
+        {activeRequest && (
+          <View style={[styles.nfcUidPill, { backgroundColor: C.card, borderColor: C.border }]}>
+            <Feather name="cpu" size={13} color={C.textMuted} />
+            <Text style={[styles.nfcUidText, { color: C.textMuted }]}>{activeRequest.braceletUid}</Text>
+          </View>
+        )}
+        <Button
+          title={t("common.done") ?? "Done"}
+          onPress={handleDismissSuccess}
+          variant="primary"
+          size="lg"
+          fullWidth
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -123,10 +342,34 @@ export default function BankRefundRequestsScreen() {
                 <Text style={[styles.braceletUid, { color: C.text }]}>{item.braceletUid}</Text>
                 <Text style={[styles.meta, { color: C.textMuted }]}>{formatDateTime(item.createdAt)}</Text>
               </View>
-              <Badge
-                label={item.status === "pending" ? t("bankRefundRequests.pending") : item.status === "approved" ? t("bankRefundRequests.approved") : t("bankRefundRequests.rejected")}
-                variant={item.status === "pending" ? "warning" : item.status === "approved" ? "success" : "danger"}
-              />
+              <View style={{ gap: 4, alignItems: "flex-end" }}>
+                <Badge
+                  label={
+                    item.status === "pending"
+                      ? t("bankRefundRequests.pending")
+                      : item.status === "approved"
+                      ? t("bankRefundRequests.approved")
+                      : t("bankRefundRequests.rejected")
+                  }
+                  variant={
+                    item.status === "pending"
+                      ? "warning"
+                      : item.status === "approved"
+                      ? "success"
+                      : "danger"
+                  }
+                />
+                {item.status === "approved" && (
+                  <Badge
+                    label={
+                      item.chipZeroed
+                        ? t("bankRefundRequests.chipZeroed")
+                        : t("common.processing")
+                    }
+                    variant={item.chipZeroed ? "success" : "muted"}
+                  />
+                )}
+              </View>
             </View>
 
             <View style={[styles.divider, { backgroundColor: C.separator }]} />
@@ -164,7 +407,7 @@ export default function BankRefundRequestsScreen() {
                 <View style={{ flex: 1 }}>
                   <Button
                     title={t("bankRefundRequests.reject")}
-                    onPress={() => handleProcess(item.id, "rejected")}
+                    onPress={() => handleReject(item.id)}
                     variant="danger"
                     size="sm"
                     fullWidth
@@ -174,13 +417,28 @@ export default function BankRefundRequestsScreen() {
                 <View style={{ flex: 1 }}>
                   <Button
                     title={t("bankRefundRequests.approve")}
-                    onPress={() => handleProcess(item.id, "approved")}
+                    onPress={() => handleApprove(item)}
                     variant="success"
                     size="sm"
                     fullWidth
                     loading={processRequest.isPending}
                   />
                 </View>
+              </View>
+            )}
+
+            {item.status === "approved" && !item.chipZeroed && isNfcSupported() && !isWeb && (
+              <View style={{ marginTop: 12 }}>
+                <Button
+                  title={t("bankRefundRequests.tapToFinalize")}
+                  onPress={() => {
+                    setActiveRequest(item);
+                    setNfcStep("tap");
+                  }}
+                  variant="primary"
+                  size="sm"
+                  fullWidth
+                />
               </View>
             )}
           </Card>
@@ -205,4 +463,38 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
   detailValue: { fontSize: 13, fontFamily: "Inter_400Regular" },
   actionRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+  nfcOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 20,
+    paddingHorizontal: 32,
+  },
+  nfcIconWrap: {
+    width: 100,
+    height: 100,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nfcTitle: { fontSize: 22, fontFamily: "Inter_700Bold", textAlign: "center" },
+  nfcSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  nfcUidPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 100,
+    borderWidth: 1,
+  },
+  nfcUidText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  skipBtn: {
+    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  skipText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 });

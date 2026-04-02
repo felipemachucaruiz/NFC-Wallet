@@ -25,6 +25,7 @@
     "yes": "Yes",
     "no": "No",
     "ok": "OK",
+    "done": "Done",
     "warning": "Warning",
     "success": "Success",
     "failed": "Failed",
@@ -202,7 +203,15 @@
     "method": "Method",
     "accountDetails": "Account details",
     "processSuccess": "Request processed",
-    "processError": "Error processing request"
+    "processError": "Error processing request",
+    "tapToFinalize": "Tap bracelet to finalize",
+    "tapToFinalizeSubtitle": "Hold the bracelet close to zero the chip balance",
+    "chipZeroing": "Zeroing chip…",
+    "chipZeroSuccess": "Chip zeroed — refund complete",
+    "skipChipZero": "Skip (chip not zeroed)",
+    "skipChipZeroWarning": "The chip was not zeroed. Offline merchants may still see a balance until they sync.",
+    "wrongBracelet": "Wrong bracelet — expected {{uid}}",
+    "chipZeroed": "Chip zeroed"
   },
   "bankTransfer": {
     "title": "Transfer balance",

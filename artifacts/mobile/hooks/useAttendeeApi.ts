@@ -151,6 +151,27 @@ export function useProcessRefundRequest() {
   });
 }
 
+export function useConfirmChipZero() {
+  const headers = useAuthHeaders();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`${API_BASE_URL}/api/bank/attendee-refund-requests/${id}/confirm-chip-zero`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? res.statusText);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["bank", "attendeeRefundRequests"] });
+    },
+  });
+}
+
 export function useTransferBalance() {
   const headers = useAuthHeaders();
   const queryClient = useQueryClient();

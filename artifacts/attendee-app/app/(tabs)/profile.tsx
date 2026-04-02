@@ -26,6 +26,7 @@ type RefundRequest = {
   braceletUid: string;
   refundMethod: string;
   status: "pending" | "approved" | "rejected";
+  chipZeroed?: boolean;
   createdAt: string;
 };
 
@@ -56,15 +57,17 @@ export default function ProfileScreen() {
     router.replace("/login");
   };
 
-  const statusVariant = (status: string): "success" | "warning" | "danger" | "muted" => {
-    if (status === "approved") return "success";
-    if (status === "rejected") return "danger";
+  const statusVariant = (r: RefundRequest): "success" | "warning" | "danger" | "muted" => {
+    if (r.status === "approved" && r.chipZeroed) return "success";
+    if (r.status === "approved") return "muted";
+    if (r.status === "rejected") return "danger";
     return "warning";
   };
 
-  const statusLabel = (status: string) => {
-    if (status === "approved") return t("common.approved");
-    if (status === "rejected") return t("common.rejected");
+  const statusLabel = (r: RefundRequest) => {
+    if (r.status === "approved" && r.chipZeroed) return t("profile.refundComplete");
+    if (r.status === "approved") return t("profile.refundProcessing");
+    if (r.status === "rejected") return t("common.rejected");
     return t("common.pending");
   };
 
@@ -146,8 +149,8 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 <Badge
-                  label={statusLabel(r.status)}
-                  variant={statusVariant(r.status)}
+                  label={statusLabel(r)}
+                  variant={statusVariant(r)}
                 />
               </View>
             </Card>

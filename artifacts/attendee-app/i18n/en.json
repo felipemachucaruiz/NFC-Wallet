@@ -194,6 +194,8 @@
     "myRefunds": "My refunds",
     "noRefunds": "No refund requests",
     "refundStatus": "Status",
+    "refundProcessing": "Processing",
+    "refundComplete": "Complete",
     "logout": "Sign out",
     "language": "Language",
     "spanish": "Español",

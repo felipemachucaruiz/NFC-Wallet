@@ -74,6 +74,7 @@ router.get(
         accountDetails: attendeeRefundRequestsTable.accountDetails,
         notes: attendeeRefundRequestsTable.notes,
         status: attendeeRefundRequestsTable.status,
+        chipZeroed: attendeeRefundRequestsTable.chipZeroed,
         processedByUserId: attendeeRefundRequestsTable.processedByUserId,
         processedAt: attendeeRefundRequestsTable.processedAt,
         createdAt: attendeeRefundRequestsTable.createdAt,
@@ -185,6 +186,41 @@ router.post(
         res.status(status >= 400 && status < 600 ? status : 500).json({ error: "Processing failed" });
       }
     }
+  }
+);
+
+/**
+ * POST /bank/attendee-refund-requests/:id/confirm-chip-zero
+ * Mark the chip as zeroed after a successful NFC write-back (Bank staff).
+ * Called by the bank portal after writing balance=0 to the physical bracelet.
+ */
+router.post(
+  "/bank/attendee-refund-requests/:id/confirm-chip-zero",
+  requireRole("bank", "admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+
+    const [request] = await db
+      .select({ id: attendeeRefundRequestsTable.id, status: attendeeRefundRequestsTable.status })
+      .from(attendeeRefundRequestsTable)
+      .where(eq(attendeeRefundRequestsTable.id, id));
+
+    if (!request) {
+      res.status(404).json({ error: "Refund request not found" });
+      return;
+    }
+    if (request.status !== "approved") {
+      res.status(409).json({ error: "Only approved requests can have their chip zeroed" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(attendeeRefundRequestsTable)
+      .set({ chipZeroed: true, updatedAt: new Date() })
+      .where(eq(attendeeRefundRequestsTable.id, id))
+      .returning();
+
+    res.json({ request: updated });
   }
 );
 

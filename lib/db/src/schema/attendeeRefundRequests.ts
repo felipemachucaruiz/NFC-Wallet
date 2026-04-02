@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, uniqueIndex, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, uniqueIndex, varchar, text, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { usersTable } from "./auth";
 
@@ -27,6 +27,7 @@ export const attendeeRefundRequestsTable = pgTable(
     accountDetails: text("account_details"),
     notes: text("notes"),
     status: attendeeRefundRequestStatusEnum("status").notNull().default("pending"),
+    chipZeroed: boolean("chip_zeroed").notNull().default(false),
     processedByUserId: varchar("processed_by_user_id").references(() => usersTable.id),
     processedAt: timestamp("processed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

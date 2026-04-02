@@ -194,6 +194,8 @@
     "myRefunds": "Mis devoluciones",
     "noRefunds": "Sin solicitudes de devolución",
     "refundStatus": "Estado",
+    "refundProcessing": "En proceso",
+    "refundComplete": "Completada",
     "logout": "Cerrar sesión",
     "language": "Idioma",
     "spanish": "Español",

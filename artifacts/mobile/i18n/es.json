@@ -25,6 +25,7 @@
     "yes": "Sí",
     "no": "No",
     "ok": "OK",
+    "done": "Listo",
     "warning": "Advertencia",
     "success": "Éxito",
     "failed": "Fallido",
@@ -202,7 +203,15 @@
     "method": "Método",
     "accountDetails": "Datos de cuenta",
     "processSuccess": "Solicitud procesada",
-    "processError": "Error al procesar la solicitud"
+    "processError": "Error al procesar la solicitud",
+    "tapToFinalize": "Acerque la pulsera para finalizar",
+    "tapToFinalizeSubtitle": "Sostenga la pulsera cerca para borrar el saldo del chip",
+    "chipZeroing": "Borrando chip…",
+    "chipZeroSuccess": "Chip borrado — devolución completa",
+    "skipChipZero": "Omitir (chip no borrado)",
+    "skipChipZeroWarning": "El chip no fue borrado. Los cobros sin conexión pueden seguir viendo saldo hasta sincronizar.",
+    "wrongBracelet": "Pulsera incorrecta — se esperaba {{uid}}",
+    "chipZeroed": "Chip borrado"
   },
   "bankTransfer": {
     "title": "Transferir saldo",
