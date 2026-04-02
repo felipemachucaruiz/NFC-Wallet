@@ -46,7 +46,7 @@ export default function AddBraceletScreen() {
   const { mutate: linkBracelet } = useLinkBracelet();
 
   useEffect(() => {
-    isNfcSupported().then(setNfcAvailable);
+    setNfcAvailable(isNfcSupported());
   }, []);
 
   useEffect(() => {

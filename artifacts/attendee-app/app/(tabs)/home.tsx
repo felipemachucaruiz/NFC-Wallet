@@ -58,7 +58,7 @@ export default function HomeScreen() {
   const { mutate: linkBracelet } = useLinkBracelet();
 
   useEffect(() => {
-    isNfcSupported().then(setNfcAvailable);
+    setNfcAvailable(isNfcSupported());
   }, []);
 
   const handleNfcScan = async () => {
