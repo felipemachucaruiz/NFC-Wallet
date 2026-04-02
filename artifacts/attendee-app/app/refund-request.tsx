@@ -62,8 +62,12 @@ export default function RefundRequestScreen() {
               });
               setStep("success");
             } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : t("common.unknownError");
-              Alert.alert(t("common.error"), msg);
+              const msg = e instanceof Error ? e.message : "";
+              if (msg === "REFUND_REQUEST_ALREADY_PENDING") {
+                Alert.alert(t("refund.alreadyPendingTitle"), t("refund.alreadyPendingMessage"));
+              } else {
+                Alert.alert(t("common.error"), msg || t("common.unknownError"));
+              }
             }
           },
         },

@@ -393,6 +393,21 @@ router.post(
       return;
     }
 
+    // Block duplicate pending requests for the same bracelet
+    const [pendingRequest] = await db
+      .select({ id: attendeeRefundRequestsTable.id })
+      .from(attendeeRefundRequestsTable)
+      .where(
+        and(
+          eq(attendeeRefundRequestsTable.braceletUid, braceletUid),
+          eq(attendeeRefundRequestsTable.status, "pending")
+        )
+      );
+    if (pendingRequest) {
+      res.status(409).json({ error: "REFUND_REQUEST_ALREADY_PENDING" });
+      return;
+    }
+
     const [request] = await db
       .insert(attendeeRefundRequestsTable)
       .values({

@@ -4,7 +4,7 @@ import {
   braceletsTable,
   attendeeRefundRequestsTable,
 } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -73,6 +73,8 @@ router.get(
 /**
  * POST /bank/attendee-refund-requests/:id/process
  * Approve or reject an attendee refund request (Bank staff).
+ * Uses a DB transaction with row-level locks to prevent concurrent double-refunds
+ * and to ensure the approved amount reflects the live bracelet balance.
  */
 router.post(
   "/bank/attendee-refund-requests/:id/process",
@@ -91,41 +93,63 @@ router.post(
       return;
     }
 
-    const [request] = await db
-      .select()
-      .from(attendeeRefundRequestsTable)
-      .where(eq(attendeeRefundRequestsTable.id, id));
+    try {
+      const updated = await db.transaction(async (tx) => {
+        // Lock the request row first — prevents two staff members from
+        // processing the same request simultaneously
+        const [request] = await tx
+          .select()
+          .from(attendeeRefundRequestsTable)
+          .where(eq(attendeeRefundRequestsTable.id, id))
+          .for("update");
 
-    if (!request) {
-      res.status(404).json({ error: "Request not found" });
-      return;
+        if (!request) throw Object.assign(new Error("Request not found"), { status: 404 });
+        if (request.status !== "pending") throw Object.assign(new Error("ALREADY_PROCESSED"), { status: 409 });
+
+        // Lock the bracelet row and read live balance — prevents concurrent
+        // manual refunds from both zeroing the same balance
+        const [bracelet] = await tx
+          .select({ lastKnownBalanceCop: braceletsTable.lastKnownBalanceCop })
+          .from(braceletsTable)
+          .where(eq(braceletsTable.nfcUid, request.braceletUid))
+          .for("update");
+
+        const liveAmountCop = bracelet?.lastKnownBalanceCop ?? request.amountCop;
+
+        const [result] = await tx
+          .update(attendeeRefundRequestsTable)
+          .set({
+            status: parsed.data.status,
+            amountCop: liveAmountCop,
+            processedByUserId: userId,
+            processedAt: new Date(),
+            notes: parsed.data.notes ?? request.notes,
+            updatedAt: new Date(),
+          })
+          .where(eq(attendeeRefundRequestsTable.id, id))
+          .returning();
+
+        if (parsed.data.status === "approved" && liveAmountCop > 0) {
+          await tx
+            .update(braceletsTable)
+            .set({ lastKnownBalanceCop: 0, updatedAt: new Date() })
+            .where(eq(braceletsTable.nfcUid, request.braceletUid));
+        }
+
+        return result;
+      });
+
+      res.json({ request: updated });
+    } catch (e: unknown) {
+      const err = e as { message?: string; status?: number };
+      const status = err.status ?? 500;
+      const message = err.message ?? "Processing failed";
+      if (message === "ALREADY_PROCESSED") {
+        res.status(409).json({ error: "Request has already been processed" });
+      } else {
+        res.status(status).json({ error: message });
+      }
     }
-
-    if (request.status !== "pending") {
-      res.status(409).json({ error: "Request has already been processed" });
-      return;
-    }
-
-    const [updated] = await db
-      .update(attendeeRefundRequestsTable)
-      .set({
-        status: parsed.data.status,
-        processedByUserId: userId,
-        processedAt: new Date(),
-        notes: parsed.data.notes ?? request.notes,
-        updatedAt: new Date(),
-      })
-      .where(eq(attendeeRefundRequestsTable.id, id))
-      .returning();
-
-    if (parsed.data.status === "approved") {
-      await db
-        .update(braceletsTable)
-        .set({ lastKnownBalanceCop: 0, updatedAt: new Date() })
-        .where(eq(braceletsTable.nfcUid, request.braceletUid));
-    }
-
-    res.json({ request: updated });
   }
 );
 

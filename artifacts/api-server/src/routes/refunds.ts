@@ -33,63 +33,61 @@ router.post(
 
     const { braceletUid, refundMethod, notes, newCounter } = parsed.data;
 
-    const [bracelet] = await db
-      .select()
-      .from(braceletsTable)
-      .where(eq(braceletsTable.nfcUid, braceletUid));
+    try {
+      // All validation and writes happen inside the transaction so that
+      // SELECT ... FOR UPDATE prevents two concurrent refunds from both
+      // seeing a positive balance and both going through.
+      const { refund, amountCop } = await db.transaction(async (tx) => {
+        const [bracelet] = await tx
+          .select()
+          .from(braceletsTable)
+          .where(eq(braceletsTable.nfcUid, braceletUid))
+          .for("update");
 
-    if (!bracelet) {
-      res.status(404).json({ error: "Bracelet not found" });
-      return;
+        if (!bracelet)
+          throw Object.assign(new Error("Bracelet not found"), { httpStatus: 404 });
+        if (bracelet.lastKnownBalanceCop <= 0)
+          throw Object.assign(new Error("Bracelet has no balance to refund"), { httpStatus: 400 });
+        if (newCounter !== undefined && newCounter <= (bracelet.lastCounter ?? 0))
+          throw Object.assign(new Error("Invalid counter: must be greater than current counter"), { httpStatus: 400 });
+        if (!bracelet.eventId)
+          throw Object.assign(new Error("Bracelet is not associated with an event"), { httpStatus: 400 });
+
+        const liveAmountCop = bracelet.lastKnownBalanceCop;
+
+        const [newRefund] = await tx
+          .insert(refundsTable)
+          .values({
+            braceletUid,
+            eventId: bracelet.eventId,
+            amountCop: liveAmountCop,
+            refundMethod,
+            notes,
+            performedByUserId: req.user.id,
+          })
+          .returning();
+
+        const braceletUpdate: Record<string, unknown> = {
+          lastKnownBalanceCop: 0,
+          updatedAt: new Date(),
+        };
+        if (newCounter !== undefined) {
+          braceletUpdate.lastCounter = newCounter;
+        }
+        await tx
+          .update(braceletsTable)
+          .set(braceletUpdate)
+          .where(eq(braceletsTable.nfcUid, braceletUid));
+
+        return { refund: newRefund, amountCop: liveAmountCop };
+      });
+
+      res.status(201).json({ refund, amountCop });
+    } catch (e: unknown) {
+      const err = e as { message?: string; httpStatus?: number };
+      const status = err.httpStatus ?? 500;
+      res.status(status).json({ error: err.message ?? "Refund failed" });
     }
-
-    if (bracelet.lastKnownBalanceCop <= 0) {
-      res.status(400).json({ error: "Bracelet has no balance to refund" });
-      return;
-    }
-
-    if (newCounter !== undefined && newCounter <= (bracelet.lastCounter ?? 0)) {
-      res.status(400).json({ error: "Invalid counter: must be greater than current counter" });
-      return;
-    }
-
-    const amountCop = bracelet.lastKnownBalanceCop;
-    const eventId = bracelet.eventId;
-
-    if (!eventId) {
-      res.status(400).json({ error: "Bracelet is not associated with an event" });
-      return;
-    }
-
-    const result = await db.transaction(async (tx) => {
-      const [refund] = await tx
-        .insert(refundsTable)
-        .values({
-          braceletUid,
-          eventId,
-          amountCop,
-          refundMethod,
-          notes,
-          performedByUserId: req.user.id,
-        })
-        .returning();
-
-      const braceletUpdate: Record<string, unknown> = {
-        lastKnownBalanceCop: 0,
-        updatedAt: new Date(),
-      };
-      if (newCounter !== undefined) {
-        braceletUpdate.lastCounter = newCounter;
-      }
-      await tx
-        .update(braceletsTable)
-        .set(braceletUpdate)
-        .where(eq(braceletsTable.nfcUid, braceletUid));
-
-      return refund;
-    });
-
-    res.status(201).json({ refund: result, amountCop });
   },
 );
 
