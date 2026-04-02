@@ -1,4 +1,4 @@
-const { withDangerousMod } = require("@expo/config-plugins");
+const { withDangerousMod, withXcodeProject } = require("@expo/config-plugins");
 const path = require("path");
 const fs = require("fs");
 
@@ -32,8 +32,8 @@ function copyAndroidCerts(config, certFiles) {
   ]);
 }
 
-function copyIosCerts(config, certFiles) {
-  return withDangerousMod(config, [
+function copyAndAddIosCerts(config, certFiles) {
+  config = withDangerousMod(config, [
     "ios",
     (cfg) => {
       const iosProjDir = cfg.modRequest.platformProjectRoot;
@@ -56,11 +56,29 @@ function copyIosCerts(config, certFiles) {
       return cfg;
     },
   ]);
+
+  config = withXcodeProject(config, (cfg) => {
+    const xcodeProject = cfg.modResults;
+    const appName = cfg.modRequest.projectName;
+    const firstTarget = xcodeProject.getFirstTarget();
+    const targetUuid = firstTarget && firstTarget.uuid;
+
+    for (const file of certFiles) {
+      const resourcePath = `${appName}/${file}`;
+      if (!xcodeProject.hasFile(resourcePath)) {
+        xcodeProject.addResourceFile(resourcePath, { target: targetUuid });
+        console.log(`[withSslPinning] iOS Xcode: added ${resourcePath} to Copy Bundle Resources`);
+      }
+    }
+    return cfg;
+  });
+
+  return config;
 }
 
 module.exports = function withSslPinning(config, options = {}) {
   const certFiles = options.certFiles ?? ["tapee_api.cer"];
   config = copyAndroidCerts(config, certFiles);
-  config = copyIosCerts(config, certFiles);
+  config = copyAndAddIosCerts(config, certFiles);
   return config;
 };
