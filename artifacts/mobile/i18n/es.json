@@ -656,7 +656,9 @@
     "closeEventConfirm": "Sí, cerrar evento",
     "eventClosed": "Evento cerrado",
     "eventClosedDetail": "El evento ha sido cerrado. {{flagged}} pulsera(s) bloqueada(s) y {{refunds}} solicitud(es) de reembolso generada(s).",
-    "eventCloseFailed": "Error al cerrar el evento"
+    "eventCloseFailed": "Error al cerrar el evento",
+    "closeEventPendingWarning": "{{count}} solicitud(es) de reembolso pendiente(s) deben resolverse antes de cerrar. Si cierras forzosamente, estos asistentes no recibirán sus reembolsos automáticamente.",
+    "forceCloseEvent": "Forzar cierre de todas formas"
   },
   "inventory": {
     "tab": "Inventario",

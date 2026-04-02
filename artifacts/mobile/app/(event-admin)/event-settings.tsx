@@ -33,7 +33,7 @@ type ConfirmModal =
   | { type: "inventory"; pendingMode: InventoryMode }
   | { type: "rotate_key" }
   | { type: "generate_desfire_key" }
-  | { type: "close_event" }
+  | { type: "close_event"; pendingRefundCount: number }
   | null;
 
 function NfcChipCheckbox({
@@ -173,6 +173,7 @@ export default function EventSettingsScreen() {
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>(null);
   const [isRotating, setIsRotating] = useState(false);
   const [isClosingEvent, setIsClosingEvent] = useState(false);
+  const [isCheckingRefunds, setIsCheckingRefunds] = useState(false);
 
   const [offlineSyncLimit, setOfflineSyncLimit] = useState<string>("");
   const [maxOfflineSpendPerBracelet, setMaxOfflineSpendPerBracelet] = useState<string>("");
@@ -247,10 +248,14 @@ export default function EventSettingsScreen() {
         setIsGeneratingDesfireKey(false);
       }
     } else if (confirmModal?.type === "close_event") {
+      const pendingRefundCount = confirmModal.pendingRefundCount;
       setIsClosingEvent(true);
       setConfirmModal(null);
       try {
-        const result = await customFetch(`/api/events/${user.eventId}/close`, {
+        const url = pendingRefundCount > 0
+          ? `/api/events/${user.eventId}/close?force=true`
+          : `/api/events/${user.eventId}/close`;
+        const result = await customFetch(url, {
           method: "POST",
         }) as { braceletsFlagged?: number; refundRequestsCreated?: number } | undefined;
         refetch();
@@ -267,6 +272,21 @@ export default function EventSettingsScreen() {
       } finally {
         setIsClosingEvent(false);
       }
+    }
+  };
+
+  const handleCloseEventPress = async () => {
+    if (!user?.eventId) return;
+    setIsCheckingRefunds(true);
+    try {
+      const result = await customFetch(`/api/events/${user.eventId}/pending-refund-count`, {
+        method: "GET",
+      }) as { pendingRefundCount: number };
+      setConfirmModal({ type: "close_event", pendingRefundCount: result.pendingRefundCount ?? 0 });
+    } catch {
+      setConfirmModal({ type: "close_event", pendingRefundCount: 0 });
+    } finally {
+      setIsCheckingRefunds(false);
     }
   };
 
@@ -592,12 +612,12 @@ export default function EventSettingsScreen() {
         </Card>
 
         <Button
-          title={isClosingEvent ? t("common.processing") : t("eventAdmin.closeEvent")}
-          onPress={() => setConfirmModal({ type: "close_event" })}
+          title={isClosingEvent || isCheckingRefunds ? t("common.processing") : t("eventAdmin.closeEvent")}
+          onPress={handleCloseEventPress}
           variant="danger"
           size="md"
           fullWidth
-          loading={isClosingEvent}
+          loading={isClosingEvent || isCheckingRefunds}
           disabled={event?.active === false}
         />
 
@@ -664,6 +684,14 @@ export default function EventSettingsScreen() {
               <Text style={[styles.confirmDesc, { color: C.textSecondary }]}>
                 {t("eventAdmin.closeEventConfirmDesc")}
               </Text>
+              {confirmModal.pendingRefundCount > 0 && (
+                <View style={[styles.pendingRefundWarning, { backgroundColor: C.warningLight, borderColor: C.warning + "55" }]}>
+                  <Feather name="alert-triangle" size={16} color={C.warning} />
+                  <Text style={[styles.pendingRefundWarningText, { color: C.text }]}>
+                    {t("eventAdmin.closeEventPendingWarning", { count: confirmModal.pendingRefundCount })}
+                  </Text>
+                </View>
+              )}
             </>
           ) : confirmModal?.type === "rotate_key" ? (
             <>
@@ -726,7 +754,9 @@ export default function EventSettingsScreen() {
                 confirmModal?.type === "rotate_key"
                   ? t("eventAdmin.confirmRotate")
                   : confirmModal?.type === "close_event"
-                    ? t("eventAdmin.closeEventConfirm")
+                    ? (confirmModal.pendingRefundCount > 0
+                        ? t("eventAdmin.forceCloseEvent")
+                        : t("eventAdmin.closeEventConfirm"))
                     : t("common.confirm")
               }
               onPress={handleConfirm}
@@ -903,6 +933,22 @@ const styles = StyleSheet.create({
   pendingModeText: {
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
+  },
+  pendingRefundWarning: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    width: "100%",
+  },
+  pendingRefundWarningText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 19,
   },
   confirmActions: {
     width: "100%",

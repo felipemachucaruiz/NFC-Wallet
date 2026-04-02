@@ -676,8 +676,39 @@ router.get(
 );
 
 /**
+ * GET /events/:eventId/pending-refund-count
+ * Returns the count of pending attendee refund requests for an event.
+ * Used as a preflight check before closing an event.
+ */
+router.get(
+  "/events/:eventId/pending-refund-count",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId } = req.params as { eventId: string };
+
+    if (req.user!.role === "event_admin" && req.user!.eventId !== eventId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [row] = await db
+      .select({ pendingRefundCount: count() })
+      .from(attendeeRefundRequestsTable)
+      .where(
+        and(
+          eq(attendeeRefundRequestsTable.eventId, eventId),
+          eq(attendeeRefundRequestsTable.status, "pending")
+        )
+      );
+
+    res.json({ pendingRefundCount: Number(row?.pendingRefundCount ?? 0) });
+  }
+);
+
+/**
  * POST /events/:eventId/close
  * Admin-only: close an event.
+ * - Checks for pending refund requests (returns 409 if any, unless ?force=true)
  * - Sets event.active = false
  * - Flags all bracelets in the event (flagged = true, flagReason = "Evento cerrado")
  * - Creates pending attendee_refund_request records for every bracelet with balance > 0
@@ -711,6 +742,34 @@ router.post(
     if (!event.active) {
       res.status(409).json({ error: "Event is already closed" });
       return;
+    }
+
+    const force = req.query.force === "true";
+
+    // Count pending refund requests for this event
+    const [pendingRow] = await db
+      .select({ pendingRefundCount: count() })
+      .from(attendeeRefundRequestsTable)
+      .where(
+        and(
+          eq(attendeeRefundRequestsTable.eventId, eventId),
+          eq(attendeeRefundRequestsTable.status, "pending")
+        )
+      );
+    const pendingRefundCount = Number(pendingRow?.pendingRefundCount ?? 0);
+
+    if (pendingRefundCount > 0 && !force) {
+      res.status(409).json({
+        error: `Cannot close event: ${pendingRefundCount} pending refund request(s) must be resolved before closing.`,
+        pendingRefundCount,
+      });
+      return;
+    }
+
+    if (pendingRefundCount > 0 && force) {
+      console.warn(
+        `[AUDIT] Event "${event.name}" (${eventId}) force-closed by user ${req.user.id} with ${pendingRefundCount} unresolved pending refund request(s).`
+      );
     }
 
     // Perform the close in a DB transaction for atomicity
