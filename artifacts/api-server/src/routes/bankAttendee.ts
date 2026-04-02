@@ -142,11 +142,13 @@ router.post(
           throw Object.assign(new Error("BALANCE_ALREADY_REFUNDED"), { status: 409 });
         }
 
+        // Only update amountCop on approval — rejection keeps the original
+        // snapshot amount for audit clarity; the bracelet balance isn't touched.
         const [result] = await tx
           .update(attendeeRefundRequestsTable)
           .set({
             status: parsed.data.status,
-            amountCop: liveAmountCop,
+            ...(parsed.data.status === "approved" ? { amountCop: liveAmountCop } : {}),
             processedByUserId: userId,
             processedAt: new Date(),
             notes: parsed.data.notes ?? request.notes,
