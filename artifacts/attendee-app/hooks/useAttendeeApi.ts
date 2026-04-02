@@ -8,7 +8,10 @@ function useAuthHeaders() {
 }
 
 async function apiFetch<T>(url: string, headers: Record<string, string>): Promise<T> {
-  const res = await fetch(url, { headers: { ...headers, "Content-Type": "application/json" } });
+  const res = await fetch(url, {
+    headers: { ...headers, "Content-Type": "application/json" },
+    cache: "no-store",
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string }).error ?? res.statusText);

@@ -9,6 +9,9 @@ import { generalLimiter, authLimiter } from "./middlewares/rateLimiter";
 
 const app: Express = express();
 
+// Disable ETags — prevents Replit proxy from caching GET responses and returning stale 304s
+app.set("etag", false);
+
 // Only trust proxy headers when explicitly enabled in production (TRUSTED_PROXY=true).
 // Rate limiting uses raw socket address by default to prevent X-Forwarded-For spoofing.
 if (process.env.TRUSTED_PROXY === "true") {
@@ -57,6 +60,12 @@ app.use(
 );
 
 app.use(authMiddleware);
+
+// Prevent proxy / browser caching of all API responses
+app.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  next();
+});
 
 // Mount at /api (direct localhost access) and /attendee-api/api (Replit proxy)
 app.use("/api", router);

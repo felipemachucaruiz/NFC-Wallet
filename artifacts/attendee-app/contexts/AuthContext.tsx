@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL } from "@/constants/domain";
 
 const TOKEN_KEY = "tapee_attendee_auth_token";
@@ -80,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const queryClient = useQueryClient();
   const tokenRef = useRef<string | null>(null);
 
   const setAuthToken = useCallback((t: string | null) => {
@@ -190,10 +192,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch {}
+    queryClient.clear();
     await clearToken();
     setAuthToken(null);
     setUser(null);
-  }, [setAuthToken]);
+  }, [setAuthToken, queryClient]);
 
   const refreshUser = useCallback(async () => {
     const t = tokenRef.current;
