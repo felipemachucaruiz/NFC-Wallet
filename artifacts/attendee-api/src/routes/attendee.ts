@@ -319,7 +319,13 @@ router.post(
   requireRole("attendee"),
   async (req: Request, res: Response) => {
     const userId = req.user.id;
-    const { uid } = req.params as { uid: string };
+    const rawUid = (req.params as { uid: string }).uid;
+
+    const uid = normalizeUidLocal(rawUid);
+    if (!uid) {
+      res.status(400).json({ error: "Invalid UID format. Must be 4, 7, or 10 hex bytes." });
+      return;
+    }
 
     const [bracelet] = await db
       .select()

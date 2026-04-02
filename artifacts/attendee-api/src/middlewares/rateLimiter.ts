@@ -35,3 +35,16 @@ export const authLimiter = rateLimit({
   keyGenerator,
   message: { error: "Too many authentication attempts. Please try again later." },
 });
+
+/**
+ * Strict limiter for the public bracelet-lookup endpoint.
+ * 10 requests per minute per IP — prevents UID enumeration attacks.
+ */
+export const braceletLookupLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator,
+  message: { error: "Too many bracelet lookup requests. Please try again later." },
+});

@@ -1,11 +1,11 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
-import { generalLimiter, authLimiter } from "./middlewares/rateLimiter";
+import { generalLimiter, authLimiter, braceletLookupLimiter } from "./middlewares/rateLimiter";
 
 const app: Express = express();
 
@@ -67,8 +67,24 @@ app.use((_req, res, next) => {
   next();
 });
 
+// Tighter rate limit on the public bracelet-lookup endpoint to prevent UID enumeration
+const BRACELET_LOOKUP_PATHS = [
+  "/api/public/bracelet-lookup",
+  "/attendee-api/api/public/bracelet-lookup",
+];
+app.use(BRACELET_LOOKUP_PATHS, braceletLookupLimiter);
+
 // Mount at /api (direct localhost access) and /attendee-api/api (Replit proxy)
 app.use("/api", router);
 app.use("/attendee-api/api", router);
+
+// Global error handler — catches any unhandled async route errors and returns
+// a clean JSON 500 instead of hanging the request or crashing the process.
+// Must be registered AFTER all routes (4-arg signature required by Express).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error({ err }, "Unhandled route error");
+  res.status(500).json({ error: "Internal server error" });
+});
 
 export default app;
