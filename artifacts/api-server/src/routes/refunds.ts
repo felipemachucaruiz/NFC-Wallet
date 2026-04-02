@@ -47,7 +47,7 @@ router.post(
         if (!bracelet)
           throw Object.assign(new Error("Bracelet not found"), { httpStatus: 404 });
         if (bracelet.lastKnownBalanceCop <= 0)
-          throw Object.assign(new Error("Bracelet has no balance to refund"), { httpStatus: 400 });
+          throw Object.assign(new Error("BALANCE_ALREADY_REFUNDED"), { httpStatus: 409 });
         if (newCounter !== undefined && newCounter <= (bracelet.lastCounter ?? 0))
           throw Object.assign(new Error("Invalid counter: must be greater than current counter"), { httpStatus: 400 });
         if (!bracelet.eventId)
