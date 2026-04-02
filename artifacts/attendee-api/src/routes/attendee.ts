@@ -408,21 +408,33 @@ router.post(
       return;
     }
 
-    const [request] = await db
-      .insert(attendeeRefundRequestsTable)
-      .values({
-        attendeeUserId: userId,
-        braceletUid,
-        eventId: bracelet.eventId,
-        amountCop: bracelet.lastKnownBalanceCop,
-        refundMethod,
-        accountDetails,
-        notes,
-        status: "pending",
-      })
-      .returning();
+    try {
+      const [request] = await db
+        .insert(attendeeRefundRequestsTable)
+        .values({
+          attendeeUserId: userId,
+          braceletUid,
+          eventId: bracelet.eventId,
+          amountCop: bracelet.lastKnownBalanceCop,
+          refundMethod,
+          accountDetails,
+          notes,
+          status: "pending",
+        })
+        .returning();
 
-    res.status(201).json({ request });
+      res.status(201).json({ request });
+    } catch (e: unknown) {
+      // PostgreSQL unique-violation (23505) from the partial unique index
+      // uniq_pending_refund_per_bracelet — means a concurrent request slipped
+      // through the pre-insert check; treat the same as a detected duplicate.
+      const err = e as { code?: string; message?: string };
+      if (err.code === "23505") {
+        res.status(409).json({ error: "REFUND_REQUEST_ALREADY_PENDING" });
+        return;
+      }
+      throw e;
+    }
   }
 );
 
