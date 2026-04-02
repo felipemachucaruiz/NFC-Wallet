@@ -399,13 +399,13 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   nfcTagContainer: {
-    width: 120,
-    height: 76,
+    width: 145,
+    height: 92,
     position: "relative",
   },
   nfcTagImage: {
-    width: 120,
-    height: 76,
+    width: 145,
+    height: 92,
     borderRadius: 10,
   },
   nfcTagOverlay: {
@@ -416,10 +416,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   nfcTagUid: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontFamily: "Inter_600SemiBold",
     color: "rgba(255,255,255,0.75)",
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   nfcTagSelected: {
     position: "absolute",
