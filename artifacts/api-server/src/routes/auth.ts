@@ -348,7 +348,7 @@ router.get("/logout", async (req: Request, res: Response) => {
   await clearSession(res, sid);
 
   const endSessionUrl = oidc.buildEndSessionUrl(config, {
-    client_id: process.env.REPL_ID!,
+    client_id: (process.env.CLIENT_ID ?? process.env.REPL_ID)!,
     post_logout_redirect_uri: origin,
   });
 

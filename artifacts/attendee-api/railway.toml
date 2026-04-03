@@ -1,0 +1,8 @@
+[build]
+buildCommand = "pnpm install && pnpm run build"
+
+[deploy]
+startCommand = "pnpm run start"
+healthcheckPath = "/api/healthz"
+healthcheckTimeout = 30
+releaseCommand = "cd ../../lib/db && pnpm drizzle-kit migrate --config ./drizzle.config.ts"
