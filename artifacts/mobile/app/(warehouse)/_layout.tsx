@@ -116,5 +116,5 @@ export default function WarehouseLayout() {
 }
 
 function WarehouseTabsInner() {
-  return isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />;
+  return (Platform.OS !== "web" && isLiquidGlassAvailable()) ? <NativeTabLayout /> : <ClassicTabLayout />;
 }

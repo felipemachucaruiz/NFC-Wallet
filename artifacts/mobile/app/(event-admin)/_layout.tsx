@@ -134,6 +134,6 @@ export default function EventAdminLayout() {
       </View>
     );
   }
-  const layout = isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />;
+  const layout = (Platform.OS !== "web" && isLiquidGlassAvailable()) ? <NativeTabLayout /> : <ClassicTabLayout />;
   return <EventProvider>{layout}</EventProvider>;
 }

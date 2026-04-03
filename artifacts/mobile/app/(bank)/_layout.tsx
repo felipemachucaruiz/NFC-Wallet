@@ -105,6 +105,6 @@ export default function BankLayout() {
       </View>
     );
   }
-  if (isLiquidGlassAvailable()) return <NativeTabLayout />;
+  if (Platform.OS !== "web" && isLiquidGlassAvailable()) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }

@@ -113,6 +113,6 @@ export default function AdminLayout() {
       </View>
     );
   }
-  if (isLiquidGlassAvailable()) return <NativeTabLayout />;
+  if (Platform.OS !== "web" && isLiquidGlassAvailable()) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }

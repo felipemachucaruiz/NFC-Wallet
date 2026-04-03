@@ -148,6 +148,6 @@ export default function MerchantAdminLayout() {
       </View>
     );
   }
-  if (isLiquidGlassAvailable()) return <NativeTabLayout />;
+  if (Platform.OS !== "web" && isLiquidGlassAvailable()) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }
