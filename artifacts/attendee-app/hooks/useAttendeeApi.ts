@@ -26,8 +26,7 @@ export function useMyBracelets() {
     queryKey: ["attendee", "bracelets"],
     queryFn: () => apiFetch(`${API_BASE_URL}/api/attendee/me/bracelets`, headers),
     enabled: !!headers.Authorization,
-    refetchInterval: 15_000,
-    staleTime: 10_000,
+    staleTime: 30_000,
   });
 }
 

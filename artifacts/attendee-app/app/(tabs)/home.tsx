@@ -2,8 +2,10 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AppState,
+  AppStateStatus,
   Image,
   Platform,
   Pressable,
@@ -45,10 +47,32 @@ export default function HomeScreen() {
   const isWeb = Platform.OS === "web";
   const { user } = useAuth();
 
-  const { data, isPending, refetch, isRefetching } = useMyBracelets();
+  const { data, isPending, refetch } = useMyBracelets();
   const bracelets = ((data as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
   const totalBalance = bracelets.reduce((sum, b) => sum + b.balanceCop, 0);
   const activeBracelet = bracelets.find((b) => b.event?.active) ?? bracelets[0] ?? null;
+
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+
+  const handleManualRefresh = useCallback(async () => {
+    setManualRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setManualRefreshing(false);
+    }
+  }, [refetch]);
+
+  const appState = useRef(AppState.currentState);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextState === "active") {
+        refetch();
+      }
+      appState.current = nextState;
+    });
+    return () => subscription.remove();
+  }, [refetch]);
 
   const [nfcAvailable, setNfcAvailable] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -106,7 +130,7 @@ export default function HomeScreen() {
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{ paddingBottom: isWeb ? 34 : insets.bottom + 100 }}
       refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={C.primary} />
+        <RefreshControl refreshing={manualRefreshing} onRefresh={handleManualRefresh} tintColor={C.primary} />
       }
     >
       <LinearGradient
