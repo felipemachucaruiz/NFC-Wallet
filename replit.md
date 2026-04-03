@@ -202,9 +202,9 @@ Both apps pin the Tapee API TLS certificate using `react-native-ssl-pinning@1.6.
 
 ### Current pinned cert
 - **File**: `assets/certs/tapee_api.cer`
-- **Domain**: `2814f499-7dcc-4ff4-930a-005c0a1f5aa1-00-354suhrpt8x73.riker.replit.dev` (dev domain)
-- **Leaf cert SPKI SHA-256**: `5f3mnJdIerf/0WlSLG07Xb0l52f48NEYZgrQRQk4FiA=`
-- **Cert expiry**: Monthly rotation (Replit internal proxy CA)
+- **Domain**: `prod.tapee.app` (production) / `attendee.tapee.app` (attendee API)
+- **Leaf cert SPKI SHA-256**: `qZeuQmHlu+HfY+6kzKAG1DHDu01gEmkM5zM4UJh+CBU=`
+- **Cert expiry**: ~90 days (Let's Encrypt via Railway). Key pair is stable across renewals — SPKI hash stays the same, so rotation only needs a new OTA (no native rebuild needed).
 
 ### Certificate rotation procedure (before old cert expires)
 
