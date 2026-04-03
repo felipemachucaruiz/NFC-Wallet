@@ -32,6 +32,8 @@ const SSL_CERTS: string[] = (() => {
   return parsed.length > 0 ? parsed : DEFAULT_CERT_NAMES;
 })();
 
+const FETCH_TIMEOUT_MS = 30_000;
+
 let _sslFetch: typeof fetch | null = null;
 let _nativeAvailable: boolean | null = null;
 
@@ -78,11 +80,33 @@ function isPinnedDomain(url: string): boolean {
 }
 
 /**
+ * Wraps a fetch promise with a hard timeout.  If the request does not
+ * settle within FETCH_TIMEOUT_MS the returned promise rejects with a
+ * TimeoutError so TanStack Query can surface an error state instead of
+ * leaving the UI in a permanent loading state.
+ */
+function withTimeout(promise: Promise<Response>): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`[pinnedFetch] Request timed out after ${FETCH_TIMEOUT_MS / 1000}s`)),
+      FETCH_TIMEOUT_MS,
+    );
+    promise.then(
+      (result) => { clearTimeout(timer); resolve(result); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+/**
  * A drop-in replacement for `fetch` that adds TLS certificate pinning for all
  * Tapee API domains.  Non-API URLs are passed through to the standard `fetch`.
  *
  * Fail-closed: in release builds, throws a hard error if the native pinning
  * module is not compiled in.  In dev builds, degrades with a console warning.
+ *
+ * All pinned-domain requests are wrapped with a 30-second timeout so that
+ * a stalled SSL handshake never leaves the app in a permanent loading state.
  */
 export const pinnedFetch: typeof fetch = (input, init) => {
   const url =
@@ -102,7 +126,7 @@ export const pinnedFetch: typeof fetch = (input, init) => {
         "[pinnedFetch] react-native-ssl-pinning is not compiled into this build. " +
           "Certificate pinning is INACTIVE. Run a new native EAS build to activate it."
       );
-      return fetch(input, init);
+      return withTimeout(fetch(input, init));
     }
     throw new Error(
       "[pinnedFetch] Certificate pinning module is required in release builds " +
@@ -112,11 +136,13 @@ export const pinnedFetch: typeof fetch = (input, init) => {
   }
 
   const sslFetch = getSslFetch();
-  return (sslFetch as (
-    url: string,
-    options: Record<string, unknown>
-  ) => ReturnType<typeof fetch>)(url, {
-    ...(init ?? {}),
-    sslPinning: { certs: SSL_CERTS },
-  });
+  return withTimeout(
+    (sslFetch as (
+      url: string,
+      options: Record<string, unknown>
+    ) => ReturnType<typeof fetch>)(url, {
+      ...(init ?? {}),
+      sslPinning: { certs: SSL_CERTS },
+    })
+  );
 };

@@ -1,16 +1,14 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useGetRevenueReport, useListEvents } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
-import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
-import { formatPercent } from "@/utils/format";
 
 export default function AdminDashboardScreen() {
   const { t } = useTranslation();
@@ -24,7 +22,7 @@ export default function AdminDashboardScreen() {
   const { data: eventsData } = useListEvents();
   const events = (eventsData as { events?: Array<{ id: string; name: string; status: string }> } | undefined)?.events ?? [];
 
-  const { data: revenueData, isLoading } = useGetRevenueReport(
+  const { data: revenueData, isLoading, isError, refetch } = useGetRevenueReport(
     selectedEventId ? { eventId: selectedEventId } : {},
   );
 
@@ -70,7 +68,18 @@ export default function AdminDashboardScreen() {
         ))}
       </ScrollView>
 
-      {isLoading ? <Loading label={t("common.loading")} /> : (
+      {isLoading ? (
+        <Loading label={t("common.loading")} />
+      ) : isError ? (
+        <View style={[styles.errorBox, { backgroundColor: C.card, borderColor: C.danger }]}>
+          <Feather name="wifi-off" size={28} color={C.danger} />
+          <Text style={[styles.errorTitle, { color: C.text }]}>{t("common.connectionError")}</Text>
+          <Text style={[styles.errorMsg, { color: C.textSecondary }]}>{t("common.checkConnection")}</Text>
+          <Pressable onPress={() => refetch()} style={[styles.retryBtn, { backgroundColor: C.primary }]}>
+            <Text style={styles.retryBtnText}>{t("common.retry")}</Text>
+          </Pressable>
+        </View>
+      ) : (
         <>
           <Card style={[styles.platformCard, { backgroundColor: C.primary }]} padding={24}>
             <View style={styles.platformRow}>
@@ -109,6 +118,7 @@ export default function AdminDashboardScreen() {
 function EventChip({ label, selected, onPress, C, badge }: {
   label: string; selected: boolean; onPress: () => void; C: typeof Colors.light; badge?: string;
 }) {
+  void badge;
   return (
     <Text
       onPress={onPress}
@@ -145,4 +155,9 @@ const styles = StyleSheet.create({
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   kpiIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   kpiLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginBottom: 4 },
+  errorBox: { alignItems: "center", gap: 8, padding: 24, borderRadius: 16, borderWidth: 1 },
+  errorTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", marginTop: 4 },
+  errorMsg: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
+  retryBtn: { marginTop: 8, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 100 },
+  retryBtnText: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
 });

@@ -76,7 +76,9 @@
     "passwordMinLength": "Password must be at least 6 characters",
     "unexpectedError": "An unexpected error occurred",
     "endOfList": "No more items",
-    "more": "More"
+    "more": "More",
+    "connectionError": "Connection Error",
+    "checkConnection": "Please check your internet connection and try again."
   },
   "auth": {
     "title": "Tapee",

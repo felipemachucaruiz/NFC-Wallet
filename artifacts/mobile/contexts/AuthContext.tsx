@@ -115,9 +115,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const attendeeResult = await tryFetch(ATTENDEE_API_BASE_URL);
-    if (attendeeResult !== "network_error") return attendeeResult;
+    // Only short-circuit on a valid user object.
+    // null means the attendee-api rejected the session (e.g. staff token) —
+    // fall through to api-server so staff logins are always resolved.
+    // "network_error" also falls through to api-server as a retry.
+    if (attendeeResult !== null && attendeeResult !== "network_error") return attendeeResult;
 
-    // If attendee-api is unreachable or token is staff-issued, try api-server
+    // Staff tokens are issued by api-server and may be unrecognised by
+    // attendee-api; always check api-server as the final authority.
     return tryFetch(API_BASE_URL);
   }, []);
 
