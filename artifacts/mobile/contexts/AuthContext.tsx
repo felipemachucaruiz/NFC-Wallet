@@ -169,14 +169,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const body = JSON.stringify({ identifier, password });
       const headers = { "Content-Type": "application/json" };
 
-      // Try attendee-api first (attendees); fall back to api-server on any
-      // non-200 response: 403 = "staff only", 5xx = attendee-api unreachable/down
+      // Try attendee-api first. Fall back to api-server when:
+      //   403 → staff account ("must log in via staff portal")
+      //   5xx → attendee-api unreachable / dev server down / proxy error
+      //   any other non-2xx → unexpected error, always try api-server
       let res = await fetch(`${ATTENDEE_API_BASE_URL}/api/auth/login`, {
         method: "POST", headers, body,
       });
-      if (!res.ok) {
-        // Account is a staff account OR attendee-api is unavailable —
-        // always retry against the main api-server
+      const attendeeStatus = res.status;
+      if (attendeeStatus < 200 || attendeeStatus > 299) {
         res = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: "POST", headers, body,
         });
