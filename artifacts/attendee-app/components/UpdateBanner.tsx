@@ -7,14 +7,12 @@ import {
   Platform,
   StyleSheet,
   Text,
-  View,
+  TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
-type Phase = "idle" | "downloading" | "reloading";
-
-const AUTO_RELOAD_DELAY_MS = 2500;
+type Phase = "idle" | "downloading" | "ready";
 
 export function UpdateBanner() {
   const { t } = useTranslation();
@@ -22,7 +20,6 @@ export function UpdateBanner() {
   const [phase, setPhase] = useState<Phase>("idle");
   const slideAnim = useRef(new Animated.Value(80)).current;
   const isChecking = useRef(false);
-  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const slideIn = () =>
     Animated.spring(slideAnim, {
@@ -61,16 +58,16 @@ export function UpdateBanner() {
       }
       setPhase("downloading");
       await Updates.fetchUpdateAsync();
-      setPhase("reloading");
-      // Auto-reload after brief delay so user sees the banner
-      reloadTimer.current = setTimeout(async () => {
-        try {
-          await Updates.reloadAsync();
-        } catch {
-          setPhase("idle");
-          isChecking.current = false;
-        }
-      }, AUTO_RELOAD_DELAY_MS);
+      setPhase("ready");
+    } catch {
+      setPhase("idle");
+      isChecking.current = false;
+    }
+  };
+
+  const handleTapToUpdate = async () => {
+    try {
+      await Updates.reloadAsync();
     } catch {
       setPhase("idle");
       isChecking.current = false;
@@ -80,16 +77,13 @@ export function UpdateBanner() {
   // Check on launch
   useEffect(() => {
     checkAndApply();
-    return () => {
-      if (reloadTimer.current) clearTimeout(reloadTimer.current);
-    };
   }, []);
 
   // Check every time app comes to foreground
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
-        isChecking.current = false; // reset so foreground check can run
+        isChecking.current = false;
         checkAndApply();
       }
     });
@@ -105,10 +99,20 @@ export function UpdateBanner() {
         { bottom: insets.bottom + 16, transform: [{ translateY: slideAnim }] },
       ]}
     >
-      <ActivityIndicator color="#fff" size="small" />
-      <Text style={styles.text}>
-        {phase === "downloading" ? t("update.downloading") : t("update.reloading")}
-      </Text>
+      {phase === "downloading" ? (
+        <>
+          <ActivityIndicator color="#fff" size="small" />
+          <Text style={styles.text}>{t("update.downloading")}</Text>
+        </>
+      ) : (
+        <TouchableOpacity
+          style={styles.tapTarget}
+          onPress={handleTapToUpdate}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.text}>{t("update.tapToUpdate")}</Text>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 }
@@ -131,6 +135,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     zIndex: 999,
+  },
+  tapTarget: {
+    flex: 1,
   },
   text: {
     flex: 1,

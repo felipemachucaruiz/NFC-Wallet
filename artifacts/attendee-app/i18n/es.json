@@ -186,7 +186,8 @@
     "downloading": "Descargando actualización…",
     "reloading": "Aplicando actualización…",
     "ready": "¡Actualización lista!",
-    "restart": "Reiniciar ahora"
+    "restart": "Reiniciar ahora",
+    "tapToUpdate": "Actualización lista — toca para reiniciar"
   },
   "profile": {
     "tab": "Perfil",

@@ -45,7 +45,7 @@ export default function HomeScreen() {
   const isWeb = Platform.OS === "web";
   const { user } = useAuth();
 
-  const { data, isLoading, refetch, isRefetching } = useMyBracelets();
+  const { data, isPending, refetch, isRefetching } = useMyBracelets();
   const bracelets = ((data as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
   const totalBalance = bracelets.reduce((sum, b) => sum + b.balanceCop, 0);
   const activeBracelet = bracelets.find((b) => b.event?.active) ?? bracelets[0] ?? null;
@@ -99,7 +99,7 @@ export default function HomeScreen() {
     }
   };
 
-  if (isLoading) return <Loading label={t("common.loading")} />;
+  if (isPending) return <Loading label={t("common.loading")} />;
 
   return (
     <ScrollView
