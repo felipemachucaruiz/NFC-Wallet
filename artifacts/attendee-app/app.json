@@ -49,7 +49,7 @@
       [
         "./plugins/withSslPinning",
         {
-          "certFiles": ["tapee_api.cer"]
+          "certFiles": ["tapee_api.cer", "attendee_api.cer"]
         }
       ]
     ],

@@ -14,7 +14,9 @@
  * active pin list (the cert files must already be compiled into the native
  * binary via the withSslPinning config plugin).
  *
- * Cert SPKI (SHA-256): 5f3mnJdIerf/0WlSLG07Xb0l52f48NEYZgrQRQk4FiA=
+ * Cert SPKI (SHA-256):
+ *   prod.tapee.app     → qZeuQmHlu+HfY+6kzKAG1DHDu01gEmkM5zM4UJh+CBU=
+ *   attendee.tapee.app → t6a7uh5TulAD/pgVznCOpTdlAlH6vFGvYeWrrUrs96Y=
  */
 
 import { API_DOMAIN, ATTENDEE_API_BASE_URL } from "@/constants/domain";

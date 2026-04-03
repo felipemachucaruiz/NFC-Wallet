@@ -1,10 +1,17 @@
 const FALLBACK_DOMAIN =
   "2814f499-7dcc-4ff4-930a-005c0a1f5aa1-00-354suhrpt8x73.riker.replit.dev";
+const FALLBACK_PATH = "/attendee-api";
 
-const raw: string = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+const rawDomain: string = process.env.EXPO_PUBLIC_DOMAIN ?? "";
+const rawAttendeeDomain: string = process.env.EXPO_PUBLIC_ATTENDEE_DOMAIN ?? "";
 
 export const API_DOMAIN: string =
-  raw && raw !== "undefined" ? raw : FALLBACK_DOMAIN;
+  rawAttendeeDomain && rawAttendeeDomain !== "undefined"
+    ? rawAttendeeDomain
+    : rawDomain && rawDomain !== "undefined"
+      ? `${rawDomain}${FALLBACK_PATH}`
+      : `${FALLBACK_DOMAIN}${FALLBACK_PATH}`;
 
-// All attendee-api routes sit under the /attendee-api path on the Replit proxy
-export const API_BASE_URL: string = `https://${API_DOMAIN}/attendee-api`;
+// In production: https://attendee.tapee.app
+// In dev (Replit proxy): https://<replit-domain>/attendee-api
+export const API_BASE_URL: string = `https://${API_DOMAIN}`;

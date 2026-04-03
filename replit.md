@@ -200,11 +200,16 @@ Both apps pin the Tapee API TLS certificate using `react-native-ssl-pinning@1.6.
 - Cert files (`.cer`, DER format) live in `assets/certs/` in each app and are copied to native directories by the `withSslPinning` Expo config plugin during EAS prebuild.
 - Active cert filenames are controlled by `EXPO_PUBLIC_SSL_CERTS` (comma-separated, without extension). Defaults to `tapee_api`.
 
-### Current pinned cert
-- **File**: `assets/certs/tapee_api.cer`
-- **Domain**: `prod.tapee.app` (production) / `attendee.tapee.app` (attendee API)
-- **Leaf cert SPKI SHA-256**: `qZeuQmHlu+HfY+6kzKAG1DHDu01gEmkM5zM4UJh+CBU=`
-- **Cert expiry**: ~90 days (Let's Encrypt via Railway). Key pair is stable across renewals — SPKI hash stays the same, so rotation only needs a new OTA (no native rebuild needed).
+### Current pinned certs
+Two separate cert files — both must be compiled into native builds:
+
+| File | Domain | SPKI SHA-256 | Expiry |
+|------|--------|-------------|--------|
+| `tapee_api.cer` | `prod.tapee.app` | `qZeuQmHlu+HfY+6kzKAG1DHDu01gEmkM5zM4UJh+CBU=` | Jul 2 2026 |
+| `attendee_api.cer` | `attendee.tapee.app` | `t6a7uh5TulAD/pgVznCOpTdlAlH6vFGvYeWrrUrs96Y=` | Jul 2 2026 |
+
+Both apps pin against both certs (`EXPO_PUBLIC_SSL_CERTS=tapee_api,attendee_api`).
+Certs are short-lived (Let's Encrypt ~90 days). When a cert renews with a **new key**, re-extract the DER file and trigger a new native EAS build. If the same key is reused, an OTA suffices.
 
 ### Certificate rotation procedure (before old cert expires)
 
