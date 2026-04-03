@@ -9,7 +9,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
-import { Appearance, Platform } from "react-native";
+import { Alert, Appearance, Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -40,6 +41,22 @@ setBaseUrl(API_BASE_URL);
 setFetchImplementation(pinnedFetch);
 
 SplashScreen.preventAutoHideAsync();
+
+const CRASH_LOG_KEY = "@tapee_crash_log";
+
+if (typeof ErrorUtils !== "undefined") {
+  const prevHandler = ErrorUtils.getGlobalHandler();
+  ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
+    const entry = JSON.stringify({
+      message: error?.message ?? "unknown error",
+      stack: error?.stack?.split("\n").slice(0, 8).join("\n"),
+      isFatal: !!isFatal,
+      ts: new Date().toISOString(),
+    });
+    AsyncStorage.setItem(CRASH_LOG_KEY, entry).catch(() => {});
+    prevHandler(error, isFatal);
+  });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,6 +137,20 @@ export default function RootLayout() {
   useEffect(() => {
     initI18n().then(() => setI18nReady(true));
     initNfc();
+    AsyncStorage.getItem(CRASH_LOG_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        AsyncStorage.removeItem(CRASH_LOG_KEY).catch(() => {});
+        try {
+          const log = JSON.parse(raw) as { message: string; stack?: string; isFatal?: boolean; ts?: string };
+          Alert.alert(
+            log.isFatal ? "Fatal Crash Detected" : "Previous Crash Detected",
+            `${log.ts ?? ""}\n\n${log.message}\n\n${log.stack ?? ""}`,
+            [{ text: "OK" }],
+          );
+        } catch {}
+      })
+      .catch(() => {});
   }, []);
 
   const appReady = (fontsLoaded || !!fontError) && i18nReady;

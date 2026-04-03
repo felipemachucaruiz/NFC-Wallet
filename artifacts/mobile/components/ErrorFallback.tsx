@@ -78,6 +78,12 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           Please reload the app to continue.
         </Text>
 
+        <View style={[styles.errorBox, { backgroundColor: theme.backgroundSecondary }]}>
+          <Text style={[styles.errorText, { fontFamily: monoFont, color: theme.textSecondary }]} numberOfLines={6} selectable>
+            {error.message}
+          </Text>
+        </View>
+
         <Pressable
           onPress={handleRestart}
           style={({ pressed }) => [
@@ -93,10 +99,16 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             Try Again
           </Text>
         </Pressable>
+
+        <Pressable
+          onPress={() => setIsModalVisible(true)}
+          style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, marginTop: 8 }]}
+        >
+          <Text style={[styles.detailsLink, { color: theme.link }]}>View full error details</Text>
+        </Pressable>
       </View>
 
-      {__DEV__ ? (
-        <Modal
+      <Modal
           visible={isModalVisible}
           animationType="slide"
           transparent={true}
@@ -166,7 +178,6 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             </View>
           </View>
         </Modal>
-      ) : null}
     </View>
   );
 }
@@ -274,5 +285,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     width: "100%",
+  },
+  errorBox: {
+    width: "100%",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 4,
+  },
+  detailsLink: {
+    fontSize: 14,
+    textDecorationLine: "underline",
   },
 });
