@@ -1,6 +1,10 @@
-attached_assets
-artifacts/attendee-app
-artifacts/api-server
-artifacts/attendee-api
-artifacts/mockup-sandbox
-screenshots
+artifacts/mobile/dist/
+artifacts/mobile/.expo/
+artifacts/mobile/nohup.out
+artifacts/attendee-app/dist/
+artifacts/attendee-app/.expo/
+artifacts/api-server/dist/
+artifacts/attendee-api/dist/
+lib/*/dist/
+**/*.log
+**/*.map
