@@ -3,6 +3,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { router } from "expo-router";
 import { useRegisterPushToken } from "@/hooks/useAttendeeApi";
+import Constants from "expo-constants";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -33,7 +34,11 @@ export function usePushNotifications(isAuthenticated: boolean) {
       if (finalStatus !== "granted" || cancelled) return;
 
       try {
-        const tokenData = await Notifications.getExpoPushTokenAsync();
+        const projectId =
+          Constants.expoConfig?.extra?.eas?.projectId ??
+          Constants.easConfig?.projectId;
+        if (!projectId) return;
+        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
         if (!cancelled) {
           registerToken(tokenData.data);
         }
