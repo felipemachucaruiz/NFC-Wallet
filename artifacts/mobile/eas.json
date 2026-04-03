@@ -32,7 +32,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "YOUR_PRODUCTION_API_DOMAIN_HERE"
+        "EXPO_PUBLIC_DOMAIN": "prod.tapee.app"
       }
     }
   },

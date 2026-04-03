@@ -34,8 +34,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "YOUR_PRODUCTION_API_DOMAIN_HERE",
-        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "YOUR_PRODUCTION_ATTENDEE_API_DOMAIN_HERE"
+        "EXPO_PUBLIC_DOMAIN": "prod.tapee.app",
+        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app"
       }
     }
   },
