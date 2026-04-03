@@ -23,7 +23,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "2814f499-7dcc-4ff4-930a-005c0a1f5aa1-00-354suhrpt8x73.riker.replit.dev"
+        "EXPO_PUBLIC_DOMAIN": "prod.tapee.app"
       }
     },
     "production": {
