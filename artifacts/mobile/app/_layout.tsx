@@ -44,19 +44,26 @@ SplashScreen.preventAutoHideAsync();
 
 const CRASH_LOG_KEY = "@tapee_crash_log";
 
-if (typeof ErrorUtils !== "undefined") {
-  const prevHandler = ErrorUtils.getGlobalHandler();
-  ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
-    const entry = JSON.stringify({
-      message: error?.message ?? "unknown error",
-      stack: error?.stack?.split("\n").slice(0, 8).join("\n"),
-      isFatal: !!isFatal,
-      ts: new Date().toISOString(),
+try {
+  if (typeof ErrorUtils !== "undefined" && typeof ErrorUtils.setGlobalHandler === "function") {
+    const prevHandler =
+      typeof ErrorUtils.getGlobalHandler === "function"
+        ? ErrorUtils.getGlobalHandler()
+        : null;
+    ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
+      try {
+        const entry = JSON.stringify({
+          message: error?.message ?? "unknown error",
+          stack: error?.stack?.split("\n").slice(0, 8).join("\n"),
+          isFatal: !!isFatal,
+          ts: new Date().toISOString(),
+        });
+        AsyncStorage.setItem(CRASH_LOG_KEY, entry).catch(() => {});
+      } catch {}
+      if (typeof prevHandler === "function") prevHandler(error, isFatal);
     });
-    AsyncStorage.setItem(CRASH_LOG_KEY, entry).catch(() => {});
-    prevHandler(error, isFatal);
-  });
-}
+  }
+} catch {}
 
 const queryClient = new QueryClient({
   defaultOptions: {
