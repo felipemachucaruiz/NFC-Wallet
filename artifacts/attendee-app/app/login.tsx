@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useEffect, useState } from "react";
 import {
+  Dimensions,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -16,11 +17,14 @@ import {
   TextInput,
   View,
 } from "react-native";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
+
+const SCREEN_W = Dimensions.get("window").width;
 
 const loginBgVideo = require("@/assets/login-bg.mp4");
 
@@ -349,9 +353,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   wordmark: {
-    width: "78%",
-    maxWidth: 300,
-    aspectRatio: 1199 / 435,
+    width: Math.min(SCREEN_W * 0.78, 300),
+    height: Math.min(SCREEN_W * 0.78, 300) / (1199 / 435),
   },
   appSubtitle: {
     fontSize: 12,
