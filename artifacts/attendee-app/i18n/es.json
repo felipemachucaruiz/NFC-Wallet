@@ -98,7 +98,21 @@
     "flaggedMsg": "Esta pulsera está bloqueada. Ve a la estación bancaria del evento.",
     "eventLimitTitle": "Una pulsera por evento",
     "eventLimitMsg": "Ya tienes una pulsera vinculada para este evento. Solo se permite una por persona.",
-    "scanFailed": "El escaneo NFC falló. Por favor intenta de nuevo."
+    "scanFailed": "El escaneo NFC falló. Por favor intenta de nuevo.",
+    "unknownBracelet": "Esta pulsera no está registrada. Busquemos tu evento.",
+    "selectingEvent": "Seleccionando evento..."
+  },
+  "selectEvent": {
+    "title": "Seleccionar Evento",
+    "requestingLocation": "Obteniendo tu ubicación...",
+    "fetchingEvents": "Buscando eventos cercanos...",
+    "linking": "Vinculando pulsera...",
+    "nearbyEventFound": "Encontramos un evento cerca de ti.",
+    "attendingQuestion": "¿Estás asistiendo a",
+    "showAllEvents": "Ver todos los eventos",
+    "selectEvent": "Selecciona tu evento",
+    "noEvents": "No se encontraron eventos cercanos",
+    "noEventsHint": "Por favor pide ayuda al personal del evento."
   },
   "history": {
     "tab": "Historial",

@@ -18,6 +18,7 @@ const TOKEN_KEY = "tapee_auth_token";
 export type UserRole =
   | "attendee"
   | "bank"
+  | "gate"
   | "merchant_staff"
   | "merchant_admin"
   | "warehouse_admin"
@@ -52,7 +53,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const STAFF_ROLES: readonly string[] = ["bank", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"];
+const STAFF_ROLES: readonly string[] = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"];
 
 const getAuthBase = (role?: string): string =>
   role && STAFF_ROLES.includes(role) ? API_BASE_URL : ATTENDEE_API_BASE_URL;

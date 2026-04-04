@@ -98,7 +98,21 @@
     "flaggedMsg": "This wristband is blocked. Visit the bank station at the event.",
     "eventLimitTitle": "One wristband per event",
     "eventLimitMsg": "You already have a wristband linked for this event. Only one is allowed per person.",
-    "scanFailed": "NFC scan failed. Please try again."
+    "scanFailed": "NFC scan failed. Please try again.",
+    "unknownBracelet": "This wristband is not registered. Let's find your event.",
+    "selectingEvent": "Selecting event..."
+  },
+  "selectEvent": {
+    "title": "Select Event",
+    "requestingLocation": "Getting your location...",
+    "fetchingEvents": "Finding nearby events...",
+    "linking": "Linking wristband...",
+    "nearbyEventFound": "We found an event near you.",
+    "attendingQuestion": "Are you attending",
+    "showAllEvents": "Show all events",
+    "selectEvent": "Select your event",
+    "noEvents": "No events found nearby",
+    "noEventsHint": "Please ask event staff for assistance."
   },
   "history": {
     "tab": "History",

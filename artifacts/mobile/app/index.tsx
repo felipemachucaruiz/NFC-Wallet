@@ -19,6 +19,8 @@ export default function IndexScreen() {
       router.replace("/(attendee)/home");
     } else if (role === "bank") {
       router.replace("/(bank)/");
+    } else if (role === "gate") {
+      router.replace("/(gate)/");
     } else if (role === "merchant_staff") {
       router.replace("/(merchant-pos)/");
     } else if (role === "merchant_admin") {

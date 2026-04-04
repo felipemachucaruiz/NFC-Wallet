@@ -26,7 +26,7 @@ function normalizeUid(raw: string): string {
   return clean.match(/.{1,2}/g)?.join(":") ?? clean;
 }
 
-type State = "idle" | "scanning" | "linking" | "success" | "error" | "already" | "event_limit";
+type State = "idle" | "scanning" | "linking" | "success" | "error" | "already" | "event_limit" | "select_event";
 
 export default function AddBraceletScreen() {
   const { t } = useTranslation();
@@ -78,6 +78,13 @@ export default function AddBraceletScreen() {
           } else if (err.message === "BRACELET_FLAGGED") {
             setErrorMsg(t("addBracelet.flaggedMsg"));
             setState("error");
+          } else if (
+            err.message === "BRACELET_NOT_FOUND" ||
+            err.message === "BRACELET_NOT_REGISTERED" ||
+            err.message === "NEEDS_EVENT_SELECTION"
+          ) {
+            router.push({ pathname: "/select-event" as never, params: { uid } });
+            setState("idle");
           } else {
             setErrorMsg(err.message || t("common.unknownError"));
             setState("error");

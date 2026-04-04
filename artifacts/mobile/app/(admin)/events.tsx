@@ -60,6 +60,8 @@ type EventItem = {
   id: string;
   name: string;
   venueAddress: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   active?: boolean;
   startsAt: string;
   endsAt: string;
@@ -91,6 +93,8 @@ export default function EventsScreen() {
   // Shared form fields
   const [eventName, setEventName] = useState("");
   const [venue, setVenue] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [platformCommission, setPlatformCommission] = useState("0");
@@ -176,7 +180,8 @@ export default function EventsScreen() {
   });
 
   const resetForm = () => {
-    setEventName(""); setVenue(""); setStartDate(null); setEndDate(null);
+    setEventName(""); setVenue(""); setLatitude(""); setLongitude("");
+    setStartDate(null); setEndDate(null);
     setPlatformCommission("0"); setCapacity(""); setSelectedCompanyId(""); setPulepId("");
     setAdminEmail(""); setAdminPassword(""); setAdminFirstName("");
     setOrganizerMode("none"); setSelectedClientId(""); setClientSearch("");
@@ -186,6 +191,8 @@ export default function EventsScreen() {
   const openEdit = (item: EventItem) => {
     setEventName(item.name);
     setVenue(item.venueAddress ?? "");
+    setLatitude(item.latitude != null ? String(item.latitude) : "");
+    setLongitude(item.longitude != null ? String(item.longitude) : "");
     setStartDate(item.startsAt ? new Date(item.startsAt) : null);
     setEndDate(item.endsAt ? new Date(item.endsAt) : null);
     setPlatformCommission(item.platformCommissionRate ? String(item.platformCommissionRate) : "0");
@@ -221,6 +228,8 @@ export default function EventsScreen() {
       const body: Record<string, unknown> = {
         name: eventName.trim(),
         venueAddress: venue.trim() || undefined,
+        latitude: latitude.trim() ? parseFloat(latitude.trim()) : undefined,
+        longitude: longitude.trim() ? parseFloat(longitude.trim()) : undefined,
         startsAt: startDate.toISOString(),
         endsAt: endDate.toISOString(),
         platformCommissionRate: platformCommission.trim() || "0",
@@ -285,6 +294,8 @@ export default function EventsScreen() {
       const body: Record<string, unknown> = {
         name: eventName.trim(),
         venueAddress: venue.trim() || null,
+        latitude: latitude.trim() ? parseFloat(latitude.trim()) : null,
+        longitude: longitude.trim() ? parseFloat(longitude.trim()) : null,
         startsAt: startDate.toISOString(),
         endsAt: endDate.toISOString(),
         platformCommissionRate: platformCommission.trim() || "0",
@@ -413,6 +424,8 @@ export default function EventsScreen() {
               t={t}
               eventName={eventName} setEventName={setEventName}
               venue={venue} setVenue={setVenue}
+              latitude={latitude} setLatitude={setLatitude}
+              longitude={longitude} setLongitude={setLongitude}
               startDate={startDate} setStartDate={setStartDate}
               endDate={endDate} setEndDate={setEndDate}
               platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
@@ -571,6 +584,8 @@ export default function EventsScreen() {
               t={t}
               eventName={eventName} setEventName={setEventName}
               venue={venue} setVenue={setVenue}
+              latitude={latitude} setLatitude={setLatitude}
+              longitude={longitude} setLongitude={setLongitude}
               startDate={startDate} setStartDate={setStartDate}
               endDate={endDate} setEndDate={setEndDate}
               platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
@@ -598,6 +613,8 @@ function EventFormFields({
   C, t,
   eventName, setEventName,
   venue, setVenue,
+  latitude, setLatitude,
+  longitude, setLongitude,
   startDate, setStartDate,
   endDate, setEndDate,
   platformCommission, setPlatformCommission,
@@ -610,6 +627,8 @@ function EventFormFields({
   t: (key: string) => string;
   eventName: string; setEventName: (v: string) => void;
   venue: string; setVenue: (v: string) => void;
+  latitude: string; setLatitude: (v: string) => void;
+  longitude: string; setLongitude: (v: string) => void;
   startDate: Date | null; setStartDate: (v: Date | null) => void;
   endDate: Date | null; setEndDate: (v: Date | null) => void;
   platformCommission: string; setPlatformCommission: (v: string) => void;
@@ -623,6 +642,26 @@ function EventFormFields({
     <>
       <Input label={t("admin.eventName")} value={eventName} onChangeText={setEventName} placeholder={t("admin.eventNamePlaceholder")} />
       <Input label={t("admin.venue")} value={venue} onChangeText={setVenue} placeholder={t("admin.venuePlaceholder")} />
+      <View style={{ flexDirection: "row", gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Input
+            label={`${t("admin.latitude")} (${t("common.optional")})`}
+            value={latitude}
+            onChangeText={setLatitude}
+            keyboardType="decimal-pad"
+            placeholder="4.7110"
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Input
+            label={`${t("admin.longitude")} (${t("common.optional")})`}
+            value={longitude}
+            onChangeText={setLongitude}
+            keyboardType="decimal-pad"
+            placeholder="-74.0721"
+          />
+        </View>
+      </View>
       <DatePickerInput label={t("admin.startDate")} value={startDate} onChange={setStartDate} placeholder={t("admin.startDatePlaceholder")} />
       <DatePickerInput
         label={t("admin.endDate")}
