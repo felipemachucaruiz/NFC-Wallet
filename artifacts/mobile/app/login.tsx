@@ -42,11 +42,15 @@ export default function LoginScreen() {
     p.play();
   });
 
+  // Guard: if the user is already authenticated when this screen mounts
+  // (e.g. navigated back to /login while logged in), go home immediately.
+  // We intentionally do NOT watch isAuthenticated as a runtime dependency —
+  // that caused a race condition where the effect navigated to "/" before
+  // handleLogin could set setupStep, swallowing the PIN prompt entirely.
   useEffect(() => {
-    if (isAuthenticated && !setupStep) {
-      router.replace("/");
-    }
-  }, [isAuthenticated, setupStep]);
+    if (isAuthenticated) router.replace("/");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password) {
@@ -67,13 +71,16 @@ export default function LoginScreen() {
       }
       return;
     }
+    // Check whether to show the PIN setup prompt BEFORE navigating away
     if (rememberMe && !hasPasscode && Platform.OS !== "web") {
       const shouldShow = await onLoginAttempted();
       if (shouldShow) {
         setSetupStep("prompt");
-        return;
+        return; // Stay on login screen to show the PIN prompt
       }
     }
+    // All checks passed — navigate to role screen
+    router.replace("/");
   };
 
   const busy = isLoading || submitting;
