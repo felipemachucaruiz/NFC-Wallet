@@ -13,7 +13,7 @@ export function Loading({ label, full = true }: LoadingProps) {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
   return (
-    <View style={[styles.container, full && styles.full]}>
+    <View style={[styles.container, full && [styles.full, { backgroundColor: C.background }]]}>
       <ActivityIndicator size="large" color={C.primary} />
       {label ? (
         <Text style={[styles.label, { color: C.textSecondary }]}>{label}</Text>
