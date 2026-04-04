@@ -120,6 +120,7 @@ router.get("/auth/user", async (req: Request, res: Response) => {
       merchantName,
       merchantType,
       eventName,
+      gateZoneId: (u as unknown as { gateZoneId?: string | null }).gateZoneId ?? null,
     },
   });
 });
@@ -177,6 +178,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
       merchantId: user.merchantId ?? null,
       eventId: user.eventId ?? null,
       promoterCompanyId: user.promoterCompanyId ?? null,
+      gateZoneId: user.gateZoneId ?? null,
     },
   };
 

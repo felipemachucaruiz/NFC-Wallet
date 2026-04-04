@@ -7,8 +7,8 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
-const userRoles = ["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"] as const;
-const eventAdminAllowedRoles = ["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin"] as const;
+const userRoles = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"] as const;
+const eventAdminAllowedRoles = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin"] as const;
 
 router.get("/users", requireRole("admin", "event_admin"), async (req: Request, res: Response) => {
   if (req.user!.role === "event_admin") {
@@ -35,6 +35,7 @@ router.patch(
     const schema = z.object({
       role: z.enum(userRoles),
       merchantId: z.string().nullable().optional(),
+      gateZoneId: z.string().nullable().optional(),
     });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
@@ -86,6 +87,10 @@ router.patch(
         }
       }
       updates.merchantId = parsed.data.merchantId;
+    }
+
+    if (parsed.data.gateZoneId !== undefined) {
+      updates.gateZoneId = parsed.data.gateZoneId;
     }
 
     const [user] = await db

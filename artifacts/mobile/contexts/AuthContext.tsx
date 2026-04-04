@@ -39,6 +39,7 @@ export interface AuthUser {
   /** "event_managed" = uses warehouse flows; "external" = self-managed inventory */
   merchantType?: string | null;
   eventName?: string | null;
+  gateZoneId?: string | null;
 }
 
 interface AuthContextValue {

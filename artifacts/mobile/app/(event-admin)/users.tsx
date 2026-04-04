@@ -14,20 +14,23 @@ import { Empty } from "@/components/ui/Empty";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
+import { useZoneCache } from "@/contexts/ZoneCacheContext";
 
-type EventAdminRole = "attendee" | "bank" | "merchant_staff" | "merchant_admin" | "warehouse_admin";
+type EventAdminRole = "attendee" | "bank" | "gate" | "merchant_staff" | "merchant_admin" | "warehouse_admin";
 
-const EVENT_ROLES: EventAdminRole[] = ["attendee", "bank", "merchant_staff", "merchant_admin", "warehouse_admin"];
+const EVENT_ROLES: EventAdminRole[] = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin"];
 
 const ROLE_COLORS: Record<EventAdminRole, "success" | "info" | "warning" | "muted" | "danger"> = {
   attendee: "muted",
   bank: "info",
+  gate: "success",
   merchant_staff: "success",
   merchant_admin: "warning",
   warehouse_admin: "info",
 };
 
 const MERCHANT_ROLES: EventAdminRole[] = ["merchant_staff", "merchant_admin"];
+const GATE_ROLES: EventAdminRole[] = ["gate"];
 
 type User = {
   id: string;
@@ -37,6 +40,7 @@ type User = {
   lastName: string | null;
   role: string;
   merchantId: string | null;
+  gateZoneId: string | null;
 };
 
 type Merchant = {
@@ -54,6 +58,7 @@ export default function EventAdminUsersScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { token } = useAuth();
+  const { zones } = useZoneCache();
 
   const [users, setUsers] = useState<User[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
@@ -68,12 +73,14 @@ export default function EventAdminUsersScreen() {
   const [lastName, setLastName] = useState("");
   const [selectedRole, setSelectedRole] = useState<EventAdminRole>("merchant_admin");
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(null);
+  const [selectedGateZoneId, setSelectedGateZoneId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
   // Edit role form
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editRole, setEditRole] = useState<EventAdminRole>("merchant_admin");
   const [editMerchantId, setEditMerchantId] = useState<string | null>(null);
+  const [editGateZoneId, setEditGateZoneId] = useState<string | null>(null);
   const [isSavingRole, setIsSavingRole] = useState(false);
 
   // Reset password
@@ -104,7 +111,7 @@ export default function EventAdminUsersScreen() {
 
   const resetCreateForm = () => {
     setUsername(""); setEmail(""); setPassword(""); setFirstName(""); setLastName("");
-    setSelectedRole("merchant_admin"); setSelectedMerchantId(null);
+    setSelectedRole("merchant_admin"); setSelectedMerchantId(null); setSelectedGateZoneId(null);
   };
 
   const handleCreate = async () => {
@@ -126,6 +133,9 @@ export default function EventAdminUsersScreen() {
       if (email.trim()) body.email = email.trim().toLowerCase();
       if (MERCHANT_ROLES.includes(selectedRole) && selectedMerchantId) {
         body.merchantId = selectedMerchantId;
+      }
+      if (GATE_ROLES.includes(selectedRole) && selectedGateZoneId) {
+        body.gateZoneId = selectedGateZoneId;
       }
       const res = await fetch(`${getApiBase()}/api/auth/create-account`, {
         method: "POST",
@@ -151,6 +161,7 @@ export default function EventAdminUsersScreen() {
     setEditingUser(user);
     setEditRole((user.role as EventAdminRole) ?? "attendee");
     setEditMerchantId(user.merchantId ?? null);
+    setEditGateZoneId(user.gateZoneId ?? null);
     setResetPw("");
   };
 
@@ -192,6 +203,11 @@ export default function EventAdminUsersScreen() {
         body.merchantId = editMerchantId;
       } else {
         body.merchantId = null;
+      }
+      if (GATE_ROLES.includes(editRole)) {
+        body.gateZoneId = editGateZoneId;
+      } else {
+        body.gateZoneId = null;
       }
       const res = await fetch(`${getApiBase()}/api/users/${editingUser.id}/role`, {
         method: "PATCH",
@@ -310,6 +326,25 @@ export default function EventAdminUsersScreen() {
                 </View>
               </>
             ) : null}
+            {GATE_ROLES.includes(selectedRole) && zones.length > 0 ? (
+              <>
+                <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("zones.assignZone")}</Text>
+                <View style={styles.roleGrid}>
+                  {zones.map((z) => (
+                    <Pressable
+                      key={z.id}
+                      onPress={() => setSelectedGateZoneId(z.id === selectedGateZoneId ? null : z.id)}
+                      style={[
+                        styles.roleChip,
+                        { backgroundColor: selectedGateZoneId === z.id ? z.colorHex : C.inputBg, borderColor: selectedGateZoneId === z.id ? z.colorHex : C.border },
+                      ]}
+                    >
+                      <Text style={[styles.roleChipText, { color: selectedGateZoneId === z.id ? "#fff" : C.textSecondary }]}>{z.name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            ) : null}
             <View style={styles.sheetActions}>
               <Button title={t("common.cancel")} onPress={() => { setShowCreate(false); resetCreateForm(); }} variant="secondary" />
               <Button title={t("eventAdmin.createUser")} onPress={handleCreate} variant="primary" loading={isCreating} />
@@ -365,6 +400,25 @@ export default function EventAdminUsersScreen() {
                       ]}
                     >
                       <Text style={[styles.roleChipText, { color: editMerchantId === m.id ? "#0a0a0a" : C.textSecondary }]}>{m.name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            ) : null}
+            {GATE_ROLES.includes(editRole) && zones.length > 0 ? (
+              <>
+                <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("zones.assignZone")}</Text>
+                <View style={styles.roleGrid}>
+                  {zones.map((z) => (
+                    <Pressable
+                      key={z.id}
+                      onPress={() => setEditGateZoneId(z.id === editGateZoneId ? null : z.id)}
+                      style={[
+                        styles.roleChip,
+                        { backgroundColor: editGateZoneId === z.id ? z.colorHex : C.inputBg, borderColor: editGateZoneId === z.id ? z.colorHex : C.border },
+                      ]}
+                    >
+                      <Text style={[styles.roleChipText, { color: editGateZoneId === z.id ? "#fff" : C.textSecondary }]}>{z.name}</Text>
                     </Pressable>
                   ))}
                 </View>

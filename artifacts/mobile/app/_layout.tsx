@@ -25,6 +25,7 @@ import { PasscodeProvider, usePasscode } from "@/contexts/PasscodeContext";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { CartProvider } from "@/contexts/CartContext";
 import { OfflineQueueProvider } from "@/contexts/OfflineQueueContext";
+import { ZoneCacheProvider } from "@/contexts/ZoneCacheContext";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { AlertProvider, useAlert } from "@/components/CustomAlert";
 import { initI18n } from "@/i18n";
@@ -188,6 +189,7 @@ export default function RootLayout() {
                 <AppWithPasscode>
                   <CartProvider>
                     <OfflineQueueProvider>
+                      <ZoneCacheProvider>
                       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
                         <KeyboardProvider>
                           <AlertProvider>
@@ -200,6 +202,7 @@ export default function RootLayout() {
                           </AlertProvider>
                         </KeyboardProvider>
                       </GestureHandlerRootView>
+                      </ZoneCacheProvider>
                     </OfflineQueueProvider>
                   </CartProvider>
                 </AppWithPasscode>

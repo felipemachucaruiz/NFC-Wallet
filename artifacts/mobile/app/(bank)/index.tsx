@@ -21,6 +21,7 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 import { useAuth } from "@/contexts/AuthContext";
 import type { NfcChipType } from "@/contexts/EventContext";
+import { useZoneCache } from "@/contexts/ZoneCacheContext";
 
 interface BraceletState {
   uid: string;
@@ -236,6 +237,8 @@ export default function BankLookupScreen() {
     setManualUid("");
   };
 
+  const { getZonesByIds } = useZoneCache();
+
   const apiRecord = apiData as {
     balanceCop?: number;
     isFlagged?: boolean;
@@ -246,6 +249,7 @@ export default function BankLookupScreen() {
     pendingSync?: boolean;
     pendingBalanceCop?: number;
     eventId?: string | null;
+    accessZoneIds?: string[];
   } | undefined;
 
   // When pendingSync=true a self-service top-up was applied server-side but not yet
@@ -313,6 +317,23 @@ export default function BankLookupScreen() {
       : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet?.balance ?? 0);
   const isFlagged = apiRecord?.isFlagged ?? false;
   const isWrongEvent = !!apiRecord && !!apiRecord.eventId && !!user?.eventId && apiRecord.eventId !== user.eventId;
+  const currentZones = getZonesByIds(apiRecord?.accessZoneIds ?? []);
+
+  const handleUpgradeAccess = () => {
+    if (!bracelet) return;
+    router.push({
+      pathname: "/(bank)/upgrade-access",
+      params: {
+        uid: bracelet.uid,
+        tagType: tagInfo?.type ?? "",
+        tagLabel: tagInfo?.label ?? "",
+        tagMemoryBytes: String(tagInfo?.memoryBytes ?? 0),
+        counter: String(bracelet.counter),
+        hmac: bracelet.hmac,
+        balance: String(bracelet.balance),
+      },
+    });
+  };
 
   return (
     <>
@@ -414,30 +435,59 @@ export default function BankLookupScreen() {
                   </Text>
                 </View>
               ) : (
-                <View style={styles.actionButtons}>
-                  <View style={{ flex: 1 }}>
-                    <Button
-                      title={t("bank.confirmTopUp")}
-                      onPress={handleTopUp}
-                      variant="success"
-                      size="lg"
-                      fullWidth
-                      testID="bank-topup-btn"
-                    />
-                  </View>
-                  {displayBalance > 0 && (
+                <>
+                  <View style={styles.actionButtons}>
                     <View style={{ flex: 1 }}>
                       <Button
-                        title={t("bank.issueRefund")}
-                        onPress={handleRefund}
-                        variant="secondary"
+                        title={t("bank.confirmTopUp")}
+                        onPress={handleTopUp}
+                        variant="success"
                         size="lg"
                         fullWidth
-                        testID="bank-refund-btn"
+                        testID="bank-topup-btn"
+                      />
+                    </View>
+                    {displayBalance > 0 && (
+                      <View style={{ flex: 1 }}>
+                        <Button
+                          title={t("bank.issueRefund")}
+                          onPress={handleRefund}
+                          variant="secondary"
+                          size="lg"
+                          fullWidth
+                          testID="bank-refund-btn"
+                        />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Current Access Zones card */}
+                  {apiRecord && (
+                    <View style={[styles.accessCard, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+                      <Text style={[styles.accessCardLabel, { color: C.textSecondary }]}>{t("zones.currentAccess")}</Text>
+                      {currentZones.length === 0 ? (
+                        <Text style={[styles.accessCardEmpty, { color: C.textMuted }]}>{t("zones.noAccess")}</Text>
+                      ) : (
+                        <View style={styles.zoneBadges}>
+                          {currentZones.map((z) => (
+                            <View key={z.id} style={[styles.zoneBadge, { backgroundColor: z.colorHex + "22", borderColor: z.colorHex }]}>
+                              <View style={[styles.zoneDot, { backgroundColor: z.colorHex }]} />
+                              <Text style={[styles.zoneBadgeText, { color: z.colorHex }]}>{z.name}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                      <Button
+                        title={t("zones.upgradeAccess")}
+                        onPress={handleUpgradeAccess}
+                        variant="primary"
+                        size="sm"
+                        fullWidth
+                        icon="arrow-up-circle"
                       />
                     </View>
                   )}
-                </View>
+                </>
               )}
             </View>
           )}
@@ -549,4 +599,11 @@ const styles = StyleSheet.create({
   quickLinks: { flexDirection: "row", gap: 12 },
   quickLinkBtn: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, justifyContent: "center" },
   quickLinkText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  accessCard: { gap: 12, padding: 16, borderRadius: 16, borderWidth: 1 },
+  accessCardLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
+  accessCardEmpty: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  zoneBadges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  zoneBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, borderWidth: 2 },
+  zoneDot: { width: 8, height: 8, borderRadius: 4 },
+  zoneBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 });

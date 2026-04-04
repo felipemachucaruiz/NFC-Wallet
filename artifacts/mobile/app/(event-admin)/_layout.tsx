@@ -88,6 +88,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="analytics" options={{ href: null }} />
       <Tabs.Screen name="promoter-summary" options={{ href: null }} />
       <Tabs.Screen name="event-settings" options={{ href: null }} />
+      <Tabs.Screen name="access-zones" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );

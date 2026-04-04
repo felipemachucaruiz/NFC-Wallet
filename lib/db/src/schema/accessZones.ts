@@ -17,10 +17,11 @@ export const accessZonesTable = pgTable(
     eventId: varchar("event_id").notNull().references(() => eventsTable.id),
     name: varchar("name", { length: 255 }).notNull(),
     description: text("description"),
-    colorHex: varchar("color_hex", { length: 7 }),
+    colorHex: varchar("color_hex", { length: 9 }).default("#6366F1"),
     rank: integer("rank").notNull(),
     upgradePriceCop: integer("upgrade_price_cop"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (table) => [
     unique("access_zones_event_id_rank_unique").on(table.eventId, table.rank),

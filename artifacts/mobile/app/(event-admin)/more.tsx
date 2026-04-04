@@ -37,6 +37,7 @@ export default function MoreScreen() {
       route: "/(event-admin)/promoter-summary",
       condition: hasPromoterCompany,
     },
+    { icon: "shield", labelKey: "zones.title", route: "/(event-admin)/access-zones" },
     { icon: "sliders", labelKey: "eventAdmin.inventorySettings", route: "/(event-admin)/event-settings" },
     { icon: "user", labelKey: "common.settings", route: "/(event-admin)/profile" },
   ];

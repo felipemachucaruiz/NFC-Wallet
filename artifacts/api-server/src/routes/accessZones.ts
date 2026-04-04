@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, accessZonesTable, accessUpgradesTable, braceletsTable, usersTable } from "@workspace/db";
-import { eq, and, asc, sql } from "drizzle-orm";
+import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -78,6 +78,28 @@ router.get(
 );
 
 /**
+ * GET /api/access-zones?eventId=xxx
+ * Flat alias for mobile clients — resolves eventId from query param or user session.
+ */
+router.get(
+  "/access-zones",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const eventId = (req.query.eventId as string) || (req.user! as { eventId?: string | null }).eventId;
+    if (!eventId) {
+      res.status(400).json({ error: "eventId required" });
+      return;
+    }
+    const zones = await db
+      .select()
+      .from(accessZonesTable)
+      .where(eq(accessZonesTable.eventId, eventId))
+      .orderBy(asc(accessZonesTable.rank));
+    res.json({ zones });
+  },
+);
+
+/**
  * POST /api/events/:eventId/access-zones
  * Creates a new zone for the event.
  * Validates that rank is unique within the event.
@@ -115,6 +137,53 @@ router.post(
     const [zone] = await db
       .insert(accessZonesTable)
       .values({ eventId, name, description, colorHex, rank, upgradePriceCop: upgradePriceCop ?? null })
+      .returning();
+
+    res.status(201).json(zone);
+  },
+);
+
+/**
+ * POST /api/access-zones
+ * Flat alias for mobile/admin clients that pass eventId in the body.
+ */
+router.post(
+  "/access-zones",
+  requireRole("event_admin", "admin"),
+  async (req: Request, res: Response) => {
+    const parsed = createZoneSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const userEventId = (req.user! as { eventId?: string | null }).eventId;
+    const effectiveEventId = (req.body.eventId as string | undefined) ?? userEventId;
+    if (!effectiveEventId) {
+      res.status(400).json({ error: "eventId required" });
+      return;
+    }
+
+    if (!canAccessEvent(req, effectiveEventId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const { name, description, colorHex, rank, upgradePriceCop } = parsed.data;
+
+    const [rankConflict] = await db
+      .select({ id: accessZonesTable.id })
+      .from(accessZonesTable)
+      .where(and(eq(accessZonesTable.eventId, effectiveEventId), eq(accessZonesTable.rank, rank)));
+
+    if (rankConflict) {
+      res.status(409).json({ error: `A zone with rank ${rank} already exists for this event` });
+      return;
+    }
+
+    const [zone] = await db
+      .insert(accessZonesTable)
+      .values({ eventId: effectiveEventId, name, description, colorHex, rank, upgradePriceCop: upgradePriceCop ?? null })
       .returning();
 
     res.status(201).json(zone);
@@ -168,7 +237,7 @@ router.patch(
       }
     }
 
-    const updates: Record<string, unknown> = {};
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
     if (colorHex !== undefined) updates.colorHex = colorHex;
@@ -179,6 +248,67 @@ router.patch(
       .update(accessZonesTable)
       .set(updates)
       .where(eq(accessZonesTable.id, zoneId))
+      .returning();
+
+    res.json(updated);
+  },
+);
+
+/**
+ * PATCH /api/access-zones/:id
+ * Flat alias for mobile clients.
+ */
+router.patch(
+  "/access-zones/:id",
+  requireRole("event_admin", "admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+
+    const [existing] = await db
+      .select()
+      .from(accessZonesTable)
+      .where(eq(accessZonesTable.id, id));
+    if (!existing) {
+      res.status(404).json({ error: "Zone not found" });
+      return;
+    }
+
+    if (!canAccessEvent(req, existing.eventId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const parsed = updateZoneSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const { name, description, colorHex, rank, upgradePriceCop } = parsed.data;
+
+    if (rank !== undefined && rank !== existing.rank) {
+      const rankConflict = await db
+        .select({ id: accessZonesTable.id })
+        .from(accessZonesTable)
+        .where(and(eq(accessZonesTable.eventId, existing.eventId), eq(accessZonesTable.rank, rank)));
+
+      if (rankConflict.length > 0) {
+        res.status(409).json({ error: `A zone with rank ${rank} already exists for this event` });
+        return;
+      }
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (name !== undefined) updates.name = name;
+    if (description !== undefined) updates.description = description;
+    if (colorHex !== undefined) updates.colorHex = colorHex;
+    if (rank !== undefined) updates.rank = rank;
+    if (upgradePriceCop !== undefined) updates.upgradePriceCop = upgradePriceCop;
+
+    const [updated] = await db
+      .update(accessZonesTable)
+      .set(updates)
+      .where(eq(accessZonesTable.id, id))
       .returning();
 
     res.json(updated);
@@ -233,11 +363,56 @@ router.delete(
 );
 
 /**
+ * DELETE /api/access-zones/:id
+ * Flat alias for mobile clients.
+ */
+router.delete(
+  "/access-zones/:id",
+  requireRole("event_admin", "admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+
+    const [existing] = await db
+      .select()
+      .from(accessZonesTable)
+      .where(eq(accessZonesTable.id, id));
+    if (!existing) {
+      res.status(404).json({ error: "Zone not found" });
+      return;
+    }
+
+    if (!canAccessEvent(req, existing.eventId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [braceletRef] = await db
+      .select({ id: braceletsTable.id })
+      .from(braceletsTable)
+      .where(
+        and(
+          eq(braceletsTable.eventId, existing.eventId),
+          sql`${braceletsTable.accessZoneIds} @> ARRAY[${id}]::text[]`,
+        ),
+      )
+      .limit(1);
+
+    if (braceletRef) {
+      res.status(409).json({ error: "Zone is in use by one or more bracelets and cannot be deleted" });
+      return;
+    }
+
+    await db.delete(accessZonesTable).where(eq(accessZonesTable.id, id));
+    res.json({ success: true });
+  },
+);
+
+/**
  * POST /api/bracelets/:nfcUid/check-access
  * Body: { zoneId: string }
- * Returns { allowed: boolean, grantedZones: Zone[] }
- * Accessible by all staff roles (gate, bank, merchant_staff, merchant_admin, warehouse_admin, event_admin, admin).
- * Attendees (non-staff) are excluded.
+ * Returns { granted, allowed, attendeeName, zones, grantedZones }
+ * — both field naming conventions for backward compatibility.
+ * Handles flagged bracelets with reason field.
  */
 router.post(
   "/bracelets/:nfcUid/check-access",
@@ -262,6 +437,11 @@ router.post(
       return;
     }
 
+    if (bracelet.flagged) {
+      res.json({ granted: false, allowed: false, reason: "flagged", attendeeName: bracelet.attendeeName ?? null, zones: [], grantedZones: [] });
+      return;
+    }
+
     const grantedZoneIds: string[] = (bracelet.accessZoneIds as string[]) ?? [];
 
     const grantedZones = grantedZoneIds.length > 0
@@ -273,19 +453,25 @@ router.post(
           rank: accessZonesTable.rank,
         })
         .from(accessZonesTable)
-        .where(sql`${accessZonesTable.id} = ANY(${grantedZoneIds}::text[])`)
+        .where(inArray(accessZonesTable.id, grantedZoneIds))
       : [];
 
-    const allowed = grantedZoneIds.includes(zoneId);
+    const granted = grantedZoneIds.includes(zoneId);
 
-    res.json({ allowed, grantedZones });
+    res.json({
+      granted,
+      allowed: granted,
+      attendeeName: bracelet.attendeeName ?? null,
+      zones: grantedZones,
+      grantedZones,
+    });
   },
 );
 
 /**
  * GET /api/bracelets/:nfcUid/available-upgrades
  * Returns zones with rank strictly greater than the bracelet's current highest-ranked zone.
- * This is the canonical source for what bank staff may offer.
+ * Also returns currentZones and atMaxLevel for mobile UI.
  * Accessible by bank, event_admin (own event's bracelets only), and admin.
  */
 router.get(
@@ -310,7 +496,7 @@ router.get(
     }
 
     if (!bracelet.eventId) {
-      res.json({ availableUpgrades: [] });
+      res.json({ currentZones: [], availableUpgrades: [], atMaxLevel: false });
       return;
     }
 
@@ -322,18 +508,17 @@ router.get(
       .where(eq(accessZonesTable.eventId, bracelet.eventId))
       .orderBy(asc(accessZonesTable.rank));
 
-    let maxCurrentRank = -1;
-    if (grantedZoneIds.length > 0) {
-      for (const zone of allEventZones) {
-        if (grantedZoneIds.includes(zone.id) && zone.rank > maxCurrentRank) {
-          maxCurrentRank = zone.rank;
-        }
-      }
-    }
+    const currentZones = allEventZones.filter((z) => grantedZoneIds.includes(z.id));
+    const maxCurrentRank = currentZones.length > 0 ? Math.max(...currentZones.map((z) => z.rank)) : -1;
+    const maxPossibleRank = allEventZones.length > 0 ? Math.max(...allEventZones.map((z) => z.rank)) : -1;
 
-    const availableUpgrades = allEventZones.filter((z) => z.rank > maxCurrentRank);
+    const availableUpgrades = allEventZones.filter(
+      (z) => z.rank > maxCurrentRank && !grantedZoneIds.includes(z.id),
+    );
 
-    res.json({ availableUpgrades });
+    const atMaxLevel = grantedZoneIds.length > 0 && maxCurrentRank >= maxPossibleRank && availableUpgrades.length === 0;
+
+    res.json({ currentZones, availableUpgrades, atMaxLevel });
   },
 );
 
@@ -437,7 +622,44 @@ router.post(
       .where(sql`${accessZonesTable.id} = ANY(${updatedZoneIds}::text[])`)
       .orderBy(asc(accessZonesTable.rank));
 
-    res.json({ bracelet: updatedBracelet, grantedZones: resolvedZones });
+    const currentZones = resolvedZones;
+
+    res.json({ bracelet: updatedBracelet, grantedZones: resolvedZones, currentZones });
+  },
+);
+
+/**
+ * PATCH /api/users/:userId/gate-zone
+ * Assign a gate zone to a user (event_admin, admin)
+ */
+router.patch(
+  "/users/:userId/gate-zone",
+  requireRole("event_admin", "admin"),
+  async (req: Request, res: Response) => {
+    const { userId } = req.params as { userId: string };
+    const gateZoneId = req.body.gateZoneId as string | null;
+
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (req.user!.role === "event_admin" && user.eventId !== (req.user! as { eventId?: string | null }).eventId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(usersTable)
+      .set({ gateZoneId: gateZoneId ?? null, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .returning();
+
+    res.json(updated);
   },
 );
 

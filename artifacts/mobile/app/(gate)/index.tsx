@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
+import { useZoneCache } from "@/contexts/ZoneCacheContext";
 
 export default function GateHomeScreen() {
   const { t } = useTranslation();
@@ -15,6 +16,8 @@ export default function GateHomeScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { user } = useAuth();
+  const { getZoneById } = useZoneCache();
+  const assignedZone = user?.gateZoneId ? getZoneById(user.gateZoneId) : null;
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -56,12 +59,21 @@ export default function GateHomeScreen() {
       </View>
 
       <View style={styles.body}>
-        <View style={[styles.infoCard, { backgroundColor: C.card, borderColor: C.border }]}>
-          <Feather name="info" size={18} color={C.textSecondary} />
-          <Text style={[styles.infoText, { color: C.textSecondary }]}>
-            {t("gate.readyHint")}
-          </Text>
-        </View>
+        {/* Zone badge or warning */}
+        {assignedZone ? (
+          <View style={[styles.zoneBadge, { backgroundColor: assignedZone.colorHex + "22", borderColor: assignedZone.colorHex }]}>
+            <View style={[styles.zoneDot, { backgroundColor: assignedZone.colorHex }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.zoneBadgeLabel, { color: assignedZone.colorHex }]}>{t("gate.yourZone")}</Text>
+              <Text style={[styles.zoneBadgeName, { color: assignedZone.colorHex }]}>{assignedZone.name}</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.zoneBadge, { backgroundColor: C.warningLight, borderColor: C.warning }]}>
+            <Feather name="alert-triangle" size={18} color={C.warning} />
+            <Text style={[styles.zoneWarning, { color: C.warning }]}>{t("gate.noZoneWarning")}</Text>
+          </View>
+        )}
 
         <Pressable
           style={[styles.ctaBtn, { backgroundColor: C.primary }]}
@@ -75,6 +87,20 @@ export default function GateHomeScreen() {
             <Text style={styles.ctaBtnSub}>{t("gate.registerWristbandHint")}</Text>
           </View>
           <Feather name="arrow-right" size={22} color="rgba(255,255,255,0.7)" />
+        </Pressable>
+
+        <Pressable
+          style={[styles.securityBtn, { backgroundColor: C.card, borderColor: C.border }]}
+          onPress={() => router.push("/(gate)/security-check" as never)}
+        >
+          <View style={[styles.securityIconWrap, { backgroundColor: C.warningLight }]}>
+            <Feather name="check-square" size={24} color={C.warning} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.securityBtnTitle, { color: C.text }]}>{t("gate.securityCheck")}</Text>
+            <Text style={[styles.securityBtnSub, { color: C.textSecondary }]}>{t("gate.securityCheckHint")}</Text>
+          </View>
+          <Feather name="arrow-right" size={18} color={C.textMuted} />
         </Pressable>
       </View>
     </View>
@@ -141,4 +167,33 @@ const styles = StyleSheet.create({
   },
   ctaBtnTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#fff" },
   ctaBtnSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)" },
+  zoneBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+  },
+  zoneDot: { width: 16, height: 16, borderRadius: 8 },
+  zoneBadgeLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
+  zoneBadgeName: { fontSize: 18, fontFamily: "Inter_700Bold", marginTop: 2 },
+  zoneWarning: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
+  securityBtn: {
+    borderRadius: 16,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderWidth: 1,
+  },
+  securityIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  securityBtnTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  securityBtnSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 });
