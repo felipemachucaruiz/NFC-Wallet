@@ -6,6 +6,7 @@ import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, Tex
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useUpdateBraceletContact, useGetSigningKey, type SigningKeyResponse } from "@workspace/api-client-react";
+import { useAttestationContext } from "@/contexts/AttestationContext";
 import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
@@ -119,12 +120,13 @@ export default function TopUpScreen() {
   const [phone, setPhone] = useState(() => parsePhoneParam(params.phone).number);
   const [email, setEmail] = useState(params.email ?? "");
 
-  const { data: keyData } = useGetSigningKey();
+  const { data: keyData, refetch: refetchSigningKey } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
   const desfireAesKey = (keyData as unknown as { desfireAesKey?: string; nfcChipType?: string } | undefined)?.desfireAesKey ?? "";
   const ultralightCDesKey = (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
   const nfcChipType = (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
   const { enqueueTopUp, cachedHmacSecret, updateCachedHmacSecret, syncNow } = useOfflineQueue();
+  const { retryAttestation } = useAttestationContext();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
 
   useEffect(() => {
@@ -209,6 +211,26 @@ export default function TopUpScreen() {
     cancelledRef.current = false;
 
     if (!hmacSecret) {
+      // Try re-attesting the device and refreshing the signing key before giving up.
+      // This recovers from server restarts that wipe the in-memory attestation cache.
+      try {
+        await retryAttestation();
+        const { data: freshKey } = await refetchSigningKey();
+        const freshSecret = (freshKey as unknown as { hmacSecret?: string } | undefined)?.hmacSecret ?? "";
+        if (freshSecret) {
+          await updateCachedHmacSecret(freshSecret);
+          // Key retrieved — continue with the confirmed amount
+          if (isNfcSupported()) {
+            setStep("tap_write");
+          } else {
+            showAlert(t("common.error"), t("bank.nfcRequired"));
+            submittingRef.current = false;
+          }
+          return;
+        }
+      } catch {
+        // Ignore retry errors — fall through to the user-facing error
+      }
       showAlert(t("common.error"), t("bank.noSigningKey"));
       submittingRef.current = false;
       return;

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
-import { ATTENDEE_API_BASE_URL } from "@/constants/domain";
+import { API_BASE_URL, ATTENDEE_API_BASE_URL } from "@/constants/domain";
 
 const ATTESTATION_TTL_MS = 60 * 60 * 1000; // 1 hour — matches server-side cache
 
@@ -96,13 +96,24 @@ export function useAttestation() {
 
       const platform = getPlatform();
 
-      const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/attestation/verify`, {
+      // Verify against the staff API (no auth required on that endpoint).
+      // This populates the staff API's in-memory token cache so that
+      // the signing-key endpoint (requireAttestation) can authorize the request.
+      const staffRes = await fetch(`${API_BASE_URL}/api/attestation/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: nativeToken, platform, nonce }),
       });
-      if (!res.ok) throw new Error(`Attestation failed: ${res.status}`);
-      const result = await res.json() as AttestationResult;
+
+      // Also try the attendee API in parallel (best-effort, not required for the staff app).
+      fetch(`${ATTENDEE_API_BASE_URL}/api/attestation/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: nativeToken, platform, nonce }),
+      }).catch(() => {});
+
+      if (!staffRes.ok) throw new Error(`Attestation failed: ${staffRes.status}`);
+      const result = await staffRes.json() as AttestationResult;
 
       if (result.verified) {
         stateRef.current = { token: nativeToken, verifiedAt: Date.now() };
