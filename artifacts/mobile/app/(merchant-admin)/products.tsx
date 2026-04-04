@@ -2,8 +2,8 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
-import React, { useState } from "react";
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -27,6 +27,7 @@ type Product = {
   merchantId: string;
   name: string;
   category?: string | null;
+  barcode?: string | null;
   priceCop: number;
   costCop: number;
   ivaRate: string;
@@ -38,6 +39,7 @@ type Product = {
 type FormState = {
   name: string;
   category: string;
+  barcode: string;
   priceCop: string;
   costCop: string;
   ivaRate: string;
@@ -45,7 +47,7 @@ type FormState = {
   imageUrl: string | null;
 };
 
-const emptyForm: FormState = { name: "", category: "", priceCop: "", costCop: "", ivaRate: "0", ivaExento: false, imageUrl: null };
+const emptyForm: FormState = { name: "", category: "", barcode: "", priceCop: "", costCop: "", ivaRate: "0", ivaExento: false, imageUrl: null };
 
 export default function MerchantProductsScreen() {
   const { t } = useTranslation();
@@ -61,6 +63,12 @@ export default function MerchantProductsScreen() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [pendingImageUri, setPendingImageUri] = useState<string | null>(null);
+
+  // Scan-to-find state
+  const [scanSearch, setScanSearch] = useState("");
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const productYOffsets = useRef<Record<string, number>>({});
 
   const merchantId = user?.merchantId ?? "";
 
@@ -161,6 +169,7 @@ export default function MerchantProductsScreen() {
           merchantId,
           name: form.name.trim(),
           category: form.category.trim() || undefined,
+          barcode: form.barcode.trim() || undefined,
           priceCop: price,
           costCop: isNaN(cost) ? 0 : cost,
           ivaRate: ivaRateVal,
@@ -201,17 +210,14 @@ export default function MerchantProductsScreen() {
           showAlert(t("common.error"), msg);
           return;
         }
-      } else if (form.imageUrl === null && editingProduct.imageUrl !== null) {
-        await updateProduct.mutateAsync({
-          productId: editingProduct.id,
-          data: { imageUrl: null },
-        });
       }
       await updateProduct.mutateAsync({
         productId: editingProduct.id,
         data: {
           name: form.name.trim(),
           category: form.category.trim() || undefined,
+          barcode: form.barcode.trim() || null,
+          imageUrl: form.imageUrl === null && editingProduct.imageUrl !== null ? null : undefined,
           priceCop: isNaN(price) ? editingProduct.priceCop : price,
           costCop: isNaN(cost) ? 0 : cost,
           ivaRate: ivaRateVal,
@@ -255,6 +261,7 @@ export default function MerchantProductsScreen() {
     setForm({
       name: product.name,
       category: product.category ?? "",
+      barcode: product.barcode ?? "",
       priceCop: String(product.priceCop),
       costCop: product.costCop ? String(product.costCop) : "",
       ivaRate: product.ivaRate ?? "0",
@@ -282,12 +289,31 @@ export default function MerchantProductsScreen() {
     return url;
   };
 
+  const handleScanSearch = (barcode: string) => {
+    const trimmed = barcode.trim();
+    setScanSearch("");
+    if (!trimmed) return;
+    const found = products.find((p) => p.barcode === trimmed);
+    if (found) {
+      setHighlightedId(found.id);
+      // Scroll to the matching product
+      const yOffset = productYOffsets.current[found.id];
+      if (yOffset !== undefined && scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: yOffset - 20, animated: true });
+      }
+      setTimeout(() => setHighlightedId(null), 2500);
+    } else {
+      showAlert(t("common.error"), t("merchant_admin.barcodeNotFound"));
+    }
+  };
+
   const currentImageUri = pendingImageUri ?? resolveImageUrl(editingProduct ? form.imageUrl : null);
 
   if (!merchantId) return null;
 
   return (
     <ScrollView
+      ref={scrollViewRef}
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
         paddingTop: isWeb ? 67 : insets.top + 16,
@@ -309,6 +335,24 @@ export default function MerchantProductsScreen() {
           </Pressable>
         )}
       </View>
+
+      {/* Scan-to-find bar (only when not in form mode) */}
+      {!showAddForm && !editingProduct && (
+        <View style={[styles.scanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+          <Feather name="maximize" size={16} color={C.textMuted} />
+          <TextInput
+            style={[styles.scanInput, { color: C.text }]}
+            placeholder={t("merchant_admin.barcodeScanToFind")}
+            placeholderTextColor={C.textMuted}
+            value={scanSearch}
+            onChangeText={setScanSearch}
+            onSubmitEditing={() => handleScanSearch(scanSearch)}
+            returnKeyType="search"
+            blurOnSubmit={false}
+            testID="admin-barcode-scan-input"
+          />
+        </View>
+      )}
 
       {(showAddForm || editingProduct) && (
         <View style={[styles.formCard, { backgroundColor: C.card, borderColor: C.border }]}>
@@ -354,6 +398,13 @@ export default function MerchantProductsScreen() {
               placeholder={t("merchant_admin.categoryPlaceholder")}
               value={form.category}
               onChangeText={(v) => setForm((f) => ({ ...f, category: v }))}
+            />
+            <Input
+              label={t("merchant_admin.barcode")}
+              placeholder={t("merchant_admin.barcodePlaceholder")}
+              value={form.barcode}
+              onChangeText={(v) => setForm((f) => ({ ...f, barcode: v }))}
+              testID="product-barcode-input"
             />
             <Input
               label={t("merchant_admin.priceCop")}
@@ -415,7 +466,20 @@ export default function MerchantProductsScreen() {
         />
       ) : (
         products.map((product) => (
-          <View key={product.id} style={[styles.productCard, { backgroundColor: C.card, borderColor: C.border }]}>
+          <View
+            key={product.id}
+            onLayout={(e) => {
+              productYOffsets.current[product.id] = e.nativeEvent.layout.y;
+            }}
+            style={[
+              styles.productCard,
+              {
+                backgroundColor: C.card,
+                borderColor: highlightedId === product.id ? C.primary : C.border,
+                borderWidth: highlightedId === product.id ? 2 : 1,
+              },
+            ]}
+          >
             <View style={styles.productRow}>
               {product.imageUrl && resolveImageUrl(product.imageUrl) ? (
                 <Image
@@ -450,6 +514,12 @@ export default function MerchantProductsScreen() {
                 </View>
                 {product.category ? (
                   <Text style={[styles.productCategory, { color: C.textMuted }]}>{product.category}</Text>
+                ) : null}
+                {product.barcode ? (
+                  <View style={styles.barcodeRow}>
+                    <Feather name="maximize" size={11} color={C.textMuted} />
+                    <Text style={[styles.barcodeText, { color: C.textMuted }]}>{product.barcode}</Text>
+                  </View>
                 ) : null}
                 <CopAmount amount={product.priceCop} size={14} style={{ color: C.primary }} />
               </View>
@@ -486,6 +556,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontFamily: "Inter_700Bold" },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100 },
   addBtnText: { color: "#0a0a0a", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  scanRow: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 12, borderWidth: 1 },
+  scanInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   formCard: { borderRadius: 16, borderWidth: 1, padding: 16, gap: 14 },
   formTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   formActions: { flexDirection: "row", gap: 10, marginTop: 4 },
@@ -494,6 +566,8 @@ const styles = StyleSheet.create({
   productNameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   productName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   productCategory: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  barcodeRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  barcodeText: { fontSize: 11, fontFamily: "Inter_400Regular" },
   productActions: { flexDirection: "row", gap: 8 },
   iconBtn: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 100 },

@@ -11,6 +11,8 @@ export interface CreateProductBody {
   /** @minLength 1 */
   name: string;
   category?: string;
+  /** Optional barcode for PDA hardware scanner lookup */
+  barcode?: string;
   /** @minimum 0 */
   priceCop: number;
   /** @minimum 0 */

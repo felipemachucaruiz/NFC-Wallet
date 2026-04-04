@@ -10,6 +10,16 @@ export interface UpdateProductBody {
   /** @minLength 1 */
   name?: string;
   category?: string;
+  /**
+   * Optional barcode for PDA hardware scanner lookup
+   * @nullable
+   */
+  barcode?: string | null;
+  /**
+   * Product image URL (null to remove)
+   * @nullable
+   */
+  imageUrl?: string | null;
   /** @minimum 0 */
   priceCop?: number;
   /** @minimum 0 */

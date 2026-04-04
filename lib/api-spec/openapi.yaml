@@ -1397,6 +1397,29 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /products/by-barcode/{barcode}:
+    get:
+      tags: [Products]
+      operationId: getProductByBarcode
+      summary: Look up a product by barcode (scoped to merchant)
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ── Inventory ────────────────────────────────────────────────────────────────
   /inventory/locations/{locationId}:
     get:
@@ -3312,6 +3335,9 @@ components:
           type: string
         category:
           type: [string, 'null']
+        barcode:
+          type: [string, 'null']
+          description: "Optional barcode for PDA hardware scanner lookup"
         priceCop:
           type: integer
         costCop:
@@ -3339,6 +3365,9 @@ components:
           minLength: 1
         category:
           type: string
+        barcode:
+          type: string
+          description: "Optional barcode for PDA hardware scanner lookup"
         priceCop:
           type: integer
           minimum: 0
@@ -3361,6 +3390,12 @@ components:
           minLength: 1
         category:
           type: string
+        barcode:
+          type: [string, 'null']
+          description: "Optional barcode for PDA hardware scanner lookup"
+        imageUrl:
+          type: [string, 'null']
+          description: "Product image URL (null to remove)"
         priceCop:
           type: integer
           minimum: 0

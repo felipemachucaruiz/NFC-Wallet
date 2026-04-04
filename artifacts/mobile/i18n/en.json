@@ -337,6 +337,9 @@
     "syncAll": "Sync all",
     "transactionLogged": "Transaction logged",
     "searchProducts": "Search products...",
+    "barcodeScanBar": "Scan barcode to add to cart",
+    "barcodeAdded": "Added to cart",
+    "barcodeNotFound": "Product not found",
     "noLocations": "No locations assigned",
     "pendingCount": "{{count}} pending",
     "noProducts": "No products available",
@@ -495,7 +498,12 @@
     "transferSameLocation": "Origin and destination must be different.",
     "transferSuccess": "Stock transferred successfully",
     "transferAvailable": "Available: {{qty}} units",
-    "units": "units"
+    "units": "units",
+    "barcode": "Barcode",
+    "barcodePlaceholder": "Scan or type barcode",
+    "barcodeHint": "Optional — leave blank if no barcode",
+    "barcodeScanToFind": "Scan to find product",
+    "barcodeNotFound": "No product with this barcode"
   },
   "warehouse": {
     "title": "Warehouse",
@@ -548,7 +556,9 @@
     "insufficientStock": "Insufficient warehouse stock for",
     "confirmDispatch": "Confirm dispatch",
     "products": "products",
-    "noProducts": "No products in warehouse"
+    "noProducts": "No products in warehouse",
+    "barcodeScanToAdd": "Scan barcode to add product",
+    "barcodeNotFound": "Product not found for this barcode"
   },
   "eventAdmin": {
     "dashboard": "Dashboard",

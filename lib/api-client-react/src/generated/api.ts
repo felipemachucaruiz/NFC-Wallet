@@ -4976,6 +4976,97 @@ export const useDeleteProduct = <
 };
 
 /**
+ * @summary Look up a product by barcode (scoped to merchant)
+ */
+export const getGetProductByBarcodeUrl = (barcode: string) => {
+  return `/api/products/by-barcode/${barcode}`;
+};
+
+export const getProductByBarcode = async (
+  barcode: string,
+  options?: RequestInit,
+): Promise<Product> => {
+  return customFetch<Product>(getGetProductByBarcodeUrl(barcode), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProductByBarcodeQueryKey = (barcode: string) => {
+  return [`/api/products/by-barcode/${barcode}`] as const;
+};
+
+export const getGetProductByBarcodeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProductByBarcode>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  barcode: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProductByBarcode>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProductByBarcodeQueryKey(barcode);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProductByBarcode>>
+  > = ({ signal }) =>
+    getProductByBarcode(barcode, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!barcode,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProductByBarcode>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProductByBarcodeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProductByBarcode>>
+>;
+export type GetProductByBarcodeQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Look up a product by barcode (scoped to merchant)
+ */
+
+export function useGetProductByBarcode<
+  TData = Awaited<ReturnType<typeof getProductByBarcode>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  barcode: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProductByBarcode>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProductByBarcodeQueryOptions(barcode, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Get inventory for a location
  */
 export const getGetLocationInventoryUrl = (locationId: string) => {

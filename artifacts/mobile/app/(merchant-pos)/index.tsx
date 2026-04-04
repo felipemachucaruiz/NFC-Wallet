@@ -2,11 +2,11 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useListLocations, useGetLocationInventory } from "@workspace/api-client-react";
+import { useListLocations, useGetLocationInventory, getProductByBarcode } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { API_BASE_URL } from "@/constants/domain";
 import { CopAmount } from "@/components/CopAmount";
@@ -16,12 +16,14 @@ import { Card } from "@/components/ui/Card";
 import { Empty } from "@/components/ui/Empty";
 import { Loading } from "@/components/ui/Loading";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { useAlert } from "@/components/CustomAlert";
 import { useCart } from "@/contexts/CartContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 import { formatCOP } from "@/utils/format";
 
 export default function MerchantPosScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -45,8 +47,23 @@ export default function MerchantPosScreen() {
     }, [selectedLocationId]),
   );
 
+  // Re-focus the barcode input whenever the screen is focused (PDA workflows)
+  const barcodeInputRef = useRef<TextInput>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedLocationId) {
+        const t = setTimeout(() => barcodeInputRef.current?.focus(), 300);
+        return () => clearTimeout(t);
+      }
+    }, [selectedLocationId]),
+  );
+
   const [activeTab, setActiveTab] = useState<"catalog" | "cart">("catalog");
   const [search, setSearch] = useState("");
+
+  // Barcode scan state
+  const [barcodeInput, setBarcodeInput] = useState("");
+  const [barcodeToast, setBarcodeToast] = useState<string | null>(null);
 
   const { data: locationsData, isLoading: locLoading } = useListLocations();
   const locations = (locationsData as { locations?: Array<{ id: string; name: string }> } | undefined)?.locations ?? [];
@@ -55,12 +72,70 @@ export default function MerchantPosScreen() {
     query: { enabled: !!selectedLocationId },
   });
   const inventory = (inventoryData as {
-    inventory?: Array<{ product: { id: string; name: string; priceCop: number; costCop: number; imageUrl?: string | null }; quantityOnHand: number }>
+    inventory?: Array<{ product: { id: string; name: string; priceCop: number; costCop: number; barcode?: string | null; imageUrl?: string | null }; quantityOnHand: number }>
   } | undefined)?.inventory ?? [];
 
   const filtered = inventory.filter((item) =>
     item.product.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Auto-focus barcode input once inventory is loaded
+  useEffect(() => {
+    if (selectedLocationId && !invLoading) {
+      const t = setTimeout(() => barcodeInputRef.current?.focus(), 200);
+      return () => clearTimeout(t);
+    }
+  }, [selectedLocationId, invLoading]);
+
+  const showBarcodeToast = (msg: string) => {
+    setBarcodeToast(msg);
+    setTimeout(() => setBarcodeToast(null), 2500);
+  };
+
+  const refocusBarcodeInput = () => {
+    setTimeout(() => barcodeInputRef.current?.focus(), 100);
+  };
+
+  const handleBarcodeScan = async (barcode: string) => {
+    const trimmed = barcode.trim();
+    if (!trimmed) return;
+    setBarcodeInput("");
+
+    const inventoryItem = inventory.find((item) => item.product.barcode === trimmed);
+
+    if (!inventoryItem) {
+      // Fall back to API lookup then match against current inventory
+      try {
+        const result = await getProductByBarcode(trimmed);
+        const matched = inventory.find((item) => item.product.id === result.id);
+        if (matched) {
+          addItem({
+            productId: matched.product.id,
+            name: matched.product.name,
+            priceCop: matched.product.priceCop,
+            costCop: matched.product.costCop,
+            stockAvailable: matched.quantityOnHand,
+          });
+          showBarcodeToast(t("pos.barcodeAdded"));
+        } else {
+          showAlert(t("common.error"), t("pos.barcodeNotFound"));
+        }
+      } catch {
+        showAlert(t("common.error"), t("pos.barcodeNotFound"));
+      }
+    } else {
+      addItem({
+        productId: inventoryItem.product.id,
+        name: inventoryItem.product.name,
+        priceCop: inventoryItem.product.priceCop,
+        costCop: inventoryItem.product.costCop,
+        stockAvailable: inventoryItem.quantityOnHand,
+      });
+      showBarcodeToast(t("pos.barcodeAdded"));
+    }
+
+    refocusBarcodeInput();
+  };
 
   if (!selectedLocationId) {
     return (
@@ -105,11 +180,34 @@ export default function MerchantPosScreen() {
         )}
       </View>
 
+      {/* Persistent barcode scan bar — available across catalog AND cart tabs */}
+      <View style={[styles.barcodeRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+        <Feather name="maximize" size={16} color={C.textMuted} />
+        <TextInput
+          ref={barcodeInputRef}
+          style={[styles.barcodeInput, { color: C.text }]}
+          placeholder={t("pos.barcodeScanBar")}
+          placeholderTextColor={C.textMuted}
+          value={barcodeInput}
+          onChangeText={setBarcodeInput}
+          onSubmitEditing={() => handleBarcodeScan(barcodeInput)}
+          returnKeyType="done"
+          autoFocus={true}
+          blurOnSubmit={false}
+          testID="barcode-scan-input"
+        />
+        {barcodeToast && (
+          <View style={[styles.toastChip, { backgroundColor: C.primary + "22" }]}>
+            <Text style={[styles.toastText, { color: C.primary }]}>{barcodeToast}</Text>
+          </View>
+        )}
+      </View>
+
       <View style={[styles.tabRow, { borderBottomColor: C.border }]}>
         {(["catalog", "cart"] as const).map((tab) => (
           <Pressable
             key={tab}
-            onPress={() => setActiveTab(tab)}
+            onPress={() => { setActiveTab(tab); refocusBarcodeInput(); }}
             style={[styles.tab, activeTab === tab && { borderBottomColor: C.primary, borderBottomWidth: 2 }]}
           >
             <Text style={[styles.tabText, { color: activeTab === tab ? C.primary : C.textSecondary }]}>
@@ -284,10 +382,14 @@ const styles = StyleSheet.create({
   locationName: { flex: 1, fontSize: 16, fontFamily: "Inter_600SemiBold" },
   locationBar: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
   locationBarName: { flex: 1, fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  tabRow: { flexDirection: "row", borderBottomWidth: 1 },
+  barcodeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 12, marginTop: 8, marginBottom: 2, padding: 10, borderRadius: 12, borderWidth: 1 },
+  barcodeInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  toastChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100 },
+  toastText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  tabRow: { flexDirection: "row", borderBottomWidth: 1, marginTop: 4 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 12 },
   tabText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  searchRow: { flexDirection: "row", alignItems: "center", gap: 8, margin: 12, padding: 10, borderRadius: 12, borderWidth: 1 },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 8, margin: 12, marginTop: 8, padding: 10, borderRadius: 12, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   productCard: { borderRadius: 14, padding: 12, gap: 8, alignItems: "flex-start" },
   productIconBg: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },

@@ -337,6 +337,9 @@
     "syncAll": "Sincronizar todo",
     "transactionLogged": "Transacción registrada",
     "searchProducts": "Buscar productos...",
+    "barcodeScanBar": "Escanea código de barras para agregar al carrito",
+    "barcodeAdded": "Agregado al carrito",
+    "barcodeNotFound": "Producto no encontrado",
     "noLocations": "Sin ubicaciones asignadas",
     "pendingCount": "{{count}} pendientes",
     "noProducts": "Sin productos disponibles",
@@ -495,7 +498,12 @@
     "transferSameLocation": "El origen y destino deben ser diferentes.",
     "transferSuccess": "Stock transferido exitosamente",
     "transferAvailable": "Disponible: {{qty}} unidades",
-    "units": "unidades"
+    "units": "unidades",
+    "barcode": "Código de barras",
+    "barcodePlaceholder": "Escanea o escribe el código",
+    "barcodeHint": "Opcional — deja en blanco si no hay código",
+    "barcodeScanToFind": "Escanear para encontrar producto",
+    "barcodeNotFound": "Ningún producto con este código"
   },
   "warehouse": {
     "title": "Almacén",
@@ -548,7 +556,9 @@
     "insufficientStock": "Stock insuficiente en almacén para",
     "confirmDispatch": "Confirmar despacho",
     "products": "productos",
-    "noProducts": "Sin productos en el almacén"
+    "noProducts": "Sin productos en el almacén",
+    "barcodeScanToAdd": "Escanea código de barras para agregar producto",
+    "barcodeNotFound": "Producto no encontrado para este código"
   },
   "eventAdmin": {
     "dashboard": "Dashboard",

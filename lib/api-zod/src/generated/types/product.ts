@@ -12,6 +12,11 @@ export interface Product {
   name: string;
   /** @nullable */
   category?: string | null;
+  /**
+   * Optional barcode for PDA hardware scanner lookup
+   * @nullable
+   */
+  barcode?: string | null;
   priceCop: number;
   costCop: number;
   /** Porcentaje de IVA aplicable al producto (ej: '19.00') */

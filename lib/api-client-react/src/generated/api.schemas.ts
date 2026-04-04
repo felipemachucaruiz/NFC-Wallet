@@ -86,10 +86,6 @@ export interface MobileTokenExchangeSuccess {
 
 export interface SigningKeyResponse {
   hmacSecret: string;
-  legacyHmacSecret?: string | null;
-  useKdf?: boolean;
-  offlineSyncLimit?: number | null;
-  maxOfflineSpendPerBracelet?: number | null;
 }
 
 export type InventoryMode = (typeof InventoryMode)[keyof typeof InventoryMode];
@@ -490,6 +486,11 @@ export interface Product {
   name: string;
   /** @nullable */
   category?: string | null;
+  /**
+   * Optional barcode for PDA hardware scanner lookup
+   * @nullable
+   */
+  barcode?: string | null;
   priceCop: number;
   costCop: number;
   /** Porcentaje de IVA aplicable al producto (ej: '19.00') */
@@ -505,6 +506,8 @@ export interface CreateProductBody {
   /** @minLength 1 */
   name: string;
   category?: string;
+  /** Optional barcode for PDA hardware scanner lookup */
+  barcode?: string;
   /** @minimum 0 */
   priceCop: number;
   /** @minimum 0 */
@@ -522,6 +525,16 @@ export interface UpdateProductBody {
   /** @minLength 1 */
   name?: string;
   category?: string;
+  /**
+   * Optional barcode for PDA hardware scanner lookup
+   * @nullable
+   */
+  barcode?: string | null;
+  /**
+   * Product image URL (null to remove)
+   * @nullable
+   */
+  imageUrl?: string | null;
   /** @minimum 0 */
   priceCop?: number;
   /** @minimum 0 */
@@ -534,7 +547,6 @@ export interface UpdateProductBody {
   ivaRate?: string;
   /** Producto excluido de IVA */
   ivaExento?: boolean;
-  imageUrl?: string | null;
 }
 
 export interface LocationInventoryItem {
@@ -740,7 +752,6 @@ export interface LogTransactionBody {
   /** @minItems 1 */
   lineItems: TransactionLineItemInput[];
   offlineCreatedAt?: string;
-  hmac?: string;
 }
 
 export interface SyncTransactionsBody {

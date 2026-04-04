@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -49,12 +49,21 @@ export default function DispatchScreen() {
   const [addingQty, setAddingQty] = useState("");
   const [dispatchNote, setDispatchNote] = useState("");
 
-  // Transfer state
+  // Transfer state — batch list model (parallel to dispatch orderLines)
+  // Transfer has its own warehouse selection as product source for barcode scan
+  const [transferWarehouseId, setTransferWarehouseId] = useState("");
   const [fromLocationId, setFromLocationId] = useState("");
   const [toLocationId, setToLocationId] = useState("");
+  const [transferLines, setTransferLines] = useState<OrderLine[]>([]);
   const [transferProductId, setTransferProductId] = useState("");
-  const [transferQty, setTransferQty] = useState("");
+  const [transferAddQty, setTransferAddQty] = useState("");
   const [transferNote, setTransferNote] = useState("");
+
+  // Barcode scan state
+  const [dispatchBarcode, setDispatchBarcode] = useState("");
+  const [transferBarcode, setTransferBarcode] = useState("");
+  const transferBarcodeInputRef = useRef<TextInput>(null);
+  const dispatchBarcodeInputRef = useRef<TextInput>(null);
 
   const isCentralized = inventoryMode === "centralized_warehouse";
 
@@ -71,46 +80,130 @@ export default function DispatchScreen() {
   const allLocations = (locationsData as { locations?: Array<{ id: string; name: string; merchantId?: string }> } | undefined)?.locations ?? [];
   const locations = allLocations.filter((l) => !l.merchantId || eventManagedMerchantIds.has(l.merchantId));
 
-  const { data: inventoryData, isLoading: inventoryLoading } = useGetWarehouseInventory(selectedWarehouseId, {
+  // Dispatch warehouse inventory
+  const { data: dispatchInventoryData, isLoading: dispatchInventoryLoading } = useGetWarehouseInventory(selectedWarehouseId, {
     query: { enabled: !!selectedWarehouseId },
   });
-  const warehouseProducts: WarehouseInventoryItem[] = (inventoryData as GetWarehouseInventory200 | undefined)?.inventory ?? [];
+  const dispatchProducts: WarehouseInventoryItem[] = (dispatchInventoryData as GetWarehouseInventory200 | undefined)?.inventory ?? [];
+
+  // Transfer warehouse inventory (separate selection in transfer mode)
+  const { data: transferInventoryData, isLoading: transferInventoryLoading } = useGetWarehouseInventory(transferWarehouseId, {
+    query: { enabled: !!transferWarehouseId, queryKey: ["warehouse-inventory-transfer", transferWarehouseId] as const },
+  });
+  const transferProducts: WarehouseInventoryItem[] = (transferInventoryData as GetWarehouseInventory200 | undefined)?.inventory ?? [];
 
   const dispatch = useDispatchFromWarehouse();
   const transfer = useTransferBetweenLocations();
 
-  // ── Batch dispatch helpers ────────────────────────────────────────────────
+  // ── Shared helper: add/increment line in a batch ─────────────────────────
 
-  const handleAddLine = () => {
+  const addToLines = (
+    setLines: React.Dispatch<React.SetStateAction<OrderLine[]>>,
+    productId: string,
+    productName: string,
+    stockOnHand: number,
+  ) => {
+    setLines((prev) => {
+      const existing = prev.findIndex((l) => l.productId === productId);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = { ...updated[existing], quantity: updated[existing].quantity + 1 };
+        return updated;
+      }
+      return [...prev, { productId, productName, stockOnHand, quantity: 1 }];
+    });
+  };
+
+  // ── Barcode scan handlers ─────────────────────────────────────────────────
+
+  const handleDispatchBarcodeScan = (barcode: string) => {
+    const trimmed = barcode.trim();
+    setDispatchBarcode("");
+    if (!trimmed) return;
+    const found = dispatchProducts.find((p) => p.product?.barcode === trimmed);
+    if (!found) {
+      showAlert(t("common.error"), t("warehouse.barcodeNotFound"));
+    } else {
+      addToLines(setOrderLines, found.productId, found.product?.name ?? found.productId, found.quantityOnHand);
+    }
+    setTimeout(() => dispatchBarcodeInputRef.current?.focus(), 100);
+  };
+
+  const handleTransferBarcodeScan = (barcode: string) => {
+    const trimmed = barcode.trim();
+    setTransferBarcode("");
+    if (!trimmed) return;
+    const found = transferProducts.find((p) => p.product?.barcode === trimmed);
+    if (!found) {
+      showAlert(t("common.error"), t("warehouse.barcodeNotFound"));
+    } else {
+      addToLines(setTransferLines, found.productId, found.product?.name ?? found.productId, found.quantityOnHand);
+    }
+    setTimeout(() => transferBarcodeInputRef.current?.focus(), 100);
+  };
+
+  // ── Manual add-line handlers ─────────────────────────────────────────────
+
+  const handleAddDispatchLine = () => {
     if (!addingProductId) return;
     const qty = parseInt(addingQty, 10);
     if (isNaN(qty) || qty <= 0) {
       showAlert(t("common.error"), t("warehouse.invalidQuantity"));
       return;
     }
-    const product = warehouseProducts.find((p) => p.productId === addingProductId);
+    const product = dispatchProducts.find((p) => p.productId === addingProductId);
     if (!product) return;
 
-    const existing = orderLines.findIndex((l) => l.productId === addingProductId);
-    if (existing >= 0) {
-      const updated = [...orderLines];
-      updated[existing] = { ...updated[existing], quantity: updated[existing].quantity + qty };
-      setOrderLines(updated);
-    } else {
-      setOrderLines([...orderLines, {
+    setOrderLines((prev) => {
+      const existing = prev.findIndex((l) => l.productId === addingProductId);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = { ...updated[existing], quantity: updated[existing].quantity + qty };
+        return updated;
+      }
+      return [...prev, {
         productId: product.productId,
         productName: product.product?.name ?? product.productId,
         stockOnHand: product.quantityOnHand,
         quantity: qty,
-      }]);
-    }
+      }];
+    });
     setAddingProductId("");
     setAddingQty("");
   };
 
-  const handleRemoveLine = (productId: string) => {
-    setOrderLines(orderLines.filter((l) => l.productId !== productId));
+  const handleAddTransferLine = () => {
+    if (!transferProductId) return;
+    const qty = parseInt(transferAddQty, 10);
+    if (isNaN(qty) || qty <= 0) {
+      showAlert(t("common.error"), t("warehouse.invalidQuantity"));
+      return;
+    }
+    const product = transferProducts.find((p) => p.productId === transferProductId);
+    if (!product) return;
+    setTransferLines((prev) => {
+      const existing = prev.findIndex((l) => l.productId === transferProductId);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = { ...updated[existing], quantity: updated[existing].quantity + qty };
+        return updated;
+      }
+      return [...prev, {
+        productId: product.productId,
+        productName: product.product?.name ?? product.productId,
+        stockOnHand: product.quantityOnHand,
+        quantity: qty,
+      }];
+    });
+    setTransferProductId("");
+    setTransferAddQty("");
   };
+
+  const handleRemoveLine = (setLines: React.Dispatch<React.SetStateAction<OrderLine[]>>, productId: string) => {
+    setLines((prev) => prev.filter((l) => l.productId !== productId));
+  };
+
+  // ── Submit handlers ──────────────────────────────────────────────────────
 
   const handleDispatchOrder = async () => {
     if (!selectedWarehouseId || !selectedLocationId) {
@@ -160,31 +253,50 @@ export default function DispatchScreen() {
     );
   };
 
-  const handleTransfer = async () => {
-    const qty = parseInt(transferQty, 10);
-    if (!qty || qty <= 0) { showAlert(t("common.error"), t("warehouse.invalidQuantity")); return; }
-    if (!fromLocationId || !toLocationId || !transferProductId) {
-      showAlert(t("common.error"), t("common.fillRequired")); return;
+  const handleTransferOrder = async () => {
+    if (!fromLocationId || !toLocationId) {
+      showAlert(t("common.error"), t("common.fillRequired"));
+      return;
     }
-    try {
-      await transfer.mutateAsync({
-        data: {
-          fromLocationId,
-          toLocationId,
-          productId: transferProductId,
-          quantity: qty,
-          notes: transferNote || undefined,
+    if (transferLines.length === 0) {
+      showAlert(t("common.error"), t("warehouse.emptyOrder"));
+      return;
+    }
+
+    showAlert(
+      t("warehouse.confirmTransfer") ?? t("warehouse.transfer"),
+      `${transferLines.length} ${t("warehouse.products")}`,
+      [
+        { text: t("common.cancel"), variant: "cancel" },
+        {
+          text: t("common.confirm"),
+          onPress: async () => {
+            try {
+              for (const line of transferLines) {
+                await transfer.mutateAsync({
+                  data: {
+                    fromLocationId,
+                    toLocationId,
+                    productId: line.productId,
+                    quantity: line.quantity,
+                    notes: transferNote || undefined,
+                  },
+                });
+              }
+              setTransferLines([]);
+              setTransferNote("");
+              showAlert(t("common.success"), t("warehouse.transferSuccess"));
+            } catch {
+              showAlert(t("common.error"), t("common.unknownError"));
+            }
+          },
         },
-      });
-      setTransferQty("");
-      setTransferNote("");
-      showAlert(t("common.success"), t("warehouse.transferSuccess"));
-    } catch {
-      showAlert(t("common.error"), t("common.unknownError"));
-    }
+      ]
+    );
   };
 
-  const orderTotal = orderLines.reduce((s, l) => s + l.quantity, 0);
+  const dispatchTotal = orderLines.reduce((s, l) => s + l.quantity, 0);
+  const transferTotal = transferLines.reduce((s, l) => s + l.quantity, 0);
 
   if (inventoryMode === "location_based") {
     return (
@@ -275,13 +387,30 @@ export default function DispatchScreen() {
                 3. {t("warehouse.buildOrder")}
               </Text>
 
-              {inventoryLoading ? (
+              {dispatchInventoryLoading ? (
                 <Loading label={t("common.loading")} />
               ) : (
                 <>
+                  {/* Barcode scan-to-add */}
+                  <View style={[styles.barcodeScanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+                    <Feather name="maximize" size={15} color={C.textMuted} />
+                    <TextInput
+                      ref={dispatchBarcodeInputRef}
+                      style={[styles.barcodeScanInput, { color: C.text }]}
+                      placeholder={t("warehouse.barcodeScanToAdd")}
+                      placeholderTextColor={C.textMuted}
+                      value={dispatchBarcode}
+                      onChangeText={setDispatchBarcode}
+                      onSubmitEditing={() => handleDispatchBarcodeScan(dispatchBarcode)}
+                      returnKeyType="done"
+                      blurOnSubmit={false}
+                      testID="dispatch-barcode-input"
+                    />
+                  </View>
+
                   <Text style={[styles.stepLabel, { color: C.textSecondary }]}>{t("warehouse.selectProduct")}</Text>
                   <ChipPicker
-                    options={warehouseProducts.map((p) => ({
+                    options={dispatchProducts.map((p) => ({
                       value: p.productId,
                       label: `${p.product?.name ?? p.productId} (${p.quantityOnHand} u.)`,
                     }))}
@@ -302,7 +431,7 @@ export default function DispatchScreen() {
                     </View>
                     <Button
                       title={t("warehouse.addToOrder")}
-                      onPress={handleAddLine}
+                      onPress={handleAddDispatchLine}
                       variant="secondary"
                       size="md"
                     />
@@ -317,30 +446,18 @@ export default function DispatchScreen() {
                     <Text style={[styles.orderSummaryTitle, { color: C.text }]}>
                       {t("warehouse.orderSummary")}
                     </Text>
-                    <Badge label={`${orderTotal} u.`} variant="info" size="sm" />
+                    <Badge label={`${dispatchTotal} u.`} variant="info" size="sm" />
                   </View>
                   {orderLines.map((line) => {
                     const overStock = line.quantity > line.stockOnHand;
                     return (
-                      <View key={line.productId} style={[styles.orderLine, {
-                        backgroundColor: overStock ? C.dangerLight : C.inputBg,
-                        borderColor: overStock ? C.danger + "66" : C.border,
-                      }]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.orderLineName, { color: overStock ? C.danger : C.text }]}>
-                            {line.productName}
-                          </Text>
-                          <Text style={[styles.orderLineMeta, { color: C.textSecondary }]}>
-                            {t("warehouse.inWarehouse")}: {line.stockOnHand}
-                          </Text>
-                        </View>
-                        <Text style={[styles.orderLineQty, { color: overStock ? C.danger : C.text }]}>
-                          {line.quantity} u.
-                        </Text>
-                        <Pressable onPress={() => handleRemoveLine(line.productId)} style={styles.removeLine}>
-                          <Feather name="x" size={16} color={C.textSecondary} />
-                        </Pressable>
-                      </View>
+                      <OrderLineRow
+                        key={line.productId}
+                        line={line}
+                        overStock={overStock}
+                        onRemove={() => handleRemoveLine(setOrderLines, line.productId)}
+                        C={C}
+                      />
                     );
                   })}
                 </View>
@@ -367,10 +484,25 @@ export default function DispatchScreen() {
           />
         </>
       ) : (
-        /* Transfer mode — single product */
+        /* Transfer mode — batch list model with dedicated warehouse selection */
         <>
+          {/* Step 1: Warehouse (product source for barcode scan) */}
           <View style={{ gap: 8 }}>
-            <Text style={[styles.stepLabel, { color: C.textSecondary }]}>{t("warehouse.from")}</Text>
+            <Text style={[styles.stepLabel, { color: C.textSecondary }]}>
+              1. {t("warehouse.selectWarehouse")}
+            </Text>
+            <ChipPicker
+              options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+              value={transferWarehouseId}
+              onChange={(v) => { setTransferWarehouseId(v); setTransferLines([]); setTransferProductId(""); }}
+              C={C}
+              t={t}
+            />
+          </View>
+
+          {/* Step 2: From location */}
+          <View style={{ gap: 8 }}>
+            <Text style={[styles.stepLabel, { color: C.textSecondary }]}>2. {t("warehouse.from")}</Text>
             <ChipPicker
               options={locations.map((l) => ({ value: l.id, label: l.name }))}
               value={fromLocationId}
@@ -379,8 +511,10 @@ export default function DispatchScreen() {
               t={t}
             />
           </View>
+
+          {/* Step 3: To location */}
           <View style={{ gap: 8 }}>
-            <Text style={[styles.stepLabel, { color: C.textSecondary }]}>{t("warehouse.to")}</Text>
+            <Text style={[styles.stepLabel, { color: C.textSecondary }]}>3. {t("warehouse.to")}</Text>
             <ChipPicker
               options={locations.filter((l) => l.id !== fromLocationId).map((l) => ({ value: l.id, label: l.name }))}
               value={toLocationId}
@@ -389,23 +523,86 @@ export default function DispatchScreen() {
               t={t}
             />
           </View>
-          <View style={{ gap: 8 }}>
-            <Text style={[styles.stepLabel, { color: C.textSecondary }]}>{t("warehouse.selectProduct")}</Text>
-            <ChipPicker
-              options={warehouseProducts.map((p) => ({ value: p.productId, label: p.product?.name ?? p.productId }))}
-              value={transferProductId}
-              onChange={setTransferProductId}
-              C={C}
-              t={t}
-            />
-          </View>
-          <Input
-            label={t("warehouse.quantityToTransfer")}
-            keyboardType="numeric"
-            value={transferQty}
-            onChangeText={setTransferQty}
-            placeholder="0"
-          />
+
+          {/* Step 4: Build transfer order (only shown when a warehouse is selected) */}
+          {!!transferWarehouseId && (
+            <View style={[styles.orderSection, { backgroundColor: C.card, borderColor: C.border }]}>
+              <Text style={[styles.orderSectionTitle, { color: C.text }]}>
+                4. {t("warehouse.buildOrder")}
+              </Text>
+
+              {transferInventoryLoading ? (
+                <Loading label={t("common.loading")} />
+              ) : (
+                <>
+                  {/* Barcode scan-to-add — accumulates batch, qty increments on repeat scan */}
+                  <View style={[styles.barcodeScanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+                    <Feather name="maximize" size={15} color={C.textMuted} />
+                    <TextInput
+                      ref={transferBarcodeInputRef}
+                      style={[styles.barcodeScanInput, { color: C.text }]}
+                      placeholder={t("warehouse.barcodeScanToAdd")}
+                      placeholderTextColor={C.textMuted}
+                      value={transferBarcode}
+                      onChangeText={setTransferBarcode}
+                      onSubmitEditing={() => handleTransferBarcodeScan(transferBarcode)}
+                      returnKeyType="done"
+                      blurOnSubmit={false}
+                      testID="transfer-barcode-input"
+                    />
+                  </View>
+
+                  <Text style={[styles.stepLabel, { color: C.textSecondary }]}>{t("warehouse.selectProduct")}</Text>
+                  <ChipPicker
+                    options={transferProducts.map((p) => ({ value: p.productId, label: p.product?.name ?? p.productId }))}
+                    value={transferProductId}
+                    onChange={setTransferProductId}
+                    C={C}
+                    t={t}
+                  />
+                  <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-end" }}>
+                    <View style={{ flex: 1 }}>
+                      <Input
+                        label={t("warehouse.quantityToTransfer")}
+                        keyboardType="numeric"
+                        value={transferAddQty}
+                        onChangeText={setTransferAddQty}
+                        placeholder="0"
+                      />
+                    </View>
+                    <Button
+                      title={t("warehouse.addToOrder")}
+                      onPress={handleAddTransferLine}
+                      variant="secondary"
+                      size="md"
+                    />
+                  </View>
+                </>
+              )}
+
+              {/* Transfer order summary */}
+              {transferLines.length > 0 && (
+                <View style={{ gap: 8, marginTop: 4 }}>
+                  <View style={styles.orderSummaryHeader}>
+                    <Text style={[styles.orderSummaryTitle, { color: C.text }]}>
+                      {t("warehouse.orderSummary")}
+                    </Text>
+                    <Badge label={`${transferTotal} u.`} variant="info" size="sm" />
+                  </View>
+                  {transferLines.map((line) => (
+                    <OrderLineRow
+                      key={line.productId}
+                      line={line}
+                      overStock={false}
+                      onRemove={() => handleRemoveLine(setTransferLines, line.productId)}
+                      C={C}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           <Input
             label={`${t("warehouse.note")} (${t("common.optional")})`}
             value={transferNote}
@@ -413,18 +610,63 @@ export default function DispatchScreen() {
             placeholder={t("warehouse.additionalNote")}
           />
           <Button
-            title={t("warehouse.transfer")}
-            onPress={handleTransfer}
+            title={transferLines.length > 0
+              ? `${t("warehouse.transfer")} ${transferLines.length} ${t("warehouse.products")}`
+              : t("warehouse.transfer")}
+            onPress={handleTransferOrder}
             variant="primary"
             size="lg"
             fullWidth
             loading={transfer.isPending}
+            disabled={transferLines.length === 0 || !fromLocationId || !toLocationId}
           />
         </>
       )}
     </ScrollView>
   );
 }
+
+function OrderLineRow({
+  line,
+  overStock,
+  onRemove,
+  C,
+}: {
+  line: OrderLine;
+  overStock: boolean;
+  onRemove: () => void;
+  C: typeof Colors.light;
+}) {
+  return (
+    <View style={[lineStyles.row, {
+      backgroundColor: overStock ? C.dangerLight : C.inputBg,
+      borderColor: overStock ? C.danger + "66" : C.border,
+    }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[lineStyles.name, { color: overStock ? C.danger : C.text }]}>
+          {line.productName}
+        </Text>
+        <Text style={[lineStyles.meta, { color: C.textSecondary }]}>
+          Stock: {line.stockOnHand}
+        </Text>
+      </View>
+      <Text style={[lineStyles.qty, { color: overStock ? C.danger : C.text }]}>
+        {line.quantity} u.
+      </Text>
+      <TouchableOpacity onPress={onRemove} style={lineStyles.removeBtn}>
+        <Feather name="x" size={16} color={C.textSecondary} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const lineStyles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  name: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  meta: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  qty: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  removeBtn: { padding: 4 },
+});
 
 function ChipPicker({
   options,
@@ -474,6 +716,8 @@ const styles = StyleSheet.create({
   modeBtn: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 10 },
   modeBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   stepLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  barcodeScanRow: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 12, borderWidth: 1 },
+  barcodeScanInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, borderWidth: 1 },
   chipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   noOptions: { fontSize: 13, fontFamily: "Inter_400Regular", paddingVertical: 8 },
@@ -481,9 +725,4 @@ const styles = StyleSheet.create({
   orderSectionTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   orderSummaryHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   orderSummaryTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  orderLine: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
-  orderLineName: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  orderLineMeta: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  orderLineQty: { fontSize: 15, fontFamily: "Inter_700Bold" },
-  removeLine: { padding: 4 },
 });

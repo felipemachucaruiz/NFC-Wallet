@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -34,6 +34,9 @@ export default function WarehouseStockScreen() {
   const [receiveQty, setReceiveQty] = useState("");
   const [receiveNote, setReceiveNote] = useState("");
 
+  // Barcode scan-to-fill in receive modal
+  const [barcodeScan, setBarcodeScan] = useState("");
+
   const isCentralized = inventoryMode === "centralized_warehouse";
 
   const { data: warehousesData } = useListWarehouses(undefined, { query: { enabled: isCentralized, queryKey: ["warehouses-stock", isCentralized] } });
@@ -51,7 +54,20 @@ export default function WarehouseStockScreen() {
     setSelectedProductId("");
     setReceiveQty("");
     setReceiveNote("");
+    setBarcodeScan("");
     setReceiveModalVisible(true);
+  };
+
+  const handleBarcodeScanInModal = (barcode: string) => {
+    const trimmed = barcode.trim();
+    setBarcodeScan("");
+    if (!trimmed) return;
+    const found = items.find((p) => p.product?.barcode === trimmed);
+    if (found) {
+      setSelectedProductId(found.productId);
+    } else {
+      showAlert(t("common.error"), t("warehouse.barcodeNotFound"));
+    }
   };
 
   const handleReceive = async () => {
@@ -193,6 +209,22 @@ export default function WarehouseStockScreen() {
           </View>
 
           <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }}>
+            {/* Barcode scan-to-fill row */}
+            <View style={[styles.barcodeScanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+              <Feather name="maximize" size={16} color={C.textMuted} />
+              <TextInput
+                style={[styles.barcodeScanInput, { color: C.text }]}
+                placeholder={t("warehouse.barcodeScanToAdd")}
+                placeholderTextColor={C.textMuted}
+                value={barcodeScan}
+                onChangeText={setBarcodeScan}
+                onSubmitEditing={() => handleBarcodeScanInModal(barcodeScan)}
+                returnKeyType="done"
+                blurOnSubmit={false}
+                testID="warehouse-receive-barcode-input"
+              />
+            </View>
+
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("warehouse.selectProduct")}</Text>
             <View style={{ gap: 8 }}>
               {items.map((p) => (
@@ -263,6 +295,8 @@ const styles = StyleSheet.create({
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#ccc", alignSelf: "center", marginBottom: 16 },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
   modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  barcodeScanRow: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 12, borderWidth: 1 },
+  barcodeScanInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   sectionLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
   productChip: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
   productChipText: { fontSize: 14, fontFamily: "Inter_500Medium" },

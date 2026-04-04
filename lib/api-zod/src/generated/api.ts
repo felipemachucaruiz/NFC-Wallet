@@ -1096,6 +1096,10 @@ export const ListProductsResponse = zod.object({
       merchantId: zod.string(),
       name: zod.string(),
       category: zod.string().nullish(),
+      barcode: zod
+        .string()
+        .nullish()
+        .describe("Optional barcode for PDA hardware scanner lookup"),
       priceCop: zod.number(),
       costCop: zod.number(),
       ivaRate: zod
@@ -1128,6 +1132,10 @@ export const CreateProductBody = zod.object({
   merchantId: zod.string(),
   name: zod.string().min(1),
   category: zod.string().optional(),
+  barcode: zod
+    .string()
+    .optional()
+    .describe("Optional barcode for PDA hardware scanner lookup"),
   priceCop: zod.number().min(createProductBodyPriceCopMin),
   costCop: zod.number().min(createProductBodyCostCopMin).optional(),
   ivaRate: zod
@@ -1150,6 +1158,10 @@ export const GetProductResponse = zod.object({
   merchantId: zod.string(),
   name: zod.string(),
   category: zod.string().nullish(),
+  barcode: zod
+    .string()
+    .nullish()
+    .describe("Optional barcode for PDA hardware scanner lookup"),
   priceCop: zod.number(),
   costCop: zod.number(),
   ivaRate: zod
@@ -1182,6 +1194,14 @@ export const updateProductBodyIvaRateRegExp = new RegExp(
 export const UpdateProductBody = zod.object({
   name: zod.string().min(1).optional(),
   category: zod.string().optional(),
+  barcode: zod
+    .string()
+    .nullish()
+    .describe("Optional barcode for PDA hardware scanner lookup"),
+  imageUrl: zod
+    .string()
+    .nullish()
+    .describe("Product image URL (null to remove)"),
   priceCop: zod.number().min(updateProductBodyPriceCopMin).optional(),
   costCop: zod.number().min(updateProductBodyCostCopMin).optional(),
   active: zod.boolean().optional(),
@@ -1198,6 +1218,10 @@ export const UpdateProductResponse = zod.object({
   merchantId: zod.string(),
   name: zod.string(),
   category: zod.string().nullish(),
+  barcode: zod
+    .string()
+    .nullish()
+    .describe("Optional barcode for PDA hardware scanner lookup"),
   priceCop: zod.number(),
   costCop: zod.number(),
   ivaRate: zod
@@ -1220,6 +1244,36 @@ export const DeleteProductParams = zod.object({
 });
 
 /**
+ * @summary Look up a product by barcode (scoped to merchant)
+ */
+export const GetProductByBarcodeParams = zod.object({
+  barcode: zod.coerce.string(),
+});
+
+export const GetProductByBarcodeResponse = zod.object({
+  id: zod.string(),
+  merchantId: zod.string(),
+  name: zod.string(),
+  category: zod.string().nullish(),
+  barcode: zod
+    .string()
+    .nullish()
+    .describe("Optional barcode for PDA hardware scanner lookup"),
+  priceCop: zod.number(),
+  costCop: zod.number(),
+  ivaRate: zod
+    .string()
+    .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
+  ivaExento: zod
+    .boolean()
+    .describe(
+      "True si el producto está excluido de IVA (canasta básica, etc.)",
+    ),
+  active: zod.boolean(),
+  createdAt: zod.date(),
+});
+
+/**
  * @summary Get inventory for a location
  */
 export const GetLocationInventoryParams = zod.object({
@@ -1238,6 +1292,10 @@ export const GetLocationInventoryResponse = zod.object({
           merchantId: zod.string(),
           name: zod.string(),
           category: zod.string().nullish(),
+          barcode: zod
+            .string()
+            .nullish()
+            .describe("Optional barcode for PDA hardware scanner lookup"),
           priceCop: zod.number(),
           costCop: zod.number(),
           ivaRate: zod
@@ -1293,6 +1351,10 @@ export const UpdateLocationInventoryItemResponse = zod.object({
       merchantId: zod.string(),
       name: zod.string(),
       category: zod.string().nullish(),
+      barcode: zod
+        .string()
+        .nullish()
+        .describe("Optional barcode for PDA hardware scanner lookup"),
       priceCop: zod.number(),
       costCop: zod.number(),
       ivaRate: zod
@@ -1331,6 +1393,10 @@ export const GetWarehouseInventoryResponse = zod.object({
           merchantId: zod.string(),
           name: zod.string(),
           category: zod.string().nullish(),
+          barcode: zod
+            .string()
+            .nullish()
+            .describe("Optional barcode for PDA hardware scanner lookup"),
           priceCop: zod.number(),
           costCop: zod.number(),
           ivaRate: zod
@@ -1372,6 +1438,10 @@ export const UpdateWarehouseInventoryResponse = zod.object({
       merchantId: zod.string(),
       name: zod.string(),
       category: zod.string().nullish(),
+      barcode: zod
+        .string()
+        .nullish()
+        .describe("Optional barcode for PDA hardware scanner lookup"),
       priceCop: zod.number(),
       costCop: zod.number(),
       ivaRate: zod

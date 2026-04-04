@@ -3,7 +3,7 @@ import multer from "multer";
 import { randomUUID } from "crypto";
 import { Storage } from "@google-cloud/storage";
 import { db, productsTable, merchantsTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertProductAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
@@ -46,6 +46,7 @@ const createProductSchema = z.object({
   merchantId: z.string().min(1),
   name: z.string().min(1),
   category: z.string().optional(),
+  barcode: z.string().min(1).optional(),
   priceCop: z.number().int().min(0),
   costCop: z.number().int().min(0).default(0),
   ivaRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
@@ -55,6 +56,7 @@ const createProductSchema = z.object({
 const updateProductSchema = z.object({
   name: z.string().min(1).optional(),
   category: z.string().optional(),
+  barcode: z.string().min(1).nullable().optional(),
   priceCop: z.number().int().min(0).optional(),
   costCop: z.number().int().min(0).optional(),
   active: z.boolean().optional(),
@@ -161,6 +163,66 @@ router.post(
     res.status(201).json(product);
   },
 );
+
+router.get("/products/by-barcode/:barcode", requireAuth, async (req: Request, res: Response) => {
+  const user = req.user!;
+  const barcode = req.params.barcode as string;
+
+  if (isMerchantScoped(user)) {
+    if (!user.merchantId) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+    const [product] = await db
+      .select()
+      .from(productsTable)
+      .where(and(eq(productsTable.merchantId, user.merchantId), eq(productsTable.barcode, barcode)));
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+    res.json(product);
+    return;
+  }
+
+  // event_admin: scope to merchants of their event
+  if (user.role === "event_admin") {
+    if (!user.eventId) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+    const eventMerchants = await db
+      .select({ id: merchantsTable.id })
+      .from(merchantsTable)
+      .where(eq(merchantsTable.eventId, user.eventId));
+    const merchantIds = eventMerchants.map((m) => m.id);
+    if (merchantIds.length === 0) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+    const [product] = await db
+      .select()
+      .from(productsTable)
+      .where(and(inArray(productsTable.merchantId, merchantIds), eq(productsTable.barcode, barcode)));
+    if (!product) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+    res.json(product);
+    return;
+  }
+
+  // admin: global lookup
+  const [product] = await db
+    .select()
+    .from(productsTable)
+    .where(eq(productsTable.barcode, barcode));
+  if (!product) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+  res.json(product);
+});
 
 router.get("/products/:productId", requireAuth, async (req: Request, res: Response) => {
   const user = req.user!;
