@@ -77,7 +77,7 @@ export default function TopUpScreen() {
   const { mutate: initiatePayment, isPending } = useInitiateTopUp();
 
   useEffect(() => {
-    isNfcSupported().then(setNfcAvailable);
+    setNfcAvailable(isNfcSupported());
   }, []);
 
   const handleNfcScan = async () => {
