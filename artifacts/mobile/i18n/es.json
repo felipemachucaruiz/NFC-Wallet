@@ -904,6 +904,8 @@
     "verifyOnMaps": "Verificar en Google Maps",
     "latInvalid": "La latitud debe estar entre -90 y 90",
     "lngInvalid": "La longitud debe estar entre -180 y 180",
+    "mapsApiKeyMissingTitle": "Falta la clave de API de Google Maps",
+    "mapsApiKeyMissingBody": "Configura GOOGLE_MAPS_API_KEY en los secretos del proyecto en Replit para habilitar el selector de mapa interactivo.",
     "companiesTab": "Empresas",
     "clientsTab": "Clientes",
     "capacity": "Aforo",

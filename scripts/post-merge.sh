@@ -9,5 +9,5 @@ for f in lib/db/migrations/*.sql; do
   psql "$DATABASE_URL" -f "$f" || true
 done
 
-# Push schema changes — use --force to skip all interactive prompts
-pnpm --filter db push --force || true
+# Sync schema — NO --force flag to prevent accidental data loss
+pnpm --filter db push || true

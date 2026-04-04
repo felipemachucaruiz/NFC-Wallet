@@ -90,6 +90,12 @@ module.exports = {
         },
       ],
       [
+        "react-native-maps",
+        {
+          googleMapsApiKey,
+        },
+      ],
+      [
         "./plugins/withSslPinning",
         {
           certFiles: ["tapee_api.cer", "attendee_api.cer"],
