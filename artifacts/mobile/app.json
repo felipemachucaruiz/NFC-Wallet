@@ -16,6 +16,7 @@
     },
     "ios": {
       "supportsTablet": false,
+      "bundleIdentifier": "com.tapee.staff",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Used to select product photos."
       }
