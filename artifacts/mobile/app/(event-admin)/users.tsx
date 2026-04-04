@@ -285,7 +285,7 @@ export default function EventAdminUsersScreen() {
                     { backgroundColor: selectedRole === role ? C.primary : C.inputBg, borderColor: selectedRole === role ? C.primary : C.border },
                   ]}
                 >
-                  <Text style={[styles.roleChipText, { color: selectedRole === role ? "#fff" : C.textSecondary }]}>
+                  <Text style={[styles.roleChipText, { color: selectedRole === role ? "#0a0a0a" : C.textSecondary }]}>
                     {t(`admin.roles.${role}`)}
                   </Text>
                 </Pressable>
@@ -304,7 +304,7 @@ export default function EventAdminUsersScreen() {
                         { backgroundColor: selectedMerchantId === m.id ? C.primary : C.inputBg, borderColor: selectedMerchantId === m.id ? C.primary : C.border },
                       ]}
                     >
-                      <Text style={[styles.roleChipText, { color: selectedMerchantId === m.id ? "#fff" : C.textSecondary }]}>{m.name}</Text>
+                      <Text style={[styles.roleChipText, { color: selectedMerchantId === m.id ? "#0a0a0a" : C.textSecondary }]}>{m.name}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -345,7 +345,7 @@ export default function EventAdminUsersScreen() {
                     { backgroundColor: editRole === role ? C.primary : C.inputBg, borderColor: editRole === role ? C.primary : C.border },
                   ]}
                 >
-                  <Text style={[styles.roleChipText, { color: editRole === role ? "#fff" : C.textSecondary }]}>
+                  <Text style={[styles.roleChipText, { color: editRole === role ? "#0a0a0a" : C.textSecondary }]}>
                     {t(`admin.roles.${role}`)}
                   </Text>
                 </Pressable>
@@ -364,7 +364,7 @@ export default function EventAdminUsersScreen() {
                         { backgroundColor: editMerchantId === m.id ? C.primary : C.inputBg, borderColor: editMerchantId === m.id ? C.primary : C.border },
                       ]}
                     >
-                      <Text style={[styles.roleChipText, { color: editMerchantId === m.id ? "#fff" : C.textSecondary }]}>{m.name}</Text>
+                      <Text style={[styles.roleChipText, { color: editMerchantId === m.id ? "#0a0a0a" : C.textSecondary }]}>{m.name}</Text>
                     </Pressable>
                   ))}
                 </View>

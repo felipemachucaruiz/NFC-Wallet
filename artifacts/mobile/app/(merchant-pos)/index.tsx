@@ -189,7 +189,7 @@ export default function MerchantPosScreen() {
                           })}
                           testID={`add-product-${item.product.id}`}
                         >
-                          <Feather name="plus" size={16} color="#fff" />
+                          <Feather name="plus" size={16} color="#0a0a0a" />
                         </TouchableOpacity>
                       ) : (
                         <View style={styles.qtyRow}>
@@ -210,7 +210,7 @@ export default function MerchantPosScreen() {
                               stockAvailable: item.quantityOnHand,
                             })}
                           >
-                            <Feather name="plus" size={14} color="#fff" />
+                            <Feather name="plus" size={14} color="#0a0a0a" />
                           </TouchableOpacity>
                         </View>
                       )
@@ -239,7 +239,7 @@ export default function MerchantPosScreen() {
                     </TouchableOpacity>
                     <Text style={[styles.qtyText, { color: C.text }]}>{item.quantity}</Text>
                     <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: C.primary }]} onPress={() => updateQty(item.productId, item.quantity + 1)}>
-                      <Feather name="plus" size={14} color="#fff" />
+                      <Feather name="plus" size={14} color="#0a0a0a" />
                     </TouchableOpacity>
                   </View>
                   <CopAmount amount={item.priceCop * item.quantity} size={15} />

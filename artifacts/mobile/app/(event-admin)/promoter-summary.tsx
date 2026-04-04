@@ -79,10 +79,10 @@ export default function PromoterSummaryScreen() {
         <View style={styles.mainRow}>
           <View>
             <Text style={styles.mainLabel}>{t("eventAdmin.totalRevenue")}</Text>
-            <CopAmount amount={summary?.totalRevenueCop} size={36} color="#fff" />
+            <CopAmount amount={summary?.totalRevenueCop} size={36} color="#0a0a0a" />
           </View>
-          <View style={[styles.mainIconBox, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-            <Feather name="trending-up" size={28} color="#fff" />
+          <View style={[styles.mainIconBox, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
+            <Feather name="trending-up" size={28} color="#0a0a0a" />
           </View>
         </View>
         <View style={styles.statsRow}>
@@ -162,12 +162,12 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   mainCard: { borderRadius: 20 },
   mainRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  mainLabel: { color: "rgba(255,255,255,0.8)", fontFamily: "Inter_500Medium", fontSize: 13, marginBottom: 4 },
+  mainLabel: { color: "rgba(0,0,0,0.7)", fontFamily: "Inter_500Medium", fontSize: 13, marginBottom: 4 },
   mainIconBox: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   statsRow: { flexDirection: "row", gap: 16, marginTop: 16 },
   statPill: { flex: 1, alignItems: "center" },
-  statValue: { color: "#fff", fontSize: 20, fontFamily: "Inter_700Bold" },
-  statLabel: { color: "rgba(255,255,255,0.7)", fontSize: 11, fontFamily: "Inter_400Regular" },
+  statValue: { color: "#0a0a0a", fontSize: 20, fontFamily: "Inter_700Bold" },
+  statLabel: { color: "rgba(0,0,0,0.6)", fontSize: 11, fontFamily: "Inter_400Regular" },
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   kpiCard: { flex: 1, minWidth: "47%" },
   kpiIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 8 },

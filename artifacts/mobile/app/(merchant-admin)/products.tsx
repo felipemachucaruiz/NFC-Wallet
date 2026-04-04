@@ -304,7 +304,7 @@ export default function MerchantProductsScreen() {
             onPress={() => { setShowAddForm(true); setForm(emptyForm); setPendingImageUri(null); }}
             style={[styles.addBtn, { backgroundColor: C.primary }]}
           >
-            <Feather name="plus" size={18} color="#fff" />
+            <Feather name="plus" size={18} color="#0a0a0a" />
             <Text style={styles.addBtnText}>{t("merchant_admin.addProduct")}</Text>
           </Pressable>
         )}
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { fontSize: 26, fontFamily: "Inter_700Bold" },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100 },
-  addBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  addBtnText: { color: "#0a0a0a", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   formCard: { borderRadius: 16, borderWidth: 1, padding: 16, gap: 14 },
   formTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   formActions: { flexDirection: "row", gap: 10, marginTop: 4 },

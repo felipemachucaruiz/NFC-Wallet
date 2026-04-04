@@ -212,7 +212,7 @@ function LocationChip({
         styles.filterChip,
         {
           backgroundColor: selected ? C.primary : C.inputBg,
-          color: selected ? "#fff" : C.textSecondary,
+          color: selected ? "#0a0a0a" : C.textSecondary,
           borderColor: selected ? C.primary : C.border,
         },
       ]}

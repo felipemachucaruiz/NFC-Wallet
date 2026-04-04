@@ -130,7 +130,7 @@ export default function WarehouseStockScreen() {
                       borderColor: activeWarehouseId === w.id ? C.primary : C.border,
                     }]}
                   >
-                    <Text style={[styles.whChipText, { color: activeWarehouseId === w.id ? "#fff" : C.textSecondary }]}>
+                    <Text style={[styles.whChipText, { color: activeWarehouseId === w.id ? "#0a0a0a" : C.textSecondary }]}>
                       {w.name}
                     </Text>
                   </Pressable>

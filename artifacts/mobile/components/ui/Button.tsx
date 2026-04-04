@@ -48,7 +48,7 @@ export function Button({
   };
 
   const textColor: Record<Variant, string> = {
-    primary: "#fff",
+    primary: C.primaryText,
     secondary: C.text,
     danger: "#fff",
     ghost: C.primary,

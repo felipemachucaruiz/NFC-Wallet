@@ -329,7 +329,7 @@ export default function RolesScreen() {
                             },
                           ]}
                         >
-                          <Text style={[styles.roleChipText, { color: selectedRole === role ? "#fff" : C.textSecondary }]}>
+                          <Text style={[styles.roleChipText, { color: selectedRole === role ? "#0a0a0a" : C.textSecondary }]}>
                             {t(`admin.roles.${role}`)}
                           </Text>
                         </Pressable>

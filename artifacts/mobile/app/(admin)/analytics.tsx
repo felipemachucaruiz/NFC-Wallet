@@ -746,5 +746,5 @@ const styles = StyleSheet.create({
   modalCancelBtn: { flex: 1, borderWidth: 1, borderRadius: 10, padding: 14, alignItems: "center" },
   modalCancelText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   modalSubmitBtn: { flex: 2, borderRadius: 10, padding: 14, alignItems: "center" },
-  modalSubmitText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#fff" },
+  modalSubmitText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#0a0a0a" },
 });

@@ -192,7 +192,7 @@ export default function LoginScreen() {
               testID="remember-me-toggle"
             >
               <View style={[styles.checkbox, rememberMe && { backgroundColor: C.primary, borderColor: C.primary }]}>
-                {rememberMe && <Feather name="check" size={13} color="#fff" />}
+                {rememberMe && <Feather name="check" size={13} color="#0a0a0a" />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.rememberLabel, { color: "#ffffff" }]}>{t("auth.rememberMe")}</Text>

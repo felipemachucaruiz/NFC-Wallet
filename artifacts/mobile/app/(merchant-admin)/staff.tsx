@@ -407,7 +407,7 @@ export default function MerchantStaffScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.checkbox, { borderColor: checked ? C.primary : C.border, backgroundColor: checked ? C.primary : "transparent" }]}>
-                    {checked && <Feather name="check" size={12} color="#fff" />}
+                    {checked && <Feather name="check" size={12} color="#0a0a0a" />}
                   </View>
                   <Text style={[styles.locationName, { color: C.text }]}>{loc.name}</Text>
                 </TouchableOpacity>

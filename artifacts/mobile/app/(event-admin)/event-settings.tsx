@@ -89,7 +89,7 @@ function NfcChipCheckbox({
           backgroundColor: checked ? C.primary : "transparent",
         },
       ]}>
-        {checked && <Feather name="check" size={14} color="#fff" />}
+        {checked && <Feather name="check" size={14} color="#0a0a0a" />}
       </View>
     </Pressable>
   );
@@ -836,7 +836,7 @@ const styles = StyleSheet.create({
     borderRadius: 100,
   },
   activeBadgeText: {
-    color: "#fff",
+    color: "#0a0a0a",
     fontSize: 10,
     fontFamily: "Inter_600SemiBold",
   },

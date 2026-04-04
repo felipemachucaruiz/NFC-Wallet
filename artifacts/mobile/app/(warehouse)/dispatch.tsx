@@ -453,7 +453,7 @@ function ChipPicker({
             },
           ]}
         >
-          <Text style={[styles.chipText, { color: value === opt.value ? "#fff" : C.textSecondary }]}>
+          <Text style={[styles.chipText, { color: value === opt.value ? "#0a0a0a" : C.textSecondary }]}>
             {opt.label}
           </Text>
         </Pressable>

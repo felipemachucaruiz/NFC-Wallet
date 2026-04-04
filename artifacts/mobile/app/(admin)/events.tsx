@@ -474,7 +474,7 @@ export default function EventsScreen() {
                           ]}
                         >
                           <View style={[styles.clientAvatar, { backgroundColor: isSelected ? C.primary : C.border }]}>
-                            <Feather name="user" size={14} color={isSelected ? "#fff" : C.textSecondary} />
+                            <Feather name="user" size={14} color={isSelected ? "#0a0a0a" : C.textSecondary} />
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.clientOptionName, { color: isSelected ? C.primary : C.text }]}>{name}</Text>
@@ -670,7 +670,7 @@ function EventFormFields({
           ]}
         >
           <View style={[styles.clientAvatar, { backgroundColor: selectedCompanyId === c.id ? C.primary : C.border }]}>
-            <Feather name="briefcase" size={14} color={selectedCompanyId === c.id ? "#fff" : C.textSecondary} />
+            <Feather name="briefcase" size={14} color={selectedCompanyId === c.id ? "#0a0a0a" : C.textSecondary} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.clientOptionName, { color: selectedCompanyId === c.id ? C.primary : C.text }]}>{c.companyName}</Text>

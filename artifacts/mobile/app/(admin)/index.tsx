@@ -124,7 +124,7 @@ function EventChip({ label, selected, onPress, C, badge }: {
       onPress={onPress}
       style={[
         styles.chip,
-        { backgroundColor: selected ? C.primary : C.inputBg, color: selected ? "#fff" : C.textSecondary, borderColor: selected ? C.primary : C.border },
+        { backgroundColor: selected ? C.primary : C.inputBg, color: selected ? "#0a0a0a" : C.textSecondary, borderColor: selected ? C.primary : C.border },
       ]}
     >
       {label}
@@ -159,5 +159,5 @@ const styles = StyleSheet.create({
   errorTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", marginTop: 4 },
   errorMsg: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
   retryBtn: { marginTop: 8, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 100 },
-  retryBtnText: { color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  retryBtnText: { color: "#0a0a0a", fontFamily: "Inter_600SemiBold", fontSize: 14 },
 });
