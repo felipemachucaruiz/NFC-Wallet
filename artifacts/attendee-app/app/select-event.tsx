@@ -25,16 +25,15 @@ type NearbyEvent = {
   id: string;
   name: string;
   venueAddress: string | null;
-  distanceKm: number;
+  distanceMetres: number | null;
 };
 
 type PageState = "requesting_location" | "fetching" | "list" | "single_confirm" | "linking" | "success" | "error" | "no_location";
 
-function formatDistance(km: number): string {
-  if (km < 1) {
-    return `${Math.round(km * 1000)} m`;
-  }
-  return `${km.toFixed(1)} km`;
+function formatDistance(metres: number | null | undefined): string {
+  if (metres == null) return "";
+  if (metres < 1000) return `${Math.round(metres)} m`;
+  return `${(metres / 1000).toFixed(1)} km`;
 }
 
 export default function SelectEventScreen() {
@@ -95,7 +94,7 @@ export default function SelectEventScreen() {
       const nearbyEvents = data.events ?? [];
       setEvents(nearbyEvents);
 
-      const within5km = nearbyEvents.filter((e) => e.distanceKm <= 5);
+      const within5km = nearbyEvents.filter((e) => e.distanceMetres != null && e.distanceMetres <= 5000);
       if (within5km.length === 1) {
         setSelectedEvent(within5km[0]);
         setPageState("single_confirm");
@@ -240,12 +239,14 @@ export default function SelectEventScreen() {
                 <Text style={[styles.venueText, { color: C.textMuted }]}>{selectedEvent.venueAddress}</Text>
               </View>
             ) : null}
-            <View style={[styles.distanceBadge, { backgroundColor: C.primaryLight }]}>
-              <Feather name="navigation" size={11} color={C.primary} />
-              <Text style={[styles.distanceText, { color: C.primary }]}>
-                {formatDistance(selectedEvent.distanceKm)}
-              </Text>
-            </View>
+            {selectedEvent.distanceMetres != null && (
+              <View style={[styles.distanceBadge, { backgroundColor: C.primaryLight }]}>
+                <Feather name="navigation" size={11} color={C.primary} />
+                <Text style={[styles.distanceText, { color: C.primary }]}>
+                  {formatDistance(selectedEvent.distanceMetres)}
+                </Text>
+              </View>
+            )}
           </View>
 
           <Button
@@ -293,12 +294,14 @@ export default function SelectEventScreen() {
                     </View>
                   ) : null}
                 </View>
-                <View style={[styles.distanceBadge, { backgroundColor: C.primaryLight }]}>
-                  <Feather name="navigation" size={11} color={C.primary} />
-                  <Text style={[styles.distanceText, { color: C.primary }]}>
-                    {formatDistance(event.distanceKm)}
-                  </Text>
-                </View>
+                {event.distanceMetres != null && (
+                  <View style={[styles.distanceBadge, { backgroundColor: C.primaryLight }]}>
+                    <Feather name="navigation" size={11} color={C.primary} />
+                    <Text style={[styles.distanceText, { color: C.primary }]}>
+                      {formatDistance(event.distanceMetres)}
+                    </Text>
+                  </View>
+                )}
               </Pressable>
             ))
           )}

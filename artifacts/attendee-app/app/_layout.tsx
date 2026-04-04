@@ -52,6 +52,7 @@ function RootLayoutNav() {
       <Stack.Screen name="add-bracelet" />
       <Stack.Screen name="block-bracelet" />
       <Stack.Screen name="refund-request" />
+      <Stack.Screen name="select-event" />
       <Stack.Screen name="payment-status/[id]" />
     </Stack>
   );
