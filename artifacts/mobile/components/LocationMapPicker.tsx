@@ -1,27 +1,25 @@
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
+  KeyboardAvoidingView,
+  Linking,
   Modal,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Region } from "react-native-maps";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import Constants from "expo-constants";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import Colors from "@/constants/colors";
-
-const GOOGLE_MAPS_API_KEY: string =
-  (Constants.expoConfig?.extra?.googleMapsApiKey as string) ?? "";
 
 export type LocationResult = {
   address: string;
@@ -46,202 +44,200 @@ export function LocationMapPicker({ visible, initialLatitude, initialLongitude, 
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
 
-  const mapRef = useRef<MapView>(null);
-
-  const [pin, setPin] = useState<{ lat: number; lng: number }>({
-    lat: initialLatitude ?? DEFAULT_LAT,
-    lng: initialLongitude ?? DEFAULT_LNG,
-  });
-  const [address, setAddress] = useState<string>("");
+  const [latText, setLatText] = useState("");
+  const [lngText, setLngText] = useState("");
+  const [address, setAddress] = useState("");
   const [locating, setLocating] = useState(false);
+  const [error, setError] = useState("");
 
-  // Sync state from props every time the modal opens so editing a different
-  // event always starts at its current location instead of stale state.
   useEffect(() => {
     if (visible) {
-      const lat = initialLatitude ?? DEFAULT_LAT;
-      const lng = initialLongitude ?? DEFAULT_LNG;
-      setPin({ lat, lng });
+      setLatText(initialLatitude != null ? String(initialLatitude) : "");
+      setLngText(initialLongitude != null ? String(initialLongitude) : "");
       setAddress("");
-      mapRef.current?.animateToRegion(
-        { latitude: lat, longitude: lng, latitudeDelta: 0.05, longitudeDelta: 0.05 },
-        0
-      );
+      setError("");
     }
   }, [visible, initialLatitude, initialLongitude]);
 
-  const moveMapTo = useCallback((lat: number, lng: number) => {
-    mapRef.current?.animateToRegion(
-      { latitude: lat, longitude: lng, latitudeDelta: 0.005, longitudeDelta: 0.005 },
-      500
-    );
-    setPin({ lat, lng });
-  }, []);
-
   const handleUseCurrentLocation = useCallback(async () => {
     setLocating(true);
+    setError("");
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(t("common.error"), t("admin.locationPermissionDenied"));
+        setError(t("admin.locationPermissionDenied"));
         setLocating(false);
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      moveMapTo(loc.coords.latitude, loc.coords.longitude);
+      setLatText(loc.coords.latitude.toFixed(6));
+      setLngText(loc.coords.longitude.toFixed(6));
       setAddress("");
     } catch {
-      Alert.alert(t("common.error"), t("admin.locationError"));
+      setError(t("admin.locationError"));
     }
     setLocating(false);
-  }, [moveMapTo, t]);
+  }, [t]);
+
+  const handleOpenInMaps = useCallback(() => {
+    const lat = parseFloat(latText);
+    const lng = parseFloat(lngText);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      const url = `https://www.google.com/maps?q=${lat},${lng}`;
+      Linking.openURL(url);
+    }
+  }, [latText, lngText]);
 
   const handleConfirm = useCallback(() => {
-    onConfirm({ address, latitude: pin.lat, longitude: pin.lng });
-  }, [address, pin, onConfirm]);
+    setError("");
+    const lat = parseFloat(latText.trim());
+    const lng = parseFloat(lngText.trim());
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      setError(t("admin.latInvalid") || "Latitude must be between -90 and 90");
+      return;
+    }
+    if (isNaN(lng) || lng < -180 || lng > 180) {
+      setError(t("admin.lngInvalid") || "Longitude must be between -180 and 180");
+      return;
+    }
+    Keyboard.dismiss();
+    onConfirm({ address: address.trim() || `${lat.toFixed(6)}, ${lng.toFixed(6)}`, latitude: lat, longitude: lng });
+  }, [latText, lngText, address, onConfirm, t]);
 
-  const initialRegion: Region = {
-    latitude: initialLatitude ?? DEFAULT_LAT,
-    longitude: initialLongitude ?? DEFAULT_LNG,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  };
+  const hasCoords = !isNaN(parseFloat(latText)) && !isNaN(parseFloat(lngText));
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.container, { backgroundColor: C.background }]}>
-        {/* Header */}
-        <View style={[styles.header, { backgroundColor: C.card, paddingTop: insets.top + 8 }]}>
-          <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={12}>
-            <Feather name="x" size={22} color={C.textSecondary} />
-          </Pressable>
-          <Text style={[styles.headerTitle, { color: C.text }]}>{t("admin.locationPickerTitle")}</Text>
-          <View style={{ width: 34 }} />
-        </View>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={[styles.container, { backgroundColor: C.background }]}>
 
-        {/* Search bar */}
-        <View style={[styles.searchWrapper, { backgroundColor: C.card, borderBottomColor: C.border }]}>
-          <GooglePlacesAutocomplete
-            placeholder={t("admin.searchVenuePlaceholder")}
-            fetchDetails
-            onPress={(data, details) => {
-              const loc = details?.geometry?.location;
-              if (loc) {
-                moveMapTo(loc.lat, loc.lng);
-                setAddress(data.description);
-              }
-            }}
-            query={{
-              key: GOOGLE_MAPS_API_KEY,
-              language: "en",
-            }}
-            styles={{
-              container: { flex: 0 },
-              textInputContainer: {
-                backgroundColor: "transparent",
-                borderTopWidth: 0,
-                borderBottomWidth: 0,
-                paddingHorizontal: 4,
-              },
-              textInput: {
-                backgroundColor: C.inputBg,
-                color: C.text,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: C.border,
-                height: 44,
-                fontSize: 14,
-                fontFamily: "Inter_400Regular",
-                paddingHorizontal: 12,
-              },
-              listView: {
-                backgroundColor: C.card,
-                borderColor: C.border,
-                borderWidth: 1,
-                borderRadius: 10,
-                marginHorizontal: 4,
-              },
-              row: {
-                backgroundColor: C.card,
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-              },
-              description: {
-                color: C.text,
-                fontFamily: "Inter_400Regular",
-                fontSize: 13,
-              },
-              separator: {
-                backgroundColor: C.border,
-                height: StyleSheet.hairlineWidth,
-              },
-            }}
-            enablePoweredByContainer={false}
+          {/* Header */}
+          <View style={[styles.header, { backgroundColor: C.card, paddingTop: insets.top + 8, borderBottomColor: C.border }]}>
+            <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={12}>
+              <Feather name="x" size={22} color={C.textSecondary} />
+            </Pressable>
+            <Text style={[styles.headerTitle, { color: C.text }]}>{t("admin.locationPickerTitle")}</Text>
+            <View style={{ width: 34 }} />
+          </View>
+
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 20, gap: 16 }}
             keyboardShouldPersistTaps="handled"
-          />
-        </View>
-
-        {/* Map */}
-        <View style={styles.mapContainer}>
-          <MapView
-            ref={mapRef}
-            style={StyleSheet.absoluteFillObject}
-            provider="google"
-            initialRegion={initialRegion}
-            onPress={(e) => {
-              const { latitude, longitude } = e.nativeEvent.coordinate;
-              setPin({ lat: latitude, lng: longitude });
-              setAddress("");
-              Keyboard.dismiss();
-            }}
           >
-            <Marker
-              coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-              draggable
-              onDragEnd={(e) => {
-                const { latitude, longitude } = e.nativeEvent.coordinate;
-                setPin({ lat: latitude, lng: longitude });
-                setAddress("");
-              }}
-              pinColor="#00C2FF"
-            />
-          </MapView>
+            {/* Use current location */}
+            <TouchableOpacity
+              style={[styles.gpsBtn, { backgroundColor: C.primaryLight, borderColor: C.primary }]}
+              onPress={handleUseCurrentLocation}
+              disabled={locating}
+              activeOpacity={0.8}
+            >
+              {locating ? (
+                <ActivityIndicator size="small" color={C.primary} />
+              ) : (
+                <Feather name="navigation" size={18} color={C.primary} />
+              )}
+              <Text style={[styles.gpsBtnText, { color: C.primary }]}>
+                {locating ? t("common.loading") || "Detecting…" : t("admin.useMyLocation") || "Use my current location"}
+              </Text>
+            </TouchableOpacity>
 
-          {/* Current location button */}
-          <TouchableOpacity
-            style={[styles.locationBtn, { backgroundColor: C.card, borderColor: C.border }]}
-            onPress={handleUseCurrentLocation}
-            disabled={locating}
-          >
-            {locating ? (
-              <ActivityIndicator size="small" color={C.primary} />
-            ) : (
-              <Feather name="navigation" size={18} color={C.primary} />
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: C.border }]} />
+              <Text style={[styles.dividerText, { color: C.textMuted }]}>{t("common.or") || "or enter manually"}</Text>
+              <View style={[styles.dividerLine, { backgroundColor: C.border }]} />
+            </View>
+
+            {/* Address */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.label, { color: C.textSecondary }]}>{t("admin.venue") || "Venue / Address (optional)"}</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+                placeholderTextColor={C.textMuted}
+                placeholder={t("admin.searchVenuePlaceholder") || "e.g. Parque Simón Bolívar, Bogotá"}
+                value={address}
+                onChangeText={setAddress}
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* Latitude */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.label, { color: C.textSecondary }]}>{t("admin.latitude") || "Latitude"}</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+                placeholderTextColor={C.textMuted}
+                placeholder="e.g. 4.711000"
+                value={latText}
+                onChangeText={setLatText}
+                keyboardType="decimal-pad"
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* Longitude */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.label, { color: C.textSecondary }]}>{t("admin.longitude") || "Longitude"}</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+                placeholderTextColor={C.textMuted}
+                placeholder="e.g. -74.072100"
+                value={lngText}
+                onChangeText={setLngText}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                onSubmitEditing={handleConfirm}
+              />
+            </View>
+
+            {/* Hint */}
+            <View style={[styles.hintCard, { backgroundColor: C.card, borderColor: C.border }]}>
+              <Feather name="info" size={14} color={C.textMuted} />
+              <Text style={[styles.hintText, { color: C.textMuted }]}>
+                {t("admin.coordsHint") || "Open Google Maps, long-press your venue, then copy the coordinates shown at the bottom."}
+              </Text>
+            </View>
+
+            {/* Open in maps (if coords set) */}
+            {hasCoords && (
+              <TouchableOpacity
+                style={[styles.mapsLink, { borderColor: C.border }]}
+                onPress={handleOpenInMaps}
+                activeOpacity={0.75}
+              >
+                <Feather name="map" size={15} color={C.primary} />
+                <Text style={[styles.mapsLinkText, { color: C.primary }]}>
+                  {t("admin.verifyOnMaps") || "Verify on Google Maps"}
+                </Text>
+                <Feather name="external-link" size={13} color={C.primary} />
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
-        </View>
 
-        {/* Coordinates display */}
-        <View style={[styles.coordsBar, { backgroundColor: C.card, borderTopColor: C.border }]}>
-          <Feather name="map-pin" size={14} color={C.textMuted} />
-          <Text style={[styles.coordsText, { color: C.textMuted }]} numberOfLines={1}>
-            {pin.lat.toFixed(6)}, {pin.lng.toFixed(6)}
-            {address ? `  ·  ${address}` : ""}
-          </Text>
-        </View>
+            {/* Error */}
+            {!!error && (
+              <View style={[styles.errorCard, { backgroundColor: C.dangerLight, borderColor: C.danger }]}>
+                <Feather name="alert-circle" size={14} color={C.danger} />
+                <Text style={[styles.errorText, { color: C.danger }]}>{error}</Text>
+              </View>
+            )}
+          </ScrollView>
 
-        {/* Confirm button */}
-        <View style={[styles.footer, { backgroundColor: C.card, paddingBottom: insets.bottom + 16, borderTopColor: C.border }]}>
-          <TouchableOpacity
-            style={[styles.confirmBtn, { backgroundColor: C.primary }]}
-            onPress={handleConfirm}
-            activeOpacity={0.85}
-          >
-            <Feather name="check" size={18} color="#0a0a0a" />
-            <Text style={styles.confirmText}>{t("admin.confirmLocation")}</Text>
-          </TouchableOpacity>
+          {/* Confirm footer */}
+          <View style={[styles.footer, { backgroundColor: C.card, paddingBottom: insets.bottom + 16, borderTopColor: C.border }]}>
+            <TouchableOpacity
+              style={[styles.confirmBtn, { backgroundColor: C.primary, opacity: hasCoords ? 1 : 0.4 }]}
+              onPress={handleConfirm}
+              disabled={!hasCoords}
+              activeOpacity={0.85}
+            >
+              <Feather name="check" size={18} color="#0a0a0a" />
+              <Text style={styles.confirmText}>{t("admin.confirmLocation")}</Text>
+            </TouchableOpacity>
+          </View>
+
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -258,38 +254,57 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   closeBtn: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
-  searchWrapper: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    zIndex: 10,
-  },
-  mapContainer: { flex: 1 },
-  locationBtn: {
-    position: "absolute",
-    bottom: 16,
-    right: 16,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  coordsBar: {
+  gpsBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  coordsText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+  gpsBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  dividerText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  fieldGroup: { gap: 6 },
+  label: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5 },
+  input: {
+    height: 46,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  hintCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  hintText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  mapsLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  mapsLinkText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  errorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  errorText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
   footer: {
     paddingHorizontal: 20,
     paddingTop: 12,
