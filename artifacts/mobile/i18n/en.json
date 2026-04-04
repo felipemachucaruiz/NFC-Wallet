@@ -766,6 +766,7 @@
     "roles": {
       "attendee": "Attendee",
       "bank": "Bank",
+      "gate": "Gate",
       "merchant_staff": "Merchant Staff",
       "merchant_admin": "Merchant Admin",
       "warehouse_admin": "Warehouse Admin",

@@ -452,6 +452,8 @@ router.post(
         password: z.string().min(6),
         role: z.enum(["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin"]),
         eventId: z.string().optional(),
+        gateZoneId: z.string().nullable().optional(),
+        merchantId: z.string().nullable().optional(),
       })
       .refine((d) => d.email || d.username, {
         message: "Debes proporcionar email o nombre de usuario",
@@ -463,7 +465,7 @@ router.post(
       return;
     }
 
-    const { firstName, lastName, email, username, password, role, eventId } = parsed.data;
+    const { firstName, lastName, email, username, password, role, eventId, gateZoneId, merchantId } = parsed.data;
 
     const isEventAdmin = req.user!.role === "event_admin";
     if (isEventAdmin) {
@@ -511,6 +513,8 @@ router.post(
         passwordHash,
         role,
         eventId: eventId ?? (isEventAdmin ? (req.user!.eventId ?? null) : null),
+        gateZoneId: gateZoneId ?? null,
+        merchantId: merchantId ?? null,
       })
       .returning({
         id: usersTable.id,
@@ -520,6 +524,7 @@ router.post(
         username: usersTable.username,
         role: usersTable.role,
         eventId: usersTable.eventId,
+        gateZoneId: usersTable.gateZoneId,
       });
 
     res.status(201).json(newUser);

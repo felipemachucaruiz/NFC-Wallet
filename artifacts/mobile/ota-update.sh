@@ -12,4 +12,5 @@ echo "Message: $MESSAGE"
 EXPO_PUBLIC_DOMAIN=prod.tapee.app \
 EXPO_PUBLIC_ATTENDEE_DOMAIN=attendee.tapee.app \
 EXPO_PUBLIC_SSL_CERTS=tapee_api,attendee_api \
+EAS_SKIP_AUTO_FINGERPRINT=1 \
 eas update --branch "$BRANCH" --message "$MESSAGE" --non-interactive

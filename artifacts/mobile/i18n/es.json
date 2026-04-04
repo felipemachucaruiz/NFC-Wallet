@@ -755,6 +755,7 @@
     "roles": {
       "attendee": "Asistente",
       "bank": "Banco",
+      "gate": "Portería",
       "merchant_staff": "Staff Merchant",
       "merchant_admin": "Admin Merchant",
       "warehouse_admin": "Admin Almacén",

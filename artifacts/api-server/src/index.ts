@@ -21,6 +21,9 @@ async function runStartupMigrations(): Promise<void> {
   try {
     logger.info("Running startup migrations…");
 
+    // Must run outside transaction block (ALTER TYPE ADD VALUE restriction)
+    await client.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'gate'`);
+
     await client.query(`
       -- ── Enum types (idempotent) ────────────────────────────────────────────
       DO $$ BEGIN
