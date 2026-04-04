@@ -365,11 +365,11 @@ export default function BraceletsAdminScreen() {
               label={t("admin.braceletBalance")}
               value={null}
               C={C}
-              customValue={<CopAmount amount={(bracelet as { balance?: number }).balance ?? 0} style={{ color: C.text, fontFamily: "Inter_600SemiBold", fontSize: 16 }} />}
+              customValue={<CopAmount amount={(bracelet as { lastKnownBalanceCop?: number }).lastKnownBalanceCop ?? 0} style={{ color: C.text, fontFamily: "Inter_600SemiBold", fontSize: 16 }} />}
             />
             <InfoRow
               label={t("admin.braceletCounter")}
-              value={String((bracelet as { transactionCount?: number }).transactionCount ?? 0)}
+              value={String((bracelet as { lastCounter?: number }).lastCounter ?? 0)}
               C={C}
             />
 
