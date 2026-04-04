@@ -289,6 +289,7 @@ export default function AccessZonesScreen() {
               value={form.name}
               onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
               placeholder={t("zones.namePlaceholder")}
+              hint={t("zones.nameHint")}
             />
 
             <Input
@@ -297,6 +298,7 @@ export default function AccessZonesScreen() {
               onChangeText={(v) => setForm((f) => ({ ...f, rank: v.replace(/[^0-9]/g, "") }))}
               keyboardType="number-pad"
               placeholder="0"
+              hint={t("zones.rankHint")}
             />
 
             <Input
@@ -305,6 +307,7 @@ export default function AccessZonesScreen() {
               onChangeText={(v) => setForm((f) => ({ ...f, upgradePriceCop: v.replace(/[^0-9]/g, "") }))}
               keyboardType="number-pad"
               placeholder="0"
+              hint={t("zones.upgradePriceHint")}
             />
 
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("zones.color")}</Text>

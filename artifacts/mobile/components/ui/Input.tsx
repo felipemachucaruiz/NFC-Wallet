@@ -7,9 +7,10 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   prefix?: string;
+  hint?: string;
 }
 
-export function Input({ label, error, prefix, style, ...props }: InputProps) {
+export function Input({ label, error, hint, prefix, style, ...props }: InputProps) {
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
@@ -38,6 +39,8 @@ export function Input({ label, error, prefix, style, ...props }: InputProps) {
       </View>
       {error ? (
         <Text style={[styles.error, { color: C.danger }]}>{error}</Text>
+      ) : hint ? (
+        <Text style={[styles.hint, { color: C.textMuted }]}>{hint}</Text>
       ) : null}
     </View>
   );
@@ -71,5 +74,10 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
+  },
+  hint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 16,
   },
 });
