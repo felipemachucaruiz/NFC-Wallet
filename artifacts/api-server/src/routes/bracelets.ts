@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, ilike, or, and, sql } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -21,6 +21,54 @@ const updateContactSchema = z.object({
   email: z.string().optional(),
   maxOfflineSpend: z.number().int().positive().nullable().optional(),
 });
+
+/**
+ * @summary List all bracelets with pagination and filtering (admin only)
+ */
+router.get(
+  "/admin/bracelets",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const page = Math.max(1, parseInt((req.query.page as string) || "1", 10));
+    const limit = Math.min(Math.max(1, parseInt((req.query.limit as string) || "50", 10)), 100);
+    const offset = (page - 1) * limit;
+    const search = (req.query.search as string | undefined)?.trim();
+    const eventId = req.query.eventId as string | undefined;
+    const flaggedParam = req.query.flagged as string | undefined;
+
+    const conditions = [];
+    if (search) {
+      conditions.push(
+        or(
+          ilike(braceletsTable.nfcUid, `%${search}%`),
+          ilike(braceletsTable.attendeeName, `%${search}%`),
+        ),
+      );
+    }
+    if (eventId) conditions.push(eq(braceletsTable.eventId, eventId));
+    if (flaggedParam === "true") conditions.push(eq(braceletsTable.flagged, true));
+    if (flaggedParam === "false") conditions.push(eq(braceletsTable.flagged, false));
+
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [bracelets, countResult] = await Promise.all([
+      db
+        .select()
+        .from(braceletsTable)
+        .where(where)
+        .orderBy(desc(braceletsTable.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ total: sql<number>`cast(count(*) as int)` })
+        .from(braceletsTable)
+        .where(where),
+    ]);
+
+    const total = countResult[0]?.total ?? 0;
+    res.json({ bracelets, total, page, pages: Math.ceil(total / limit) });
+  },
+);
 
 router.post(
   "/bracelets",

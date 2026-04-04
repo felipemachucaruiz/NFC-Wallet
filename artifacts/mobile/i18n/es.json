@@ -891,7 +891,14 @@
     "resetBalance": "Resetear saldo",
     "resetBalanceConfirm": "Esto escribirá cero en el tag NFC de la pulsera y reseteará su saldo en el sistema. Escanea la pulsera para confirmar.",
     "resetBalanceSuccess": "Saldo reseteado a cero",
-    "resetBalanceError": "No se pudo resetear el saldo"
+    "resetBalanceError": "No se pudo resetear el saldo",
+    "braceletsList": "Pulseras registradas",
+    "braceletsTotal": "{{count}} pulseras en total",
+    "filterAll": "Todas",
+    "filterActive": "Activas",
+    "filterFlagged": "Bloqueadas",
+    "searchBracelets": "Buscar por UID o nombre...",
+    "loadMore": "Cargar más"
   },
   "common_notfound": {
     "title": "Página no encontrada",

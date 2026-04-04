@@ -902,7 +902,14 @@
     "resetBalance": "Reset balance",
     "resetBalanceConfirm": "This will write zero to the bracelet's NFC tag and reset its balance in the system. Scan the bracelet to confirm.",
     "resetBalanceSuccess": "Balance reset to zero",
-    "resetBalanceError": "Failed to reset balance"
+    "resetBalanceError": "Failed to reset balance",
+    "braceletsList": "Registered bracelets",
+    "braceletsTotal": "{{count}} bracelets total",
+    "filterAll": "All",
+    "filterActive": "Active",
+    "filterFlagged": "Flagged",
+    "searchBracelets": "Search by UID or name...",
+    "loadMore": "Load more"
   },
   "common_notfound": {
     "title": "Page not found",
