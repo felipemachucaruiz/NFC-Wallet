@@ -22,6 +22,10 @@ function generateDesfireAesKey(): string {
   return crypto.randomBytes(16).toString("hex");
 }
 
+function generateUltralightCDesKey(): string {
+  return crypto.randomBytes(16).toString("hex");
+}
+
 function verifyDesfireTransactionMac(
   aesKey: string,
   uid: string,
@@ -51,8 +55,8 @@ const createEventSchema = z.object({
   capacity: z.number().int().positive().optional(),
   promoterCompanyId: z.string().optional(),
   pulepId: z.string().optional(),
-  nfcChipType: z.enum(["ntag_21x", "mifare_classic", "desfire_ev3"]).optional(),
-  allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic", "desfire_ev3"])).min(1).optional(),
+  nfcChipType: z.enum(["ntag_21x", "mifare_classic", "desfire_ev3", "mifare_ultralight_c"]).optional(),
+  allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic", "desfire_ev3", "mifare_ultralight_c"])).min(1).optional(),
   offlineSyncLimit: z.number().int().positive().optional(),
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
   eventAdmin: z.object({
@@ -75,10 +79,11 @@ const updateEventSchema = z.object({
   promoterCompanyId: z.string().nullable().optional(),
   pulepId: z.string().nullable().optional(),
   inventoryMode: z.enum(["location_based", "centralized_warehouse"]).optional(),
-  nfcChipType: z.enum(["ntag_21x", "mifare_classic", "desfire_ev3"]).optional(),
-  allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic", "desfire_ev3"])).min(1).optional(),
+  nfcChipType: z.enum(["ntag_21x", "mifare_classic", "desfire_ev3", "mifare_ultralight_c"]).optional(),
+  allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic", "desfire_ev3", "mifare_ultralight_c"])).min(1).optional(),
   offlineSyncLimit: z.number().int().positive().optional(),
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
+  ultralightCDesKey: z.string().regex(/^[0-9a-fA-F]{32}$/, "ultralightCDesKey must be 32 hex characters (16 bytes)").optional(),
 });
 
 const SAFE_EVENT_FIELDS = {
@@ -187,6 +192,7 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
       maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
       hasHmacSecret: eventsTable.hmacSecret,
       hasDesfireKey: eventsTable.desfireAesKey,
+      hasUltralightCKey: eventsTable.ultralightCDesKey,
       createdAt: eventsTable.createdAt,
       updatedAt: eventsTable.updatedAt,
     })
@@ -198,8 +204,8 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
     return;
   }
 
-  const { hasHmacSecret, hasDesfireKey, ...rest } = row;
-  res.json({ ...rest, hasHmacSecret: !!hasHmacSecret, hasDesfireKey: !!hasDesfireKey });
+  const { hasHmacSecret, hasDesfireKey, hasUltralightCKey, ...rest } = row;
+  res.json({ ...rest, hasHmacSecret: !!hasHmacSecret, hasDesfireKey: !!hasDesfireKey, hasUltralightCKey: !!hasUltralightCKey });
 });
 
 router.post("/events", requireRole("admin"), async (req: Request, res: Response) => {
@@ -301,7 +307,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey } = parsed.data;
 
   const updateData: Record<string, unknown> = {
     ...(name !== undefined && { name }),
@@ -318,6 +324,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(allowedNfcTypes !== undefined && { allowedNfcTypes }),
     ...(offlineSyncLimit !== undefined && { offlineSyncLimit }),
     ...(maxOfflineSpendPerBracelet !== undefined && { maxOfflineSpendPerBracelet }),
+    ...(ultralightCDesKey !== undefined && { ultralightCDesKey }),
     updatedAt: new Date(),
   };
 
@@ -409,6 +416,48 @@ router.post(
     await db
       .update(eventsTable)
       .set({ desfireAesKey: newKey, updatedAt: new Date() })
+      .where(eq(eventsTable.id, eventId));
+
+    res.json({ success: true, generatedAt: new Date().toISOString() });
+  }
+);
+
+router.post(
+  "/events/:eventId/generate-ultralight-c-key",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const eventId = req.params.eventId as string;
+    const user = req.user!;
+
+    if (user.role === "event_admin" && user.eventId !== eventId) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [event] = await db
+      .select({ id: eventsTable.id, nfcChipType: eventsTable.nfcChipType, allowedNfcTypes: eventsTable.allowedNfcTypes })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId));
+
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    const isConfigured =
+      event.nfcChipType === "mifare_ultralight_c" ||
+      (Array.isArray(event.allowedNfcTypes) && (event.allowedNfcTypes as string[]).includes("mifare_ultralight_c"));
+
+    if (!isConfigured) {
+      res.status(400).json({ error: "Event is not configured for MIFARE Ultralight C" });
+      return;
+    }
+
+    const newKey = generateUltralightCDesKey();
+
+    await db
+      .update(eventsTable)
+      .set({ ultralightCDesKey: newKey, updatedAt: new Date() })
       .where(eq(eventsTable.id, eventId));
 
     res.json({ success: true, generatedAt: new Date().toISOString() });

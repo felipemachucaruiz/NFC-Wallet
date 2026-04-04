@@ -113,6 +113,7 @@ export default function TopUpScreen() {
   const { data: keyData } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
   const desfireAesKey = (keyData as unknown as { desfireAesKey?: string; nfcChipType?: string } | undefined)?.desfireAesKey ?? "";
+  const ultralightCDesKey = (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
   const nfcChipType = (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
   const { enqueueTopUp, cachedHmacSecret, updateCachedHmacSecret, syncNow } = useOfflineQueue();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
@@ -229,7 +230,8 @@ export default function TopUpScreen() {
         newHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
         await writeBracelet(
           { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
-          tagInfoFromParams ?? undefined
+          tagInfoFromParams ?? undefined,
+          ultralightCDesKey ? { ultralightCKeyHex: ultralightCDesKey } : undefined
         );
       }
       writingRef.current = false;

@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import type { BraceletPayload } from "./hmac";
+import CryptoJS from "crypto-js";
 
 let NfcManager: typeof import("react-native-nfc-manager").default | null = null;
 let NfcTech: typeof import("react-native-nfc-manager").NfcTech | null = null;
@@ -21,6 +22,7 @@ export type TagType =
   | "NTAG215"
   | "NTAG216"
   | "MIFARE_ULTRALIGHT"
+  | "MIFARE_ULTRALIGHT_C"
   | "MIFARE_CLASSIC"
   | "DESFIRE_EV3"
   | "NDEF";
@@ -42,6 +44,7 @@ const NTAG_USER_MEMORY_END_PAGE: Record<TagType, number> = {
   NTAG215: 130,
   NTAG216: 226,
   MIFARE_ULTRALIGHT: 15,
+  MIFARE_ULTRALIGHT_C: 39,
   MIFARE_CLASSIC: 0,
   DESFIRE_EV3: 0,
   NDEF: 0,
@@ -59,6 +62,7 @@ interface MfcHandler {
 interface MfuHandler {
   mifareUltralightReadPages: (pageOffset: number) => Promise<number[]>;
   mifareUltralightWritePage: (pageOffset: number, data: number[]) => Promise<void>;
+  transceive?: (data: number[]) => Promise<number[]>;
 }
 
 function getMfuHandler(mgr: AnyRecord): MfuHandler | null {
@@ -100,6 +104,28 @@ async function readUltralightCCByte(): Promise<number | null> {
   }
 }
 
+async function detectUltralightSubtype(mfuHandler: MfuHandler | null): Promise<TagInfo> {
+  if (mfuHandler?.mifareUltralightReadPages) {
+    try {
+      const page3Data = await mfuHandler.mifareUltralightReadPages(3);
+      const ccByte = (page3Data[2] ?? null);
+      if (ccByte !== null) {
+        const normalized = ccByte & 0xff;
+        const ntag = NTAG_CC_MAP[normalized];
+        if (ntag) return ntag;
+      }
+    } catch {}
+
+    // No known NTAG CC byte — try to read page 40 to distinguish Ultralight C (48 pages) from standard Ultralight (16 pages)
+    try {
+      await mfuHandler.mifareUltralightReadPages(40);
+      // If read succeeds, tag has more than 16 pages → Ultralight C
+      return { type: "MIFARE_ULTRALIGHT_C", label: "MIFARE Ultralight C", memoryBytes: 144 };
+    } catch {}
+  }
+  return { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight", memoryBytes: 64 };
+}
+
 export async function detectTagType(techTypes: string[]): Promise<TagInfo> {
   if (hasTech(techTypes, "IsoDep") && !hasTech(techTypes, "MifareUltralight") && !hasTech(techTypes, "MifareClassic")) {
     return { type: "DESFIRE_EV3", label: "DESFire EV3", memoryBytes: 8192 };
@@ -110,14 +136,15 @@ export async function detectTagType(techTypes: string[]): Promise<TagInfo> {
   }
 
   if (hasTech(techTypes, "MifareUltralight")) {
-    if (Platform.OS === "android") {
-      const ccByte = await readUltralightCCByte();
-      if (ccByte !== null) {
-        const normalized = ccByte & 0xff;
-        const ntag = NTAG_CC_MAP[normalized];
-        if (ntag) {
-          return ntag;
-        }
+    if (Platform.OS === "android" && NfcManager && NfcTech) {
+      try {
+        await NfcManager.requestTechnology(NfcTech.MifareUltralight);
+        const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
+        return await detectUltralightSubtype(mfuHandler);
+      } catch {
+        return { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight", memoryBytes: 64 };
+      } finally {
+        await NfcManager.cancelTechnologyRequest().catch(() => {});
       }
     }
     return { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight", memoryBytes: 64 };
@@ -476,6 +503,191 @@ export async function writeBraceletUltralight(
   }
 }
 
+async function authenticateUltralightC(mfuHandler: MfuHandler, keyHex: string): Promise<void> {
+  if (!mfuHandler.transceive) {
+    throw new Error("ULTRALIGHT_C_TRANSCEIVE_UNAVAILABLE");
+  }
+
+  if (!/^[0-9a-fA-F]{32}$/.test(keyHex)) {
+    throw new Error("ULTRALIGHT_C_INVALID_KEY_FORMAT");
+  }
+  const keyBytes = new Uint8Array(
+    (keyHex.match(/.{1,2}/g) ?? []).map((b) => parseInt(b, 16))
+  );
+  if (keyBytes.length !== 16) {
+    throw new Error("ULTRALIGHT_C_INVALID_KEY_LENGTH");
+  }
+
+  // Step 1: Send AUTH1 command (0x1A 0x00) to get RndB encrypted
+  const auth1Response = await mfuHandler.transceive([0x1a, 0x00]);
+  if (!auth1Response || auth1Response.length < 9) {
+    throw new Error("ULTRALIGHT_C_AUTH_FAILED_STEP1");
+  }
+  // Response: 0xAF + 8 bytes encrypted RndB
+  if (auth1Response[0] !== 0xaf) {
+    throw new Error("ULTRALIGHT_C_AUTH_UNEXPECTED_RESPONSE");
+  }
+  const encRndB = new Uint8Array(auth1Response.slice(1, 9));
+
+  // Step 2: Decrypt RndB using 3DES (2TDEA) in CBC mode with IV=0
+  const rndB = des3DecryptCBC(encRndB, keyBytes, new Uint8Array(8));
+
+  // Step 3: Rotate RndB left by 1 byte to get RndB'
+  const rndBPrime = new Uint8Array(8);
+  for (let i = 0; i < 7; i++) rndBPrime[i] = rndB[i + 1];
+  rndBPrime[7] = rndB[0];
+
+  // Step 4: Generate random RndA (8 bytes)
+  const rndA = new Uint8Array(8);
+  crypto.getRandomValues(rndA);
+
+  // Step 5: Encrypt [RndA | RndB'] with 3DES CBC, IV = last block of encRndB
+  const plaintext = new Uint8Array(16);
+  plaintext.set(rndA, 0);
+  plaintext.set(rndBPrime, 8);
+  const encPayload = des3EncryptCBC(plaintext, keyBytes, encRndB);
+
+  // Step 6: Send AUTH2 command: 0xAF + 16 bytes ciphertext
+  const auth2Cmd = [0xaf, ...Array.from(encPayload)];
+  const auth2Response = await mfuHandler.transceive(auth2Cmd);
+  if (!auth2Response || auth2Response.length < 9) {
+    throw new Error("ULTRALIGHT_C_AUTH_FAILED_STEP2");
+  }
+  // Response: 0x00 + 8 bytes encrypted RndA' (tag-rotated RndA, left 1 byte)
+  if (auth2Response[0] !== 0x00) {
+    throw new Error("ULTRALIGHT_C_AUTH_FAILED_WRONG_MAC");
+  }
+  const encRndAPrime = new Uint8Array(auth2Response.slice(1, 9));
+
+  // Step 7: Decrypt RndA' and verify it equals RndA rotated left by 1 byte
+  // IV for this decrypt is the last block of encPayload (second 8 bytes)
+  const ivForDecrypt = encPayload.slice(8, 16);
+  const decRndAPrime = des3DecryptCBC(encRndAPrime, keyBytes, ivForDecrypt);
+
+  // Expected RndA' = RndA rotated left by 1 byte
+  const expectedRndAPrime = new Uint8Array(8);
+  for (let i = 0; i < 7; i++) expectedRndAPrime[i] = rndA[i + 1];
+  expectedRndAPrime[7] = rndA[0];
+
+  for (let i = 0; i < 8; i++) {
+    if (decRndAPrime[i] !== expectedRndAPrime[i]) {
+      throw new Error("ULTRALIGHT_C_AUTH_FAILED_RNDA_MISMATCH");
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 3DES (2TDEA) CBC helpers using crypto-js (already a project dependency).
+// Used for MIFARE Ultralight C mutual authentication.
+// ---------------------------------------------------------------------------
+
+function uint8ArrayToWordArray(u8: Uint8Array): CryptoJS.lib.WordArray {
+  const words: number[] = [];
+  for (let i = 0; i < u8.length; i += 4) {
+    words.push(
+      ((u8[i] ?? 0) << 24) |
+      ((u8[i + 1] ?? 0) << 16) |
+      ((u8[i + 2] ?? 0) << 8) |
+      (u8[i + 3] ?? 0)
+    );
+  }
+  return CryptoJS.lib.WordArray.create(words, u8.length);
+}
+
+function wordArrayToUint8Array(wa: CryptoJS.lib.WordArray): Uint8Array {
+  const out = new Uint8Array(wa.sigBytes);
+  for (let i = 0; i < wa.sigBytes; i++) {
+    out[i] = (wa.words[i >> 2] >> (24 - (i & 3) * 8)) & 0xff;
+  }
+  return out;
+}
+
+function des3DecryptCBC(data: Uint8Array, key: Uint8Array, iv: Uint8Array): Uint8Array {
+  const keyWA = uint8ArrayToWordArray(key);
+  const ivWA = uint8ArrayToWordArray(iv);
+  const dataWA = uint8ArrayToWordArray(data);
+  const decrypted = CryptoJS.TripleDES.decrypt(
+    { ciphertext: dataWA } as CryptoJS.lib.CipherParams,
+    keyWA,
+    { iv: ivWA, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.NoPadding }
+  );
+  return wordArrayToUint8Array(decrypted);
+}
+
+function des3EncryptCBC(data: Uint8Array, key: Uint8Array, iv: Uint8Array): Uint8Array {
+  const keyWA = uint8ArrayToWordArray(key);
+  const ivWA = uint8ArrayToWordArray(iv);
+  const dataWA = uint8ArrayToWordArray(data);
+  const encrypted = CryptoJS.TripleDES.encrypt(
+    dataWA,
+    keyWA,
+    { iv: ivWA, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.NoPadding }
+  );
+  return wordArrayToUint8Array(encrypted.ciphertext);
+}
+
+export async function readBraceletUltralightC(): Promise<BraceletPayload> {
+  return readBraceletUltralight("MIFARE_ULTRALIGHT_C");
+}
+
+export async function writeBraceletUltralightC(
+  payload: BraceletPayload,
+  keyHex?: string
+): Promise<void> {
+  if (!NfcManager || !NfcTech) throw new Error("NFC_NOT_AVAILABLE");
+
+  if (Platform.OS === "ios") {
+    return writeBraceletNdef(payload);
+  }
+
+  await NfcManager.cancelTechnologyRequest().catch(() => {});
+
+  try {
+    await NfcManager.requestTechnology([
+      NfcTech.MifareUltralight,
+      NfcTech.MifareClassic,
+      NfcTech.Ndef,
+      NfcTech.NfcA,
+    ]);
+    const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
+    if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
+
+    // Authenticate before writing if a key is provided — hard failure if auth fails
+    if (keyHex && Platform.OS === "android") {
+      await authenticateUltralightC(mfuHandler, keyHex);
+    }
+
+    const data = JSON.stringify({
+      balance: payload.balance,
+      counter: payload.counter,
+      hmac: payload.hmac,
+    });
+    const dataBytes = Array.from(new TextEncoder().encode(data));
+    const endPage = getMfuEndPage("MIFARE_ULTRALIGHT_C");
+    const maxDataPages = endPage - MFU_PAYLOAD_START_PAGE;
+    const pageCount = Math.ceil((dataBytes.length + 1) / MFU_PAGE_SIZE);
+    if (pageCount > maxDataPages) {
+      throw new Error("PAYLOAD_TOO_LARGE_FOR_ULTRALIGHT_C");
+    }
+
+    const padded = new Array(pageCount * MFU_PAGE_SIZE).fill(0);
+    for (let i = 0; i < dataBytes.length; i++) {
+      padded[i] = dataBytes[i];
+    }
+
+    for (let i = 0; i < pageCount; i++) {
+      const pageData = padded.slice(i * MFU_PAGE_SIZE, (i + 1) * MFU_PAGE_SIZE);
+      await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + i, pageData);
+    }
+
+    if (pageCount < maxDataPages) {
+      await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + pageCount, [0, 0, 0, 0]);
+    }
+  } finally {
+    await NfcManager.cancelTechnologyRequest().catch(() => {});
+  }
+}
+
 export interface ScanResult {
   payload: BraceletPayload;
   tagInfo: TagInfo;
@@ -498,7 +710,7 @@ async function detectTagTypeIos(): Promise<TagInfo> {
   }
 }
 
-export type NfcChipTypeHint = "ntag_21x" | "mifare_classic";
+export type NfcChipTypeHint = "ntag_21x" | "mifare_classic" | "mifare_ultralight_c";
 
 export async function scanBracelet(opts?: { expectedChipType?: NfcChipTypeHint }): Promise<ScanResult> {
   if (!NfcManager || !NfcTech || !Ndef) {
@@ -571,26 +783,12 @@ export async function scanBracelet(opts?: { expectedChipType?: NfcChipTypeHint }
 
     if (hasTech(techTypes, "MifareUltralight")) {
       const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
-      let tagType: TagType = "MIFARE_ULTRALIGHT";
-      let tagLabel = "MIFARE Ultralight";
-      let tagMemory = 64;
-
-      if (mfuHandler?.mifareUltralightReadPages) {
-        try {
-          const page3Data = await mfuHandler.mifareUltralightReadPages(3);
-          const ccByte = page3Data[2] ?? null;
-          if (ccByte !== null) {
-            const normalized = ccByte & 0xff;
-            const ntag = NTAG_CC_MAP[normalized];
-            if (ntag) { tagType = ntag.type; tagLabel = ntag.label; tagMemory = ntag.memoryBytes; }
-          }
-        } catch {}
-      }
-
-      const tagInfo: TagInfo = { type: tagType, label: tagLabel, memoryBytes: tagMemory };
       if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
 
-      const endPage = getMfuEndPage(tagType);
+      const subtype = await detectUltralightSubtype(mfuHandler);
+      const tagInfo: TagInfo = subtype;
+      const endPage = getMfuEndPage(tagInfo.type);
+
       const rawBytes: number[] = [];
       let foundEnd = false;
       for (let page = MFU_PAYLOAD_START_PAGE; page < endPage && !foundEnd; page += 4) {
@@ -627,7 +825,8 @@ export async function scanBracelet(opts?: { expectedChipType?: NfcChipTypeHint }
 
 export async function writeBracelet(
   payload: BraceletPayload,
-  tagInfo?: TagInfo
+  tagInfo?: TagInfo,
+  opts?: { ultralightCKeyHex?: string }
 ): Promise<void> {
   if (!tagInfo) {
     return writeBraceletNdef(payload);
@@ -641,6 +840,8 @@ export async function writeBracelet(
     case "NTAG216":
     case "MIFARE_ULTRALIGHT":
       return writeBraceletUltralight(payload, tagInfo.type);
+    case "MIFARE_ULTRALIGHT_C":
+      return writeBraceletUltralightC(payload, opts?.ultralightCKeyHex);
     default:
       return writeBraceletNdef(payload);
   }
@@ -668,7 +869,7 @@ export async function cancelNfc(): Promise<void> {
  */
 export async function scanAndWriteBracelet(
   onRead: (payload: BraceletPayload, tagInfo: TagInfo) => Promise<BraceletPayload | null>,
-  opts?: { expectedChipType?: NfcChipTypeHint }
+  opts?: { expectedChipType?: NfcChipTypeHint; ultralightCKeyHex?: string }
 ): Promise<{ payload: BraceletPayload; tagInfo: TagInfo; written: boolean }> {
   if (!NfcManager || !NfcTech || !Ndef) {
     throw new Error("NFC_NOT_AVAILABLE");
@@ -777,25 +978,13 @@ export async function scanAndWriteBracelet(
       return { payload, tagInfo, written: true };
     }
 
-    // ── MIFARE Ultralight / NTAG ────────────────────────────────────────────
+    // ── MIFARE Ultralight / NTAG / Ultralight C ─────────────────────────────
     if (hasTech(techTypes, "MifareUltralight")) {
       const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
       if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
 
-      // Detect NTAG sub-type via CC byte (page 3, byte 2) — same session
-      let tagType: TagType = "MIFARE_ULTRALIGHT";
-      let tagLabel = "MIFARE Ultralight";
-      let tagMemory = 64;
-      try {
-        const page3Data = await mfuHandler.mifareUltralightReadPages(3);
-        const ccByte = page3Data[2] ?? null;
-        if (ccByte !== null) {
-          const ntag = NTAG_CC_MAP[ccByte & 0xff];
-          if (ntag) { tagType = ntag.type; tagLabel = ntag.label; tagMemory = ntag.memoryBytes; }
-        }
-      } catch {}
-      const tagInfo: TagInfo = { type: tagType, label: tagLabel, memoryBytes: tagMemory };
-      const endPage = getMfuEndPage(tagType);
+      const tagInfo: TagInfo = await detectUltralightSubtype(mfuHandler);
+      const endPage = getMfuEndPage(tagInfo.type);
 
       // Read pages
       const rawBytes: number[] = [];
@@ -822,6 +1011,11 @@ export async function scanAndWriteBracelet(
 
       const newPayload = await onRead(payload, tagInfo);
       if (!newPayload) return { payload, tagInfo, written: false };
+
+      // For Ultralight C: authenticate before writing if a key is provided — hard failure if auth fails
+      if (tagInfo.type === "MIFARE_ULTRALIGHT_C" && opts?.ultralightCKeyHex) {
+        await authenticateUltralightC(mfuHandler, opts.ultralightCKeyHex);
+      }
 
       // Write pages in the same session
       const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });

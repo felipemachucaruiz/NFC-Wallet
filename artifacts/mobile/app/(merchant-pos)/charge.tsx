@@ -76,13 +76,9 @@ const tagBadgeStyles = StyleSheet.create({
 });
 
 function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolean {
-  const isMifareClassic = tagType === "MIFARE_CLASSIC";
-  if (isMifareClassic) {
-    return allowedNfcTypes.includes("mifare_classic");
-  }
-  if (tagType === "DESFIRE_EV3") {
-    return allowedNfcTypes.includes("desfire_ev3");
-  }
+  if (tagType === "MIFARE_CLASSIC") return allowedNfcTypes.includes("mifare_classic");
+  if (tagType === "DESFIRE_EV3") return allowedNfcTypes.includes("desfire_ev3");
+  if (tagType === "MIFARE_ULTRALIGHT_C") return allowedNfcTypes.includes("mifare_ultralight_c");
   return allowedNfcTypes.includes("ntag_21x");
 }
 
@@ -116,11 +112,13 @@ export default function ChargeScreen() {
     hmacSecret?: string;
     legacyHmacSecret?: string | null;
     desfireAesKey?: string;
+    ultralightCDesKey?: string;
     offlineSyncLimit?: number;
   } | undefined;
   const networkHmacSecret = keyDataTyped?.hmacSecret ?? "";
   const legacyHmacSecret = keyDataTyped?.legacyHmacSecret ?? null;
   const desfireAesKey = keyDataTyped?.desfireAesKey ?? "";
+  const ultralightCDesKey = keyDataTyped?.ultralightCDesKey ?? "";
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
   const legacyKeysForScan = legacyHmacSecret ? [legacyHmacSecret] : [];
 
@@ -322,6 +320,7 @@ export default function ChargeScreen() {
               .map((ct) => {
                 if (ct === "mifare_classic") return "MIFARE Classic";
                 if (ct === "desfire_ev3") return "DESFire EV3";
+                if (ct === "mifare_ultralight_c") return "MIFARE Ultralight C";
                 return "NTAG 21x";
               })
               .join(", ");
@@ -370,7 +369,10 @@ export default function ChargeScreen() {
           setStep("writing");
           writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
           return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
-        }, { expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x" });
+        }, {
+          expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x",
+          ultralightCKeyHex: ultralightCDesKey || undefined,
+        });
       } catch {
         if (!aborted && !cancelledRef.current) {
           scanningRef.current = false;

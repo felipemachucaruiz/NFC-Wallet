@@ -26,6 +26,7 @@ type EventDetail = {
   allowedNfcTypes?: NfcChipType[];
   hasHmacSecret?: boolean;
   hasDesfireKey?: boolean;
+  hasUltralightCKey?: boolean;
   offlineSyncLimit?: number;
   maxOfflineSpendPerBracelet?: number;
 };
@@ -34,6 +35,7 @@ type ConfirmModal =
   | { type: "inventory"; pendingMode: InventoryMode }
   | { type: "rotate_key" }
   | { type: "generate_desfire_key" }
+  | { type: "generate_ultralight_c_key" }
   | { type: "close_event"; pendingRefundCount: number }
   | null;
 
@@ -184,6 +186,7 @@ export default function EventSettingsScreen() {
   const [selectedAllowedTypes, setSelectedAllowedTypes] = useState<NfcChipType[]>(["ntag_21x"]);
   const [isSavingChipType, setIsSavingChipType] = useState(false);
   const [isGeneratingDesfireKey, setIsGeneratingDesfireKey] = useState(false);
+  const [isGeneratingUltralightCKey, setIsGeneratingUltralightCKey] = useState(false);
 
   React.useEffect(() => {
     if (event) {
@@ -248,6 +251,20 @@ export default function EventSettingsScreen() {
         showAlert(t("common.error"), t("eventAdmin.desfireKeyGenerateFailed"));
       } finally {
         setIsGeneratingDesfireKey(false);
+      }
+    } else if (confirmModal?.type === "generate_ultralight_c_key") {
+      setIsGeneratingUltralightCKey(true);
+      setConfirmModal(null);
+      try {
+        await customFetch(`/api/events/${user.eventId}/generate-ultralight-c-key`, {
+          method: "POST",
+        });
+        refetch();
+        showAlert(t("common.success"), t("eventAdmin.ultralightCKeyGenerated"));
+      } catch {
+        showAlert(t("common.error"), t("eventAdmin.ultralightCKeyGenerateFailed"));
+      } finally {
+        setIsGeneratingUltralightCKey(false);
       }
     } else if (confirmModal?.type === "close_event") {
       const pendingRefundCount = confirmModal.pendingRefundCount;
@@ -531,6 +548,14 @@ export default function EventSettingsScreen() {
             checked={selectedAllowedTypes.includes("desfire_ev3")}
             onToggle={() => handleToggleChipType("desfire_ev3")}
           />
+          <NfcChipCheckbox
+            chipType="mifare_ultralight_c"
+            title={t("eventAdmin.mifareUltralightC")}
+            description={t("eventAdmin.mifareUltralightCDesc")}
+            icon="lock"
+            checked={selectedAllowedTypes.includes("mifare_ultralight_c")}
+            onToggle={() => handleToggleChipType("mifare_ultralight_c")}
+          />
         </View>
 
         {selectedAllowedTypes.includes("mifare_classic") && (
@@ -600,6 +625,48 @@ export default function EventSettingsScreen() {
                   <Feather name="alert-octagon" size={16} color={C.danger} style={{ marginTop: 1 }} />
                   <Text style={[styles.infoText, { color: C.text }]}>
                     {t("eventAdmin.desfireKeyRotateWarning")}
+                  </Text>
+                </View>
+              </Card>
+            )}
+          </>
+        )}
+
+        {selectedAllowedTypes.includes("mifare_ultralight_c") && (
+          <>
+            <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
+            <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.ultralightCDesKey")}</Text>
+            <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+              {t("eventAdmin.ultralightCDesKeyDescription")}
+            </Text>
+            <Card padding={16} style={{ borderColor: C.border, borderWidth: 1 }}>
+              <View style={styles.keyRow}>
+                <View style={[styles.keyIconBox, { backgroundColor: C.primaryLight }]}>
+                  <Feather name="lock" size={20} color={C.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.keyLabel, { color: C.text }]}>{t("eventAdmin.ultralightCDesKeyLabel")}</Text>
+                  <Text style={[styles.keyValue, { color: C.textMuted, fontFamily: "Inter_400Regular" }]}>
+                    {event?.hasUltralightCKey ? "••••••••••••••••••••••••••••••••" : t("eventAdmin.noKeySet")}
+                  </Text>
+                </View>
+              </View>
+              <Button
+                title={isGeneratingUltralightCKey ? t("common.loading") : (event?.hasUltralightCKey ? t("eventAdmin.regenerateUltralightCKey") : t("eventAdmin.generateUltralightCKey"))}
+                onPress={() => setConfirmModal({ type: "generate_ultralight_c_key" })}
+                variant={event?.hasUltralightCKey ? "danger" : "primary"}
+                size="md"
+                fullWidth
+                style={{ marginTop: 12 }}
+                loading={isGeneratingUltralightCKey}
+              />
+            </Card>
+            {event?.hasUltralightCKey && (
+              <Card style={[styles.infoCard, { borderColor: C.danger + "55", backgroundColor: C.dangerLight }]} padding={14}>
+                <View style={styles.infoRow}>
+                  <Feather name="alert-octagon" size={16} color={C.danger} style={{ marginTop: 1 }} />
+                  <Text style={[styles.infoText, { color: C.text }]}>
+                    {t("eventAdmin.ultralightCKeyRotateWarning")}
                   </Text>
                 </View>
               </Card>
@@ -729,6 +796,18 @@ export default function EventSettingsScreen() {
                 {t("eventAdmin.desfireKeyConfirmDesc")}
               </Text>
             </>
+          ) : confirmModal?.type === "generate_ultralight_c_key" ? (
+            <>
+              <View style={[styles.warningIconBox, { backgroundColor: C.primaryLight }]}>
+                <Feather name="lock" size={32} color={C.primary} />
+              </View>
+              <Text style={[styles.confirmTitle, { color: C.text }]}>
+                {t("eventAdmin.generateUltralightCKey")}
+              </Text>
+              <Text style={[styles.confirmDesc, { color: C.textSecondary }]}>
+                {t("eventAdmin.ultralightCKeyConfirmDesc")}
+              </Text>
+            </>
           ) : (
             <>
               <View style={[styles.warningIconBox, { backgroundColor: C.warningLight }]}>
@@ -775,7 +854,7 @@ export default function EventSettingsScreen() {
               variant={confirmModal?.type === "rotate_key" || confirmModal?.type === "close_event" ? "danger" : "primary"}
               size="lg"
               fullWidth
-              loading={updateEvent.isPending || isRotating || isGeneratingDesfireKey || isClosingEvent}
+              loading={updateEvent.isPending || isRotating || isGeneratingDesfireKey || isGeneratingUltralightCKey || isClosingEvent}
             />
           </View>
         </View>

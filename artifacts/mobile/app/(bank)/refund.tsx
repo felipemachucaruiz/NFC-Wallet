@@ -71,6 +71,7 @@ export default function RefundScreen() {
 
   const { data: keyData } = useGetSigningKey();
   const hmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
+  const ultralightCDesKey = (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
   const createRefund = useCreateRefund();
 
   const handleConfirm = async () => {
@@ -92,7 +93,8 @@ export default function RefundScreen() {
                 const newHmac = await computeHmac(0, newCounter, hmacSecret);
                 await writeBracelet(
                   { uid, balance: 0, counter: newCounter, hmac: newHmac },
-                  tagInfoFromParams ?? undefined
+                  tagInfoFromParams ?? undefined,
+                  ultralightCDesKey ? { ultralightCKeyHex: ultralightCDesKey } : undefined
                 );
                 nfcCounter = newCounter;
               }

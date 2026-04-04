@@ -88,6 +88,8 @@ export default function BankRefundRequestsScreen() {
     (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
   const desfireAesKey =
     (keyData as unknown as { desfireAesKey?: string } | undefined)?.desfireAesKey ?? "";
+  const ultralightCDesKey =
+    (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
   const nfcChipType =
     (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
 
@@ -181,7 +183,8 @@ export default function BankRefundRequestsScreen() {
             const newCounter = payload.counter + 1;
             const newHmac = await computeHmac(0, newCounter, networkHmacSecret, payload.uid);
             return { uid: payload.uid, balance: 0, counter: newCounter, hmac: newHmac } as BraceletPayload;
-          }
+          },
+          ultralightCDesKey ? { ultralightCKeyHex: ultralightCDesKey } : undefined
         );
       }
 

@@ -7,6 +7,13 @@ import { deriveEventKey } from "../lib/kdf";
 
 const router: IRouter = Router();
 
+function isUltralightCConfigured(event: { nfcChipType: string | null; allowedNfcTypes: string[] | null }): boolean {
+  return (
+    event.nfcChipType === "mifare_ultralight_c" ||
+    (Array.isArray(event.allowedNfcTypes) && event.allowedNfcTypes.includes("mifare_ultralight_c"))
+  );
+}
+
 router.get(
   "/auth/signing-key",
   requireRole("bank", "merchant_staff", "merchant_admin", "admin", "event_admin"),
@@ -54,7 +61,9 @@ router.get(
         offlineSyncLimit: eventsTable.offlineSyncLimit,
         maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
         nfcChipType: eventsTable.nfcChipType,
+        allowedNfcTypes: eventsTable.allowedNfcTypes,
         desfireAesKey: eventsTable.desfireAesKey,
+        ultralightCDesKey: eventsTable.ultralightCDesKey,
       })
       .from(eventsTable)
       .where(eq(eventsTable.id, eventId));
@@ -86,6 +95,9 @@ router.get(
       if (event.nfcChipType === "desfire_ev3" && event.desfireAesKey) {
         response.desfireAesKey = event.desfireAesKey;
       }
+      if (isUltralightCConfigured(event) && event.ultralightCDesKey) {
+        response.ultralightCDesKey = event.ultralightCDesKey;
+      }
       res.json(response);
       return;
     }
@@ -101,6 +113,9 @@ router.get(
       };
       if (event.nfcChipType === "desfire_ev3" && event.desfireAesKey) {
         response.desfireAesKey = event.desfireAesKey;
+      }
+      if (isUltralightCConfigured(event) && event.ultralightCDesKey) {
+        response.ultralightCDesKey = event.ultralightCDesKey;
       }
       res.json(response);
       return;
@@ -121,6 +136,9 @@ router.get(
     };
     if (event.nfcChipType === "desfire_ev3" && event.desfireAesKey) {
       response.desfireAesKey = event.desfireAesKey;
+    }
+    if (isUltralightCConfigured(event) && event.ultralightCDesKey) {
+      response.ultralightCDesKey = event.ultralightCDesKey;
     }
     res.json(response);
   },

@@ -62,6 +62,7 @@ export default function CheckBalanceScreen() {
 
   const { data: keyData } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret?: string } | undefined)?.hmacSecret ?? "";
+  const ultralightCDesKey = (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
   const { cachedHmacSecret } = useOfflineQueue();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
 
@@ -146,7 +147,7 @@ export default function CheckBalanceScreen() {
                   : (payload.counter ?? 0) + 1;
                 const newHmac = await computeHmac(0, newCounter, hmacSecret);
                 return { uid: payload.uid, balance: 0, counter: newCounter, hmac: newHmac };
-              });
+              }, ultralightCDesKey ? { ultralightCKeyHex: ultralightCDesKey } : undefined);
 
               // Sync the DB reset
               await customFetch(`/api/admin/bracelets/${result.uid}/reset-balance`, { method: "POST" });
