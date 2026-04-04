@@ -100,8 +100,11 @@ export default function BraceletsAdminScreen() {
     queryFn: () => customFetch<EventItem[]>("/api/events"),
     staleTime: 5 * 60_000,
   });
-  const events: EventItem[] = eventsData ?? [];
-  const eventMap = Object.fromEntries(events.map((e) => [e.id, e.name]));
+  const events: EventItem[] = Array.isArray(eventsData) ? eventsData : [];
+  const eventMap: Record<string, string> = events.reduce<Record<string, string>>(
+    (acc, e) => { acc[e.id] = e.name; return acc; },
+    {},
+  );
 
   const handleListSearchChange = (text: string) => {
     setListSearch(text);
