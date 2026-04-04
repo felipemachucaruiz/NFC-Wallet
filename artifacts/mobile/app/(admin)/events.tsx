@@ -415,7 +415,7 @@ export default function EventsScreen() {
       />
 
       {/* ── CREATE MODAL ─────────────────────────────────────────────── */}
-      <Modal visible={showCreate} transparent animationType="slide">
+      <Modal visible={showCreate && !showMapPicker} transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <ScrollView
             style={[styles.sheet, { backgroundColor: C.card }]}
@@ -558,7 +558,7 @@ export default function EventsScreen() {
       </Modal>
 
       {/* ── EDIT MODAL ───────────────────────────────────────────────── */}
-      <Modal visible={!!editingEvent} transparent animationType="slide">
+      <Modal visible={!!editingEvent && !showMapPicker} transparent animationType="slide">
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <ScrollView
             style={[styles.sheet, { backgroundColor: C.card }]}

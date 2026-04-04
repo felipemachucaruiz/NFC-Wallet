@@ -89,6 +89,7 @@ module.exports = {
           locationWhenInUsePermission: "Allow Tapee to access your location to set the event pin on the map.",
         },
       ],
+      "react-native-maps",
       [
         "./plugins/withSslPinning",
         {
