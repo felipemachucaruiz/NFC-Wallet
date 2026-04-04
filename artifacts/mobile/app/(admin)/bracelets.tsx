@@ -55,6 +55,8 @@ type ListResponse = {
 
 type FilterStatus = "all" | "active" | "flagged";
 
+type EventItem = { id: string; name: string };
+
 const PAGE_LIMIT = 50;
 
 export default function BraceletsAdminScreen() {
@@ -89,8 +91,17 @@ export default function BraceletsAdminScreen() {
   const [listSearch, setListSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [filterEventId, setFilterEventId] = useState<string | null>(null);
   const [listPage, setListPage] = useState(1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: eventsData } = useQuery<EventItem[]>({
+    queryKey: ["admin-events-list"],
+    queryFn: () => customFetch<EventItem[]>("/api/events"),
+    staleTime: 5 * 60_000,
+  });
+  const events: EventItem[] = eventsData ?? [];
+  const eventMap = Object.fromEntries(events.map((e) => [e.id, e.name]));
 
   const handleListSearchChange = (text: string) => {
     setListSearch(text);
@@ -104,7 +115,7 @@ export default function BraceletsAdminScreen() {
   const flaggedParam =
     filterStatus === "flagged" ? "true" : filterStatus === "active" ? "false" : undefined;
 
-  const listQueryKey = ["admin-bracelets", debouncedSearch, flaggedParam, listPage];
+  const listQueryKey = ["admin-bracelets", debouncedSearch, flaggedParam, filterEventId, listPage];
 
   const {
     data: listData,
@@ -120,6 +131,7 @@ export default function BraceletsAdminScreen() {
       });
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (flaggedParam) params.set("flagged", flaggedParam);
+      if (filterEventId) params.set("eventId", filterEventId);
       return customFetch<ListResponse>(`/api/admin/bracelets?${params.toString()}`);
     },
     staleTime: 30_000,
@@ -360,7 +372,11 @@ export default function BraceletsAdminScreen() {
             <View style={[styles.divider, { backgroundColor: C.border }]} />
 
             <InfoRow label={t("admin.braceletOwner")} value={(bracelet as { attendeeName?: string | null }).attendeeName ?? "—"} C={C} />
-            <InfoRow label={t("admin.braceletEvent")} value={(bracelet as { eventId?: string | null }).eventId ?? "—"} C={C} />
+            <InfoRow
+              label={t("admin.braceletEvent")}
+              value={(() => { const eid = (bracelet as { eventId?: string | null }).eventId; return eid ? (eventMap[eid] ?? eid.slice(0, 8)) : "—"; })()}
+              C={C}
+            />
             <InfoRow
               label={t("admin.braceletBalance")}
               value={null}
@@ -436,7 +452,7 @@ export default function BraceletsAdminScreen() {
           )}
         </View>
 
-        {/* Filter chips */}
+        {/* Status filter chips */}
         <View style={styles.filterRow}>
           {(["all", "active", "flagged"] as FilterStatus[]).map((f) => (
             <Pressable
@@ -450,12 +466,54 @@ export default function BraceletsAdminScreen() {
                 },
               ]}
             >
-              <Text style={[styles.filterChipText, { color: filterStatus === f ? "#0a0a0a" : C.textSecondary }]}>
+              <Text style={[styles.filterChipText, { color: filterStatus === f ? C.primaryText : C.textSecondary }]}>
                 {f === "all" ? t("admin.filterAll") : f === "active" ? t("admin.filterActive") : t("admin.filterFlagged")}
               </Text>
             </Pressable>
           ))}
         </View>
+
+        {/* Event filter chips */}
+        {events.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.eventFilterScroll}
+            contentContainerStyle={styles.eventFilterContent}
+          >
+            <Pressable
+              onPress={() => { setFilterEventId(null); setListPage(1); }}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor: filterEventId === null ? C.primary : C.inputBg,
+                  borderColor: filterEventId === null ? C.primary : C.border,
+                },
+              ]}
+            >
+              <Text style={[styles.filterChipText, { color: filterEventId === null ? C.primaryText : C.textSecondary }]}>
+                {t("admin.filterAll")}
+              </Text>
+            </Pressable>
+            {events.map((ev) => (
+              <Pressable
+                key={ev.id}
+                onPress={() => { setFilterEventId(ev.id); setListPage(1); }}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: filterEventId === ev.id ? C.primary : C.inputBg,
+                    borderColor: filterEventId === ev.id ? C.primary : C.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.filterChipText, { color: filterEventId === ev.id ? C.primaryText : C.textSecondary }]}>
+                  {ev.name}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
 
         {/* List items */}
         {listLoading ? (
@@ -492,7 +550,7 @@ export default function BraceletsAdminScreen() {
                   </View>
                   <Text style={[styles.braceletName, { color: C.textSecondary }]} numberOfLines={1}>
                     {b.attendeeName ?? "—"}
-                    {b.eventId ? ` · ${b.eventId.slice(0, 8)}` : ""}
+                    {b.eventId ? ` · ${eventMap[b.eventId] ?? b.eventId.slice(0, 8)}` : ""}
                   </Text>
                 </View>
                 <View style={styles.braceletRight}>
@@ -596,6 +654,8 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
   filterRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  eventFilterScroll: { marginHorizontal: -20 },
+  eventFilterContent: { flexDirection: "row", gap: 8, paddingHorizontal: 20 },
   filterChip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
