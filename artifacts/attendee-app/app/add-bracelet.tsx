@@ -81,7 +81,8 @@ export default function AddBraceletScreen() {
           } else if (
             err.message === "BRACELET_NOT_FOUND" ||
             err.message === "BRACELET_NOT_REGISTERED" ||
-            err.message === "NEEDS_EVENT_SELECTION"
+            err.message === "NEEDS_EVENT_SELECTION" ||
+            err.message?.includes("eventId is required")
           ) {
             router.push({ pathname: "/select-event" as never, params: { uid } });
             setState("idle");

@@ -320,7 +320,7 @@ router.post(
       // Stub auto-create: bracelet has never been registered anywhere
       // eventId is required so the stub is associated with the correct event
       if (!requestedEventId) {
-        res.status(400).json({ error: "eventId is required when linking an unregistered bracelet" });
+        res.status(400).json({ error: "BRACELET_NOT_FOUND", needsEventSelection: true });
         return;
       }
       const [created] = await db
