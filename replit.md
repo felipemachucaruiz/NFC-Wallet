@@ -188,56 +188,15 @@ Utility scripts. Run: `pnpm --filter @workspace/scripts run <script>`
 - `WOMPI_EVENTS_SECRET` — Wompi webhook signature secret (for checksum validation)
 - `APP_URL` — Public app URL (used for PSE redirect_url)
 
-## Certificate Pinning
+## Network Security
 
-Both apps pin the Tapee API TLS certificate using `react-native-ssl-pinning@1.6.0`.
+SSL/TLS certificate pinning has been **removed** from both apps.
 
-### How it works
-- `artifacts/mobile/utils/pinnedFetch.ts` and `artifacts/attendee-app/utils/pinnedFetch.ts` wrap all API `fetch` calls with cert pinning for Tapee API domains.
-- Pinning is domain-aware: only Tapee API hostnames (`API_DOMAIN` / `ATTENDEE_API_BASE_URL` host) are pinned. Auth endpoints (OIDC) are NOT pinned.
-- **Release builds** (`__DEV__ === false`): if the native module is not compiled in, `pinnedFetch` **throws a hard error** for any Tapee API request — fail-closed, no silent bypass.
-- **Development/Expo Go builds** (`__DEV__ === true`): if the native module is absent, `pinnedFetch` logs a warning and falls back to standard `fetch` so the JS bundle can be tested without a native rebuild.
-- Cert files (`.cer`, DER format) live in `assets/certs/` in each app and are copied to native directories by the `withSslPinning` Expo config plugin during EAS prebuild.
-- Active cert filenames are controlled by `EXPO_PUBLIC_SSL_CERTS` (comma-separated, without extension). Defaults to `tapee_api`.
+- `artifacts/mobile/utils/pinnedFetch.ts` is now a simple passthrough to standard `fetch` with a 30-second timeout. The `react-native-ssl-pinning` dependency and `withSslPinning` config plugin remain in the codebase but are no longer active.
+- All API traffic is still encrypted via standard HTTPS (TLS 1.2+) as enforced by Railway.
+- Root cause of removal: the `withSslPinning` Expo config plugin was copying cert files to `android/app/src/main/assets/` but `react-native-ssl-pinning` on Android reads from `res/raw/`. This caused a native Android crash immediately after the first authenticated API call.
 
-### Current pinned certs
-Two separate cert files — both must be compiled into native builds:
-
-| File | Domain | SPKI SHA-256 | Expiry |
-|------|--------|-------------|--------|
-| `tapee_api.cer` | `prod.tapee.app` | `qZeuQmHlu+HfY+6kzKAG1DHDu01gEmkM5zM4UJh+CBU=` | Jul 2 2026 |
-| `attendee_api.cer` | `attendee.tapee.app` | `t6a7uh5TulAD/pgVznCOpTdlAlH6vFGvYeWrrUrs96Y=` | Jul 2 2026 |
-
-Both apps pin against both certs (`EXPO_PUBLIC_SSL_CERTS=tapee_api,attendee_api`).
-Certs are short-lived (Let's Encrypt ~90 days). When a cert renews with a **new key**, re-extract the DER file and trigger a new native EAS build. If the same key is reused, an OTA suffices.
-
-### Certificate rotation procedure (before old cert expires)
-
-1. **Get new cert DER file**:
-   ```bash
-   openssl s_client -connect <API_DOMAIN>:443 </dev/null 2>/dev/null | \
-     openssl x509 -outform DER -out tapee_api_next.cer
-   # Verify SPKI hash:
-   openssl x509 -inform DER -in tapee_api_next.cer -noout -pubkey | \
-     openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
-   ```
-
-2. **Add new cert file** alongside existing:
-   - Copy `tapee_api_next.cer` → `artifacts/mobile/assets/certs/tapee_api_next.cer`
-   - Copy same → `artifacts/attendee-app/assets/certs/tapee_api_next.cer`
-   - Update `app.json` `certFiles` in both apps to include `"tapee_api_next.cer"`
-   - **Push a new native build** (EAS) so `tapee_api_next.cer` is compiled into the binary.
-
-3. **Activate new cert via OTA** (once native build is live):
-   - Set `EXPO_PUBLIC_SSL_CERTS=tapee_api_next,tapee_api` in the OTA build env (both old + new during transition).
-   - Push OTA for both apps. The JS now accepts both old and new certs.
-
-4. **After old cert expires** (or full user rollout complete):
-   - Set `EXPO_PUBLIC_SSL_CERTS=tapee_api_next` (drop old cert from the JS list).
-   - Push another OTA.
-   - Optionally: next native build removes `tapee_api.cer` from `certFiles`.
-
-> **For production domains** (`.replit.app` or custom domain): the cert will come from a public CA (Cloudflare/Let's Encrypt). Use the same procedure to extract the cert and SPKI hash from the production domain before publishing.
+> If certificate pinning is re-added in future, fix the plugin to copy to `res/raw/` on Android and `<AppName>/` on iOS (Xcode bundle resources).
 
 ## Pending Setup
 
