@@ -1,4 +1,5 @@
 import React, { Component, ComponentType, PropsWithChildren } from "react";
+import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ErrorFallback, ErrorFallbackProps } from "@/components/ErrorFallback";
@@ -36,14 +37,17 @@ export class ErrorBoundary extends Component<
     if (typeof this.props.onError === "function") {
       this.props.onError(error, info.componentStack);
     }
+    const msg = error?.message ?? "unknown render error";
+    const stack = (error?.stack ?? info.componentStack ?? "").split("\n").slice(0, 10).join("\n");
     const entry = JSON.stringify({
-      message: error?.message ?? "unknown render error",
-      stack: (error?.stack ?? info.componentStack ?? "").split("\n").slice(0, 10).join("\n"),
+      message: msg,
+      stack,
       isFatal: false,
       source: "ErrorBoundary",
       ts: new Date().toISOString(),
     });
     AsyncStorage.setItem(CRASH_LOG_KEY, entry).catch(() => {});
+    Alert.alert("⚛️ RENDER CRASH", `${msg}\n\n${stack}`, [{ text: "OK" }]);
   }
 
   resetError = (): void => {
