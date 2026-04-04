@@ -76,7 +76,16 @@ export default function EventAdminReportsScreen() {
     { query: { enabled: activeTab === "refunds" } },
   );
 
-  const revenue = revenueData as Record<string, number | undefined> | undefined;
+  type RevenueResponse = {
+    totalSalesCop?: number;
+    totalCogsCop?: number;
+    grossProfitCop?: number;
+    totalCommissionsCop?: number;
+    netOwedToMerchantsCop?: number;
+    totalTopUpsCop?: number;
+    totals?: { totalTipsCop?: number; [key: string]: number | undefined };
+  };
+  const revenue = revenueData as RevenueResponse | undefined;
   const topUps = topUpData as Record<string, number | string | Array<Record<string, unknown>> | undefined> | undefined;
   const inventory = inventoryData as Record<string, number | Array<Record<string, unknown>> | undefined> | undefined;
 
@@ -156,6 +165,7 @@ export default function EventAdminReportsScreen() {
               {[
                 { label: t("admin.totalTopUps"), value: revenue?.totalTopUpsCop, positive: true },
                 { label: t("admin.totalSales"), value: revenue?.totalSalesCop, positive: true },
+                { label: t("admin.totalTips"), value: revenue?.totals?.totalTipsCop, positive: true },
                 { label: t("admin.totalCogs"), value: revenue?.totalCogsCop, positive: false },
                 { label: t("admin.grossProfit"), value: revenue?.grossProfitCop, positive: true },
                 { label: t("admin.totalCommissions"), value: revenue?.totalCommissionsCop, positive: false },

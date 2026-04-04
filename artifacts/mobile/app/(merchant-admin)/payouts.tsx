@@ -35,6 +35,7 @@ interface Transaction {
   id: string;
   braceletUid: string;
   grossAmountCop: number;
+  tipAmountCop?: number | null;
   commissionAmountCop: number;
   netAmountCop: number;
   createdAt: string;
@@ -111,7 +112,12 @@ function PayoutTransactionsModal({
                     <Text style={[styles.txDate, { color: C.textMuted }]}>{formatDate(tx.createdAt)}</Text>
                   </View>
                   <View style={styles.txAmounts}>
-                    <CopAmount amount={tx.grossAmountCop} size={15} positive />
+                    <CopAmount amount={tx.grossAmountCop + (tx.tipAmountCop ?? 0)} size={15} positive />
+                    {(tx.tipAmountCop ?? 0) > 0 && (
+                      <Text style={[styles.txComm, { color: C.textMuted }]}>
+                        {t("pos.tipLabel")}: {(tx.tipAmountCop ?? 0).toLocaleString("es-CO")}
+                      </Text>
+                    )}
                     <Text style={[styles.txComm, { color: C.textMuted }]}>
                       -{tx.commissionAmountCop.toLocaleString("es-CO")}
                     </Text>

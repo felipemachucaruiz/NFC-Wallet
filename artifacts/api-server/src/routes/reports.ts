@@ -26,7 +26,7 @@ router.get(
     const conditions = [];
     let topUpEventIds: string[] | null = null;
 
-    const emptyRevenue = { totalSalesCop: 0, totalCogsCop: 0, grossProfitCop: 0, totalCommissionsCop: 0, platformRevenueCop: 0, netOwedToMerchantsCop: 0, transactionCount: 0, totalTopUpsCop: 0, topUpCount: 0, braceletCount: 0, totals: { grossSalesCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] };
+    const emptyRevenue = { totalSalesCop: 0, totalCogsCop: 0, grossProfitCop: 0, totalCommissionsCop: 0, platformRevenueCop: 0, netOwedToMerchantsCop: 0, transactionCount: 0, totalTopUpsCop: 0, topUpCount: 0, braceletCount: 0, totals: { grossSalesCop: 0, totalTipsCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] };
 
     if (user.role === "event_admin") {
       const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
@@ -114,6 +114,7 @@ router.get(
     }
 
     const grossSalesCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
+    const totalTipsCop = txRows.reduce((s, r) => s + (r.tipAmountCop ?? 0), 0);
     const commissionCop = txRows.reduce((s, r) => s + r.commissionAmountCop, 0);
     const netCop = txRows.reduce((s, r) => s + r.netAmountCop, 0);
     const grossProfitCop = grossSalesCop - cogsCop;
@@ -128,6 +129,7 @@ router.get(
 
     const totals = {
       grossSalesCop,
+      totalTipsCop,
       cogsCop,
       grossProfitCop,
       profitMarginPercent,
@@ -203,6 +205,7 @@ router.get(
 
     function summarizeRows(rows: typeof txRows) {
       const gross = rows.reduce((s, r) => s + r.grossAmountCop, 0);
+      const tips = rows.reduce((s, r) => s + (r.tipAmountCop ?? 0), 0);
       const comm = rows.reduce((s, r) => s + r.commissionAmountCop, 0);
       const net = rows.reduce((s, r) => s + r.netAmountCop, 0);
       const groupCogs = rows.reduce((s, r) => s + (cogsByTxId.get(r.id) ?? 0), 0);
@@ -215,6 +218,7 @@ router.get(
       const groupNeto = gross - comm - groupRetenciones;
       return {
         grossSalesCop: gross,
+        totalTipsCop: tips,
         cogsCop: groupCogs,
         grossProfitCop: profit,
         profitMarginPercent: margin,
@@ -723,6 +727,7 @@ router.get(
 
     const byMerchant = [...byMerchantMap.values()].map((mg) => {
       const totalBrutoCop = mg.rows.reduce((s, r) => s + r.grossAmountCop, 0);
+      const totalTipsCop = mg.rows.reduce((s, r) => s + (r.tipAmountCop ?? 0), 0);
       const totalComisionCop = mg.rows.reduce((s, r) => s + r.commissionAmountCop, 0);
       const totalIvaCop = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.iva ?? 0), 0);
       const totalRetencionFuenteCop = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.fuente ?? 0), 0);
@@ -734,6 +739,7 @@ router.get(
         merchantName: mg.merchantName,
         transactionCount: mg.rows.length,
         totalBrutoCop,
+        totalTipsCop,
         totalIvaCop,
         totalRetencionFuenteCop,
         totalRetencionICACop,
@@ -746,6 +752,7 @@ router.get(
     const grandTotals = byMerchant.reduce(
       (acc, m) => ({
         totalBrutoCop: acc.totalBrutoCop + m.totalBrutoCop,
+        totalTipsCop: acc.totalTipsCop + m.totalTipsCop,
         totalIvaCop: acc.totalIvaCop + m.totalIvaCop,
         totalRetencionFuenteCop: acc.totalRetencionFuenteCop + m.totalRetencionFuenteCop,
         totalRetencionICACop: acc.totalRetencionICACop + m.totalRetencionICACop,
@@ -753,7 +760,7 @@ router.get(
         totalComisionCop: acc.totalComisionCop + m.totalComisionCop,
         totalNetoCop: acc.totalNetoCop + m.totalNetoCop,
       }),
-      { totalBrutoCop: 0, totalIvaCop: 0, totalRetencionFuenteCop: 0, totalRetencionICACop: 0, totalRetencionesCop: 0, totalComisionCop: 0, totalNetoCop: 0 },
+      { totalBrutoCop: 0, totalTipsCop: 0, totalIvaCop: 0, totalRetencionFuenteCop: 0, totalRetencionICACop: 0, totalRetencionesCop: 0, totalComisionCop: 0, totalNetoCop: 0 },
     );
 
     res.json({ totals: grandTotals, byMerchant });

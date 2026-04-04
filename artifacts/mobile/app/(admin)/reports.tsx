@@ -45,6 +45,7 @@ export default function ReportsScreen() {
   const revenue = revenueData as {
     totals?: {
       grossSalesCop?: number;
+      totalTipsCop?: number;
       cogsCop?: number;
       grossProfitCop?: number;
       commissionCop?: number;
@@ -109,6 +110,7 @@ export default function ReportsScreen() {
             <View style={{ gap: 12 }}>
               {[
                 { label: t("admin.totalSales"), value: revenue?.totals?.grossSalesCop, positive: true },
+                { label: t("admin.totalTips"), value: revenue?.totals?.totalTipsCop, positive: true },
                 { label: t("admin.totalCogs"), value: revenue?.totals?.cogsCop, positive: false },
                 { label: t("admin.grossProfit"), value: revenue?.totals?.grossProfitCop, positive: true },
                 { label: t("admin.totalCommissions"), value: revenue?.totals?.commissionCop, positive: false },

@@ -358,7 +358,15 @@
     "syncError": "Error syncing",
     "desfireNoKey": "DESFire AES key not configured. Contact your event administrator.",
     "wrongEvent": "Bracelet from another event",
-    "wrongEventDetail": "This bracelet belongs to a different event or the event is closed. The charge cannot be processed."
+    "wrongEventDetail": "This bracelet belongs to a different event or the event is closed. The charge cannot be processed.",
+    "tipSelection": "Add a tip?",
+    "tipSubtitle": "Select a tip percentage for the staff at this location",
+    "customTip": "Custom %",
+    "noTip": "No tip",
+    "confirmTip": "Confirm — Tip {{amount}}",
+    "confirmTipNoAmount": "Confirm tip",
+    "tipAmount": "Tip: {{amount}} ({{pct}}%)",
+    "tipLabel": "Tip"
   },
   "merchant_admin": {
     "title": "Merchant Panel",
@@ -477,6 +485,7 @@
     "ivaRate": "IVA rate (%)",
     "ivaExento": "VAT exempt",
     "ivaExentoHint": "Basic food basket or exempt products",
+    "totalTips": "Total tips received",
     "fiscalBreakdown": "Tax breakdown",
     "totalIva": "Total VAT (IVA)",
     "retencionFuente": "Withholding tax (fuente)",
@@ -800,6 +809,7 @@
     "locationCount_one": "{{count}} location",
     "locationCount_other": "{{count}} locations",
     "totalCogs": "Total COGS",
+    "totalTips": "Total tips",
     "totalTopUpAmount": "Total topped-up",
     "topUpCount": "Number of top-ups",
     "averageTopUp": "Average per top-up",

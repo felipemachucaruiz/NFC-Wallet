@@ -23,6 +23,7 @@ const logTransactionSchema = z.object({
   newBalance: z.number().int().min(0),
   counter: z.number().int().min(0),
   lineItems: z.array(lineItemInputSchema).min(1),
+  tipAmountCop: z.number().int().min(0).optional().default(0),
   offlineCreatedAt: z.string().optional(),
   hmac: z.string().optional(),
 });
@@ -297,10 +298,14 @@ async function processTransaction(
 
   void cogsCop;
 
-  // Commission calculation
+  // Commission calculation — commission is on items subtotal only, not on tip
+  const tipAmountCop = input.tipAmountCop ?? 0;
+  // Total amount actually deducted from the bracelet (items + tip combined)
+  const chargedAmountCop = grossAmountCop + tipAmountCop;
   const commissionRate = parseFloat(merchant.commissionRatePercent ?? "0");
   const commissionAmountCop = Math.round(grossAmountCop * commissionRate / 100);
-  const netAmountCop = grossAmountCop - commissionAmountCop;
+  // Merchant receives net items amount plus the full tip (tip is not subject to commission)
+  const netAmountCop = grossAmountCop - commissionAmountCop + tipAmountCop;
 
   // Insert transaction log
   const [txLog] = await db
@@ -312,6 +317,7 @@ async function processTransaction(
       merchantId: merchant.id,
       eventId: merchant.eventId,
       grossAmountCop,
+      tipAmountCop,
       commissionAmountCop,
       netAmountCop,
       newBalanceCop: input.newBalance,
@@ -400,7 +406,8 @@ async function processTransaction(
     // normal discrepancy check and instead reconcile: the authoritative new balance is
     // pendingBalanceCop minus what was just charged, regardless of what the chip reported.
     if (bracelet.pendingSync && bracelet.pendingBalanceCop !== null && bracelet.pendingBalanceCop > 0) {
-      const reconciledBalance = Math.max(0, bracelet.pendingBalanceCop - grossAmountCop);
+      // Use full charged amount (items + tip) since that is what was deducted from the bracelet
+      const reconciledBalance = Math.max(0, bracelet.pendingBalanceCop - chargedAmountCop);
       await db
         .update(braceletsTable)
         .set({
@@ -419,8 +426,8 @@ async function processTransaction(
       };
     }
 
-    // Standard discrepancy check: expected new balance = last known balance - gross amount charged
-    const expectedNewBalance = bracelet.lastKnownBalanceCop - grossAmountCop;
+    // Standard discrepancy check: expected new balance = last known balance - (items + tip) charged
+    const expectedNewBalance = bracelet.lastKnownBalanceCop - chargedAmountCop;
     const discrepancy = Math.abs(expectedNewBalance - input.newBalance);
     if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
       wasFlagged = true;
@@ -449,13 +456,14 @@ async function processTransaction(
   if (isSyncBatch && bracelet.maxOfflineSpend !== null && bracelet.maxOfflineSpend !== undefined) {
     // Sum all offline-created (not yet synced at time of creation) transactions for this bracelet
     // This is approximate since we're checking after insert, but useful for threshold alerting
-    if (grossAmountCop > bracelet.maxOfflineSpend) {
+    // Use chargedAmountCop (items + tip) since that is the actual bracelet deduction
+    if (chargedAmountCop > bracelet.maxOfflineSpend) {
       wasFlagged = true;
       await db
         .update(braceletsTable)
         .set({
           flagged: true,
-          flagReason: `Single offline transaction amount ${grossAmountCop} COP exceeds bracelet max offline spend limit ${bracelet.maxOfflineSpend} COP. Tx: ${txLog.id}`,
+          flagReason: `Single offline transaction amount ${chargedAmountCop} COP exceeds bracelet max offline spend limit ${bracelet.maxOfflineSpend} COP. Tx: ${txLog.id}`,
           lastKnownBalanceCop: input.newBalance,
           lastCounter: input.counter,
           pendingSync: false,

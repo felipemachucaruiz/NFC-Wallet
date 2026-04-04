@@ -35,6 +35,7 @@ export const transactionLogsTable = pgTable("transaction_logs", {
   merchantId: varchar("merchant_id").notNull().references(() => merchantsTable.id),
   eventId: varchar("event_id").notNull().references(() => eventsTable.id),
   grossAmountCop: integer("gross_amount_cop").notNull(),
+  tipAmountCop: integer("tip_amount_cop").notNull().default(0),
   commissionAmountCop: integer("commission_amount_cop").notNull(),
   netAmountCop: integer("net_amount_cop").notNull(),
   newBalanceCop: integer("new_balance_cop").notNull(),

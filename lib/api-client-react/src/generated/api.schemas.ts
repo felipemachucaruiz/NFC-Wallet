@@ -725,6 +725,7 @@ export interface TransactionLog {
   merchantId: string;
   eventId: string;
   grossAmountCop: number;
+  tipAmountCop: number;
   commissionAmountCop: number;
   netAmountCop: number;
   newBalanceCop: number;
@@ -751,7 +752,10 @@ export interface LogTransactionBody {
   counter: number;
   /** @minItems 1 */
   lineItems: TransactionLineItemInput[];
+  /** @minimum 0 */
+  tipAmountCop?: number;
   offlineCreatedAt?: string;
+  hmac?: string;
 }
 
 export interface SyncTransactionsBody {

@@ -674,6 +674,7 @@ router.get(
         merchantId: transactionLogsTable.merchantId,
         eventId: transactionLogsTable.eventId,
         grossAmountCop: transactionLogsTable.grossAmountCop,
+        tipAmountCop: transactionLogsTable.tipAmountCop,
         commissionAmountCop: transactionLogsTable.commissionAmountCop,
         netAmountCop: transactionLogsTable.netAmountCop,
         newBalanceCop: transactionLogsTable.newBalanceCop,

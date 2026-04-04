@@ -23,6 +23,7 @@ import { useAlert } from "@/components/CustomAlert";
 import type { NfcChipType } from "@/contexts/EventContext";
 
 type ChargeStep =
+  | "tip_selection"
   | "waiting"
   | "reading"
   | "verifying"
@@ -36,6 +37,7 @@ type ChargeStep =
   | "wrong_event";
 
 const STEP_KEYS: Record<ChargeStep, string> = {
+  tip_selection: "pos.tipSelection",
   waiting: "pos.tapBracelet",
   reading: "pos.reading",
   verifying: "pos.verifying",
@@ -137,7 +139,7 @@ export default function ChargeScreen() {
   const logTransaction = useLogTransaction();
   const reportTamper = useReportTamper();
 
-  const [step, setStep] = useState<ChargeStep>("waiting");
+  const [step, setStep] = useState<ChargeStep>("tip_selection");
   const [braceletBalance, setBraceletBalance] = useState<number | null>(null);
   const [braceletUid, setBraceletUid] = useState<string | null>(null);
   const [manualUid, setManualUid] = useState("");
@@ -147,7 +149,22 @@ export default function ChargeScreen() {
   const scanningRef = useRef(false);
   const cancelledRef = useRef(false);
 
-  const shortfall = braceletBalance != null ? total - braceletBalance : 0;
+  const [selectedTipPercent, setSelectedTipPercent] = useState<number | null>(null);
+  const [customTipPercent, setCustomTipPercent] = useState("");
+  const [confirmedTipAmount, setConfirmedTipAmount] = useState(0);
+  const [confirmedTipPercent, setConfirmedTipPercent] = useState<number | null>(null);
+
+  const parsedCustomPct = customTipPercent !== "" ? parseFloat(customTipPercent) : NaN;
+  const validCustomPct = !isNaN(parsedCustomPct) && isFinite(parsedCustomPct) && parsedCustomPct >= 0 && parsedCustomPct <= 100;
+  const activeTipPercent = selectedTipPercent !== null
+    ? selectedTipPercent
+    : (validCustomPct ? parsedCustomPct : null);
+  const previewTipAmount = activeTipPercent !== null
+    ? Math.round(total * activeTipPercent / 100)
+    : 0;
+
+  const chargeTotal = total + confirmedTipAmount;
+  const shortfall = braceletBalance != null ? chargeTotal - braceletBalance : 0;
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -194,6 +211,7 @@ export default function ChargeScreen() {
           newBalance,
           counter: newCounter,
           lineItems: lineItems.map((li) => ({ productId: li.productId, quantity: li.quantity })),
+          ...(confirmedTipAmount > 0 ? { tipAmountCop: confirmedTipAmount } : {}),
           offlineCreatedAt: new Date().toISOString(),
           ...(newHmac ? { hmac: newHmac } : {}),
         },
@@ -211,6 +229,7 @@ export default function ChargeScreen() {
         counter: newCounter,
         lineItems,
         grossAmountCop: total,
+        tipAmountCop: confirmedTipAmount,
         hmac: newHmac,
       });
     }
@@ -235,13 +254,13 @@ export default function ChargeScreen() {
       } catch {}
       return;
     }
-    if (balance < total) {
+    if (balance < chargeTotal) {
       setBraceletBalance(balance);
       setBraceletUid(uid);
       setStep("insufficient");
       return;
     }
-    const newBalance = balance - total;
+    const newBalance = balance - chargeTotal;
     const newCounter = counter + 1;
     await logAndFinish(uid, newBalance, newCounter);
   };
@@ -285,7 +304,7 @@ export default function ChargeScreen() {
           const serverPending = await fetchServerPendingBalance(payload.uid);
           const effectiveBalance = serverPending !== null ? serverPending : payload.balance;
 
-          if (effectiveBalance < total) {
+          if (effectiveBalance < chargeTotal) {
             setBraceletBalance(effectiveBalance);
             setBraceletUid(payload.uid);
             setStep("insufficient");
@@ -295,7 +314,7 @@ export default function ChargeScreen() {
           }
 
           uid = payload.uid;
-          newBalance = effectiveBalance - total;
+          newBalance = effectiveBalance - chargeTotal;
           newCounter = payload.counter + 1;
           setStep("writing");
           return { uid, balance: newBalance, counter: newCounter, hmac: payload.hmac };
@@ -354,7 +373,7 @@ export default function ChargeScreen() {
           const serverPending = await fetchServerPendingBalance(payload.uid);
           const effectiveBalance = serverPending !== null ? serverPending : payload.balance;
 
-          if (effectiveBalance < total) {
+          if (effectiveBalance < chargeTotal) {
             setBraceletBalance(effectiveBalance);
             setBraceletUid(payload.uid);
             setStep("insufficient");
@@ -364,7 +383,7 @@ export default function ChargeScreen() {
           }
 
           uid = payload.uid;
-          newBalance = effectiveBalance - total;
+          newBalance = effectiveBalance - chargeTotal;
           newCounter = payload.counter + 1;
           setStep("writing");
           writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
@@ -431,8 +450,20 @@ export default function ChargeScreen() {
     }, [])
   );
 
+  const handleTipConfirm = (noTip?: boolean) => {
+    if (noTip) {
+      setConfirmedTipAmount(0);
+      setConfirmedTipPercent(null);
+    } else {
+      setConfirmedTipAmount(previewTipAmount);
+      setConfirmedTipPercent(activeTipPercent);
+    }
+    setStep("waiting");
+  };
+
   const StepIcon = () => {
     const icons: Partial<Record<ChargeStep, { icon: string; color: string; bg: string }>> = {
+      tip_selection: { icon: "dollar-sign", color: C.primary, bg: C.primaryLight },
       waiting: { icon: "wifi", color: C.primary, bg: C.primaryLight },
       reading: { icon: "wifi", color: C.primary, bg: C.primaryLight },
       verifying: { icon: "shield", color: C.warning, bg: C.warningLight },
@@ -473,9 +504,15 @@ export default function ChargeScreen() {
               {t("pos.moreItems", { count: displayItems.length - 3 })}
             </Text>
           )}
+          {confirmedTipAmount > 0 && (
+            <View style={styles.lineItem}>
+              <Text style={[styles.lineItemName, { color: C.textSecondary }]}>{t("pos.tipLabel")}</Text>
+              <CopAmount amount={confirmedTipAmount} size={13} bold={false} color={C.textSecondary} />
+            </View>
+          )}
           <View style={[styles.totalRow, { borderTopColor: C.separator }]}>
             <Text style={[styles.totalLabel, { color: C.text }]}>{t("common.total")}</Text>
-            <CopAmount amount={total} size={22} />
+            <CopAmount amount={chargeTotal} size={22} />
           </View>
         </Card>
       </View>
@@ -483,8 +520,58 @@ export default function ChargeScreen() {
       <View style={styles.centerSection}>
         <StepIcon />
 
-        {step !== "success" && step !== "hmac_fail" && step !== "insufficient" && step !== "manual_input" && step !== "offline_limit" && step !== "wrong_event" && (
+        {step !== "success" && step !== "hmac_fail" && step !== "insufficient" && step !== "manual_input" && step !== "offline_limit" && step !== "wrong_event" && step !== "tip_selection" && (
           <Text style={[styles.stepTitle, { color: C.text }]}>{t(STEP_KEYS[step] || "pos.tapBracelet")}</Text>
+        )}
+
+        {step === "tip_selection" && (
+          <View style={styles.tipSelectionBox}>
+            <Text style={[styles.stepTitle, { color: C.text }]}>{t("pos.tipSelection")}</Text>
+            <Text style={[styles.tipSubtitle, { color: C.textSecondary }]}>{t("pos.tipSubtitle")}</Text>
+            <View style={styles.tipPresetsRow}>
+              {[5, 10, 20].map((pct) => (
+                <Pressable
+                  key={pct}
+                  onPress={() => {
+                    setSelectedTipPercent(pct);
+                    setCustomTipPercent("");
+                  }}
+                  style={[
+                    styles.tipPresetBtn,
+                    {
+                      backgroundColor: selectedTipPercent === pct ? C.primary : C.card,
+                      borderColor: selectedTipPercent === pct ? C.primary : C.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.tipPresetText, { color: selectedTipPercent === pct ? "#fff" : C.text }]}>
+                    {pct}%
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={[styles.customTipRow, { borderColor: C.border, backgroundColor: C.inputBg }]}>
+              <TextInput
+                style={[styles.customTipInput, { color: C.text }]}
+                placeholder={t("pos.customTip")}
+                placeholderTextColor={C.textMuted}
+                keyboardType="numeric"
+                value={customTipPercent}
+                onChangeText={(v) => {
+                  setCustomTipPercent(v);
+                  setSelectedTipPercent(null);
+                }}
+              />
+              <Text style={[styles.customTipSuffix, { color: C.textSecondary }]}>%</Text>
+            </View>
+            {(previewTipAmount > 0) && (
+              <View style={[styles.tipPreviewBox, { backgroundColor: C.primaryLight, borderColor: C.primary }]}>
+                <Text style={[styles.tipPreviewText, { color: C.primary }]}>
+                  {t("pos.tipAmount", { amount: formatCOP(previewTipAmount), pct: activeTipPercent?.toFixed(0) })}
+                </Text>
+              </View>
+            )}
+          </View>
         )}
 
         {step === "offline_limit" && (
@@ -530,12 +617,42 @@ export default function ChargeScreen() {
               <Text style={[styles.balanceLabel, { color: C.textSecondary }]}>{t("pos.newBalance")}</Text>
               <CopAmount amount={braceletBalance} size={24} positive />
             </View>
+            {confirmedTipAmount > 0 && (
+              <View style={[styles.tipPreviewBox, { backgroundColor: C.successLight, borderColor: C.success }]}>
+                <Text style={[styles.tipPreviewText, { color: C.success }]}>
+                  {t("pos.tipAmount", { amount: formatCOP(confirmedTipAmount), pct: confirmedTipPercent?.toFixed(0) ?? "—" })}
+                </Text>
+              </View>
+            )}
             {tagInfo && <TagBadge tagInfo={tagInfo} colors={C} />}
           </View>
         )}
       </View>
 
       <View style={[styles.bottom, { paddingBottom: isWeb ? 34 : insets.bottom + 16, paddingHorizontal: 20 }]}>
+        {step === "tip_selection" && (
+          <View style={{ gap: 10 }}>
+            <Button
+              title={
+                previewTipAmount > 0
+                  ? t("pos.confirmTip", { amount: formatCOP(previewTipAmount) })
+                  : t("pos.confirmTipNoAmount")
+              }
+              onPress={() => handleTipConfirm(false)}
+              variant="primary"
+              size="lg"
+              fullWidth
+              disabled={activeTipPercent === null}
+            />
+            <Button
+              title={t("pos.noTip")}
+              onPress={() => handleTipConfirm(true)}
+              variant="ghost"
+              size="md"
+              fullWidth
+            />
+          </View>
+        )}
         {step === "waiting" && !isNfcSupported() && (
           <Button
             title={t("pos.enterUid")}
@@ -695,4 +812,14 @@ const styles = StyleSheet.create({
   modalSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8 },
   cancelBtn: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32 },
   cancelText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  tipSelectionBox: { alignItems: "center", gap: 12, width: "100%" },
+  tipSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: -8 },
+  tipPresetsRow: { flexDirection: "row", gap: 10, justifyContent: "center" },
+  tipPresetBtn: { paddingHorizontal: 22, paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, minWidth: 72, alignItems: "center" },
+  tipPresetText: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  customTipRow: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 2, width: "100%" },
+  customTipInput: { flex: 1, fontSize: 16, fontFamily: "Inter_400Regular", paddingVertical: 12 },
+  customTipSuffix: { fontSize: 16, fontFamily: "Inter_500Medium", paddingLeft: 4 },
+  tipPreviewBox: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, alignSelf: "stretch", alignItems: "center" },
+  tipPreviewText: { fontSize: 15, fontFamily: "Inter_600SemiBold", textAlign: "center" },
 });

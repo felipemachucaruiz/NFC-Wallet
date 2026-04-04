@@ -33,6 +33,7 @@ export interface QueuedTransaction {
     unitCostCop: number;
   }>;
   grossAmountCop: number;
+  tipAmountCop?: number;
   hmac?: string;
   createdAt: string;
   status: "pending" | "syncing" | "failed";
@@ -223,8 +224,8 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
       };
       const q = [...queueRef.current, item];
       await updateQueue(q);
-      // Accumulate unsynced spend
-      const newSpend = unsyncedSpendRef.current + tx.grossAmountCop;
+      // Accumulate unsynced spend using total charged amount (items + tip)
+      const newSpend = unsyncedSpendRef.current + tx.grossAmountCop + (tx.tipAmountCop ?? 0);
       await updateUnsyncedSpend(newSpend);
     },
     [updateQueue, updateUnsyncedSpend]
@@ -303,6 +304,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
                   productId: li.productId,
                   quantity: li.quantity,
                 })),
+                ...(item.tipAmountCop ? { tipAmountCop: item.tipAmountCop } : {}),
                 offlineCreatedAt: item.createdAt,
                 ...(item.hmac ? { hmac: item.hmac } : {}),
               },
@@ -326,7 +328,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
             (r.includes("insufficient") && r.includes("balance"));
           if (!syncResult || syncResult.status === "created" || syncResult.status === "duplicate" || isPermanentRejection) {
             q = queueRef.current.filter((t) => t.id !== item.id);
-            if (!isPermanentRejection) syncedSpend += item.grossAmountCop;
+            if (!isPermanentRejection) syncedSpend += item.grossAmountCop + (item.tipAmountCop ?? 0);
           } else {
             q = queueRef.current.map((t) =>
               t.id === item.id
@@ -438,7 +440,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         await updateQueue(updated);
         // Reduce unsynced spend when dismissing a failed item
         if (item) {
-          const newSpend = Math.max(0, unsyncedSpendRef.current - item.grossAmountCop);
+          const newSpend = Math.max(0, unsyncedSpendRef.current - (item.grossAmountCop + (item.tipAmountCop ?? 0)));
           await updateUnsyncedSpend(newSpend);
         }
       } else {

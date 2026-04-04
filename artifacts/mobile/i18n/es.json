@@ -358,7 +358,15 @@
     "syncError": "Error al sincronizar",
     "desfireNoKey": "Clave AES DESFire no configurada. Contacta al administrador del evento.",
     "wrongEvent": "Pulsera de otro evento",
-    "wrongEventDetail": "Esta pulsera pertenece a otro evento o el evento está cerrado. No se puede procesar el cobro."
+    "wrongEventDetail": "Esta pulsera pertenece a otro evento o el evento está cerrado. No se puede procesar el cobro.",
+    "tipSelection": "¿Agregar propina?",
+    "tipSubtitle": "Selecciona un porcentaje de propina para el personal de este punto",
+    "customTip": "% personalizado",
+    "noTip": "Sin propina",
+    "confirmTip": "Confirmar — Propina {{amount}}",
+    "confirmTipNoAmount": "Confirmar propina",
+    "tipAmount": "Propina: {{amount}} ({{pct}}%)",
+    "tipLabel": "Propina"
   },
   "merchant_admin": {
     "title": "Panel Merchant",
@@ -477,6 +485,7 @@
     "ivaRate": "Tasa de IVA (%)",
     "ivaExento": "Exento de IVA",
     "ivaExentoHint": "Canasta básica u otros productos excluidos",
+    "totalTips": "Total de propinas recibidas",
     "fiscalBreakdown": "Resumen fiscal",
     "totalIva": "Total IVA recaudado",
     "retencionFuente": "Retención en la fuente",
@@ -789,6 +798,7 @@
     "locationCount_one": "{{count}} ubicación",
     "locationCount_other": "{{count}} ubicaciones",
     "totalCogs": "COGS total",
+    "totalTips": "Total propinas",
     "totalTopUpAmount": "Total recargado",
     "topUpCount": "Número de recargas",
     "averageTopUp": "Promedio por recarga",

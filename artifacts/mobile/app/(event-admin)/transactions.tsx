@@ -30,6 +30,7 @@ type EventTransaction = {
   merchantName?: string | null;
   eventId: string;
   grossAmountCop: number;
+  tipAmountCop?: number | null;
   commissionAmountCop: number;
   netAmountCop: number;
   newBalanceCop: number;
@@ -116,7 +117,7 @@ export default function TransactionsScreen() {
           </View>
         </View>
         <View style={styles.cardRight}>
-          <CopAmount amount={item.grossAmountCop} size={16} />
+          <CopAmount amount={item.grossAmountCop + (item.tipAmountCop ?? 0)} size={16} />
           {item.itemCount > 0 ? (
             <Text style={[styles.itemCount, { color: C.textMuted }]}>
               {item.itemCount} {t("transactions.items")}
@@ -124,7 +125,7 @@ export default function TransactionsScreen() {
           ) : null}
         </View>
       </View>
-      {item.items.length > 0 && (
+      {(item.items.length > 0 || (item.tipAmountCop ?? 0) > 0) && (
         <View style={[styles.itemsList, { borderTopColor: C.separator }]}>
           {item.items.map((li) => (
             <View key={li.id} style={styles.lineItem}>
@@ -135,6 +136,12 @@ export default function TransactionsScreen() {
               <CopAmount amount={li.unitPrice * li.quantity} size={12} />
             </View>
           ))}
+          {(item.tipAmountCop ?? 0) > 0 && (
+            <View style={styles.lineItem}>
+              <Text style={[styles.lineItemName, { color: C.textSecondary }]}>{t("pos.tipLabel")}</Text>
+              <CopAmount amount={item.tipAmountCop ?? 0} size={12} />
+            </View>
+          )}
         </View>
       )}
     </Card>

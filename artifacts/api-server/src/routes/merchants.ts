@@ -191,6 +191,7 @@ router.get(
       .where(and(...conditions));
 
     const grossSalesCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
+    const totalTipsCop = txRows.reduce((s, r) => s + (r.tipAmountCop ?? 0), 0);
     const totalCommissionCop = txRows.reduce((s, r) => s + r.commissionAmountCop, 0);
     const netEarnedCop = txRows.reduce((s, r) => s + r.netAmountCop, 0);
 
@@ -234,6 +235,7 @@ router.get(
     res.json({
       merchantId,
       grossSalesCop,
+      totalTipsCop,
       cogsCop,
       grossProfitCop,
       profitMarginPercent,
@@ -284,6 +286,7 @@ router.get(
         id: transactionLogsTable.id,
         braceletUid: transactionLogsTable.braceletUid,
         grossAmountCop: transactionLogsTable.grossAmountCop,
+        tipAmountCop: transactionLogsTable.tipAmountCop,
         commissionAmountCop: transactionLogsTable.commissionAmountCop,
         netAmountCop: transactionLogsTable.netAmountCop,
         createdAt: transactionLogsTable.createdAt,

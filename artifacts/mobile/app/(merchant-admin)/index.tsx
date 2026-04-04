@@ -34,6 +34,7 @@ export default function MerchantEarningsScreen() {
 
   const earnings = earningsData as {
     grossSalesCop?: number;
+    totalTipsCop?: number;
     cogsCop?: number;
     grossProfitCop?: number;
     profitMarginPercent?: number;
@@ -50,6 +51,7 @@ export default function MerchantEarningsScreen() {
 
   const metrics = [
     { label: t("merchant_admin.grossSales"), value: earnings?.grossSalesCop, icon: "trending-up" as const, color: C.primary },
+    { label: t("merchant_admin.totalTips"), value: earnings?.totalTipsCop, icon: "gift" as const, color: C.success },
     { label: t("merchant_admin.cogs"), value: earnings?.cogsCop, icon: "package" as const, color: C.textSecondary },
     { label: t("merchant_admin.grossProfit"), value: earnings?.grossProfitCop, icon: "dollar-sign" as const, color: C.success },
     { label: t("merchant_admin.commissionAmount"), value: earnings?.totalCommissionCop, icon: "percent" as const, color: C.warning },
