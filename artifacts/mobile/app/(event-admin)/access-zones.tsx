@@ -292,7 +292,7 @@ export default function AccessZonesScreen() {
             />
 
             <Input
-              label={t("zones.rank")}
+              label={t("zones.rankLabel")}
               value={form.rank}
               onChangeText={(v) => setForm((f) => ({ ...f, rank: v.replace(/[^0-9]/g, "") }))}
               keyboardType="number-pad"
@@ -300,7 +300,7 @@ export default function AccessZonesScreen() {
             />
 
             <Input
-              label={`${t("zones.upgradePrice")} (${t("common.optional")})`}
+              label={t("zones.upgradePriceLabel")}
               value={form.upgradePriceCop}
               onChangeText={(v) => setForm((f) => ({ ...f, upgradePriceCop: v.replace(/[^0-9]/g, "") }))}
               keyboardType="number-pad"
