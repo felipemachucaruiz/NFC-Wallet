@@ -1,3 +1,13 @@
+node_modules/
+.git/
+attached_assets/
+
+artifacts/api-server/
+artifacts/attendee-api/
+artifacts/attendee-app/
+artifacts/mockup-sandbox/
+scripts/
+
 artifacts/mobile/dist/
 artifacts/mobile/.expo/
 artifacts/mobile/nohup.out
@@ -6,5 +16,11 @@ artifacts/attendee-app/.expo/
 artifacts/api-server/dist/
 artifacts/attendee-api/dist/
 lib/*/dist/
+
 **/*.log
 **/*.map
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
