@@ -103,7 +103,9 @@
     "featureOffline": "Funciona sin conexión",
     "disclaimer": "Solo para personal autorizado del evento",
     "rememberMe": "Mantenerme conectado",
-    "rememberMeHint": "Tu sesión se guardará de forma segura en este dispositivo"
+    "rememberMeHint": "Tu sesión se guardará de forma segura en este dispositivo",
+    "networkError": "Error de red — verifica la conexión",
+    "profileError": "Error cargando perfil. Intenta de nuevo."
   },
   "passcode": {
     "enterPin": "Ingresa tu PIN",

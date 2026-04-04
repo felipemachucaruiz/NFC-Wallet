@@ -103,7 +103,9 @@
     "featureOffline": "Works offline",
     "disclaimer": "For authorized event staff only",
     "rememberMe": "Keep me signed in",
-    "rememberMeHint": "Your session will be saved securely on this device"
+    "rememberMeHint": "Your session will be saved securely on this device",
+    "networkError": "Network error — check your connection",
+    "profileError": "Could not load profile. Please try again."
   },
   "passcode": {
     "enterPin": "Enter your PIN",
