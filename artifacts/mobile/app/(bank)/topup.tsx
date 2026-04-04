@@ -18,6 +18,14 @@ import { writeDesfireBracelet, type DesfireTagInfo } from "@/utils/desfire";
 import { computeHmac } from "@/utils/hmac";
 import { formatCOP, parseCOPInput } from "@/utils/format";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
+import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
+
+function parsePhoneParam(raw: string | undefined): { country: CountryCode; number: string } {
+  if (!raw) return { country: COUNTRY_CODES[0], number: "" };
+  const matched = COUNTRY_CODES.find((c) => raw.startsWith(c.code));
+  if (matched) return { country: matched, number: raw.slice(matched.code.length).trimStart() };
+  return { country: COUNTRY_CODES[0], number: raw };
+}
 
 type PaymentMethod = "cash" | "card_external" | "nequi_transfer" | "bancolombia_transfer" | "other";
 
@@ -107,7 +115,8 @@ export default function TopUpScreen() {
   const cancelledRef = useRef(false);
 
   const [attendeeName, setAttendeeName] = useState(params.attendeeName ?? "");
-  const [phone, setPhone] = useState(params.phone ?? "");
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>(() => parsePhoneParam(params.phone).country);
+  const [phone, setPhone] = useState(() => parsePhoneParam(params.phone).number);
   const [email, setEmail] = useState(params.email ?? "");
 
   const { data: keyData } = useGetSigningKey();
@@ -137,7 +146,9 @@ export default function TopUpScreen() {
       writingRef.current = false;
       cancelledRef.current = false;
       setAttendeeName(params.attendeeName ?? "");
-      setPhone(params.phone ?? "");
+      const parsed = parsePhoneParam(params.phone);
+      setPhoneCountry(parsed.country);
+      setPhone(parsed.number);
       setEmail(params.email ?? "");
       return () => {
         cancelledRef.current = true;
@@ -177,7 +188,7 @@ export default function TopUpScreen() {
     try {
       const contactUpdates: { attendeeName?: string; phone?: string; email?: string } = {};
       if (attendeeName.trim()) contactUpdates.attendeeName = attendeeName.trim();
-      if (phone.trim()) contactUpdates.phone = phone.trim();
+      if (phone.trim()) contactUpdates.phone = phoneCountry.code + phone.trim();
       if (email.trim()) contactUpdates.email = email.trim();
       if (Object.keys(contactUpdates).length > 0) {
         await updateContact.mutateAsync({ nfcUid: uid, data: contactUpdates });
@@ -420,13 +431,12 @@ export default function TopUpScreen() {
           value={attendeeName}
           onChangeText={setAttendeeName}
         />
-        <TextInput
-          style={[styles.contactInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+        <PhoneInput
+          number={phone}
+          onNumberChange={setPhone}
+          country={phoneCountry}
+          onCountryChange={setPhoneCountry}
           placeholder={t("bank.phone")}
-          placeholderTextColor={C.textMuted}
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
         />
         <TextInput
           style={[styles.contactInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}

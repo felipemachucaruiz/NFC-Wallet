@@ -11,6 +11,7 @@ import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSubmitRefundRequest } from "@/hooks/useAttendeeApi";
+import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
 
 type RefundMethod = "cash" | "nequi" | "bancolombia" | "other";
 
@@ -39,6 +40,7 @@ export default function AttendeeRefundRequestScreen() {
   const balance = parseInt(params.balance ?? "0", 10);
 
   const [refundMethod, setRefundMethod] = useState<RefundMethod>("cash");
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
   const [accountDetails, setAccountDetails] = useState("");
   const [notes, setNotes] = useState("");
   const [step, setStep] = useState<"form" | "success">("form");
@@ -59,7 +61,9 @@ export default function AttendeeRefundRequestScreen() {
               await submitRequest.mutateAsync({
                 braceletUid: uid,
                 refundMethod,
-                accountDetails: accountDetails.trim() || undefined,
+                accountDetails: refundMethod === "nequi" && accountDetails.trim()
+                  ? `${phoneCountry.code}${accountDetails.trim()}`
+                  : accountDetails.trim() || undefined,
                 notes: notes.trim() || undefined,
               });
               setStep("success");
@@ -173,14 +177,24 @@ export default function AttendeeRefundRequestScreen() {
       </View>
 
       {selectedMethod?.needsAccount && (
-        <TextInput
-          style={[styles.textInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
-          placeholder={t("attendeeRefund.accountPlaceholder")}
-          placeholderTextColor={C.textMuted}
-          value={accountDetails}
-          onChangeText={setAccountDetails}
-          keyboardType="phone-pad"
-        />
+        refundMethod === "nequi" ? (
+          <PhoneInput
+            number={accountDetails}
+            onNumberChange={setAccountDetails}
+            country={phoneCountry}
+            onCountryChange={setPhoneCountry}
+            placeholder={t("attendeeRefund.accountPlaceholder")}
+          />
+        ) : (
+          <TextInput
+            style={[styles.textInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+            placeholder={t("attendeeRefund.accountPlaceholder")}
+            placeholderTextColor={C.textMuted}
+            value={accountDetails}
+            onChangeText={setAccountDetails}
+            keyboardType="phone-pad"
+          />
+        )
       )}
 
       <TextInput

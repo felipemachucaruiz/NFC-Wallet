@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Empty } from "@/components/ui/Empty";
 import { Input } from "@/components/ui/Input";
+import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -82,6 +83,7 @@ export default function ClientsScreen() {
   const [showCreateCompany, setShowCreateCompany] = useState(false);
   const [editCompany, setEditCompany] = useState<PromoterCompany | null>(null);
   const [companyForm, setCompanyForm] = useState(emptyCompanyForm());
+  const [companyPhoneCountry, setCompanyPhoneCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
   const [savingCompany, setSavingCompany] = useState(false);
 
   const { data: eventsData, refetch: refetchEvents } = useListEvents();
@@ -211,7 +213,11 @@ export default function ClientsScreen() {
   const openCreateCompany = () => { setCompanyForm(emptyCompanyForm()); setShowCreateCompany(true); };
   const openEditCompany = (c: PromoterCompany) => {
     setEditCompany(c);
-    setCompanyForm({ companyName: c.companyName, nit: c.nit ?? "", address: c.address ?? "", phone: c.phone ?? "", email: c.email ?? "" });
+    const rawPhone = c.phone ?? "";
+    const matched = COUNTRY_CODES.find((cc) => rawPhone.startsWith(cc.code));
+    setCompanyPhoneCountry(matched ?? COUNTRY_CODES[0]);
+    const numberPart = matched ? rawPhone.slice(matched.code.length).trimStart() : rawPhone;
+    setCompanyForm({ companyName: c.companyName, nit: c.nit ?? "", address: c.address ?? "", phone: numberPart, email: c.email ?? "" });
   };
 
   const handleSaveCompany = async () => {
@@ -221,7 +227,7 @@ export default function ClientsScreen() {
       companyName: companyForm.companyName.trim(),
       nit: companyForm.nit.trim() || undefined,
       address: companyForm.address.trim() || undefined,
-      phone: companyForm.phone.trim() || undefined,
+      phone: companyForm.phone.trim() ? companyPhoneCountry.code + companyForm.phone.trim() : undefined,
       email: companyForm.email.trim() || undefined,
     };
     try {
@@ -543,7 +549,13 @@ export default function ClientsScreen() {
             <Input label={t("promoterCompany.companyName")} value={companyForm.companyName} onChangeText={(v) => setCompanyForm((f) => ({ ...f, companyName: v }))} placeholder="Festival S.A.S." />
             <Input label={t("promoterCompany.nit")} value={companyForm.nit} onChangeText={(v) => setCompanyForm((f) => ({ ...f, nit: v }))} placeholder="900.123.456-7" keyboardType="numeric" />
             <Input label={t("promoterCompany.address")} value={companyForm.address} onChangeText={(v) => setCompanyForm((f) => ({ ...f, address: v }))} placeholder="Calle 93 # 14-20, Bogotá" />
-            <Input label={t("promoterCompany.phone")} value={companyForm.phone} onChangeText={(v) => setCompanyForm((f) => ({ ...f, phone: v }))} placeholder="+57 601 000 0000" keyboardType="phone-pad" />
+            <PhoneInput
+              label={t("promoterCompany.phone")}
+              number={companyForm.phone}
+              onNumberChange={(v) => setCompanyForm((f) => ({ ...f, phone: v }))}
+              country={companyPhoneCountry}
+              onCountryChange={setCompanyPhoneCountry}
+            />
             <Input label={t("promoterCompany.email")} value={companyForm.email} onChangeText={(v) => setCompanyForm((f) => ({ ...f, email: v }))} placeholder="contacto@festival.com.co" keyboardType="email-address" autoCapitalize="none" />
             <View style={styles.sheetActions}>
               <Button title={t("common.cancel")} onPress={() => { setShowCreateCompany(false); setEditCompany(null); }} variant="secondary" />

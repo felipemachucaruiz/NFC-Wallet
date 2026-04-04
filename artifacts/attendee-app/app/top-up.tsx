@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
+import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 import { useInitiateTopUp, useMyBracelets } from "@/hooks/useAttendeeApi";
 
 type DigitalMethod = "nequi" | "pse";
@@ -70,6 +71,7 @@ export default function TopUpScreen() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [method, setMethod] = useState<DigitalMethod>("nequi");
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedBank, setSelectedBank] = useState<{ code: string; name: string } | null>(null);
   const [showBankPicker, setShowBankPicker] = useState(false);
@@ -293,14 +295,12 @@ export default function TopUpScreen() {
             <Text style={[styles.hintText, { color: C.textSecondary }]}>
               {t("topUp.nequiHint")}
             </Text>
-            <TextInput
-              style={inputStyle}
+            <PhoneInput
+              number={phoneNumber}
+              onNumberChange={setPhoneNumber}
+              country={phoneCountry}
+              onCountryChange={setPhoneCountry}
               placeholder={t("topUp.nequiPlaceholder")}
-              placeholderTextColor={C.textMuted}
-              keyboardType="phone-pad"
-              maxLength={13}
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
             />
           </Card>
         )}

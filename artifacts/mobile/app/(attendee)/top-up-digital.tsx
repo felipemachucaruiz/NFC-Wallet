@@ -13,6 +13,7 @@ import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
+import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
 
 type DigitalMethod = "nequi" | "pse";
 
@@ -62,6 +63,7 @@ export default function TopUpDigitalScreen() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [method, setMethod] = useState<DigitalMethod>("nequi");
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedBank, setSelectedBank] = useState<{ code: string; name: string } | null>(null);
   const [showBankPicker, setShowBankPicker] = useState(false);
@@ -223,14 +225,11 @@ export default function TopUpDigitalScreen() {
             <Text style={[styles.hintText, { color: C.textSecondary }]}>
               Ingresa el número de celular vinculado a tu cuenta Nequi.
             </Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
-              placeholder="300 123 4567"
-              placeholderTextColor={C.textMuted}
-              keyboardType="phone-pad"
-              maxLength={13}
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
+            <PhoneInput
+              number={phoneNumber}
+              onNumberChange={setPhoneNumber}
+              country={phoneCountry}
+              onCountryChange={setPhoneCountry}
             />
           </Card>
         )}

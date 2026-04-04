@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
 import { ATTENDEE_API_BASE_URL } from "@/constants/domain";
+import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
 
 type Step = "lookup" | "payment" | "processing" | "done" | "failed";
 type PayMethod = "nequi" | "pse";
@@ -62,6 +63,7 @@ export default function SelfServiceScreen() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [method, setMethod] = useState<PayMethod>("nequi");
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
   const [phone, setPhone] = useState("");
   const [selectedBank, setSelectedBank] = useState<{ code: string; name: string } | null>(null);
   const [showBankPicker, setShowBankPicker] = useState(false);
@@ -254,6 +256,7 @@ export default function SelfServiceScreen() {
     setSelectedAmount(null);
     setCustomAmount("");
     setMethod("nequi");
+    setPhoneCountry(COUNTRY_CODES[0]);
     setPhone("");
     setSelectedBank(null);
     setIntentId(null);
@@ -532,21 +535,11 @@ export default function SelfServiceScreen() {
                 <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
                   NÚMERO NEQUI
                 </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: C.inputBg,
-                      borderColor: C.border,
-                      color: C.text,
-                    },
-                  ]}
-                  placeholder="300 123 4567"
-                  placeholderTextColor={C.textMuted}
-                  keyboardType="phone-pad"
-                  maxLength={13}
-                  value={phone}
-                  onChangeText={setPhone}
+                <PhoneInput
+                  number={phone}
+                  onNumberChange={setPhone}
+                  country={phoneCountry}
+                  onCountryChange={setPhoneCountry}
                 />
                 <Text style={[styles.hint, { color: C.textSecondary }]}>
                   Recibirás una notificación en tu app Nequi para confirmar.
