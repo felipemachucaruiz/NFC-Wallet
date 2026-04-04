@@ -75,6 +75,28 @@ export function useBlockBracelet() {
   });
 }
 
+export function useUnlinkBracelet() {
+  const headers = useAuthHeaders();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ uid }: { uid: string }) => {
+      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/bracelets/${encodeURIComponent(uid)}`, {
+        method: "DELETE",
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      return res.json() as Promise<{ success: boolean; uid: string; balanceCop: number }>;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["attendee", "bracelets"] });
+    },
+  });
+}
+
 export function useSubmitRefundRequest() {
   const headers = useAuthHeaders();
   const queryClient = useQueryClient();

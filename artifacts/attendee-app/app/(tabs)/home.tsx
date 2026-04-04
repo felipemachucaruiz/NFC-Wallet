@@ -281,6 +281,18 @@ export default function HomeScreen() {
                     </Pressable>
                     <Pressable
                       style={styles.actionBtn}
+                      onPress={() => router.push({
+                        pathname: "/unlink-bracelet",
+                        params: { uid: b.uid, balance: String(b.balanceCop) },
+                      })}
+                    >
+                      <View style={[styles.actionIcon, { backgroundColor: "#4C1D9520" }]}>
+                        <Feather name="user-x" size={14} color="#7C3AED" />
+                      </View>
+                      <Text style={[styles.actionText, { color: "#7C3AED" }]}>{t("home.transfer")}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.actionBtn}
                       onPress={() => router.push({ pathname: "/block-bracelet", params: { uid: b.uid } })}
                     >
                       <View style={[styles.actionIcon, { backgroundColor: C.dangerLight }]}>

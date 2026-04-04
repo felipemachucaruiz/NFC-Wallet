@@ -542,6 +542,44 @@ router.post(
   }
 );
 
+router.delete(
+  "/attendee/me/bracelets/:uid",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    const userId = req.user.id;
+    const rawUid = (req.params as { uid: string }).uid;
+
+    const uid = normalizeUidLocal(rawUid);
+    if (!uid) {
+      res.status(400).json({ error: "Invalid UID format. Must be 4, 7, or 10 hex bytes." });
+      return;
+    }
+
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(and(eq(braceletsTable.nfcUid, uid), eq(braceletsTable.attendeeUserId, userId)));
+
+    if (!bracelet) {
+      res.status(404).json({ error: "Bracelet not found or not linked to your account" });
+      return;
+    }
+
+    await db
+      .update(braceletsTable)
+      .set({
+        attendeeUserId: null,
+        attendeeName: null,
+        email: null,
+        phone: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(braceletsTable.nfcUid, uid));
+
+    res.json({ success: true, uid, balanceCop: bracelet.lastKnownBalanceCop });
+  }
+);
+
 router.get(
   "/attendee/me/refund-requests",
   requireRole("attendee"),

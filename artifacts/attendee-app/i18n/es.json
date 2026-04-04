@@ -73,7 +73,8 @@
     "nfcDetectedHint": "Esta pulsera aún no está vinculada a tu cuenta. ¿Qué quieres hacer?",
     "addBraceletAction": "Vincular a mi cuenta",
     "topUpAction": "Recargar",
-    "braceletLinked": "¡Pulsera vinculada!"
+    "braceletLinked": "¡Pulsera vinculada!",
+    "transfer": "Transferir"
   },
   "addBracelet": {
     "title": "Agregar pulsera",
@@ -113,6 +114,19 @@
     "selectEvent": "Selecciona tu evento",
     "noEvents": "No se encontraron eventos cercanos",
     "noEventsHint": "Por favor pide ayuda al personal del evento."
+  },
+  "unlink": {
+    "title": "Transferir pulsera",
+    "wristband": "Pulsera",
+    "balanceWarning": "Esta pulsera tiene {{amount}} cargado. El saldo queda en la pulsera y estará disponible para quien la reclame.",
+    "whatHappens": "Qué pasa al transferir",
+    "bullet1": "La pulsera se desvincula de tu cuenta",
+    "bullet2": "El saldo permanece en la pulsera — ideal para regalar",
+    "bullet3": "Tus datos personales se eliminan de la pulsera",
+    "unlinkBtn": "Transferir pulsera",
+    "unlinking": "Transfiriendo...",
+    "successTitle": "¡Pulsera transferida!",
+    "successMsg": "Ahora está libre para que otra persona la vincule desde la app."
   },
   "history": {
     "tab": "Historial",

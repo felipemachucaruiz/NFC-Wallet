@@ -73,7 +73,8 @@
     "nfcDetectedHint": "This wristband is not linked to your account yet. What would you like to do?",
     "addBraceletAction": "Link to my account",
     "topUpAction": "Top up",
-    "braceletLinked": "Wristband linked!"
+    "braceletLinked": "Wristband linked!",
+    "transfer": "Transfer"
   },
   "addBracelet": {
     "title": "Add Wristband",
@@ -113,6 +114,19 @@
     "selectEvent": "Select your event",
     "noEvents": "No events found nearby",
     "noEventsHint": "Please ask event staff for assistance."
+  },
+  "unlink": {
+    "title": "Transfer Wristband",
+    "wristband": "Wristband",
+    "balanceWarning": "This wristband has {{amount}} loaded. The balance stays with the wristband and will be available to whoever claims it next.",
+    "whatHappens": "What happens when you transfer",
+    "bullet1": "The wristband is removed from your account",
+    "bullet2": "The balance stays on the wristband — perfect for gifting",
+    "bullet3": "Your personal data is cleared from the wristband",
+    "unlinkBtn": "Transfer wristband",
+    "unlinking": "Transferring...",
+    "successTitle": "Wristband transferred!",
+    "successMsg": "It is now free for someone else to claim. They can link it via the app."
   },
   "history": {
     "tab": "History",
