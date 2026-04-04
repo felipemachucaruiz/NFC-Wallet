@@ -70,27 +70,38 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 `expo-updates` is configured. JS/TS changes do NOT require a new APK — push them OTA in ~60 seconds.
 
-**Push an update (from workspace root):**
+### ⚠️ CRITICAL OTA RULE — ALWAYS PUSH TO BOTH BRANCHES
+
+**Every OTA must go to BOTH `preview` AND `production`. Always. No exceptions.**
+
+**Staff app** (`artifacts/mobile`):
 ```bash
 cd artifacts/mobile
-pnpm run update -- --message "Description of changes"
-# or for development channel:
-pnpm run update:dev -- --message "Description of changes"
+bash ota-update.sh preview "Description of changes"
+bash ota-update.sh production "Description of changes"
 ```
 
-**When you DO need a full APK build:**
+**Attendee app** (`artifacts/attendee-app`):
+```bash
+cd artifacts/attendee-app
+bash ota-update.sh "Description of changes"
+# The script automatically pushes to both preview and production.
+```
+
+Both scripts set `EAS_SKIP_AUTO_FINGERPRINT=1` and hardcode the production domains automatically — never pass env vars manually.
+
+**After sending an OTA** users must: open app → wait 15s → force close → reopen.
+
+**When you DO need a full APK build (no OTA possible):**
 - New native module added (NFC, camera, etc.)
 - `app.json` permissions or splash changes
 - Major Expo SDK upgrade
 
 **EAS config:**
 - Account: `felipemachucadj` (already logged in)
-- Project ID: `26d76893-d65f-457a-b2eb-7fa177110638`
-- Channels: `preview` (production-like APK), `development` (dev client APK)
+- Staff project ID: `26d76893-d65f-457a-b2eb-7fa177110638`
+- Channels: `preview` (production APK), `production` (production APK), `development` (dev client APK)
 - Runtime version policy: `appVersion` — tied to the version field in app.json
-- Dashboard: https://expo.dev/accounts/felipemachucadj/projects/mobile/updates
-
-**Note:** The next APK build (`pnpm run build:apk`) will embed expo-updates so devices can auto-receive OTA updates on launch.
 
 ## Packages
 
