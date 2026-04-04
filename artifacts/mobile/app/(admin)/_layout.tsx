@@ -1,8 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs, router } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
@@ -10,46 +8,6 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
-
-function NativeTabLayout() {
-  const { t } = useTranslation();
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "chart.pie", selected: "chart.pie.fill" }} />
-        <Label>{t("admin.overview")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="clients">
-        <Icon sf={{ default: "person.2.circle", selected: "person.2.circle.fill" }} />
-        <Label>{t("admin.clients")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="events">
-        <Icon sf={{ default: "calendar", selected: "calendar.fill" }} />
-        <Label>{t("admin.events")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="bracelets">
-        <Icon sf={{ default: "wave.3.right.circle", selected: "wave.3.right.circle.fill" }} />
-        <Label>{t("admin.braceletMgmt")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="analytics">
-        <Icon sf={{ default: "waveform.path.ecg", selected: "waveform.path.ecg" }} />
-        <Label>{t("analytics.title")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="reports">
-        <Icon sf={{ default: "banknote", selected: "banknote.fill" }} />
-        <Label>{t("admin.billing")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="fraud-alerts">
-        <Icon sf={{ default: "exclamationmark.shield", selected: "exclamationmark.shield.fill" }} />
-        <Label>{t("fraud.alertsTitle")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="roles">
-        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
-        <Label>{t("admin.settings")}</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
 
 function ClassicTabLayout() {
   const { t } = useTranslation();
@@ -113,6 +71,5 @@ export default function AdminLayout() {
       </View>
     );
   }
-  if (Platform.OS !== "web" && isLiquidGlassAvailable()) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }

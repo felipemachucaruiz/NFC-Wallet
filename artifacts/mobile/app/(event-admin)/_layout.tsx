@@ -1,8 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs, router } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
@@ -10,34 +8,6 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { EventProvider } from "@/contexts/EventContext";
-
-function NativeTabLayout() {
-  const { t } = useTranslation();
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "chart.pie", selected: "chart.pie.fill" }} />
-        <Label>{t("eventAdmin.dashboard")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="merchants">
-        <Icon sf={{ default: "storefront", selected: "storefront.fill" }} />
-        <Label>{t("eventAdmin.merchants")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="fraud-alerts">
-        <Icon sf={{ default: "exclamationmark.shield", selected: "exclamationmark.shield.fill" }} />
-        <Label>{t("fraud.alertsTitle")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="reports">
-        <Icon sf={{ default: "doc.chart", selected: "doc.chart.fill" }} />
-        <Label>{t("eventAdmin.reports")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="more">
-        <Icon sf={{ default: "ellipsis.circle", selected: "ellipsis.circle.fill" }} />
-        <Label>{t("eventAdmin.more")}</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
 
 function ClassicTabLayout() {
   const { t } = useTranslation();
@@ -134,6 +104,9 @@ export default function EventAdminLayout() {
       </View>
     );
   }
-  const layout = (Platform.OS !== "web" && isLiquidGlassAvailable()) ? <NativeTabLayout /> : <ClassicTabLayout />;
-  return <EventProvider>{layout}</EventProvider>;
+  return (
+    <EventProvider>
+      <ClassicTabLayout />
+    </EventProvider>
+  );
 }

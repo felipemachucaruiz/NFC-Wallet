@@ -1,8 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs, router } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
@@ -10,42 +8,6 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
-
-function NativeTabLayout() {
-  const { t } = useTranslation();
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
-        <Label>{t("merchant_admin.earnings")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="locations">
-        <Icon sf={{ default: "mappin.and.ellipse", selected: "mappin.and.ellipse" }} />
-        <Label>{t("merchant_admin.locations")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="products">
-        <Icon sf={{ default: "tag", selected: "tag.fill" }} />
-        <Label>{t("merchant_admin.products")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="stock">
-        <Icon sf={{ default: "shippingbox", selected: "shippingbox.fill" }} />
-        <Label>{t("merchant_admin.inventory")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="staff">
-        <Icon sf={{ default: "person.badge.plus", selected: "person.badge.plus.fill" }} />
-        <Label>{t("merchant_admin.staff")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="payouts">
-        <Icon sf={{ default: "banknote", selected: "banknote.fill" }} />
-        <Label>{t("merchant_admin.payouts")}</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
-        <Label>{t("common.settings")}</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
-}
 
 function ClassicTabLayout() {
   const { t } = useTranslation();
@@ -148,6 +110,5 @@ export default function MerchantAdminLayout() {
       </View>
     );
   }
-  if (Platform.OS !== "web" && isLiquidGlassAvailable()) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }
