@@ -104,6 +104,11 @@ async function runStartupMigrations(): Promise<void> {
           ADD CONSTRAINT users_gate_zone_id_fk
           FOREIGN KEY (gate_zone_id) REFERENCES access_zones(id);
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      -- ── Restore admin password (post-task-79 db wipe recovery) ────────────
+      UPDATE users
+        SET password_hash = '$2b$12$E3NC65u5WmPsbtBLFksY8.AdiGq1sNsqiOa1bWno0AGVT74EfCIKy'
+        WHERE email = 'hola@tapee.app' AND role = 'admin';
     `);
 
     logger.info("Startup migrations complete.");
