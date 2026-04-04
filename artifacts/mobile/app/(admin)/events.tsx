@@ -55,7 +55,7 @@ type PromoterCompany = {
   nit: string | null;
 };
 
-type NfcChipType = "ntag_21x" | "mifare_classic";
+type NfcChipType = "ntag_21x" | "mifare_classic" | "desfire_ev3" | "mifare_ultralight_c";
 
 type EventItem = {
   id: string;
@@ -778,10 +778,20 @@ function EventFormFields({
       <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
         {t("eventAdmin.nfcChipSettings")}
       </Text>
-      {(["ntag_21x", "mifare_classic"] as NfcChipType[]).map((chip) => {
+      {(["ntag_21x", "mifare_classic", "mifare_ultralight_c", "desfire_ev3"] as NfcChipType[]).map((chip) => {
         const isSelected = nfcChipType === chip;
-        const label = chip === "ntag_21x" ? t("eventAdmin.ntag21x") : t("eventAdmin.mifareClassic");
-        const desc = chip === "ntag_21x" ? t("eventAdmin.ntag21xDesc") : t("eventAdmin.mifareClassicDesc");
+        const labelKey: Record<NfcChipType, string> = {
+          ntag_21x: t("eventAdmin.ntag21x"),
+          mifare_classic: t("eventAdmin.mifareClassic"),
+          mifare_ultralight_c: t("eventAdmin.mifareUltralightC"),
+          desfire_ev3: t("eventAdmin.desfireEv3"),
+        };
+        const descKey: Record<NfcChipType, string> = {
+          ntag_21x: t("eventAdmin.ntag21xDesc"),
+          mifare_classic: t("eventAdmin.mifareClassicDesc"),
+          mifare_ultralight_c: t("eventAdmin.mifareUltralightCDesc"),
+          desfire_ev3: t("eventAdmin.desfireEv3Desc"),
+        };
         return (
           <Pressable
             key={chip}
@@ -795,8 +805,8 @@ function EventFormFields({
             ]}
           >
             <View style={{ flex: 1 }}>
-              <Text style={[styles.clientOptionName, { color: isSelected ? C.primary : C.text }]}>{label}</Text>
-              <Text style={[styles.clientOptionSub, { color: C.textMuted }]}>{desc}</Text>
+              <Text style={[styles.clientOptionName, { color: isSelected ? C.primary : C.text }]}>{labelKey[chip]}</Text>
+              <Text style={[styles.clientOptionSub, { color: C.textMuted }]}>{descKey[chip]}</Text>
             </View>
             {isSelected && <Feather name="check-circle" size={18} color={C.primary} />}
           </Pressable>
@@ -807,6 +817,14 @@ function EventFormFields({
           <Feather name="alert-triangle" size={16} color={C.warning} />
           <Text style={[styles.clientOptionSub, { color: C.warning, flex: 1 }]}>
             {t("eventAdmin.mifareClassicWarning")}
+          </Text>
+        </View>
+      )}
+      {nfcChipType === "desfire_ev3" && (
+        <View style={[styles.clientOption, { backgroundColor: C.warning + "18", borderColor: C.warning }]}>
+          <Feather name="alert-triangle" size={16} color={C.warning} />
+          <Text style={[styles.clientOptionSub, { color: C.warning, flex: 1 }]}>
+            {t("eventAdmin.desfireEv3Compatibility")}
           </Text>
         </View>
       )}
