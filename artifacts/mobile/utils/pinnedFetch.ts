@@ -205,23 +205,33 @@ export const pinnedFetch: typeof fetch = (input, init) => {
       );
       return withTimeout(fetch(input, init));
     }
-    throw new Error(
-      "[pinnedFetch] Certificate pinning module is required in release builds " +
-        "but react-native-ssl-pinning is not available. " +
-        "The native build must include this module.",
+    // Fail gracefully — return rejected promise so React Query handles the error
+    // rather than throwing synchronously (which can crash the JS thread on Android).
+    return Promise.reject(
+      new Error(
+        "[pinnedFetch] Certificate pinning module is required in release builds " +
+          "but react-native-ssl-pinning is not available.",
+      ),
     );
   }
 
-  const sslFetch = getSslFetch();
-  const rawPromise = (
-    sslFetch as (
-      url: string,
-      options: Record<string, unknown>,
-    ) => Promise<Record<string, unknown>>
-  )(url, {
-    ...(init ?? {}),
-    sslPinning: { certs: SSL_CERTS },
-  });
+  try {
+    const sslFetch = getSslFetch();
+    const rawPromise = (
+      sslFetch as (
+        url: string,
+        options: Record<string, unknown>,
+      ) => Promise<Record<string, unknown>>
+    )(url, {
+      ...(init ?? {}),
+      sslPinning: { certs: SSL_CERTS },
+    });
 
-  return withTimeout(rawPromise.then(adaptSslPinningResponse));
+    return withTimeout(rawPromise.then(adaptSslPinningResponse));
+  } catch (e) {
+    // Convert any synchronous throw from the native SSL module into a rejected
+    // promise so the error is surfaced through React Query (isError) rather than
+    // crashing the JavaScript thread.
+    return Promise.reject(e instanceof Error ? e : new Error(String(e)));
+  }
 };
