@@ -27,6 +27,7 @@
     "ok": "OK",
     "done": "Listo",
     "warning": "Advertencia",
+    "danger": "Zona de peligro",
     "success": "Éxito",
     "failed": "Fallido",
     "pending": "Pendiente",
@@ -692,7 +693,17 @@
     "eventCloseFailed": "Error al cerrar el evento",
     "closeEventPendingWarning": "{{count}} solicitud(es) de reembolso pendiente(s) deben resolverse antes de cerrar. Si cierras forzosamente, estos asistentes no recibirán sus reembolsos automáticamente.",
     "forceCloseEvent": "Forzar cierre de todas formas",
-    "closeEventRefundCheckFailed": "No se pudo verificar las solicitudes de reembolso pendientes. Por favor, reintenta antes de cerrar el evento."
+    "closeEventRefundCheckFailed": "No se pudo verificar las solicitudes de reembolso pendientes. Por favor, reintenta antes de cerrar el evento.",
+    "usernameNoSpaces": "El nombre de usuario no puede contener espacios",
+    "deleteUser": "Eliminar usuario",
+    "deleteUserConfirm": "¿Eliminar permanentemente a {{name}}? Esta acción no se puede deshacer.",
+    "userDeleted": "Usuario eliminado",
+    "blockUser": "Bloquear usuario",
+    "unblockUser": "Desbloquear usuario",
+    "blockUserConfirm": "¿Bloquear a {{name}}? No podrá iniciar sesión hasta que sea desbloqueado.",
+    "userBlocked": "Usuario bloqueado",
+    "userUnblocked": "Usuario desbloqueado",
+    "blockedBadge": "Bloqueado"
   },
   "inventory": {
     "tab": "Inventario",

@@ -162,6 +162,11 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     return;
   }
 
+  if (user.isBlocked) {
+    res.status(403).json({ error: "Tu cuenta ha sido bloqueada. Contacta al administrador del evento." });
+    return;
+  }
+
   if (!(STAFF_ROLES as readonly string[]).includes(user.role)) {
     res.status(403).json({ error: "Attendee accounts must log in via the attendee app" });
     return;

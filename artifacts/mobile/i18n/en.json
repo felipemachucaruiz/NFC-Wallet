@@ -27,6 +27,7 @@
     "ok": "OK",
     "done": "Done",
     "warning": "Warning",
+    "danger": "Danger zone",
     "success": "Success",
     "failed": "Failed",
     "pending": "Pending",
@@ -703,7 +704,17 @@
     "eventCloseFailed": "Failed to close event",
     "closeEventPendingWarning": "{{count}} pending refund request(s) must be resolved before closing. If you force close, these attendees will not receive their refunds automatically.",
     "forceCloseEvent": "Force close anyway",
-    "closeEventRefundCheckFailed": "Could not verify pending refund requests. Please retry before closing the event."
+    "closeEventRefundCheckFailed": "Could not verify pending refund requests. Please retry before closing the event.",
+    "usernameNoSpaces": "Username cannot contain spaces",
+    "deleteUser": "Delete user",
+    "deleteUserConfirm": "Permanently delete {{name}}? This cannot be undone.",
+    "userDeleted": "User deleted",
+    "blockUser": "Block user",
+    "unblockUser": "Unblock user",
+    "blockUserConfirm": "Block {{name}}? They won't be able to log in until unblocked.",
+    "userBlocked": "User blocked",
+    "userUnblocked": "User unblocked",
+    "blockedBadge": "Blocked"
   },
   "inventory": {
     "tab": "Inventory",

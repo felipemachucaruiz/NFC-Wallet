@@ -75,6 +75,7 @@ async function runStartupMigrations(): Promise<void> {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS expo_push_token      varchar;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS phone                varchar(30);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS gate_zone_id         varchar;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked           boolean NOT NULL DEFAULT false;
 
       -- ── bracelets: recent columns ──────────────────────────────────────────
       ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS access_zone_ids  text[] NOT NULL DEFAULT '{}';

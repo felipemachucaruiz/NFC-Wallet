@@ -436,6 +436,85 @@ router.get("/users/me", requireAuth, async (req: Request, res: Response) => {
 });
 
 /**
+ * DELETE /users/:userId
+ * Permanently delete a user. Admin can delete any user; event_admin can only
+ * delete users that belong to their own event.
+ */
+router.delete(
+  "/users/:userId",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const userId = req.params.userId as string;
+
+    const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!target) {
+      res.status(404).json({ error: "Usuario no encontrado" });
+      return;
+    }
+
+    if (req.user!.role === "event_admin") {
+      if (target.eventId !== req.user!.eventId) {
+        res.status(403).json({ error: "Solo puedes eliminar usuarios de tu propio evento" });
+        return;
+      }
+    }
+
+    // Prevent self-deletion
+    if (target.id === req.user!.id) {
+      res.status(400).json({ error: "No puedes eliminarte a ti mismo" });
+      return;
+    }
+
+    await db.delete(usersTable).where(eq(usersTable.id, userId));
+    res.json({ success: true });
+  },
+);
+
+/**
+ * PATCH /users/:userId/block
+ * Block or unblock a user. Admin can target any user; event_admin only their event users.
+ */
+router.patch(
+  "/users/:userId/block",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const userId = req.params.userId as string;
+    const schema = z.object({ isBlocked: z.boolean() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Se requiere isBlocked (boolean)" });
+      return;
+    }
+
+    const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!target) {
+      res.status(404).json({ error: "Usuario no encontrado" });
+      return;
+    }
+
+    if (req.user!.role === "event_admin") {
+      if (target.eventId !== req.user!.eventId) {
+        res.status(403).json({ error: "Solo puedes gestionar usuarios de tu propio evento" });
+        return;
+      }
+    }
+
+    if (target.id === req.user!.id) {
+      res.status(400).json({ error: "No puedes bloquearte a ti mismo" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(usersTable)
+      .set({ isBlocked: parsed.data.isBlocked, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .returning({ id: usersTable.id, isBlocked: usersTable.isBlocked });
+
+    res.json(updated);
+  },
+);
+
+/**
  * Create a new user account (admin/event_admin only).
  * Used by the staff app to create event_admin client accounts.
  */

@@ -41,6 +41,7 @@ type User = {
   role: string;
   merchantId: string | null;
   gateZoneId: string | null;
+  isBlocked: boolean;
 };
 
 type Merchant = {
@@ -86,6 +87,8 @@ export default function EventAdminUsersScreen() {
   // Reset password
   const [resetPw, setResetPw] = useState("");
   const [isResettingPw, setIsResettingPw] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchData = async () => {
     if (!token) return;
@@ -117,6 +120,9 @@ export default function EventAdminUsersScreen() {
   const handleCreate = async () => {
     if (!username.trim() || !password.trim()) {
       showAlert(t("common.error"), t("common.fillRequired")); return;
+    }
+    if (/\s/.test(username)) {
+      showAlert(t("common.error"), t("eventAdmin.usernameNoSpaces")); return;
     }
     if (MERCHANT_ROLES.includes(selectedRole) && !selectedMerchantId) {
       showAlert(t("common.error"), t("eventAdmin.selectMerchantForRole")); return;
@@ -189,6 +195,92 @@ export default function EventAdminUsersScreen() {
       showAlert(t("common.error"), t("common.unknownError"));
     }
     setIsResettingPw(false);
+  };
+
+  const getDisplayName = (user: User) =>
+    user.firstName && user.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user.username ?? user.email ?? user.id;
+
+  const handleDelete = async () => {
+    if (!editingUser) return;
+    const name = getDisplayName(editingUser);
+    showAlert(
+      t("eventAdmin.deleteUser"),
+      t("eventAdmin.deleteUserConfirm", { name }),
+      [
+        { text: t("common.cancel"), variant: "cancel" },
+        {
+          text: t("eventAdmin.deleteUser"),
+          variant: "danger",
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              const res = await fetch(`${getApiBase()}/api/users/${editingUser.id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (res.ok) {
+                showAlert(t("common.success"), t("eventAdmin.userDeleted"));
+                setEditingUser(null);
+                fetchData();
+              } else {
+                const err = await res.json().catch(() => ({})) as { error?: string };
+                showAlert(t("common.error"), err.error ?? t("common.unknownError"));
+              }
+            } catch {
+              showAlert(t("common.error"), t("common.unknownError"));
+            }
+            setIsDeleting(false);
+          },
+        },
+      ],
+    );
+  };
+
+  const handleBlock = async () => {
+    if (!editingUser) return;
+    const name = getDisplayName(editingUser);
+    const willBlock = !editingUser.isBlocked;
+    if (willBlock) {
+      showAlert(
+        t("eventAdmin.blockUser"),
+        t("eventAdmin.blockUserConfirm", { name }),
+        [
+          { text: t("common.cancel"), variant: "cancel" },
+          {
+            text: t("eventAdmin.blockUser"),
+            variant: "danger",
+            onPress: () => executeBlock(true),
+          },
+        ],
+      );
+    } else {
+      executeBlock(false);
+    }
+  };
+
+  const executeBlock = async (block: boolean) => {
+    if (!editingUser) return;
+    setIsBlocking(true);
+    try {
+      const res = await fetch(`${getApiBase()}/api/users/${editingUser.id}/block`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isBlocked: block }),
+      });
+      if (res.ok) {
+        showAlert(t("common.success"), block ? t("eventAdmin.userBlocked") : t("eventAdmin.userUnblocked"));
+        setEditingUser(null);
+        fetchData();
+      } else {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        showAlert(t("common.error"), err.error ?? t("common.unknownError"));
+      }
+    } catch {
+      showAlert(t("common.error"), t("common.unknownError"));
+    }
+    setIsBlocking(false);
   };
 
   const handleSaveRole = async () => {
@@ -271,6 +363,7 @@ export default function EventAdminUsersScreen() {
                   </View>
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
                     <Badge label={t(`admin.roles.${item.role}`, { defaultValue: item.role })} variant={ROLE_COLORS[item.role as EventAdminRole] ?? "muted"} size="sm" />
+                    {item.isBlocked ? <Badge label={t("eventAdmin.blockedBadge")} variant="danger" size="sm" /> : null}
                     <Feather name="edit-2" size={12} color={C.textMuted} />
                   </View>
                 </View>
@@ -285,7 +378,7 @@ export default function EventAdminUsersScreen() {
         <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
           <ScrollView style={[styles.sheet, { backgroundColor: C.card }]} contentContainerStyle={{ gap: 16, padding: 24 }}>
             <Text style={[styles.sheetTitle, { color: C.text }]}>{t("eventAdmin.createUser")}</Text>
-            <Input label={t("admin.clientUsername")} value={username} onChangeText={(v) => setUsername(v.toLowerCase())} placeholder="juancarlos" autoCapitalize="none" autoCorrect={false} />
+            <Input label={t("admin.clientUsername")} value={username} onChangeText={(v) => setUsername(v.replace(/\s/g, "").toLowerCase())} placeholder="juancarlos" autoCapitalize="none" autoCorrect={false} />
             <Input label={`${t("common.email")} (${t("common.optional")})`} value={email} onChangeText={(v) => setEmail(v.toLowerCase())} keyboardType="email-address" placeholder="user@example.com" autoCapitalize="none" />
             <Input label={t("auth.password")} value={password} onChangeText={setPassword} secureTextEntry placeholder={t("auth.passwordPlaceholder")} />
             <Input label={t("eventAdmin.firstName")} value={firstName} onChangeText={setFirstName} placeholder={t("eventAdmin.firstNamePlaceholder")} />
@@ -444,6 +537,22 @@ export default function EventAdminUsersScreen() {
               onPress={handleResetPassword}
               variant="danger"
               loading={isResettingPw}
+            />
+
+            <View style={[styles.divider, { backgroundColor: C.separator }]} />
+
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("common.danger")}</Text>
+            <Button
+              title={editingUser?.isBlocked ? t("eventAdmin.unblockUser") : t("eventAdmin.blockUser")}
+              onPress={handleBlock}
+              variant="secondary"
+              loading={isBlocking}
+            />
+            <Button
+              title={t("eventAdmin.deleteUser")}
+              onPress={handleDelete}
+              variant="danger"
+              loading={isDeleting}
             />
           </ScrollView>
         </View>
