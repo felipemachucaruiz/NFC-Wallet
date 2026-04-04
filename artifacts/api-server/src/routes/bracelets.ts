@@ -72,14 +72,29 @@ router.get(
 
 router.post(
   "/bracelets",
-  requireRole("bank", "admin"),
+  requireRole("bank", "admin", "gate"),
   async (req: Request, res: Response) => {
     const parsed = registerBraceletSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { nfcUid, eventId, attendeeName, phone, email, maxOfflineSpend } = parsed.data;
+    const { nfcUid, attendeeName, phone, email, maxOfflineSpend } = parsed.data;
+    let { eventId } = parsed.data;
+
+    // Gate users are scoped to their assigned event — enforce it
+    if (req.user!.role === "gate") {
+      if (!req.user!.eventId) {
+        res.status(403).json({ error: "Gate user is not assigned to an event" });
+        return;
+      }
+      // Gate users may only register bracelets for their own event
+      if (eventId && eventId !== req.user!.eventId) {
+        res.status(403).json({ error: "Access denied: you may only register bracelets for your assigned event" });
+        return;
+      }
+      eventId = req.user!.eventId;
+    }
 
     const existing = await db
       .select()

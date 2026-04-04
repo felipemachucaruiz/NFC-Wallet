@@ -90,19 +90,7 @@ async function processTransaction(
     return { status: "duplicate" };
   }
 
-  // Bracelet existence + integrity checks
-  let [bracelet] = await db
-    .select()
-    .from(braceletsTable)
-    .where(eq(braceletsTable.nfcUid, input.nfcUid));
-  if (!bracelet) {
-    return { status: "error", error: "Bracelet not registered" };
-  }
-  if (bracelet.flagged) {
-    return { status: "error", error: "Bracelet is flagged and cannot be used" };
-  }
-
-  // Resolve merchant early so we can check event scoping
+  // Resolve merchant early so we can check event scoping and auto-register
   const accessResult = await checkLocationAccess(input.locationId, user);
   if ("error" in accessResult) {
     return { status: "error", error: accessResult.error };
@@ -114,6 +102,44 @@ async function processTransaction(
     .where(eq(merchantsTable.id, locationForEventCheck.merchantId));
   if (!merchantForEventCheck) {
     return { status: "error", error: "Merchant not found" };
+  }
+
+  // Bracelet existence + integrity checks
+  let [bracelet] = await db
+    .select()
+    .from(braceletsTable)
+    .where(eq(braceletsTable.nfcUid, input.nfcUid));
+
+  if (!bracelet) {
+    // Auto-register unknown bracelet at merchant POS scoped to merchant's event
+    if (!merchantForEventCheck.eventId) {
+      return { status: "error", error: "Bracelet not registered" };
+    }
+    // Inherit maxOfflineSpend from the event default
+    const [eventDefaults] = await db
+      .select({ maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, merchantForEventCheck.eventId));
+    const [created] = await db
+      .insert(braceletsTable)
+      .values({
+        nfcUid: input.nfcUid,
+        eventId: merchantForEventCheck.eventId,
+        maxOfflineSpend: eventDefaults?.maxOfflineSpendPerBracelet ?? null,
+      })
+      .onConflictDoNothing()
+      .returning();
+    if (created) {
+      bracelet = created;
+    } else {
+      const [existing] = await db.select().from(braceletsTable).where(eq(braceletsTable.nfcUid, input.nfcUid));
+      if (!existing) return { status: "error", error: "Failed to auto-register bracelet" };
+      bracelet = existing;
+    }
+  }
+
+  if (bracelet.flagged) {
+    return { status: "error", error: "Bracelet is flagged and cannot be used" };
   }
 
   // Event-scoping guard: when the merchant station is event-scoped, the bracelet must

@@ -15,5 +15,6 @@ export const UserRole = {
   merchant_admin: "merchant_admin",
   warehouse_admin: "warehouse_admin",
   event_admin: "event_admin",
+  gate: "gate",
   admin: "admin",
 } as const;

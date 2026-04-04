@@ -9,6 +9,7 @@ const ROLE_HOME: Record<string, string> = {
   merchant_admin: "/(merchant-admin)/",
   warehouse_admin: "/(warehouse)/",
   event_admin: "/(event-admin)/",
+  gate: "/(gate)/",
   admin: "/(admin)/",
 };
 

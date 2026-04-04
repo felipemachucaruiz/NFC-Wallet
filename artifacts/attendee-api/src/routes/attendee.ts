@@ -195,9 +195,93 @@ router.get(
   }
 );
 
+/**
+ * Haversine distance in metres between two lat/lon points
+ */
+function haversineMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6_371_000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * @summary Get nearby active events sorted by distance from given coordinates.
+ * Events without coordinates are appended at the end.
+ * Requires attendee auth.
+ */
+router.get(
+  "/attendee/events/nearby",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    const latRaw = req.query.lat as string | undefined;
+    const lngRaw = req.query.lng as string | undefined;
+
+    if ((latRaw !== undefined) !== (lngRaw !== undefined)) {
+      res.status(400).json({ error: "Both lat and lng must be provided together" });
+      return;
+    }
+
+    const userLat = latRaw !== undefined ? parseFloat(latRaw) : null;
+    const userLng = lngRaw !== undefined ? parseFloat(lngRaw) : null;
+
+    if (userLat !== null && (isNaN(userLat) || userLat < -90 || userLat > 90)) {
+      res.status(400).json({ error: "lat must be a valid number between -90 and 90" });
+      return;
+    }
+    if (userLng !== null && (isNaN(userLng) || userLng < -180 || userLng > 180)) {
+      res.status(400).json({ error: "lng must be a valid number between -180 and 180" });
+      return;
+    }
+
+    const hasCoords = userLat !== null && userLng !== null;
+
+    const events = await db
+      .select({
+        id: eventsTable.id,
+        name: eventsTable.name,
+        description: eventsTable.description,
+        venueAddress: eventsTable.venueAddress,
+        startsAt: eventsTable.startsAt,
+        endsAt: eventsTable.endsAt,
+        latitude: eventsTable.latitude,
+        longitude: eventsTable.longitude,
+      })
+      .from(eventsTable)
+      .where(eq(eventsTable.active, true));
+
+    type EventRow = typeof events[0];
+    type EventWithDistance = EventRow & { distanceMetres: number | null };
+
+    const withDistance: EventWithDistance[] = events.map((ev) => {
+      const lat = ev.latitude !== null ? parseFloat(ev.latitude as string) : null;
+      const lng = ev.longitude !== null ? parseFloat(ev.longitude as string) : null;
+      const distanceMetres =
+        hasCoords && lat !== null && lng !== null
+          ? haversineMetres(userLat!, userLng!, lat, lng)
+          : null;
+      return { ...ev, distanceMetres };
+    });
+
+    withDistance.sort((a, b) => {
+      if (a.distanceMetres === null && b.distanceMetres === null) return 0;
+      if (a.distanceMetres === null) return 1;
+      if (b.distanceMetres === null) return -1;
+      return a.distanceMetres - b.distanceMetres;
+    });
+
+    res.json({ events: withDistance });
+  }
+);
+
 const linkBraceletSchema = z.object({
   uid: z.string().min(1),
   attendeeName: z.string().optional(),
+  eventId: z.string().optional(),
 });
 
 function normalizeUidLocal(input: string): string | null {
@@ -225,15 +309,29 @@ router.post(
       return;
     }
 
+    const requestedEventId = parsed.data.eventId ?? null;
+
     let [bracelet] = await db
       .select()
       .from(braceletsTable)
       .where(eq(braceletsTable.nfcUid, uid));
 
     if (!bracelet) {
+      // Stub auto-create: bracelet has never been registered anywhere
+      // eventId is required so the stub is associated with the correct event
+      if (!requestedEventId) {
+        res.status(400).json({ error: "eventId is required when linking an unregistered bracelet" });
+        return;
+      }
       const [created] = await db
         .insert(braceletsTable)
-        .values({ nfcUid: uid, lastKnownBalanceCop: 0, lastCounter: 0, pendingSync: false })
+        .values({
+          nfcUid: uid,
+          eventId: requestedEventId,
+          lastKnownBalanceCop: 0,
+          lastCounter: 0,
+          pendingSync: false,
+        })
         .onConflictDoNothing()
         .returning();
       if (created) {

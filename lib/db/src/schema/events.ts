@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, varchar, text, timestamp, boolean, integer, numeric, index, jsonb } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, varchar, text, timestamp, boolean, integer, numeric, index, jsonb, decimal } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const inventoryModeEnum = pgEnum("inventory_mode", ["location_based", "centralized_warehouse"]);
@@ -26,6 +26,8 @@ export const eventsTable = pgTable("events", {
   maxOfflineSpendPerBracelet: integer("max_offline_spend_per_bracelet").notNull().default(200000),
   desfireAesKey: varchar("desfire_aes_key", { length: 64 }),
   ultralightCDesKey: varchar("ultralight_c_des_key", { length: 32 }),
+  latitude: decimal("latitude", { precision: 10, scale: 7 }),
+  longitude: decimal("longitude", { precision: 10, scale: 7 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

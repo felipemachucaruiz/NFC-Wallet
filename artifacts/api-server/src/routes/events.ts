@@ -59,6 +59,8 @@ const createEventSchema = z.object({
   allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic", "desfire_ev3", "mifare_ultralight_c"])).min(1).optional(),
   offlineSyncLimit: z.number().int().positive().optional(),
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
   eventAdmin: z.object({
     email: z.string().email(),
     password: z.string().min(6),
@@ -84,6 +86,8 @@ const updateEventSchema = z.object({
   offlineSyncLimit: z.number().int().positive().optional(),
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
   ultralightCDesKey: z.string().regex(/^[0-9a-fA-F]{32}$/, "ultralightCDesKey must be 32 hex characters (16 bytes)").optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
 });
 
 const SAFE_EVENT_FIELDS = {
@@ -104,6 +108,8 @@ const SAFE_EVENT_FIELDS = {
   allowedNfcTypes: eventsTable.allowedNfcTypes,
   offlineSyncLimit: eventsTable.offlineSyncLimit,
   maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
+  latitude: eventsTable.latitude,
+  longitude: eventsTable.longitude,
   createdAt: eventsTable.createdAt,
   updatedAt: eventsTable.updatedAt,
 };
@@ -190,6 +196,8 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
       allowedNfcTypes: eventsTable.allowedNfcTypes,
       offlineSyncLimit: eventsTable.offlineSyncLimit,
       maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
+      latitude: eventsTable.latitude,
+      longitude: eventsTable.longitude,
       hasHmacSecret: eventsTable.hmacSecret,
       hasDesfireKey: eventsTable.desfireAesKey,
       hasUltralightCKey: eventsTable.ultralightCDesKey,
@@ -214,7 +222,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, eventAdmin } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, latitude, longitude, eventAdmin } = parsed.data;
 
   // Pre-validate event admin email uniqueness BEFORE inserting event (atomicity)
   let normalizedAdminEmail: string | null = null;
@@ -253,6 +261,8 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
         hmacSecret,
         offlineSyncLimit: offlineSyncLimit ?? 500000,
         maxOfflineSpendPerBracelet: maxOfflineSpendPerBracelet ?? 200000,
+        ...(latitude !== undefined && latitude !== null && { latitude: String(latitude) }),
+        ...(longitude !== undefined && longitude !== null && { longitude: String(longitude) }),
       })
       .returning();
 
@@ -307,7 +317,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey } = parsed.data;
+  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude } = parsed.data;
 
   const updateData: Record<string, unknown> = {
     ...(name !== undefined && { name }),
@@ -325,6 +335,8 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(offlineSyncLimit !== undefined && { offlineSyncLimit }),
     ...(maxOfflineSpendPerBracelet !== undefined && { maxOfflineSpendPerBracelet }),
     ...(ultralightCDesKey !== undefined && { ultralightCDesKey }),
+    ...(latitude !== undefined && { latitude: latitude !== null ? String(latitude) : null }),
+    ...(longitude !== undefined && { longitude: longitude !== null ? String(longitude) : null }),
     updatedAt: new Date(),
   };
 
