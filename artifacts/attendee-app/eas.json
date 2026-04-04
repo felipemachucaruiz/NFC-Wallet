@@ -13,8 +13,8 @@
         "gradleCommand": ":app:assembleDebug"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "2814f499-7dcc-4ff4-930a-005c0a1f5aa1-00-354suhrpt8x73.riker.replit.dev",
-        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "2814f499-7dcc-4ff4-930a-005c0a1f5aa1-00-354suhrpt8x73.riker.replit.dev/attendee-api"
+        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
+        "EXPO_PUBLIC_SSL_CERTS": "attendee_api"
       }
     },
     "preview": {
