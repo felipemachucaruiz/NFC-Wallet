@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 24,
   },
-  full: { flex: 1 },
+  full: { flex: 1, backgroundColor: "#0a0a0a" },
   label: {
     fontSize: 15,
     fontFamily: "Inter_400Regular",
