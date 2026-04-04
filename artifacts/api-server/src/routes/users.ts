@@ -435,4 +435,95 @@ router.get("/users/me", requireAuth, async (req: Request, res: Response) => {
   res.json(user);
 });
 
+/**
+ * Create a new user account (admin/event_admin only).
+ * Used by the staff app to create event_admin client accounts.
+ */
+router.post(
+  "/auth/create-account",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const schema = z
+      .object({
+        firstName: z.string().min(1),
+        lastName: z.string().optional(),
+        email: z.string().email().optional(),
+        username: z.string().min(3).optional(),
+        password: z.string().min(6),
+        role: z.enum(["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin"]),
+        eventId: z.string().optional(),
+      })
+      .refine((d) => d.email || d.username, {
+        message: "Debes proporcionar email o nombre de usuario",
+      });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos" });
+      return;
+    }
+
+    const { firstName, lastName, email, username, password, role, eventId } = parsed.data;
+
+    const isEventAdmin = req.user!.role === "event_admin";
+    if (isEventAdmin) {
+      if (!(eventAdminAllowedRoles as readonly string[]).includes(role)) {
+        res.status(403).json({ error: "Event admins cannot create this role" });
+        return;
+      }
+      if (eventId && eventId !== req.user!.eventId) {
+        res.status(403).json({ error: "Event admins can only create users for their own event" });
+        return;
+      }
+    }
+
+    if (email) {
+      const [dup] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.email, email.toLowerCase().trim()));
+      if (dup) {
+        res.status(409).json({ error: "El email ya está registrado" });
+        return;
+      }
+    }
+
+    if (username) {
+      const [dup] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.username, username.trim().toLowerCase()));
+      if (dup) {
+        res.status(409).json({ error: "El nombre de usuario ya está en uso" });
+        return;
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const [newUser] = await db
+      .insert(usersTable)
+      .values({
+        firstName: firstName.trim(),
+        lastName: lastName?.trim() ?? null,
+        email: email ? email.toLowerCase().trim() : null,
+        username: username ? username.trim().toLowerCase() : null,
+        passwordHash,
+        role,
+        eventId: eventId ?? (isEventAdmin ? (req.user!.eventId ?? null) : null),
+      })
+      .returning({
+        id: usersTable.id,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        email: usersTable.email,
+        username: usersTable.username,
+        role: usersTable.role,
+        eventId: usersTable.eventId,
+      });
+
+    res.status(201).json(newUser);
+  },
+);
+
 export default router;
