@@ -17,6 +17,7 @@ import { Loading } from "@/components/ui/Loading";
 import { formatDate } from "@/utils/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { API_BASE_URL } from "@/constants/domain";
+import { LocationMapPicker } from "@/components/LocationMapPicker";
 
 const STATUS_BADGE: Record<string, "success" | "warning" | "muted" | "info" | "danger"> = {
   active: "success",
@@ -89,6 +90,9 @@ export default function EventsScreen() {
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
   const [editActive, setEditActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Map picker
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   // Shared form fields
   const [eventName, setEventName] = useState("");
@@ -213,6 +217,9 @@ export default function EventsScreen() {
     if (!eventName.trim() || !startDate || !endDate) {
       showAlert(t("common.error"), t("admin.eventFieldsRequired")); return;
     }
+    if (!latitude.trim() || !longitude.trim()) {
+      showAlert(t("common.error"), t("admin.locationRequired")); return;
+    }
     if (!selectedCompanyId) {
       showAlert(t("common.error"), t("admin.promoterCompanyRequired")); return;
     }
@@ -284,6 +291,9 @@ export default function EventsScreen() {
     if (!editingEvent) return;
     if (!eventName.trim() || !startDate || !endDate) {
       showAlert(t("common.error"), t("admin.eventFieldsRequired")); return;
+    }
+    if (!latitude.trim() || !longitude.trim()) {
+      showAlert(t("common.error"), t("admin.locationRequired")); return;
     }
     if (!selectedCompanyId) {
       showAlert(t("common.error"), t("admin.promoterCompanyRequired")); return;
@@ -423,9 +433,10 @@ export default function EventsScreen() {
               C={C}
               t={t}
               eventName={eventName} setEventName={setEventName}
-              venue={venue} setVenue={setVenue}
-              latitude={latitude} setLatitude={setLatitude}
-              longitude={longitude} setLongitude={setLongitude}
+              venue={venue}
+              latitude={latitude}
+              longitude={longitude}
+              onPickLocation={() => setShowMapPicker(true)}
               startDate={startDate} setStartDate={setStartDate}
               endDate={endDate} setEndDate={setEndDate}
               platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
@@ -583,9 +594,10 @@ export default function EventsScreen() {
               C={C}
               t={t}
               eventName={eventName} setEventName={setEventName}
-              venue={venue} setVenue={setVenue}
-              latitude={latitude} setLatitude={setLatitude}
-              longitude={longitude} setLongitude={setLongitude}
+              venue={venue}
+              latitude={latitude}
+              longitude={longitude}
+              onPickLocation={() => setShowMapPicker(true)}
               startDate={startDate} setStartDate={setStartDate}
               endDate={endDate} setEndDate={setEndDate}
               platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
@@ -602,6 +614,20 @@ export default function EventsScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* ── LOCATION MAP PICKER ───────────────────────────────────────── */}
+      <LocationMapPicker
+        visible={showMapPicker}
+        initialLatitude={latitude ? parseFloat(latitude) : null}
+        initialLongitude={longitude ? parseFloat(longitude) : null}
+        onConfirm={(result) => {
+          setVenue(result.address || venue);
+          setLatitude(String(result.latitude));
+          setLongitude(String(result.longitude));
+          setShowMapPicker(false);
+        }}
+        onClose={() => setShowMapPicker(false)}
+      />
     </View>
   );
 }
@@ -612,9 +638,10 @@ type Colors = typeof import("@/constants/colors").default.light;
 function EventFormFields({
   C, t,
   eventName, setEventName,
-  venue, setVenue,
-  latitude, setLatitude,
-  longitude, setLongitude,
+  venue,
+  latitude,
+  longitude,
+  onPickLocation,
   startDate, setStartDate,
   endDate, setEndDate,
   platformCommission, setPlatformCommission,
@@ -626,9 +653,10 @@ function EventFormFields({
   C: Colors;
   t: (key: string) => string;
   eventName: string; setEventName: (v: string) => void;
-  venue: string; setVenue: (v: string) => void;
-  latitude: string; setLatitude: (v: string) => void;
-  longitude: string; setLongitude: (v: string) => void;
+  venue: string;
+  latitude: string;
+  longitude: string;
+  onPickLocation: () => void;
   startDate: Date | null; setStartDate: (v: Date | null) => void;
   endDate: Date | null; setEndDate: (v: Date | null) => void;
   platformCommission: string; setPlatformCommission: (v: string) => void;
@@ -638,29 +666,47 @@ function EventFormFields({
   nfcChipType: NfcChipType; setNfcChipType: (v: NfcChipType) => void;
 }) {
   const { show: showAlert } = useAlert();
+  const hasLocation = latitude.trim() && longitude.trim();
   return (
     <>
       <Input label={t("admin.eventName")} value={eventName} onChangeText={setEventName} placeholder={t("admin.eventNamePlaceholder")} />
-      <Input label={t("admin.venue")} value={venue} onChangeText={setVenue} placeholder={t("admin.venuePlaceholder")} />
-      <View style={{ flexDirection: "row", gap: 12 }}>
-        <View style={{ flex: 1 }}>
-          <Input
-            label={`${t("admin.latitude")} (${t("common.optional")})`}
-            value={latitude}
-            onChangeText={setLatitude}
-            keyboardType="decimal-pad"
-            placeholder="4.7110"
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Input
-            label={`${t("admin.longitude")} (${t("common.optional")})`}
-            value={longitude}
-            onChangeText={setLongitude}
-            keyboardType="decimal-pad"
-            placeholder="-74.0721"
-          />
-        </View>
+
+      {/* Location picker row */}
+      <View>
+        <Text style={[styles.sectionLabel, { color: C.textSecondary, marginBottom: 6 }]}>
+          {t("admin.location")} <Text style={{ color: C.danger }}>*</Text>
+        </Text>
+        <Pressable
+          onPress={onPickLocation}
+          style={[
+            styles.locationRow,
+            {
+              backgroundColor: hasLocation ? C.primary + "12" : C.inputBg,
+              borderColor: hasLocation ? C.primary : C.border,
+            },
+          ]}
+        >
+          <View style={[styles.locationIcon, { backgroundColor: hasLocation ? C.primary + "25" : C.border + "60" }]}>
+            <Feather name="map-pin" size={16} color={hasLocation ? C.primary : C.textMuted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            {hasLocation ? (
+              <>
+                {venue ? (
+                  <Text style={[styles.locationAddress, { color: C.text }]} numberOfLines={1}>{venue}</Text>
+                ) : null}
+                <Text style={[styles.locationCoords, { color: C.textSecondary }]}>
+                  {parseFloat(latitude).toFixed(6)}, {parseFloat(longitude).toFixed(6)}
+                </Text>
+              </>
+            ) : (
+              <Text style={[styles.locationPlaceholder, { color: C.textMuted }]}>
+                {t("admin.pickLocationPrompt")}
+              </Text>
+            )}
+          </View>
+          <Text style={[styles.pickLocationBtn, { color: C.primary }]}>{t("admin.pickLocation")}</Text>
+        </Pressable>
       </View>
       <DatePickerInput label={t("admin.startDate")} value={startDate} onChange={setStartDate} placeholder={t("admin.startDatePlaceholder")} />
       <DatePickerInput
@@ -799,4 +845,10 @@ const styles = StyleSheet.create({
   activeRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 12, borderWidth: 1 },
   activeLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   activeSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1 },
+  locationIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  locationAddress: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  locationCoords: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  locationPlaceholder: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  pickLocationBtn: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 });
