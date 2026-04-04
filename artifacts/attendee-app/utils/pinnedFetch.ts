@@ -114,5 +114,14 @@ export const pinnedFetch: typeof fetch = (input, init) => {
   ) => ReturnType<typeof fetch>)(url, {
     ...(init ?? {}),
     sslPinning: { certs: SSL_CERTS },
+  }).catch((caught: unknown) => {
+    const msg =
+      caught instanceof Error && caught.message.length > 0
+        ? caught.message
+        : typeof caught === "string" && caught.length > 0
+          ? caught
+          : "SSL/network error";
+    console.error("[Tapee] bracelet link error:", caught);
+    throw new Error(msg);
   });
 };

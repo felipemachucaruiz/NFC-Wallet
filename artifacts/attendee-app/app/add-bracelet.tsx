@@ -97,8 +97,10 @@ export default function AddBraceletScreen() {
       } else {
         setState("idle");
       }
-    } catch {
-      setState("idle");
+    } catch (err: unknown) {
+      console.error("[Tapee] bracelet link error:", err);
+      setErrorMsg(t("addBracelet.scanFailed"));
+      setState("error");
     }
   };
 

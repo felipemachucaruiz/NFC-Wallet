@@ -97,7 +97,8 @@
     "flaggedTitle": "Wristband blocked",
     "flaggedMsg": "This wristband is blocked. Visit the bank station at the event.",
     "eventLimitTitle": "One wristband per event",
-    "eventLimitMsg": "You already have a wristband linked for this event. Only one is allowed per person."
+    "eventLimitMsg": "You already have a wristband linked for this event. Only one is allowed per person.",
+    "scanFailed": "NFC scan failed. Please try again."
   },
   "history": {
     "tab": "History",

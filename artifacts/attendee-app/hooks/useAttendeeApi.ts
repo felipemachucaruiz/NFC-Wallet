@@ -15,7 +15,8 @@ async function apiFetch<T>(url: string, headers: Record<string, string>): Promis
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? res.statusText);
+    const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
+    throw new Error(msg);
   }
   return res.json() as Promise<T>;
 }
@@ -63,7 +64,8 @@ export function useBlockBracelet() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? res.statusText);
+        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
+        throw new Error(msg);
       }
       return res.json();
     },
@@ -90,7 +92,8 @@ export function useSubmitRefundRequest() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? res.statusText);
+        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
+        throw new Error(msg);
       }
       return res.json();
     },
@@ -112,12 +115,16 @@ export function useLinkBracelet() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? res.statusText);
+        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
+        throw new Error(msg);
       }
       return res.json() as Promise<{ uid: string; balanceCop: number; attendeeName?: string | null }>;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["attendee", "bracelets"] });
+    },
+    onError: (err) => {
+      console.error("[Tapee] bracelet link error:", err);
     },
   });
 }
@@ -139,7 +146,8 @@ export function useInitiateTopUp() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error ?? res.statusText);
+        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
+        throw new Error(msg);
       }
       return res.json() as Promise<{ intentId: string; status: string; redirectUrl?: string | null }>;
     },
