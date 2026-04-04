@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -11,6 +11,7 @@ import {
   useGetSigningKey,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -23,6 +24,7 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 
 export default function BraceletsAdminScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -55,7 +57,7 @@ export default function BraceletsAdminScreen() {
         setSearchUid(result.payload.uid);
       }
     } catch {
-      Alert.alert(t("common.error"), t("pos.scanError"));
+      showAlert(t("common.error"), t("pos.scanError"));
     } finally {
       setScanning(false);
     }
@@ -64,28 +66,28 @@ export default function BraceletsAdminScreen() {
   const handleLookup = () => {
     const trimmed = uid.trim();
     if (!trimmed) {
-      Alert.alert(t("common.error"), t("admin.noUidEntered"));
+      showAlert(t("common.error"), t("admin.noUidEntered"));
       return;
     }
     setSearchUid(trimmed);
   };
 
   const handleUnflag = () => {
-    Alert.alert(
+    showAlert(
       t("admin.unflagBracelet"),
       t("admin.unflagConfirm"),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("admin.unflagBracelet"),
-          style: "default",
+          variant: "primary",
           onPress: async () => {
             try {
               await unflag.mutateAsync({ nfcUid: searchUid });
-              Alert.alert(t("common.success"), t("admin.unflagSuccess"));
+              showAlert(t("common.success"), t("admin.unflagSuccess"));
               refetch();
             } catch {
-              Alert.alert(t("common.error"), t("common.unexpectedError"));
+              showAlert(t("common.error"), t("common.unexpectedError"));
             }
           },
         },
@@ -94,28 +96,28 @@ export default function BraceletsAdminScreen() {
   };
 
   const handleResetBalance = () => {
-    Alert.alert(
+    showAlert(
       t("admin.resetBalance"),
       t("admin.resetBalanceConfirm"),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("admin.resetBalance"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             if (!isNfcSupported()) {
-              Alert.alert(t("common.error"), t("checkBalance.nfcNotSupported"));
+              showAlert(t("common.error"), t("checkBalance.nfcNotSupported"));
               return;
             }
             if (!hmacSecret) {
-              Alert.alert(t("common.error"), t("common.unknownError"));
+              showAlert(t("common.error"), t("common.unknownError"));
               return;
             }
             setResetting(true);
             try {
               await scanAndWriteBracelet(async (payload, tagInfo) => {
                 if (payload.uid !== searchUid) {
-                  Alert.alert(t("common.error"), t("checkBalance.wrongBracelet"));
+                  showAlert(t("common.error"), t("checkBalance.wrongBracelet"));
                   return null;
                 }
                 const newCounter = tagInfo?.type === "MIFARE_CLASSIC"
@@ -127,12 +129,12 @@ export default function BraceletsAdminScreen() {
 
               await customFetch(`/api/admin/bracelets/${searchUid}/reset-balance`, { method: "POST" });
 
-              Alert.alert(t("common.success"), t("admin.resetBalanceSuccess"));
+              showAlert(t("common.success"), t("admin.resetBalanceSuccess"));
               refetch();
             } catch (e: unknown) {
               const msg = (e instanceof Error ? e.message : String(e)) ?? "";
               if (!msg.includes("cancelled") && !msg.includes("UserCancel")) {
-                Alert.alert(t("common.error"), t("admin.resetBalanceError"));
+                showAlert(t("common.error"), t("admin.resetBalanceError"));
               }
             } finally {
               setResetting(false);
@@ -144,22 +146,22 @@ export default function BraceletsAdminScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    showAlert(
       t("admin.deleteRecord"),
       t("admin.deleteRecordConfirm"),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("admin.deleteRecord"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             try {
               await deleteBracelet.mutateAsync({ nfcUid: searchUid });
-              Alert.alert(t("common.success"), t("admin.deleteRecordSuccess"));
+              showAlert(t("common.success"), t("admin.deleteRecordSuccess"));
               setUid("");
               setSearchUid("");
             } catch {
-              Alert.alert(t("common.error"), t("common.unexpectedError"));
+              showAlert(t("common.error"), t("common.unexpectedError"));
             }
           },
         },

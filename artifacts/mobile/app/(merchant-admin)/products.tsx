@@ -3,7 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import React, { useState } from "react";
-import { Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { API_BASE_URL } from "@/constants/domain";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
@@ -48,6 +49,7 @@ const emptyForm: FormState = { name: "", category: "", priceCop: "", costCop: ""
 
 export default function MerchantProductsScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -84,7 +86,7 @@ export default function MerchantProductsScreen() {
       if (Platform.OS !== "web") {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
-          Alert.alert(t("common.error"), t("merchant_admin.photoPermissionDenied"));
+          showAlert(t("common.error"), t("merchant_admin.photoPermissionDenied"));
           return;
         }
       }
@@ -104,7 +106,7 @@ export default function MerchantProductsScreen() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      Alert.alert(t("common.error"), msg);
+      showAlert(t("common.error"), msg);
     }
   };
 
@@ -147,11 +149,11 @@ export default function MerchantProductsScreen() {
   };
 
   const handleCreate = async () => {
-    if (!form.name.trim()) { Alert.alert(t("common.error"), t("merchant_admin.nameRequired")); return; }
-    if (!form.priceCop.trim()) { Alert.alert(t("common.error"), t("merchant_admin.priceRequired")); return; }
+    if (!form.name.trim()) { showAlert(t("common.error"), t("merchant_admin.nameRequired")); return; }
+    if (!form.priceCop.trim()) { showAlert(t("common.error"), t("merchant_admin.priceRequired")); return; }
     const price = parseInt(form.priceCop, 10);
     const cost = parseInt(form.costCop || "0", 10);
-    if (isNaN(price) || price < 0) { Alert.alert(t("common.error"), t("merchant_admin.priceRequired")); return; }
+    if (isNaN(price) || price < 0) { showAlert(t("common.error"), t("merchant_admin.priceRequired")); return; }
     const ivaRateVal = form.ivaExento ? "0" : (parseFloat(form.ivaRate || "0").toFixed(2));
     try {
       const created = await createProduct.mutateAsync({
@@ -171,22 +173,22 @@ export default function MerchantProductsScreen() {
           await uploadImageForProduct(createdProduct.id);
         } catch (imgErr) {
           const msg = imgErr instanceof Error ? imgErr.message : t("common.unknownError");
-          Alert.alert(t("common.error"), msg);
+          showAlert(t("common.error"), msg);
           refetch();
           return;
         }
       }
-      Alert.alert(t("common.success"), t("merchant_admin.productCreated"));
+      showAlert(t("common.success"), t("merchant_admin.productCreated"));
       resetForm();
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 
   const handleUpdate = async () => {
     if (!editingProduct) return;
-    if (!form.name.trim()) { Alert.alert(t("common.error"), t("merchant_admin.nameRequired")); return; }
+    if (!form.name.trim()) { showAlert(t("common.error"), t("merchant_admin.nameRequired")); return; }
     const price = parseInt(form.priceCop, 10);
     const cost = parseInt(form.costCop || "0", 10);
     const ivaRateVal = form.ivaExento ? "0" : (parseFloat(form.ivaRate || "0").toFixed(2));
@@ -196,7 +198,7 @@ export default function MerchantProductsScreen() {
           await uploadImageForProduct(editingProduct.id);
         } catch (imgErr) {
           const msg = imgErr instanceof Error ? imgErr.message : t("common.unknownError");
-          Alert.alert(t("common.error"), msg);
+          showAlert(t("common.error"), msg);
           return;
         }
       } else if (form.imageUrl === null && editingProduct.imageUrl !== null) {
@@ -216,30 +218,30 @@ export default function MerchantProductsScreen() {
           ivaExento: form.ivaExento,
         },
       });
-      Alert.alert(t("common.success"), t("merchant_admin.productUpdated"));
+      showAlert(t("common.success"), t("merchant_admin.productUpdated"));
       resetForm();
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 
   const handleDelete = (product: Product) => {
-    Alert.alert(
+    showAlert(
       t("merchant_admin.deleteProduct"),
       t("merchant_admin.deleteProductConfirm", { name: product.name }),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("common.delete"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             try {
               await deleteProduct.mutateAsync({ productId: product.id });
-              Alert.alert(t("common.success"), t("merchant_admin.productDeleted"));
+              showAlert(t("common.success"), t("merchant_admin.productDeleted"));
               refetch();
             } catch {
-              Alert.alert(t("common.error"), t("common.unknownError"));
+              showAlert(t("common.error"), t("common.unknownError"));
             }
           },
         },
@@ -270,7 +272,7 @@ export default function MerchantProductsScreen() {
       });
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 

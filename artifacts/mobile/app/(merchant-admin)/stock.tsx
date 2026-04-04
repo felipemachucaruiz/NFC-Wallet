@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState, useMemo } from "react";
-import { Alert, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
@@ -53,6 +54,7 @@ function LocationInventory({
   C: typeof Colors.light;
 }) {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const [editTarget, setEditTarget] = useState<InventoryItem | null>(null);
   const [newQty, setNewQty] = useState("");
   const [threshold, setThreshold] = useState("");
@@ -119,7 +121,7 @@ function LocationInventory({
     const targetQty = parseInt(newQty, 10);
     const thresh = parseInt(threshold, 10);
     if (isNaN(targetQty) || targetQty < 0) {
-      Alert.alert(t("common.error"), t("merchant_admin.invalidQty"));
+      showAlert(t("common.error"), t("merchant_admin.invalidQty"));
       return;
     }
     const delta = targetQty - editTarget.quantityOnHand;
@@ -132,11 +134,11 @@ function LocationInventory({
           restockTrigger: !isNaN(thresh) ? thresh : undefined,
         },
       });
-      Alert.alert(t("common.success"), t("merchant_admin.stockUpdated"));
+      showAlert(t("common.success"), t("merchant_admin.stockUpdated"));
       setEditTarget(null);
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 
@@ -144,11 +146,11 @@ function LocationInventory({
     if (!transferTarget) return;
     const qty = parseInt(transferQty, 10);
     if (isNaN(qty) || qty < 1) {
-      Alert.alert(t("common.error"), t("merchant_admin.transferInvalidQty"));
+      showAlert(t("common.error"), t("merchant_admin.transferInvalidQty"));
       return;
     }
     if (!transferToId || transferToId === location.id) {
-      Alert.alert(t("common.error"), t("merchant_admin.transferSameLocation"));
+      showAlert(t("common.error"), t("merchant_admin.transferSameLocation"));
       return;
     }
     try {
@@ -160,11 +162,11 @@ function LocationInventory({
           quantity: qty,
         },
       });
-      Alert.alert(t("common.success"), t("merchant_admin.transferSuccess"));
+      showAlert(t("common.success"), t("merchant_admin.transferSuccess"));
       setTransferTarget(null);
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 

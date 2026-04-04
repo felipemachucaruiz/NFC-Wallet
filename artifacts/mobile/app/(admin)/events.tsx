@@ -1,11 +1,12 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState, useCallback, useEffect } from "react";
-import { Alert, FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListEvents } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -72,6 +73,7 @@ type EventItem = {
 
 export default function EventsScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -202,16 +204,16 @@ export default function EventsScreen() {
 
   const handleCreate = async () => {
     if (!eventName.trim() || !startDate || !endDate) {
-      Alert.alert(t("common.error"), t("admin.eventFieldsRequired")); return;
+      showAlert(t("common.error"), t("admin.eventFieldsRequired")); return;
     }
     if (!selectedCompanyId) {
-      Alert.alert(t("common.error"), t("admin.promoterCompanyRequired")); return;
+      showAlert(t("common.error"), t("admin.promoterCompanyRequired")); return;
     }
     if (organizerMode === "new" && adminEmail && !adminPassword) {
-      Alert.alert(t("common.error"), t("auth.passwordPlaceholder")); return;
+      showAlert(t("common.error"), t("auth.passwordPlaceholder")); return;
     }
     if (organizerMode === "existing" && !selectedClientId) {
-      Alert.alert(t("common.error"), t("admin.selectClientRequired")); return;
+      showAlert(t("common.error"), t("admin.selectClientRequired")); return;
     }
 
     setIsCreating(true);
@@ -244,7 +246,7 @@ export default function EventsScreen() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+        showAlert(t("common.error"), err.error ?? t("common.unknownError"));
         setIsCreating(false);
         return;
       }
@@ -264,7 +266,7 @@ export default function EventsScreen() {
       resetForm();
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
     setIsCreating(false);
   };
@@ -272,10 +274,10 @@ export default function EventsScreen() {
   const handleEdit = async () => {
     if (!editingEvent) return;
     if (!eventName.trim() || !startDate || !endDate) {
-      Alert.alert(t("common.error"), t("admin.eventFieldsRequired")); return;
+      showAlert(t("common.error"), t("admin.eventFieldsRequired")); return;
     }
     if (!selectedCompanyId) {
-      Alert.alert(t("common.error"), t("admin.promoterCompanyRequired")); return;
+      showAlert(t("common.error"), t("admin.promoterCompanyRequired")); return;
     }
 
     setIsSaving(true);
@@ -301,7 +303,7 @@ export default function EventsScreen() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+        showAlert(t("common.error"), err.error ?? t("common.unknownError"));
         setIsSaving(false);
         return;
       }
@@ -309,7 +311,7 @@ export default function EventsScreen() {
       closeEdit();
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
     setIsSaving(false);
   };
@@ -616,6 +618,7 @@ function EventFormFields({
   pulepId: string; setPulepId: (v: string) => void;
   nfcChipType: NfcChipType; setNfcChipType: (v: NfcChipType) => void;
 }) {
+  const { show: showAlert } = useAlert();
   return (
     <>
       <Input label={t("admin.eventName")} value={eventName} onChangeText={setEventName} placeholder={t("admin.eventNamePlaceholder")} />
@@ -626,7 +629,7 @@ function EventFormFields({
         value={endDate}
         onChange={(d) => {
           if (startDate && d < startDate) {
-            Alert.alert("Error", t("admin.endDateAfterStart")); return;
+            showAlert("Error", t("admin.endDateAfterStart")); return;
           }
           setEndDate(d);
         }}

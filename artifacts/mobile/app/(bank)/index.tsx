@@ -2,11 +2,12 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useGetBracelet, useGetEvent } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -66,6 +67,7 @@ function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolea
 
 export default function BankLookupScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -125,7 +127,7 @@ export default function BankLookupScreen() {
               const allowedLabels = configuredAllowedTypesRef.current
                 .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : ct === "desfire_ev3" ? "DESFire EV3" : "NTAG 21x"))
                 .join(", ");
-              Alert.alert(
+              showAlert(
                 t("common.error"),
                 t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: result.tagInfo.label }),
               );
@@ -196,7 +198,7 @@ export default function BankLookupScreen() {
         const allowedLabels = configuredAllowedTypes
           .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : ct === "desfire_ev3" ? "DESFire EV3" : "NTAG 21x"))
           .join(", ");
-        Alert.alert(
+        showAlert(
           t("common.error"),
           t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: result.tagInfo.label }),
         );
@@ -209,7 +211,7 @@ export default function BankLookupScreen() {
       if (cancelledRef.current) return;
       const msg = e instanceof Error ? e.message : "";
       if (!msg.includes("cancelled") && !msg.includes("cancel") && !msg.includes("Cancel")) {
-        Alert.alert(t("common.error"), t("common.unknownError"));
+        showAlert(t("common.error"), t("common.unknownError"));
       }
     } finally {
       scanningRef.current = false;

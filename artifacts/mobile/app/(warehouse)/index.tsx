@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import type { GetWarehouseInventory200, WarehouseInventoryItem } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Empty } from "@/components/ui/Empty";
@@ -20,6 +21,7 @@ import { useEventContext } from "@/contexts/EventContext";
 
 export default function WarehouseStockScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -55,11 +57,11 @@ export default function WarehouseStockScreen() {
   const handleReceive = async () => {
     const qty = parseInt(receiveQty, 10);
     if (!selectedProductId) {
-      Alert.alert(t("common.error"), t("common.fillRequired"));
+      showAlert(t("common.error"), t("common.fillRequired"));
       return;
     }
     if (isNaN(qty) || qty <= 0) {
-      Alert.alert(t("common.error"), t("warehouse.invalidQuantity"));
+      showAlert(t("common.error"), t("warehouse.invalidQuantity"));
       return;
     }
     try {
@@ -69,9 +71,9 @@ export default function WarehouseStockScreen() {
       });
       setReceiveModalVisible(false);
       refetch();
-      Alert.alert(t("common.success"), t("warehouse.receiveSuccess"));
+      showAlert(t("common.success"), t("warehouse.receiveSuccess"));
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 

@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { Alert, Animated, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useLogTransaction, useGetSigningKey, useReportTamper, useGetEvent, customFetch, type SigningKeyResponse } from "@workspace/api-client-react";
@@ -19,6 +19,7 @@ import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCOP } from "@/utils/format";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAlert } from "@/components/CustomAlert";
 import type { NfcChipType } from "@/contexts/EventContext";
 
 type ChargeStep =
@@ -87,6 +88,7 @@ function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolea
 
 export default function ChargeScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -274,7 +276,7 @@ export default function ChargeScreen() {
         scanningRef.current = false;
         setNfcModalVisible(false);
         setStep("waiting");
-        Alert.alert(t("common.error"), t("pos.desfireNoKey"));
+        showAlert(t("common.error"), t("pos.desfireNoKey"));
         return;
       }
       try {
@@ -305,7 +307,7 @@ export default function ChargeScreen() {
           scanningRef.current = false;
           setNfcModalVisible(false);
           setStep("waiting");
-          Alert.alert(t("common.error"), t("pos.readError"));
+          showAlert(t("common.error"), t("pos.readError"));
         }
         scanningRef.current = false;
         return;
@@ -326,7 +328,7 @@ export default function ChargeScreen() {
             aborted = true;
             setNfcModalVisible(false);
             setStep("waiting");
-            Alert.alert(
+            showAlert(
               t("common.error"),
               t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: detectedTagInfo.label }),
             );
@@ -374,7 +376,7 @@ export default function ChargeScreen() {
           scanningRef.current = false;
           setNfcModalVisible(false);
           setStep("waiting");
-          Alert.alert(t("common.error"), t("pos.readError"));
+          showAlert(t("common.error"), t("pos.readError"));
         }
         scanningRef.current = false;
         return;
@@ -408,7 +410,7 @@ export default function ChargeScreen() {
       await syncNow();
       setStep("waiting");
     } catch {
-      Alert.alert(t("common.error"), t("pos.syncError"));
+      showAlert(t("common.error"), t("pos.syncError"));
     }
   };
 

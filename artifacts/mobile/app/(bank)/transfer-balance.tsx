@@ -2,10 +2,11 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -15,6 +16,7 @@ import { useLinkAndTransfer } from "@/hooks/useAttendeeApi";
 
 export default function TransferBalanceScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -69,13 +71,14 @@ export default function TransferBalanceScreen() {
     if (!oldUid || !newUid) return;
     const amount = oldBracelet?.lastKnownBalanceCop ?? 0;
 
-    Alert.alert(
+    showAlert(
       t("bankTransfer.confirmTitle"),
       `Transfer $${amount.toLocaleString("es-CO")} COP from ${oldUid} → ${newUid}?`,
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("bankTransfer.transferBtn"),
+          variant: "primary",
           onPress: async () => {
             try {
               const result = await linkAndTransfer.mutateAsync({ oldUid, newUid });
@@ -83,7 +86,7 @@ export default function TransferBalanceScreen() {
               setStep("success");
             } catch (e: unknown) {
               const msg = e instanceof Error ? e.message : t("common.unknownError");
-              Alert.alert(t("common.error"), msg);
+              showAlert(t("common.error"), msg);
             }
           },
         },

@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useGetEvent, useUpdateEvent } from "@workspace/api-client-react";
@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import type { InventoryMode } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
@@ -145,6 +146,7 @@ function InventoryModeOption({
 
 export default function EventSettingsScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -214,10 +216,10 @@ export default function EventSettingsScreen() {
         refetch();
         queryClient.invalidateQueries({ queryKey: ["event-context", user.eventId] });
         queryClient.invalidateQueries({ queryKey: ["event-inventory-mode", user.eventId] });
-        Alert.alert(t("common.success"), t("eventAdmin.inventoryModeChanged"));
+        showAlert(t("common.success"), t("eventAdmin.inventoryModeChanged"));
       } catch {
         setConfirmModal(null);
-        Alert.alert(t("common.error"), t("eventAdmin.inventoryModeChangeFailed"));
+        showAlert(t("common.error"), t("eventAdmin.inventoryModeChangeFailed"));
       }
     } else if (confirmModal?.type === "rotate_key") {
       setIsRotating(true);
@@ -227,9 +229,9 @@ export default function EventSettingsScreen() {
           method: "POST",
         });
         refetch();
-        Alert.alert(t("common.success"), t("eventAdmin.signingKeyRotated"));
+        showAlert(t("common.success"), t("eventAdmin.signingKeyRotated"));
       } catch {
-        Alert.alert(t("common.error"), t("eventAdmin.signingKeyRotateFailed"));
+        showAlert(t("common.error"), t("eventAdmin.signingKeyRotateFailed"));
       } finally {
         setIsRotating(false);
       }
@@ -241,9 +243,9 @@ export default function EventSettingsScreen() {
           method: "POST",
         });
         refetch();
-        Alert.alert(t("common.success"), t("eventAdmin.desfireKeyGenerated"));
+        showAlert(t("common.success"), t("eventAdmin.desfireKeyGenerated"));
       } catch {
-        Alert.alert(t("common.error"), t("eventAdmin.desfireKeyGenerateFailed"));
+        showAlert(t("common.error"), t("eventAdmin.desfireKeyGenerateFailed"));
       } finally {
         setIsGeneratingDesfireKey(false);
       }
@@ -260,7 +262,7 @@ export default function EventSettingsScreen() {
         }) as { braceletsFlagged?: number; refundRequestsCreated?: number } | undefined;
         refetch();
         queryClient.invalidateQueries({ queryKey: ["event-context", user.eventId] });
-        Alert.alert(
+        showAlert(
           t("eventAdmin.eventClosed"),
           t("eventAdmin.eventClosedDetail", {
             flagged: result?.braceletsFlagged ?? 0,
@@ -268,7 +270,7 @@ export default function EventSettingsScreen() {
           }),
         );
       } catch {
-        Alert.alert(t("common.error"), t("eventAdmin.eventCloseFailed"));
+        showAlert(t("common.error"), t("eventAdmin.eventCloseFailed"));
       } finally {
         setIsClosingEvent(false);
       }
@@ -284,11 +286,11 @@ export default function EventSettingsScreen() {
       }) as { pendingRefundCount: number };
       setConfirmModal({ type: "close_event", pendingRefundCount: result.pendingRefundCount ?? 0 });
     } catch {
-      Alert.alert(
+      showAlert(
         t("common.error"),
         t("eventAdmin.closeEventRefundCheckFailed"),
         [
-          { text: t("common.cancel"), style: "cancel" },
+          { text: t("common.cancel"), variant: "cancel" },
           {
             text: t("common.retry"),
             onPress: handleCloseEventPress,
@@ -309,7 +311,7 @@ export default function EventSettingsScreen() {
     const syncLimit = parseInt(offlineSyncLimit, 10);
     const braceletLimit = parseInt(maxOfflineSpendPerBracelet, 10);
     if (isNaN(syncLimit) || syncLimit <= 0 || isNaN(braceletLimit) || braceletLimit <= 0) {
-      Alert.alert(t("common.error"), t("eventAdmin.invalidLimitValues"));
+      showAlert(t("common.error"), t("eventAdmin.invalidLimitValues"));
       return;
     }
     setIsSavingLimits(true);
@@ -322,9 +324,9 @@ export default function EventSettingsScreen() {
         }),
       });
       refetch();
-      Alert.alert(t("common.success"), t("eventAdmin.offlineLimitsSaved"));
+      showAlert(t("common.success"), t("eventAdmin.offlineLimitsSaved"));
     } catch {
-      Alert.alert(t("common.error"), t("common.error"));
+      showAlert(t("common.error"), t("common.error"));
     } finally {
       setIsSavingLimits(false);
     }
@@ -355,9 +357,9 @@ export default function EventSettingsScreen() {
       });
       refetch();
       queryClient.invalidateQueries({ queryKey: ["event-context", user.eventId] });
-      Alert.alert(t("common.success"), t("eventAdmin.nfcChipSaved"));
+      showAlert(t("common.success"), t("eventAdmin.nfcChipSaved"));
     } catch {
-      Alert.alert(t("common.error"), t("eventAdmin.nfcChipSaveFailed"));
+      showAlert(t("common.error"), t("eventAdmin.nfcChipSaveFailed"));
     } finally {
       setIsSavingChipType(false);
     }

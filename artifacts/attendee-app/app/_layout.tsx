@@ -15,6 +15,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AlertProvider } from "@/components/CustomAlert";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -95,11 +96,13 @@ export default function RootLayout() {
             <AuthProvider>
               <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
                 <KeyboardProvider>
-                  <AppInner />
-                  <UpdateBanner />
-                  {!splashDone && (
-                    <AnimatedSplash onFinished={() => setSplashDone(true)} />
-                  )}
+                  <AlertProvider>
+                    <AppInner />
+                    <UpdateBanner />
+                    {!splashDone && (
+                      <AnimatedSplash onFinished={() => setSplashDone(true)} />
+                    )}
+                  </AlertProvider>
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </AuthProvider>

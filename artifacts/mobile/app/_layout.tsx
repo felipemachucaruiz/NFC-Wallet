@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
-import { Alert, Appearance, Platform } from "react-native";
+import { Appearance, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -26,6 +26,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { CartProvider } from "@/contexts/CartContext";
 import { OfflineQueueProvider } from "@/contexts/OfflineQueueContext";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { AlertProvider, useAlert } from "@/components/CustomAlert";
 import { initI18n } from "@/i18n";
 import { initNfc } from "@/utils/nfc";
 import { pinnedFetch } from "@/utils/pinnedFetch";
@@ -131,6 +132,27 @@ function AppWithPasscode({ children }: { children: React.ReactNode }) {
   );
 }
 
+function CrashLogReporter() {
+  const { show } = useAlert();
+  useEffect(() => {
+    AsyncStorage.getItem(CRASH_LOG_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        AsyncStorage.removeItem(CRASH_LOG_KEY).catch(() => {});
+        try {
+          const log = JSON.parse(raw) as { message: string; stack?: string; isFatal?: boolean; ts?: string };
+          show(
+            log.isFatal ? "Fatal Crash Detected" : "Previous Crash Detected",
+            `${log.ts ?? ""}\n\n${log.message}\n\n${log.stack ?? ""}`,
+            [{ text: "OK", variant: "primary" }],
+          );
+        } catch {}
+      })
+      .catch(() => {});
+  }, []);
+  return null;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -144,20 +166,6 @@ export default function RootLayout() {
   useEffect(() => {
     initI18n().then(() => setI18nReady(true));
     initNfc();
-    AsyncStorage.getItem(CRASH_LOG_KEY)
-      .then((raw) => {
-        if (!raw) return;
-        AsyncStorage.removeItem(CRASH_LOG_KEY).catch(() => {});
-        try {
-          const log = JSON.parse(raw) as { message: string; stack?: string; isFatal?: boolean; ts?: string };
-          Alert.alert(
-            log.isFatal ? "Fatal Crash Detected" : "Previous Crash Detected",
-            `${log.ts ?? ""}\n\n${log.message}\n\n${log.stack ?? ""}`,
-            [{ text: "OK" }],
-          );
-        } catch {}
-      })
-      .catch(() => {});
   }, []);
 
   const appReady = (fontsLoaded || !!fontError) && i18nReady;
@@ -182,11 +190,14 @@ export default function RootLayout() {
                     <OfflineQueueProvider>
                       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
                         <KeyboardProvider>
-                          <RootLayoutNav />
-                          {!splashDone && (
-                            <AnimatedSplash onFinished={() => setSplashDone(true)} />
-                          )}
-                          <UpdateBanner />
+                          <AlertProvider>
+                            <CrashLogReporter />
+                            <RootLayoutNav />
+                            {!splashDone && (
+                              <AnimatedSplash onFinished={() => setSplashDone(true)} />
+                            )}
+                            <UpdateBanner />
+                          </AlertProvider>
                         </KeyboardProvider>
                       </GestureHandlerRootView>
                     </OfflineQueueProvider>

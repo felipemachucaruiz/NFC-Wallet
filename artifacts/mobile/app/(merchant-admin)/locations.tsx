@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -30,6 +31,7 @@ type Location = {
 
 export default function MerchantLocationsScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -51,7 +53,7 @@ export default function MerchantLocationsScreen() {
 
   const handleAddLocation = async () => {
     if (!newLocationName.trim()) {
-      Alert.alert(t("common.error"), t("common.nameRequired"));
+      showAlert(t("common.error"), t("common.nameRequired"));
       return;
     }
     try {
@@ -66,19 +68,19 @@ export default function MerchantLocationsScreen() {
       setNewLocationName("");
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 
   const handleDeactivate = (location: Location) => {
-    Alert.alert(
+    showAlert(
       t("merchant_admin.deactivateLocation"),
       t("merchant_admin.deactivateLocationConfirm", { name: location.name }),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("merchant_admin.deactivate"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             try {
               await updateLocation.mutateAsync({
@@ -90,7 +92,7 @@ export default function MerchantLocationsScreen() {
               }
               refetch();
             } catch {
-              Alert.alert(t("common.error"), t("common.unknownError"));
+              showAlert(t("common.error"), t("common.unknownError"));
             }
           },
         },

@@ -3,11 +3,12 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Alert, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useGetSigningKey } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
@@ -43,6 +44,7 @@ const tagBadgeStyles = StyleSheet.create({
 
 export default function AttendeeBalanceScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -80,7 +82,7 @@ export default function AttendeeBalanceScreen() {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "";
       if (msg !== "NFC_NOT_AVAILABLE") {
-        Alert.alert(t("common.error"), t("common.unknownError"));
+        showAlert(t("common.error"), t("common.unknownError"));
       }
     } finally {
       setIsTapping(false);

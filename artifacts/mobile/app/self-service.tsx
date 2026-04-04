@@ -2,9 +2,10 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState, useRef } from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator } from "react-native";
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
@@ -49,6 +50,7 @@ export default function SelfServiceScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { show: showAlert } = useAlert();
 
   // — Payment flow state —
   const [step, setStep] = useState<Step>("lookup");
@@ -220,7 +222,7 @@ export default function SelfServiceScreen() {
       };
 
       if (!res.ok || !data.intentId) {
-        Alert.alert(
+        showAlert(
           "Error",
           data.error ?? "No se pudo iniciar el pago. Intenta de nuevo.",
         );
@@ -237,7 +239,7 @@ export default function SelfServiceScreen() {
 
       startPolling(data.intentId, bracelet.uid);
     } catch {
-      Alert.alert("Error", "Sin conexión. Verifica tu internet e intenta de nuevo.");
+      showAlert("Error", "Sin conexión. Verifica tu internet e intenta de nuevo.");
     } finally {
       setPaying(false);
     }

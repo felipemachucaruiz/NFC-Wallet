@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@workspace/api-client-react";
 import type { GetWarehouseInventory200, WarehouseInventoryItem } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
@@ -31,6 +32,7 @@ type OrderLine = {
 
 export default function DispatchScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -83,7 +85,7 @@ export default function DispatchScreen() {
     if (!addingProductId) return;
     const qty = parseInt(addingQty, 10);
     if (isNaN(qty) || qty <= 0) {
-      Alert.alert(t("common.error"), t("warehouse.invalidQuantity"));
+      showAlert(t("common.error"), t("warehouse.invalidQuantity"));
       return;
     }
     const product = warehouseProducts.find((p) => p.productId === addingProductId);
@@ -112,25 +114,25 @@ export default function DispatchScreen() {
 
   const handleDispatchOrder = async () => {
     if (!selectedWarehouseId || !selectedLocationId) {
-      Alert.alert(t("common.error"), t("common.fillRequired"));
+      showAlert(t("common.error"), t("common.fillRequired"));
       return;
     }
     if (orderLines.length === 0) {
-      Alert.alert(t("common.error"), t("warehouse.emptyOrder"));
+      showAlert(t("common.error"), t("warehouse.emptyOrder"));
       return;
     }
 
     const overStocked = orderLines.filter((l) => l.quantity > l.stockOnHand);
     if (overStocked.length > 0) {
-      Alert.alert(t("common.error"), `${t("warehouse.insufficientStock")}: ${overStocked.map((l) => l.productName).join(", ")}`);
+      showAlert(t("common.error"), `${t("warehouse.insufficientStock")}: ${overStocked.map((l) => l.productName).join(", ")}`);
       return;
     }
 
-    Alert.alert(
+    showAlert(
       t("warehouse.confirmDispatch"),
       `${orderLines.length} ${t("warehouse.products")}, ${t("warehouse.to")}: ${locations.find((l) => l.id === selectedLocationId)?.name ?? ""}`,
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("common.confirm"),
           onPress: async () => {
@@ -148,9 +150,9 @@ export default function DispatchScreen() {
               }
               setOrderLines([]);
               setDispatchNote("");
-              Alert.alert(t("common.success"), t("warehouse.dispatchSuccess"));
+              showAlert(t("common.success"), t("warehouse.dispatchSuccess"));
             } catch {
-              Alert.alert(t("common.error"), t("common.unknownError"));
+              showAlert(t("common.error"), t("common.unknownError"));
             }
           },
         },
@@ -160,9 +162,9 @@ export default function DispatchScreen() {
 
   const handleTransfer = async () => {
     const qty = parseInt(transferQty, 10);
-    if (!qty || qty <= 0) { Alert.alert(t("common.error"), t("warehouse.invalidQuantity")); return; }
+    if (!qty || qty <= 0) { showAlert(t("common.error"), t("warehouse.invalidQuantity")); return; }
     if (!fromLocationId || !toLocationId || !transferProductId) {
-      Alert.alert(t("common.error"), t("common.fillRequired")); return;
+      showAlert(t("common.error"), t("common.fillRequired")); return;
     }
     try {
       await transfer.mutateAsync({
@@ -176,9 +178,9 @@ export default function DispatchScreen() {
       });
       setTransferQty("");
       setTransferNote("");
-      Alert.alert(t("common.success"), t("warehouse.transferSuccess"));
+      showAlert(t("common.success"), t("warehouse.transferSuccess"));
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 

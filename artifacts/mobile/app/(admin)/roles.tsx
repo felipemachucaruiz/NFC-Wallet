@@ -2,12 +2,13 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useUpdateUserRole } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { API_BASE_URL } from "@/constants/domain";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -41,6 +42,7 @@ const getApiBase = () => API_BASE_URL;
 
 export default function RolesScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const { user, logout, token } = useAuth();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
@@ -99,11 +101,11 @@ export default function RolesScreen() {
   });
 
   const handleLogout = () => {
-    Alert.alert(t("auth.logoutConfirm"), undefined, [
-      { text: t("common.cancel"), style: "cancel" },
+    showAlert(t("auth.logoutConfirm"), undefined, [
+      { text: t("common.cancel"), variant: "cancel" },
       {
         text: t("auth.logout"),
-        style: "destructive",
+        variant: "danger",
         onPress: async () => {
           await logout();
           router.replace("/login");
@@ -114,26 +116,26 @@ export default function RolesScreen() {
 
   const handleAssign = async () => {
     if (!selectedUser) {
-      Alert.alert(t("common.error"), t("admin.selectUserRequired"));
+      showAlert(t("common.error"), t("admin.selectUserRequired"));
       return;
     }
-    Alert.alert(
+    showAlert(
       t("admin.assignRole"),
       t("admin.assignRoleConfirm", {
         role: t(`admin.roles.${selectedRole}`),
         userId: selectedUser.firstName ?? selectedUser.email ?? selectedUser.username,
       }),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("common.confirm"),
           onPress: async () => {
             try {
               await updateRole.mutateAsync({ userId: selectedUser.id, data: { role: selectedRole } });
-              Alert.alert(t("common.success"), t("admin.roleAssigned"));
+              showAlert(t("common.success"), t("admin.roleAssigned"));
               setShowAssign(false);
             } catch {
-              Alert.alert(t("common.error"), t("common.unknownError"));
+              showAlert(t("common.error"), t("common.unknownError"));
             }
           },
         },
@@ -144,7 +146,7 @@ export default function RolesScreen() {
   const handleResetPassword = async () => {
     if (!selectedUser) return;
     if (newPassword.length < 6) {
-      Alert.alert(t("common.error"), t("common.passwordMinLength"));
+      showAlert(t("common.error"), t("common.passwordMinLength"));
       return;
     }
     setIsResettingPassword(true);
@@ -155,14 +157,14 @@ export default function RolesScreen() {
         body: JSON.stringify({ newPassword }),
       });
       if (res.ok) {
-        Alert.alert(t("common.success"), t("admin.passwordReset"));
+        showAlert(t("common.success"), t("admin.passwordReset"));
         setShowAssign(false);
       } else {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+        showAlert(t("common.error"), err.error ?? t("common.unknownError"));
       }
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
     setIsResettingPassword(false);
   };

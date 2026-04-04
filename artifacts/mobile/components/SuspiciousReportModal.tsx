@@ -1,13 +1,14 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useReportSuspiciousBracelet } from "@workspace/api-client-react";
 import type { ManualReportReason } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
+import { useAlert } from "@/components/CustomAlert";
 
 interface Props {
   visible: boolean;
@@ -24,6 +25,7 @@ const REASONS: { value: ManualReportReason; labelKey: string }[] = [
 
 export function SuspiciousReportModal({ visible, onClose, prefillUid }: Props) {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -43,7 +45,7 @@ export function SuspiciousReportModal({ visible, onClose, prefillUid }: Props) {
 
   const handleSubmit = async () => {
     if (!uid.trim()) {
-      Alert.alert(t("common.error"), t("fraud.reportUidLabel") + " " + t("common.fillRequired"));
+      showAlert(t("common.error"), t("fraud.reportUidLabel") + " " + t("common.fillRequired"));
       return;
     }
     try {
@@ -54,13 +56,13 @@ export function SuspiciousReportModal({ visible, onClose, prefillUid }: Props) {
           notes: notes.trim() || undefined,
         },
       });
-      Alert.alert(t("fraud.reportSuccess"), t("fraud.reportSuccessDetail"));
+      showAlert(t("fraud.reportSuccess"), t("fraud.reportSuccessDetail"));
       setUid(prefillUid ?? "");
       setReason("wrong_balance");
       setNotes("");
       onClose();
     } catch {
-      Alert.alert(t("common.error"), t("fraud.reportError"));
+      showAlert(t("common.error"), t("fraud.reportError"));
     }
   };
 

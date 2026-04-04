@@ -2,13 +2,14 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { ATTENDEE_API_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
@@ -49,6 +50,7 @@ const PSE_BANKS = [
 
 export default function TopUpDigitalScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -119,7 +121,7 @@ export default function TopUpDigitalScreen() {
       },
       onError: (err: unknown) => {
         const msg = (err as { message?: string }).message ?? t("common.unknownError");
-        Alert.alert(t("common.error"), msg);
+        showAlert(t("common.error"), msg);
       },
     });
   };

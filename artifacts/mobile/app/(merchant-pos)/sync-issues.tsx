@@ -2,10 +2,11 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Empty } from "@/components/ui/Empty";
@@ -30,6 +31,7 @@ function translateFailReason(reason: string | undefined, t: (key: string) => str
 
 export default function MerchantSyncIssuesScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -43,18 +45,18 @@ export default function MerchantSyncIssuesScreen() {
 
   const handleDismiss = (item: QueuedItem) => {
     if (!canDismiss) {
-      Alert.alert(t("common.error"), t("syncIssues.supervisorRequired"));
+      showAlert(t("common.error"), t("syncIssues.supervisorRequired"));
       return;
     }
     const itemType = item.type === "charge" ? "charge" : "topup";
-    Alert.alert(
+    showAlert(
       t("syncIssues.dismissTitle"),
       t("syncIssues.dismissConfirm"),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("syncIssues.dismissAction"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             setDismissing(item.id);
             await dismissFailedItem(item.id, itemType);

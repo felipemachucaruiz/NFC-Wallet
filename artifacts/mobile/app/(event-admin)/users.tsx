@@ -1,10 +1,11 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState, useEffect } from "react";
-import { Alert, FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { API_BASE_URL } from "@/constants/domain";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -47,6 +48,7 @@ const getApiBase = (): string => API_BASE_URL;
 
 export default function EventAdminUsersScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -107,10 +109,10 @@ export default function EventAdminUsersScreen() {
 
   const handleCreate = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert(t("common.error"), t("common.fillRequired")); return;
+      showAlert(t("common.error"), t("common.fillRequired")); return;
     }
     if (MERCHANT_ROLES.includes(selectedRole) && !selectedMerchantId) {
-      Alert.alert(t("common.error"), t("eventAdmin.selectMerchantForRole")); return;
+      showAlert(t("common.error"), t("eventAdmin.selectMerchantForRole")); return;
     }
     setIsCreating(true);
     try {
@@ -131,16 +133,16 @@ export default function EventAdminUsersScreen() {
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        Alert.alert(t("common.success"), t("eventAdmin.userCreated"));
+        showAlert(t("common.success"), t("eventAdmin.userCreated"));
         setShowCreate(false);
         resetCreateForm();
         fetchData();
       } else {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+        showAlert(t("common.error"), err.error ?? t("common.unknownError"));
       }
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
     setIsCreating(false);
   };
@@ -155,7 +157,7 @@ export default function EventAdminUsersScreen() {
   const handleResetPassword = async () => {
     if (!editingUser) return;
     if (resetPw.length < 6) {
-      Alert.alert(t("common.error"), t("common.passwordMinLength"));
+      showAlert(t("common.error"), t("common.passwordMinLength"));
       return;
     }
     setIsResettingPw(true);
@@ -166,14 +168,14 @@ export default function EventAdminUsersScreen() {
         body: JSON.stringify({ newPassword: resetPw }),
       });
       if (res.ok) {
-        Alert.alert(t("common.success"), t("admin.passwordReset"));
+        showAlert(t("common.success"), t("admin.passwordReset"));
         setEditingUser(null);
       } else {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+        showAlert(t("common.error"), err.error ?? t("common.unknownError"));
       }
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
     setIsResettingPw(false);
   };
@@ -181,7 +183,7 @@ export default function EventAdminUsersScreen() {
   const handleSaveRole = async () => {
     if (!editingUser) return;
     if (MERCHANT_ROLES.includes(editRole) && !editMerchantId) {
-      Alert.alert(t("common.error"), t("eventAdmin.selectMerchantForRole")); return;
+      showAlert(t("common.error"), t("eventAdmin.selectMerchantForRole")); return;
     }
     setIsSavingRole(true);
     try {
@@ -201,10 +203,10 @@ export default function EventAdminUsersScreen() {
         fetchData();
       } else {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+        showAlert(t("common.error"), err.error ?? t("common.unknownError"));
       }
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
     setIsSavingRole(false);
   };

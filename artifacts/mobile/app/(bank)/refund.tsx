@@ -2,11 +2,12 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useCreateRefund, useGetSigningKey } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -28,6 +29,7 @@ const REFUND_METHODS: {
 
 export default function RefundScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -72,14 +74,14 @@ export default function RefundScreen() {
   const createRefund = useCreateRefund();
 
   const handleConfirm = async () => {
-    Alert.alert(
+    showAlert(
       t("bank.confirmRefund"),
       `${t("bank.refundAmount")}: $${balance.toLocaleString()} COP`,
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("common.confirm"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             setStep("writing");
             try {
@@ -108,7 +110,7 @@ export default function RefundScreen() {
               setStep("success");
             } catch {
               setStep("form");
-              Alert.alert(t("common.error"), t("bank.refundError"));
+              showAlert(t("common.error"), t("bank.refundError"));
             }
           },
         },

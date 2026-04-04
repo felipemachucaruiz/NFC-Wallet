@@ -2,7 +2,6 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   FlatList,
   Platform,
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useGetSigningKey } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -66,6 +66,7 @@ const METHOD_ICONS: Record<string, React.ComponentProps<typeof Feather>["name"]>
 
 export default function BankRefundRequestsScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -110,18 +111,18 @@ export default function BankRefundRequestsScreen() {
   }, [nfcStep, pulseAnim]);
 
   const handleReject = (id: string) => {
-    Alert.alert(t("bankRefundRequests.reject"), `${t("bankRefundRequests.reject")}?`, [
-      { text: t("common.cancel"), style: "cancel" },
+    showAlert(t("bankRefundRequests.reject"), `${t("bankRefundRequests.reject")}?`, [
+      { text: t("common.cancel"), variant: "cancel" },
       {
         text: t("bankRefundRequests.reject"),
-        style: "destructive",
+        variant: "danger",
         onPress: async () => {
           try {
             await processRequest.mutateAsync({ id, status: "rejected" });
-            Alert.alert(t("common.success"), t("bankRefundRequests.processSuccess"));
+            showAlert(t("common.success"), t("bankRefundRequests.processSuccess"));
           } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : t("common.unknownError");
-            Alert.alert(t("common.error"), msg);
+            showAlert(t("common.error"), msg);
           }
         },
       },
@@ -129,8 +130,8 @@ export default function BankRefundRequestsScreen() {
   };
 
   const handleApprove = (request: RefundRequest) => {
-    Alert.alert(t("bankRefundRequests.approve"), `${t("bankRefundRequests.approve")}?`, [
-      { text: t("common.cancel"), style: "cancel" },
+    showAlert(t("bankRefundRequests.approve"), `${t("bankRefundRequests.approve")}?`, [
+      { text: t("common.cancel"), variant: "cancel" },
       {
         text: t("bankRefundRequests.approve"),
         onPress: async () => {
@@ -140,14 +141,14 @@ export default function BankRefundRequestsScreen() {
               setActiveRequest(request);
               setNfcStep("tap");
             } else {
-              Alert.alert(
+              showAlert(
                 t("common.success"),
                 `${t("bankRefundRequests.processSuccess")}\n${t("bankRefundRequests.skipChipZeroWarning")}`
               );
             }
           } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : t("common.unknownError");
-            Alert.alert(t("common.error"), msg);
+            showAlert(t("common.error"), msg);
           }
         },
       },
@@ -199,7 +200,7 @@ export default function BankRefundRequestsScreen() {
           activeRequest?.braceletUid ?? ""
         );
       }
-      Alert.alert(t("common.error"), msg, [
+      showAlert(t("common.error"), msg, [
         {
           text: t("bankRefundRequests.skipChipZero"),
           onPress: handleSkip,
@@ -226,7 +227,7 @@ export default function BankRefundRequestsScreen() {
     writingRef.current = false;
     setNfcStep("idle");
     setActiveRequest(null);
-    Alert.alert(t("common.warning") ?? "Warning", t("bankRefundRequests.skipChipZeroWarning"));
+    showAlert(t("common.warning") ?? "Warning", t("bankRefundRequests.skipChipZeroWarning"));
   }, [t]);
 
   const handleDismissSuccess = useCallback(() => {

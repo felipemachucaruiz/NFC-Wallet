@@ -1,11 +1,12 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListMerchants, useCreateMerchant, useUpdateMerchant, customFetch } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -28,6 +29,7 @@ type Merchant = {
 
 export default function EventAdminMerchantsScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -66,23 +68,23 @@ export default function EventAdminMerchantsScreen() {
           retencionICARate: parseFloat(fiscalICA || "0").toFixed(4),
         },
       });
-      Alert.alert(t("common.success"), t("merchant_admin.fiscalSettings") + " guardado");
+      showAlert(t("common.success"), t("merchant_admin.fiscalSettings") + " guardado");
       setEditingMerchant(null);
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 
   const handleDeleteMerchant = (merchant: Merchant) => {
-    Alert.alert(
+    showAlert(
       t("admin.deleteMerchant"),
       t("admin.deleteMerchantConfirm", { name: merchant.name }),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("admin.deleteMerchant"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             setDeletingId(merchant.id);
             try {
@@ -91,9 +93,9 @@ export default function EventAdminMerchantsScreen() {
             } catch (e: unknown) {
               const msg = (e as { data?: { error?: string } })?.data?.error ?? "";
               if (msg.includes("transaction history")) {
-                Alert.alert(t("admin.cannotDelete"), t("admin.merchantHasTransactions"));
+                showAlert(t("admin.cannotDelete"), t("admin.merchantHasTransactions"));
               } else {
-                Alert.alert(t("common.error"), t("common.unknownError"));
+                showAlert(t("common.error"), t("common.unknownError"));
               }
             } finally {
               setDeletingId(null);
@@ -105,8 +107,8 @@ export default function EventAdminMerchantsScreen() {
   };
 
   const handleCreate = async () => {
-    if (!merchantName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
-    if (!user?.eventId) { Alert.alert(t("common.error"), t("eventAdmin.noEvent")); return; }
+    if (!merchantName.trim()) { showAlert(t("common.error"), t("common.nameRequired")); return; }
+    if (!user?.eventId) { showAlert(t("common.error"), t("eventAdmin.noEvent")); return; }
     try {
       await createMerchant.mutateAsync({
         data: {
@@ -122,7 +124,7 @@ export default function EventAdminMerchantsScreen() {
       setMerchantType("event_managed");
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 

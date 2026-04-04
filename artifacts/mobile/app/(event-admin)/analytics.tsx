@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -14,6 +14,7 @@ import {
   useCreateRestockOrder,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
@@ -470,6 +471,7 @@ type RestockTarget = { locationId: string; locationName: string; productId: stri
 
 export default function EventAdminAnalyticsScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -526,20 +528,20 @@ export default function EventAdminAnalyticsScreen() {
     if (!restockTarget) return;
     const qty = parseInt(restockQty, 10);
     if (isNaN(qty) || qty <= 0) {
-      Alert.alert(t("common.error"), t("analytics.restockQtyRequired"));
+      showAlert(t("common.error"), t("analytics.restockQtyRequired"));
       return;
     }
     createRestock.mutate(
       { data: { locationId: restockTarget.locationId, productId: restockTarget.productId, requestedQty: qty, notes: restockNote || undefined } },
       {
         onSuccess: () => {
-          Alert.alert(t("common.success"), t("analytics.restockCreated"));
+          showAlert(t("common.success"), t("analytics.restockCreated"));
           setRestockTarget(null);
           setRestockQty("");
           setRestockNote("");
         },
         onError: (err: unknown) => {
-          Alert.alert(t("common.error"), String((err as { message?: string })?.message ?? err));
+          showAlert(t("common.error"), String((err as { message?: string })?.message ?? err));
         },
       },
     );

@@ -3,7 +3,6 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -15,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
@@ -51,6 +51,7 @@ function normalizeUid(raw: string): string {
 
 export default function TopUpScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -122,7 +123,7 @@ export default function TopUpScreen() {
       },
       onError: (err: unknown) => {
         const msg = (err as { message?: string }).message ?? t("common.unknownError");
-        Alert.alert(t("common.error"), msg);
+        showAlert(t("common.error"), msg);
       },
     });
   };

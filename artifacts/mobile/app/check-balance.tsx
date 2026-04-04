@@ -1,12 +1,13 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState, useEffect, useCallback } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
@@ -43,6 +44,7 @@ type ScanResult = {
 
 export default function CheckBalanceScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -89,7 +91,7 @@ export default function CheckBalanceScreen() {
 
   const handleScan = async () => {
     if (!isNfcSupported()) {
-      Alert.alert(t("common.error"), t("checkBalance.nfcNotSupported"));
+      showAlert(t("common.error"), t("checkBalance.nfcNotSupported"));
       return;
     }
     setScanning(true);
@@ -106,7 +108,7 @@ export default function CheckBalanceScreen() {
     } catch (e: unknown) {
       const msg = (e instanceof Error ? e.message : String(e)) ?? "";
       if (!msg.includes("cancelled") && !msg.includes("UserCancel")) {
-        Alert.alert(t("common.error"), t("pos.scanError"));
+        showAlert(t("common.error"), t("pos.scanError"));
       }
     } finally {
       setScanning(false);
@@ -115,28 +117,28 @@ export default function CheckBalanceScreen() {
 
   const handleResetBalance = () => {
     if (!result) return;
-    Alert.alert(
+    showAlert(
       t("checkBalance.resetBalance"),
       t("checkBalance.resetBalanceConfirm"),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("checkBalance.resetBalance"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             if (!isNfcSupported()) {
-              Alert.alert(t("common.error"), t("checkBalance.nfcNotSupported"));
+              showAlert(t("common.error"), t("checkBalance.nfcNotSupported"));
               return;
             }
             if (!hmacSecret) {
-              Alert.alert(t("common.error"), t("common.unknownError"));
+              showAlert(t("common.error"), t("common.unknownError"));
               return;
             }
             setResetting(true);
             try {
               await scanAndWriteBracelet(async (payload, tagInfo) => {
                 if (payload.uid !== result.uid) {
-                  Alert.alert(t("common.error"), t("checkBalance.wrongBracelet"));
+                  showAlert(t("common.error"), t("checkBalance.wrongBracelet"));
                   return null;
                 }
                 const newCounter = tagInfo?.type === "MIFARE_CLASSIC"
@@ -151,11 +153,11 @@ export default function CheckBalanceScreen() {
 
               setResult((prev) => prev ? { ...prev, balance: 0 } : prev);
               setBracelet((prev) => prev);
-              Alert.alert(t("common.success"), t("checkBalance.resetBalanceSuccess"));
+              showAlert(t("common.success"), t("checkBalance.resetBalanceSuccess"));
             } catch (e: unknown) {
               const msg = (e instanceof Error ? e.message : String(e)) ?? "";
               if (!msg.includes("cancelled") && !msg.includes("UserCancel")) {
-                Alert.alert(t("common.error"), t("checkBalance.resetBalanceError"));
+                showAlert(t("common.error"), t("checkBalance.resetBalanceError"));
               }
             } finally {
               setResetting(false);

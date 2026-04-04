@@ -2,10 +2,11 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -27,6 +28,7 @@ const REFUND_METHODS: {
 
 export default function RefundRequestScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -45,11 +47,11 @@ export default function RefundRequestScreen() {
   const selectedMethod = REFUND_METHODS.find((m) => m.value === refundMethod);
 
   const handleSubmit = () => {
-    Alert.alert(
+    showAlert(
       t("refund.confirmTitle"),
       t("refund.confirmMessage"),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("common.confirm"),
           onPress: async () => {
@@ -64,9 +66,9 @@ export default function RefundRequestScreen() {
             } catch (e: unknown) {
               const msg = e instanceof Error ? e.message : "";
               if (msg === "REFUND_REQUEST_ALREADY_PENDING") {
-                Alert.alert(t("refund.alreadyPendingTitle"), t("refund.alreadyPendingMessage"));
+                showAlert(t("refund.alreadyPendingTitle"), t("refund.alreadyPendingMessage"));
               } else {
-                Alert.alert(t("common.error"), msg || t("common.unknownError"));
+                showAlert(t("common.error"), msg || t("common.unknownError"));
               }
             }
           },

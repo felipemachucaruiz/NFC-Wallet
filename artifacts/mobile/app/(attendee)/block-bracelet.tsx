@@ -2,16 +2,18 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBlockBracelet } from "@/hooks/useAttendeeApi";
 
 export default function BlockBraceletScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -24,21 +26,21 @@ export default function BlockBraceletScreen() {
   const blockBracelet = useBlockBracelet();
 
   const handleBlock = () => {
-    Alert.alert(
+    showAlert(
       t("attendeeHome.blockBracelet"),
       t("attendeeBlock.confirmMessage"),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("attendeeBlock.blockBtn"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             try {
               await blockBracelet.mutateAsync({ uid, reason: "Blocked by attendee via app" });
               setStep("success");
             } catch (e: unknown) {
               const msg = e instanceof Error ? e.message : t("common.unknownError");
-              Alert.alert(t("common.error"), msg);
+              showAlert(t("common.error"), msg);
             }
           },
         },

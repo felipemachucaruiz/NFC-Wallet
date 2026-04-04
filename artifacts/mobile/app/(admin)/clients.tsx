@@ -1,11 +1,12 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState, useCallback, useEffect } from "react";
-import { Alert, FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListEvents } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { API_BASE_URL } from "@/constants/domain";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -53,6 +54,7 @@ const emptyCompanyForm = () => ({ companyName: "", nit: "", address: "", phone: 
 
 export default function ClientsScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -119,9 +121,9 @@ export default function ClientsScreen() {
 
   // ─── Client CRUD ────────────────────────────────────────────────────────────
   const handleCreate = async () => {
-    if (!form.firstName.trim()) { Alert.alert(t("common.error"), t("admin.clientNameRequired")); return; }
-    if (!form.email.trim() && !form.username.trim()) { Alert.alert(t("common.error"), t("admin.emailOrUsernameRequired")); return; }
-    if (form.password.length < 6) { Alert.alert(t("common.error"), t("admin.passwordMinLength")); return; }
+    if (!form.firstName.trim()) { showAlert(t("common.error"), t("admin.clientNameRequired")); return; }
+    if (!form.email.trim() && !form.username.trim()) { showAlert(t("common.error"), t("admin.emailOrUsernameRequired")); return; }
+    if (form.password.length < 6) { showAlert(t("common.error"), t("admin.passwordMinLength")); return; }
     setCreating(true);
     try {
       const body: Record<string, string> = {
@@ -137,9 +139,9 @@ export default function ClientsScreen() {
         body: JSON.stringify(body),
       });
       const data = await res.json() as { error?: string };
-      if (!res.ok) { Alert.alert(t("common.error"), data.error ?? t("common.unknownError")); }
+      if (!res.ok) { showAlert(t("common.error"), data.error ?? t("common.unknownError")); }
       else { setShowCreate(false); resetForm(); fetchClients(); }
-    } catch { Alert.alert(t("common.error"), t("common.unknownError")); }
+    } catch { showAlert(t("common.error"), t("common.unknownError")); }
     setCreating(false);
   };
 
@@ -153,13 +155,13 @@ export default function ClientsScreen() {
   const handleResetClientPassword = async () => {
     if (!editClient) return;
     if (editClientNewPassword.length < 6) {
-      Alert.alert(t("common.error"), t("common.passwordMinLength")); return;
+      showAlert(t("common.error"), t("common.passwordMinLength")); return;
     }
-    Alert.alert(t("admin.resetPassword"), t("admin.resetPasswordConfirm"), [
-      { text: t("common.cancel"), style: "cancel" },
+    showAlert(t("admin.resetPassword"), t("admin.resetPasswordConfirm"), [
+      { text: t("common.cancel"), variant: "cancel" },
       {
         text: t("common.confirm"),
-        style: "destructive",
+        variant: "danger",
         onPress: async () => {
           setResettingPw(true);
           try {
@@ -169,13 +171,13 @@ export default function ClientsScreen() {
               body: JSON.stringify({ newPassword: editClientNewPassword }),
             });
             if (res.ok) {
-              Alert.alert(t("common.success"), t("admin.passwordReset"));
+              showAlert(t("common.success"), t("admin.passwordReset"));
               setEditClientNewPassword("");
             } else {
               const err = await res.json().catch(() => ({})) as { error?: string };
-              Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+              showAlert(t("common.error"), err.error ?? t("common.unknownError"));
             }
-          } catch { Alert.alert(t("common.error"), t("common.unknownError")); }
+          } catch { showAlert(t("common.error"), t("common.unknownError")); }
           setResettingPw(false);
         },
       },
@@ -201,7 +203,7 @@ export default function ClientsScreen() {
       setEditClient(null);
       fetchClients();
       refetchEvents();
-    } catch { Alert.alert(t("common.error"), t("common.unknownError")); }
+    } catch { showAlert(t("common.error"), t("common.unknownError")); }
     setSaving(false);
   };
 
@@ -213,7 +215,7 @@ export default function ClientsScreen() {
   };
 
   const handleSaveCompany = async () => {
-    if (!companyForm.companyName.trim()) { Alert.alert(t("common.error"), t("promoterCompany.companyNameRequired")); return; }
+    if (!companyForm.companyName.trim()) { showAlert(t("common.error"), t("promoterCompany.companyNameRequired")); return; }
     setSavingCompany(true);
     const body = {
       companyName: companyForm.companyName.trim(),
@@ -231,24 +233,24 @@ export default function ClientsScreen() {
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        Alert.alert(t("common.success"), t("promoterCompany.companySaved"));
+        showAlert(t("common.success"), t("promoterCompany.companySaved"));
         setShowCreateCompany(false);
         setEditCompany(null);
         fetchCompanies();
       } else {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        Alert.alert(t("common.error"), err.error ?? t("common.unknownError"));
+        showAlert(t("common.error"), err.error ?? t("common.unknownError"));
       }
-    } catch { Alert.alert(t("common.error"), t("common.unknownError")); }
+    } catch { showAlert(t("common.error"), t("common.unknownError")); }
     setSavingCompany(false);
   };
 
   const handleDeleteCompany = (c: PromoterCompany) => {
-    Alert.alert(t("common.confirm"), t("promoterCompany.deleteConfirm"), [
-      { text: t("common.cancel"), style: "cancel" },
+    showAlert(t("common.confirm"), t("promoterCompany.deleteConfirm"), [
+      { text: t("common.cancel"), variant: "cancel" },
       {
         text: t("common.delete"),
-        style: "destructive",
+        variant: "danger",
         onPress: async () => {
           try {
             await fetch(`${getApiBase()}/api/promoter-companies/${c.id}`, {
@@ -256,7 +258,7 @@ export default function ClientsScreen() {
               headers: { Authorization: `Bearer ${token}` },
             });
             fetchCompanies();
-          } catch { Alert.alert(t("common.error"), t("common.unknownError")); }
+          } catch { showAlert(t("common.error"), t("common.unknownError")); }
         },
       },
     ]);

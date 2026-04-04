@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState, useCallback } from "react";
-import { Alert, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from "react-native";
+import { Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -14,6 +14,7 @@ import {
   useRemoveUserFromLocation,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -40,6 +41,7 @@ type Location = {
 
 export default function MerchantStaffScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -85,11 +87,11 @@ export default function MerchantStaffScreen() {
 
   const handleAdd = async () => {
     if (newUsername.trim().length < 3) {
-      Alert.alert(t("common.error"), t("merchant_admin.usernameRequired"));
+      showAlert(t("common.error"), t("merchant_admin.usernameRequired"));
       return;
     }
     if (newPassword.length < 6) {
-      Alert.alert(t("common.error"), t("merchant_admin.passwordRequired"));
+      showAlert(t("common.error"), t("merchant_admin.passwordRequired"));
       return;
     }
     try {
@@ -104,10 +106,10 @@ export default function MerchantStaffScreen() {
       setShowAddModal(false);
       resetAddForm();
       refetch();
-      Alert.alert(t("common.success"), t("merchant_admin.staffCreated"));
+      showAlert(t("common.success"), t("merchant_admin.staffCreated"));
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      Alert.alert(
+      showAlert(
         t("common.error"),
         msg === "Username already taken" ? t("merchant_admin.usernameTaken") : (msg ?? t("common.unexpectedError")),
       );
@@ -117,7 +119,7 @@ export default function MerchantStaffScreen() {
   const handleResetPassword = async () => {
     if (!selectedStaff) return;
     if (resetPassword.length < 6) {
-      Alert.alert(t("common.error"), t("merchant_admin.passwordRequired"));
+      showAlert(t("common.error"), t("merchant_admin.passwordRequired"));
       return;
     }
     try {
@@ -125,29 +127,29 @@ export default function MerchantStaffScreen() {
       setShowPasswordModal(false);
       setResetPassword("");
       setSelectedStaff(null);
-      Alert.alert(t("common.success"), t("merchant_admin.passwordReset"));
+      showAlert(t("common.success"), t("merchant_admin.passwordReset"));
     } catch {
-      Alert.alert(t("common.error"), t("common.unexpectedError"));
+      showAlert(t("common.error"), t("common.unexpectedError"));
     }
   };
 
   const handleDelete = (member: StaffMember) => {
     const name = member.firstName ?? member.username ?? member.id;
-    Alert.alert(
+    showAlert(
       t("merchant_admin.removeStaff"),
       t("merchant_admin.removeStaffConfirm", { name }),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("merchant_admin.removeStaff"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             try {
               await deleteStaff.mutateAsync({ userId: member.id });
               refetch();
-              Alert.alert(t("common.success"), t("merchant_admin.staffRemoved"));
+              showAlert(t("common.success"), t("merchant_admin.staffRemoved"));
             } catch {
-              Alert.alert(t("common.error"), t("common.unexpectedError"));
+              showAlert(t("common.error"), t("common.unexpectedError"));
             }
           },
         },
@@ -219,9 +221,9 @@ export default function MerchantStaffScreen() {
 
       setShowLocationModal(false);
       setLocationStaff(null);
-      Alert.alert(t("common.success"), t("merchant_admin.locationAssignmentSaved"));
+      showAlert(t("common.success"), t("merchant_admin.locationAssignmentSaved"));
     } catch {
-      Alert.alert(t("common.error"), t("common.unexpectedError"));
+      showAlert(t("common.error"), t("common.unexpectedError"));
     } finally {
       setSavingLocations(false);
     }

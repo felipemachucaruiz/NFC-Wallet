@@ -2,11 +2,12 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useUpdateBraceletContact, useGetSigningKey, type SigningKeyResponse } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -65,6 +66,7 @@ type Step = "form" | "tap_write" | "writing" | "saving" | "success";
 
 export default function TopUpScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -188,14 +190,14 @@ export default function TopUpScreen() {
   const handleConfirm = async () => {
     if (submittingRef.current) return;
     if (amount < 1000) {
-      Alert.alert(t("common.error"), t("bank.minimumAmount"));
+      showAlert(t("common.error"), t("bank.minimumAmount"));
       return;
     }
     submittingRef.current = true;
     cancelledRef.current = false;
 
     if (!hmacSecret) {
-      Alert.alert(t("common.error"), t("bank.noSigningKey"));
+      showAlert(t("common.error"), t("bank.noSigningKey"));
       submittingRef.current = false;
       return;
     }
@@ -204,7 +206,7 @@ export default function TopUpScreen() {
       setStep("tap_write");
     } else {
       // NFC unavailable: cannot write bracelet → block the top-up
-      Alert.alert(t("common.error"), t("bank.nfcRequired"));
+      showAlert(t("common.error"), t("bank.nfcRequired"));
       submittingRef.current = false;
     }
   };
@@ -266,7 +268,7 @@ export default function TopUpScreen() {
     writingRef.current = false;
     submittingRef.current = false;
     setStep("form");
-    Alert.alert(t("common.error"), t("bank.nfcWriteWarning"));
+    showAlert(t("common.error"), t("bank.nfcWriteWarning"));
   };
 
   const handleCancelWriting = async () => {

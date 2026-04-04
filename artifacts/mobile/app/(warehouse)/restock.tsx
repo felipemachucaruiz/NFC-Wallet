@@ -1,11 +1,12 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Alert, FlatList, Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListRestockOrders, useUpdateRestockOrder } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Empty } from "@/components/ui/Empty";
@@ -15,6 +16,7 @@ import { useEventContext } from "@/contexts/EventContext";
 
 export default function RestockOrdersScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -39,20 +41,20 @@ export default function RestockOrdersScreen() {
   const updateOrder = useUpdateRestockOrder();
 
   const handleUpdate = async (orderId: string, status: "approved" | "rejected") => {
-    Alert.alert(
+    showAlert(
       status === "approved" ? t("warehouse.approveRestock") : t("warehouse.rejectRestock"),
       t("warehouse.confirmAction"),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("common.confirm"),
-          style: status === "rejected" ? "destructive" : "default",
+          variant: status === "rejected" ? "danger" : "primary",
           onPress: async () => {
             try {
               await updateOrder.mutateAsync({ orderId, data: { status } });
               refetch();
             } catch {
-              Alert.alert(t("common.error"), t("common.unknownError"));
+              showAlert(t("common.error"), t("common.unknownError"));
             }
           },
         },

@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Alert, FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,6 +18,7 @@ import {
   useGetLocationInventory,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -46,6 +47,7 @@ type Location = {
 
 export default function MerchantsScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -71,8 +73,8 @@ export default function MerchantsScreen() {
   const createMerchant = useCreateMerchant();
 
   const handleCreate = async () => {
-    if (!merchantName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
-    if (!selectedEventId) { Alert.alert(t("common.error"), t("admin.selectEvent")); return; }
+    if (!merchantName.trim()) { showAlert(t("common.error"), t("common.nameRequired")); return; }
+    if (!selectedEventId) { showAlert(t("common.error"), t("admin.selectEvent")); return; }
     try {
       await createMerchant.mutateAsync({
         data: {
@@ -90,7 +92,7 @@ export default function MerchantsScreen() {
       setMerchantType("event_managed");
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 
@@ -258,6 +260,7 @@ function MerchantDetailModal({
   C: typeof Colors.light;
 }) {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [newLocationName, setNewLocationName] = useState("");
   const [newEventId, setNewEventId] = useState("");
@@ -272,14 +275,14 @@ function MerchantDetailModal({
   const deleteMerchant = useDeleteMerchant();
 
   const handleDelete = () => {
-    Alert.alert(
+    showAlert(
       t("admin.deleteMerchant"),
       t("admin.deleteMerchantConfirm", { name: merchant.name }),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("common.delete"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             try {
               await deleteMerchant.mutateAsync({ merchantId: merchant.id });
@@ -287,9 +290,9 @@ function MerchantDetailModal({
             } catch (err: unknown) {
               const status = (err as { status?: number })?.status;
               if (status === 409) {
-                Alert.alert(t("admin.cannotDelete"), t("admin.merchantHasTransactions"));
+                showAlert(t("admin.cannotDelete"), t("admin.merchantHasTransactions"));
               } else {
-                Alert.alert(t("common.error"), t("common.unknownError"));
+                showAlert(t("common.error"), t("common.unknownError"));
               }
             }
           },
@@ -299,7 +302,7 @@ function MerchantDetailModal({
   };
 
   const handleSaveEdit = async () => {
-    if (!editName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
+    if (!editName.trim()) { showAlert(t("common.error"), t("common.nameRequired")); return; }
     try {
       const updated = await updateMerchant.mutateAsync({
         merchantId: merchant.id,
@@ -313,7 +316,7 @@ function MerchantDetailModal({
       setIsEditing(false);
       onMerchantUpdated({ ...merchant, ...updated });
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 
@@ -324,8 +327,8 @@ function MerchantDetailModal({
   const updateLocation = useUpdateLocation();
 
   const handleAddLocation = async () => {
-    if (!newLocationName.trim()) { Alert.alert(t("common.error"), t("common.nameRequired")); return; }
-    if (!newEventId.trim()) { Alert.alert(t("common.error"), t("admin.eventIdRequired")); return; }
+    if (!newLocationName.trim()) { showAlert(t("common.error"), t("common.nameRequired")); return; }
+    if (!newEventId.trim()) { showAlert(t("common.error"), t("admin.eventIdRequired")); return; }
     try {
       await createLocation.mutateAsync({
         data: {
@@ -339,19 +342,19 @@ function MerchantDetailModal({
       setNewEventId("");
       refetch();
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 
   const handleDeactivate = (location: Location) => {
-    Alert.alert(
+    showAlert(
       t("admin.deactivateLocation"),
       t("admin.deactivateLocationConfirm", { name: location.name }),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("admin.deactivate"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             try {
               await updateLocation.mutateAsync({
@@ -360,7 +363,7 @@ function MerchantDetailModal({
               });
               refetch();
             } catch {
-              Alert.alert(t("common.error"), t("common.unknownError"));
+              showAlert(t("common.error"), t("common.unknownError"));
             }
           },
         },
@@ -567,6 +570,7 @@ function LocationDetailModal({
   C: typeof Colors.light;
 }) {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const [assignUserId, setAssignUserId] = useState("");
   const [showAssign, setShowAssign] = useState(false);
 
@@ -577,7 +581,7 @@ function LocationDetailModal({
   const removeUser = useRemoveUserFromLocation();
 
   const handleAssign = async () => {
-    if (!assignUserId.trim()) { Alert.alert(t("common.error"), t("admin.userIdRequired")); return; }
+    if (!assignUserId.trim()) { showAlert(t("common.error"), t("admin.userIdRequired")); return; }
     try {
       await assignUser.mutateAsync({
         locationId: location.id,
@@ -585,30 +589,30 @@ function LocationDetailModal({
       });
       setAssignUserId("");
       setShowAssign(false);
-      Alert.alert(t("common.success"), t("admin.staffAssigned"));
+      showAlert(t("common.success"), t("admin.staffAssigned"));
     } catch {
-      Alert.alert(t("common.error"), t("common.unknownError"));
+      showAlert(t("common.error"), t("common.unknownError"));
     }
   };
 
   const handleRemove = (userId: string) => {
-    Alert.alert(
+    showAlert(
       t("admin.removeStaff"),
       t("admin.removeStaffConfirm"),
       [
-        { text: t("common.cancel"), style: "cancel" },
+        { text: t("common.cancel"), variant: "cancel" },
         {
           text: t("common.confirm"),
-          style: "destructive",
+          variant: "danger",
           onPress: async () => {
             try {
               await removeUser.mutateAsync({
                 locationId: location.id,
                 data: { userId },
               });
-              Alert.alert(t("common.success"), t("admin.staffRemoved"));
+              showAlert(t("common.success"), t("admin.staffRemoved"));
             } catch {
-              Alert.alert(t("common.error"), t("common.unknownError"));
+              showAlert(t("common.error"), t("common.unknownError"));
             }
           },
         },
