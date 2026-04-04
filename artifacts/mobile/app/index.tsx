@@ -14,8 +14,24 @@ export default function IndexScreen() {
       return;
     }
 
-    // DIAGNOSTIC: route to /debug before role screen to isolate crash source
-    router.replace("/debug");
+    const role = user?.role;
+    if (role === "attendee") {
+      router.replace("/(attendee)/home");
+    } else if (role === "bank") {
+      router.replace("/(bank)/");
+    } else if (role === "merchant_staff") {
+      router.replace("/(merchant-pos)/");
+    } else if (role === "merchant_admin") {
+      router.replace("/(merchant-admin)/");
+    } else if (role === "warehouse_admin") {
+      router.replace("/(warehouse)/");
+    } else if (role === "event_admin") {
+      router.replace("/(event-admin)/");
+    } else if (role === "admin") {
+      router.replace("/(admin)/");
+    } else {
+      router.replace("/login");
+    }
   }, [isLoading, isAuthenticated, user]);
 
   return <Loading full />;

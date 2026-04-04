@@ -52,20 +52,13 @@ try {
         : null;
     ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
       try {
-        const msg = error?.message ?? "unknown error";
-        const stack = error?.stack?.split("\n").slice(0, 12).join("\n") ?? "";
         const entry = JSON.stringify({
-          message: msg,
-          stack,
+          message: error?.message ?? "unknown error",
+          stack: error?.stack?.split("\n").slice(0, 8).join("\n"),
           isFatal: !!isFatal,
           ts: new Date().toISOString(),
         });
         AsyncStorage.setItem(CRASH_LOG_KEY, entry).catch(() => {});
-        Alert.alert(
-          `💥 ${isFatal ? "FATAL" : "JS"} CRASH`,
-          `${msg}\n\n${stack}`,
-          [{ text: "OK" }],
-        );
       } catch {}
       if (typeof prevHandler === "function") prevHandler(error, isFatal);
     });

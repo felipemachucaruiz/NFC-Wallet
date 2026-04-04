@@ -1,5 +1,4 @@
 import React, { Component, ComponentType, PropsWithChildren } from "react";
-import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ErrorFallback, ErrorFallbackProps } from "@/components/ErrorFallback";
@@ -47,7 +46,6 @@ export class ErrorBoundary extends Component<
       ts: new Date().toISOString(),
     });
     AsyncStorage.setItem(CRASH_LOG_KEY, entry).catch(() => {});
-    Alert.alert("⚛️ RENDER CRASH", `${msg}\n\n${stack}`, [{ text: "OK" }]);
   }
 
   resetError = (): void => {
