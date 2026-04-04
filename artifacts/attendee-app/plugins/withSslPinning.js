@@ -65,9 +65,58 @@ function copyAndAddIosCerts(config, certFiles) {
 
     for (const file of certFiles) {
       const resourcePath = `${appName}/${file}`;
-      if (!xcodeProject.hasFile(resourcePath)) {
-        xcodeProject.addResourceFile(resourcePath, { target: targetUuid });
-        console.log(`[withSslPinning] iOS Xcode: added ${resourcePath} to Copy Bundle Resources`);
+
+      if (xcodeProject.hasFile(resourcePath)) {
+        console.log(`[withSslPinning] iOS Xcode: ${resourcePath} already exists, skipping`);
+        continue;
+      }
+
+      const fileRefUuid = xcodeProject.generateUuid();
+      const buildFileUuid = xcodeProject.generateUuid();
+
+      xcodeProject.hash.project.objects["PBXFileReference"] =
+        xcodeProject.hash.project.objects["PBXFileReference"] || {};
+      xcodeProject.hash.project.objects["PBXFileReference"][fileRefUuid] = {
+        isa: "PBXFileReference",
+        lastKnownFileType: "file",
+        name: `"${file}"`,
+        path: `"${resourcePath}"`,
+        sourceTree: '"<group>"',
+      };
+      xcodeProject.hash.project.objects["PBXFileReference"][
+        fileRefUuid + "_comment"
+      ] = file;
+
+      xcodeProject.hash.project.objects["PBXBuildFile"] =
+        xcodeProject.hash.project.objects["PBXBuildFile"] || {};
+      xcodeProject.hash.project.objects["PBXBuildFile"][buildFileUuid] = {
+        isa: "PBXBuildFile",
+        fileRef: fileRefUuid,
+        fileRef_comment: file,
+      };
+      xcodeProject.hash.project.objects["PBXBuildFile"][
+        buildFileUuid + "_comment"
+      ] = `${file} in Resources`;
+
+      const resourcesBuildPhase = xcodeProject.buildPhaseObject(
+        "PBXResourcesBuildPhase",
+        "Resources",
+        targetUuid
+      );
+
+      if (resourcesBuildPhase) {
+        resourcesBuildPhase.files = resourcesBuildPhase.files || [];
+        resourcesBuildPhase.files.push({
+          value: buildFileUuid,
+          comment: `${file} in Resources`,
+        });
+        console.log(
+          `[withSslPinning] iOS Xcode: added ${resourcePath} to Copy Bundle Resources`
+        );
+      } else {
+        console.warn(
+          `[withSslPinning] iOS Xcode: could not find Copy Bundle Resources phase for target ${targetUuid}`
+        );
       }
     }
     return cfg;
