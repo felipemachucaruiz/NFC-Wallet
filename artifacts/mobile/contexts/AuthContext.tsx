@@ -175,11 +175,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       //   403 → staff account ("must log in via staff portal")
       //   5xx → attendee-api unreachable / dev server down / proxy error
       //   any other non-2xx → unexpected error, always try api-server
-      let res = await fetch(`${ATTENDEE_API_BASE_URL}/api/auth/login`, {
-        method: "POST", headers, body,
-      });
-      const attendeeStatus = res.status;
-      if (attendeeStatus < 200 || attendeeStatus > 299) {
+      //   network exception → attendee-api unreachable, always try api-server
+      let res: Response | null = null;
+      try {
+        res = await fetch(`${ATTENDEE_API_BASE_URL}/api/auth/login`, {
+          method: "POST", headers, body,
+        });
+      } catch {
+        // Attendee API unreachable — fall through to staff API
+      }
+      if (!res || res.status < 200 || res.status > 299) {
         res = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: "POST", headers, body,
         });
