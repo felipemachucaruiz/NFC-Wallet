@@ -9,3 +9,4 @@ export * from "./refunds";
 export * from "./attendeeRefundRequests";
 export * from "./fraudAlerts";
 export * from "./payments";
+export * from "./accessZones";

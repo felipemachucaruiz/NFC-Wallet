@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
-import { db, usersTable, merchantsTable } from "@workspace/db";
+import { db, usersTable, merchantsTable, accessZonesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -341,6 +341,76 @@ router.delete(
     }
     await db.delete(usersTable).where(eq(usersTable.id, req.params.userId as string));
     res.json({ success: true });
+  },
+);
+
+/**
+ * PATCH /users/:userId/gate-zone
+ * Assign or clear the gate zone for a gate/wristband staff user.
+ * The zoneId must belong to the same event as the user.
+ * Restricted to admin and event_admin.
+ */
+router.patch(
+  "/users/:userId/gate-zone",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({ gateZoneId: z.string().nullable() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+
+    const { userId } = req.params as { userId: string };
+    const { gateZoneId } = parsed.data;
+
+    const [targetUser] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+
+    if (!targetUser) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const isEventAdmin = req.user!.role === "event_admin";
+    if (isEventAdmin) {
+      if (targetUser.eventId !== req.user!.eventId) {
+        res.status(403).json({ error: "Access denied: user does not belong to your event" });
+        return;
+      }
+    }
+
+    if (gateZoneId) {
+      const [zone] = await db
+        .select()
+        .from(accessZonesTable)
+        .where(eq(accessZonesTable.id, gateZoneId));
+
+      if (!zone) {
+        res.status(404).json({ error: "Access zone not found" });
+        return;
+      }
+
+      if (isEventAdmin && zone.eventId !== req.user!.eventId) {
+        res.status(403).json({ error: "Access denied: zone does not belong to your event" });
+        return;
+      }
+
+      if (targetUser.eventId && zone.eventId !== targetUser.eventId) {
+        res.status(422).json({ error: "Zone does not belong to the same event as the user" });
+        return;
+      }
+    }
+
+    const [updated] = await db
+      .update(usersTable)
+      .set({ gateZoneId, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .returning();
+
+    res.json(updated);
   },
 );
 

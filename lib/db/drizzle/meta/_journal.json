@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1775319567869,
+      "tag": "0000_abnormal_barracuda",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775320188528,
+      "tag": "0001_access_zones_constraints",
+      "breakpoints": true
+    }
+  ]
+}

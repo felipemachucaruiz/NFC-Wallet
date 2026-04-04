@@ -17,6 +17,11 @@ export const braceletsTable = pgTable("bracelets", {
   flagReason: text("flag_reason"),
   pendingSync: boolean("pending_sync").notNull().default(false),
   pendingBalanceCop: integer("pending_balance_cop").notNull().default(0),
+  /**
+   * Array of access zone IDs granted to this bracelet.
+   * Populated at registration (from gate user's gateZoneId) and via upgrade endpoint.
+   */
+  accessZoneIds: text("access_zone_ids").array().notNull().default(sql`'{}'::text[]`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -21,6 +21,7 @@ import analyticsRouter from "./analytics";
 import fraudAlertsRouter from "./fraudAlerts";
 import storageRouter from "./storage";
 import bankAttendeeRouter from "./bankAttendee";
+import accessZonesRouter from "./accessZones";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use(analyticsRouter);
 router.use(fraudAlertsRouter);
 router.use(storageRouter);
 router.use(bankAttendeeRouter);
+router.use(accessZonesRouter);
 
 export default router;

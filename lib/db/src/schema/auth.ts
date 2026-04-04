@@ -37,6 +37,13 @@ export const usersTable = pgTable("users", {
   promoterCompanyId: varchar("promoter_company_id"),
   expoPushToken: varchar("expo_push_token"),
   phone: varchar("phone", { length: 30 }),
+  /**
+   * Gate/wristband staff: nullable FK to access_zones.id.
+   * The DB-level FK constraint (users_gate_zone_id_fk) is created directly via SQL migration
+   * to avoid the circular Drizzle schema import that would result from auth.ts → accessZones.ts → auth.ts.
+   * App logic validates zone existence and ownership during assignment.
+   */
+  gateZoneId: varchar("gate_zone_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

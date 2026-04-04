@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable } from "@workspace/db";
-import { eq, desc, ilike, or, and, sql } from "drizzle-orm";
+import { eq, desc, ilike, or, and, sql, asc } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -115,9 +115,27 @@ router.post(
       resolvedMaxOfflineSpend = event?.maxOfflineSpendPerBracelet ?? null;
     }
 
+    // Gate zone auto-assignment: fetch the acting user's gateZoneId from DB (not session cache)
+    const initialAccessZoneIds: string[] = [];
+    const [actingUser] = await db
+      .select({ gateZoneId: usersTable.gateZoneId })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.user!.id));
+    if (actingUser?.gateZoneId) {
+      initialAccessZoneIds.push(actingUser.gateZoneId);
+    }
+
     const [bracelet] = await db
       .insert(braceletsTable)
-      .values({ nfcUid, eventId, attendeeName, phone, email, maxOfflineSpend: resolvedMaxOfflineSpend })
+      .values({
+        nfcUid,
+        eventId,
+        attendeeName,
+        phone,
+        email,
+        maxOfflineSpend: resolvedMaxOfflineSpend,
+        accessZoneIds: initialAccessZoneIds,
+      })
       .returning();
     res.status(201).json(bracelet);
   },

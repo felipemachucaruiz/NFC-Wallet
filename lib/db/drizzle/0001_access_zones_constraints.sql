@@ -1,0 +1,2 @@
+ALTER TABLE "access_zones" ADD CONSTRAINT "access_zones_event_id_rank_unique" UNIQUE("event_id","rank");--> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "users_gate_zone_id_access_zones_id_fk" FOREIGN KEY ("gate_zone_id") REFERENCES "public"."access_zones"("id") ON DELETE set null ON UPDATE no action;
