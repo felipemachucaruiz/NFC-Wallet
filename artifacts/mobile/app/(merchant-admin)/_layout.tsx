@@ -1,7 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { BlurView } from "expo-blur";
 import { Tabs, router } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
@@ -50,48 +49,42 @@ function ClassicTabLayout() {
         name="index"
         options={{
           title: t("merchant_admin.earnings"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="chart.bar.fill" tintColor={color} size={22} /> : <Feather name="bar-chart-2" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="locations"
         options={{
           title: t("merchant_admin.locations"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="mappin.and.ellipse" tintColor={color} size={22} /> : <Feather name="map-pin" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="map-pin" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="products"
         options={{
           title: t("merchant_admin.products"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="tag.fill" tintColor={color} size={22} /> : <Feather name="tag" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="tag" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="stock"
         options={{
           title: t("merchant_admin.inventory"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="shippingbox.fill" tintColor={color} size={22} /> : <Feather name="package" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="staff"
         options={{
           title: t("merchant_admin.staff"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="person.badge.plus.fill" tintColor={color} size={22} /> : <Feather name="user-plus" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="user-plus" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="payouts"
         options={{
           title: t("merchant_admin.payouts"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="banknote" tintColor={color} size={22} /> : <Feather name="credit-card" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="credit-card" size={22} color={color} />,
         }}
       />
       <Tabs.Screen name="profile" options={{ href: null }} />

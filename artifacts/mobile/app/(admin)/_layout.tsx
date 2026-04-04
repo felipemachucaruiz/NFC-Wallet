@@ -1,7 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { BlurView } from "expo-blur";
 import { Tabs, router } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
@@ -47,14 +46,14 @@ function ClassicTabLayout() {
         tabBarLabelStyle: { fontSize: 10, fontFamily: "Inter_500Medium" },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: t("admin.overview"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="chart.pie.fill" tintColor={color} size={22} /> : <Feather name="pie-chart" size={22} color={color} /> }} />
-      <Tabs.Screen name="clients" options={{ title: t("admin.clients"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="person.2.circle.fill" tintColor={color} size={22} /> : <Feather name="users" size={22} color={color} /> }} />
-      <Tabs.Screen name="events" options={{ title: t("admin.events"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="calendar.fill" tintColor={color} size={22} /> : <Feather name="calendar" size={22} color={color} /> }} />
-      <Tabs.Screen name="bracelets" options={{ title: t("admin.braceletMgmt"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="wave.3.right.circle.fill" tintColor={color} size={22} /> : <Feather name="wifi" size={22} color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: t("admin.overview"), tabBarIcon: ({ color }) => <Feather name="pie-chart" size={22} color={color} /> }} />
+      <Tabs.Screen name="clients" options={{ title: t("admin.clients"), tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} /> }} />
+      <Tabs.Screen name="events" options={{ title: t("admin.events"), tabBarIcon: ({ color }) => <Feather name="calendar" size={22} color={color} /> }} />
+      <Tabs.Screen name="bracelets" options={{ title: t("admin.braceletMgmt"), tabBarIcon: ({ color }) => <Feather name="wifi" size={22} color={color} /> }} />
       <Tabs.Screen name="analytics" options={{ title: t("analytics.title"), tabBarIcon: ({ color }) => <Feather name="activity" size={22} color={color} /> }} />
-      <Tabs.Screen name="reports" options={{ title: t("admin.billing"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="banknote.fill" tintColor={color} size={22} /> : <Feather name="dollar-sign" size={22} color={color} /> }} />
+      <Tabs.Screen name="reports" options={{ title: t("admin.billing"), tabBarIcon: ({ color }) => <Feather name="dollar-sign" size={22} color={color} /> }} />
       <Tabs.Screen name="fraud-alerts" options={{ title: t("fraud.alertsTitle"), tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }} />
-      <Tabs.Screen name="roles" options={{ title: t("admin.settings"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="gearshape.fill" tintColor={color} size={22} /> : <Feather name="settings" size={22} color={color} /> }} />
+      <Tabs.Screen name="roles" options={{ title: t("admin.settings"), tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} /> }} />
       <Tabs.Screen name="merchants" options={{ href: null }} />
     </Tabs>
   );

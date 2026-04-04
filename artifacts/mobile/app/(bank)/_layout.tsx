@@ -1,7 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { BlurView } from "expo-blur";
 import { Tabs, router } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
@@ -50,16 +49,14 @@ function ClassicTabLayout() {
         name="index"
         options={{
           title: t("bank.topUpLabel"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="plus.circle.fill" tintColor={color} size={22} /> : <Feather name="plus-circle" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="plus-circle" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="shift"
         options={{
           title: t("bank.shift"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="chart.bar.fill" tintColor={color} size={22} /> : <Feather name="bar-chart-2" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
         }}
       />
       <Tabs.Screen name="topup" options={{ href: null }} />

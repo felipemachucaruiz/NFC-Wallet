@@ -1,7 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { BlurView } from "expo-blur";
 import { Tabs, router } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
@@ -49,10 +48,10 @@ function ClassicTabLayout() {
           ) : null,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: t("warehouse.stock"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="cube.box.fill" tintColor={color} size={22} /> : <Feather name="package" size={22} color={color} /> }} />
-      <Tabs.Screen name="dispatch" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.dispatch"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="arrow.up.circle.fill" tintColor={color} size={22} /> : <Feather name="upload" size={22} color={color} /> }} />
-      <Tabs.Screen name="restock" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.restock"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="cart.badge.plus" tintColor={color} size={22} /> : <Feather name="shopping-cart" size={22} color={color} /> }} />
-      <Tabs.Screen name="movements" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.movements"), tabBarIcon: ({ color }) => isIOS ? <SymbolView name="list.bullet.rectangle.fill" tintColor={color} size={22} /> : <Feather name="list" size={22} color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: t("warehouse.stock"), tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />
+      <Tabs.Screen name="dispatch" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.dispatch"), tabBarIcon: ({ color }) => <Feather name="upload" size={22} color={color} /> }} />
+      <Tabs.Screen name="restock" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.restock"), tabBarIcon: ({ color }) => <Feather name="shopping-cart" size={22} color={color} /> }} />
+      <Tabs.Screen name="movements" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.movements"), tabBarIcon: ({ color }) => <Feather name="list" size={22} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );

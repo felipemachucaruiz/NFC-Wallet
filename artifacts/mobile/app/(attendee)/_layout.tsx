@@ -1,7 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { BlurView } from "expo-blur";
 import { Tabs, router } from "expo-router";
-import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
@@ -50,8 +49,7 @@ function ClassicTabLayout() {
         name="home"
         options={{
           title: t("attendeeHome.tab"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="house.fill" tintColor={color} size={22} /> : <Feather name="home" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
           headerShown: false,
         }}
       />
@@ -59,8 +57,7 @@ function ClassicTabLayout() {
         name="history"
         options={{
           title: t("attendee.history"),
-          tabBarIcon: ({ color }) =>
-            isIOS ? <SymbolView name="list.bullet" tintColor={color} size={22} /> : <Feather name="list" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="list" size={22} color={color} />,
         }}
       />
       <Tabs.Screen name="index" options={{ href: null }} />
