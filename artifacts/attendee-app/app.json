@@ -16,7 +16,12 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.tapee.attendee"
+      "bundleIdentifier": "com.tapee.attendee",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NFCReaderUsageDescription": "Used to read NFC wristbands for cashless payments.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.tapee.attendee",
@@ -27,14 +32,23 @@
       "permissions": [
         "android.permission.NFC",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.NFC",
-        "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/47da8b6a-72b7-4bc9-af31-c34ee51a0441",
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     },
     "plugins": [
       [
@@ -46,6 +60,7 @@
       "expo-font",
       "expo-web-browser",
       "react-native-nfc-manager",
+      "expo-updates",
       [
         "./plugins/withSslPinning",
         {
@@ -60,12 +75,6 @@
       "eas": {
         "projectId": "47da8b6a-72b7-4bc9-af31-c34ee51a0441"
       }
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/47da8b6a-72b7-4bc9-af31-c34ee51a0441"
     }
   }
 }
