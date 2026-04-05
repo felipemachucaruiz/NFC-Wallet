@@ -1,14 +1,12 @@
-const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY ?? "";
-
 module.exports = {
   expo: {
-    name: "Tapee Staff",
-    slug: "mobile",
+    name: "Tapee Wallet",
+    slug: "attendee-app",
     owner: "felipemachucadj",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "tapee",
+    scheme: "tapee-attendee",
     userInterfaceStyle: "dark",
     newArchEnabled: true,
     splash: {
@@ -18,19 +16,15 @@ module.exports = {
     },
     ios: {
       supportsTablet: false,
-      bundleIdentifier: "com.tapee.staff",
+      bundleIdentifier: "com.tapee.attendee",
       buildNumber: "1",
       infoPlist: {
-        NSPhotoLibraryUsageDescription: "Used to select product photos.",
         NFCReaderUsageDescription: "Used to read NFC wristbands for cashless payments.",
-        NSLocationWhenInUseUsageDescription: "Used to set the event location on the map.",
-      },
-      config: {
-        googleMapsApiKey,
+        ITSAppUsesNonExemptEncryption: false,
       },
     },
     android: {
-      package: "com.tapee.app",
+      package: "com.tapee.attendee",
       adaptiveIcon: {
         foregroundImage: "./assets/images/icon.png",
         backgroundColor: "#0a0a0a",
@@ -39,27 +33,20 @@ module.exports = {
         "android.permission.NFC",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
       ],
-      config: {
-        googleMaps: {
-          apiKey: googleMapsApiKey,
-        },
-      },
     },
     web: {
       favicon: "./assets/images/icon.png",
     },
     updates: {
-      url: "https://u.expo.dev/26d76893-d65f-457a-b2eb-7fa177110638",
+      url: "https://u.expo.dev/47da8b6a-72b7-4bc9-af31-c34ee51a0441",
       enabled: true,
       fallbackToCacheTimeout: 0,
       checkAutomatically: "ON_LOAD",
       requestHeaders: {
-        "expo-channel-name": "preview",
+        "expo-channel-name": "production",
       },
     },
     runtimeVersion: {
@@ -74,7 +61,6 @@ module.exports = {
       ],
       "expo-font",
       "expo-web-browser",
-      "@react-native-community/datetimepicker",
       "react-native-nfc-manager",
       "expo-updates",
       [
@@ -87,33 +73,19 @@ module.exports = {
         },
       ],
       [
-        "expo-image-picker",
-        {
-          photosPermission: "The app needs access to your photos to upload product images.",
-        },
-      ],
-      [
-        "expo-location",
-        {
-          locationWhenInUsePermission: "Allow Tapee to access your location to set the event pin on the map.",
-        },
-      ],
-      [
         "./plugins/withSslPinning",
         {
           certFiles: ["tapee_api.cer", "attendee_api.cer"],
         },
       ],
-      "./plugins/withGoogleMapsManifest",
     ],
     experiments: {
       typedRoutes: true,
     },
     extra: {
       eas: {
-        projectId: "26d76893-d65f-457a-b2eb-7fa177110638",
+        projectId: "47da8b6a-72b7-4bc9-af31-c34ee51a0441",
       },
-      googleMapsApiKey,
     },
   },
 };
