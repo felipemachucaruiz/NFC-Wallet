@@ -13,6 +13,9 @@ export const attendeeRefundRequestStatusEnum = pgEnum("attendee_refund_request_s
   "pending",
   "approved",
   "rejected",
+  "disbursement_pending",
+  "disbursement_completed",
+  "disbursement_failed",
 ]);
 
 export const attendeeRefundRequestsTable = pgTable(
@@ -30,6 +33,9 @@ export const attendeeRefundRequestsTable = pgTable(
     chipZeroed: boolean("chip_zeroed").notNull().default(false),
     processedByUserId: varchar("processed_by_user_id").references(() => usersTable.id),
     processedAt: timestamp("processed_at", { withTimezone: true }),
+    disbursementReference: varchar("disbursement_reference"),
+    disbursementWompiId: varchar("disbursement_wompi_id"),
+    disbursementError: text("disbursement_error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

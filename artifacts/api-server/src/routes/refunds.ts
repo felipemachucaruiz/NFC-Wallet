@@ -1,9 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, refundsTable, attendeeRefundRequestsTable } from "@workspace/db";
+import { db, braceletsTable, refundsTable, attendeeRefundRequestsTable, usersTable } from "@workspace/db";
 import { eq, and, gt, gte, lte, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { notifyRefundRequestApproved, notifyRefundRequestRejected } from "../lib/pushNotifications";
+import { initiateWompiDisbursement, type DisbursementTarget } from "../lib/wompiDisbursement";
 
 const router: IRouter = Router();
 
@@ -216,9 +217,10 @@ router.get(
       return;
     }
 
+    const validStatuses = ["pending", "approved", "rejected", "disbursement_pending", "disbursement_completed", "disbursement_failed"];
     const conditions = [eq(attendeeRefundRequestsTable.eventId, eventId)];
-    if (status && ["pending", "approved", "rejected"].includes(status)) {
-      conditions.push(eq(attendeeRefundRequestsTable.status, status as "pending" | "approved" | "rejected"));
+    if (status && validStatuses.includes(status)) {
+      conditions.push(eq(attendeeRefundRequestsTable.status, status as "pending" | "approved" | "rejected" | "disbursement_pending" | "disbursement_completed" | "disbursement_failed"));
     }
 
     const requests = await db
@@ -234,6 +236,7 @@ router.get(
 /**
  * POST /refund-requests/:id/approve
  * Approve a pending attendee refund request. Atomically deducts the amount from the bracelet balance.
+ * For non-cash refund methods (nequi), automatically initiates a Wompi disbursement.
  */
 router.post(
   "/refund-requests/:id/approve",
@@ -285,12 +288,109 @@ router.post(
         return updated;
       });
 
+      // Always send push notification to the attendee
       void notifyRefundRequestApproved({
         attendeeUserId: result.attendeeUserId,
         amountCop: result.amountCop,
       });
 
-      res.json({ refundRequest: result });
+      // For cash refunds, no disbursement needed — manual collection.
+      if (result.refundMethod === "cash" || result.refundMethod === "other") {
+        res.json({ refundRequest: result });
+        return;
+      }
+
+      // Attempt automatic Wompi disbursement for nequi/bancolombia
+      const refundMethod = result.refundMethod as "nequi" | "bancolombia";
+      const isSupportedForDisbursement = refundMethod === "nequi";
+
+      if (!isSupportedForDisbursement) {
+        // bancolombia and other methods not yet supported for automated disbursement
+        res.json({ refundRequest: result });
+        return;
+      }
+
+      // Fetch attendee account details for disbursement
+      const [attendeeUser] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, result.attendeeUserId));
+
+      // Parse phone number from accountDetails (stored as JSON or plain string)
+      let phoneNumber: string | undefined;
+      if (result.accountDetails) {
+        try {
+          const parsed = JSON.parse(result.accountDetails) as { phoneNumber?: string; phone?: string };
+          phoneNumber = parsed.phoneNumber || parsed.phone;
+        } catch {
+          // accountDetails stored as plain phone number string
+          phoneNumber = result.accountDetails.trim();
+        }
+      }
+
+      if (!phoneNumber) {
+        // No account details — mark as failed with clear message
+        const [updated] = await db
+          .update(attendeeRefundRequestsTable)
+          .set({
+            status: "disbursement_failed",
+            disbursementError: "No Nequi phone number on file. Manual transfer required.",
+          })
+          .where(eq(attendeeRefundRequestsTable.id, id))
+          .returning();
+        res.json({
+          refundRequest: updated,
+          disbursementError: "No Nequi phone number on file. Manual transfer required.",
+        });
+        return;
+      }
+
+      const target: DisbursementTarget = {
+        method: refundMethod,
+        phoneNumber,
+      };
+
+      const customerEmail = attendeeUser?.email || `attendee_${result.attendeeUserId}@evento.local`;
+
+      // Mark as disbursement_pending before firing the API call
+      await db
+        .update(attendeeRefundRequestsTable)
+        .set({ status: "disbursement_pending" })
+        .where(eq(attendeeRefundRequestsTable.id, id));
+
+      const outcome = await initiateWompiDisbursement(
+        result.id,
+        result.amountCop,
+        target,
+        customerEmail,
+      );
+
+      if (outcome.success) {
+        const [updated] = await db
+          .update(attendeeRefundRequestsTable)
+          .set({
+            status: "disbursement_pending",
+            disbursementReference: outcome.reference,
+            disbursementWompiId: outcome.wompiId,
+            disbursementError: null,
+          })
+          .where(eq(attendeeRefundRequestsTable.id, id))
+          .returning();
+        res.json({ refundRequest: updated });
+      } else {
+        const [updated] = await db
+          .update(attendeeRefundRequestsTable)
+          .set({
+            status: "disbursement_failed",
+            disbursementError: outcome.error,
+          })
+          .where(eq(attendeeRefundRequestsTable.id, id))
+          .returning();
+        res.json({
+          refundRequest: updated,
+          disbursementError: outcome.error,
+        });
+      }
     } catch (e: unknown) {
       const err = e as { message?: string; httpStatus?: number };
       const status = err.httpStatus ?? 500;
@@ -357,6 +457,104 @@ router.post(
     });
 
     res.json({ refundRequest: updated });
+  },
+);
+
+/**
+ * POST /payments/disbursement-webhook
+ * Wompi webhook for disbursement (transaction) status updates.
+ * Updates the refund request status based on the transaction outcome.
+ */
+router.post(
+  "/payments/disbursement-webhook",
+  async (req: Request, res: Response) => {
+    const WOMPI_EVENTS_SECRET = process.env.WOMPI_EVENTS_SECRET || "";
+    if (!WOMPI_EVENTS_SECRET) {
+      console.error("WOMPI_EVENTS_SECRET not configured — rejecting disbursement webhook");
+      res.status(500).json({ error: "Webhook secret not configured" });
+      return;
+    }
+
+    const signature = req.headers["x-event-checksum"] as string | undefined;
+    if (!signature) {
+      res.status(400).json({ error: "Missing webhook signature" });
+      return;
+    }
+
+    const body = req.body as {
+      event: string;
+      data: { transaction?: { id: string; status: string; reference: string; amount_in_cents: number } };
+      sent_at: string;
+      timestamp: number;
+      environment: string;
+    };
+
+    const txData = body.data?.transaction;
+    const properties = txData
+      ? `${txData.id}${txData.status}${txData.amount_in_cents}`
+      : "";
+
+    const crypto = await import("crypto");
+    const checksumInput = `${properties}${body.timestamp}${WOMPI_EVENTS_SECRET}`;
+    const checksum = crypto
+      .createHash("sha256")
+      .update(checksumInput)
+      .digest("hex");
+
+    try {
+      const checksumBuf = Buffer.from(checksum, "hex");
+      const signatureBuf = Buffer.from(signature, "hex");
+      if (checksumBuf.length !== signatureBuf.length || !crypto.timingSafeEqual(checksumBuf, signatureBuf)) {
+        res.status(401).json({ error: "Invalid webhook signature" });
+        return;
+      }
+    } catch {
+      res.status(401).json({ error: "Invalid webhook signature format" });
+      return;
+    }
+
+    const WEBHOOK_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
+    const rawTimestamp = body.timestamp;
+    if (!Number.isFinite(rawTimestamp) || rawTimestamp <= 0) {
+      res.status(400).json({ error: "Webhook timestamp is invalid" });
+      return;
+    }
+    const webhookTimestampMs = rawTimestamp * 1000;
+    if (Math.abs(Date.now() - webhookTimestampMs) > WEBHOOK_TIMESTAMP_TOLERANCE_MS) {
+      res.status(400).json({ error: "Webhook timestamp is stale" });
+      return;
+    }
+
+    if (body.environment === "test" && process.env.NODE_ENV === "production") {
+      res.status(400).json({ error: "Test webhooks are not accepted in production" });
+      return;
+    }
+
+    if (body.event === "transaction.updated" && txData) {
+      const [refundRequest] = await db
+        .select()
+        .from(attendeeRefundRequestsTable)
+        .where(eq(attendeeRefundRequestsTable.disbursementWompiId, txData.id));
+
+      if (refundRequest) {
+        if (txData.status === "APPROVED") {
+          await db
+            .update(attendeeRefundRequestsTable)
+            .set({ status: "disbursement_completed" })
+            .where(eq(attendeeRefundRequestsTable.id, refundRequest.id));
+        } else if (txData.status === "DECLINED" || txData.status === "ERROR" || txData.status === "VOIDED") {
+          await db
+            .update(attendeeRefundRequestsTable)
+            .set({
+              status: "disbursement_failed",
+              disbursementError: `Wompi transaction ${txData.status.toLowerCase()}. Manual transfer required.`,
+            })
+            .where(eq(attendeeRefundRequestsTable.id, refundRequest.id));
+        }
+      }
+    }
+
+    res.json({ success: true });
   },
 );
 
