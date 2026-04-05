@@ -213,8 +213,8 @@ export default function AddBraceletScreen() {
                   style={[styles.nfcBtn, { backgroundColor: C.primary }]}
                   onPress={handleNfcScan}
                 >
-                  <Feather name="wifi" size={18} color="#fff" />
-                  <Text style={styles.nfcBtnText}>{t("addBracelet.startScan")}</Text>
+                  <Feather name="wifi" size={18} color={C.primaryText} />
+                  <Text style={[styles.nfcBtnText, { color: C.primaryText }]}>{t("addBracelet.startScan")}</Text>
                 </Pressable>
               )}
 
@@ -262,9 +262,9 @@ export default function AddBraceletScreen() {
                 disabled={!isValidManual || state !== "idle"}
               >
                 {state === "linking" && !nfcAvailable ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={isValidManual ? C.primaryText : "#fff"} size="small" />
                 ) : (
-                  <Feather name="arrow-right" size={20} color="#fff" />
+                  <Feather name="arrow-right" size={20} color={isValidManual && state === "idle" ? C.primaryText : "#fff"} />
                 )}
               </Pressable>
             </View>

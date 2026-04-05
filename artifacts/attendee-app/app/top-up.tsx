@@ -234,7 +234,7 @@ export default function TopUpScreen() {
                   },
                 ]}
               >
-                <Text style={[styles.amountChipText, { color: selectedAmount === amt ? "#fff" : C.text }]}>
+                <Text style={[styles.amountChipText, { color: selectedAmount === amt ? "#0a0a0a" : C.text }]}>
                   {formatCOP(amt)}
                 </Text>
               </Pressable>

@@ -80,13 +80,13 @@ export default function GateHomeScreen() {
           onPress={() => router.push("/register" as never)}
         >
           <View style={styles.ctaBtnInner}>
-            <View style={[styles.ctaIconWrap, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
-              <Feather name="wifi" size={36} color="#fff" />
+            <View style={[styles.ctaIconWrap, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
+              <Feather name="wifi" size={36} color={C.primaryText} />
             </View>
-            <Text style={styles.ctaBtnTitle}>{t("gate.registerWristband")}</Text>
-            <Text style={styles.ctaBtnSub}>{t("gate.registerWristbandHint")}</Text>
+            <Text style={[styles.ctaBtnTitle, { color: C.primaryText }]}>{t("gate.registerWristband")}</Text>
+            <Text style={[styles.ctaBtnSub, { color: C.primaryText + "99" }]}>{t("gate.registerWristbandHint")}</Text>
           </View>
-          <Feather name="arrow-right" size={22} color="rgba(255,255,255,0.7)" />
+          <Feather name="arrow-right" size={22} color={C.primaryText + "B3"} />
         </Pressable>
 
         <Pressable
