@@ -17,12 +17,13 @@ import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Empty } from "@/components/ui/Empty";
 import { Loading } from "@/components/ui/Loading";
+import { Badge } from "@/components/ui/Badge";
 import { formatDateTime } from "@/utils/format";
 import { useMyTransactions, useMyBracelets } from "@/hooks/useAttendeeApi";
 
 type TxItem = {
   id: string;
-  type: "purchase" | "top_up";
+  type: "purchase" | "top_up" | "refund" | "transfer";
   braceletUid: string;
   amountCop: number;
   newBalanceCop: number;
@@ -30,6 +31,8 @@ type TxItem = {
   locationName: string | null;
   lineItems: Array<{ name: string; quantity: number; unitPriceCop: number }>;
   createdAt: string;
+  refundStatus?: "pending" | "approved" | "rejected" | null;
+  refundChipZeroed?: boolean | null;
 };
 
 export default function HistoryScreen() {
@@ -134,6 +137,60 @@ export default function HistoryScreen() {
   );
 }
 
+function txConfig(tx: TxItem, C: typeof Colors.dark, t: (k: string) => string) {
+  switch (tx.type) {
+    case "top_up":
+      return {
+        icon: "plus-circle" as const,
+        iconBg: C.successLight,
+        iconColor: C.success,
+        label: t("history.topUp"),
+        positive: true,
+      };
+    case "refund":
+      return {
+        icon: "rotate-ccw" as const,
+        iconBg: C.warningLight,
+        iconColor: C.warning,
+        label: t("history.refund"),
+        positive: true,
+      };
+    case "transfer":
+      return {
+        icon: "shuffle" as const,
+        iconBg: C.primaryLight,
+        iconColor: C.primary,
+        label: t("history.transfer"),
+        positive: false,
+      };
+    default:
+      return {
+        icon: "shopping-bag" as const,
+        iconBg: C.primaryLight,
+        iconColor: C.primary,
+        label: `${t("history.purchase")}${tx.merchantName ? ` ${t("history.at")} ${tx.merchantName}` : ""}`,
+        positive: false,
+      };
+  }
+}
+
+function refundStatusVariant(status?: string | null, chipZeroed?: boolean | null): "warning" | "success" | "danger" | "muted" {
+  if (status === "approved" && chipZeroed) return "success";
+  if (status === "approved") return "muted";
+  if (status === "rejected") return "danger";
+  if (status === "pending") return "warning";
+  return "muted";
+}
+
+function refundStatusLabel(status?: string | null, chipZeroed?: boolean | null, t?: (k: string) => string): string {
+  if (!t) return status ?? "";
+  if (status === "approved" && chipZeroed) return t("history.refundStatus.paid");
+  if (status === "approved") return t("history.refundStatus.approved");
+  if (status === "rejected") return t("history.refundStatus.rejected");
+  if (status === "pending") return t("history.refundStatus.pending");
+  return status ?? "";
+}
+
 function TxCard({
   tx,
   C,
@@ -144,31 +201,31 @@ function TxCard({
   t: (k: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const isTopUp = tx.type === "top_up";
+  const cfg = txConfig(tx, C, t);
 
   return (
     <TouchableOpacity onPress={() => setExpanded((v) => !v)} activeOpacity={0.85}>
       <View style={[styles.txCard, { backgroundColor: C.card, borderColor: C.border }]}>
         <View style={styles.txRow}>
-          <View style={[styles.txIcon, { backgroundColor: isTopUp ? C.successLight : C.primaryLight }]}>
-            <Feather
-              name={isTopUp ? "plus-circle" : "shopping-bag"}
-              size={18}
-              color={isTopUp ? C.success : C.primary}
-            />
+          <View style={[styles.txIcon, { backgroundColor: cfg.iconBg }]}>
+            <Feather name={cfg.icon} size={18} color={cfg.iconColor} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.txType, { color: C.text }]}>
-              {isTopUp
-                ? t("history.topUp")
-                : `${t("history.purchase")}${tx.merchantName ? ` ${t("history.at")} ${tx.merchantName}` : ""}`}
-            </Text>
+            <Text style={[styles.txType, { color: C.text }]}>{cfg.label}</Text>
             {tx.locationName && (
               <Text style={[styles.txLocation, { color: C.textMuted }]}>{tx.locationName}</Text>
             )}
             <Text style={[styles.txDate, { color: C.textMuted }]}>{formatDateTime(tx.createdAt)}</Text>
           </View>
-          <CopAmount amount={tx.amountCop} positive={isTopUp} />
+          <View style={styles.txRight}>
+            <CopAmount amount={tx.amountCop} positive={cfg.positive} />
+            {tx.type === "refund" && tx.refundStatus && (
+              <Badge
+                label={refundStatusLabel(tx.refundStatus, tx.refundChipZeroed, t)}
+                variant={refundStatusVariant(tx.refundStatus, tx.refundChipZeroed)}
+              />
+            )}
+          </View>
         </View>
         {expanded && tx.lineItems && tx.lineItems.length > 0 && (
           <View style={[styles.lineItems, { borderTopColor: C.separator }]}>
@@ -201,6 +258,7 @@ const styles = StyleSheet.create({
   txType: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   txLocation: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
   txDate: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  txRight: { alignItems: "flex-end", gap: 4 },
   lineItems: { borderTopWidth: 1, marginTop: 12, paddingTop: 10, gap: 6 },
   lineItemRow: { flexDirection: "row", justifyContent: "space-between" },
   lineItemName: { fontSize: 13, fontFamily: "Inter_400Regular" },

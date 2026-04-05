@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { CopAmount } from "@/components/CopAmount";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyRefundRequests } from "@/hooks/useAttendeeApi";
 import { setStoredLanguage } from "@/i18n";
@@ -25,6 +26,7 @@ type RefundRequest = {
   id: string;
   braceletUid: string;
   refundMethod: string;
+  amountCop: number;
   status: "pending" | "approved" | "rejected";
   chipZeroed?: boolean;
   createdAt: string;
@@ -65,7 +67,7 @@ export default function ProfileScreen() {
   };
 
   const statusLabel = (r: RefundRequest) => {
-    if (r.status === "approved" && r.chipZeroed) return t("profile.refundComplete");
+    if (r.status === "approved" && r.chipZeroed) return t("profile.refundPaid");
     if (r.status === "approved") return t("profile.refundProcessing");
     if (r.status === "rejected") return t("common.rejected");
     return t("common.pending");
@@ -148,10 +150,15 @@ export default function ProfileScreen() {
                     {formatDate(r.createdAt)} · {r.refundMethod}
                   </Text>
                 </View>
-                <Badge
-                  label={statusLabel(r)}
-                  variant={statusVariant(r)}
-                />
+                <View style={styles.refundRight}>
+                  {r.amountCop > 0 && (
+                    <CopAmount amount={r.amountCop} positive size={14} />
+                  )}
+                  <Badge
+                    label={statusLabel(r)}
+                    variant={statusVariant(r)}
+                  />
+                </View>
               </View>
             </Card>
           ))
@@ -229,6 +236,7 @@ const styles = StyleSheet.create({
   },
   emptyRefundText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   refundRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  refundRight: { alignItems: "flex-end", gap: 4 },
   refundUid: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   refundDate: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   logoutBtn: {

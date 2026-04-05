@@ -9,6 +9,7 @@ import {
   merchantsTable,
   eventsTable,
   attendeeRefundRequestsTable,
+  braceletTransferLogsTable,
   usersTable,
 } from "@workspace/db";
 import { eq, and, ne, desc, inArray, lte } from "drizzle-orm";
@@ -81,17 +82,6 @@ router.get(
     const limitRaw = parseInt((req.query.limit as string) ?? String(PAGE_SIZE), 10);
     const limit = Math.min(Math.max(1, Number.isNaN(limitRaw) ? PAGE_SIZE : limitRaw), 50);
 
-    const bracelets = await db
-      .select({ nfcUid: braceletsTable.nfcUid })
-      .from(braceletsTable)
-      .where(eq(braceletsTable.attendeeUserId, userId));
-
-    if (bracelets.length === 0) {
-      res.json({ transactions: [], nextCursor: null });
-      return;
-    }
-
-    const uids = bracelets.map((b) => b.nfcUid);
     const decoded = cursorRaw ? decodeCursor(cursorRaw) : null;
 
     if (cursorRaw && !decoded) {
@@ -99,31 +89,66 @@ router.get(
       return;
     }
 
-    const txLogRows = await db
+    const bracelets = await db
+      .select({ nfcUid: braceletsTable.nfcUid })
+      .from(braceletsTable)
+      .where(eq(braceletsTable.attendeeUserId, userId));
+
+    const uids = bracelets.map((b) => b.nfcUid);
+
+    const txLogRows = uids.length > 0
+      ? await db
+          .select()
+          .from(transactionLogsTable)
+          .where(
+            and(
+              inArray(transactionLogsTable.braceletUid, uids),
+              decoded ? lte(transactionLogsTable.createdAt, decoded.t) : undefined
+            )
+          )
+          .orderBy(desc(transactionLogsTable.createdAt))
+          .limit(limit * 2)
+      : [];
+
+    const topUpRows = uids.length > 0
+      ? await db
+          .select()
+          .from(topUpsTable)
+          .where(
+            and(
+              inArray(topUpsTable.braceletUid, uids),
+              decoded ? lte(topUpsTable.createdAt, decoded.t) : undefined
+            )
+          )
+          .orderBy(desc(topUpsTable.createdAt))
+          .limit(limit * 2)
+      : [];
+
+    const refundRows = await db
       .select()
-      .from(transactionLogsTable)
+      .from(attendeeRefundRequestsTable)
       .where(
         and(
-          inArray(transactionLogsTable.braceletUid, uids),
-          decoded ? lte(transactionLogsTable.createdAt, decoded.t) : undefined
+          eq(attendeeRefundRequestsTable.attendeeUserId, userId),
+          decoded ? lte(attendeeRefundRequestsTable.createdAt, decoded.t) : undefined
         )
       )
-      .orderBy(desc(transactionLogsTable.createdAt))
+      .orderBy(desc(attendeeRefundRequestsTable.createdAt))
       .limit(limit * 2);
 
-    const topUpRows = await db
+    const transferRows = await db
       .select()
-      .from(topUpsTable)
+      .from(braceletTransferLogsTable)
       .where(
         and(
-          inArray(topUpsTable.braceletUid, uids),
-          decoded ? lte(topUpsTable.createdAt, decoded.t) : undefined
+          eq(braceletTransferLogsTable.fromUserId, userId),
+          decoded ? lte(braceletTransferLogsTable.createdAt, decoded.t) : undefined
         )
       )
-      .orderBy(desc(topUpsTable.createdAt))
+      .orderBy(desc(braceletTransferLogsTable.createdAt))
       .limit(limit * 2);
 
-    type MergedItem = { id: string; createdAt: Date; type: "purchase" | "top_up"; sortKey: string; raw: typeof txLogRows[0] | typeof topUpRows[0] };
+    type MergedItem = { id: string; createdAt: Date; type: "purchase" | "top_up" | "refund" | "transfer"; sortKey: string; raw: typeof txLogRows[0] | typeof topUpRows[0] | typeof refundRows[0] | typeof transferRows[0] };
 
     const buildSortKey = (createdAt: Date, type: string, id: string) =>
       `${createdAt.toISOString()}|${type}|${id}`;
@@ -131,6 +156,8 @@ router.get(
     let merged: MergedItem[] = [
       ...txLogRows.map((r) => ({ id: r.id, createdAt: r.createdAt, type: "purchase" as const, sortKey: buildSortKey(r.createdAt, "purchase", r.id), raw: r })),
       ...topUpRows.map((r) => ({ id: r.id, createdAt: r.createdAt, type: "top_up" as const, sortKey: buildSortKey(r.createdAt, "top_up", r.id), raw: r })),
+      ...refundRows.map((r) => ({ id: r.id, createdAt: r.createdAt, type: "refund" as const, sortKey: buildSortKey(r.createdAt, "refund", r.id), raw: r })),
+      ...transferRows.map((r) => ({ id: r.id, createdAt: r.createdAt, type: "transfer" as const, sortKey: buildSortKey(r.createdAt, "transfer", r.id), raw: r })),
     ].sort((a, b) => {
       const timeDiff = b.createdAt.getTime() - a.createdAt.getTime();
       if (timeDiff !== 0) return timeDiff;
@@ -169,6 +196,36 @@ router.get(
               unitPriceCop: li.unitPriceSnapshot,
             })),
             createdAt: tx.createdAt,
+            refundStatus: null,
+          };
+        } else if (item.type === "refund") {
+          const ref = item.raw as typeof refundRows[0];
+          return {
+            id: ref.id,
+            type: "refund" as const,
+            braceletUid: ref.braceletUid,
+            amountCop: ref.amountCop,
+            newBalanceCop: 0,
+            merchantName: null,
+            locationName: null,
+            lineItems: [],
+            createdAt: ref.createdAt,
+            refundStatus: ref.status,
+            refundChipZeroed: ref.chipZeroed,
+          };
+        } else if (item.type === "transfer") {
+          const tr = item.raw as typeof transferRows[0];
+          return {
+            id: tr.id,
+            type: "transfer" as const,
+            braceletUid: tr.braceletUid,
+            amountCop: tr.balanceCop,
+            newBalanceCop: 0,
+            merchantName: null,
+            locationName: null,
+            lineItems: [],
+            createdAt: tr.createdAt,
+            refundStatus: null,
           };
         } else {
           const tu = item.raw as typeof topUpRows[0];
@@ -182,6 +239,7 @@ router.get(
             locationName: null,
             lineItems: [],
             createdAt: tu.createdAt,
+            refundStatus: null,
           };
         }
       })
@@ -568,16 +626,24 @@ router.delete(
       return;
     }
 
-    await db
-      .update(braceletsTable)
-      .set({
-        attendeeUserId: null,
-        attendeeName: null,
-        email: null,
-        phone: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(braceletsTable.nfcUid, uid));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(braceletsTable)
+        .set({
+          attendeeUserId: null,
+          attendeeName: null,
+          email: null,
+          phone: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(braceletsTable.nfcUid, uid));
+
+      await tx.insert(braceletTransferLogsTable).values({
+        braceletUid: uid,
+        fromUserId: userId,
+        balanceCop: bracelet.lastKnownBalanceCop,
+      });
+    });
 
     res.json({ success: true, uid, balanceCop: bracelet.lastKnownBalanceCop });
   }
@@ -589,13 +655,13 @@ router.get(
   async (req: Request, res: Response) => {
     const userId = req.user.id;
 
-    const requests = await db
+    const refundRequests = await db
       .select()
       .from(attendeeRefundRequestsTable)
       .where(eq(attendeeRefundRequestsTable.attendeeUserId, userId))
       .orderBy(desc(attendeeRefundRequestsTable.createdAt));
 
-    res.json({ requests });
+    res.json({ refundRequests });
   }
 );
 

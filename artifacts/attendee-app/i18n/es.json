@@ -133,11 +133,25 @@
     "tab": "Historial",
     "title": "Mis Transacciones",
     "noTransactions": "Sin transacciones",
-    "noTransactionsSub": "Tus compras y recargas aparecerán aquí",
+    "noTransactionsSub": "Tus compras, recargas y devoluciones aparecerán aquí",
     "purchase": "Compra",
     "topUp": "Recarga",
+    "refund": "Solicitud de devolución",
+    "transfer": "Transferencia de pulsera",
     "at": "en",
-    "balance": "Saldo"
+    "balance": "Saldo",
+    "refundStatus": {
+      "pending": "Pendiente",
+      "approved": "En proceso",
+      "paid": "Pagada",
+      "rejected": "Rechazada"
+    }
+  },
+  "notifications": {
+    "tab": "Bandeja",
+    "title": "Notificaciones",
+    "empty": "Sin notificaciones",
+    "emptySub": "Las notificaciones que recibas aparecerán aquí"
   },
   "topUp": {
     "title": "Recargar pulsera",
@@ -229,6 +243,7 @@
     "refundStatus": "Estado",
     "refundProcessing": "En proceso",
     "refundComplete": "Completada",
+    "refundPaid": "Pagada",
     "logout": "Cerrar sesión",
     "language": "Idioma",
     "spanish": "Español",

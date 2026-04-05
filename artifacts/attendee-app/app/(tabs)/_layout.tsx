@@ -75,6 +75,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="notifications"
+        options={{
+          title: t("notifications.tab"),
+          tabBarIcon: ({ color }) =>
+            isIOS
+              ? <SymbolView name="bell.fill" tintColor={color} size={22} />
+              : <Feather name="bell" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: t("profile.tab"),

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { router } from "expo-router";
 import { useRegisterPushToken } from "@/hooks/useAttendeeApi";
+import { appendStoredNotification } from "@/hooks/useNotificationStore";
 import Constants from "expo-constants";
 
 type NotificationsModule = typeof import("expo-notifications");
@@ -14,9 +15,10 @@ try {
 
 let handlerSet = false;
 
-export function usePushNotifications(isAuthenticated: boolean) {
+export function usePushNotifications(isAuthenticated: boolean, userId?: string | null) {
   const { mutate: registerToken } = useRegisterPushToken();
   const responseListenerRef = useRef<EventSubscription | null>(null);
+  const receiveListenerRef = useRef<EventSubscription | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || Platform.OS === "web" || !Notifications) return;
@@ -59,8 +61,28 @@ export function usePushNotifications(isAuthenticated: boolean) {
       } catch {}
     })();
 
+    receiveListenerRef.current = Notifications!.addNotificationReceivedListener((notification) => {
+      const content = notification.request.content;
+      void appendStoredNotification({
+        id: notification.request.identifier,
+        title: content.title ?? null,
+        body: content.body ?? null,
+        data: (content.data as Record<string, unknown>) ?? {},
+        receivedAt: new Date().toISOString(),
+      }, userId);
+    });
+
     responseListenerRef.current = Notifications!.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as Record<string, unknown> | null;
+      const notification = response.notification;
+      const content = notification.request.content;
+      void appendStoredNotification({
+        id: notification.request.identifier,
+        title: content.title ?? null,
+        body: content.body ?? null,
+        data: (content.data as Record<string, unknown>) ?? {},
+        receivedAt: new Date().toISOString(),
+      }, userId);
+      const data = content.data as Record<string, unknown> | null;
       if (data?.navigate === "history") {
         router.push("/(tabs)/history");
       }
@@ -68,9 +90,12 @@ export function usePushNotifications(isAuthenticated: boolean) {
 
     return () => {
       cancelled = true;
+      if (receiveListenerRef.current) {
+        receiveListenerRef.current.remove();
+      }
       if (responseListenerRef.current) {
         responseListenerRef.current.remove();
       }
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userId]);
 }

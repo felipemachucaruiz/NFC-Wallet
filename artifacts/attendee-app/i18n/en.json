@@ -133,11 +133,25 @@
     "tab": "History",
     "title": "My Transactions",
     "noTransactions": "No transactions",
-    "noTransactionsSub": "Your purchases and top-ups will appear here",
+    "noTransactionsSub": "Your purchases, top-ups and refunds will appear here",
     "purchase": "Purchase",
     "topUp": "Top up",
+    "refund": "Refund request",
+    "transfer": "Bracelet transfer",
     "at": "at",
-    "balance": "Balance"
+    "balance": "Balance",
+    "refundStatus": {
+      "pending": "Pending",
+      "approved": "Processing",
+      "paid": "Paid",
+      "rejected": "Rejected"
+    }
+  },
+  "notifications": {
+    "tab": "Inbox",
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "emptySub": "Push notifications you receive will appear here"
   },
   "topUp": {
     "title": "Top up wristband",
@@ -229,6 +243,7 @@
     "refundStatus": "Status",
     "refundProcessing": "Processing",
     "refundComplete": "Complete",
+    "refundPaid": "Paid",
     "logout": "Sign out",
     "language": "Language",
     "spanish": "Español",

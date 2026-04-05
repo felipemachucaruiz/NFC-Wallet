@@ -144,8 +144,8 @@ const sessionStyles = StyleSheet.create({
 });
 
 function AppInner() {
-  const { isAuthenticated } = useAuth();
-  usePushNotifications(isAuthenticated);
+  const { isAuthenticated, user } = useAuth();
+  usePushNotifications(isAuthenticated, user?.id);
   return (
     <>
       <RootLayoutNav />
