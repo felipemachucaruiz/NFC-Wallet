@@ -4,15 +4,15 @@ attached_assets/
 
 artifacts/api-server/
 artifacts/attendee-api/
-artifacts/attendee-app/
+artifacts/mobile/
 artifacts/mockup-sandbox/
 scripts/
 
-artifacts/mobile/dist/
-artifacts/mobile/.expo/
-artifacts/mobile/nohup.out
 artifacts/attendee-app/dist/
 artifacts/attendee-app/.expo/
+artifacts/attendee-app/nohup.out
+artifacts/mobile/dist/
+artifacts/mobile/.expo/
 lib/*/dist/
 
 **/*.log
