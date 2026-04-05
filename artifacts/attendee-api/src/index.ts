@@ -1,3 +1,4 @@
+// gate role added to UserRole enum — force rebuild
 import app from "./app";
 import { logger } from "./lib/logger";
 
