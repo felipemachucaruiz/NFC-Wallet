@@ -251,16 +251,17 @@ function FullMapPicker({ visible, initialLatitude, initialLongitude, onConfirm, 
             enablePoweredByContainer={false}
             keepResultsAfterBlur={false}
             keyboardShouldPersistTaps="handled"
+            textInputProps={{ placeholderTextColor: "#ffffff" }}
             styles={{
               container: { flex: 0 },
               textInputContainer: { backgroundColor: "transparent", paddingHorizontal: 0 },
               textInput: {
                 height: 44,
                 borderRadius: 10,
-                borderWidth: 1,
-                borderColor: C.border,
+                borderWidth: 2,
+                borderColor: "#00f1ff",
                 backgroundColor: C.inputBg,
-                color: C.text,
+                color: "#ffffff",
                 paddingHorizontal: 14,
                 fontSize: 14,
                 fontFamily: "Inter_400Regular",
