@@ -49,9 +49,7 @@ module.exports = {
         "expo-channel-name": "production",
       },
     },
-    runtimeVersion: {
-      policy: "fingerprint",
-    },
+    runtimeVersion: "1.0.0",
     plugins: [
       [
         "expo-router",

@@ -64,6 +64,16 @@
     "zod": "catalog:",
     "zod-validation-error": "^3.4.0"
   },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-nfc-manager",
+          "react-native-ssl-pinning"
+        ]
+      }
+    }
+  },
   "dependencies": {
     "@react-native-community/datetimepicker": "8.4.4",
     "crypto-js": "^4.2.0",

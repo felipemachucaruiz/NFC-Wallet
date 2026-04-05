@@ -53,6 +53,16 @@
     "typescript": "~5.9.2",
     "zod": "catalog:"
   },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-nfc-manager",
+          "react-native-ssl-pinning"
+        ]
+      }
+    }
+  },
   "dependencies": {
     "expo-crypto": "~15.0.8",
     "expo-localization": "^17.0.8",
