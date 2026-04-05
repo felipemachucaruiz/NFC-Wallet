@@ -37,30 +37,13 @@ router.get(
       return;
     }
 
-    let [bracelet] = await db
+    const [bracelet] = await db
       .select()
       .from(braceletsTable)
       .where(eq(braceletsTable.nfcUid, uid));
 
     if (!bracelet) {
-      const [created] = await db
-        .insert(braceletsTable)
-        .values({ nfcUid: uid, lastKnownBalanceCop: 0, lastCounter: 0, pendingSync: false })
-        .onConflictDoNothing()
-        .returning();
-      if (created) {
-        bracelet = created;
-      } else {
-        const [existing] = await db
-          .select()
-          .from(braceletsTable)
-          .where(eq(braceletsTable.nfcUid, uid));
-        bracelet = existing;
-      }
-    }
-
-    if (!bracelet) {
-      res.status(500).json({ error: "Failed to resolve bracelet record" });
+      res.status(404).json({ error: "BRACELET_NOT_FOUND" });
       return;
     }
 

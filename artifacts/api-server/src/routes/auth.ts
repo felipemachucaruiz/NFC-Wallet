@@ -208,6 +208,18 @@ const SetupBody = z.object({
 });
 
 router.post("/auth/setup", async (req: Request, res: Response) => {
+  const setupToken = process.env.ADMIN_SETUP_TOKEN;
+  if (!setupToken) {
+    res.status(403).json({ error: "Setup is not available." });
+    return;
+  }
+
+  const providedToken = req.headers["x-setup-token"] as string | undefined;
+  if (!providedToken || providedToken !== setupToken) {
+    res.status(401).json({ error: "Invalid or missing setup token." });
+    return;
+  }
+
   const parsed = SetupBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request" });
@@ -220,6 +232,7 @@ router.post("/auth/setup", async (req: Request, res: Response) => {
     .where(eq(usersTable.role, "admin"));
 
   if (existingAdmin) {
+    delete process.env.ADMIN_SETUP_TOKEN;
     res.status(403).json({ error: "Setup already complete. An admin account already exists." });
     return;
   }
@@ -242,6 +255,8 @@ router.post("/auth/setup", async (req: Request, res: Response) => {
       set: { passwordHash, role: "admin", updatedAt: new Date() },
     })
     .returning();
+
+  delete process.env.ADMIN_SETUP_TOKEN;
 
   res.status(201).json({ id: newUser.id, email: newUser.email, role: newUser.role });
 });

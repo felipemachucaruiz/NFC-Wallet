@@ -37,7 +37,24 @@ app.use(
     },
   }),
 );
-app.use(cors({ credentials: true, origin: true }));
+const rawCorsOrigin = process.env.CORS_ORIGIN ?? "";
+const allowedOrigins = rawCorsOrigin
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    credentials: true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+  }),
+);
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

@@ -59,5 +59,13 @@ export async function verifyHmac(
 }
 
 export function generateId(): string {
-  return Date.now().toString() + Math.random().toString(36).substring(2, 9);
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  throw new Error("Secure crypto primitives are not available in this environment.");
 }

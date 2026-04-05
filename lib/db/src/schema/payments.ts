@@ -12,6 +12,7 @@ export const wompiPaymentStatusEnum = pgEnum("wompi_payment_status", [
   "processing",
   "success",
   "failed",
+  "expired",
 ]);
 
 export const wompiPaymentIntentsTable = pgTable("wompi_payment_intents", {

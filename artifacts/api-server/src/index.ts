@@ -110,10 +110,8 @@ async function runStartupMigrations(): Promise<void> {
           FOREIGN KEY (gate_zone_id) REFERENCES access_zones(id);
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-      -- ── Restore admin password (post-task-79 db wipe recovery) ────────────
-      UPDATE users
-        SET password_hash = '$2b$12$E3NC65u5WmPsbtBLFksY8.AdiGq1sNsqiOa1bWno0AGVT74EfCIKy'
-        WHERE email = 'hola@tapee.app' AND role = 'admin';
+      -- ── Add 'expired' to wompi_payment_status enum (idempotent) ──────────
+      ALTER TYPE wompi_payment_status ADD VALUE IF NOT EXISTS 'expired';
     `);
 
     logger.info("Startup migrations complete.");
