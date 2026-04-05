@@ -172,7 +172,6 @@ function FullMapPicker({ visible, initialLatitude, initialLongitude, onConfirm, 
   const [address, setAddress] = useState("");
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
 
   const mapRef = useRef<any>(null);
 
@@ -246,32 +245,26 @@ function FullMapPicker({ visible, initialLatitude, initialLongitude, onConfirm, 
             </Text>
           </View>
           <GPA
-            placeholder={t("admin.searchVenuePlaceholder") || "Nombre del lugar o dirección…"}
+            placeholder={t("admin.searchVenuePlaceholder") || "Buscar sede o dirección…"}
             onPress={(data: any, details: any) => {
               if (!details?.geometry?.location) return;
               const { lat, lng } = details.geometry.location;
               animateTo(lat, lng);
               setAddress(data.description);
-              setSearchFocused(false);
             }}
             query={{ key: GOOGLE_MAPS_API_KEY, language: "es" }}
             fetchDetails
             enablePoweredByContainer={false}
             keepResultsAfterBlur={false}
             keyboardShouldPersistTaps="handled"
-            textInputProps={{
-              onFocus: () => setSearchFocused(true),
-              onBlur: () => setSearchFocused(false),
-              placeholderTextColor: C.textMuted,
-            }}
             styles={{
               container: { flex: 0 },
               textInputContainer: { backgroundColor: "transparent", paddingHorizontal: 0 },
               textInput: {
-                height: 46,
-                borderRadius: 12,
+                height: 44,
+                borderRadius: 10,
                 borderWidth: 1.5,
-                borderColor: searchFocused ? C.primary : C.border,
+                borderColor: C.primary,
                 backgroundColor: C.inputBg,
                 color: C.text,
                 paddingHorizontal: 14,
@@ -279,15 +272,7 @@ function FullMapPicker({ visible, initialLatitude, initialLongitude, onConfirm, 
                 fontFamily: "Inter_400Regular",
                 marginBottom: 0,
               },
-              listView: {
-                backgroundColor: C.card,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: C.border,
-                marginTop: 6,
-                zIndex: 9999,
-                elevation: 6,
-              },
+              listView: { backgroundColor: C.card, borderRadius: 10, borderWidth: 1, borderColor: C.border, marginTop: 4, zIndex: 9999 },
               row: { backgroundColor: C.card, padding: 12 },
               description: { color: C.text, fontSize: 13, fontFamily: "Inter_400Regular" },
               separator: { backgroundColor: C.border, height: StyleSheet.hairlineWidth },
