@@ -96,12 +96,7 @@ module.exports = {
           locationWhenInUsePermission: "Allow Tapee to access your location to set the event pin on the map.",
         },
       ],
-      [
-        "./plugins/withSslPinning",
-        {
-          certFiles: ["r12.cer", "r13.cer"],
-        },
-      ],
+      "./plugins/withNetworkSecurityConfig",
       "./plugins/withGoogleMapsManifest",
     ],
     experiments: {

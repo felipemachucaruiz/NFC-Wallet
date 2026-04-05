@@ -70,12 +70,7 @@ module.exports = {
           androidMode: "default",
         },
       ],
-      [
-        "./plugins/withSslPinning",
-        {
-          certFiles: ["r12.cer", "r13.cer"],
-        },
-      ],
+      "./plugins/withNetworkSecurityConfig",
     ],
     experiments: {
       typedRoutes: true,
