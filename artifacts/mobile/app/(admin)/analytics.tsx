@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Dimensions, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -22,12 +22,53 @@ import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Card } from "@/components/ui/Card";
-import { Loading } from "@/components/ui/Loading";
+import { BarChart } from "react-native-chart-kit";
 
 const REFETCH_INTERVAL = 60_000;
 const DAYS_ORDER = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 type AnalyticsTab = "summary" | "sales" | "products" | "merchants" | "stock" | "heatmap" | "refunds";
+
+function ChartSkeleton({ height = 160 }: { height?: number }) {
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+  const bars = Array.from({ length: 8 }, (_, i) => i);
+  return (
+    <View style={[styles.skeletonContainer, { height, backgroundColor: C.inputBg }]}>
+      <View style={styles.skeletonBars}>
+        {bars.map((i) => (
+          <View
+            key={i}
+            style={[
+              styles.skeletonBar,
+              {
+                height: `${30 + ((i * 17) % 55)}%`,
+                backgroundColor: C.shimmer2,
+              },
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function HeatmapSkeleton() {
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+  return (
+    <View style={[styles.skeletonContainer, { height: 120, backgroundColor: C.inputBg }]}>
+      {DAYS_ORDER.map((d) => (
+        <View key={d} style={styles.skeletonRow}>
+          {Array.from({ length: 12 }, (_, i) => (
+            <View key={i} style={[styles.skeletonCell, { backgroundColor: C.shimmer2 }]} />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
 
 function SummaryPanel({
   data,
@@ -46,8 +87,6 @@ function SummaryPanel({
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
-  if (isLoading) return <Loading label={t("common.loading")} />;
-
   const cards = [
     { label: t("analytics.totalTopUps"), value: data?.totalTopUpsCop, isCop: true, color: C.primary, icon: "arrow-up-circle" as const },
     { label: t("analytics.totalSales"), value: data?.totalSalesCop, isCop: true, color: C.success, icon: "shopping-bag" as const },
@@ -62,10 +101,12 @@ function SummaryPanel({
         <Card key={c.label} padding={16}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryLeft}>
-              <Feather name={c.icon} size={20} color={c.color} />
+              <Feather name={c.icon} size={20} color={isLoading ? C.textMuted : c.color} />
               <Text style={[styles.summaryLabel, { color: C.textSecondary }]}>{c.label}</Text>
             </View>
-            {c.isCop ? (
+            {isLoading ? (
+              <View style={[styles.skeletonValue, { backgroundColor: C.inputBg }]} />
+            ) : c.isCop ? (
               <CopAmount amount={c.value as number | undefined} size={18} color={c.color} />
             ) : (
               <Text style={[styles.summaryCount, { color: C.text }]}>{c.value ?? "—"}</Text>
@@ -77,7 +118,7 @@ function SummaryPanel({
   );
 }
 
-function SalesByHourPanel({
+function HourlySalesChart({
   data,
   isLoading,
 }: {
@@ -88,7 +129,17 @@ function SalesByHourPanel({
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
-  if (isLoading) return <Loading label={t("common.loading")} />;
+  if (isLoading) {
+    return (
+      <Card padding={16}>
+        <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.salesByHour")}</Text>
+        <Text style={[styles.panelSubtitle, { color: C.textMuted }]}>{t("analytics.salesByHourSubtitle")}</Text>
+        <View style={{ marginTop: 12 }}>
+          <ChartSkeleton height={160} />
+        </View>
+      </Card>
+    );
+  }
 
   const salesByHour = data?.salesByHour ?? [];
   const hourTotals: Record<number, number> = {};
@@ -96,46 +147,184 @@ function SalesByHourPanel({
     hourTotals[row.hour] = (hourTotals[row.hour] ?? 0) + row.totalCop;
   }
 
-  const maxVal = Math.max(...Object.values(hourTotals), 1);
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-
   if (salesByHour.length === 0) {
     return (
       <Card padding={24}>
-        <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("analytics.noData")}</Text>
+        <Text style={[styles.panelTitle, { color: C.text, marginBottom: 6 }]}>{t("analytics.salesByHour")}</Text>
+        <View style={styles.emptyState}>
+          <Feather name="bar-chart-2" size={32} color={C.textMuted} />
+          <Text style={[styles.emptyText, { color: C.textMuted, marginTop: 8 }]}>{t("analytics.noData")}</Text>
+        </View>
       </Card>
     );
   }
+
+  const hours24 = Array.from({ length: 24 }, (_, i) => i);
+  const rawValues = hours24.map((h) => hourTotals[h] ?? 0);
+  const maxRaw = Math.max(...rawValues, 1);
+
+  const divisor = maxRaw >= 1_000_000 ? 1_000_000 : maxRaw >= 1_000 ? 1_000 : 1;
+  const suffix = divisor === 1_000_000 ? "M" : divisor === 1_000 ? "k" : "";
+  const decimalPlaces = divisor === 1 ? 0 : 1;
+
+  const values = rawValues.map((v) => parseFloat((v / divisor).toFixed(decimalPlaces)));
+  const labels = hours24.map((h) => (h % 6 === 0 ? `${h}h` : ""));
+
+  const chartWidth = Math.max(SCREEN_WIDTH - 40, 480);
+  const chartConfig = {
+    backgroundGradientFrom: C.card,
+    backgroundGradientTo: C.card,
+    decimalPlaces,
+    color: () => C.primary,
+    labelColor: () => C.textMuted,
+    barPercentage: 0.7,
+    fillShadowGradient: C.primary,
+    fillShadowGradientOpacity: 1,
+    propsForBackgroundLines: {
+      stroke: C.border,
+      strokeDasharray: "4 4",
+    },
+  };
+
+  const unitLabel = divisor === 1_000_000
+    ? t("analytics.salesInMillions")
+    : divisor === 1_000
+    ? t("analytics.salesInThousands")
+    : t("analytics.salesInCop");
 
   return (
     <Card padding={16}>
       <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.salesByHour")}</Text>
       <Text style={[styles.panelSubtitle, { color: C.textMuted }]}>{t("analytics.salesByHourSubtitle")}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }}>
-        <View style={styles.barChart}>
-          {hours.map((h) => {
-            const val = hourTotals[h] ?? 0;
-            const heightPct = val / maxVal;
-            const barH = Math.max(heightPct * 120, val > 0 ? 4 : 0);
-            return (
-              <View key={h} style={styles.barCol}>
-                <View style={[styles.barContainer, { height: 120 }]}>
-                  <View
-                    style={[
-                      styles.bar,
-                      { height: barH, backgroundColor: val > 0 ? C.primary : C.inputBg },
-                    ]}
-                  />
-                </View>
-                <Text style={[styles.barLabel, { color: C.textMuted }]}>{h}</Text>
-              </View>
-            );
-          })}
-        </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12, marginHorizontal: -16 }}>
+        <BarChart
+          data={{ labels, datasets: [{ data: values }] }}
+          width={chartWidth}
+          height={180}
+          chartConfig={chartConfig}
+          style={{ borderRadius: 8 }}
+          showValuesOnTopOfBars={false}
+          withInnerLines
+          fromZero
+          yAxisLabel=""
+          yAxisSuffix={suffix}
+          flatColor
+        />
       </ScrollView>
-      <Text style={[styles.chartNote, { color: C.textMuted }]}>{t("analytics.hourAxis")}</Text>
+      <Text style={[styles.chartNote, { color: C.textMuted }]}>{t("analytics.hourAxis")} · {unitLabel}</Text>
     </Card>
   );
+}
+
+function HeatmapChart({
+  data,
+  isLoading,
+}: {
+  data: { heatmap: { hour: number; day: string; dayNum: number; txCount: number; totalCop: number }[] } | undefined;
+  isLoading: boolean;
+}) {
+  const { t } = useTranslation();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  if (isLoading) {
+    return (
+      <Card padding={16}>
+        <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.heatmap")}</Text>
+        <Text style={[styles.panelSubtitle, { color: C.textMuted }]}>{t("analytics.heatmapSubtitle")}</Text>
+        <View style={{ marginTop: 12 }}>
+          <HeatmapSkeleton />
+        </View>
+      </Card>
+    );
+  }
+
+  const heatmap = data?.heatmap ?? [];
+  if (heatmap.length === 0) {
+    return (
+      <Card padding={24}>
+        <Text style={[styles.panelTitle, { color: C.text, marginBottom: 6 }]}>{t("analytics.heatmap")}</Text>
+        <View style={styles.emptyState}>
+          <Feather name="grid" size={32} color={C.textMuted} />
+          <Text style={[styles.emptyText, { color: C.textMuted, marginTop: 8 }]}>{t("analytics.noData")}</Text>
+        </View>
+      </Card>
+    );
+  }
+
+  const cellMap = new Map<string, { cop: number; tx: number }>();
+  let maxCop = 1;
+  for (const row of heatmap) {
+    const key = `${row.dayNum}-${row.hour}`;
+    const existing = cellMap.get(key) ?? { cop: 0, tx: 0 };
+    const merged = { cop: existing.cop + row.totalCop, tx: existing.tx + row.txCount };
+    cellMap.set(key, merged);
+    if (merged.cop > maxCop) maxCop = merged.cop;
+  }
+
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const primaryRgb = scheme === "dark" ? "0,241,255" : "26,86,219";
+
+  return (
+    <Card padding={16}>
+      <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.heatmap")}</Text>
+      <Text style={[styles.panelSubtitle, { color: C.textMuted }]}>{t("analytics.heatmapSubtitle")}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+        <View>
+          <View style={styles.heatmapRow}>
+            <View style={styles.heatmapDayLabelBox} />
+            {hours.map((h) => (
+              <Text key={h} style={[styles.heatmapHourLabel, { color: C.textMuted }]}>
+                {h % 6 === 0 ? `${h}h` : ""}
+              </Text>
+            ))}
+          </View>
+          {DAYS_ORDER.map((dayName, dayNum) => (
+            <View key={dayName} style={styles.heatmapRow}>
+              <Text style={[styles.heatmapDayLabel, { color: C.textMuted }]}>{dayName}</Text>
+              {hours.map((h) => {
+                const cell = cellMap.get(`${dayNum}-${h}`);
+                const cop = cell?.cop ?? 0;
+                const intensity = cop / maxCop;
+                const hasData = cop > 0;
+                return (
+                  <View
+                    key={h}
+                    style={[
+                      styles.heatmapCell,
+                      {
+                        backgroundColor: hasData
+                          ? `rgba(${primaryRgb}, ${(0.12 + intensity * 0.88).toFixed(2)})`
+                          : C.inputBg,
+                        borderColor: hasData ? "transparent" : C.border,
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+      <View style={[styles.legendRow, { marginTop: 10 }]}>
+        <Text style={[styles.legendLabel, { color: C.textMuted }]}>{t("analytics.low")}</Text>
+        {[0.12, 0.3, 0.5, 0.7, 0.88].map((v) => (
+          <View key={v} style={[styles.legendCell, { backgroundColor: `rgba(${primaryRgb}, ${v})` }]} />
+        ))}
+        <Text style={[styles.legendLabel, { color: C.textMuted }]}>{t("analytics.high")}</Text>
+      </View>
+    </Card>
+  );
+}
+
+function SalesByHourPanel({
+  data,
+  isLoading,
+}: {
+  data: { salesByHour: { hour: number; day: string; totalCop: number; txCount: number }[] } | undefined;
+  isLoading: boolean;
+}) {
+  return <HourlySalesChart data={data} isLoading={isLoading} />;
 }
 
 function TopProductsPanel({
@@ -158,13 +347,33 @@ function TopProductsPanel({
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
-  if (isLoading) return <Loading label={t("common.loading")} />;
-
   const products = data?.topProducts ?? [];
+
+  if (isLoading) {
+    return (
+      <Card padding={16}>
+        <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.topProducts")}</Text>
+        <View style={{ marginTop: 12, gap: 12 }}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={{ gap: 6 }}>
+              <View style={[styles.skeletonValue, { backgroundColor: C.inputBg, width: "70%", height: 14 }]} />
+              <View style={[styles.progressBg, { backgroundColor: C.inputBg }]}>
+                <View style={[styles.progressFill, { width: `${40 + i * 15}%`, backgroundColor: C.shimmer2 }]} />
+              </View>
+            </View>
+          ))}
+        </View>
+      </Card>
+    );
+  }
+
   if (products.length === 0) {
     return (
       <Card padding={24}>
-        <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("analytics.noData")}</Text>
+        <View style={styles.emptyState}>
+          <Feather name="package" size={32} color={C.textMuted} />
+          <Text style={[styles.emptyText, { color: C.textMuted, marginTop: 8 }]}>{t("analytics.noData")}</Text>
+        </View>
       </Card>
     );
   }
@@ -219,13 +428,33 @@ function TopMerchantsPanel({
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
-  if (isLoading) return <Loading label={t("common.loading")} />;
-
   const merchants = data?.topMerchants ?? [];
+
+  if (isLoading) {
+    return (
+      <Card padding={16}>
+        <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.topMerchants")}</Text>
+        <View style={{ marginTop: 12, gap: 12 }}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={{ gap: 6 }}>
+              <View style={[styles.skeletonValue, { backgroundColor: C.inputBg, width: "65%", height: 14 }]} />
+              <View style={[styles.progressBg, { backgroundColor: C.inputBg }]}>
+                <View style={[styles.progressFill, { width: `${50 + i * 10}%`, backgroundColor: C.shimmer2 }]} />
+              </View>
+            </View>
+          ))}
+        </View>
+      </Card>
+    );
+  }
+
   if (merchants.length === 0) {
     return (
       <Card padding={24}>
-        <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("analytics.noData")}</Text>
+        <View style={styles.emptyState}>
+          <Feather name="users" size={32} color={C.textMuted} />
+          <Text style={[styles.emptyText, { color: C.textMuted, marginTop: 8 }]}>{t("analytics.noData")}</Text>
+        </View>
       </Card>
     );
   }
@@ -285,7 +514,22 @@ function StockAlertsPanel({
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
-  if (isLoading) return <Loading label={t("common.loading")} />;
+  if (isLoading) {
+    return (
+      <Card padding={16}>
+        <View style={{ gap: 12 }}>
+          {[1, 2].map((i) => (
+            <View key={i} style={{ gap: 8 }}>
+              <View style={[styles.skeletonValue, { backgroundColor: C.inputBg, width: "60%", height: 14 }]} />
+              <View style={[styles.stockBar, { backgroundColor: C.inputBg }]}>
+                <View style={[styles.stockBarFill, { width: `${30 + i * 20}%`, backgroundColor: C.shimmer2 }]} />
+              </View>
+            </View>
+          ))}
+        </View>
+      </Card>
+    );
+  }
 
   const alerts = data?.alerts ?? [];
 
@@ -363,78 +607,7 @@ function HeatmapPanel({
   data: { heatmap: { hour: number; day: string; dayNum: number; txCount: number; totalCop: number }[] } | undefined;
   isLoading: boolean;
 }) {
-  const { t } = useTranslation();
-  const scheme = useColorScheme();
-  const C = scheme === "dark" ? Colors.dark : Colors.light;
-
-  if (isLoading) return <Loading label={t("common.loading")} />;
-
-  const heatmap = data?.heatmap ?? [];
-  if (heatmap.length === 0) {
-    return (
-      <Card padding={24}>
-        <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("analytics.noData")}</Text>
-      </Card>
-    );
-  }
-
-  const cellMap = new Map<string, number>();
-  let maxCount = 1;
-  for (const row of heatmap) {
-    const key = `${row.dayNum}-${row.hour}`;
-    cellMap.set(key, row.txCount);
-    if (row.txCount > maxCount) maxCount = row.txCount;
-  }
-
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-
-  return (
-    <Card padding={16}>
-      <Text style={[styles.panelTitle, { color: C.text }]}>{t("analytics.heatmap")}</Text>
-      <Text style={[styles.panelSubtitle, { color: C.textMuted }]}>{t("analytics.heatmapSubtitle")}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
-        <View>
-          <View style={styles.heatmapRow}>
-            <View style={styles.heatmapDayLabel} />
-            {hours.map((h) => (
-              <Text key={h} style={[styles.heatmapHourLabel, { color: C.textMuted }]}>
-                {h % 6 === 0 ? `${h}h` : ""}
-              </Text>
-            ))}
-          </View>
-          {DAYS_ORDER.map((dayName, dayNum) => (
-            <View key={dayName} style={styles.heatmapRow}>
-              <Text style={[styles.heatmapDayLabel, { color: C.textMuted }]}>{dayName}</Text>
-              {hours.map((h) => {
-                const count = cellMap.get(`${dayNum}-${h}`) ?? 0;
-                const intensity = count / maxCount;
-                return (
-                  <View
-                    key={h}
-                    style={[
-                      styles.heatmapCell,
-                      {
-                        backgroundColor: count > 0
-                          ? `rgba(26, 86, 219, ${0.1 + intensity * 0.9})`
-                          : C.inputBg,
-                      },
-                    ]}
-                  />
-                );
-              })}
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-      <View style={[styles.legendRow, { marginTop: 8 }]}>
-        <Text style={[styles.legendLabel, { color: C.textMuted }]}>{t("analytics.low")}</Text>
-        {[0.1, 0.3, 0.5, 0.7, 0.9].map((v) => (
-          <View key={v} style={[styles.legendCell, { backgroundColor: `rgba(26, 86, 219, ${v})` }]} />
-        ))}
-        <Text style={[styles.legendLabel, { color: C.textMuted }]}>{t("analytics.high")}</Text>
-      </View>
-    </Card>
-  );
+  return <HeatmapChart data={data} isLoading={isLoading} />;
 }
 
 const REFUND_METHOD_LABELS: Record<string, string> = {
@@ -467,7 +640,17 @@ function RefundRequestsPanel({
     );
   }
 
-  if (isLoading) return <Loading label="Cargando..." />;
+  if (isLoading) {
+    return (
+      <Card padding={16}>
+        <View style={{ gap: 12 }}>
+          {[1, 2].map((i) => (
+            <View key={i} style={[styles.skeletonValue, { backgroundColor: C.inputBg, height: 70, borderRadius: 8, width: "100%" }]} />
+          ))}
+        </View>
+      </Card>
+    );
+  }
 
   const filterButtons: { key: "pending" | "approved" | "rejected"; label: string; color: string }[] = [
     { key: "pending", label: "Pendientes", color: C.warning },
@@ -600,7 +783,11 @@ export default function AdminAnalyticsScreen() {
     query: { refetchInterval, queryKey: ["analytics-summary", queryParams] },
   });
   const { data: salesByHourData, isLoading: salesLoading } = useGetAnalyticsSalesByHour(queryParams, {
-    query: { refetchInterval, enabled: activeTab === "sales", queryKey: ["analytics-sales-by-hour", queryParams] },
+    query: {
+      refetchInterval,
+      enabled: activeTab === "sales" || activeTab === "summary",
+      queryKey: ["analytics-sales-by-hour", queryParams],
+    },
   });
   const { data: topProductsData, isLoading: productsLoading } = useGetAnalyticsTopProducts(
     { ...queryParams, limit: 10 },
@@ -614,7 +801,11 @@ export default function AdminAnalyticsScreen() {
     query: { refetchInterval, enabled: activeTab === "stock", queryKey: ["analytics-stock-alerts", queryParams] },
   });
   const { data: heatmapData, isLoading: heatmapLoading } = useGetAnalyticsHeatmap(queryParams, {
-    query: { refetchInterval, enabled: activeTab === "heatmap", queryKey: ["analytics-heatmap", queryParams] },
+    query: {
+      refetchInterval,
+      enabled: activeTab === "heatmap" || activeTab === "summary",
+      queryKey: ["analytics-heatmap", queryParams],
+    },
   });
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
@@ -859,7 +1050,13 @@ export default function AdminAnalyticsScreen() {
           </View>
         </ScrollView>
 
-        {activeTab === "summary" && <SummaryPanel data={summaryData} isLoading={summaryLoading} />}
+        {activeTab === "summary" && (
+          <>
+            <SummaryPanel data={summaryData} isLoading={summaryLoading} />
+            <HourlySalesChart data={salesByHourData} isLoading={salesLoading} />
+            <HeatmapChart data={heatmapData} isLoading={heatmapLoading} />
+          </>
+        )}
         {activeTab === "sales" && <SalesByHourPanel data={salesByHourData} isLoading={salesLoading} />}
         {activeTab === "products" && <TopProductsPanel data={topProductsData} isLoading={productsLoading} />}
         {activeTab === "merchants" && <TopMerchantsPanel data={topMerchantsData} isLoading={merchantsLoading} />}
@@ -907,11 +1104,6 @@ const styles = StyleSheet.create({
   summaryCount: { fontSize: 18, fontFamily: "Inter_700Bold" },
   panelTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 2 },
   panelSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  barChart: { flexDirection: "row", alignItems: "flex-end", gap: 3 },
-  barCol: { alignItems: "center", width: 20 },
-  barContainer: { justifyContent: "flex-end" },
-  bar: { width: 14, borderRadius: 3 },
-  barLabel: { fontSize: 8, fontFamily: "Inter_400Regular", marginTop: 3 },
   chartNote: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 6, textAlign: "center" },
   rankRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   rankNum: { fontSize: 12, fontFamily: "Inter_600SemiBold", width: 20 },
@@ -932,9 +1124,10 @@ const styles = StyleSheet.create({
   stockBar: { height: 4, borderRadius: 2, overflow: "hidden" },
   stockBarFill: { height: 4, borderRadius: 2 },
   heatmapRow: { flexDirection: "row", alignItems: "center", marginBottom: 2 },
+  heatmapDayLabelBox: { width: 32 },
   heatmapDayLabel: { width: 32, fontSize: 10, fontFamily: "Inter_400Regular" },
   heatmapHourLabel: { width: 16, fontSize: 8, fontFamily: "Inter_400Regular", textAlign: "center" },
-  heatmapCell: { width: 14, height: 14, borderRadius: 2, marginHorizontal: 1 },
+  heatmapCell: { width: 14, height: 14, borderRadius: 2, marginHorizontal: 1, borderWidth: 1 },
   legendRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   legendLabel: { fontSize: 10, fontFamily: "Inter_400Regular" },
   legendCell: { width: 14, height: 14, borderRadius: 2 },
@@ -942,6 +1135,12 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
   restockBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1 },
   restockBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  skeletonContainer: { borderRadius: 8, overflow: "hidden", justifyContent: "flex-end", padding: 8 },
+  skeletonBars: { flexDirection: "row", alignItems: "flex-end", gap: 6, height: "100%" },
+  skeletonBar: { flex: 1, borderRadius: 3 },
+  skeletonRow: { flexDirection: "row", gap: 2, marginBottom: 2 },
+  skeletonCell: { width: 14, height: 14, borderRadius: 2 },
+  skeletonValue: { borderRadius: 4, height: 18 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalCard: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, gap: 12 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
