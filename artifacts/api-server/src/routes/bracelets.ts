@@ -54,7 +54,28 @@ router.get(
 
     const [bracelets, countResult] = await Promise.all([
       db
-        .select()
+        .select({
+          id: braceletsTable.id,
+          nfcUid: braceletsTable.nfcUid,
+          eventId: braceletsTable.eventId,
+          eventName: sql<string | null>`(SELECT name FROM events WHERE id = ${braceletsTable.eventId})`,
+          attendeeUserId: braceletsTable.attendeeUserId,
+          attendeeName: braceletsTable.attendeeName,
+          phone: braceletsTable.phone,
+          email: braceletsTable.email,
+          lastKnownBalanceCop: braceletsTable.lastKnownBalanceCop,
+          lastCounter: braceletsTable.lastCounter,
+          maxOfflineSpend: braceletsTable.maxOfflineSpend,
+          flagged: braceletsTable.flagged,
+          flagReason: braceletsTable.flagReason,
+          pendingSync: braceletsTable.pendingSync,
+          pendingBalanceCop: braceletsTable.pendingBalanceCop,
+          accessZoneIds: braceletsTable.accessZoneIds,
+          registeredByUserId: braceletsTable.registeredByUserId,
+          createdAt: braceletsTable.createdAt,
+          updatedAt: braceletsTable.updatedAt,
+          lastLocationName: sql<string | null>`(SELECT l.name FROM transaction_logs tl LEFT JOIN locations l ON tl.location_id = l.id WHERE tl.bracelet_uid = ${braceletsTable.nfcUid} ORDER BY tl.created_at DESC LIMIT 1)`,
+        })
         .from(braceletsTable)
         .where(where)
         .orderBy(desc(braceletsTable.createdAt))

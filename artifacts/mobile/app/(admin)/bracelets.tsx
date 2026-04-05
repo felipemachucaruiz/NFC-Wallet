@@ -37,6 +37,7 @@ type BraceletListItem = {
   id: string;
   nfcUid: string;
   eventId?: string | null;
+  eventName?: string | null;
   attendeeName?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -44,6 +45,7 @@ type BraceletListItem = {
   lastCounter: number;
   flagged: boolean;
   flagReason?: string | null;
+  lastLocationName?: string | null;
   createdAt: string;
 };
 
@@ -573,10 +575,21 @@ export default function BraceletsAdminScreen() {
                       <View style={[styles.flagDot, { backgroundColor: C.danger }]} />
                     )}
                   </View>
-                  <Text style={[styles.braceletName, { color: C.textSecondary }]} numberOfLines={1}>
-                    {b.attendeeName ?? "—"}
-                    {b.eventId ? ` · ${eventMap[b.eventId] ?? b.eventId.slice(0, 8)}` : ""}
+                  <Text style={[styles.braceletMeta, { color: C.textSecondary }]} numberOfLines={1}>
+                    {b.eventName ?? (b.eventId ? eventMap[b.eventId] ?? "—" : "—")}
                   </Text>
+                  <Text style={[styles.braceletMeta, { color: C.textSecondary }]} numberOfLines={1}>
+                    {b.lastLocationName ?? "—"}
+                  </Text>
+                  {b.attendeeName ? (
+                    <Text style={[styles.braceletMeta, { color: C.textSecondary }]} numberOfLines={1}>
+                      {b.attendeeName}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.braceletMeta, { color: C.textMuted }]} numberOfLines={1}>
+                      Sin registrar
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.braceletRight}>
                   <CopAmount amount={b.lastKnownBalanceCop} size={14} style={{ color: C.text, fontFamily: "Inter_600SemiBold" }} />
@@ -713,6 +726,7 @@ const styles = StyleSheet.create({
   braceletUid: { fontSize: 14, fontFamily: "Inter_700Bold", flex: 1 },
   flagDot: { width: 8, height: 8, borderRadius: 4 },
   braceletName: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  braceletMeta: { fontSize: 12, fontFamily: "Inter_400Regular" },
   braceletRight: { alignItems: "flex-end", gap: 4 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   loadMoreBtn: {
