@@ -1,32 +1,61 @@
+/**
+ * Expo config plugin — copies TLS cert files to the correct platform directories
+ * so that react-native-ssl-pinning can load them at runtime.
+ *
+ * Android: files go to  android/app/src/main/res/raw/
+ *          (react-native-ssl-pinning reads certs as Android raw resources via
+ *           getResources().getIdentifier(name, "raw", packageName))
+ *
+ * iOS:     files go to  ios/<AppName>/
+ *          and are added to the Xcode project's Copy Bundle Resources phase.
+ *
+ * Resource name rules for Android res/raw/:
+ *  - Filename must be lowercase, no hyphens, only letters/digits/underscores.
+ *  - Extension is stripped to form the resource name (isrg_root_x1.cer → R.raw.isrg_root_x1).
+ *  - Hyphenated names are auto-converted to underscores here.
+ */
+
 const { withDangerousMod, withXcodeProject } = require("@expo/config-plugins");
 const path = require("path");
 const fs = require("fs");
+
+function toAndroidResourceName(filename) {
+  return path.basename(filename, path.extname(filename))
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_");
+}
 
 function copyAndroidCerts(config, certFiles) {
   return withDangerousMod(config, [
     "android",
     (cfg) => {
-      const assetsDir = path.join(
+      const rawDir = path.join(
         cfg.modRequest.platformProjectRoot,
         "app",
         "src",
         "main",
-        "assets"
+        "res",
+        "raw",
       );
-      if (!fs.existsSync(assetsDir)) {
-        fs.mkdirSync(assetsDir, { recursive: true });
+      if (!fs.existsSync(rawDir)) {
+        fs.mkdirSync(rawDir, { recursive: true });
       }
+
       const srcDir = path.join(cfg.modRequest.projectRoot, "assets", "certs");
+
       for (const file of certFiles) {
         const src = path.join(srcDir, file);
-        const dst = path.join(assetsDir, file);
-        if (fs.existsSync(src)) {
-          fs.copyFileSync(src, dst);
-          console.log(`[withSslPinning] Android: copied ${file}`);
-        } else {
-          console.warn(`[withSslPinning] Android: cert not found: ${src}`);
+        if (!fs.existsSync(src)) {
+          console.warn(`[withSslPinning] Android: cert not found — ${src}`);
+          continue;
         }
+
+        const resourceName = toAndroidResourceName(file);
+        const dst = path.join(rawDir, `${resourceName}.cer`);
+        fs.copyFileSync(src, dst);
+        console.log(`[withSslPinning] Android: ${file} → res/raw/${resourceName}.cer`);
       }
+
       return cfg;
     },
   ]);
@@ -39,20 +68,24 @@ function copyAndAddIosCerts(config, certFiles) {
       const iosProjDir = cfg.modRequest.platformProjectRoot;
       const appName = cfg.modRequest.projectName;
       const dstDir = path.join(iosProjDir, appName);
+
       if (!fs.existsSync(dstDir)) {
         fs.mkdirSync(dstDir, { recursive: true });
       }
+
       const srcDir = path.join(cfg.modRequest.projectRoot, "assets", "certs");
+
       for (const file of certFiles) {
         const src = path.join(srcDir, file);
-        const dst = path.join(dstDir, file);
-        if (fs.existsSync(src)) {
-          fs.copyFileSync(src, dst);
-          console.log(`[withSslPinning] iOS: copied ${file} to ${dstDir}`);
-        } else {
-          console.warn(`[withSslPinning] iOS: cert not found: ${src}`);
+        if (!fs.existsSync(src)) {
+          console.warn(`[withSslPinning] iOS: cert not found — ${src}`);
+          continue;
         }
+        const dst = path.join(dstDir, file);
+        fs.copyFileSync(src, dst);
+        console.log(`[withSslPinning] iOS: ${file} → ${appName}/${file}`);
       }
+
       return cfg;
     },
   ]);
@@ -61,64 +94,16 @@ function copyAndAddIosCerts(config, certFiles) {
     const xcodeProject = cfg.modResults;
     const appName = cfg.modRequest.projectName;
     const firstTarget = xcodeProject.getFirstTarget();
-    const targetUuid = firstTarget && firstTarget.uuid;
+    const targetUuid = firstTarget?.uuid;
 
     for (const file of certFiles) {
       const resourcePath = `${appName}/${file}`;
-
-      if (xcodeProject.hasFile(resourcePath)) {
-        console.log(`[withSslPinning] iOS Xcode: ${resourcePath} already exists, skipping`);
-        continue;
-      }
-
-      const fileRefUuid = xcodeProject.generateUuid();
-      const buildFileUuid = xcodeProject.generateUuid();
-
-      xcodeProject.hash.project.objects["PBXFileReference"] =
-        xcodeProject.hash.project.objects["PBXFileReference"] || {};
-      xcodeProject.hash.project.objects["PBXFileReference"][fileRefUuid] = {
-        isa: "PBXFileReference",
-        lastKnownFileType: "file",
-        name: `"${file}"`,
-        path: `"${resourcePath}"`,
-        sourceTree: '"<group>"',
-      };
-      xcodeProject.hash.project.objects["PBXFileReference"][
-        fileRefUuid + "_comment"
-      ] = file;
-
-      xcodeProject.hash.project.objects["PBXBuildFile"] =
-        xcodeProject.hash.project.objects["PBXBuildFile"] || {};
-      xcodeProject.hash.project.objects["PBXBuildFile"][buildFileUuid] = {
-        isa: "PBXBuildFile",
-        fileRef: fileRefUuid,
-        fileRef_comment: file,
-      };
-      xcodeProject.hash.project.objects["PBXBuildFile"][
-        buildFileUuid + "_comment"
-      ] = `${file} in Resources`;
-
-      const resourcesBuildPhase = xcodeProject.buildPhaseObject(
-        "PBXResourcesBuildPhase",
-        "Resources",
-        targetUuid
-      );
-
-      if (resourcesBuildPhase) {
-        resourcesBuildPhase.files = resourcesBuildPhase.files || [];
-        resourcesBuildPhase.files.push({
-          value: buildFileUuid,
-          comment: `${file} in Resources`,
-        });
-        console.log(
-          `[withSslPinning] iOS Xcode: added ${resourcePath} to Copy Bundle Resources`
-        );
-      } else {
-        console.warn(
-          `[withSslPinning] iOS Xcode: could not find Copy Bundle Resources phase for target ${targetUuid}`
-        );
+      if (!xcodeProject.hasFile(resourcePath)) {
+        xcodeProject.addResourceFile(resourcePath, { target: targetUuid });
+        console.log(`[withSslPinning] iOS Xcode: added ${resourcePath} to Copy Bundle Resources`);
       }
     }
+
     return cfg;
   });
 
@@ -126,7 +111,7 @@ function copyAndAddIosCerts(config, certFiles) {
 }
 
 module.exports = function withSslPinning(config, options = {}) {
-  const certFiles = options.certFiles ?? ["tapee_api.cer"];
+  const certFiles = options.certFiles ?? ["isrg_root_x1.cer"];
   config = copyAndroidCerts(config, certFiles);
   config = copyAndAddIosCerts(config, certFiles);
   return config;

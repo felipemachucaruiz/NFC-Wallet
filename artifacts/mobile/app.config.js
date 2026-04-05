@@ -101,7 +101,7 @@ module.exports = {
       [
         "./plugins/withSslPinning",
         {
-          certFiles: ["tapee_api.cer", "attendee_api.cer"],
+          certFiles: ["isrg_root_x1.cer"],
         },
       ],
       "./plugins/withGoogleMapsManifest",
