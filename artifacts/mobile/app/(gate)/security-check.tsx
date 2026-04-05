@@ -18,11 +18,12 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useZoneCache } from "@/contexts/ZoneCacheContext";
+import { useBannedBracelets } from "@/contexts/BannedBraceletsContext";
 import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
 import { API_BASE_URL } from "@/constants/domain";
 import type { AccessZone } from "@/contexts/ZoneCacheContext";
 
-type ScanState = "zone-select" | "scanning" | "checking" | "result" | "error";
+type ScanState = "zone-select" | "scanning" | "checking" | "result" | "banned" | "error";
 
 interface CheckResult {
   granted: boolean;
@@ -39,12 +40,14 @@ export default function SecurityCheckScreen() {
   const isWeb = Platform.OS === "web";
   const { token, user } = useAuth();
   const { zones } = useZoneCache();
+  const { bannedUids, getBannedInfo, refresh: refreshBanned } = useBannedBracelets();
 
   const [scanState, setScanState] = useState<ScanState>("zone-select");
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(user?.gateZoneId ?? null);
   const [result, setResult] = useState<CheckResult | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [countdown, setCountdown] = useState(0);
+  const [bannedUid, setBannedUid] = useState<string | null>(null);
   const scanningRef = useRef(false);
   const cancelledRef = useRef(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -64,10 +67,11 @@ export default function SecurityCheckScreen() {
   }, [scanState]);
 
   useEffect(() => {
-    if (scanState !== "result" || !result) return;
+    if ((scanState !== "result" || !result) && scanState !== "banned") return;
     Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
 
-    setCountdown(8);
+    const duration = scanState === "banned" ? 10 : 8;
+    setCountdown(duration);
     const interval = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
@@ -100,6 +104,7 @@ export default function SecurityCheckScreen() {
     setScanState("scanning");
     setErrorMsg("");
     setResult(null);
+    setBannedUid(null);
 
     try {
       const scanResult = await scanBracelet();
@@ -108,6 +113,14 @@ export default function SecurityCheckScreen() {
       const uid = scanResult.payload.uid;
       if (!uid) {
         setScanState("zone-select");
+        return;
+      }
+
+      // Check banned list before making API call
+      if (bannedUids.has(uid)) {
+        fadeAnim.setValue(0);
+        setBannedUid(uid);
+        setScanState("banned");
         return;
       }
 
@@ -142,14 +155,15 @@ export default function SecurityCheckScreen() {
     } finally {
       scanningRef.current = false;
     }
-  }, [selectedZoneId, token, t]);
+  }, [selectedZoneId, token, t, bannedUids, fadeAnim]);
 
   const handleScanNext = useCallback(() => {
     setResult(null);
     setErrorMsg("");
+    setBannedUid(null);
     setScanState("zone-select");
     fadeAnim.setValue(0);
-  }, []);
+  }, [fadeAnim]);
 
   const selectedZone = zones.find((z) => z.id === selectedZoneId);
 
@@ -171,6 +185,40 @@ export default function SecurityCheckScreen() {
         <Text style={[styles.headerTitle, { color: C.text }]}>{t("gate.securityCheck")}</Text>
         <View style={{ width: 30 }} />
       </View>
+
+      {/* Full-screen banned bracelet overlay */}
+      {scanState === "banned" && bannedUid && (
+        <Animated.View
+          style={[styles.resultOverlay, { opacity: fadeAnim, backgroundColor: "#7c2d12" }]}
+        >
+          <Pressable style={styles.resultContent} onPress={handleScanNext}>
+            <View style={styles.bannedIconWrap}>
+              <Feather name="slash" size={80} color="#fff" />
+            </View>
+            <Text style={styles.resultStatusText}>{t("gate.braceletBlocked")}</Text>
+            {(() => {
+              const info = getBannedInfo(bannedUid);
+              return (
+                <>
+                  {info?.attendeeName ? (
+                    <Text style={styles.resultAttendeeName}>{info.attendeeName}</Text>
+                  ) : null}
+                  <Text style={styles.bannedUidText}>{bannedUid}</Text>
+                  {info?.flagReason ? (
+                    <View style={styles.bannedReasonBox}>
+                      <Text style={styles.bannedReasonLabel}>{t("gate.blockedReason")}:</Text>
+                      <Text style={styles.bannedReasonText}>{info.flagReason}</Text>
+                    </View>
+                  ) : null}
+                </>
+              );
+            })()}
+            <View style={[styles.countdownBadge, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+              <Text style={styles.countdownText}>{t("gate.scanNext")} ({countdown})</Text>
+            </View>
+          </Pressable>
+        </Animated.View>
+      )}
 
       {/* Full-screen result overlay */}
       {scanState === "result" && result && (
@@ -427,4 +475,41 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   countdownText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.85)" },
+  bannedIconWrap: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  bannedUidText: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.7)",
+    letterSpacing: 1,
+  },
+  bannedReasonBox: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    alignItems: "center",
+    gap: 4,
+    maxWidth: "80%",
+  },
+  bannedReasonLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: "rgba(255,255,255,0.6)",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  bannedReasonText: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.9)",
+    textAlign: "center",
+  },
 });

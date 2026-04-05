@@ -62,6 +62,13 @@ interface TopUpSyncResult {
   results?: Array<{ idempotencyKey: string; status: string; error?: string }>;
 }
 
+export interface FailedItemEdit {
+  newBalance?: number;
+  grossAmountCop?: number;
+  tipAmountCop?: number;
+  amountCop?: number;
+}
+
 interface OfflineQueueContextValue {
   queue: QueuedTransaction[];
   topUpQueue: QueuedTopUp[];
@@ -72,6 +79,7 @@ interface OfflineQueueContextValue {
   enqueueTopUp: (topup: Omit<QueuedTopUp, "id" | "createdAt" | "status" | "failCount" | "type">) => Promise<void>;
   syncNow: () => Promise<void>;
   dismissFailedItem: (id: string, itemType: "charge" | "topup") => Promise<void>;
+  retryFailedItem: (id: string, itemType: "charge" | "topup", edits: FailedItemEdit) => Promise<void>;
   pendingCount: number;
   cachedHmacSecret: string;
   offlineSyncLimit: number;
@@ -451,6 +459,63 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     [updateQueue, updateTopUpQueue, updateUnsyncedSpend]
   );
 
+  /**
+   * Applies edits to a failed item and re-queues it as pending so it will be
+   * picked up on the next sync.  Also adjusts the unsynced-spend tracker when
+   * a charge amount changes so the available-balance estimate stays accurate.
+   */
+  const retryFailedItem = useCallback(
+    async (id: string, itemType: "charge" | "topup", edits: FailedItemEdit) => {
+      if (itemType === "charge") {
+        const item = queueRef.current.find((t) => t.id === id);
+        if (!item) return;
+
+        const oldSpend = item.grossAmountCop + (item.tipAmountCop ?? 0);
+        const newGross = edits.grossAmountCop ?? item.grossAmountCop;
+        const newTip = edits.tipAmountCop ?? item.tipAmountCop ?? 0;
+        const newSpendDelta = (newGross + newTip) - oldSpend;
+
+        const updated = queueRef.current.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                ...(edits.newBalance !== undefined ? { newBalance: edits.newBalance } : {}),
+                ...(edits.grossAmountCop !== undefined ? { grossAmountCop: edits.grossAmountCop } : {}),
+                ...(edits.tipAmountCop !== undefined ? { tipAmountCop: edits.tipAmountCop } : {}),
+                status: "pending" as const,
+                failCount: 0,
+                failReason: undefined,
+              }
+            : t
+        );
+        await updateQueue(updated);
+
+        if (newSpendDelta !== 0) {
+          const newSpend = Math.max(0, unsyncedSpendRef.current + newSpendDelta);
+          await updateUnsyncedSpend(newSpend);
+        }
+      } else {
+        const item = topUpQueueRef.current.find((t) => t.id === id);
+        if (!item) return;
+        const updated = topUpQueueRef.current.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                ...(edits.amountCop !== undefined ? { amountCop: edits.amountCop } : {}),
+                status: "pending" as const,
+                failCount: 0,
+                failReason: undefined,
+              }
+            : t
+        );
+        await updateTopUpQueue(updated);
+      }
+      // Trigger an immediate sync attempt
+      void syncNow();
+    },
+    [updateQueue, updateTopUpQueue, updateUnsyncedSpend, syncNow]
+  );
+
   const pendingCount =
     queue.filter((t) => t.status === "pending" || t.status === "syncing").length +
     topUpQueue.filter((t) => t.status === "pending" || t.status === "syncing").length;
@@ -474,6 +539,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         enqueueTopUp,
         syncNow,
         dismissFailedItem,
+        retryFailedItem,
         pendingCount,
         cachedHmacSecret,
         offlineSyncLimit,

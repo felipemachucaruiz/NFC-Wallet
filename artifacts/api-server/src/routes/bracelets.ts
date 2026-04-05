@@ -172,6 +172,41 @@ router.post(
 );
 
 /**
+ * @summary Get banned/flagged bracelets for an event (gate staff use to cache locally)
+ */
+router.get(
+  "/bracelets/banned",
+  requireRole("gate", "admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const eventId = req.query.eventId as string | undefined;
+
+    if (!eventId) {
+      res.status(400).json({ error: "eventId is required" });
+      return;
+    }
+
+    // Gate users may only query their own assigned event
+    if (req.user!.role === "gate" && req.user!.eventId !== eventId) {
+      res.status(403).json({ error: "Access denied: you may only query your assigned event" });
+      return;
+    }
+
+    const banned = await db
+      .select({
+        nfcUid: braceletsTable.nfcUid,
+        flagReason: braceletsTable.flagReason,
+        attendeeName: braceletsTable.attendeeName,
+        updatedAt: braceletsTable.updatedAt,
+      })
+      .from(braceletsTable)
+      .where(and(eq(braceletsTable.eventId, eventId), eq(braceletsTable.flagged, true)))
+      .orderBy(asc(braceletsTable.nfcUid));
+
+    res.json({ banned });
+  },
+);
+
+/**
  * @summary Get bracelet by NFC UID — any authenticated user can check a bracelet
  */
 router.get(

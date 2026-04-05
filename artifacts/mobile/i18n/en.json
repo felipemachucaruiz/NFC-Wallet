@@ -1021,6 +1021,14 @@
     "dismissConfirm": "Permanently remove this failed transaction? This action cannot be undone. The bracelet write has already happened.",
     "dismissAction": "Void & remove",
     "dismiss": "Void / dismiss",
+    "editRetry": "Edit & Retry",
+    "editRetryTitle": "Edit & Retry Transaction",
+    "editChargeAmountLabel": "Charge amount (COP)",
+    "editTopUpAmountLabel": "Top-up amount (COP)",
+    "editAmountHint": "Correct the amount and tap Retry to re-queue for sync.",
+    "retryNow": "Retry now",
+    "invalidAmount": "Please enter a valid amount greater than zero.",
+    "chargeAmount": "Charge amount",
     "supervisorOnly": "Supervisor required",
     "supervisorRequired": "Only supervisors (admin or event admin) can void failed transactions.",
     "errors": {
@@ -1197,7 +1205,9 @@
     "alreadyRegisteredBy": "Registered by",
     "alreadyRegisteredUnknownUser": "Unknown",
     "alreadyRegisteredNoZone": "No zone",
-    "registerAnother": "Register another wristband"
+    "registerAnother": "Register another wristband",
+    "braceletBlocked": "Bracelet Blocked",
+    "blockedReason": "Reason"
   },
   "zones": {
     "title": "Access Zones",

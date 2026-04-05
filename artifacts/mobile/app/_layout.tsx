@@ -26,6 +26,8 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { CartProvider } from "@/contexts/CartContext";
 import { OfflineQueueProvider } from "@/contexts/OfflineQueueContext";
 import { ZoneCacheProvider } from "@/contexts/ZoneCacheContext";
+import { BannedBraceletsProvider } from "@/contexts/BannedBraceletsContext";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { AlertProvider, useAlert } from "@/components/CustomAlert";
 import { initI18n } from "@/i18n";
 import { initNfc } from "@/utils/nfc";
@@ -189,6 +191,7 @@ export default function RootLayout() {
                   <CartProvider>
                     <OfflineQueueProvider>
                       <ZoneCacheProvider>
+                      <BannedBraceletsProvider>
                       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
                         <KeyboardProvider>
                           <AlertProvider>
@@ -200,6 +203,7 @@ export default function RootLayout() {
                           </AlertProvider>
                         </KeyboardProvider>
                       </GestureHandlerRootView>
+                      </BannedBraceletsProvider>
                       </ZoneCacheProvider>
                     </OfflineQueueProvider>
                   </CartProvider>

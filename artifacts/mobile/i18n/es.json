@@ -1010,6 +1010,14 @@
     "dismissConfirm": "¿Eliminar permanentemente esta transacción fallida? Esta acción no se puede deshacer. La escritura en la pulsera ya ocurrió.",
     "dismissAction": "Anular y eliminar",
     "dismiss": "Anular / descartar",
+    "editRetry": "Editar y Reintentar",
+    "editRetryTitle": "Editar y Reintentar Transacción",
+    "editChargeAmountLabel": "Monto del cobro (COP)",
+    "editTopUpAmountLabel": "Monto de recarga (COP)",
+    "editAmountHint": "Corrige el monto y toca Reintentar para volver a sincronizar.",
+    "retryNow": "Reintentar ahora",
+    "invalidAmount": "Por favor ingresa un monto válido mayor a cero.",
+    "chargeAmount": "Monto del cobro",
     "supervisorOnly": "Se requiere supervisor",
     "supervisorRequired": "Solo supervisores (admin o event admin) pueden anular transacciones fallidas.",
     "errors": {
@@ -1186,7 +1194,9 @@
     "alreadyRegisteredBy": "Registrado por",
     "alreadyRegisteredUnknownUser": "Desconocido",
     "alreadyRegisteredNoZone": "Sin zona",
-    "registerAnother": "Registrar otra pulsera"
+    "registerAnother": "Registrar otra pulsera",
+    "braceletBlocked": "Pulsera Bloqueada",
+    "blockedReason": "Razón"
   },
   "zones": {
     "title": "Zonas de Acceso",
