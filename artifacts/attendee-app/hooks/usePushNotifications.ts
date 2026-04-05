@@ -10,14 +10,9 @@ type EventSubscription = import("expo-notifications").EventSubscription;
 let Notifications: NotificationsModule | null = null;
 try {
   Notifications = require("expo-notifications");
-  Notifications!.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
 } catch {}
+
+let handlerSet = false;
 
 export function usePushNotifications(isAuthenticated: boolean) {
   const { mutate: registerToken } = useRegisterPushToken();
@@ -25,6 +20,19 @@ export function usePushNotifications(isAuthenticated: boolean) {
 
   useEffect(() => {
     if (!isAuthenticated || Platform.OS === "web" || !Notifications) return;
+
+    if (!handlerSet) {
+      try {
+        Notifications!.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+          }),
+        });
+        handlerSet = true;
+      } catch {}
+    }
 
     let cancelled = false;
 

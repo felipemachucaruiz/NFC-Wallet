@@ -6,20 +6,28 @@ import Constants from "expo-constants";
 let Notifications: typeof import("expo-notifications") | null = null;
 try {
   Notifications = require("expo-notifications");
-  Notifications!.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
 } catch {}
+
+let handlerSet = false;
 
 export function usePushNotifications(isAuthenticated: boolean) {
   const registerToken = useRegisterPushToken();
 
   useEffect(() => {
     if (!isAuthenticated || Platform.OS === "web" || !Notifications) return;
+
+    if (!handlerSet) {
+      try {
+        Notifications!.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+          }),
+        });
+        handlerSet = true;
+      } catch {}
+    }
 
     let cancelled = false;
 
@@ -45,8 +53,7 @@ export function usePushNotifications(isAuthenticated: boolean) {
         if (!cancelled) {
           registerToken.mutate({ data: { token: tokenData.data } });
         }
-      } catch {
-      }
+      } catch {}
     })();
 
     return () => {
