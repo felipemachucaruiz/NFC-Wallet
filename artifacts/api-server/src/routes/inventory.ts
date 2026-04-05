@@ -4,6 +4,7 @@ import { eq, and, sql, gte } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
+import { notifyLowStock } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -293,9 +294,9 @@ router.patch(
       }
     }
 
-    let item;
+    let txResult: { item: typeof locationInventoryTable.$inferSelect; prevQty: number } | undefined;
     try {
-      item = await db.transaction(async (tx) => {
+      txResult = await db.transaction(async (tx) => {
       const existing = await tx
         .select()
         .from(locationInventoryTable)
@@ -306,7 +307,8 @@ router.patch(
           ),
         );
 
-      let item;
+      let item: typeof locationInventoryTable.$inferSelect;
+      let prevQty = 0;
       if (existing.length === 0) {
         if (quantityAdjustment !== undefined && quantityAdjustment < 0) {
           throw new Error("Cannot subtract from non-existent inventory");
@@ -322,6 +324,7 @@ router.patch(
           })
           .returning();
       } else {
+        prevQty = existing[0].quantityOnHand;
         const updates: Record<string, unknown> = { updatedAt: new Date() };
         if (restockTrigger !== undefined) updates.restockTrigger = restockTrigger;
         if (restockTargetQty !== undefined) updates.restockTargetQty = restockTargetQty;
@@ -347,7 +350,7 @@ router.patch(
         });
       }
 
-        return item;
+        return { item, prevQty };
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -358,7 +361,29 @@ router.patch(
       throw err;
     }
 
-    res.json(item);
+    // Fire low-stock push alert only when crossing from above to at/below the restock threshold
+    if (txResult && quantityAdjustment !== undefined && quantityAdjustment < 0) {
+      const { item, prevQty } = txResult;
+      const currentQty = item.quantityOnHand;
+      const trigger = item.restockTrigger;
+      if (prevQty > trigger && currentQty <= trigger) {
+        const [loc] = await db
+          .select({ eventId: locationsTable.eventId })
+          .from(locationsTable)
+          .where(eq(locationsTable.id, locationId));
+        if (loc?.eventId) {
+          void notifyLowStock({
+            eventId: loc.eventId,
+            productId,
+            locationId,
+            currentQty,
+            restockTrigger: trigger,
+          });
+        }
+      }
+    }
+
+    res.json(txResult?.item);
   },
 );
 

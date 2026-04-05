@@ -5,6 +5,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess } from "../lib/ownershipGuards";
 import { z } from "zod";
 import { getEventInventoryMode } from "./events";
+import { notifyLowStock } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -251,6 +252,17 @@ router.post(
     }
 
     const result = await db.transaction(async (tx) => {
+      // Read source inventory before decrement to capture prevQty and restockTrigger for edge check
+      const [fromInvBefore] = await tx
+        .select()
+        .from(locationInventoryTable)
+        .where(
+          and(
+            eq(locationInventoryTable.locationId, fromLocationId),
+            eq(locationInventoryTable.productId, productId),
+          ),
+        );
+
       const updatedFrom = await tx
         .update(locationInventoryTable)
         .set({ quantityOnHand: sql`quantity_on_hand - ${quantity}`, updatedAt: new Date() })
@@ -316,7 +328,13 @@ router.post(
         })
         .returning();
 
-      return { outMovement, inMovement };
+      return {
+        outMovement,
+        inMovement,
+        fromPrevQty: fromInvBefore?.quantityOnHand ?? quantity,
+        fromNewQty: updatedFrom[0].quantityOnHand,
+        fromRestockTrigger: updatedFrom[0].restockTrigger,
+      };
     }).catch((err: Error) => {
       if (err.message === "Insufficient inventory at source location") return null;
       throw err;
@@ -327,7 +345,24 @@ router.post(
       return;
     }
 
-    res.status(201).json(result);
+    // Fire low-stock push alert for source location if stock crossed the restock threshold
+    if (result.fromPrevQty > result.fromRestockTrigger && result.fromNewQty <= result.fromRestockTrigger) {
+      const [fromLoc] = await db
+        .select({ eventId: locationsTable.eventId })
+        .from(locationsTable)
+        .where(eq(locationsTable.id, fromLocationId));
+      if (fromLoc?.eventId) {
+        void notifyLowStock({
+          eventId: fromLoc.eventId,
+          productId,
+          locationId: fromLocationId,
+          currentQty: result.fromNewQty,
+          restockTrigger: result.fromRestockTrigger,
+        });
+      }
+    }
+
+    res.status(201).json({ outMovement: result.outMovement, inMovement: result.inMovement });
   },
 );
 

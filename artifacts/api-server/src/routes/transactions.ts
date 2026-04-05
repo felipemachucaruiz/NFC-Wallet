@@ -8,6 +8,7 @@ import { z } from "zod";
 import { getEventInventoryMode } from "./events";
 import { runFraudDetection, runSyncFraudDetection } from "../lib/fraudDetection";
 import { deriveEventKey, verifyBraceletHmac } from "../lib/kdf";
+import { notifyLowStock } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -371,6 +372,8 @@ async function processTransaction(
   // Wrap all DB writes atomically so a crash mid-sale leaves no partial state.
   const eventInventoryMode = await getEventInventoryMode(merchant.eventId);
 
+  const lowStockAlerts: Array<{ productId: string; locationId: string; currentQty: number; restockTrigger: number }> = [];
+
   let txResult: { txLog: typeof transactionLogsTable.$inferSelect; insertedLineItems: (typeof transactionLineItemsTable.$inferSelect)[] };
   try {
     txResult = await db.transaction(async (tx) => {
@@ -453,6 +456,18 @@ async function processTransaction(
           transactionLogId: txLog.id,
         });
 
+        // Collect low-stock alerts to send after the transaction commits.
+        // Only alert when crossing from above the threshold to at/below (edge trigger),
+        // to avoid spamming admins on every decrement while already low.
+        if (locInv.quantityOnHand > locInv.restockTrigger && newQty <= locInv.restockTrigger) {
+          lowStockAlerts.push({
+            productId: item.productId,
+            locationId: input.locationId,
+            currentQty: newQty,
+            restockTrigger: locInv.restockTrigger,
+          });
+        }
+
         if (eventInventoryMode === "centralized_warehouse" && newQty <= locInv.restockTrigger) {
           const pendingOrders = await tx
             .select()
@@ -493,6 +508,19 @@ async function processTransaction(
   }
 
   const { txLog, insertedLineItems } = txResult;
+
+  // Async low-stock push alerts (non-blocking) — fire after transaction commits
+  if (lowStockAlerts.length > 0 && merchant.eventId) {
+    for (const alert of lowStockAlerts) {
+      void notifyLowStock({
+        eventId: merchant.eventId,
+        productId: alert.productId,
+        locationId: alert.locationId,
+        currentQty: alert.currentQty,
+        restockTrigger: alert.restockTrigger,
+      });
+    }
+  }
 
   // Async fraud detection (non-blocking) — capture previous balance BEFORE update
   void runFraudDetection({

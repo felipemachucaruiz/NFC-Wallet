@@ -7,6 +7,7 @@ import {
 import { eq, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
+import { notifyRefundRequestApproved, notifyRefundRequestRejected } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -167,6 +168,18 @@ router.post(
 
         return result;
       });
+
+      if (updated.status === "approved") {
+        void notifyRefundRequestApproved({
+          attendeeUserId: updated.attendeeUserId,
+          amountCop: updated.amountCop,
+        });
+      } else if (updated.status === "rejected") {
+        void notifyRefundRequestRejected({
+          attendeeUserId: updated.attendeeUserId,
+          amountCop: updated.amountCop,
+        });
+      }
 
       res.json({ request: updated });
     } catch (e: unknown) {

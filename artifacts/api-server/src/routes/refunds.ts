@@ -3,6 +3,7 @@ import { db, braceletsTable, refundsTable, attendeeRefundRequestsTable } from "@
 import { eq, and, gt, gte, lte, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
+import { notifyRefundRequestApproved, notifyRefundRequestRejected } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -284,6 +285,11 @@ router.post(
         return updated;
       });
 
+      void notifyRefundRequestApproved({
+        attendeeUserId: result.attendeeUserId,
+        amountCop: result.amountCop,
+      });
+
       res.json({ refundRequest: result });
     } catch (e: unknown) {
       const err = e as { message?: string; httpStatus?: number };
@@ -344,6 +350,11 @@ router.post(
       })
       .where(eq(attendeeRefundRequestsTable.id, id))
       .returning();
+
+    void notifyRefundRequestRejected({
+      attendeeUserId: request.attendeeUserId,
+      amountCop: request.amountCop,
+    });
 
     res.json({ refundRequest: updated });
   },
