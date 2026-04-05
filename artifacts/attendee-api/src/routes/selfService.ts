@@ -4,6 +4,7 @@ import { usersTable } from "@workspace/db";
 import { eq, and, isNull } from "drizzle-orm";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { notifyTopUpSuccess } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -280,6 +281,10 @@ router.get(
 );
 
 export async function processSelfServicePayment(intentId: string, wompiTransactionId: string) {
+  let notifyBraceletUid: string | null = null;
+  let notifyAmount = 0;
+  let notifyNewBalance = 0;
+
   await db.transaction(async (tx) => {
     const claimed = await tx
       .update(wompiPaymentIntentsTable)
@@ -338,7 +343,15 @@ export async function processSelfServicePayment(intentId: string, wompiTransacti
       .update(wompiPaymentIntentsTable)
       .set({ status: "success", topUpId: topUp.id, updatedAt: new Date() })
       .where(eq(wompiPaymentIntentsTable.id, intentId));
+
+    notifyBraceletUid = intent.braceletUid;
+    notifyAmount = intent.amountCop;
+    notifyNewBalance = newBalance;
   });
+
+  if (notifyBraceletUid) {
+    void notifyTopUpSuccess(notifyBraceletUid, notifyAmount, notifyNewBalance).catch(() => {});
+  }
 }
 
 const registerAttendeeSchema = z.object({

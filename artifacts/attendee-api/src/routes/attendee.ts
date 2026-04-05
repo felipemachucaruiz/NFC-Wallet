@@ -14,6 +14,7 @@ import {
 import { eq, and, ne, desc, inArray, lte } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
+import { notifyBraceletBlocked } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -450,6 +451,8 @@ router.post(
       .where(eq(braceletsTable.nfcUid, uid))
       .returning();
 
+    void notifyBraceletBlocked(uid).catch(() => {});
+
     res.json({ bracelet: updated });
   }
 );
@@ -593,6 +596,34 @@ router.get(
       .orderBy(desc(attendeeRefundRequestsTable.createdAt));
 
     res.json({ requests });
+  }
+);
+
+const pushTokenSchema = z.object({
+  token: z.string().min(1),
+});
+
+router.post(
+  "/attendee/me/push-token",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const parsed = pushTokenSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "token is required" });
+      return;
+    }
+
+    await db
+      .update(usersTable)
+      .set({ expoPushToken: parsed.data.token, updatedAt: new Date() })
+      .where(eq(usersTable.id, req.user.id));
+
+    res.json({ success: true });
   }
 );
 

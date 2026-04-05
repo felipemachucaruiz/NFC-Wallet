@@ -273,6 +273,8 @@
     "tapToWriteHint": "Pon la pulsera plana contra la parte trasera del teléfono — se escribirá automáticamente.",
     "tapNow": "Acercar tarjeta ahora",
     "writeRetryHint": "No se pudo escribir. Asegúrate de que la tarjeta esté plana contra el teléfono e intenta de nuevo.",
+    "retryingWrite": "Intentando de nuevo...",
+    "keepSteadyRetry": "Mantén la pulsera firme, intentando de nuevo…",
     "braceletReady": "Pulsera lista",
     "enterUid": "Ingresar UID",
     "enterUidManual": "Ingresar UID manualmente",

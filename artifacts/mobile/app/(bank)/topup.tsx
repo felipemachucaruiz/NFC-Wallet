@@ -111,9 +111,12 @@ export default function TopUpScreen() {
   const [step, setStep] = useState<Step>("form");
   const [writeWarning, setWriteWarning] = useState(false);
   const [writeError, setWriteError] = useState<string | null>(null);
+  const [writeRetryCount, setWriteRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
   const submittingRef = useRef(false);
   const writingRef = useRef(false);
   const cancelledRef = useRef(false);
+  const writeRetryRef = useRef(0);
 
   const [attendeeName, setAttendeeName] = useState(params.attendeeName ?? "");
   const [phoneCountry, setPhoneCountry] = useState<CountryCode>(() => parsePhoneParam(params.phone).country);
@@ -144,6 +147,9 @@ export default function TopUpScreen() {
       setStep("form");
       setWriteWarning(false);
       setWriteError(null);
+      setWriteRetryCount(0);
+      setIsRetrying(false);
+      writeRetryRef.current = 0;
       submittingRef.current = false;
       writingRef.current = false;
       cancelledRef.current = false;
@@ -245,49 +251,74 @@ export default function TopUpScreen() {
     }
   };
 
-  // ─── Step 2: Auto-start NFC write ────────────────────────────────────────────
+  const MAX_WRITE_RETRIES = 3;
+
+  // ─── Step 2: Auto-start NFC write (with retry for legacy chips) ──────────────
   const handleStartWrite = async () => {
     if (writingRef.current) return;
     writingRef.current = true;
     setWriteError(null);
     setStep("writing");
+    setIsRetrying(false);
 
-    try {
-      let newHmac = "";
-      if (nfcChipType === "desfire_ev3") {
-        await writeDesfireBracelet(
-          { uid, balance: newBalance, counter: newCounter, hmac: "" },
-          desfireAesKey
-        );
-      } else {
-        newHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
-        await writeBracelet(
-          { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
-          tagInfoFromParams ?? undefined,
-          ultralightCDesKey ? { ultralightCKeyHex: ultralightCDesKey } : undefined
-        );
+    const attemptWrite = async (): Promise<void> => {
+      try {
+        let newHmac = "";
+        if (nfcChipType === "desfire_ev3") {
+          await writeDesfireBracelet(
+            { uid, balance: newBalance, counter: newCounter, hmac: "" },
+            desfireAesKey
+          );
+        } else {
+          newHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
+          await writeBracelet(
+            { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
+            tagInfoFromParams ?? undefined,
+            ultralightCDesKey ? { ultralightCKeyHex: ultralightCDesKey } : undefined
+          );
+        }
+        writingRef.current = false;
+        setIsRetrying(false);
+        setWriteRetryCount(0);
+        writeRetryRef.current = 0;
+        // Write succeeded — enqueue for server sync
+        await enqueueTopUp({
+          nfcUid: uid,
+          amountCop: amount,
+          paymentMethod,
+          newBalance,
+          newCounter,
+          hmac: newHmac,
+        });
+        submittingRef.current = false;
+        void syncToServer(true);
+        setStep("success");
+      } catch (e: unknown) {
+        if (cancelledRef.current) return;
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn("[TopUp] NFC write failed:", msg);
+
+        const attempt = writeRetryRef.current;
+        if (attempt < MAX_WRITE_RETRIES) {
+          writeRetryRef.current = attempt + 1;
+          setWriteRetryCount(attempt + 1);
+          setIsRetrying(true);
+          await new Promise<void>((resolve) => setTimeout(resolve, 500));
+          if (!cancelledRef.current) {
+            await attemptWrite();
+          }
+        } else {
+          writingRef.current = false;
+          setIsRetrying(false);
+          setWriteRetryCount(0);
+          writeRetryRef.current = 0;
+          setWriteError(msg);
+          setStep("tap_write");
+        }
       }
-      writingRef.current = false;
-      // Write succeeded — enqueue for server sync
-      await enqueueTopUp({
-        nfcUid: uid,
-        amountCop: amount,
-        paymentMethod,
-        newBalance,
-        newCounter,
-        hmac: newHmac,
-      });
-      submittingRef.current = false;
-      void syncToServer(true);
-      setStep("success");
-    } catch (e: unknown) {
-      if (cancelledRef.current) return;
-      const msg = e instanceof Error ? e.message : String(e);
-      console.warn("[TopUp] NFC write failed:", msg);
-      writingRef.current = false;
-      setWriteError(msg);
-      setStep("tap_write");
-    }
+    };
+
+    await attemptWrite();
   };
 
   // ─── Auto-start NFC write when tap_write step is entered ────────────────────
@@ -500,10 +531,10 @@ export default function TopUpScreen() {
                   <Feather name="wifi" size={48} color={C.primary} />
                 </Animated.View>
                 <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
-                  {t("bank.writingBracelet")}
+                  {isRetrying ? t("bank.retryingWrite") : t("bank.writingBracelet")}
                 </Text>
                 <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>
-                  {t("bank.holdSteady")}
+                  {isRetrying ? t("bank.keepSteadyRetry") : t("bank.holdSteady")}
                 </Text>
                 <Pressable onPress={handleCancelWriting} style={[styles.cancelBtn, { borderColor: C.border }]}>
                   <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("common.cancel")}</Text>

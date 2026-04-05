@@ -3,6 +3,7 @@ import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, 
 import { eq, desc, ilike, or, and, sql, asc } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { z } from "zod";
+import { notifyBraceletUnblocked } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -286,6 +287,7 @@ router.patch(
       .set({ flagged: false, flagReason: null, updatedAt: new Date() })
       .where(eq(braceletsTable.nfcUid, nfcUid))
       .returning();
+    void notifyBraceletUnblocked(nfcUid).catch(() => {});
     res.json(updated);
   },
 );

@@ -146,8 +146,11 @@ export default function ChargeScreen() {
   const [tagInfo, setTagInfo] = useState<TagInfo | DesfireTagInfo | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [nfcModalVisible, setNfcModalVisible] = useState(false);
+  const [nfcWriteRetrying, setNfcWriteRetrying] = useState(false);
   const scanningRef = useRef(false);
   const cancelledRef = useRef(false);
+  const writeRetryRef = useRef(0);
+  const MAX_WRITE_RETRIES = 3;
 
   const [selectedTipPercent, setSelectedTipPercent] = useState<number | null>(null);
   const [customTipPercent, setCustomTipPercent] = useState("");
@@ -279,6 +282,8 @@ export default function ChargeScreen() {
       return;
     }
     scanningRef.current = true;
+    writeRetryRef.current = 0;
+    setNfcWriteRetrying(false);
     setStep("reading");
     let aborted = false;
     let uid = "";
@@ -323,6 +328,7 @@ export default function ChargeScreen() {
         if (!aborted && !cancelledRef.current) {
           scanningRef.current = false;
           setNfcModalVisible(false);
+          setNfcWriteRetrying(false);
           setStep("waiting");
           showAlert(t("common.error"), t("pos.readError"));
         }
@@ -330,81 +336,106 @@ export default function ChargeScreen() {
         return;
       }
     } else {
-      try {
-        await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
-          setTagInfo(detectedTagInfo);
+      // Track whether the NFC read succeeded but the write failed
+      // so we can distinguish write errors from read errors for retry logic.
+      let readSucceeded = false;
 
-          if (!isChipAllowed(detectedTagInfo.type, configuredAllowedTypes)) {
-            const allowedLabels = configuredAllowedTypes
-              .map((ct) => {
-                if (ct === "mifare_classic") return "MIFARE Classic";
-                if (ct === "desfire_ev3") return "DESFire EV3";
-                if (ct === "mifare_ultralight_c") return "MIFARE Ultralight C";
-                return "NTAG 21x";
-              })
-              .join(", ");
-            aborted = true;
-            setNfcModalVisible(false);
-            setStep("waiting");
-            showAlert(
-              t("common.error"),
-              t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: detectedTagInfo.label }),
-            );
-            return null;
-          }
+      const doScan = async (): Promise<boolean> => {
+        try {
+          await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
+            setTagInfo(detectedTagInfo);
 
-          setStep("verifying");
-          let hmacOk = true;
-          if (hmacSecret && payload.hmac) {
-            hmacOk = await verifyHmac(payload.balance, payload.counter, payload.hmac, hmacSecret, payload.uid, legacyKeysForScan);
-          }
-          if (!hmacOk) {
-            setStep("hmac_fail");
-            aborted = true;
-            setNfcModalVisible(false);
-            try {
-              await reportTamper.mutateAsync({
-                data: { nfcUid: payload.uid, reason: "HMAC mismatch detected at merchant POS" },
-              });
-            } catch {}
-            return null;
-          }
+            if (!isChipAllowed(detectedTagInfo.type, configuredAllowedTypes)) {
+              const allowedLabels = configuredAllowedTypes
+                .map((ct) => {
+                  if (ct === "mifare_classic") return "MIFARE Classic";
+                  if (ct === "desfire_ev3") return "DESFire EV3";
+                  if (ct === "mifare_ultralight_c") return "MIFARE Ultralight C";
+                  return "NTAG 21x";
+                })
+                .join(", ");
+              aborted = true;
+              setNfcModalVisible(false);
+              setStep("waiting");
+              showAlert(
+                t("common.error"),
+                t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: detectedTagInfo.label }),
+              );
+              return null;
+            }
 
-          const serverPending = await fetchServerPendingBalance(payload.uid);
-          const effectiveBalance = serverPending !== null ? serverPending : payload.balance;
+            setStep("verifying");
+            let hmacOk = true;
+            if (hmacSecret && payload.hmac) {
+              hmacOk = await verifyHmac(payload.balance, payload.counter, payload.hmac, hmacSecret, payload.uid, legacyKeysForScan);
+            }
+            if (!hmacOk) {
+              setStep("hmac_fail");
+              aborted = true;
+              setNfcModalVisible(false);
+              try {
+                await reportTamper.mutateAsync({
+                  data: { nfcUid: payload.uid, reason: "HMAC mismatch detected at merchant POS" },
+                });
+              } catch {}
+              return null;
+            }
 
-          if (effectiveBalance < chargeTotal) {
-            setBraceletBalance(effectiveBalance);
-            setBraceletUid(payload.uid);
-            setStep("insufficient");
-            aborted = true;
-            setNfcModalVisible(false);
-            return null;
-          }
+            const serverPending = await fetchServerPendingBalance(payload.uid);
+            const effectiveBalance = serverPending !== null ? serverPending : payload.balance;
 
-          uid = payload.uid;
-          newBalance = effectiveBalance - chargeTotal;
-          newCounter = payload.counter + 1;
-          setStep("writing");
-          writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
-          return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
-        }, {
-          expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x",
-          ultralightCKeyHex: ultralightCDesKey || undefined,
-        });
-      } catch {
-        if (!aborted && !cancelledRef.current) {
-          scanningRef.current = false;
-          setNfcModalVisible(false);
-          setStep("waiting");
-          showAlert(t("common.error"), t("pos.readError"));
+            if (effectiveBalance < chargeTotal) {
+              setBraceletBalance(effectiveBalance);
+              setBraceletUid(payload.uid);
+              setStep("insufficient");
+              aborted = true;
+              setNfcModalVisible(false);
+              return null;
+            }
+
+            uid = payload.uid;
+            newBalance = effectiveBalance - chargeTotal;
+            newCounter = payload.counter + 1;
+            readSucceeded = true;
+            setStep("writing");
+            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
+            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
+          }, {
+            expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x",
+            ultralightCKeyHex: ultralightCDesKey || undefined,
+          });
+          return true;
+        } catch {
+          return false;
         }
+      };
+
+      let success = await doScan();
+
+      // If the scan failed after a successful read (write phase failure), retry with "tap again" prompt
+      while (!success && !aborted && !cancelledRef.current && readSucceeded && writeRetryRef.current < MAX_WRITE_RETRIES) {
+        writeRetryRef.current += 1;
+        setNfcWriteRetrying(true);
+        setStep("reading");
+        readSucceeded = false;
+        await new Promise<void>((resolve) => setTimeout(resolve, 500));
+        if (!cancelledRef.current) {
+          success = await doScan();
+        }
+      }
+
+      if (!success && !aborted && !cancelledRef.current) {
         scanningRef.current = false;
+        setNfcModalVisible(false);
+        setNfcWriteRetrying(false);
+        setStep("waiting");
+        showAlert(t("common.error"), t("pos.readError"));
         return;
       }
     }
 
     scanningRef.current = false;
+    setNfcWriteRetrying(false);
     if (!aborted) {
       setNfcModalVisible(false);
       await logAndFinish(uid, newBalance, newCounter, writtenHmac || undefined);
@@ -415,6 +446,8 @@ export default function ChargeScreen() {
     cancelledRef.current = true;
     await cancelNfc().catch(() => {});
     scanningRef.current = false;
+    writeRetryRef.current = 0;
+    setNfcWriteRetrying(false);
     setNfcModalVisible(false);
     setStep("waiting");
   };
@@ -765,10 +798,10 @@ export default function ChargeScreen() {
               <Feather name="wifi" size={48} color={C.primary} />
             </Animated.View>
             <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
-              {isNfcActiveStep ? t("pos.reading") : t("bank.acercarManilla")}
+              {nfcWriteRetrying ? t("bank.retryingWrite") : (isNfcActiveStep ? t("pos.reading") : t("bank.acercarManilla"))}
             </Text>
             <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>
-              {t("bank.holdSteady")}
+              {nfcWriteRetrying ? t("bank.keepSteadyRetry") : t("bank.holdSteady")}
             </Text>
             <Pressable onPress={handleCancelNfcModal} style={[styles.cancelBtn, { borderColor: C.border }]}>
               <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("common.cancel")}</Text>

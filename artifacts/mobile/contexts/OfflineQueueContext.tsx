@@ -7,6 +7,7 @@ import React, {
   useRef,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SQLite from "expo-sqlite";
 import { syncTransactions } from "@workspace/api-client-react";
 import { customFetch } from "@workspace/api-client-react";
 import { generateId } from "@/utils/hmac";
@@ -16,6 +17,7 @@ const QUEUE_KEY = "@offline_queue";
 const TOPUP_QUEUE_KEY = "@offline_topup_queue";
 const UNSYNC_SPEND_KEY = "@unsync_spend_cop";
 const SYNC_INTERVAL = 30_000;
+const DB_NAME = "offline_queue.db";
 
 const DEFAULT_OFFLINE_SYNC_LIMIT = 500_000;
 
@@ -95,52 +97,249 @@ function getCounterForItem(item: QueuedItem): number {
   return item.type === "charge" ? item.counter : item.newCounter;
 }
 
-async function loadQueue(): Promise<QueuedTransaction[]> {
+// ─── SQLite helpers ──────────────────────────────────────────────────────────
+
+let _db: SQLite.SQLiteDatabase | null = null;
+
+async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (_db) return _db;
+  _db = await SQLite.openDatabaseAsync(DB_NAME);
+  await _db.execAsync(`
+    CREATE TABLE IF NOT EXISTS charge_queue (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS topup_queue (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS kv_store (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+  return _db;
+}
+
+async function dbLoadChargeQueue(): Promise<QueuedTransaction[]> {
   try {
-    const raw = await AsyncStorage.getItem(QUEUE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as QueuedTransaction[];
-    return parsed.map((t) => ({ ...t, type: "charge" as const, grossAmountCop: t.grossAmountCop ?? 0 }));
+    const db = await getDb();
+    const rows = await db.getAllAsync<{ id: string; data: string }>(
+      "SELECT id, data FROM charge_queue ORDER BY rowid ASC"
+    );
+    return rows.map((r) => {
+      const parsed = JSON.parse(r.data) as QueuedTransaction;
+      return { ...parsed, type: "charge" as const, grossAmountCop: parsed.grossAmountCop ?? 0 };
+    });
   } catch {
     return [];
   }
 }
 
-async function saveQueue(q: QueuedTransaction[]): Promise<void> {
+async function dbSaveChargeItem(item: QueuedTransaction): Promise<void> {
   try {
-    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+    const db = await getDb();
+    await db.runAsync(
+      "INSERT OR REPLACE INTO charge_queue (id, data) VALUES (?, ?)",
+      item.id,
+      JSON.stringify(item)
+    );
   } catch {}
 }
 
-async function loadTopUpQueue(): Promise<QueuedTopUp[]> {
+async function dbUpdateChargeItem(item: QueuedTransaction): Promise<void> {
   try {
-    const raw = await AsyncStorage.getItem(TOPUP_QUEUE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as QueuedTopUp[];
+    const db = await getDb();
+    await db.runAsync(
+      "UPDATE charge_queue SET data = ? WHERE id = ?",
+      JSON.stringify(item),
+      item.id
+    );
+  } catch {}
+}
+
+async function dbDeleteChargeItem(id: string): Promise<void> {
+  try {
+    const db = await getDb();
+    await db.runAsync("DELETE FROM charge_queue WHERE id = ?", id);
+  } catch {}
+}
+
+async function dbReplaceChargeQueue(items: QueuedTransaction[]): Promise<void> {
+  try {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync("DELETE FROM charge_queue");
+      for (const item of items) {
+        await db.runAsync(
+          "INSERT INTO charge_queue (id, data) VALUES (?, ?)",
+          item.id,
+          JSON.stringify(item)
+        );
+      }
+    });
+  } catch {}
+}
+
+async function dbLoadTopUpQueue(): Promise<QueuedTopUp[]> {
+  try {
+    const db = await getDb();
+    const rows = await db.getAllAsync<{ id: string; data: string }>(
+      "SELECT id, data FROM topup_queue ORDER BY rowid ASC"
+    );
+    return rows.map((r) => JSON.parse(r.data) as QueuedTopUp);
   } catch {
     return [];
   }
 }
 
-async function saveTopUpQueue(q: QueuedTopUp[]): Promise<void> {
+async function dbSaveTopUpItem(item: QueuedTopUp): Promise<void> {
   try {
-    await AsyncStorage.setItem(TOPUP_QUEUE_KEY, JSON.stringify(q));
+    const db = await getDb();
+    await db.runAsync(
+      "INSERT OR REPLACE INTO topup_queue (id, data) VALUES (?, ?)",
+      item.id,
+      JSON.stringify(item)
+    );
   } catch {}
 }
 
-async function loadUnsyncedSpend(): Promise<number> {
+async function dbUpdateTopUpItem(item: QueuedTopUp): Promise<void> {
   try {
-    const raw = await AsyncStorage.getItem(UNSYNC_SPEND_KEY);
-    return raw ? parseInt(raw, 10) : 0;
+    const db = await getDb();
+    await db.runAsync(
+      "UPDATE topup_queue SET data = ? WHERE id = ?",
+      JSON.stringify(item),
+      item.id
+    );
+  } catch {}
+}
+
+async function dbDeleteTopUpItem(id: string): Promise<void> {
+  try {
+    const db = await getDb();
+    await db.runAsync("DELETE FROM topup_queue WHERE id = ?", id);
+  } catch {}
+}
+
+async function dbReplaceTopUpQueue(items: QueuedTopUp[]): Promise<void> {
+  try {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync("DELETE FROM topup_queue");
+      for (const item of items) {
+        await db.runAsync(
+          "INSERT INTO topup_queue (id, data) VALUES (?, ?)",
+          item.id,
+          JSON.stringify(item)
+        );
+      }
+    });
+  } catch {}
+}
+
+async function dbGetKv(key: string): Promise<string | null> {
+  try {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ value: string }>(
+      "SELECT value FROM kv_store WHERE key = ?",
+      key
+    );
+    return row?.value ?? null;
   } catch {
-    return 0;
+    return null;
   }
 }
 
-async function saveUnsyncedSpend(amount: number): Promise<void> {
+async function dbSetKv(key: string, value: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(UNSYNC_SPEND_KEY, String(amount));
+    const db = await getDb();
+    await db.runAsync(
+      "INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)",
+      key,
+      value
+    );
   } catch {}
+}
+
+// ─── Migration from AsyncStorage on first launch ─────────────────────────────
+
+async function migrateFromAsyncStorageIfNeeded(): Promise<{
+  chargeItems: QueuedTransaction[];
+  topUpItems: QueuedTopUp[];
+  unsyncedSpend: number;
+}> {
+  const db = await getDb();
+  const migrated = await dbGetKv("migrated_from_async_storage");
+  if (migrated === "1") {
+    return {
+      chargeItems: await dbLoadChargeQueue(),
+      topUpItems: await dbLoadTopUpQueue(),
+      unsyncedSpend: parseInt((await dbGetKv(UNSYNC_SPEND_KEY)) ?? "0", 10) || 0,
+    };
+  }
+
+  // Attempt to read from AsyncStorage
+  let chargeItems: QueuedTransaction[] = [];
+  let topUpItems: QueuedTopUp[] = [];
+  let unsyncedSpend = 0;
+
+  try {
+    const rawQueue = await AsyncStorage.getItem(QUEUE_KEY);
+    if (rawQueue) {
+      const parsed = JSON.parse(rawQueue) as QueuedTransaction[];
+      chargeItems = parsed.map((t) => ({ ...t, type: "charge" as const, grossAmountCop: t.grossAmountCop ?? 0 }));
+    }
+  } catch {}
+
+  try {
+    const rawTopUp = await AsyncStorage.getItem(TOPUP_QUEUE_KEY);
+    if (rawTopUp) {
+      topUpItems = JSON.parse(rawTopUp) as QueuedTopUp[];
+    }
+  } catch {}
+
+  try {
+    const rawSpend = await AsyncStorage.getItem(UNSYNC_SPEND_KEY);
+    if (rawSpend) {
+      unsyncedSpend = parseInt(rawSpend, 10) || 0;
+    }
+  } catch {}
+
+  // Write migrated data into SQLite
+  await db.withTransactionAsync(async () => {
+    for (const item of chargeItems) {
+      await db.runAsync(
+        "INSERT OR IGNORE INTO charge_queue (id, data) VALUES (?, ?)",
+        item.id,
+        JSON.stringify(item)
+      );
+    }
+    for (const item of topUpItems) {
+      await db.runAsync(
+        "INSERT OR IGNORE INTO topup_queue (id, data) VALUES (?, ?)",
+        item.id,
+        JSON.stringify(item)
+      );
+    }
+    await db.runAsync(
+      "INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)",
+      UNSYNC_SPEND_KEY,
+      String(unsyncedSpend)
+    );
+    await db.runAsync(
+      "INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)",
+      "migrated_from_async_storage",
+      "1"
+    );
+  });
+
+  // Clear AsyncStorage keys after successful migration
+  try {
+    await AsyncStorage.multiRemove([QUEUE_KEY, TOPUP_QUEUE_KEY, UNSYNC_SPEND_KEY]);
+  } catch {}
+
+  return { chargeItems, topUpItems, unsyncedSpend };
 }
 
 export function OfflineQueueProvider({ children }: { children: React.ReactNode }) {
@@ -156,39 +355,35 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
   const unsyncedSpendRef = useRef<number>(0);
 
   useEffect(() => {
-    loadQueue().then((q) => {
-      queueRef.current = q;
-      setQueue(q);
-    });
-    loadTopUpQueue().then((q) => {
-      topUpQueueRef.current = q;
-      setTopUpQueue(q);
+    migrateFromAsyncStorageIfNeeded().then(({ chargeItems, topUpItems, unsyncedSpend }) => {
+      queueRef.current = chargeItems;
+      setQueue(chargeItems);
+      topUpQueueRef.current = topUpItems;
+      setTopUpQueue(topUpItems);
+      unsyncedSpendRef.current = unsyncedSpend;
+      setUnsyncedSpendCop(unsyncedSpend);
     });
     getCachedSigningKey().then((key) => {
       if (key) setCachedHmacSecret(key);
-    });
-    loadUnsyncedSpend().then((amount) => {
-      unsyncedSpendRef.current = amount;
-      setUnsyncedSpendCop(amount);
     });
   }, []);
 
   const updateQueue = useCallback(async (q: QueuedTransaction[]) => {
     queueRef.current = q;
     setQueue([...q]);
-    await saveQueue(q);
+    await dbReplaceChargeQueue(q);
   }, []);
 
   const updateTopUpQueue = useCallback(async (q: QueuedTopUp[]) => {
     topUpQueueRef.current = q;
     setTopUpQueue([...q]);
-    await saveTopUpQueue(q);
+    await dbReplaceTopUpQueue(q);
   }, []);
 
   const updateUnsyncedSpend = useCallback(async (amount: number) => {
     unsyncedSpendRef.current = amount;
     setUnsyncedSpendCop(amount);
-    await saveUnsyncedSpend(amount);
+    await dbSetKv(UNSYNC_SPEND_KEY, String(amount));
   }, []);
 
   const updateCachedHmacSecret = useCallback(async (secret: string) => {
@@ -223,12 +418,14 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         failCount: 0,
       };
       const q = [...queueRef.current, item];
-      await updateQueue(q);
+      queueRef.current = q;
+      setQueue([...q]);
+      await dbSaveChargeItem(item);
       // Accumulate unsynced spend using total charged amount (items + tip)
       const newSpend = unsyncedSpendRef.current + tx.grossAmountCop + (tx.tipAmountCop ?? 0);
       await updateUnsyncedSpend(newSpend);
     },
-    [updateQueue, updateUnsyncedSpend]
+    [updateUnsyncedSpend]
   );
 
   const enqueueTopUp = useCallback(
@@ -242,9 +439,11 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         failCount: 0,
       };
       const q = [...topUpQueueRef.current, item];
-      await updateTopUpQueue(q);
+      topUpQueueRef.current = q;
+      setTopUpQueue([...q]);
+      await dbSaveTopUpItem(item);
     },
-    [updateTopUpQueue]
+    []
   );
 
   const syncNow = useCallback(async () => {
@@ -269,8 +468,12 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         ? { ...t, status: "syncing" as const }
         : t
     );
-    await updateQueue(q);
-    await updateTopUpQueue(tq);
+    queueRef.current = q;
+    setQueue([...q]);
+    await dbReplaceChargeQueue(q);
+    topUpQueueRef.current = tq;
+    setTopUpQueue([...tq]);
+    await dbReplaceTopUpQueue(tq);
 
     // Build a globally sorted list across both item types: by nfcUid, then counter
     const allItems: QueuedItem[] = [
@@ -318,19 +521,18 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
 
           const failReason = syncResult?.error ?? "";
           const r = failReason.toLowerCase();
-          // Permanent rejections the merchant cannot resolve — auto-dismiss silently:
-          //   "flagged"           → bracelet quarantined by admin, already tracked server-side
-          //   "counter replay"    → another device already synced a higher counter (offline race)
-          //   "insufficient"      → double-spend from two offline devices, goods already given
           const isPermanentRejection =
             r.includes("flagged") ||
             r.includes("counter replay") ||
             (r.includes("insufficient") && r.includes("balance"));
           if (!syncResult || syncResult.status === "created" || syncResult.status === "duplicate" || isPermanentRejection) {
             q = queueRef.current.filter((t) => t.id !== item.id);
+            queueRef.current = q;
+            setQueue([...q]);
+            await dbDeleteChargeItem(item.id);
             if (!isPermanentRejection) syncedSpend += item.grossAmountCop + (item.tipAmountCop ?? 0);
           } else {
-            q = queueRef.current.map((t) =>
+            const updated = queueRef.current.map((t) =>
               t.id === item.id
                 ? {
                     ...t,
@@ -340,16 +542,20 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
                   }
                 : t
             );
+            q = updated;
+            queueRef.current = q;
+            setQueue([...q]);
+            const updatedItem = q.find((t) => t.id === item.id);
+            if (updatedItem) await dbUpdateChargeItem(updatedItem);
             anyError = true;
           }
-          await updateQueue(q);
           anySuccess = true;
         } catch (err: unknown) {
           anyError = true;
           const httpErr = err as { status?: number };
           if (!httpErr.status) hasNetworkError = true;
           const msg = err instanceof Error ? err.message : "Network error";
-          q = queueRef.current.map((t) =>
+          const updated = queueRef.current.map((t) =>
             t.id === item.id
               ? {
                   ...t,
@@ -359,7 +565,11 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
                 }
               : t
           );
-          await updateQueue(q);
+          q = updated;
+          queueRef.current = q;
+          setQueue([...q]);
+          const updatedItem = q.find((t) => t.id === item.id);
+          if (updatedItem) await dbUpdateChargeItem(updatedItem);
         }
       } else {
         // Top-ups go via the offline sync endpoint
@@ -378,7 +588,9 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
             }),
           });
           tq = topUpQueueRef.current.filter((t) => t.id !== item.id);
-          await updateTopUpQueue(tq);
+          topUpQueueRef.current = tq;
+          setTopUpQueue([...tq]);
+          await dbDeleteTopUpItem(item.id);
           anySuccess = true;
         } catch (err: unknown) {
           const httpErr = err as { status?: number; data?: { error?: string } };
@@ -391,12 +603,14 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           if (httpErr.status === 409 || isTopUpPermanent) {
             // Duplicate or permanent rejection — auto-dismiss silently
             tq = topUpQueueRef.current.filter((t) => t.id !== item.id);
-            await updateTopUpQueue(tq);
+            topUpQueueRef.current = tq;
+            setTopUpQueue([...tq]);
+            await dbDeleteTopUpItem(item.id);
             anySuccess = true;
           } else {
             anyError = true;
             if (!httpErr.status) hasNetworkError = true;
-            tq = topUpQueueRef.current.map((t) =>
+            const updated = topUpQueueRef.current.map((t) =>
               t.id === item.id
                 ? {
                     ...t,
@@ -406,7 +620,11 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
                   }
                 : t
             );
-            await updateTopUpQueue(tq);
+            tq = updated;
+            topUpQueueRef.current = tq;
+            setTopUpQueue([...tq]);
+            const updatedItem = tq.find((t) => t.id === item.id);
+            if (updatedItem) await dbUpdateTopUpItem(updatedItem);
           }
         }
       }
@@ -425,7 +643,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     }
 
     setIsSyncing(false);
-  }, [updateQueue, updateTopUpQueue, updateUnsyncedSpend]);
+  }, [updateUnsyncedSpend]);
 
   useEffect(() => {
     const interval = setInterval(syncNow, SYNC_INTERVAL);
@@ -437,7 +655,9 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
       if (itemType === "charge") {
         const item = queueRef.current.find((t) => t.id === id);
         const updated = queueRef.current.filter((t) => t.id !== id);
-        await updateQueue(updated);
+        queueRef.current = updated;
+        setQueue([...updated]);
+        await dbDeleteChargeItem(id);
         // Reduce unsynced spend when dismissing a failed item
         if (item) {
           const newSpend = Math.max(0, unsyncedSpendRef.current - (item.grossAmountCop + (item.tipAmountCop ?? 0)));
@@ -445,10 +665,12 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         }
       } else {
         const updated = topUpQueueRef.current.filter((t) => t.id !== id);
-        await updateTopUpQueue(updated);
+        topUpQueueRef.current = updated;
+        setTopUpQueue([...updated]);
+        await dbDeleteTopUpItem(id);
       }
     },
-    [updateQueue, updateTopUpQueue, updateUnsyncedSpend]
+    [updateUnsyncedSpend]
   );
 
   const pendingCount =

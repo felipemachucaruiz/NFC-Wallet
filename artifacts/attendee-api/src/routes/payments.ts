@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { processSelfServicePayment } from "./selfService";
+import { notifyTopUpSuccess, notifyTopUpFailed } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -224,6 +225,9 @@ router.get(
             await db.update(wompiPaymentIntentsTable)
               .set({ status: "failed", updatedAt: new Date() })
               .where(eq(wompiPaymentIntentsTable.id, id));
+            if (intent.performedByUserId) {
+              void notifyTopUpFailed(intent.performedByUserId, intent.amountCop).catch(() => {});
+            }
             res.json({ intentId: id, status: "failed" });
             return;
           }
@@ -243,6 +247,10 @@ router.get(
 );
 
 async function processSuccessfulPayment(intentId: string, wompiTransactionId: string) {
+  let notifyBraceletUid: string | null = null;
+  let notifyAmount = 0;
+  let notifyNewBalance = 0;
+
   await db.transaction(async (tx) => {
     const claimed = await tx
       .update(wompiPaymentIntentsTable)
@@ -297,7 +305,15 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
       .update(wompiPaymentIntentsTable)
       .set({ status: "success", topUpId: topUp.id, updatedAt: new Date() })
       .where(eq(wompiPaymentIntentsTable.id, intentId));
+
+    notifyBraceletUid = intent.braceletUid;
+    notifyAmount = intent.amountCop;
+    notifyNewBalance = newBalance;
   });
+
+  if (notifyBraceletUid) {
+    void notifyTopUpSuccess(notifyBraceletUid, notifyAmount, notifyNewBalance).catch(() => {});
+  }
 }
 
 router.post(
@@ -370,6 +386,9 @@ router.post(
             .update(wompiPaymentIntentsTable)
             .set({ status: "failed", updatedAt: new Date() })
             .where(eq(wompiPaymentIntentsTable.id, intent.id));
+          if (intent.performedByUserId) {
+            void notifyTopUpFailed(intent.performedByUserId, intent.amountCop).catch(() => {});
+          }
         }
       }
     }

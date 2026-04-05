@@ -273,6 +273,8 @@
     "tapToWriteHint": "Hold the bracelet flat against the back of the phone — it will write automatically.",
     "tapNow": "Tap card now",
     "writeRetryHint": "Write failed. Make sure the card is flat against the phone and try again.",
+    "retryingWrite": "Trying again...",
+    "keepSteadyRetry": "Keep bracelet steady, trying again…",
     "braceletReady": "Bracelet ready",
     "enterUid": "Enter UID",
     "enterUidManual": "Enter UID manually",
