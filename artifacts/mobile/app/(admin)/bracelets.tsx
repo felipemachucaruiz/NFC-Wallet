@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import { useFocusEffect } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   useGetBracelet,
@@ -124,6 +125,7 @@ export default function BraceletsAdminScreen() {
     data: listData,
     isLoading: listLoading,
     isFetching: listFetching,
+    isError: listError,
     refetch: refetchList,
   } = useQuery<ListResponse>({
     queryKey: listQueryKey,
@@ -138,11 +140,18 @@ export default function BraceletsAdminScreen() {
       return customFetch<ListResponse>(`/api/admin/bracelets?${params.toString()}`);
     },
     staleTime: 30_000,
+    retry: 2,
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetchList();
+    }, [refetchList])
+  );
 
   const handleRefreshList = useCallback(() => {
     setListPage(1);
-    refetchList();
+    void refetchList();
   }, [refetchList]);
 
   // ─── Lookup handlers ───────────────────────────────────────────────────────
@@ -522,6 +531,19 @@ export default function BraceletsAdminScreen() {
         {listLoading ? (
           <View style={styles.centerBox}>
             <Text style={[styles.hint, { color: C.textSecondary }]}>{t("common.loading")}</Text>
+          </View>
+        ) : listError ? (
+          <View style={[styles.emptyBox, { borderColor: C.danger, backgroundColor: C.dangerLight }]}>
+            <Feather name="alert-circle" size={28} color={C.danger} />
+            <Text style={[styles.emptyText, { color: C.danger }]}>
+              {t("common.unexpectedError")}
+            </Text>
+            <Button
+              title={t("common.retry")}
+              onPress={() => void refetchList()}
+              variant="primary"
+              style={{ marginTop: 8 }}
+            />
           </View>
         ) : bracelets.length === 0 ? (
           <View style={[styles.emptyBox, { borderColor: C.border, backgroundColor: C.card }]}>
