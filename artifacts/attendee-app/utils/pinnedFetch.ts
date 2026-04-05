@@ -1,20 +1,23 @@
 /**
  * pinnedFetch — TLS certificate-pinned fetch for Tapee Attendee API.
  *
- * Pins to the ISRG Root X1 root CA certificate (valid until 2035).
- * All Let's Encrypt-issued leaf certs on attendee.tapee.app chain through
- * this root, so the pin survives automatic 90-day leaf cert renewals
- * without any app update.
+ * Pins to Let's Encrypt intermediate certs R12 (used by prod.tapee.app) and
+ * R13 (used by attendee.tapee.app). Both intermediates are included in the
+ * TLS handshake chain and are valid until March 2027.
+ *
+ * Why not the root (ISRG Root X1)? Modern TLS servers do NOT send the root CA
+ * in the handshake — only the leaf + intermediate. Pinning the root causes
+ * every API call to fail because the pinned cert is never seen in the chain.
  *
  * Uses react-native-ssl-pinning for Android certificate pinning.
- * The isrg_root_x1.cer DER file must be present in assets/certs/ at
- * build time so the Expo plugin copies it to android/app/src/main/res/raw/.
+ * r12.cer and r13.cer (DER format) must be present in assets/certs/ at
+ * build time so the Expo plugin copies them to android/app/src/main/res/raw/.
  */
 
 import { fetch as sslFetch } from "react-native-ssl-pinning";
 import { Platform } from "react-native";
 
-const PINNED_CERTS = ["isrg_root_x1"];
+const PINNED_CERTS = ["r12", "r13"];
 
 const PINNED_DOMAINS = ["attendee.tapee.app", "prod.tapee.app"];
 

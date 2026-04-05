@@ -99,7 +99,7 @@ module.exports = {
       [
         "./plugins/withSslPinning",
         {
-          certFiles: ["isrg_root_x1.cer"],
+          certFiles: ["r12.cer", "r13.cer"],
         },
       ],
       "./plugins/withGoogleMapsManifest",
