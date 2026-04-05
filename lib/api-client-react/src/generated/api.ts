@@ -30,6 +30,7 @@ import type {
   Bracelet,
   ConflictResponse,
   CreateEventBody,
+  CreateInventoryAuditBody,
   CreateLocationBody,
   CreateMerchantBody,
   CreateMerchantStaffBody,
@@ -39,6 +40,7 @@ import type {
   CreateRestockOrderBody,
   CreateTopUpBody,
   CreateWarehouseBody,
+  DamagedGoodsEntry,
   ErrorEnvelope,
   Event,
   ForbiddenResponse,
@@ -66,13 +68,18 @@ import type {
   HealthStatus,
   InitiateDigitalTopUpBody,
   InternalErrorResponse,
+  InventoryAuditResult,
   InventoryReport,
+  ListDamagedGoods200,
+  ListDamagedGoodsParams,
   ListEventBracelets200,
   ListEventBraceletsParams,
   ListEventTransactions200,
   ListEventTransactionsParams,
   ListEvents200,
   ListEventsParams,
+  ListInventoryAudits200,
+  ListInventoryAuditsParams,
   ListLocations200,
   ListLocationsParams,
   ListMerchantStaff200,
@@ -93,6 +100,7 @@ import type {
   Location,
   LocationInventoryItem,
   LocationTransferBody,
+  LogDamagedGoodsBody,
   LogTransactionBody,
   LogoutSuccess,
   ManualFraudReportBody,
@@ -7367,6 +7375,395 @@ export function useGetFiscalSummary<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetFiscalSummaryQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create an inventory audit (warehouse_admin or admin)
+ */
+export const getCreateInventoryAuditUrl = () => {
+  return `/api/inventory/audits`;
+};
+
+export const createInventoryAudit = async (
+  createInventoryAuditBody: CreateInventoryAuditBody,
+  options?: RequestInit,
+): Promise<InventoryAuditResult> => {
+  return customFetch<InventoryAuditResult>(getCreateInventoryAuditUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createInventoryAuditBody),
+  });
+};
+
+export const getCreateInventoryAuditMutationOptions = <
+  TError = ErrorType<
+    BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createInventoryAudit>>,
+    TError,
+    { data: BodyType<CreateInventoryAuditBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createInventoryAudit>>,
+  TError,
+  { data: BodyType<CreateInventoryAuditBody> },
+  TContext
+> => {
+  const mutationKey = ["createInventoryAudit"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createInventoryAudit>>,
+    { data: BodyType<CreateInventoryAuditBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createInventoryAudit(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateInventoryAuditMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createInventoryAudit>>
+>;
+export type CreateInventoryAuditMutationBody =
+  BodyType<CreateInventoryAuditBody>;
+export type CreateInventoryAuditMutationError = ErrorType<
+  BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Create an inventory audit (warehouse_admin or admin)
+ */
+export const useCreateInventoryAudit = <
+  TError = ErrorType<
+    BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createInventoryAudit>>,
+    TError,
+    { data: BodyType<CreateInventoryAuditBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createInventoryAudit>>,
+  TError,
+  { data: BodyType<CreateInventoryAuditBody> },
+  TContext
+> => {
+  return useMutation(getCreateInventoryAuditMutationOptions(options));
+};
+
+/**
+ * @summary List inventory audit history
+ */
+export const getListInventoryAuditsUrl = (
+  params?: ListInventoryAuditsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/inventory/audits?${stringifiedParams}`
+    : `/api/inventory/audits`;
+};
+
+export const listInventoryAudits = async (
+  params?: ListInventoryAuditsParams,
+  options?: RequestInit,
+): Promise<ListInventoryAudits200> => {
+  return customFetch<ListInventoryAudits200>(
+    getListInventoryAuditsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListInventoryAuditsQueryKey = (
+  params?: ListInventoryAuditsParams,
+) => {
+  return [`/api/inventory/audits`, ...(params ? [params] : [])] as const;
+};
+
+export const getListInventoryAuditsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listInventoryAudits>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: ListInventoryAuditsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listInventoryAudits>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListInventoryAuditsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listInventoryAudits>>
+  > = ({ signal }) =>
+    listInventoryAudits(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listInventoryAudits>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListInventoryAuditsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listInventoryAudits>>
+>;
+export type ListInventoryAuditsQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary List inventory audit history
+ */
+
+export function useListInventoryAudits<
+  TData = Awaited<ReturnType<typeof listInventoryAudits>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: ListInventoryAuditsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listInventoryAudits>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListInventoryAuditsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Log damaged/lost/expired goods and reduce stock
+ */
+export const getLogDamagedGoodsUrl = () => {
+  return `/api/inventory/damaged-goods`;
+};
+
+export const logDamagedGoods = async (
+  logDamagedGoodsBody: LogDamagedGoodsBody,
+  options?: RequestInit,
+): Promise<DamagedGoodsEntry> => {
+  return customFetch<DamagedGoodsEntry>(getLogDamagedGoodsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(logDamagedGoodsBody),
+  });
+};
+
+export const getLogDamagedGoodsMutationOptions = <
+  TError = ErrorType<
+    BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logDamagedGoods>>,
+    TError,
+    { data: BodyType<LogDamagedGoodsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logDamagedGoods>>,
+  TError,
+  { data: BodyType<LogDamagedGoodsBody> },
+  TContext
+> => {
+  const mutationKey = ["logDamagedGoods"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logDamagedGoods>>,
+    { data: BodyType<LogDamagedGoodsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return logDamagedGoods(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogDamagedGoodsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logDamagedGoods>>
+>;
+export type LogDamagedGoodsMutationBody = BodyType<LogDamagedGoodsBody>;
+export type LogDamagedGoodsMutationError = ErrorType<
+  BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Log damaged/lost/expired goods and reduce stock
+ */
+export const useLogDamagedGoods = <
+  TError = ErrorType<
+    BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logDamagedGoods>>,
+    TError,
+    { data: BodyType<LogDamagedGoodsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof logDamagedGoods>>,
+  TError,
+  { data: BodyType<LogDamagedGoodsBody> },
+  TContext
+> => {
+  return useMutation(getLogDamagedGoodsMutationOptions(options));
+};
+
+/**
+ * @summary List damaged/lost goods entries
+ */
+export const getListDamagedGoodsUrl = (params?: ListDamagedGoodsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/inventory/damaged-goods?${stringifiedParams}`
+    : `/api/inventory/damaged-goods`;
+};
+
+export const listDamagedGoods = async (
+  params?: ListDamagedGoodsParams,
+  options?: RequestInit,
+): Promise<ListDamagedGoods200> => {
+  return customFetch<ListDamagedGoods200>(getListDamagedGoodsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDamagedGoodsQueryKey = (
+  params?: ListDamagedGoodsParams,
+) => {
+  return [`/api/inventory/damaged-goods`, ...(params ? [params] : [])] as const;
+};
+
+export const getListDamagedGoodsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDamagedGoods>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: ListDamagedGoodsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDamagedGoods>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListDamagedGoodsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDamagedGoods>>
+  > = ({ signal }) => listDamagedGoods(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDamagedGoods>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDamagedGoodsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDamagedGoods>>
+>;
+export type ListDamagedGoodsQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary List damaged/lost goods entries
+ */
+
+export function useListDamagedGoods<
+  TData = Awaited<ReturnType<typeof listDamagedGoods>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: ListDamagedGoodsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDamagedGoods>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDamagedGoodsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

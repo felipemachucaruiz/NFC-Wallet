@@ -62,6 +62,26 @@ export interface AuthUser {
    * @nullable
    */
   promoterCompanyId?: string | null;
+  /**
+   * Display name of the merchant (merchant_admin / merchant_staff only)
+   * @nullable
+   */
+  merchantName?: string | null;
+  /**
+   * Merchant type (event_managed or external)
+   * @nullable
+   */
+  merchantType?: string | null;
+  /**
+   * Display name of the event (event_admin / gate users)
+   * @nullable
+   */
+  eventName?: string | null;
+  /**
+   * ID of the gate zone this gate user is assigned to
+   * @nullable
+   */
+  gateZoneId?: string | null;
 }
 
 export interface AuthUserEnvelope {
@@ -598,6 +618,120 @@ export interface CreateWarehouseBody {
   notes?: string;
 }
 
+export type CreateInventoryAuditBodyItemsItem = {
+  productId: string;
+  /** @minimum 0 */
+  physicalCount: number;
+};
+
+export interface CreateInventoryAuditBody {
+  warehouseId?: string;
+  locationId?: string;
+  notes?: string;
+  /** @minItems 1 */
+  items: CreateInventoryAuditBodyItemsItem[];
+}
+
+export interface InventoryAuditItem {
+  id: string;
+  auditId: string;
+  productId: string;
+  systemCount: number;
+  physicalCount: number;
+  delta: number;
+  createdAt: string;
+}
+
+export type InventoryAuditResultAudit = {
+  id: string;
+  /** @nullable */
+  warehouseId?: string | null;
+  /** @nullable */
+  locationId?: string | null;
+  /** @nullable */
+  performedByUserId?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+};
+
+export interface InventoryAuditResult {
+  audit: InventoryAuditResultAudit;
+  items: InventoryAuditItem[];
+}
+
+export type InventoryAuditWithItemsItemsItem = {
+  id: string;
+  auditId: string;
+  productId: string;
+  systemCount: number;
+  physicalCount: number;
+  delta: number;
+  /** @nullable */
+  productName?: string | null;
+  createdAt: string;
+};
+
+export interface InventoryAuditWithItems {
+  id: string;
+  /** @nullable */
+  warehouseId?: string | null;
+  /** @nullable */
+  locationId?: string | null;
+  /** @nullable */
+  performedByUserId?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  items: InventoryAuditWithItemsItemsItem[];
+}
+
+export type LogDamagedGoodsBodyReason =
+  (typeof LogDamagedGoodsBodyReason)[keyof typeof LogDamagedGoodsBodyReason];
+
+export const LogDamagedGoodsBodyReason = {
+  damaged: "damaged",
+  lost: "lost",
+  expired: "expired",
+} as const;
+
+export interface LogDamagedGoodsBody {
+  warehouseId?: string;
+  locationId?: string;
+  productId: string;
+  /** @minimum 1 */
+  quantity: number;
+  reason: LogDamagedGoodsBodyReason;
+  notes?: string;
+}
+
+export type DamagedGoodsEntryReason =
+  (typeof DamagedGoodsEntryReason)[keyof typeof DamagedGoodsEntryReason];
+
+export const DamagedGoodsEntryReason = {
+  damaged: "damaged",
+  lost: "lost",
+  expired: "expired",
+} as const;
+
+export interface DamagedGoodsEntry {
+  id: string;
+  /** @nullable */
+  warehouseId?: string | null;
+  /** @nullable */
+  locationId?: string | null;
+  productId: string;
+  quantity: number;
+  reason: DamagedGoodsEntryReason;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  performedByUserId?: string | null;
+  /** @nullable */
+  productName?: string | null;
+  createdAt: string;
+}
+
 export type StockMovementMovementType =
   (typeof StockMovementMovementType)[keyof typeof StockMovementMovementType];
 
@@ -726,7 +860,6 @@ export interface TransactionLog {
   merchantId: string;
   eventId: string;
   grossAmountCop: number;
-  tipAmountCop: number;
   commissionAmountCop: number;
   netAmountCop: number;
   newBalanceCop: number;
@@ -753,10 +886,7 @@ export interface LogTransactionBody {
   counter: number;
   /** @minItems 1 */
   lineItems: TransactionLineItemInput[];
-  /** @minimum 0 */
-  tipAmountCop?: number;
   offlineCreatedAt?: string;
-  hmac?: string;
 }
 
 export interface SyncTransactionsBody {
@@ -1499,6 +1629,24 @@ export type GetFiscalSummaryParams = {
 export type GetFiscalSummary200 = {
   totals: FiscalSummaryTotals;
   byMerchant: FiscalSummaryRow[];
+};
+
+export type ListInventoryAuditsParams = {
+  warehouseId?: string;
+  locationId?: string;
+};
+
+export type ListInventoryAudits200 = {
+  audits: InventoryAuditWithItems[];
+};
+
+export type ListDamagedGoodsParams = {
+  warehouseId?: string;
+  locationId?: string;
+};
+
+export type ListDamagedGoods200 = {
+  entries: DamagedGoodsEntry[];
 };
 
 export type GetInventoryReportParams = {

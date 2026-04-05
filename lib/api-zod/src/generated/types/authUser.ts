@@ -33,4 +33,24 @@ export interface AuthUser {
    * @nullable
    */
   promoterCompanyId?: string | null;
+  /**
+   * Display name of the merchant (merchant_admin / merchant_staff only)
+   * @nullable
+   */
+  merchantName?: string | null;
+  /**
+   * Merchant type (event_managed or external)
+   * @nullable
+   */
+  merchantType?: string | null;
+  /**
+   * Display name of the event (event_admin / gate users)
+   * @nullable
+   */
+  eventName?: string | null;
+  /**
+   * ID of the gate zone this gate user is assigned to
+   * @nullable
+   */
+  gateZoneId?: string | null;
 }

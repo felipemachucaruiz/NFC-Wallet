@@ -51,6 +51,9 @@ function ClassicTabLayout() {
       <Tabs.Screen name="index" options={{ title: t("warehouse.stock"), tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />
       <Tabs.Screen name="dispatch" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.dispatch"), tabBarIcon: ({ color }) => <Feather name="upload" size={22} color={color} /> }} />
       <Tabs.Screen name="restock" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.restock"), tabBarIcon: ({ color }) => <Feather name="shopping-cart" size={22} color={color} /> }} />
+      <Tabs.Screen name="audit" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.audit"), tabBarIcon: ({ color }) => <Feather name="clipboard" size={22} color={color} /> }} />
+      <Tabs.Screen name="damaged" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.damagedGoods"), tabBarIcon: ({ color }) => <Feather name="alert-triangle" size={22} color={color} /> }} />
+      <Tabs.Screen name="audit-history" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.auditHistory"), tabBarIcon: ({ color }) => <Feather name="clock" size={22} color={color} /> }} />
       <Tabs.Screen name="movements" options={{ href: isLocationBased ? null : undefined, title: t("warehouse.movements"), tabBarIcon: ({ color }) => <Feather name="list" size={22} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>

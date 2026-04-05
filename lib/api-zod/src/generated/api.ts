@@ -60,10 +60,24 @@ export const GetCurrentAuthUserResponse = zod.object({
         .describe(
           "Set for event_admin users linked to a promoter company; determines which company's events they manage",
         ),
-      merchantName: zod.string().nullish(),
-      merchantType: zod.string().nullish(),
-      eventName: zod.string().nullish(),
-      gateZoneId: zod.string().nullish(),
+      merchantName: zod
+        .string()
+        .nullish()
+        .describe(
+          "Display name of the merchant (merchant_admin \/ merchant_staff only)",
+        ),
+      merchantType: zod
+        .string()
+        .nullish()
+        .describe("Merchant type (event_managed or external)"),
+      eventName: zod
+        .string()
+        .nullish()
+        .describe("Display name of the event (event_admin \/ gate users)"),
+      gateZoneId: zod
+        .string()
+        .nullish()
+        .describe("ID of the gate zone this gate user is assigned to"),
     }),
     zod.null(),
   ]),
@@ -1981,6 +1995,98 @@ export const GetFiscalSummaryResponse = zod.object({
       totalRetencionesCop: zod.number(),
       totalComisionCop: zod.number(),
       totalNetoCop: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create an inventory audit (warehouse_admin or admin)
+ */
+export const createInventoryAuditBodyItemsItemPhysicalCountMin = 0;
+
+export const CreateInventoryAuditBody = zod.object({
+  warehouseId: zod.string().optional(),
+  locationId: zod.string().optional(),
+  notes: zod.string().optional(),
+  items: zod
+    .array(
+      zod.object({
+        productId: zod.string(),
+        physicalCount: zod
+          .number()
+          .min(createInventoryAuditBodyItemsItemPhysicalCountMin),
+      }),
+    )
+    .min(1),
+});
+
+/**
+ * @summary List inventory audit history
+ */
+export const ListInventoryAuditsQueryParams = zod.object({
+  warehouseId: zod.coerce.string().optional(),
+  locationId: zod.coerce.string().optional(),
+});
+
+export const ListInventoryAuditsResponse = zod.object({
+  audits: zod.array(
+    zod.object({
+      id: zod.string(),
+      warehouseId: zod.string().nullish(),
+      locationId: zod.string().nullish(),
+      performedByUserId: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      createdAt: zod.date(),
+      items: zod.array(
+        zod.object({
+          id: zod.string(),
+          auditId: zod.string(),
+          productId: zod.string(),
+          systemCount: zod.number(),
+          physicalCount: zod.number(),
+          delta: zod.number(),
+          productName: zod.string().nullish(),
+          createdAt: zod.date(),
+        }),
+      ),
+    }),
+  ),
+});
+
+/**
+ * @summary Log damaged/lost/expired goods and reduce stock
+ */
+
+export const LogDamagedGoodsBody = zod.object({
+  warehouseId: zod.string().optional(),
+  locationId: zod.string().optional(),
+  productId: zod.string(),
+  quantity: zod.number().min(1),
+  reason: zod.enum(["damaged", "lost", "expired"]),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary List damaged/lost goods entries
+ */
+export const ListDamagedGoodsQueryParams = zod.object({
+  warehouseId: zod.coerce.string().optional(),
+  locationId: zod.coerce.string().optional(),
+});
+
+export const ListDamagedGoodsResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.string(),
+      warehouseId: zod.string().nullish(),
+      locationId: zod.string().nullish(),
+      productId: zod.string(),
+      quantity: zod.number(),
+      reason: zod.enum(["damaged", "lost", "expired"]),
+      notes: zod.string().nullish(),
+      performedByUserId: zod.string().nullish(),
+      productName: zod.string().nullish(),
+      createdAt: zod.date(),
     }),
   ),
 });

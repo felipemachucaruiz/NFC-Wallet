@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable, stockMovementsTable, locationsTable, merchantsTable } from "@workspace/db";
-import { eq, and, sql, gte } from "drizzle-orm";
+import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable, stockMovementsTable, locationsTable, merchantsTable, inventoryAuditsTable, inventoryAuditItemsTable, damagedGoodsTable } from "@workspace/db";
+import { eq, and, sql, gte, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
@@ -511,6 +511,392 @@ router.post(
     });
 
     res.status(200).json({ initialized: results });
+  },
+);
+
+// ── Inventory Audits ──────────────────────────────────────────────────────────
+
+/**
+ * POST /inventory/audits
+ * Create an inventory audit for a warehouse or location.
+ * Accepts physical counts per product, records delta, and adjusts stock.
+ */
+router.post(
+  "/inventory/audits",
+  requireRole("admin", "warehouse_admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({
+      warehouseId: z.string().min(1).optional(),
+      locationId: z.string().min(1).optional(),
+      notes: z.string().optional(),
+      items: z.array(z.object({
+        productId: z.string().min(1),
+        physicalCount: z.number().int().min(0),
+      })).min(1),
+    }).refine((d) => d.warehouseId || d.locationId, {
+      message: "Either warehouseId or locationId is required",
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const { warehouseId, locationId, notes, items } = parsed.data;
+    const user = req.user!;
+
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [audit] = await tx
+          .insert(inventoryAuditsTable)
+          .values({
+            warehouseId: warehouseId ?? null,
+            locationId: locationId ?? null,
+            performedByUserId: user.id,
+            notes: notes ?? null,
+          })
+          .returning();
+
+        const auditItems = [];
+        for (const item of items) {
+          let systemCount = 0;
+
+          if (warehouseId) {
+            const [inv] = await tx
+              .select({ quantityOnHand: warehouseInventoryTable.quantityOnHand })
+              .from(warehouseInventoryTable)
+              .where(
+                and(
+                  eq(warehouseInventoryTable.warehouseId, warehouseId),
+                  eq(warehouseInventoryTable.productId, item.productId),
+                ),
+              );
+            systemCount = inv?.quantityOnHand ?? 0;
+          } else if (locationId) {
+            const [inv] = await tx
+              .select({ quantityOnHand: locationInventoryTable.quantityOnHand })
+              .from(locationInventoryTable)
+              .where(
+                and(
+                  eq(locationInventoryTable.locationId, locationId),
+                  eq(locationInventoryTable.productId, item.productId),
+                ),
+              );
+            systemCount = inv?.quantityOnHand ?? 0;
+          }
+
+          const delta = item.physicalCount - systemCount;
+
+          const [auditItem] = await tx
+            .insert(inventoryAuditItemsTable)
+            .values({
+              auditId: audit.id,
+              productId: item.productId,
+              systemCount,
+              physicalCount: item.physicalCount,
+              delta,
+            })
+            .returning();
+
+          auditItems.push(auditItem);
+
+          if (delta !== 0) {
+            if (warehouseId) {
+              const existing = await tx
+                .select()
+                .from(warehouseInventoryTable)
+                .where(
+                  and(
+                    eq(warehouseInventoryTable.warehouseId, warehouseId),
+                    eq(warehouseInventoryTable.productId, item.productId),
+                  ),
+                );
+
+              if (existing.length === 0 && delta > 0) {
+                await tx.insert(warehouseInventoryTable).values({
+                  warehouseId,
+                  productId: item.productId,
+                  quantityOnHand: delta,
+                });
+              } else if (existing.length > 0) {
+                await tx
+                  .update(warehouseInventoryTable)
+                  .set({
+                    quantityOnHand: sql`quantity_on_hand + ${delta}`,
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(warehouseInventoryTable.id, existing[0].id));
+              }
+            } else if (locationId) {
+              const existing = await tx
+                .select()
+                .from(locationInventoryTable)
+                .where(
+                  and(
+                    eq(locationInventoryTable.locationId, locationId),
+                    eq(locationInventoryTable.productId, item.productId),
+                  ),
+                );
+
+              if (existing.length === 0 && delta > 0) {
+                await tx.insert(locationInventoryTable).values({
+                  locationId,
+                  productId: item.productId,
+                  quantityOnHand: delta,
+                });
+              } else if (existing.length > 0) {
+                await tx
+                  .update(locationInventoryTable)
+                  .set({
+                    quantityOnHand: sql`quantity_on_hand + ${delta}`,
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(locationInventoryTable.id, existing[0].id));
+              }
+            }
+
+            await tx.insert(stockMovementsTable).values({
+              movementType: "manual_adjustment",
+              productId: item.productId,
+              quantity: delta,
+              toWarehouseId: warehouseId ?? null,
+              toLocationId: locationId ?? null,
+              performedByUserId: user.id,
+              notes: `Inventory audit: physical=${item.physicalCount}, system=${systemCount}`,
+            });
+          }
+        }
+
+        return { audit, items: auditItems };
+      });
+
+      res.status(201).json(result);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(400).json({ error: msg });
+    }
+  },
+);
+
+/**
+ * GET /inventory/audits
+ * List inventory audit history (with items and product names).
+ */
+router.get(
+  "/inventory/audits",
+  requireRole("admin", "warehouse_admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { warehouseId, locationId } = req.query as { warehouseId?: string; locationId?: string };
+
+    const conditions = [];
+    if (warehouseId) conditions.push(eq(inventoryAuditsTable.warehouseId, warehouseId));
+    if (locationId) conditions.push(eq(inventoryAuditsTable.locationId, locationId));
+
+    const audits = await db
+      .select()
+      .from(inventoryAuditsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(inventoryAuditsTable.createdAt))
+      .limit(100);
+
+    const auditIds = audits.map((a) => a.id);
+    let auditItemsRows: Array<typeof inventoryAuditItemsTable.$inferSelect & { productName?: string | null }> = [];
+
+    if (auditIds.length > 0) {
+      const rawItems = await db
+        .select({
+          id: inventoryAuditItemsTable.id,
+          auditId: inventoryAuditItemsTable.auditId,
+          productId: inventoryAuditItemsTable.productId,
+          systemCount: inventoryAuditItemsTable.systemCount,
+          physicalCount: inventoryAuditItemsTable.physicalCount,
+          delta: inventoryAuditItemsTable.delta,
+          createdAt: inventoryAuditItemsTable.createdAt,
+          productName: productsTable.name,
+        })
+        .from(inventoryAuditItemsTable)
+        .leftJoin(productsTable, eq(inventoryAuditItemsTable.productId, productsTable.id))
+        .where(eq(inventoryAuditItemsTable.auditId, auditIds[0]));
+
+      if (auditIds.length > 1) {
+        for (const auditId of auditIds.slice(1)) {
+          const rows = await db
+            .select({
+              id: inventoryAuditItemsTable.id,
+              auditId: inventoryAuditItemsTable.auditId,
+              productId: inventoryAuditItemsTable.productId,
+              systemCount: inventoryAuditItemsTable.systemCount,
+              physicalCount: inventoryAuditItemsTable.physicalCount,
+              delta: inventoryAuditItemsTable.delta,
+              createdAt: inventoryAuditItemsTable.createdAt,
+              productName: productsTable.name,
+            })
+            .from(inventoryAuditItemsTable)
+            .leftJoin(productsTable, eq(inventoryAuditItemsTable.productId, productsTable.id))
+            .where(eq(inventoryAuditItemsTable.auditId, auditId));
+          rawItems.push(...rows);
+        }
+      }
+
+      auditItemsRows = rawItems;
+    }
+
+    const itemsByAuditId = auditItemsRows.reduce<Record<string, typeof auditItemsRows>>((acc, item) => {
+      if (!acc[item.auditId]) acc[item.auditId] = [];
+      acc[item.auditId].push(item);
+      return acc;
+    }, {});
+
+    const result = audits.map((audit) => ({
+      ...audit,
+      items: itemsByAuditId[audit.id] ?? [],
+    }));
+
+    res.json({ audits: result });
+  },
+);
+
+// ── Damaged Goods ─────────────────────────────────────────────────────────────
+
+/**
+ * POST /inventory/damaged-goods
+ * Log a damaged/lost/expired goods entry, reducing stock accordingly.
+ */
+router.post(
+  "/inventory/damaged-goods",
+  requireRole("admin", "warehouse_admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const schema = z.object({
+      warehouseId: z.string().min(1).optional(),
+      locationId: z.string().min(1).optional(),
+      productId: z.string().min(1),
+      quantity: z.number().int().min(1),
+      reason: z.enum(["damaged", "lost", "expired"]),
+      notes: z.string().optional(),
+    }).refine((d) => d.warehouseId || d.locationId, {
+      message: "Either warehouseId or locationId is required",
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const { warehouseId, locationId, productId, quantity, reason, notes } = parsed.data;
+    const user = req.user!;
+
+    try {
+      const result = await db.transaction(async (tx) => {
+        if (warehouseId) {
+          const updated = await tx
+            .update(warehouseInventoryTable)
+            .set({
+              quantityOnHand: sql`quantity_on_hand - ${quantity}`,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(warehouseInventoryTable.warehouseId, warehouseId),
+                eq(warehouseInventoryTable.productId, productId),
+                gte(warehouseInventoryTable.quantityOnHand, quantity),
+              ),
+            )
+            .returning();
+
+          if (updated.length === 0) {
+            throw new Error("Insufficient warehouse stock for this product");
+          }
+        } else if (locationId) {
+          const updated = await tx
+            .update(locationInventoryTable)
+            .set({
+              quantityOnHand: sql`quantity_on_hand - ${quantity}`,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(locationInventoryTable.locationId, locationId),
+                eq(locationInventoryTable.productId, productId),
+                gte(locationInventoryTable.quantityOnHand, quantity),
+              ),
+            )
+            .returning();
+
+          if (updated.length === 0) {
+            throw new Error("Insufficient location stock for this product");
+          }
+        }
+
+        const [entry] = await tx
+          .insert(damagedGoodsTable)
+          .values({
+            warehouseId: warehouseId ?? null,
+            locationId: locationId ?? null,
+            productId,
+            quantity,
+            reason,
+            notes: notes ?? null,
+            performedByUserId: user.id,
+          })
+          .returning();
+
+        await tx.insert(stockMovementsTable).values({
+          movementType: "manual_adjustment",
+          productId,
+          quantity: -quantity,
+          fromWarehouseId: warehouseId ?? null,
+          fromLocationId: locationId ?? null,
+          performedByUserId: user.id,
+          notes: `Damaged goods (${reason}): ${notes ?? ""}`,
+        });
+
+        return entry;
+      });
+
+      res.status(201).json(result);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(400).json({ error: msg });
+    }
+  },
+);
+
+/**
+ * GET /inventory/damaged-goods
+ * List damaged/lost goods entries.
+ */
+router.get(
+  "/inventory/damaged-goods",
+  requireRole("admin", "warehouse_admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { warehouseId, locationId } = req.query as { warehouseId?: string; locationId?: string };
+
+    const conditions = [];
+    if (warehouseId) conditions.push(eq(damagedGoodsTable.warehouseId, warehouseId));
+    if (locationId) conditions.push(eq(damagedGoodsTable.locationId, locationId));
+
+    const entries = await db
+      .select({
+        id: damagedGoodsTable.id,
+        warehouseId: damagedGoodsTable.warehouseId,
+        locationId: damagedGoodsTable.locationId,
+        productId: damagedGoodsTable.productId,
+        quantity: damagedGoodsTable.quantity,
+        reason: damagedGoodsTable.reason,
+        notes: damagedGoodsTable.notes,
+        performedByUserId: damagedGoodsTable.performedByUserId,
+        createdAt: damagedGoodsTable.createdAt,
+        productName: productsTable.name,
+      })
+      .from(damagedGoodsTable)
+      .leftJoin(productsTable, eq(damagedGoodsTable.productId, productsTable.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(damagedGoodsTable.createdAt))
+      .limit(100);
+
+    res.json({ entries });
   },
 );
 

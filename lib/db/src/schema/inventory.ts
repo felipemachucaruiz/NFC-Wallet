@@ -4,6 +4,12 @@ import { warehousesTable } from "./events";
 import { locationsTable, productsTable } from "./merchants";
 import { usersTable } from "./auth";
 
+export const damagedGoodsReasonEnum = pgEnum("damaged_goods_reason", [
+  "damaged",
+  "lost",
+  "expired",
+]);
+
 export const restockOrderStatusEnum = pgEnum("restock_order_status", [
   "pending",
   "approved",
@@ -52,5 +58,39 @@ export const stockMovementsTable = pgTable("stock_movements", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const inventoryAuditsTable = pgTable("inventory_audits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  warehouseId: varchar("warehouse_id").references(() => warehousesTable.id),
+  locationId: varchar("location_id").references(() => locationsTable.id),
+  performedByUserId: varchar("performed_by_user_id").references(() => usersTable.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const inventoryAuditItemsTable = pgTable("inventory_audit_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  auditId: varchar("audit_id").notNull().references(() => inventoryAuditsTable.id),
+  productId: varchar("product_id").notNull().references(() => productsTable.id),
+  systemCount: integer("system_count").notNull(),
+  physicalCount: integer("physical_count").notNull(),
+  delta: integer("delta").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const damagedGoodsTable = pgTable("damaged_goods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  warehouseId: varchar("warehouse_id").references(() => warehousesTable.id),
+  locationId: varchar("location_id").references(() => locationsTable.id),
+  productId: varchar("product_id").notNull().references(() => productsTable.id),
+  quantity: integer("quantity").notNull(),
+  reason: damagedGoodsReasonEnum("reason").notNull(),
+  notes: text("notes"),
+  performedByUserId: varchar("performed_by_user_id").references(() => usersTable.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type RestockOrder = typeof restockOrdersTable.$inferSelect;
 export type StockMovement = typeof stockMovementsTable.$inferSelect;
+export type InventoryAudit = typeof inventoryAuditsTable.$inferSelect;
+export type InventoryAuditItem = typeof inventoryAuditItemsTable.$inferSelect;
+export type DamagedGoods = typeof damagedGoodsTable.$inferSelect;

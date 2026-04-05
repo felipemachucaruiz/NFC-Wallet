@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, transactionLogsTable, transactionLineItemsTable, topUpsTable, merchantsTable, locationsTable, locationInventoryTable, productsTable, merchantPayoutsTable, braceletsTable, eventsTable, usersTable } from "@workspace/db";
-import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
+import { db, transactionLogsTable, transactionLineItemsTable, topUpsTable, merchantsTable, locationsTable, locationInventoryTable, productsTable, merchantPayoutsTable, braceletsTable, eventsTable, usersTable, inventoryAuditsTable, inventoryAuditItemsTable, damagedGoodsTable } from "@workspace/db";
+import { eq, and, gte, lte, sql, inArray, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { createAlert } from "../lib/fraudDetection";
@@ -571,7 +571,38 @@ router.get(
       unitsSoldToday = soldTodayAggGen?.units ?? 0;
     }
 
-    res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday });
+    const recentAudits = await db
+      .select({
+        id: inventoryAuditsTable.id,
+        warehouseId: inventoryAuditsTable.warehouseId,
+        locationId: inventoryAuditsTable.locationId,
+        performedByUserId: inventoryAuditsTable.performedByUserId,
+        notes: inventoryAuditsTable.notes,
+        createdAt: inventoryAuditsTable.createdAt,
+      })
+      .from(inventoryAuditsTable)
+      .orderBy(desc(inventoryAuditsTable.createdAt))
+      .limit(50);
+
+    const recentDamagedGoods = await db
+      .select({
+        id: damagedGoodsTable.id,
+        productId: damagedGoodsTable.productId,
+        quantity: damagedGoodsTable.quantity,
+        reason: damagedGoodsTable.reason,
+        notes: damagedGoodsTable.notes,
+        performedByUserId: damagedGoodsTable.performedByUserId,
+        createdAt: damagedGoodsTable.createdAt,
+        productName: productsTable.name,
+      })
+      .from(damagedGoodsTable)
+      .leftJoin(productsTable, eq(damagedGoodsTable.productId, productsTable.id))
+      .orderBy(desc(damagedGoodsTable.createdAt))
+      .limit(50);
+
+    void inventoryAuditItemsTable;
+
+    res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday, recentAudits, recentDamagedGoods });
   },
 );
 
