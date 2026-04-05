@@ -431,4 +431,55 @@ router.post(
   },
 );
 
+const pseBankSchema = z.object({
+  financial_institution_code: z.string(),
+  financial_institution_name: z.string(),
+});
+const pseBanksResponseSchema = z.object({ data: z.array(pseBankSchema) });
+type PseBank = z.infer<typeof pseBankSchema>;
+
+let pseBanksCache: { data: PseBank[]; fetchedAt: number } | null = null;
+const PSE_BANKS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+router.get(
+  "/payments/pse/banks",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (!WOMPI_PUBLIC_KEY) {
+      res.status(503).json({ error: "Payment gateway not configured" });
+      return;
+    }
+
+    if (pseBanksCache && Date.now() - pseBanksCache.fetchedAt < PSE_BANKS_CACHE_TTL_MS) {
+      res.json({ data: pseBanksCache.data });
+      return;
+    }
+
+    try {
+      const wompiRes = await fetch(
+        `${WOMPI_BASE_URL}/pse/financial_institutions?public_key=${encodeURIComponent(WOMPI_PUBLIC_KEY)}`
+      );
+      if (!wompiRes.ok) {
+        res.status(502).json({ error: "Failed to fetch PSE banks from payment gateway" });
+        return;
+      }
+      const raw = await wompiRes.json();
+      const parsed = pseBanksResponseSchema.safeParse(raw);
+      if (!parsed.success) {
+        res.status(502).json({ error: "Unexpected response format from payment gateway" });
+        return;
+      }
+      pseBanksCache = { data: parsed.data.data, fetchedAt: Date.now() };
+      res.json({ data: parsed.data.data });
+    } catch (err) {
+      res.status(502).json({ error: "Failed to fetch PSE banks" });
+    }
+  },
+);
+
 export default router;

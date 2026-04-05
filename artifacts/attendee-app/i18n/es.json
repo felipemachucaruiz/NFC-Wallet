@@ -160,7 +160,9 @@
     "total": "Total",
     "minAmount": "Monto mínimo: $1,000",
     "uidPlaceholder": "UID impreso en la pulsera",
-    "uidHint": "Escribe el código con o sin dos puntos (Ej: A1B2C3D4 o A1:B2:C3:D4)"
+    "uidHint": "Escribe el código con o sin dos puntos (Ej: A1B2C3D4 o A1:B2:C3:D4)",
+    "pseBanksLoading": "Cargando bancos...",
+    "pseBanksError": "No se pudieron cargar los bancos. Toca para reintentar."
   },
   "paymentStatus": {
     "title": "Estado del pago",

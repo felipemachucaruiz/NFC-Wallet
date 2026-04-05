@@ -20,29 +20,11 @@ import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
-import { useInitiateTopUp, useMyBracelets } from "@/hooks/useAttendeeApi";
+import { useInitiateTopUp, useMyBracelets, usePseBanks } from "@/hooks/useAttendeeApi";
 
 type DigitalMethod = "nequi" | "pse";
 
 const AMOUNTS = [10000, 20000, 50000, 100000, 200000];
-
-const PSE_BANKS = [
-  { code: "1040", name: "Banco Agrario" },
-  { code: "1052", name: "Banco AV Villas" },
-  { code: "1051", name: "Banco Davivienda" },
-  { code: "1001", name: "Banco De Bogotá" },
-  { code: "1007", name: "Bancolombia" },
-  { code: "1013", name: "BBVA Colombia" },
-  { code: "1009", name: "Citibank" },
-  { code: "1006", name: "Banco Itaú" },
-  { code: "1002", name: "Banco Popular" },
-  { code: "1032", name: "Banco Caja Social" },
-  { code: "1023", name: "Banco De Occidente" },
-  { code: "1062", name: "Banco Falabella" },
-  { code: "1012", name: "Banco GNB Sudameris" },
-  { code: "1060", name: "Banco Pichincha" },
-  { code: "1637", name: "Scotiabank Colpatria" },
-];
 
 function normalizeUid(raw: string): string {
   const clean = raw.replace(/[:\s\-]/g, "").toUpperCase();
@@ -75,6 +57,12 @@ export default function TopUpScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedBank, setSelectedBank] = useState<{ code: string; name: string } | null>(null);
   const [showBankPicker, setShowBankPicker] = useState(false);
+
+  const { data: pseBanksRaw, isPending: pseBanksLoading, isError: pseBanksError, refetch: refetchPseBanks } = usePseBanks();
+  const pseBanks = (pseBanksRaw ?? []).map((b) => ({
+    code: b.financial_institution_code,
+    name: b.financial_institution_name,
+  }));
 
   const { mutate: initiatePayment, isPending } = useInitiateTopUp();
 
@@ -264,7 +252,7 @@ export default function TopUpScreen() {
             {(["nequi", "pse"] as DigitalMethod[]).map((m) => (
               <Pressable
                 key={m}
-                onPress={() => setMethod(m)}
+                onPress={() => { setMethod(m); setSelectedBank(null); setShowBankPicker(false); }}
                 style={[
                   styles.methodBtn,
                   {
@@ -313,38 +301,60 @@ export default function TopUpScreen() {
             <Text style={[styles.hintText, { color: C.textSecondary }]}>
               {t("topUp.pseInfo")}
             </Text>
-            <Pressable
-              onPress={() => setShowBankPicker(!showBankPicker)}
-              style={[styles.bankSelector, { backgroundColor: C.inputBg, borderColor: C.border }]}
-            >
-              <Text style={{ color: selectedBank ? C.text : C.textMuted, flex: 1, fontFamily: "Inter_400Regular" }}>
-                {selectedBank ? selectedBank.name : t("topUp.pseBankPlaceholder")}
-              </Text>
-              <Feather name={showBankPicker ? "chevron-up" : "chevron-down"} size={18} color={C.textSecondary} />
-            </Pressable>
-            {showBankPicker && (
-              <View style={[styles.bankList, { backgroundColor: C.card, borderColor: C.border }]}>
-                <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled>
-                  {PSE_BANKS.map((bank) => (
-                    <Pressable
-                      key={bank.code}
-                      onPress={() => { setSelectedBank(bank); setShowBankPicker(false); }}
-                      style={[
-                        styles.bankItem,
-                        {
-                          backgroundColor: selectedBank?.code === bank.code ? C.primaryLight : "transparent",
-                          borderBottomColor: C.separator,
-                        },
-                      ]}
-                    >
-                      <Text style={{ color: C.text, fontFamily: "Inter_400Regular" }}>{bank.name}</Text>
-                      {selectedBank?.code === bank.code && (
-                        <Feather name="check" size={16} color={C.primary} />
-                      )}
-                    </Pressable>
-                  ))}
-                </ScrollView>
+            {pseBanksError ? (
+              <View style={[styles.bankErrorBox, { backgroundColor: C.dangerLight, borderColor: C.danger }]}>
+                <Feather name="alert-circle" size={14} color={C.danger} />
+                <Text style={[styles.bankErrorText, { color: C.danger }]}>{t("topUp.pseBanksError")}</Text>
+                <Pressable onPress={() => refetchPseBanks()}>
+                  <Text style={[styles.bankRetryText, { color: C.danger }]}>{t("common.retry")}</Text>
+                </Pressable>
               </View>
+            ) : (
+              <>
+                <Pressable
+                  onPress={() => { if (!pseBanksLoading) setShowBankPicker(!showBankPicker); }}
+                  style={[styles.bankSelector, { backgroundColor: C.inputBg, borderColor: C.border }]}
+                >
+                  {pseBanksLoading ? (
+                    <Text style={{ color: C.textMuted, flex: 1, fontFamily: "Inter_400Regular" }}>
+                      {t("topUp.pseBanksLoading")}
+                    </Text>
+                  ) : (
+                    <Text style={{ color: selectedBank ? C.text : C.textMuted, flex: 1, fontFamily: "Inter_400Regular" }}>
+                      {selectedBank ? selectedBank.name : t("topUp.pseBankPlaceholder")}
+                    </Text>
+                  )}
+                  <Feather
+                    name={pseBanksLoading ? "loader" : showBankPicker ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color={C.textSecondary}
+                  />
+                </Pressable>
+                {showBankPicker && pseBanks.length > 0 && (
+                  <View style={[styles.bankList, { backgroundColor: C.card, borderColor: C.border }]}>
+                    <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled>
+                      {pseBanks.map((bank) => (
+                        <Pressable
+                          key={bank.code}
+                          onPress={() => { setSelectedBank(bank); setShowBankPicker(false); }}
+                          style={[
+                            styles.bankItem,
+                            {
+                              backgroundColor: selectedBank?.code === bank.code ? C.primaryLight : "transparent",
+                              borderBottomColor: C.separator,
+                            },
+                          ]}
+                        >
+                          <Text style={{ color: C.text, fontFamily: "Inter_400Regular" }}>{bank.name}</Text>
+                          {selectedBank?.code === bank.code && (
+                            <Feather name="check" size={16} color={C.primary} />
+                          )}
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </>
             )}
           </Card>
         )}
@@ -470,4 +480,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   infoText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  bankErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  bankErrorText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
+  bankRetryText: { fontSize: 13, fontFamily: "Inter_600SemiBold", textDecorationLine: "underline" },
 });

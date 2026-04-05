@@ -200,3 +200,17 @@ export function useRegisterPushToken() {
     },
   });
 }
+
+export type PseBank = { financial_institution_code: string; financial_institution_name: string };
+
+export function usePseBanks() {
+  const headers = useAuthHeaders();
+  return useQuery<PseBank[]>({
+    queryKey: ["pse", "banks"],
+    queryFn: () => apiFetch<{ data: PseBank[] }>(`${API_BASE_URL}/api/payments/pse/banks`, headers).then((r) => r.data),
+    enabled: !!headers.Authorization,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 2,
+  });
+}
