@@ -238,14 +238,8 @@ function FullMapPicker({ visible, initialLatitude, initialLongitude, onConfirm, 
         </View>
 
         <View style={[mapStyles.searchContainer, { backgroundColor: C.card, borderBottomColor: C.border }]}>
-          <View style={mapStyles.searchHintRow}>
-            <Feather name="search" size={12} color={C.primary} />
-            <Text style={[mapStyles.searchHintText, { color: C.textSecondary }]}>
-              {t("admin.searchVenueHint") || "Escribe el nombre del lugar o la dirección y selecciona de la lista"}
-            </Text>
-          </View>
           <GPA
-            placeholder={t("admin.searchVenuePlaceholder") || "Buscar sede o dirección…"}
+            placeholder={t("admin.searchVenuePlaceholder") || "Search for a venue or address…"}
             onPress={(data: any, details: any) => {
               if (!details?.geometry?.location) return;
               const { lat, lng } = details.geometry.location;
@@ -263,8 +257,8 @@ function FullMapPicker({ visible, initialLatitude, initialLongitude, onConfirm, 
               textInput: {
                 height: 44,
                 borderRadius: 10,
-                borderWidth: 1.5,
-                borderColor: C.primary,
+                borderWidth: 1,
+                borderColor: C.border,
                 backgroundColor: C.inputBg,
                 color: C.text,
                 paddingHorizontal: 14,
@@ -406,9 +400,7 @@ const mapStyles = StyleSheet.create({
   },
   headerTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   closeBtn: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
-  searchContainer: { paddingHorizontal: 16, paddingVertical: 10, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 100 },
-  searchHintRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 8 },
-  searchHintText: { fontSize: 11, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 15 },
+  searchContainer: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 100 },
   map: { flex: 1 },
   gpsButton: {
     position: "absolute",
