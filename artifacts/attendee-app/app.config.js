@@ -50,7 +50,7 @@ module.exports = {
       },
     },
     runtimeVersion: {
-      policy: "appVersion",
+      policy: "fingerprint",
     },
     plugins: [
       [

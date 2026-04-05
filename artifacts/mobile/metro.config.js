@@ -39,4 +39,14 @@ config.resolver.blockList = [
   /\/\.git\/.*/,
 ];
 
+// Required for Expo SDK 54 + New Architecture + Reanimated 4.x + react-native-worklets.
+// Without this, OTA bundles produced by Metro will be missing the worklet transform
+// and crash at runtime when any reanimated/worklets code is executed.
+config.transformer = {
+  ...config.transformer,
+  unstable_allowRequireContext: true,
+};
+
+config.resolver.sourceExts = [...(config.resolver.sourceExts ?? []), "mjs"];
+
 module.exports = config;

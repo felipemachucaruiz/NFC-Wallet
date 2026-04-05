@@ -2,6 +2,7 @@ import * as Updates from "expo-updates";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   Animated,
   Platform,
@@ -20,6 +21,7 @@ export function UpdateBanner() {
   const [phase, setPhase] = useState<Phase>("idle");
   const slideAnim = useRef(new Animated.Value(80)).current;
   const isChecking = useRef(false);
+  const isReloading = useRef(false);
 
   const slideIn = () =>
     Animated.spring(slideAnim, {
@@ -66,11 +68,19 @@ export function UpdateBanner() {
   };
 
   const handleTapToUpdate = async () => {
+    if (isReloading.current) return;
+    isReloading.current = true;
     try {
       await Updates.reloadAsync();
     } catch {
+      // reloadAsync failed — reset so user isn't stuck with a non-functional button
+      isReloading.current = false;
       setPhase("idle");
       isChecking.current = false;
+      Alert.alert(
+        t("update.errorTitle", "Update failed"),
+        t("update.errorMessage", "Could not apply the update. Please restart the app manually."),
+      );
     }
   };
 

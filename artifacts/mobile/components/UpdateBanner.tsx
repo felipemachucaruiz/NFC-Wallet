@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import * as Updates from "expo-updates";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
@@ -15,6 +15,7 @@ export function UpdateBanner() {
   const [phase, setPhase] = useState<Phase>("idle");
   const slideAnim = useRef(new Animated.Value(80)).current;
   const hasChecked = useRef(false);
+  const isReloading = useRef(false);
 
   // Slide the banner in/out
   useEffect(() => {
@@ -44,6 +45,22 @@ export function UpdateBanner() {
     })();
   }, []);
 
+  const handleRestart = async () => {
+    if (isReloading.current) return;
+    isReloading.current = true;
+    try {
+      await Updates.reloadAsync();
+    } catch {
+      // reloadAsync failed — reset so user isn't stuck with a non-functional button
+      isReloading.current = false;
+      setPhase("idle");
+      Alert.alert(
+        t("update.errorTitle", "Update failed"),
+        t("update.errorMessage", "Could not apply the update. Please restart the app manually."),
+      );
+    }
+  };
+
   if (phase === "idle") return null;
 
   const bgColor = phase === "ready" ? "#22c55e" : "#00f1ff";
@@ -66,7 +83,7 @@ export function UpdateBanner() {
           <Feather name="check-circle" size={18} color="#fff" />
           <Text style={styles.text}>{t("update.ready")}</Text>
           <Pressable
-            onPress={() => Updates.reloadAsync()}
+            onPress={handleRestart}
             style={({ pressed }) => [styles.restartBtn, pressed && styles.restartBtnPressed]}
           >
             <Text style={styles.restartText}>{t("update.restart")}</Text>
