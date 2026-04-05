@@ -15,6 +15,13 @@
       "when": 1775320188528,
       "tag": "0001_access_zones_constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775397771125,
+      "tag": "0002_add_manual_adjustment_and_check_constraints",
+      "breakpoints": true
     }
   ]
 }

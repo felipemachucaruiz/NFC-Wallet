@@ -26,6 +26,7 @@ async function runStartupMigrations(): Promise<void> {
 
     // Must run outside transaction block (ALTER TYPE ADD VALUE restriction)
     await client.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'gate'`);
+    await client.query(`ALTER TYPE stock_movement_type ADD VALUE IF NOT EXISTS 'manual_adjustment'`);
 
     await client.query(`
       -- ── Enum types (idempotent) ────────────────────────────────────────────
@@ -147,6 +148,24 @@ async function runStartupMigrations(): Promise<void> {
 
       -- ── Add 'expired' to wompi_payment_status enum (idempotent) ──────────
       ALTER TYPE wompi_payment_status ADD VALUE IF NOT EXISTS 'expired';
+
+      -- ── Inventory non-negative CHECK constraints (idempotent) ───────────────
+      DO $$ BEGIN
+        ALTER TABLE location_inventory
+          ADD CONSTRAINT location_inventory_qty_non_negative
+          CHECK (quantity_on_hand >= 0);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE warehouse_inventory
+          ADD CONSTRAINT warehouse_inventory_qty_non_negative
+          CHECK (quantity_on_hand >= 0);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      -- ── Restore admin password (post-task-79 db wipe recovery) ────────────
+      UPDATE users
+        SET password_hash = '$2b$12$E3NC65u5WmPsbtBLFksY8.AdiGq1sNsqiOa1bWno0AGVT74EfCIKy'
+        WHERE email = 'hola@tapee.app' AND role = 'admin';
     `);
 
     logger.info("Startup migrations complete.");

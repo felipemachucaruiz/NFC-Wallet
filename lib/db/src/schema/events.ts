@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, varchar, text, timestamp, boolean, integer, numeric, index, jsonb, decimal } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, varchar, text, timestamp, boolean, integer, numeric, index, jsonb, decimal, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const inventoryModeEnum = pgEnum("inventory_mode", ["location_based", "centralized_warehouse"]);
@@ -48,7 +48,9 @@ export const warehouseInventoryTable = pgTable("warehouse_inventory", {
   productId: varchar("product_id").notNull(),
   quantityOnHand: integer("quantity_on_hand").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  check("warehouse_inventory_qty_non_negative", sql`${table.quantityOnHand} >= 0`),
+]);
 
 export type Event = typeof eventsTable.$inferSelect;
 export type InsertEvent = typeof eventsTable.$inferInsert;

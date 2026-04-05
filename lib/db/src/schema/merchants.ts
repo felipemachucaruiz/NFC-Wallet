@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, varchar, text, timestamp, boolean, integer, numeric } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, varchar, text, timestamp, boolean, integer, numeric, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { eventsTable } from "./events";
 
@@ -51,7 +51,9 @@ export const locationInventoryTable = pgTable("location_inventory", {
   restockTrigger: integer("restock_trigger").notNull().default(10),
   restockTargetQty: integer("restock_target_qty").notNull().default(50),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  check("location_inventory_qty_non_negative", sql`${table.quantityOnHand} >= 0`),
+]);
 
 export const userLocationAssignmentsTable = pgTable("user_location_assignments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

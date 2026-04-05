@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, transactionLogsTable, transactionLineItemsTable, productsTable, locationInventoryTable, braceletsTable, eventsTable, merchantsTable, locationsTable, restockOrdersTable, userLocationAssignmentsTable, stockMovementsTable } from "@workspace/db";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, sql, gte } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { requireAttestation } from "../middlewares/requireAttestation";
 import type { AuthUser } from "@workspace/api-zod";
@@ -307,192 +307,192 @@ async function processTransaction(
   // Merchant receives net items amount plus the full tip (tip is not subject to commission)
   const netAmountCop = grossAmountCop - commissionAmountCop + tipAmountCop;
 
-  // Insert transaction log
-  const [txLog] = await db
-    .insert(transactionLogsTable)
-    .values({
-      idempotencyKey: input.idempotencyKey,
-      braceletUid: input.nfcUid,
-      locationId: input.locationId,
-      merchantId: merchant.id,
-      eventId: merchant.eventId,
-      grossAmountCop,
-      tipAmountCop,
-      commissionAmountCop,
-      netAmountCop,
-      newBalanceCop: input.newBalance,
-      counter: input.counter,
-      performedByUserId: user.id,
-      syncedAt: isSyncBatch ? new Date() : null,
-      offlineCreatedAt: input.offlineCreatedAt ? new Date(input.offlineCreatedAt) : null,
-    })
-    .returning();
-
-  // Insert line items
-  const lineItemInserts = resolvedItems.map((item) => ({
-    transactionLogId: txLog.id,
-    productId: item.productId,
-    productNameSnapshot: item.name,
-    unitPriceSnapshot: item.priceCop,
-    unitCostSnapshot: item.costCop,
-    quantity: item.quantity,
-    ivaAmountCop: item.ivaAmountCop,
-    retencionFuenteAmountCop: item.retencionFuenteAmountCop,
-    retencionICAAmountCop: item.retencionICAAmountCop,
-  }));
-  const insertedLineItems = await db
-    .insert(transactionLineItemsTable)
-    .values(lineItemInserts)
-    .returning();
-
-  // Decrement location inventory + trigger restock orders
-  for (const item of resolvedItems) {
-    const [locInv] = await db
-      .select()
-      .from(locationInventoryTable)
-      .where(
-        and(
-          eq(locationInventoryTable.locationId, input.locationId),
-          eq(locationInventoryTable.productId, item.productId),
-        ),
-      );
-
-    if (locInv) {
-      const newQty = Math.max(0, locInv.quantityOnHand - item.quantity);
-      await db
-        .update(locationInventoryTable)
-        .set({ quantityOnHand: newQty, updatedAt: new Date() })
-        .where(eq(locationInventoryTable.id, locInv.id));
-
-      // Record sale stock movement for full audit trail
-      await db.insert(stockMovementsTable).values({
-        movementType: "sale",
-        productId: item.productId,
-        quantity: item.quantity,
-        fromLocationId: input.locationId,
-        performedByUserId: user.id,
-        transactionLogId: txLog.id,
-      });
-
-      const eventInventoryMode = await getEventInventoryMode(merchant.eventId);
-      if (eventInventoryMode === "centralized_warehouse" && newQty <= locInv.restockTrigger) {
-        const pendingOrders = await db
-          .select()
-          .from(restockOrdersTable)
-          .where(
-            and(
-              eq(restockOrdersTable.locationId, input.locationId),
-              eq(restockOrdersTable.productId, item.productId),
-              eq(restockOrdersTable.status, "pending"),
-            ),
-          );
-        if (pendingOrders.length === 0) {
-          await db.insert(restockOrdersTable).values({
-            locationId: input.locationId,
-            productId: item.productId,
-            requestedQty: locInv.restockTargetQty,
-            triggeredByTransactionId: txLog.id,
-          });
-        }
-      }
-    }
-  }
-
-  // Coherence check for sync batch: validate balance against known server history
+  // Compute bracelet update fields before entering the transaction so we can
+  // determine the final state (flagged vs clean) consistently.
   let wasFlagged = false;
+  let braceletUpdate: Record<string, unknown> = {
+    lastKnownBalanceCop: input.newBalance,
+    lastCounter: input.counter,
+    pendingSync: false,
+    pendingBalanceCop: 0,
+    updatedAt: new Date(),
+  };
+
   if (isSyncBatch && bracelet.lastKnownBalanceCop !== null) {
-    // If a self-service top-up is pending, the chip balance is stale (the top-up was
-    // recorded on the server but not yet written to the chip). In this case we skip the
-    // normal discrepancy check and instead reconcile: the authoritative new balance is
-    // pendingBalanceCop minus what was just charged, regardless of what the chip reported.
     if (bracelet.pendingSync && bracelet.pendingBalanceCop !== null && bracelet.pendingBalanceCop > 0) {
-      // Use full charged amount (items + tip) since that is what was deducted from the bracelet
       const reconciledBalance = Math.max(0, bracelet.pendingBalanceCop - chargedAmountCop);
-      await db
-        .update(braceletsTable)
-        .set({
-          lastKnownBalanceCop: reconciledBalance,
-          lastCounter: input.counter,
-          pendingSync: false,
-          pendingBalanceCop: 0,
-          updatedAt: new Date(),
-        })
-        .where(eq(braceletsTable.nfcUid, input.nfcUid));
-
-      return {
-        status: "created",
-        transaction: { ...txLog, lineItems: insertedLineItems },
-        flagged: false,
-      };
-    }
-
-    // Standard discrepancy check: expected new balance = last known balance - (items + tip) charged
-    const expectedNewBalance = bracelet.lastKnownBalanceCop - chargedAmountCop;
-    const discrepancy = Math.abs(expectedNewBalance - input.newBalance);
-    if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
-      wasFlagged = true;
-      await db
-        .update(braceletsTable)
-        .set({
-          flagged: true,
-          flagReason: `Balance discrepancy during sync: expected ${expectedNewBalance} COP but device reported ${input.newBalance} COP (diff: ${discrepancy} COP). Tx: ${txLog.id}`,
-          lastKnownBalanceCop: input.newBalance,
-          lastCounter: input.counter,
-          pendingSync: false,
-          pendingBalanceCop: 0,
-          updatedAt: new Date(),
-        })
-        .where(eq(braceletsTable.nfcUid, input.nfcUid));
-
-      return {
-        status: "created",
-        transaction: { ...txLog, lineItems: insertedLineItems },
-        flagged: true,
-      };
-    }
-  }
-
-  // Check per-bracelet offline spend limit
-  if (isSyncBatch && bracelet.maxOfflineSpend !== null && bracelet.maxOfflineSpend !== undefined) {
-    // Sum all offline-created (not yet synced at time of creation) transactions for this bracelet
-    // This is approximate since we're checking after insert, but useful for threshold alerting
-    // Use chargedAmountCop (items + tip) since that is the actual bracelet deduction
-    if (chargedAmountCop > bracelet.maxOfflineSpend) {
-      wasFlagged = true;
-      await db
-        .update(braceletsTable)
-        .set({
-          flagged: true,
-          flagReason: `Single offline transaction amount ${chargedAmountCop} COP exceeds bracelet max offline spend limit ${bracelet.maxOfflineSpend} COP. Tx: ${txLog.id}`,
-          lastKnownBalanceCop: input.newBalance,
-          lastCounter: input.counter,
-          pendingSync: false,
-          pendingBalanceCop: 0,
-          updatedAt: new Date(),
-        })
-        .where(eq(braceletsTable.nfcUid, input.nfcUid));
-
-      return {
-        status: "created",
-        transaction: { ...txLog, lineItems: insertedLineItems },
-        flagged: true,
-      };
-    }
-  }
-
-  if (!wasFlagged) {
-    // Update bracelet server-side record and clear any pending self-service sync
-    await db
-      .update(braceletsTable)
-      .set({
-        lastKnownBalanceCop: input.newBalance,
+      braceletUpdate = {
+        lastKnownBalanceCop: reconciledBalance,
         lastCounter: input.counter,
         pendingSync: false,
         pendingBalanceCop: 0,
         updatedAt: new Date(),
-      })
-      .where(eq(braceletsTable.nfcUid, input.nfcUid));
+      };
+    } else {
+      const expectedNewBalance = bracelet.lastKnownBalanceCop - chargedAmountCop;
+      const discrepancy = Math.abs(expectedNewBalance - input.newBalance);
+      if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
+        wasFlagged = true;
+      }
+    }
   }
+
+  if (!wasFlagged && isSyncBatch && bracelet.maxOfflineSpend !== null && bracelet.maxOfflineSpend !== undefined) {
+    if (chargedAmountCop > bracelet.maxOfflineSpend) {
+      wasFlagged = true;
+    }
+  }
+
+  if (wasFlagged) {
+    let flagReason = "";
+    if (isSyncBatch && bracelet.lastKnownBalanceCop !== null) {
+      const expectedNewBalance = bracelet.lastKnownBalanceCop - chargedAmountCop;
+      const discrepancy = Math.abs(expectedNewBalance - input.newBalance);
+      if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
+        flagReason = `Balance discrepancy during sync: expected ${expectedNewBalance} COP but device reported ${input.newBalance} COP (diff: ${discrepancy} COP).`;
+      }
+    }
+    if (isSyncBatch && bracelet.maxOfflineSpend !== null && bracelet.maxOfflineSpend !== undefined && chargedAmountCop > bracelet.maxOfflineSpend) {
+      flagReason = flagReason
+        ? flagReason + ` Also: single offline transaction amount ${chargedAmountCop} COP exceeds limit ${bracelet.maxOfflineSpend} COP.`
+        : `Single offline transaction amount ${chargedAmountCop} COP exceeds bracelet max offline spend limit ${bracelet.maxOfflineSpend} COP.`;
+    }
+    braceletUpdate = {
+      flagged: true,
+      flagReason,
+      lastKnownBalanceCop: input.newBalance,
+      lastCounter: input.counter,
+      pendingSync: false,
+      pendingBalanceCop: 0,
+      updatedAt: new Date(),
+    };
+  }
+
+  // Wrap all DB writes atomically so a crash mid-sale leaves no partial state.
+  const eventInventoryMode = await getEventInventoryMode(merchant.eventId);
+
+  let txResult: { txLog: typeof transactionLogsTable.$inferSelect; insertedLineItems: (typeof transactionLineItemsTable.$inferSelect)[] };
+  try {
+    txResult = await db.transaction(async (tx) => {
+    // Insert transaction log
+    const [txLog] = await tx
+      .insert(transactionLogsTable)
+      .values({
+        idempotencyKey: input.idempotencyKey,
+        braceletUid: input.nfcUid,
+        locationId: input.locationId,
+        merchantId: merchant.id,
+        eventId: merchant.eventId,
+        grossAmountCop,
+        tipAmountCop,
+        commissionAmountCop,
+        netAmountCop,
+        newBalanceCop: input.newBalance,
+        counter: input.counter,
+        performedByUserId: user.id,
+        syncedAt: isSyncBatch ? new Date() : null,
+        offlineCreatedAt: input.offlineCreatedAt ? new Date(input.offlineCreatedAt) : null,
+      })
+      .returning();
+
+    // Insert line items
+    const lineItemInserts = resolvedItems.map((item) => ({
+      transactionLogId: txLog.id,
+      productId: item.productId,
+      productNameSnapshot: item.name,
+      unitPriceSnapshot: item.priceCop,
+      unitCostSnapshot: item.costCop,
+      quantity: item.quantity,
+      ivaAmountCop: item.ivaAmountCop,
+      retencionFuenteAmountCop: item.retencionFuenteAmountCop,
+      retencionICAAmountCop: item.retencionICAAmountCop,
+    }));
+    const insertedLineItems = await tx
+      .insert(transactionLineItemsTable)
+      .values(lineItemInserts)
+      .returning();
+
+    // Decrement location inventory atomically + trigger restock orders
+    for (const item of resolvedItems) {
+      const [locInv] = await tx
+        .select()
+        .from(locationInventoryTable)
+        .where(
+          and(
+            eq(locationInventoryTable.locationId, input.locationId),
+            eq(locationInventoryTable.productId, item.productId),
+          ),
+        );
+
+      if (locInv) {
+        // Atomic decrement: reject if insufficient stock rather than clamping to 0
+        const decremented = await tx
+          .update(locationInventoryTable)
+          .set({ quantityOnHand: sql`quantity_on_hand - ${item.quantity}`, updatedAt: new Date() })
+          .where(
+            and(
+              eq(locationInventoryTable.id, locInv.id),
+              gte(locationInventoryTable.quantityOnHand, item.quantity),
+            ),
+          )
+          .returning({ newQty: locationInventoryTable.quantityOnHand });
+
+        if (decremented.length === 0) {
+          throw new Error(`Insufficient stock for product ${item.productId}`);
+        }
+
+        const newQty = decremented[0].newQty;
+
+        // Record sale stock movement for full audit trail
+        await tx.insert(stockMovementsTable).values({
+          movementType: "sale",
+          productId: item.productId,
+          quantity: item.quantity,
+          fromLocationId: input.locationId,
+          performedByUserId: user.id,
+          transactionLogId: txLog.id,
+        });
+
+        if (eventInventoryMode === "centralized_warehouse" && newQty <= locInv.restockTrigger) {
+          const pendingOrders = await tx
+            .select()
+            .from(restockOrdersTable)
+            .where(
+              and(
+                eq(restockOrdersTable.locationId, input.locationId),
+                eq(restockOrdersTable.productId, item.productId),
+                eq(restockOrdersTable.status, "pending"),
+              ),
+            );
+          if (pendingOrders.length === 0) {
+            await tx.insert(restockOrdersTable).values({
+              locationId: input.locationId,
+              productId: item.productId,
+              requestedQty: locInv.restockTargetQty,
+              triggeredByTransactionId: txLog.id,
+            });
+          }
+        }
+      }
+    }
+
+    // Update bracelet record inside the same transaction
+    await tx
+      .update(braceletsTable)
+      .set(braceletUpdate)
+      .where(eq(braceletsTable.nfcUid, input.nfcUid));
+
+      return { txLog, insertedLineItems };
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.startsWith("Insufficient stock for product")) {
+      return { status: "error", error: msg };
+    }
+    throw err;
+  }
+
+  const { txLog, insertedLineItems } = txResult;
 
   // Async fraud detection (non-blocking) — capture previous balance BEFORE update
   void runFraudDetection({
@@ -509,6 +509,7 @@ async function processTransaction(
   return {
     status: "created",
     transaction: { ...txLog, lineItems: insertedLineItems },
+    flagged: wasFlagged,
   };
 }
 

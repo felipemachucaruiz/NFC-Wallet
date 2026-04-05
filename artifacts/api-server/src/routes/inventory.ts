@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable, stockMovementsTable, locationsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql, gte } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
 import { z } from "zod";
@@ -158,13 +158,21 @@ router.patch(
           .values({ warehouseId, productId, quantityOnHand: quantityDelta })
           .returning();
       } else {
-        const newQty = existing[0].quantityOnHand + quantityDelta;
-        if (newQty < 0) throw new Error("Insufficient warehouse inventory");
-        [item] = await tx
+        // Atomic increment/decrement — the DB-level CHECK constraint rejects negative results
+        const updated = await tx
           .update(warehouseInventoryTable)
-          .set({ quantityOnHand: newQty, updatedAt: new Date() })
-          .where(eq(warehouseInventoryTable.id, existing[0].id))
+          .set({ quantityOnHand: sql`quantity_on_hand + ${quantityDelta}`, updatedAt: new Date() })
+          .where(
+            quantityDelta < 0
+              ? and(
+                  eq(warehouseInventoryTable.id, existing[0].id),
+                  gte(warehouseInventoryTable.quantityOnHand, -quantityDelta),
+                )
+              : eq(warehouseInventoryTable.id, existing[0].id),
+          )
           .returning();
+        if (updated.length === 0) throw new Error("Insufficient warehouse inventory");
+        [item] = updated;
       }
 
       await tx.insert(stockMovementsTable).values({
@@ -285,40 +293,69 @@ router.patch(
       }
     }
 
-    const existing = await db
-      .select()
-      .from(locationInventoryTable)
-      .where(
-        and(
-          eq(locationInventoryTable.locationId, locationId),
-          eq(locationInventoryTable.productId, productId),
-        ),
-      );
-
     let item;
-    if (existing.length === 0) {
-      [item] = await db
-        .insert(locationInventoryTable)
-        .values({
-          locationId,
-          productId,
-          quantityOnHand: quantityAdjustment ?? 0,
-          restockTrigger: restockTrigger ?? 10,
-          restockTargetQty: restockTargetQty ?? 50,
-        })
-        .returning();
-    } else {
-      const updates: Record<string, unknown> = { updatedAt: new Date() };
-      if (restockTrigger !== undefined) updates.restockTrigger = restockTrigger;
-      if (restockTargetQty !== undefined) updates.restockTargetQty = restockTargetQty;
-      if (quantityAdjustment !== undefined) {
-        updates.quantityOnHand = Math.max(0, existing[0].quantityOnHand + quantityAdjustment);
+    try {
+      item = await db.transaction(async (tx) => {
+      const existing = await tx
+        .select()
+        .from(locationInventoryTable)
+        .where(
+          and(
+            eq(locationInventoryTable.locationId, locationId),
+            eq(locationInventoryTable.productId, productId),
+          ),
+        );
+
+      let item;
+      if (existing.length === 0) {
+        if (quantityAdjustment !== undefined && quantityAdjustment < 0) {
+          throw new Error("Cannot subtract from non-existent inventory");
+        }
+        [item] = await tx
+          .insert(locationInventoryTable)
+          .values({
+            locationId,
+            productId,
+            quantityOnHand: quantityAdjustment ?? 0,
+            restockTrigger: restockTrigger ?? 10,
+            restockTargetQty: restockTargetQty ?? 50,
+          })
+          .returning();
+      } else {
+        const updates: Record<string, unknown> = { updatedAt: new Date() };
+        if (restockTrigger !== undefined) updates.restockTrigger = restockTrigger;
+        if (restockTargetQty !== undefined) updates.restockTargetQty = restockTargetQty;
+        if (quantityAdjustment !== undefined) {
+          // Use atomic SQL expression to avoid read-then-write race conditions.
+          // The DB-level CHECK constraint (quantity_on_hand >= 0) will reject negative results.
+          updates.quantityOnHand = sql`quantity_on_hand + ${quantityAdjustment}`;
+        }
+        [item] = await tx
+          .update(locationInventoryTable)
+          .set(updates)
+          .where(eq(locationInventoryTable.id, existing[0].id))
+          .returning();
       }
-      [item] = await db
-        .update(locationInventoryTable)
-        .set(updates)
-        .where(eq(locationInventoryTable.id, existing[0].id))
-        .returning();
+
+      if (quantityAdjustment !== undefined && quantityAdjustment !== 0) {
+        await tx.insert(stockMovementsTable).values({
+          movementType: "manual_adjustment",
+          productId,
+          quantity: quantityAdjustment,
+          toLocationId: locationId,
+          performedByUserId: user.id,
+        });
+      }
+
+        return item;
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("Cannot subtract from non-existent inventory") || msg.includes("location_inventory_qty_non_negative")) {
+        res.status(400).json({ error: "Insufficient inventory: quantity would go negative" });
+        return;
+      }
+      throw err;
     }
 
     res.json(item);

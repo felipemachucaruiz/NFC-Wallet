@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, stockMovementsTable, warehouseInventoryTable, locationInventoryTable, restockOrdersTable, locationsTable, warehousesTable, merchantsTable } from "@workspace/db";
-import { eq, and, gte, lte, or, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, or, inArray, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess } from "../lib/ownershipGuards";
 import { z } from "zod";
@@ -138,24 +138,21 @@ router.post(
     }
 
     const movement = await db.transaction(async (tx) => {
-      const [whInv] = await tx
-        .select()
-        .from(warehouseInventoryTable)
+      const updated = await tx
+        .update(warehouseInventoryTable)
+        .set({ quantityOnHand: sql`quantity_on_hand - ${quantity}`, updatedAt: new Date() })
         .where(
           and(
             eq(warehouseInventoryTable.warehouseId, warehouseId),
             eq(warehouseInventoryTable.productId, productId),
+            gte(warehouseInventoryTable.quantityOnHand, quantity),
           ),
-        );
+        )
+        .returning();
 
-      if (!whInv || whInv.quantityOnHand < quantity) {
+      if (updated.length === 0) {
         throw new Error("Insufficient warehouse inventory");
       }
-
-      await tx
-        .update(warehouseInventoryTable)
-        .set({ quantityOnHand: whInv.quantityOnHand - quantity, updatedAt: new Date() })
-        .where(eq(warehouseInventoryTable.id, whInv.id));
 
       const locInvRows = await tx
         .select()
@@ -176,7 +173,7 @@ router.post(
       } else {
         await tx
           .update(locationInventoryTable)
-          .set({ quantityOnHand: locInvRows[0].quantityOnHand + quantity, updatedAt: new Date() })
+          .set({ quantityOnHand: sql`quantity_on_hand + ${quantity}`, updatedAt: new Date() })
           .where(eq(locationInventoryTable.id, locInvRows[0].id));
       }
 
@@ -254,24 +251,21 @@ router.post(
     }
 
     const result = await db.transaction(async (tx) => {
-      const [fromInv] = await tx
-        .select()
-        .from(locationInventoryTable)
+      const updatedFrom = await tx
+        .update(locationInventoryTable)
+        .set({ quantityOnHand: sql`quantity_on_hand - ${quantity}`, updatedAt: new Date() })
         .where(
           and(
             eq(locationInventoryTable.locationId, fromLocationId),
             eq(locationInventoryTable.productId, productId),
+            gte(locationInventoryTable.quantityOnHand, quantity),
           ),
-        );
+        )
+        .returning();
 
-      if (!fromInv || fromInv.quantityOnHand < quantity) {
+      if (updatedFrom.length === 0) {
         throw new Error("Insufficient inventory at source location");
       }
-
-      await tx
-        .update(locationInventoryTable)
-        .set({ quantityOnHand: fromInv.quantityOnHand - quantity, updatedAt: new Date() })
-        .where(eq(locationInventoryTable.id, fromInv.id));
 
       const [toInv] = await tx
         .select()
@@ -292,7 +286,7 @@ router.post(
       } else {
         await tx
           .update(locationInventoryTable)
-          .set({ quantityOnHand: toInv.quantityOnHand + quantity, updatedAt: new Date() })
+          .set({ quantityOnHand: sql`quantity_on_hand + ${quantity}`, updatedAt: new Date() })
           .where(eq(locationInventoryTable.id, toInv.id));
       }
 
