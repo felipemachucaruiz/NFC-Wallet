@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable } from "@workspace/db";
+import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable, accessZonesTable } from "@workspace/db";
 import { eq, desc, ilike, or, and, sql, asc } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -101,7 +101,35 @@ router.post(
       .from(braceletsTable)
       .where(eq(braceletsTable.nfcUid, nfcUid));
     if (existing.length > 0) {
-      res.status(409).json({ error: "Bracelet already registered" });
+      const b = existing[0];
+      // Build rich already-registered info
+      let zoneName: string | null = null;
+      let zoneColor: string | null = null;
+      if (b.accessZoneIds && b.accessZoneIds.length > 0) {
+        const [zone] = await db
+          .select({ name: accessZonesTable.name, colorHex: accessZonesTable.colorHex })
+          .from(accessZonesTable)
+          .where(eq(accessZonesTable.id, b.accessZoneIds[0]));
+        zoneName = zone?.name ?? null;
+        zoneColor = zone?.colorHex ?? null;
+      }
+      let registeredByUsername: string | null = null;
+      if (b.registeredByUserId) {
+        const [registrar] = await db
+          .select({ username: usersTable.username, firstName: usersTable.firstName })
+          .from(usersTable)
+          .where(eq(usersTable.id, b.registeredByUserId));
+        registeredByUsername = registrar?.username ?? registrar?.firstName ?? null;
+      }
+      res.status(409).json({
+        error: "BRACELET_ALREADY_REGISTERED",
+        registrationInfo: {
+          zoneName,
+          zoneColor,
+          registeredAt: b.createdAt,
+          registeredByUsername,
+        },
+      });
       return;
     }
 
@@ -135,6 +163,7 @@ router.post(
         email,
         maxOfflineSpend: resolvedMaxOfflineSpend,
         accessZoneIds: initialAccessZoneIds,
+        registeredByUserId: req.user!.id,
       })
       .returning();
     res.status(201).json(bracelet);

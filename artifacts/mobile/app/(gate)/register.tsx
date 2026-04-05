@@ -23,7 +23,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
 import { API_BASE_URL } from "@/constants/domain";
 
-type PageState = "ready" | "scanning" | "scanned" | "submitting" | "success" | "error";
+type PageState = "ready" | "scanning" | "scanned" | "submitting" | "success" | "already_registered" | "error";
+
+interface AlreadyRegisteredInfo {
+  zoneName: string | null;
+  zoneColor: string | null;
+  registeredAt: string | null;
+  registeredByUsername: string | null;
+}
 
 function normalizeUid(raw: string): string {
   const clean = raw.replace(/[:\s\-]/g, "").toUpperCase();
@@ -31,8 +38,24 @@ function normalizeUid(raw: string): string {
   return clean.match(/.{1,2}/g)?.join(":") ?? clean;
 }
 
+function formatDateTime(isoString: string | null, locale: string): string {
+  if (!isoString) return "–";
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleString(locale === "es" ? "es-CO" : "en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return isoString;
+  }
+}
+
 export default function RegisterWristbandScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -48,6 +71,7 @@ export default function RegisterWristbandScreen() {
   const [email, setEmail] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [successCountdown, setSuccessCountdown] = useState(0);
+  const [alreadyRegisteredInfo, setAlreadyRegisteredInfo] = useState<AlreadyRegisteredInfo | null>(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const scanningRef = useRef(false);
@@ -137,12 +161,12 @@ export default function RegisterWristbandScreen() {
     setPageState("submitting");
     setErrorMsg("");
     try {
-      const body: Record<string, unknown> = { uid };
-      if (guestName.trim()) body.guestName = guestName.trim();
+      const body: Record<string, unknown> = { nfcUid: uid };
+      if (guestName.trim()) body.attendeeName = guestName.trim();
       if (phone.trim()) body.phone = phone.trim();
       if (email.trim()) body.email = email.trim();
 
-      const res = await fetch(`${API_BASE_URL}/api/gate/register-bracelet`, {
+      const res = await fetch(`${API_BASE_URL}/api/bracelets`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -150,6 +174,22 @@ export default function RegisterWristbandScreen() {
         },
         body: JSON.stringify(body),
       });
+
+      if (res.status === 409) {
+        const payload = await res.json().catch(() => ({})) as {
+          error?: string;
+          registrationInfo?: AlreadyRegisteredInfo;
+        };
+        if (payload.error === "BRACELET_ALREADY_REGISTERED" && payload.registrationInfo) {
+          setAlreadyRegisteredInfo(payload.registrationInfo);
+          setPageState("already_registered");
+        } else {
+          setErrorMsg(t("gate.alreadyRegistered"));
+          setAlreadyRegisteredInfo(null);
+          setPageState("already_registered");
+        }
+        return;
+      }
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
@@ -171,6 +211,7 @@ export default function RegisterWristbandScreen() {
     setPhone("");
     setEmail("");
     setErrorMsg("");
+    setAlreadyRegisteredInfo(null);
     setPageState("ready");
     if (isNfcSupported()) {
       void doNfcScan();
@@ -179,6 +220,7 @@ export default function RegisterWristbandScreen() {
 
   const normalizedManual = normalizeUid(manualUid);
   const isValidManual = [8, 14, 20].includes(normalizedManual.replace(/:/g, "").length);
+  const locale = i18n.language ?? "es";
 
   return (
     <KeyboardAvoidingView
@@ -232,6 +274,81 @@ export default function RegisterWristbandScreen() {
           </View>
         )}
 
+        {/* Already-registered interstitial */}
+        {pageState === "already_registered" && (
+          <View style={[styles.resultCard, { backgroundColor: C.warningLight ?? C.dangerLight, borderColor: C.warning ?? C.danger }]}>
+            <View style={[styles.alreadyIconWrap, { backgroundColor: (C.warning ?? C.danger) + "22" }]}>
+              <Feather name="alert-circle" size={40} color={C.warning ?? C.danger} />
+            </View>
+            <Text style={[styles.resultTitle, { color: C.warning ?? C.danger }]}>
+              {t("gate.alreadyRegistered")}
+            </Text>
+            <Text style={[styles.resultUid, { color: C.textSecondary }]}>{scannedUid}</Text>
+            <Text style={[styles.resultSub, { color: C.textSecondary }]}>
+              {t("gate.alreadyRegisteredHint")}
+            </Text>
+
+            {/* Info rows */}
+            <View style={[styles.infoTable, { backgroundColor: C.card, borderColor: C.border }]}>
+              {/* Zone */}
+              <View style={styles.infoRow}>
+                <View style={styles.infoRowLeft}>
+                  {alreadyRegisteredInfo?.zoneColor ? (
+                    <View style={[styles.zoneColorDot, { backgroundColor: alreadyRegisteredInfo.zoneColor }]} />
+                  ) : (
+                    <Feather name="map-pin" size={14} color={C.textSecondary} />
+                  )}
+                  <Text style={[styles.infoLabel, { color: C.textSecondary }]}>
+                    {t("gate.alreadyRegisteredZone")}
+                  </Text>
+                </View>
+                <Text style={[styles.infoValue, { color: C.text }]}>
+                  {alreadyRegisteredInfo?.zoneName ?? t("gate.alreadyRegisteredNoZone")}
+                </Text>
+              </View>
+
+              <View style={[styles.infoSep, { backgroundColor: C.border }]} />
+
+              {/* Date */}
+              <View style={styles.infoRow}>
+                <View style={styles.infoRowLeft}>
+                  <Feather name="clock" size={14} color={C.textSecondary} />
+                  <Text style={[styles.infoLabel, { color: C.textSecondary }]}>
+                    {t("gate.alreadyRegisteredAt")}
+                  </Text>
+                </View>
+                <Text style={[styles.infoValue, { color: C.text }]}>
+                  {formatDateTime(alreadyRegisteredInfo?.registeredAt ?? null, locale)}
+                </Text>
+              </View>
+
+              <View style={[styles.infoSep, { backgroundColor: C.border }]} />
+
+              {/* Registered by */}
+              <View style={styles.infoRow}>
+                <View style={styles.infoRowLeft}>
+                  <Feather name="user" size={14} color={C.textSecondary} />
+                  <Text style={[styles.infoLabel, { color: C.textSecondary }]}>
+                    {t("gate.alreadyRegisteredBy")}
+                  </Text>
+                </View>
+                <Text style={[styles.infoValue, { color: C.text }]}>
+                  {alreadyRegisteredInfo?.registeredByUsername
+                    ? `@${alreadyRegisteredInfo.registeredByUsername}`
+                    : t("gate.alreadyRegisteredUnknownUser")}
+                </Text>
+              </View>
+            </View>
+
+            <Button
+              title={t("gate.registerAnother")}
+              onPress={resetForNext}
+              variant="primary"
+              style={{ marginTop: 4, width: "100%" }}
+            />
+          </View>
+        )}
+
         {/* Scanning / Ready — NFC section */}
         {(pageState === "ready" || pageState === "scanning") && nfcAvailable && (
           <View
@@ -262,8 +379,8 @@ export default function RegisterWristbandScreen() {
 
             {pageState === "ready" && (
               <Pressable style={[styles.nfcBtn, { backgroundColor: C.primary }]} onPress={doNfcScan}>
-                <Feather name="wifi" size={18} color="#fff" />
-                <Text style={styles.nfcBtnText}>{t("gate.startScan")}</Text>
+                <Feather name="wifi" size={18} color={C.primaryText} />
+                <Text style={[styles.nfcBtnText, { color: C.primaryText }]}>{t("gate.startScan")}</Text>
               </Pressable>
             )}
           </View>
@@ -305,7 +422,7 @@ export default function RegisterWristbandScreen() {
                 onPress={useManualUid}
                 disabled={!isValidManual}
               >
-                <Feather name="arrow-right" size={20} color="#fff" />
+                <Feather name="arrow-right" size={20} color={isValidManual ? C.primaryText : C.textMuted} />
               </Pressable>
             </View>
             <Text style={[styles.manualHint, { color: C.textMuted }]}>{t("gate.manualUidHint")}</Text>
@@ -402,6 +519,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   countdownText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  alreadyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  infoTable: {
+    width: "100%",
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  infoRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
+  },
+  infoLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  infoValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "right", flex: 1 },
+  infoSep: { height: 1, marginHorizontal: 16 },
+  zoneColorDot: { width: 12, height: 12, borderRadius: 6 },
   errorBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -436,7 +584,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 4,
   },
-  nfcBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  nfcBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   manualCard: { borderRadius: 20, borderWidth: 1, padding: 20, gap: 12 },
   manualTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8 },
   manualRow: { flexDirection: "row", gap: 10 },

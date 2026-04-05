@@ -1176,7 +1176,15 @@
     "scanNext": "Toca para escanear la siguiente",
     "checkingZone": "Zona a verificar",
     "checkingAccess": "Verificando acceso...",
-    "accessCheckResult": "Resultado de verificación"
+    "accessCheckResult": "Resultado de verificación",
+    "alreadyRegistered": "Pulsera Ya Registrada",
+    "alreadyRegisteredHint": "Esta pulsera ya estaba registrada anteriormente en este evento.",
+    "alreadyRegisteredZone": "Zona",
+    "alreadyRegisteredAt": "Registrada el",
+    "alreadyRegisteredBy": "Registrado por",
+    "alreadyRegisteredUnknownUser": "Desconocido",
+    "alreadyRegisteredNoZone": "Sin zona",
+    "registerAnother": "Registrar otra pulsera"
   },
   "zones": {
     "title": "Zonas de Acceso",
@@ -1202,7 +1210,7 @@
     "rankInvalid": "El rango debe ser un número válido no negativo",
     "priceInvalid": "El precio de actualización debe ser un número válido no negativo",
     "rank": "Rango",
-    "upgradePrice": "Precio de actualización",
+    "upgradePrice": "Precio",
     "color": "Color",
     "customColor": "Color personalizado",
     "saved": "Zona guardada",
@@ -1216,7 +1224,6 @@
     "noUpgradesAvailable": "No hay actualizaciones disponibles",
     "selectUpgradeZone": "Seleccionar zona a actualizar",
     "confirmUpgrade": "Confirmar Actualización",
-    "upgradePrice": "Precio",
     "confirmAndWrite": "Confirmar y Escribir",
     "upgradeSuccess": "¡Acceso actualizado!",
     "upgradeAnotherZone": "Actualizar otra zona",

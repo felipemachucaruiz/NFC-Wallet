@@ -22,6 +22,7 @@ export const braceletsTable = pgTable("bracelets", {
    * Populated at registration (from gate user's gateZoneId) and via upgrade endpoint.
    */
   accessZoneIds: text("access_zone_ids").array().notNull().default(sql`'{}'::text[]`),
+  registeredByUserId: varchar("registered_by_user_id").references(() => usersTable.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

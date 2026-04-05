@@ -1187,7 +1187,15 @@
     "scanNext": "Tap to scan next",
     "checkingZone": "Zone to check",
     "checkingAccess": "Checking access...",
-    "accessCheckResult": "Access check result"
+    "accessCheckResult": "Access check result",
+    "alreadyRegistered": "Wristband Already Registered",
+    "alreadyRegisteredHint": "This wristband was already registered at a previous time for this event.",
+    "alreadyRegisteredZone": "Zone",
+    "alreadyRegisteredAt": "Registered on",
+    "alreadyRegisteredBy": "Registered by",
+    "alreadyRegisteredUnknownUser": "Unknown",
+    "alreadyRegisteredNoZone": "No zone",
+    "registerAnother": "Register another wristband"
   },
   "zones": {
     "title": "Access Zones",
@@ -1213,7 +1221,7 @@
     "rankInvalid": "Rank must be a valid non-negative number",
     "priceInvalid": "Upgrade price must be a valid non-negative number",
     "rank": "Rank",
-    "upgradePrice": "Upgrade price",
+    "upgradePrice": "Price",
     "color": "Color",
     "customColor": "Custom color",
     "saved": "Zone saved",
@@ -1227,7 +1235,6 @@
     "noUpgradesAvailable": "No upgrades available",
     "selectUpgradeZone": "Select zone to upgrade",
     "confirmUpgrade": "Confirm Upgrade",
-    "upgradePrice": "Price",
     "confirmAndWrite": "Confirm & Write",
     "upgradeSuccess": "Access upgraded!",
     "upgradeAnotherZone": "Upgrade another zone",
