@@ -81,6 +81,9 @@ async function runStartupMigrations(): Promise<void> {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS gate_zone_id         varchar;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked           boolean NOT NULL DEFAULT false;
 
+      -- ── events: timezone column ────────────────────────────────────────────
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS timezone varchar(100) NOT NULL DEFAULT 'UTC';
+
       -- ── users: auth security columns (task-85) ────────────────────────────
       ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified       boolean NOT NULL DEFAULT false;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret          varchar;

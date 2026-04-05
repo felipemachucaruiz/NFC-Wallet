@@ -459,7 +459,18 @@ router.get(
       const totalUnitsInStock = report.reduce((s, i) => s + i.quantityOnHand, 0);
       const totalInventoryValueCop = report.reduce((s, i) => s + i.quantityOnHand * i.priceCop, 0);
       const lowStockCount = report.filter((i) => i.isLowStock).length;
-      res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday: 0 });
+
+      const [eventTzRow] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, scopedEventId));
+      const eventTz = eventTzRow?.timezone ?? "UTC";
+      const [soldTodayAgg] = await db
+        .select({ units: sql<number>`COALESCE(SUM(${transactionLineItemsTable.quantity}), 0)`.mapWith(Number) })
+        .from(transactionLineItemsTable)
+        .innerJoin(transactionLogsTable, eq(transactionLineItemsTable.transactionLogId, transactionLogsTable.id))
+        .where(and(
+          eq(transactionLogsTable.eventId, scopedEventId),
+          sql`DATE(${transactionLogsTable.createdAt} AT TIME ZONE ${eventTz}) = CURRENT_DATE AT TIME ZONE ${eventTz}`,
+        ));
+      res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday: soldTodayAgg?.units ?? 0 });
       return;
     }
 
@@ -538,7 +549,29 @@ router.get(
     const totalUnitsInStock = report.reduce((s, i) => s + i.quantityOnHand, 0);
     const totalInventoryValueCop = report.reduce((s, i) => s + i.quantityOnHand * i.priceCop, 0);
     const lowStockCount = report.filter((i) => i.isLowStock).length;
-    res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday: 0 });
+
+    const reportedLocationIds = report.map((i) => i.locationId);
+    let unitsSoldToday = 0;
+    if (reportedLocationIds.length > 0) {
+      let genEventTz = "UTC";
+      if (eventId) {
+        const [evTzRow] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, eventId));
+        if (evTzRow?.timezone) genEventTz = evTzRow.timezone;
+      }
+      const soldTodayConds = [
+        inArray(transactionLogsTable.locationId, reportedLocationIds),
+        sql`DATE(${transactionLogsTable.createdAt} AT TIME ZONE ${genEventTz}) = CURRENT_DATE AT TIME ZONE ${genEventTz}`,
+      ];
+      if (eventId) soldTodayConds.push(eq(transactionLogsTable.eventId, eventId));
+      const [soldTodayAggGen] = await db
+        .select({ units: sql<number>`COALESCE(SUM(${transactionLineItemsTable.quantity}), 0)`.mapWith(Number) })
+        .from(transactionLineItemsTable)
+        .innerJoin(transactionLogsTable, eq(transactionLineItemsTable.transactionLogId, transactionLogsTable.id))
+        .where(and(...soldTodayConds));
+      unitsSoldToday = soldTodayAggGen?.units ?? 0;
+    }
+
+    res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday });
   },
 );
 

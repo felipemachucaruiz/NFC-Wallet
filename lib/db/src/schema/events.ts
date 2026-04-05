@@ -28,6 +28,7 @@ export const eventsTable = pgTable("events", {
   ultralightCDesKey: varchar("ultralight_c_des_key", { length: 32 }),
   latitude: decimal("latitude", { precision: 10, scale: 7 }),
   longitude: decimal("longitude", { precision: 10, scale: 7 }),
+  timezone: varchar("timezone", { length: 100 }).notNull().default("UTC"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

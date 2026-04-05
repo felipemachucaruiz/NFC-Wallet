@@ -140,22 +140,33 @@ router.get(
     }
     txConditions.push(...buildDateConditions(from, to));
 
+    let tz = "UTC";
+    if (eventId) {
+      const [ev] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, eventId));
+      if (ev?.timezone) tz = ev.timezone;
+    } else if (eventIds !== null && eventIds.length === 1) {
+      const [ev] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, eventIds[0]!));
+      if (ev?.timezone) tz = ev.timezone;
+    }
+
+    const localTs = sql`(${transactionLogsTable.createdAt} AT TIME ZONE ${tz})`;
+
     const rows = await db
       .select({
-        hour: sql<number>`EXTRACT(HOUR FROM ${transactionLogsTable.createdAt})`.as("hour"),
-        day: sql<string>`DATE(${transactionLogsTable.createdAt})`.as("day"),
+        hour: sql<number>`EXTRACT(HOUR FROM ${localTs})`.as("hour"),
+        day: sql<string>`DATE(${localTs})`.as("day"),
         totalCop: sql<number>`SUM(${transactionLogsTable.grossAmountCop})`.as("total_cop"),
         txCount: sql<number>`COUNT(*)`.as("tx_count"),
       })
       .from(transactionLogsTable)
       .where(txConditions.length > 0 ? and(...txConditions) : undefined)
       .groupBy(
-        sql`EXTRACT(HOUR FROM ${transactionLogsTable.createdAt})`,
-        sql`DATE(${transactionLogsTable.createdAt})`,
+        sql`EXTRACT(HOUR FROM ${localTs})`,
+        sql`DATE(${localTs})`,
       )
       .orderBy(
-        sql`DATE(${transactionLogsTable.createdAt})`,
-        sql`EXTRACT(HOUR FROM ${transactionLogsTable.createdAt})`,
+        sql`DATE(${localTs})`,
+        sql`EXTRACT(HOUR FROM ${localTs})`,
       );
 
     const salesByHour = rows.map((r) => ({
@@ -412,24 +423,35 @@ router.get(
     }
     txConditions.push(...buildDateConditions(from, to));
 
+    let tz = "UTC";
+    if (eventId) {
+      const [ev] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, eventId));
+      if (ev?.timezone) tz = ev.timezone;
+    } else if (eventIds !== null && eventIds.length === 1) {
+      const [ev] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, eventIds[0]!));
+      if (ev?.timezone) tz = ev.timezone;
+    }
+
+    const localTs = sql`(${transactionLogsTable.createdAt} AT TIME ZONE ${tz})`;
+
     const rows = await db
       .select({
-        hour: sql<number>`EXTRACT(HOUR FROM ${transactionLogsTable.createdAt})`.as("hour"),
-        day: sql<string>`TO_CHAR(${transactionLogsTable.createdAt}, 'Dy')`.as("day"),
-        dayNum: sql<number>`EXTRACT(DOW FROM ${transactionLogsTable.createdAt})`.as("day_num"),
+        hour: sql<number>`EXTRACT(HOUR FROM ${localTs})`.as("hour"),
+        day: sql<string>`TO_CHAR(${localTs}, 'Dy')`.as("day"),
+        dayNum: sql<number>`EXTRACT(DOW FROM ${localTs})`.as("day_num"),
         txCount: sql<number>`COUNT(*)`.as("tx_count"),
         totalCop: sql<number>`SUM(${transactionLogsTable.grossAmountCop})`.as("total_cop"),
       })
       .from(transactionLogsTable)
       .where(txConditions.length > 0 ? and(...txConditions) : undefined)
       .groupBy(
-        sql`EXTRACT(HOUR FROM ${transactionLogsTable.createdAt})`,
-        sql`TO_CHAR(${transactionLogsTable.createdAt}, 'Dy')`,
-        sql`EXTRACT(DOW FROM ${transactionLogsTable.createdAt})`,
+        sql`EXTRACT(HOUR FROM ${localTs})`,
+        sql`TO_CHAR(${localTs}, 'Dy')`,
+        sql`EXTRACT(DOW FROM ${localTs})`,
       )
       .orderBy(
-        sql`EXTRACT(DOW FROM ${transactionLogsTable.createdAt})`,
-        sql`EXTRACT(HOUR FROM ${transactionLogsTable.createdAt})`,
+        sql`EXTRACT(DOW FROM ${localTs})`,
+        sql`EXTRACT(HOUR FROM ${localTs})`,
       );
 
     const heatmap = rows.map((r) => ({

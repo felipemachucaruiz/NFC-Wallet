@@ -1,8 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable } from "@workspace/db";
-import { eq, sql, and, ilike, or, count, sum } from "drizzle-orm";
+import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable } from "@workspace/db";
+import { eq, sql, and, ilike, or, count, sum, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -995,13 +995,46 @@ router.get(
 
     void merchantMap;
 
+    // Top-up totals for this event
+    const bracelets = await db
+      .select({ nfcUid: braceletsTable.nfcUid })
+      .from(braceletsTable)
+      .where(eq(braceletsTable.eventId, eventId));
+    const braceletUids = bracelets.map((b) => b.nfcUid);
+    let totalTopUpsCop = 0;
+    let topUpCount = 0;
+    if (braceletUids.length > 0) {
+      const [topUpAgg] = await db
+        .select({
+          total: sum(topUpsTable.amountCop),
+          cnt: count(),
+        })
+        .from(topUpsTable)
+        .where(inArray(topUpsTable.braceletUid, braceletUids));
+      totalTopUpsCop = Number(topUpAgg?.total ?? 0);
+      topUpCount = Number(topUpAgg?.cnt ?? 0);
+    }
+
+    // Refund deductions (approved attendee refund requests)
+    const [refundAgg] = await db
+      .select({ total: sum(attendeeRefundRequestsTable.amountCop) })
+      .from(attendeeRefundRequestsTable)
+      .where(and(
+        eq(attendeeRefundRequestsTable.eventId, eventId),
+        eq(attendeeRefundRequestsTable.status, "approved"),
+      ));
+    const totalRefundsCop = Number(refundAgg?.total ?? 0);
+
+    // Net settlement owed to the promoter = gross sales - platform commissions - refunds
+    const netSettlementCop = totals.grossSalesCop - totals.commissionsCop - totalRefundsCop;
+
     if (format === "csv") {
       const header = "merchantId,merchantName,commissionRatePercent,grossSalesCop,tipsCop,commissionsCop,netPayoutCop,transactionCount\n";
-      const rows = report.map((r) =>
+      const csvRows = report.map((r) =>
         [r.merchantId, `"${r.merchantName.replace(/"/g, '""')}"`, r.commissionRatePercent, r.grossSalesCop, r.tipsCop, r.commissionsCop, r.netPayoutCop, r.transactionCount].join(",")
       ).join("\n");
       const totalsRow = `"TOTAL","","",${totals.grossSalesCop},${totals.tipsCop},${totals.commissionsCop},${totals.netPayoutCop},${totals.transactionCount}`;
-      const csv = header + rows + "\n" + totalsRow;
+      const csv = header + csvRows + "\n" + totalsRow;
 
       res.setHeader("Content-Type", "text/csv");
       res.setHeader("Content-Disposition", `attachment; filename="settlement-${eventId}.csv"`);
@@ -1016,6 +1049,11 @@ router.get(
       generatedAt: new Date().toISOString(),
       merchants: report,
       totals,
+      totalTopUpsCop,
+      topUpCount,
+      totalRefundsCop,
+      netSettlementCop,
+      braceletCount: bracelets.length,
     });
   }
 );
