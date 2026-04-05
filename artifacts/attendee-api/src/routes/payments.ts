@@ -6,6 +6,9 @@ import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { processSelfServicePayment } from "./selfService";
 import { notifyTopUpSuccess, notifyTopUpFailed } from "../lib/pushNotifications";
+import { paymentStatusLimiter } from "../middlewares/rateLimiter";
+
+const WEBHOOK_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
 
 const router: IRouter = Router();
 
@@ -186,6 +189,7 @@ router.post(
 router.get(
   "/payments/:id/status",
   requireRole("attendee"),
+  paymentStatusLimiter,
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });
@@ -361,6 +365,26 @@ router.post(
       return;
     }
 
+    const rawTimestamp = body.timestamp;
+    if (!Number.isFinite(rawTimestamp) || rawTimestamp <= 0) {
+      console.warn("Rejecting Wompi webhook with invalid timestamp", { timestamp: rawTimestamp });
+      res.status(400).json({ error: "Webhook timestamp is invalid" });
+      return;
+    }
+    const webhookTimestampMs = rawTimestamp * 1000;
+    const nowMs = Date.now();
+    if (Math.abs(nowMs - webhookTimestampMs) > WEBHOOK_TIMESTAMP_TOLERANCE_MS) {
+      console.warn("Rejecting stale Wompi webhook — timestamp out of 5-minute window", { timestamp: rawTimestamp });
+      res.status(400).json({ error: "Webhook timestamp is stale" });
+      return;
+    }
+
+    if (body.environment === "test" && process.env.NODE_ENV === "production") {
+      console.warn("Rejecting test-mode Wompi webhook in production");
+      res.status(400).json({ error: "Test webhooks are not accepted in production" });
+      return;
+    }
+
     if (body.event === "transaction.updated" && txData) {
       if (txData.status === "APPROVED") {
         const [intent] = await db
@@ -368,7 +392,17 @@ router.post(
           .from(wompiPaymentIntentsTable)
           .where(eq(wompiPaymentIntentsTable.wompiTransactionId, txData.id));
 
-        if (intent && intent.status === "pending") {
+        if (!intent) {
+          res.json({ success: true });
+          return;
+        }
+
+        if (intent.status === "success" || intent.status === "failed") {
+          res.json({ success: true });
+          return;
+        }
+
+        if (intent.status === "pending") {
           if (intent.selfService) {
             await processSelfServicePayment(intent.id, txData.id);
           } else {

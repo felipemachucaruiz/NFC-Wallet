@@ -48,3 +48,24 @@ export const braceletLookupLimiter = rateLimit({
   keyGenerator,
   message: { error: "Too many bracelet lookup requests. Please try again later." },
 });
+
+/**
+ * Dedicated rate limiter for the payment status polling endpoint.
+ * 1 request per 2 seconds per user/bracelet (keyed by user ID when authenticated,
+ * falling back to IP). This prevents polling abuse.
+ */
+export const paymentStatusLimiter = rateLimit({
+  windowMs: 2 * 1000,
+  max: 1,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request): string => {
+    const user = (req as Request & { user?: { id?: string } }).user;
+    if (user?.id) return `user:${user.id}`;
+    if (process.env.TRUSTED_PROXY === "true") {
+      return req.ip ?? req.socket.remoteAddress ?? "unknown";
+    }
+    return req.socket.remoteAddress ?? "unknown";
+  },
+  message: { error: "Too many payment status requests. Please wait before polling again." },
+});
