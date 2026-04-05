@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
 import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { processSelfServicePayment } from "./selfService";
@@ -75,6 +75,25 @@ router.post(
 
     if (req.user.role === "attendee" && bracelet.attendeeUserId !== req.user.id) {
       res.status(403).json({ error: "You can only top up your own bracelet" });
+      return;
+    }
+
+    const [activeIntent] = await db
+      .select({ id: wompiPaymentIntentsTable.id })
+      .from(wompiPaymentIntentsTable)
+      .where(
+        and(
+          eq(wompiPaymentIntentsTable.braceletUid, braceletUid),
+          inArray(wompiPaymentIntentsTable.status, ["pending", "processing"]),
+        ),
+      );
+
+    if (activeIntent) {
+      res.status(409).json({
+        error: "PAYMENT_ALREADY_IN_PROGRESS",
+        message: "There is already a payment in progress for this bracelet. Please wait for it to complete or expire.",
+        existingIntentId: activeIntent.id,
+      });
       return;
     }
 

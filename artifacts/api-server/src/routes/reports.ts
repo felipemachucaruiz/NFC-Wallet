@@ -257,10 +257,10 @@ router.get(
         .where(inArray(braceletsTable.eventId, topUpEventIds));
       braceletCount = bAgg?.count ?? 0;
     } else if (topUpEventIds === null && user.role === "admin") {
-      const topUpConditions = [];
+      const topUpConditions = [eq(topUpsTable.status, "completed")];
       if (from) topUpConditions.push(gte(topUpsTable.createdAt, new Date(from)));
       if (to) topUpConditions.push(lte(topUpsTable.createdAt, new Date(to)));
-      const allTopUps = await db.select().from(topUpsTable).where(topUpConditions.length > 0 ? and(...topUpConditions) : undefined);
+      const allTopUps = await db.select().from(topUpsTable).where(and(...topUpConditions));
       totalTopUpsCop = allTopUps.reduce((s, t) => s + t.amountCop, 0);
       topUpCount = allTopUps.length;
       const braceletConditions = [];
@@ -297,7 +297,10 @@ async function getTopUpsForEventIds(eventIds: string[], from?: string, to?: stri
     .where(inArray(braceletsTable.eventId, eventIds));
   const braceletUids = bracelets.map((b) => b.nfcUid);
   if (braceletUids.length === 0) return [];
-  const topUpConditions = [inArray(topUpsTable.braceletUid, braceletUids)];
+  const topUpConditions = [
+    inArray(topUpsTable.braceletUid, braceletUids),
+    eq(topUpsTable.status, "completed"),
+  ];
   if (from) topUpConditions.push(gte(topUpsTable.createdAt, new Date(from)));
   if (to) topUpConditions.push(lte(topUpsTable.createdAt, new Date(to)));
   return db.select().from(topUpsTable).where(and(...topUpConditions));
@@ -379,6 +382,7 @@ router.get(
       }
       const topUpConditions = [
         inArray(topUpsTable.braceletUid, braceletUids),
+        eq(topUpsTable.status, "completed"),
       ];
       if (from) topUpConditions.push(gte(topUpsTable.createdAt, new Date(from)));
       if (to) topUpConditions.push(lte(topUpsTable.createdAt, new Date(to)));
@@ -404,14 +408,14 @@ router.get(
       return;
     }
 
-    const conditions = [];
+    const conditions = [eq(topUpsTable.status, "completed")];
     if (from) conditions.push(gte(topUpsTable.createdAt, new Date(from)));
     if (to) conditions.push(lte(topUpsTable.createdAt, new Date(to)));
 
     const topUps = await db
       .select()
       .from(topUpsTable)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      .where(and(...conditions));
 
     res.json(await buildTopUpSummary(topUps));
   },

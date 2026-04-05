@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, braceletsTable, eventsTable, wompiPaymentIntentsTable, topUpsTable } from "@workspace/db";
 import { usersTable } from "@workspace/db";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { notifyTopUpSuccess } from "../lib/pushNotifications";
@@ -142,6 +142,25 @@ router.post(
 
     if (bracelet.flagged) {
       res.status(403).json({ error: "Esta pulsera ha sido bloqueada. Contacta al organizador del evento." });
+      return;
+    }
+
+    const [activeIntent] = await db
+      .select({ id: wompiPaymentIntentsTable.id })
+      .from(wompiPaymentIntentsTable)
+      .where(
+        and(
+          eq(wompiPaymentIntentsTable.braceletUid, uid),
+          inArray(wompiPaymentIntentsTable.status, ["pending", "processing"]),
+        ),
+      );
+
+    if (activeIntent) {
+      res.status(409).json({
+        error: "PAYMENT_ALREADY_IN_PROGRESS",
+        message: "Ya hay un pago en curso para esta pulsera. Por favor espera a que se complete o expire.",
+        existingIntentId: activeIntent.id,
+      });
       return;
     }
 

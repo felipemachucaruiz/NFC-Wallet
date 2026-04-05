@@ -19,7 +19,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const PAYMENT_INTENT_EXPIRY_MS = Number(process.env.PAYMENT_INTENT_EXPIRY_MINUTES ?? "30") * 60 * 1000;
-const PAYMENT_INTENT_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const PAYMENT_INTENT_CLEANUP_INTERVAL_MS = 15 * 60 * 1000;
 
 async function expireStalePaymentIntents(): Promise<void> {
   try {
