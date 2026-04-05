@@ -1281,7 +1281,12 @@
     "writingNfc": "Escribiendo en la pulsera...",
     "nfcWriteFailed": "Acceso actualizado en el servidor, pero la escritura NFC falló. Es posible que la pulsera deba ser tocada nuevamente en la entrada.",
     "free": "Gratis",
-    "rankBadge": "Rango {{rank}}"
+    "rankBadge": "Rango {{rank}}",
+    "zonesAdded": "Zonas Agregadas",
+    "allAccessNow": "Acceso Completo Ahora",
+    "priceBreakdown": "Desglose de Precio",
+    "totalToPay": "Total",
+    "includesZones": "Incluye: {{zones}}"
   },
   "checkBalance": {
     "title": "Consultar Pulsera",

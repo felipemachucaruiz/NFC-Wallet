@@ -1292,7 +1292,12 @@
     "writingNfc": "Writing to bracelet...",
     "nfcWriteFailed": "Access upgraded on server, but NFC write failed. The bracelet may need to be re-tapped at the gate.",
     "free": "Free",
-    "rankBadge": "Rank {{rank}}"
+    "rankBadge": "Rank {{rank}}",
+    "zonesAdded": "Zones Added",
+    "allAccessNow": "Full Access Now",
+    "priceBreakdown": "Price Breakdown",
+    "totalToPay": "Total",
+    "includesZones": "Includes: {{zones}}"
   },
   "checkBalance": {
     "title": "Check Bracelet",

@@ -471,6 +471,10 @@ router.post(
 /**
  * GET /api/bracelets/:nfcUid/available-upgrades
  * Returns zones with rank strictly greater than the bracelet's current highest-ranked zone.
+ * Each upgrade option includes:
+ *   - totalUpgradePriceCop: cumulative price of all step prices from current rank+1 to target rank
+ *   - zonesGranted: all zones that will be added (target + any skipped intermediate zones)
+ * This supports "jump" upgrades where the attendee pays the sum of all step prices.
  * Also returns currentZones and atMaxLevel for mobile UI.
  * Accessible by bank, event_admin (own event's bracelets only), and admin.
  */
@@ -512,9 +516,23 @@ router.get(
     const maxCurrentRank = currentZones.length > 0 ? Math.max(...currentZones.map((z) => z.rank)) : -1;
     const maxPossibleRank = allEventZones.length > 0 ? Math.max(...allEventZones.map((z) => z.rank)) : -1;
 
-    const availableUpgrades = allEventZones.filter(
-      (z) => z.rank > maxCurrentRank && !grantedZoneIds.includes(z.id),
-    );
+    // All zones above current rank (includes skipped intermediate ranks too)
+    const zonesAboveCurrent = allEventZones.filter((z) => z.rank > maxCurrentRank);
+
+    // For each possible target zone, compute cumulative price and the full set of zones granted
+    const availableUpgrades = zonesAboveCurrent
+      .filter((z) => !grantedZoneIds.includes(z.id))
+      .map((targetZone) => {
+        // All zones from rank maxCurrentRank+1 up to targetZone.rank that aren't already granted
+        const zonesGranted = zonesAboveCurrent.filter(
+          (z) => z.rank <= targetZone.rank && !grantedZoneIds.includes(z.id),
+        );
+        const totalUpgradePriceCop = zonesGranted.reduce(
+          (sum, z) => sum + (z.upgradePriceCop ?? 0),
+          0,
+        );
+        return { ...targetZone, totalUpgradePriceCop, zonesGranted };
+      });
 
     const atMaxLevel = grantedZoneIds.length > 0 && maxCurrentRank >= maxPossibleRank && availableUpgrades.length === 0;
 
@@ -524,9 +542,18 @@ router.get(
 
 /**
  * POST /api/bracelets/:nfcUid/upgrade-access
- * Body: { zoneIds: string[], note?: string }
- * Validates each requested zone has rank > current max rank (server-side re-validation).
- * Appends zones (deduplicated) and writes an access_upgrades log row.
+ * Body: { targetZoneId: string, note?: string }
+ *
+ * "Jump" upgrade logic — the attendee picks a TARGET zone (e.g. rank 3).
+ * The server automatically adds ALL intermediate zones between their current max rank
+ * and the target rank (e.g. rank 1, rank 2, rank 3 are all added).
+ * The price the bank staff should collect is the cumulative sum of each step price
+ * (returned by GET /available-upgrades as totalUpgradePriceCop).
+ *
+ * Server-side validation:
+ *   - targetZoneId must belong to this event
+ *   - targetZone.rank must be strictly greater than the bracelet's current max rank
+ *
  * Restricted to bank, event_admin (own event's bracelets only), and admin.
  */
 router.post(
@@ -536,7 +563,7 @@ router.post(
     const { nfcUid } = req.params as { nfcUid: string };
 
     const parsed = z.object({
-      zoneIds: z.array(z.string().min(1)).min(1),
+      targetZoneId: z.string().min(1),
       note: z.string().optional(),
     }).safeParse(req.body);
 
@@ -545,7 +572,7 @@ router.post(
       return;
     }
 
-    const { zoneIds, note } = parsed.data;
+    const { targetZoneId, note } = parsed.data;
 
     const [bracelet] = await db
       .select()
@@ -570,9 +597,16 @@ router.post(
     const allEventZones = await db
       .select()
       .from(accessZonesTable)
-      .where(eq(accessZonesTable.eventId, bracelet.eventId));
+      .where(eq(accessZonesTable.eventId, bracelet.eventId))
+      .orderBy(asc(accessZonesTable.rank));
 
     const zoneMap = new Map(allEventZones.map((z) => [z.id, z]));
+
+    const targetZone = zoneMap.get(targetZoneId);
+    if (!targetZone) {
+      res.status(422).json({ error: `Zone ${targetZoneId} does not exist for this event` });
+      return;
+    }
 
     const currentGrantedIds: string[] = (bracelet.accessZoneIds as string[]) ?? [];
     let maxCurrentRank = -1;
@@ -581,21 +615,21 @@ router.post(
       if (z && z.rank > maxCurrentRank) maxCurrentRank = z.rank;
     }
 
-    for (const zId of zoneIds) {
-      const zone = zoneMap.get(zId);
-      if (!zone) {
-        res.status(422).json({ error: `Zone ${zId} does not exist for this event` });
-        return;
-      }
-      if (zone.rank <= maxCurrentRank) {
-        res.status(422).json({
-          error: `Zone "${zone.name}" (rank ${zone.rank}) is not an upgrade — bracelet's current max rank is ${maxCurrentRank}`,
-        });
-        return;
-      }
+    if (targetZone.rank <= maxCurrentRank) {
+      res.status(422).json({
+        error: `Zone "${targetZone.name}" (rank ${targetZone.rank}) is not an upgrade — bracelet's current max rank is ${maxCurrentRank}`,
+      });
+      return;
     }
 
-    const newZoneIdsSet = new Set([...currentGrantedIds, ...zoneIds]);
+    // Collect all zones from current max rank + 1 up to target rank (inclusive)
+    // These are ALL the zones the bracelet gains access to in this upgrade
+    const zonesToAdd = allEventZones.filter(
+      (z) => z.rank > maxCurrentRank && z.rank <= targetZone.rank && !currentGrantedIds.includes(z.id),
+    );
+    const zoneIdsToAdd = zonesToAdd.map((z) => z.id);
+
+    const newZoneIdsSet = new Set([...currentGrantedIds, ...zoneIdsToAdd]);
     const updatedZoneIds = Array.from(newZoneIdsSet);
 
     const [updatedBracelet] = await db
@@ -607,11 +641,9 @@ router.post(
       .where(eq(braceletsTable.nfcUid, nfcUid))
       .returning();
 
-    const addedZoneIds = zoneIds.filter((id) => !currentGrantedIds.includes(id));
-
     await db.insert(accessUpgradesTable).values({
       braceletId: bracelet.id,
-      zoneIdsAdded: addedZoneIds,
+      zoneIdsAdded: zoneIdsToAdd,
       performedByUserId: req.user!.id,
       note: note ?? null,
     });
@@ -622,9 +654,7 @@ router.post(
       .where(sql`${accessZonesTable.id} = ANY(${updatedZoneIds}::text[])`)
       .orderBy(asc(accessZonesTable.rank));
 
-    const currentZones = resolvedZones;
-
-    res.json({ bracelet: updatedBracelet, grantedZones: resolvedZones, currentZones });
+    res.json({ bracelet: updatedBracelet, grantedZones: resolvedZones, currentZones: resolvedZones, zonesAdded: zonesToAdd });
   },
 );
 

@@ -23,7 +23,6 @@ import {
   isNfcSupported,
   writeBracelet,
   cancelNfc,
-  scanBracelet,
 } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { API_BASE_URL } from "@/constants/domain";
@@ -31,8 +30,17 @@ import { useGetSigningKey } from "@workspace/api-client-react";
 
 type FlowStep = "select" | "confirm" | "writing" | "done" | "error";
 
+/** An upgrade option returned by the API — extends AccessZone with computed pricing */
+interface UpgradeOption extends AccessZone {
+  /** Cumulative price to reach this zone from current level (sum of all step prices) */
+  totalUpgradePriceCop: number;
+  /** All zones that will be added when upgrading to this target (including intermediate ones) */
+  zonesGranted: AccessZone[];
+}
+
 interface UpgradeResult {
   currentZones: AccessZone[];
+  zonesAdded: AccessZone[];
 }
 
 export default function UpgradeAccessScreen() {
@@ -41,8 +49,8 @@ export default function UpgradeAccessScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { token, user } = useAuth();
-  const { zones, getZonesByIds } = useZoneCache();
+  const { token } = useAuth();
+  const { getZonesByIds } = useZoneCache();
 
   const params = useLocalSearchParams<{
     uid: string;
@@ -62,11 +70,11 @@ export default function UpgradeAccessScreen() {
   const tagMemoryBytes = Number(params.tagMemoryBytes ?? 0);
 
   const [step, setStep] = useState<FlowStep>("select");
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const [selectedOption, setSelectedOption] = useState<UpgradeOption | null>(null);
   const [upgradeResult, setUpgradeResult] = useState<UpgradeResult | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [currentZoneIds, setCurrentZoneIds] = useState<string[]>([]);
-  const [availableUpgrades, setAvailableUpgrades] = useState<AccessZone[]>([]);
+  const [availableUpgrades, setAvailableUpgrades] = useState<UpgradeOption[]>([]);
   const [loadingUpgrades, setLoadingUpgrades] = useState(true);
   const [maxAccess, setMaxAccess] = useState(false);
 
@@ -98,7 +106,7 @@ export default function UpgradeAccessScreen() {
     }, [])
   );
 
-  // Load available upgrades from server
+  // Load available upgrades from server (now includes totalUpgradePriceCop and zonesGranted)
   useEffect(() => {
     if (!uid || !token) return;
     setLoadingUpgrades(true);
@@ -107,7 +115,11 @@ export default function UpgradeAccessScreen() {
     })
       .then(async (r) => {
         if (!r.ok) throw new Error("fetch failed");
-        const body = await r.json() as { currentZones: AccessZone[]; availableUpgrades: AccessZone[]; atMaxLevel: boolean };
+        const body = await r.json() as {
+          currentZones: AccessZone[];
+          availableUpgrades: UpgradeOption[];
+          atMaxLevel: boolean;
+        };
         setCurrentZoneIds(body.currentZones.map((z) => z.id));
         setAvailableUpgrades(body.availableUpgrades);
         setMaxAccess(body.atMaxLevel);
@@ -117,24 +129,23 @@ export default function UpgradeAccessScreen() {
   }, [uid, token]);
 
   const currentZones = getZonesByIds(currentZoneIds);
-  const selectedZone = availableUpgrades.find((z) => z.id === selectedZoneId);
 
-  const handleConfirm = async () => {
-    if (!selectedZoneId || !selectedZone) return;
+  const handleConfirm = () => {
+    if (!selectedOption) return;
     setStep("confirm");
   };
 
   const handleExecuteUpgrade = async () => {
-    if (!selectedZoneId || !uid) return;
+    if (!selectedOption || !uid) return;
     setStep("writing");
     setErrorMsg("");
 
     try {
-      // 1. Call server to record upgrade
+      // 1. Call server with targetZoneId — server adds all intermediate zones automatically
       const upgradeRes = await fetch(`${API_BASE_URL}/api/bracelets/${uid}/upgrade-access`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ zoneIds: [selectedZoneId] }),
+        body: JSON.stringify({ targetZoneId: selectedOption.id }),
       });
 
       if (!upgradeRes.ok) {
@@ -144,10 +155,16 @@ export default function UpgradeAccessScreen() {
         return;
       }
 
-      const rawData = await upgradeRes.json() as { bracelet?: unknown; currentZones: AccessZone[] };
-      const upgradeData: UpgradeResult = { currentZones: rawData.currentZones ?? [] };
+      const rawData = await upgradeRes.json() as {
+        currentZones: AccessZone[];
+        zonesAdded: AccessZone[];
+      };
+      setUpgradeResult({
+        currentZones: rawData.currentZones ?? [],
+        zonesAdded: rawData.zonesAdded ?? [],
+      });
 
-      // 2. Write new payload to NFC chip (if we have signing key and tag type)
+      // 2. Write new payload to NFC chip
       if (isNfcSupported() && tagType && signingKey) {
         const newCounter = counter + 1;
         const newHmac = await computeHmac(balance, newCounter, signingKey, uid);
@@ -166,14 +183,11 @@ export default function UpgradeAccessScreen() {
         } catch (nfcErr: unknown) {
           const msg = nfcErr instanceof Error ? nfcErr.message : "";
           if (!msg.includes("cancel") && msg !== "USER_CANCELLED") {
-            // NFC write failed, but server already recorded the upgrade.
-            // Show partial success notice.
             setErrorMsg(t("zones.nfcWriteFailed"));
           }
         }
       }
 
-      setUpgradeResult(upgradeData);
       setStep("done");
     } catch (e: unknown) {
       if (cancelledRef.current) return;
@@ -244,20 +258,44 @@ export default function UpgradeAccessScreen() {
           <View style={[styles.successCard, { backgroundColor: C.successLight, borderColor: C.success }]}>
             <Feather name="check-circle" size={48} color={C.success} />
             <Text style={[styles.successTitle, { color: C.success }]}>{t("zones.upgradeSuccess")}</Text>
-            <View style={styles.zoneBadges}>
-              {upgradeResult.currentZones.map((z) => (
-                <View
-                  key={z.id}
-                  style={[styles.zonePill, { backgroundColor: z.colorHex + "22", borderColor: z.colorHex }]}
-                >
-                  <View style={[styles.zoneDot, { backgroundColor: z.colorHex }]} />
-                  <Text style={[styles.zonePillText, { color: z.colorHex }]}>{z.name}</Text>
+
+            {/* Zones added in this transaction */}
+            {upgradeResult.zonesAdded.length > 0 && (
+              <View style={{ width: "100%", gap: 6 }}>
+                <Text style={[styles.sectionLabel, { color: C.success }]}>{t("zones.zonesAdded")}</Text>
+                <View style={styles.zoneBadges}>
+                  {upgradeResult.zonesAdded.map((z) => (
+                    <View
+                      key={z.id}
+                      style={[styles.zonePill, { backgroundColor: z.colorHex + "22", borderColor: z.colorHex }]}
+                    >
+                      <View style={[styles.zoneDot, { backgroundColor: z.colorHex }]} />
+                      <Text style={[styles.zonePillText, { color: z.colorHex }]}>{z.name}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
+              </View>
+            )}
+
+            {/* All zones now on bracelet */}
+            <View style={{ width: "100%", gap: 6 }}>
+              <Text style={[styles.sectionLabel, { color: C.success }]}>{t("zones.allAccessNow")}</Text>
+              <View style={styles.zoneBadges}>
+                {upgradeResult.currentZones.map((z) => (
+                  <View
+                    key={z.id}
+                    style={[styles.zonePill, { backgroundColor: z.colorHex + "22", borderColor: z.colorHex }]}
+                  >
+                    <View style={[styles.zoneDot, { backgroundColor: z.colorHex }]} />
+                    <Text style={[styles.zonePillText, { color: z.colorHex }]}>{z.name}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
+
             <Button
               title={t("zones.upgradeAnotherZone")}
-              onPress={() => { setStep("select"); setSelectedZoneId(null); setUpgradeResult(null); }}
+              onPress={() => { setStep("select"); setSelectedOption(null); setUpgradeResult(null); }}
               variant="primary"
               style={{ width: "100%" }}
             />
@@ -285,20 +323,38 @@ export default function UpgradeAccessScreen() {
           </View>
         )}
 
-        {/* Confirm step */}
-        {step === "confirm" && selectedZone && (
+        {/* Confirm step — shows itemized price breakdown */}
+        {step === "confirm" && selectedOption && (
           <View style={[styles.confirmCard, { backgroundColor: C.card, borderColor: C.border }]}>
             <Text style={[styles.confirmTitle, { color: C.text }]}>{t("zones.confirmUpgrade")}</Text>
-            <View style={[styles.zonePillLarge, { backgroundColor: selectedZone.colorHex + "22", borderColor: selectedZone.colorHex }]}>
-              <View style={[styles.zoneDotLg, { backgroundColor: selectedZone.colorHex }]} />
-              <Text style={[styles.zonePillLargeText, { color: selectedZone.colorHex }]}>{selectedZone.name}</Text>
-            </View>
-            {selectedZone.upgradePriceCop != null && selectedZone.upgradePriceCop > 0 && (
-              <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, { color: C.textSecondary }]}>{t("zones.upgradePrice")}:</Text>
-                <CopAmount amount={selectedZone.upgradePriceCop} size={22} />
+
+            {/* Price breakdown per zone */}
+            {selectedOption.zonesGranted.length > 0 && (
+              <View style={[styles.breakdownBox, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+                <Text style={[styles.breakdownHeader, { color: C.textSecondary }]}>
+                  {t("zones.priceBreakdown")}
+                </Text>
+                {selectedOption.zonesGranted.map((z) => (
+                  <View key={z.id} style={styles.breakdownRow}>
+                    <View style={[styles.zoneDotLg, { backgroundColor: z.colorHex }]} />
+                    <Text style={[styles.breakdownZoneName, { color: C.text }]}>{z.name}</Text>
+                    {z.upgradePriceCop != null && z.upgradePriceCop > 0 ? (
+                      <CopAmount amount={z.upgradePriceCop} size={14} />
+                    ) : (
+                      <View style={[styles.freeBadge, { backgroundColor: C.successLight, borderColor: C.success }]}>
+                        <Text style={[styles.freeBadgeText, { color: C.success }]}>{t("zones.free")}</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+                {/* Total line */}
+                <View style={[styles.totalRow, { borderTopColor: C.border }]}>
+                  <Text style={[styles.totalLabel, { color: C.text }]}>{t("zones.totalToPay")}</Text>
+                  <CopAmount amount={selectedOption.totalUpgradePriceCop} size={20} />
+                </View>
               </View>
             )}
+
             <View style={styles.confirmActions}>
               <Button
                 title={t("common.cancel")}
@@ -354,37 +410,50 @@ export default function UpgradeAccessScreen() {
               <View style={[styles.section, { backgroundColor: C.card, borderColor: C.border }]}>
                 <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("zones.selectUpgradeZone")}</Text>
                 <View style={styles.upgradeList}>
-                  {availableUpgrades.map((z) => (
-                    <Pressable
-                      key={z.id}
-                      onPress={() => setSelectedZoneId(z.id)}
-                      style={[
-                        styles.upgradeRow,
-                        {
-                          backgroundColor: selectedZoneId === z.id ? z.colorHex + "22" : C.inputBg,
-                          borderColor: selectedZoneId === z.id ? z.colorHex : C.border,
-                        },
-                      ]}
-                    >
-                      <View style={[styles.zoneDotLg, { backgroundColor: z.colorHex }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.upgradeZoneName, { color: C.text }]}>{z.name}</Text>
-                        {z.description ? (
-                          <Text style={[styles.upgradeZoneDesc, { color: C.textSecondary }]}>{z.description}</Text>
-                        ) : null}
-                      </View>
-                      {z.upgradePriceCop != null && z.upgradePriceCop > 0 ? (
-                        <CopAmount amount={z.upgradePriceCop} size={16} />
-                      ) : (
-                        <View style={[styles.freeBadge, { backgroundColor: C.successLight, borderColor: C.success }]}>
-                          <Text style={[styles.freeBadgeText, { color: C.success }]}>{t("zones.free")}</Text>
+                  {availableUpgrades.map((opt) => {
+                    const isSelected = selectedOption?.id === opt.id;
+                    const isMultiStep = opt.zonesGranted.length > 1;
+                    return (
+                      <Pressable
+                        key={opt.id}
+                        onPress={() => setSelectedOption(opt)}
+                        style={[
+                          styles.upgradeRow,
+                          {
+                            backgroundColor: isSelected ? opt.colorHex + "22" : C.inputBg,
+                            borderColor: isSelected ? opt.colorHex : C.border,
+                          },
+                        ]}
+                      >
+                        <View style={[styles.zoneDotLg, { backgroundColor: opt.colorHex }]} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.upgradeZoneName, { color: C.text }]}>{opt.name}</Text>
+                          {opt.description ? (
+                            <Text style={[styles.upgradeZoneDesc, { color: C.textSecondary }]}>{opt.description}</Text>
+                          ) : null}
+                          {/* Show "includes X zones" hint when jumping multiple levels */}
+                          {isMultiStep && (
+                            <Text style={[styles.multiStepHint, { color: C.textMuted }]}>
+                              {t("zones.includesZones", {
+                                zones: opt.zonesGranted.map((z) => z.name).join(", "),
+                              })}
+                            </Text>
+                          )}
                         </View>
-                      )}
-                      {selectedZoneId === z.id && (
-                        <Feather name="check-circle" size={20} color={z.colorHex} />
-                      )}
-                    </Pressable>
-                  ))}
+                        {/* Show TOTAL cumulative price, not just this zone's price */}
+                        {opt.totalUpgradePriceCop > 0 ? (
+                          <CopAmount amount={opt.totalUpgradePriceCop} size={16} />
+                        ) : (
+                          <View style={[styles.freeBadge, { backgroundColor: C.successLight, borderColor: C.success }]}>
+                            <Text style={[styles.freeBadgeText, { color: C.success }]}>{t("zones.free")}</Text>
+                          </View>
+                        )}
+                        {isSelected && (
+                          <Feather name="check-circle" size={20} color={opt.colorHex} />
+                        )}
+                      </Pressable>
+                    );
+                  })}
                 </View>
 
                 <Button
@@ -392,7 +461,7 @@ export default function UpgradeAccessScreen() {
                   onPress={handleConfirm}
                   variant="primary"
                   fullWidth
-                  disabled={!selectedZoneId}
+                  disabled={!selectedOption}
                   icon="arrow-up-circle"
                 />
               </View>
@@ -460,18 +529,34 @@ const styles = StyleSheet.create({
   errorMsg: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
   confirmCard: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16, alignItems: "center" },
   confirmTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
-  zonePillLarge: {
+  breakdownBox: {
+    width: "100%",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    gap: 12,
+  },
+  breakdownHeader: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  breakdownRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 100,
-    borderWidth: 2,
   },
-  zonePillLargeText: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  priceRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  priceLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  breakdownZoneName: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium" },
+  totalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 12,
+    borderTopWidth: 1,
+    marginTop: 4,
+  },
+  totalLabel: { fontSize: 15, fontFamily: "Inter_700Bold" },
   confirmActions: { flexDirection: "row", gap: 12, width: "100%" },
   writingCard: { borderRadius: 20, borderWidth: 1, padding: 28, alignItems: "center", gap: 16 },
   nfcIconWrap: {
@@ -499,6 +584,7 @@ const styles = StyleSheet.create({
   },
   upgradeZoneName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   upgradeZoneDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  multiStepHint: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
   freeBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
