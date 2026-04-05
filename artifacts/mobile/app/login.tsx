@@ -66,6 +66,8 @@ export default function LoginScreen() {
         setError(t("auth.networkError") ?? "No se puede conectar al servidor. Verifica tu conexión.");
       } else if (err === "Could not load user profile") {
         setError(t("auth.profileError") ?? "Error cargando perfil. Intenta de nuevo.");
+      } else if (err === "AttendeeNotAllowed") {
+        setError(t("auth.attendeeNotAllowed") ?? "Las cuentas de asistente deben iniciar sesión en la app de asistentes.");
       } else {
         setError(t("auth.invalidCredentials"));
       }

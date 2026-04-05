@@ -105,7 +105,8 @@
     "rememberMe": "Keep me signed in",
     "rememberMeHint": "Your session will be saved securely on this device",
     "networkError": "Network error — check your connection",
-    "profileError": "Could not load profile. Please try again."
+    "profileError": "Could not load profile. Please try again.",
+    "attendeeNotAllowed": "Attendee accounts must log in via the attendee app."
   },
   "passcode": {
     "enterPin": "Enter your PIN",

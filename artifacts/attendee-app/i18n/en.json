@@ -41,6 +41,7 @@
     "fillFields": "Please fill in all required fields",
     "passwordMinLength": "Password must be at least 6 characters",
     "networkError": "Cannot connect to server",
+    "staffNotAllowed": "Staff accounts must log in via the staff app.",
     "logoutConfirm": "Sign out?",
     "keepMeLoggedIn": "Keep me logged in",
     "keepMeLoggedInHint": "Your session will be saved securely on this device.",

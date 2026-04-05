@@ -109,7 +109,13 @@ export default function LoginScreen() {
       err = await register(email.trim(), password, firstName.trim(), lastName.trim(), fullPhone);
     }
     setSubmitting(false);
-    if (err) setError(err);
+    if (err) {
+      if (err === "StaffNotAllowed") {
+        setError(t("auth.staffNotAllowed") ?? "Las cuentas de staff deben iniciar sesión en la app de staff.");
+      } else {
+        setError(err);
+      }
+    }
   };
 
   const inputStyle = [

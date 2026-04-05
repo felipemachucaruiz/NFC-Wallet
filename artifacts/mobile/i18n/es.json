@@ -105,7 +105,8 @@
     "rememberMe": "Mantenerme conectado",
     "rememberMeHint": "Tu sesión se guardará de forma segura en este dispositivo",
     "networkError": "Error de red — verifica la conexión",
-    "profileError": "Error cargando perfil. Intenta de nuevo."
+    "profileError": "Error cargando perfil. Intenta de nuevo.",
+    "attendeeNotAllowed": "Las cuentas de asistente deben iniciar sesión en la app de asistentes."
   },
   "passcode": {
     "enterPin": "Ingresa tu PIN",

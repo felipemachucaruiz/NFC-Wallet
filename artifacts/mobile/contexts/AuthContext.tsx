@@ -197,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const u = await fetchUser(sid);
       if (!u) return "Could not load user profile";
       if (u === "network_error") return "Network error";
+      if (u.role === "attendee") return "AttendeeNotAllowed";
       if (rememberMe) {
         await storeToken(sid);
       } else {

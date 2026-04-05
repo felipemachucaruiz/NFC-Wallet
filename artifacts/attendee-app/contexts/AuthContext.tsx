@@ -132,6 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const u = await fetchCurrentUser(sid);
       if (!u) return "No se pudo cargar el perfil";
       if (u === "network_error") return "Error de red";
+      if (u.role !== "attendee") return "StaffNotAllowed";
       if (keepMeLoggedIn) await storeToken(sid);
       setAuthToken(sid);
       setUser(u as AuthUser);

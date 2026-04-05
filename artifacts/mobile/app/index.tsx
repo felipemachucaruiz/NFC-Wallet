@@ -15,9 +15,7 @@ export default function IndexScreen() {
     }
 
     const role = user?.role;
-    if (role === "attendee") {
-      router.replace("/(attendee)/home");
-    } else if (role === "bank") {
+    if (role === "bank") {
       router.replace("/(bank)/");
     } else if (role === "gate") {
       router.replace("/(gate)/");
