@@ -21,6 +21,7 @@ export interface AuthUser {
   profileImageUrl: string | null;
   role: string;
   merchantId: string | null;
+  emailVerified?: boolean;
 }
 
 interface AuthContextValue {

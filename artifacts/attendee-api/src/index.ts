@@ -1,8 +1,8 @@
 // gate role added to UserRole enum — force rebuild
+import { db, sessionsTable, wompiPaymentIntentsTable } from "@workspace/db";
+import { lt, eq, and } from "drizzle-orm";
 import app from "./app";
 import { logger } from "./lib/logger";
-import { db, wompiPaymentIntentsTable } from "@workspace/db";
-import { eq, and, lt } from "drizzle-orm";
 
 const rawPort = process.env["PORT"];
 
@@ -43,12 +43,30 @@ async function expireStalePaymentIntents(): Promise<void> {
   }
 }
 
+function startSessionCleanupJob(): void {
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  const runCleanup = async () => {
+    try {
+      const result = await db
+        .delete(sessionsTable)
+        .where(lt(sessionsTable.expire, new Date()));
+      logger.info({ deleted: (result as unknown as { rowCount?: number }).rowCount ?? 0 }, "Session cleanup: expired sessions removed");
+    } catch (err) {
+      logger.error({ err }, "Session cleanup job failed");
+    }
+  };
+  // Run once shortly after startup, then every hour
+  setTimeout(runCleanup, 10000);
+  setInterval(runCleanup, ONE_HOUR_MS);
+  logger.info("Session cleanup job scheduled (every 1 hour)");
+}
+
 app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
-
+  startSessionCleanupJob();
   logger.info({ port }, "Attendee API server listening");
 
   expireStalePaymentIntents().catch(() => {});

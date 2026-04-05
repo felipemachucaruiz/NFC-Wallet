@@ -7,6 +7,7 @@ import {
 } from "@workspace/api-zod";
 import { db, usersTable, merchantsTable, eventsTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
+import { createPartialSession } from "./twoFactor";
 import {
   clearSession,
   getOidcConfig,
@@ -169,6 +170,13 @@ router.post("/auth/login", async (req: Request, res: Response) => {
 
   if (!(STAFF_ROLES as readonly string[]).includes(user.role)) {
     res.status(403).json({ error: "Attendee accounts must log in via the attendee app" });
+    return;
+  }
+
+  // If this user has 2FA enabled, issue a short-lived partial session instead
+  if (user.totpEnabled && user.totpSecret) {
+    const partialToken = await createPartialSession(user.id);
+    res.json({ requires_2fa: true, partial_token: partialToken });
     return;
   }
 

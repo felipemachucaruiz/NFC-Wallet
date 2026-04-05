@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useEffect, useRef, useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +20,7 @@ type SetupStep = "prompt" | "enter" | "confirm";
 
 export default function LoginScreen() {
   const { t } = useTranslation();
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, verify2fa, isAuthenticated, isLoading } = useAuth();
   const { hasPasscode, setPasscode, skipPinPrompt, onLoginAttempted } = usePasscode();
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
@@ -35,6 +35,13 @@ export default function LoginScreen() {
 
   const [setupStep, setSetupStep] = useState<SetupStep | null>(null);
   const firstCodeRef = useRef("");
+
+  // 2FA state
+  const [totpModal, setTotpModal] = useState(false);
+  const [partialToken, setPartialToken] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [totpError, setTotpError] = useState<string | null>(null);
+  const [totpSubmitting, setTotpSubmitting] = useState(false);
 
   const player = useVideoPlayer(!isWeb ? loginBgVideo : null, (p) => {
     p.loop = true;
@@ -52,6 +59,17 @@ export default function LoginScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const completeLogin = async () => {
+    if (rememberMe && !hasPasscode && Platform.OS !== "web") {
+      const shouldShow = await onLoginAttempted();
+      if (shouldShow) {
+        setSetupStep("prompt");
+        return;
+      }
+    }
+    router.replace("/");
+  };
+
   const handleLogin = async () => {
     if (!identifier.trim() || !password) {
       setError(t("auth.fillFields"));
@@ -62,6 +80,14 @@ export default function LoginScreen() {
     const err = await login(identifier.trim(), password, rememberMe);
     setSubmitting(false);
     if (err) {
+      if (err.startsWith("REQUIRES_2FA:")) {
+        const pToken = err.slice("REQUIRES_2FA:".length);
+        setPartialToken(pToken);
+        setTotpCode("");
+        setTotpError(null);
+        setTotpModal(true);
+        return;
+      }
       if (err === "Network error") {
         setError(t("auth.networkError") ?? "No se puede conectar al servidor. Verifica tu conexión.");
       } else if (err === "Could not load user profile") {
@@ -73,16 +99,24 @@ export default function LoginScreen() {
       }
       return;
     }
-    // Check whether to show the PIN setup prompt BEFORE navigating away
-    if (rememberMe && !hasPasscode && Platform.OS !== "web") {
-      const shouldShow = await onLoginAttempted();
-      if (shouldShow) {
-        setSetupStep("prompt");
-        return; // Stay on login screen to show the PIN prompt
-      }
+    await completeLogin();
+  };
+
+  const handleVerify2fa = async () => {
+    setTotpError(null);
+    if (totpCode.length !== 6) {
+      setTotpError("Ingresa el código de 6 dígitos de tu autenticador.");
+      return;
     }
-    // All checks passed — navigate to role screen
-    router.replace("/");
+    setTotpSubmitting(true);
+    const err = await verify2fa(partialToken, totpCode, rememberMe);
+    setTotpSubmitting(false);
+    if (err) {
+      setTotpError(err === "Invalid 2FA code" ? "Código incorrecto. Intenta de nuevo." : err);
+      return;
+    }
+    setTotpModal(false);
+    await completeLogin();
   };
 
   const busy = isLoading || submitting;
@@ -264,6 +298,58 @@ export default function LoginScreen() {
           <Text style={[styles.disclaimer, { color: "rgba(255,255,255,0.35)" }]}>{t("auth.disclaimer")}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* 2FA verification modal */}
+      <Modal
+        visible={totpModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTotpModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setTotpModal(false)}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ width: "100%" }}>
+            <View style={[styles.totpSheet, { backgroundColor: "#161b22", borderColor: "rgba(255,255,255,0.1)" }]}>
+              <View style={[styles.totpIcon, { backgroundColor: "rgba(0,241,255,0.1)" }]}>
+                <Feather name="shield" size={28} color="#00f1ff" />
+              </View>
+              <Text style={styles.totpTitle}>Verificación en dos pasos</Text>
+              <Text style={styles.totpHint}>
+                Ingresa el código de 6 dígitos de tu aplicación autenticadora.
+              </Text>
+              <TextInput
+                style={[styles.totpInput, { backgroundColor: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.15)", color: "#fff" }]}
+                value={totpCode}
+                onChangeText={(v) => { setTotpCode(v.replace(/\D/g, "").slice(0, 6)); setTotpError(null); }}
+                placeholder="000000"
+                placeholderTextColor="rgba(255,255,255,0.25)"
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleVerify2fa}
+              />
+              {totpError && (
+                <View style={[styles.totpErrorBox, { backgroundColor: "rgba(239,68,68,0.15)" }]}>
+                  <Feather name="alert-circle" size={13} color="#ef4444" />
+                  <Text style={[styles.totpErrorText, { color: "#ef4444" }]}>{totpError}</Text>
+                </View>
+              )}
+              <Button
+                title={totpSubmitting ? "Verificando..." : "Verificar"}
+                onPress={handleVerify2fa}
+                variant="primary"
+                size="lg"
+                loading={totpSubmitting}
+                disabled={totpSubmitting || totpCode.length !== 6}
+                fullWidth
+              />
+              <Pressable onPress={() => setTotpModal(false)} style={styles.totpCancel}>
+                <Text style={styles.totpCancelText}>Cancelar</Text>
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -310,4 +396,64 @@ const styles = StyleSheet.create({
   selfServiceBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
   selfServiceBtnText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   disclaimer: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "flex-end",
+    alignItems: "stretch",
+  },
+  totpSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    padding: 28,
+    gap: 14,
+    alignItems: "center",
+  },
+  totpIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  totpTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    color: "#e6edf3",
+    textAlign: "center",
+  },
+  totpHint: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.5)",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  totpInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 8,
+    textAlign: "center",
+  },
+  totpErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 10,
+    borderRadius: 9,
+    width: "100%",
+  },
+  totpErrorText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+  totpCancel: { paddingVertical: 8 },
+  totpCancelText: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.4)",
+  },
 });

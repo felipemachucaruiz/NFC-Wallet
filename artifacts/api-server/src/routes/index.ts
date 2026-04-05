@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import authRouter from "./auth";
+import twoFactorRouter from "./twoFactor";
 import signingKeyRouter from "./signingKey";
 import attestationRouter from "./attestation";
 import usersRouter from "./users";
@@ -28,6 +29,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(twoFactorRouter);
 router.use(attestationRouter);
 router.use(signingKeyRouter);
 router.use(usersRouter);

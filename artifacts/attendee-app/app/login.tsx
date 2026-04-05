@@ -281,6 +281,17 @@ export default function LoginScreen() {
             size="lg"
             fullWidth
           />
+
+          {tab === "login" && (
+            <Pressable
+              onPress={() => router.push("/forgot-password")}
+              style={{ alignItems: "center", paddingVertical: 4 }}
+            >
+              <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#00f1ff" }}>
+                ¿Olvidaste tu contraseña?
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.features}>

@@ -48,6 +48,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (identifier: string, password: string, rememberMe?: boolean) => Promise<string | null>;
+  verify2fa: (partialToken: string, code: string, rememberMe?: boolean) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -193,10 +194,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json().catch(() => ({}));
         return (data as { error?: string }).error ?? "Invalid credentials";
       }
-      const { token: sid } = await res.json() as { token: string };
+      const data = await res.json() as { token?: string; requires_2fa?: boolean; partial_token?: string };
+      // 2FA challenge: return a special string so the login screen can show the TOTP modal
+      if (data.requires_2fa && data.partial_token) {
+        return `REQUIRES_2FA:${data.partial_token}`;
+      }
+      const sid = data.token!;
       const u = await fetchUser(sid);
       if (!u) return "Could not load user profile";
       if (u === "network_error") return "Network error";
+      if (u.role === "attendee") return "AttendeeNotAllowed";
+      if (rememberMe) {
+        await storeToken(sid);
+      } else {
+        await clearToken();
+      }
+      setAuthToken(sid);
+      setUser(u);
+      return null;
+    } catch {
+      return "Network error";
+    }
+  }, [fetchUser, setAuthToken]);
+
+  const verify2fa = useCallback(async (partialToken: string, code: string, rememberMe = true): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/2fa/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partial_token: partialToken, code }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return (data as { error?: string }).error ?? "Invalid code";
+      }
+      const { token: sid } = await res.json() as { token: string };
+      const u = await fetchUser(sid);
+      if (!u || u === "network_error") return "Could not load user profile";
       if (u.role === "attendee") return "AttendeeNotAllowed";
       if (rememberMe) {
         await storeToken(sid);
@@ -245,6 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
+        verify2fa,
         logout,
         refreshUser,
       }}

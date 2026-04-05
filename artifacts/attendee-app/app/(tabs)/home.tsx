@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyBracelets, useLinkBracelet } from "@/hooks/useAttendeeApi";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
+import { API_BASE_URL } from "@/constants/domain";
 
 const NFC_TAG_IMAGE = require("@/assets/images/tapee-nfc-tag.png");
 
@@ -45,7 +46,7 @@ export default function HomeScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const { data, isPending, refetch } = useMyBracelets();
   const bracelets = ((data as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
@@ -73,6 +74,27 @@ export default function HomeScreen() {
     });
     return () => subscription.remove();
   }, [refetch]);
+
+  const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [verificationResent, setVerificationResent] = useState(false);
+
+  const handleResendVerification = async () => {
+    if (resendingVerification || !token) return;
+    setResendingVerification(true);
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/resend-verification`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setVerificationResent(true);
+      setTimeout(() => setVerificationResent(false), 5000);
+    } catch {
+      // silent
+    } finally {
+      setResendingVerification(false);
+    }
+  };
 
   const [nfcAvailable, setNfcAvailable] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -231,6 +253,33 @@ export default function HomeScreen() {
       </LinearGradient>
 
       <View style={[styles.content, { paddingHorizontal: 20 }]}>
+        {/* Email verification banner */}
+        {user?.email && user.emailVerified === false && !verifyBannerDismissed && (
+          <View style={[styles.verifyBanner, { backgroundColor: "rgba(234,179,8,0.10)", borderColor: "rgba(234,179,8,0.35)" }]}>
+            <Feather name="mail" size={16} color="#eab308" style={{ marginTop: 1 }} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <Text style={[styles.verifyBannerTitle, { color: "#eab308" }]}>
+                Verifica tu correo electrónico
+              </Text>
+              <Text style={[styles.verifyBannerText, { color: "rgba(234,179,8,0.8)" }]}>
+                Tu cuenta está activa, pero aún no has verificado tu correo. Revisa tu bandeja de entrada.
+              </Text>
+              <Pressable onPress={handleResendVerification} disabled={resendingVerification}>
+                <Text style={[styles.verifyBannerAction, { color: "#eab308" }]}>
+                  {verificationResent
+                    ? "✓ Correo enviado"
+                    : resendingVerification
+                    ? "Enviando..."
+                    : "Reenviar correo de verificación"}
+                </Text>
+              </Pressable>
+            </View>
+            <Pressable onPress={() => setVerifyBannerDismissed(true)} style={{ padding: 4 }}>
+              <Feather name="x" size={16} color="rgba(234,179,8,0.6)" />
+            </Pressable>
+          </View>
+        )}
+
         {bracelets.length > 0 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
@@ -425,6 +474,18 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
   addBraceletBtn: { marginTop: 4, minWidth: 200 },
   content: { paddingTop: 24, gap: 8 },
+  verifyBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  verifyBannerTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  verifyBannerText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  verifyBannerAction: { fontSize: 12, fontFamily: "Inter_600SemiBold", textDecorationLine: "underline" },
   section: { gap: 10, marginBottom: 16 },
   sectionTitle: {
     fontSize: 11,

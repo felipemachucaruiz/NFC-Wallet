@@ -1,5 +1,7 @@
 // gate role added to UserRole enum — force rebuild
 import { pool } from "@workspace/db";
+import { db, sessionsTable } from "@workspace/db";
+import { lt } from "drizzle-orm";
 import app from "./app";
 import { logger } from "./lib/logger";
 
@@ -78,6 +80,39 @@ async function runStartupMigrations(): Promise<void> {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS gate_zone_id         varchar;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked           boolean NOT NULL DEFAULT false;
 
+      -- ── users: auth security columns (task-85) ────────────────────────────
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified       boolean NOT NULL DEFAULT false;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret          varchar;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled         boolean NOT NULL DEFAULT false;
+
+      -- ── password_reset_tokens table ───────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        token      varchar PRIMARY KEY,
+        user_id    varchar NOT NULL,
+        expires_at timestamptz NOT NULL,
+        used       boolean NOT NULL DEFAULT false,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS IDX_password_reset_tokens_user_id ON password_reset_tokens (user_id);
+
+      -- ── email_verification_tokens table ───────────────────────────────────
+      CREATE TABLE IF NOT EXISTS email_verification_tokens (
+        token      varchar PRIMARY KEY,
+        user_id    varchar NOT NULL,
+        expires_at timestamptz NOT NULL,
+        used       boolean NOT NULL DEFAULT false,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS IDX_email_verification_tokens_user_id ON email_verification_tokens (user_id);
+
+      -- ── partial_sessions table (2FA challenge sessions) ───────────────────
+      CREATE TABLE IF NOT EXISTS partial_sessions (
+        sid        varchar PRIMARY KEY,
+        user_id    varchar NOT NULL,
+        expires_at timestamptz NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+
       -- ── bracelets: recent columns ──────────────────────────────────────────
       ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS access_zone_ids  text[] NOT NULL DEFAULT '{}';
       ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS max_offline_spend integer;
@@ -120,8 +155,27 @@ async function runStartupMigrations(): Promise<void> {
   }
 }
 
+function startSessionCleanupJob(): void {
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  const runCleanup = async () => {
+    try {
+      const result = await db
+        .delete(sessionsTable)
+        .where(lt(sessionsTable.expire, new Date()));
+      logger.info({ deleted: (result as unknown as { rowCount?: number }).rowCount ?? 0 }, "Session cleanup: expired sessions removed");
+    } catch (err) {
+      logger.error({ err }, "Session cleanup job failed");
+    }
+  };
+  // Run once shortly after startup, then every hour
+  setTimeout(runCleanup, 5000);
+  setInterval(runCleanup, ONE_HOUR_MS);
+  logger.info("Session cleanup job scheduled (every 1 hour)");
+}
+
 runStartupMigrations()
   .then(() => {
+    startSessionCleanupJob();
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

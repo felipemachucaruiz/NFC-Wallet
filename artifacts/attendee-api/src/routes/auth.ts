@@ -1,5 +1,6 @@
 import * as oidc from "openid-client";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import {
@@ -8,8 +9,15 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { db, usersTable, merchantsTable, eventsTable } from "@workspace/db";
-import { eq, or } from "drizzle-orm";
+import {
+  db,
+  usersTable,
+  merchantsTable,
+  eventsTable,
+  passwordResetTokensTable,
+  emailVerificationTokensTable,
+} from "@workspace/db";
+import { and, eq, lt, or } from "drizzle-orm";
 import {
   clearSession,
   getOidcConfig,
@@ -21,6 +29,11 @@ import {
   ISSUER_URL,
   type SessionData,
 } from "../lib/auth";
+import {
+  sendEmail,
+  buildPasswordResetEmail,
+  buildVerificationEmail,
+} from "../lib/email";
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 
@@ -115,6 +128,18 @@ router.get("/auth/user", async (req: Request, res: Response) => {
     // Non-fatal: names are display-only
   }
 
+  // Fetch emailVerified for this user
+  let emailVerified = false;
+  try {
+    const [dbUser] = await db
+      .select({ emailVerified: usersTable.emailVerified })
+      .from(usersTable)
+      .where(eq(usersTable.id, u.id));
+    emailVerified = dbUser?.emailVerified ?? false;
+  } catch {
+    // Non-fatal
+  }
+
   res.json({
     ...GetCurrentAuthUserResponse.parse({ user: u }),
     user: {
@@ -123,6 +148,7 @@ router.get("/auth/user", async (req: Request, res: Response) => {
       merchantType,
       eventName,
       gateZoneId: (u as unknown as { gateZoneId?: string | null }).gateZoneId ?? null,
+      emailVerified,
     },
   });
 });
@@ -237,10 +263,213 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
       lastName: lastName ?? null,
       phone: phone ?? null,
       role: "attendee",
+      emailVerified: false,
     })
     .returning();
 
-  res.status(201).json({ id: newUser.id, email: newUser.email, username: newUser.username, role: newUser.role });
+  // Send email verification if they registered with an email
+  if (normalizedEmail) {
+    try {
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await db.insert(emailVerificationTokensTable).values({
+        token,
+        userId: newUser.id,
+        expiresAt,
+      });
+
+      const origin = getOrigin(req);
+      const verifyUrl = `${origin}/api/auth/verify-email?token=${token}`;
+      const emailContent = buildVerificationEmail({ firstName: newUser.firstName, verifyUrl });
+      await sendEmail({
+        to: normalizedEmail,
+        toName: [newUser.firstName, newUser.lastName].filter(Boolean).join(" ") || undefined,
+        ...emailContent,
+      });
+    } catch {
+      // Non-fatal — account is created, verification email is best-effort
+    }
+  }
+
+  res.status(201).json({
+    id: newUser.id,
+    email: newUser.email,
+    username: newUser.username,
+    role: newUser.role,
+    emailVerified: newUser.emailVerified,
+  });
+});
+
+// ── Password reset ──────────────────────────────────────────────────────────
+
+const ForgotPasswordBody = z.object({
+  email: z.string().email(),
+});
+
+router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+  const parsed = ForgotPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid email address is required" });
+    return;
+  }
+
+  const { email } = parsed.data;
+  const lower = email.toLowerCase().trim();
+
+  // Always respond 200 to avoid user enumeration
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(and(eq(usersTable.email, lower), eq(usersTable.role, "attendee")));
+
+  if (user) {
+    try {
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await db.insert(passwordResetTokensTable).values({
+        token,
+        userId: user.id,
+        expiresAt,
+      });
+
+      const origin = getOrigin(req);
+      const resetUrl = `${origin}/attendee-app/reset-password?token=${token}`;
+      const emailContent = buildPasswordResetEmail({ firstName: user.firstName, resetUrl });
+      await sendEmail({
+        to: lower,
+        toName: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
+        ...emailContent,
+      });
+    } catch {
+      // Non-fatal — don't leak errors
+    }
+  }
+
+  res.json({ message: "If an account with that email exists, a reset link has been sent." });
+});
+
+const ResetPasswordBody = z.object({
+  token: z.string().min(1),
+  password: z.string().min(6),
+});
+
+router.post("/auth/reset-password", async (req: Request, res: Response) => {
+  const parsed = ResetPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Token and new password (min 6 chars) are required" });
+    return;
+  }
+
+  const { token, password } = parsed.data;
+
+  const [resetToken] = await db
+    .select()
+    .from(passwordResetTokensTable)
+    .where(eq(passwordResetTokensTable.token, token));
+
+  if (!resetToken || resetToken.used || resetToken.expiresAt < new Date()) {
+    res.status(400).json({ error: "This reset link is invalid or has expired" });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(usersTable)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(usersTable.id, resetToken.userId));
+
+    await tx
+      .update(passwordResetTokensTable)
+      .set({ used: true })
+      .where(eq(passwordResetTokensTable.token, token));
+  });
+
+  res.json({ message: "Password updated successfully. You can now log in." });
+});
+
+// ── Email verification ──────────────────────────────────────────────────────
+
+router.get("/auth/verify-email", async (req: Request, res: Response) => {
+  const token = typeof req.query.token === "string" ? req.query.token : null;
+
+  if (!token) {
+    res.status(400).json({ error: "Verification token is required" });
+    return;
+  }
+
+  const [verifyToken] = await db
+    .select()
+    .from(emailVerificationTokensTable)
+    .where(eq(emailVerificationTokensTable.token, token));
+
+  if (!verifyToken || verifyToken.used || verifyToken.expiresAt < new Date()) {
+    res.status(400).json({ error: "This verification link is invalid or has expired" });
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(usersTable)
+      .set({ emailVerified: true, updatedAt: new Date() })
+      .where(eq(usersTable.id, verifyToken.userId));
+
+    await tx
+      .update(emailVerificationTokensTable)
+      .set({ used: true })
+      .where(eq(emailVerificationTokensTable.token, token));
+  });
+
+  // Redirect to the app with a success indicator
+  const origin = getOrigin(req);
+  res.redirect(`${origin}/attendee-app/?emailVerified=1`);
+});
+
+router.post("/auth/resend-verification", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, req.user.id));
+
+  if (!user || !user.email) {
+    res.status(400).json({ error: "No email address on file" });
+    return;
+  }
+
+  if (user.emailVerified) {
+    res.status(400).json({ error: "Email is already verified" });
+    return;
+  }
+
+  try {
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await db.insert(emailVerificationTokensTable).values({
+      token,
+      userId: user.id,
+      expiresAt,
+    });
+
+    const origin = getOrigin(req);
+    const verifyUrl = `${origin}/api/auth/verify-email?token=${token}`;
+    const emailContent = buildVerificationEmail({ firstName: user.firstName, verifyUrl });
+    await sendEmail({
+      to: user.email,
+      toName: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
+      ...emailContent,
+    });
+
+    res.json({ message: "Verification email sent" });
+  } catch {
+    res.status(500).json({ error: "Failed to send verification email" });
+  }
 });
 
 router.get("/login", async (req: Request, res: Response) => {
