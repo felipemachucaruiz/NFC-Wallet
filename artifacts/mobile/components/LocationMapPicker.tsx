@@ -240,69 +240,59 @@ function FullMapPicker({ visible, initialLatitude, initialLongitude, onConfirm, 
 
         <View style={[mapStyles.searchContainer, { backgroundColor: C.card, borderBottomColor: C.border }]}>
           <View style={mapStyles.searchHintRow}>
-            <Feather name="search" size={13} color={C.primary} />
+            <Feather name="search" size={12} color={C.primary} />
             <Text style={[mapStyles.searchHintText, { color: C.textSecondary }]}>
               {t("admin.searchVenueHint") || "Escribe el nombre del lugar o la dirección y selecciona de la lista"}
             </Text>
           </View>
-          <View style={[
-            mapStyles.searchInputWrapper,
-            {
-              borderColor: searchFocused ? C.primary : C.border,
-              backgroundColor: C.inputBg,
-              shadowColor: searchFocused ? C.primary : "transparent",
-            },
-          ]}>
-            <Feather name="map-pin" size={16} color={searchFocused ? C.primary : C.textMuted} style={mapStyles.searchIcon} />
-            <GPA
-              placeholder={t("admin.searchVenuePlaceholder") || "Nombre del lugar o dirección…"}
-              onPress={(data: any, details: any) => {
-                if (!details?.geometry?.location) return;
-                const { lat, lng } = details.geometry.location;
-                animateTo(lat, lng);
-                setAddress(data.description);
-                setSearchFocused(false);
-              }}
-              query={{ key: GOOGLE_MAPS_API_KEY, language: "es" }}
-              fetchDetails
-              enablePoweredByContainer={false}
-              keepResultsAfterBlur={false}
-              keyboardShouldPersistTaps="handled"
-              textInputProps={{
-                onFocus: () => setSearchFocused(true),
-                onBlur: () => setSearchFocused(false),
-                placeholderTextColor: C.textMuted,
-              }}
-              styles={{
-                container: { flex: 1 },
-                textInputContainer: { backgroundColor: "transparent", paddingHorizontal: 0 },
-                textInput: {
-                  height: 44,
-                  borderRadius: 0,
-                  borderWidth: 0,
-                  backgroundColor: "transparent",
-                  color: C.text,
-                  paddingHorizontal: 8,
-                  paddingLeft: 4,
-                  fontSize: 14,
-                  fontFamily: "Inter_400Regular",
-                  marginBottom: 0,
-                },
-                listView: {
-                  backgroundColor: C.card,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: C.primary,
-                  marginTop: 6,
-                  zIndex: 9999,
-                  elevation: 8,
-                },
-                row: { backgroundColor: C.card, padding: 12 },
-                description: { color: C.text, fontSize: 13, fontFamily: "Inter_400Regular" },
-                separator: { backgroundColor: C.border, height: StyleSheet.hairlineWidth },
-              }}
-            />
-          </View>
+          <GPA
+            placeholder={t("admin.searchVenuePlaceholder") || "Nombre del lugar o dirección…"}
+            onPress={(data: any, details: any) => {
+              if (!details?.geometry?.location) return;
+              const { lat, lng } = details.geometry.location;
+              animateTo(lat, lng);
+              setAddress(data.description);
+              setSearchFocused(false);
+            }}
+            query={{ key: GOOGLE_MAPS_API_KEY, language: "es" }}
+            fetchDetails
+            enablePoweredByContainer={false}
+            keepResultsAfterBlur={false}
+            keyboardShouldPersistTaps="handled"
+            textInputProps={{
+              onFocus: () => setSearchFocused(true),
+              onBlur: () => setSearchFocused(false),
+              placeholderTextColor: C.textMuted,
+            }}
+            styles={{
+              container: { flex: 0 },
+              textInputContainer: { backgroundColor: "transparent", paddingHorizontal: 0 },
+              textInput: {
+                height: 46,
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: searchFocused ? C.primary : C.border,
+                backgroundColor: C.inputBg,
+                color: C.text,
+                paddingHorizontal: 14,
+                fontSize: 14,
+                fontFamily: "Inter_400Regular",
+                marginBottom: 0,
+              },
+              listView: {
+                backgroundColor: C.card,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: C.border,
+                marginTop: 6,
+                zIndex: 9999,
+                elevation: 6,
+              },
+              row: { backgroundColor: C.card, padding: 12 },
+              description: { color: C.text, fontSize: 13, fontFamily: "Inter_400Regular" },
+              separator: { backgroundColor: C.border, height: StyleSheet.hairlineWidth },
+            }}
+          />
         </View>
 
         <MV
@@ -434,19 +424,6 @@ const mapStyles = StyleSheet.create({
   searchContainer: { paddingHorizontal: 16, paddingVertical: 10, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 100 },
   searchHintRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 8 },
   searchHintText: { fontSize: 11, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 15 },
-  searchInputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingLeft: 12,
-    overflow: "hidden",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 6,
-    elevation: 0,
-  },
-  searchIcon: { marginRight: 2 },
   map: { flex: 1 },
   gpsButton: {
     position: "absolute",
