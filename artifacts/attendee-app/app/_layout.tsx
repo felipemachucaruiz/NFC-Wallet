@@ -17,7 +17,6 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AlertProvider } from "@/components/CustomAlert";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
-import { UpdateBanner } from "@/components/UpdateBanner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { initI18n } from "@/i18n";
 import { initNfc } from "@/utils/nfc";
@@ -100,7 +99,6 @@ export default function RootLayout() {
                 <KeyboardProvider>
                   <AlertProvider>
                     <AppInner />
-                    <UpdateBanner />
                     {!splashDone && (
                       <AnimatedSplash onFinished={() => setSplashDone(true)} />
                     )}

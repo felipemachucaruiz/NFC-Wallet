@@ -26,7 +26,6 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { CartProvider } from "@/contexts/CartContext";
 import { OfflineQueueProvider } from "@/contexts/OfflineQueueContext";
 import { ZoneCacheProvider } from "@/contexts/ZoneCacheContext";
-import { UpdateBanner } from "@/components/UpdateBanner";
 import { AlertProvider, useAlert } from "@/components/CustomAlert";
 import { initI18n } from "@/i18n";
 import { initNfc } from "@/utils/nfc";
@@ -198,7 +197,6 @@ export default function RootLayout() {
                             {!splashDone && (
                               <AnimatedSplash onFinished={() => setSplashDone(true)} />
                             )}
-                            <UpdateBanner />
                           </AlertProvider>
                         </KeyboardProvider>
                       </GestureHandlerRootView>
