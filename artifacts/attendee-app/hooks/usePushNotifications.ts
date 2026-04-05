@@ -1,33 +1,39 @@
 import { useEffect, useRef } from "react";
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import { router } from "expo-router";
 import { useRegisterPushToken } from "@/hooks/useAttendeeApi";
 import Constants from "expo-constants";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+type NotificationsModule = typeof import("expo-notifications");
+type EventSubscription = import("expo-notifications").EventSubscription;
+
+let Notifications: NotificationsModule | null = null;
+try {
+  Notifications = require("expo-notifications");
+  Notifications!.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch {}
 
 export function usePushNotifications(isAuthenticated: boolean) {
   const { mutate: registerToken } = useRegisterPushToken();
-  const responseListenerRef = useRef<Notifications.EventSubscription | null>(null);
+  const responseListenerRef = useRef<EventSubscription | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated || Platform.OS === "web") return;
+    if (!isAuthenticated || Platform.OS === "web" || !Notifications) return;
 
     let cancelled = false;
 
     (async () => {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      const { status: existingStatus } = await Notifications!.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
+        const { status } = await Notifications!.requestPermissionsAsync();
         finalStatus = status;
       }
 
@@ -38,16 +44,15 @@ export function usePushNotifications(isAuthenticated: boolean) {
           Constants.expoConfig?.extra?.eas?.projectId ??
           Constants.easConfig?.projectId;
         if (!projectId) return;
-        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+        const tokenData = await Notifications!.getExpoPushTokenAsync({ projectId });
         if (!cancelled) {
           registerToken(tokenData.data);
         }
       } catch {}
     })();
 
-    responseListenerRef.current = Notifications.addNotificationResponseReceivedListener((response) => {
+    responseListenerRef.current = Notifications!.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as Record<string, unknown> | null;
-      // Only navigate if the notification explicitly requests it
       if (data?.navigate === "history") {
         router.push("/(tabs)/history");
       }
