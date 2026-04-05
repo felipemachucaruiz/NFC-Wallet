@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useUpdateBraceletContact, useGetSigningKey, type SigningKeyResponse } from "@workspace/api-client-react";
 import { useAttestationContext } from "@/contexts/AttestationContext";
 import Colors from "@/constants/colors";
@@ -20,6 +21,47 @@ import { computeHmac } from "@/utils/hmac";
 import { formatCOP, parseCOPInput } from "@/utils/format";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
+
+const PENDING_NFC_WRITES_KEY = "@pendingNfcWrites";
+
+export interface PendingNfcWrite {
+  id: string;
+  nfcUid: string;
+  amountCop: number;
+  newBalance: number;
+  savedAt: string;
+}
+
+export async function addPendingNfcWrite(entry: PendingNfcWrite): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_NFC_WRITES_KEY);
+    const existing: PendingNfcWrite[] = raw ? JSON.parse(raw) : [];
+    existing.push(entry);
+    await AsyncStorage.setItem(PENDING_NFC_WRITES_KEY, JSON.stringify(existing));
+  } catch (e) {
+    console.error("[PendingNfcWrites] Failed to save pending write:", e);
+  }
+}
+
+export async function getPendingNfcWrites(): Promise<PendingNfcWrite[]> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_NFC_WRITES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function removePendingNfcWrite(id: string): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_NFC_WRITES_KEY);
+    const existing: PendingNfcWrite[] = raw ? JSON.parse(raw) : [];
+    const updated = existing.filter((e) => e.id !== id);
+    await AsyncStorage.setItem(PENDING_NFC_WRITES_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error("[PendingNfcWrites] Failed to remove entry:", e);
+  }
+}
 
 function parsePhoneParam(raw: string | undefined): { country: CountryCode; number: string } {
   if (!raw) return { country: COUNTRY_CODES[0], number: "" };
@@ -65,13 +107,14 @@ const tagBadgeStyles = StyleSheet.create({
 });
 
 // Steps:
-//  "form"      — user fills in amount / payment method
-//  "writing"   — NFC write in progress (first, before saving)
-//  "tap_write" — waiting for user to tap card
-//  "saving"    — server sync in progress (after write)
-//  "success"   — done (with optional write warning)
+//  "form"         — user fills in amount / payment method
+//  "writing"      — NFC write in progress (first, before saving)
+//  "tap_write"    — waiting for user to tap card
+//  "write_failed" — all 3 retries exhausted, server updated but chip not written
+//  "saving"       — server sync in progress (after write)
+//  "success"      — done (with optional write warning)
 
-type Step = "form" | "tap_write" | "writing" | "saving" | "success";
+type Step = "form" | "tap_write" | "writing" | "write_failed" | "saving" | "success";
 
 export default function TopUpScreen() {
   const { t } = useTranslation();
@@ -113,6 +156,7 @@ export default function TopUpScreen() {
   const [writeError, setWriteError] = useState<string | null>(null);
   const [writeRetryCount, setWriteRetryCount] = useState(0);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const submittingRef = useRef(false);
   const writingRef = useRef(false);
   const cancelledRef = useRef(false);
@@ -149,6 +193,7 @@ export default function TopUpScreen() {
       setWriteError(null);
       setWriteRetryCount(0);
       setIsRetrying(false);
+      setShowSkipConfirm(false);
       writeRetryRef.current = 0;
       submittingRef.current = false;
       writingRef.current = false;
@@ -296,7 +341,6 @@ export default function TopUpScreen() {
       } catch (e: unknown) {
         if (cancelledRef.current) return;
         const msg = e instanceof Error ? e.message : String(e);
-        console.warn("[TopUp] NFC write failed:", msg);
 
         const attempt = writeRetryRef.current;
         if (attempt < MAX_WRITE_RETRIES) {
@@ -308,12 +352,19 @@ export default function TopUpScreen() {
             await attemptWrite();
           }
         } else {
+          console.error("[TopUp] NFC write failed — all retries exhausted", {
+            nfcUid: uid,
+            amountCop: amount,
+            newBalance,
+            timestamp: new Date().toISOString(),
+            error: msg,
+          });
           writingRef.current = false;
           setIsRetrying(false);
           setWriteRetryCount(0);
           writeRetryRef.current = 0;
           setWriteError(msg);
-          setStep("tap_write");
+          setStep("write_failed");
         }
       }
     };
@@ -328,13 +379,45 @@ export default function TopUpScreen() {
     }
   }, [step]);
 
-  const handleSkipWrite = async () => {
+  const handleSkipWrite = () => {
+    setShowSkipConfirm(true);
+  };
+
+  const handleConfirmSkip = async () => {
+    setShowSkipConfirm(false);
     cancelledRef.current = true;
     await cancelNfc().catch(() => {});
     writingRef.current = false;
     submittingRef.current = false;
+    await addPendingNfcWrite({
+      id: `${uid}_${Date.now()}`,
+      nfcUid: uid,
+      amountCop: amount,
+      newBalance,
+      savedAt: new Date().toISOString(),
+    });
+    try {
+      await enqueueTopUp({
+        nfcUid: uid,
+        amountCop: amount,
+        paymentMethod,
+        newBalance,
+        newCounter,
+        hmac: "",
+      });
+      void syncNow().catch(() => {});
+    } catch {
+    }
     setStep("form");
     showAlert(t("common.error"), t("bank.nfcWriteWarning"));
+  };
+
+  const handleRetryFromFailed = async () => {
+    cancelledRef.current = false;
+    writeRetryRef.current = 0;
+    setWriteRetryCount(0);
+    setWriteError(null);
+    setStep("tap_write");
   };
 
   const handleCancelWriting = async () => {
@@ -517,7 +600,7 @@ export default function TopUpScreen() {
         visible={step === "tap_write" || step === "writing"}
         transparent
         animationType="fade"
-        onRequestClose={handleSkipWrite}
+        onRequestClose={handleCancelWriting}
       >
         <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.65)" }]}>
           <View style={[styles.modalBox, { backgroundColor: C.card }]}>
@@ -570,12 +653,80 @@ export default function TopUpScreen() {
                   </View>
                 )}
 
-                <Pressable onPress={handleSkipWrite} style={[styles.cancelBtn, { borderColor: C.border }]}>
-                  <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("bank.skipWrite")}</Text>
+                <Pressable onPress={handleCancelWriting} style={[styles.cancelBtn, { borderColor: C.border }]}>
+                  <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("common.cancel")}</Text>
                 </Pressable>
               </>
             )}
 
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── All-retries-exhausted modal ── */}
+      <Modal
+        visible={step === "write_failed"}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
+          <View style={[styles.modalBox, { backgroundColor: C.card }]}>
+            <View style={[styles.failedIconBox, { backgroundColor: C.dangerLight ?? "#FEE2E2" }]}>
+              <Feather name="alert-octagon" size={40} color={C.danger ?? "#EF4444"} />
+            </View>
+            <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
+              {t("bank.allRetriesExhausted")}
+            </Text>
+            <View style={[styles.failedDetailBox, { backgroundColor: C.dangerLight ?? "#FEE2E2", borderColor: C.danger ?? "#EF4444" }]}>
+              <Text style={[styles.failedDetailText, { color: C.danger ?? "#991B1B" }]}>
+                {t("bank.allRetriesExhaustedDetail")}
+              </Text>
+            </View>
+            <Button
+              title={t("bank.tryAgainWrite")}
+              onPress={handleRetryFromFailed}
+              variant="primary"
+              size="lg"
+              fullWidth
+            />
+            <Pressable onPress={handleSkipWrite} style={[styles.cancelBtn, { borderColor: C.border }]}>
+              <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("bank.skipWriteLater")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Skip confirmation dialog ── */}
+      <Modal
+        visible={showSkipConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSkipConfirm(false)}
+      >
+        <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
+          <View style={[styles.modalBox, { backgroundColor: C.card }]}>
+            <View style={[styles.failedIconBox, { backgroundColor: C.warningLight ?? "#FFF3CD" }]}>
+              <Feather name="alert-triangle" size={36} color={C.warning ?? "#F59E0B"} />
+            </View>
+            <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
+              {t("bank.skipWriteConfirmTitle")}
+            </Text>
+            <View style={[styles.failedDetailBox, { backgroundColor: C.warningLight ?? "#FFF3CD", borderColor: C.warning ?? "#F59E0B" }]}>
+              <Text style={[styles.failedDetailText, { color: C.text }]}>
+                {t("bank.skipWriteConfirmDetail")}
+              </Text>
+            </View>
+            <Button
+              title={t("bank.skipWriteConfirm")}
+              onPress={handleConfirmSkip}
+              variant="secondary"
+              size="lg"
+              fullWidth
+            />
+            <Pressable onPress={() => setShowSkipConfirm(false)} style={[styles.cancelBtn, { borderColor: C.border }]}>
+              <Text style={[styles.cancelText, { color: C.primary }]}>{t("bank.tryAgainWrite")}</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -620,4 +771,7 @@ const styles = StyleSheet.create({
   errorCode: { fontSize: 10, fontFamily: "Inter_400Regular", opacity: 0.75, fontVariant: ["tabular-nums"] },
   cancelBtn: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32 },
   cancelText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  failedIconBox: { width: 80, height: 80, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+  failedDetailBox: { borderWidth: 1, borderRadius: 12, padding: 14, width: "100%" },
+  failedDetailText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 },
 });

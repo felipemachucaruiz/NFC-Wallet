@@ -22,6 +22,8 @@ import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 import { useAuth } from "@/contexts/AuthContext";
 import type { NfcChipType } from "@/contexts/EventContext";
 import { useZoneCache } from "@/contexts/ZoneCacheContext";
+import { getPendingNfcWrites, removePendingNfcWrite, type PendingNfcWrite } from "./topup";
+import { formatCOP } from "@/utils/format";
 
 interface BraceletState {
   uid: string;
@@ -99,6 +101,7 @@ export default function BankLookupScreen() {
   const [fetchUid, setFetchUid] = useState<string | null>(null);
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [pendingNfcWrites, setPendingNfcWrites] = useState<PendingNfcWrite[]>([]);
   const scanningRef = useRef(false);
   const cancelledRef = useRef(false);
 
@@ -110,6 +113,7 @@ export default function BankLookupScreen() {
       setTagInfo(null);
       scanningRef.current = false;
       cancelledRef.current = false;
+      getPendingNfcWrites().then(setPendingNfcWrites).catch(() => {});
 
       if (isNfcSupported()) {
         setIsTapping(true);
@@ -494,6 +498,50 @@ export default function BankLookupScreen() {
         </Card>
       )}
 
+      {pendingNfcWrites.length > 0 && (
+        <Card>
+          <View style={styles.pendingWritesHeader}>
+            <View style={[styles.pendingWritesIconBox, { backgroundColor: C.dangerLight ?? "#FEE2E2" }]}>
+              <Feather name="alert-octagon" size={18} color={C.danger ?? "#EF4444"} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.pendingWritesTitle, { color: C.text }]}>
+                {t("bank.pendingNfcWritesTitle")}
+              </Text>
+              <Text style={[styles.pendingWritesSubtitle, { color: C.textSecondary }]}>
+                {t("bank.pendingNfcWritesSubtitle", { count: pendingNfcWrites.length })}
+              </Text>
+            </View>
+          </View>
+          {pendingNfcWrites.map((pw) => (
+            <View key={pw.id} style={[styles.pendingWriteItem, { borderColor: C.border }]}>
+              <Feather name="wifi-off" size={14} color={C.danger ?? "#EF4444"} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.pendingWriteAmount, { color: C.text }]}>
+                  {formatCOP(pw.amountCop)} — {pw.nfcUid}
+                </Text>
+                <Text style={[styles.pendingWriteTime, { color: C.textMuted }]}>
+                  {t("bank.pendingNfcWriteAt", { time: new Date(pw.savedAt).toLocaleTimeString() })}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    removePendingNfcWrite(pw.id).then(() =>
+                      setPendingNfcWrites((prev) => prev.filter((e) => e.id !== pw.id))
+                    );
+                  }}
+                  style={[styles.pendingWriteResolveBtn, { borderColor: C.border }]}
+                >
+                  <Feather name="check" size={11} color={C.textSecondary} />
+                  <Text style={[styles.pendingWriteResolveText, { color: C.textSecondary }]}>
+                    {t("bank.clearPendingNfcWrite")}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </Card>
+      )}
+
       <Card>
         <View style={styles.quickLinks}>
           <Pressable
@@ -606,4 +654,13 @@ const styles = StyleSheet.create({
   zoneBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, borderWidth: 2 },
   zoneDot: { width: 8, height: 8, borderRadius: 4 },
   zoneBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  pendingWritesHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
+  pendingWritesIconBox: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  pendingWritesTitle: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  pendingWritesSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  pendingWriteItem: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 10, borderTopWidth: 1 },
+  pendingWriteAmount: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  pendingWriteTime: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  pendingWriteResolveBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6, borderWidth: 1, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, alignSelf: "flex-start" },
+  pendingWriteResolveText: { fontSize: 11, fontFamily: "Inter_500Medium" },
 });
