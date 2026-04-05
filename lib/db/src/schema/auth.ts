@@ -45,6 +45,7 @@ export const usersTable = pgTable("users", {
    */
   gateZoneId: varchar("gate_zone_id"),
   isBlocked: boolean("is_blocked").notNull().default(false),
+  isSuspended: boolean("is_suspended").notNull().default(false),
   // Email verification
   emailVerified: boolean("email_verified").notNull().default(false),
   // TOTP 2FA (admin/merchant-admin only)

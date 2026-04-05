@@ -168,6 +168,11 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     return;
   }
 
+  if (user.isSuspended) {
+    res.status(403).json({ error: "ACCOUNT_SUSPENDED: Tu cuenta está suspendida temporalmente. Contacta al administrador." });
+    return;
+  }
+
   if (!(STAFF_ROLES as readonly string[]).includes(user.role)) {
     res.status(403).json({ error: "Attendee accounts must log in via the attendee app" });
     return;

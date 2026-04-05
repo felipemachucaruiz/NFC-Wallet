@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, refundsTable } from "@workspace/db";
+import { db, braceletsTable, refundsTable, attendeeRefundRequestsTable } from "@workspace/db";
 import { eq, and, gt, gte, lte, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -195,6 +195,157 @@ router.get(
     }
 
     res.json({ totalRefundedCop, count, byRefundMethod });
+  },
+);
+
+/**
+ * GET /events/:eventId/refund-requests
+ * List attendee refund requests for an event. Filterable by status.
+ * Accessible by admin and event_admin.
+ */
+router.get(
+  "/events/:eventId/refund-requests",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId } = req.params as { eventId: string };
+    const { status } = req.query as { status?: string };
+
+    if (req.user!.role === "event_admin" && req.user!.eventId !== eventId) {
+      res.status(403).json({ error: "Forbidden: cannot access another event's data" });
+      return;
+    }
+
+    const conditions = [eq(attendeeRefundRequestsTable.eventId, eventId)];
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      conditions.push(eq(attendeeRefundRequestsTable.status, status as "pending" | "approved" | "rejected"));
+    }
+
+    const requests = await db
+      .select()
+      .from(attendeeRefundRequestsTable)
+      .where(and(...conditions))
+      .orderBy(desc(attendeeRefundRequestsTable.createdAt));
+
+    res.json({ refundRequests: requests });
+  },
+);
+
+/**
+ * POST /refund-requests/:id/approve
+ * Approve a pending attendee refund request. Atomically deducts the amount from the bracelet balance.
+ */
+router.post(
+  "/refund-requests/:id/approve",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [request] = await tx
+          .select()
+          .from(attendeeRefundRequestsTable)
+          .where(eq(attendeeRefundRequestsTable.id, id))
+          .for("update");
+
+        if (!request) throw Object.assign(new Error("Refund request not found"), { httpStatus: 404 });
+        if (request.status !== "pending") throw Object.assign(new Error("Request is not pending"), { httpStatus: 409 });
+
+        if (req.user!.role === "event_admin" && req.user!.eventId !== request.eventId) {
+          throw Object.assign(new Error("Forbidden: cannot access another event's data"), { httpStatus: 403 });
+        }
+
+        // Atomically deduct bracelet balance
+        const [bracelet] = await tx
+          .select()
+          .from(braceletsTable)
+          .where(eq(braceletsTable.nfcUid, request.braceletUid))
+          .for("update");
+
+        if (!bracelet) throw Object.assign(new Error("Bracelet not found"), { httpStatus: 404 });
+
+        const newBalance = Math.max(0, bracelet.lastKnownBalanceCop - request.amountCop);
+
+        await tx
+          .update(braceletsTable)
+          .set({ lastKnownBalanceCop: newBalance, updatedAt: new Date() })
+          .where(eq(braceletsTable.nfcUid, request.braceletUid));
+
+        const [updated] = await tx
+          .update(attendeeRefundRequestsTable)
+          .set({
+            status: "approved",
+            processedByUserId: req.user!.id,
+            processedAt: new Date(),
+          })
+          .where(eq(attendeeRefundRequestsTable.id, id))
+          .returning();
+
+        return updated;
+      });
+
+      res.json({ refundRequest: result });
+    } catch (e: unknown) {
+      const err = e as { message?: string; httpStatus?: number };
+      const status = err.httpStatus ?? 500;
+      const knownErrors = new Set(["Refund request not found", "Request is not pending", "Bracelet not found", "Forbidden: cannot access another event's data"]);
+      if (knownErrors.has(err.message ?? "")) {
+        res.status(status).json({ error: err.message });
+      } else {
+        res.status(500).json({ error: "Failed to approve refund request" });
+      }
+    }
+  },
+);
+
+/**
+ * POST /refund-requests/:id/reject
+ * Reject a pending attendee refund request with an optional reason.
+ */
+router.post(
+  "/refund-requests/:id/reject",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as { id: string };
+    const schema = z.object({ reason: z.string().min(1).optional() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request" });
+      return;
+    }
+
+    const [request] = await db
+      .select()
+      .from(attendeeRefundRequestsTable)
+      .where(eq(attendeeRefundRequestsTable.id, id));
+
+    if (!request) {
+      res.status(404).json({ error: "Refund request not found" });
+      return;
+    }
+
+    if (request.status !== "pending") {
+      res.status(409).json({ error: "Request is not pending" });
+      return;
+    }
+
+    if (req.user!.role === "event_admin" && req.user!.eventId !== request.eventId) {
+      res.status(403).json({ error: "Forbidden: cannot access another event's data" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(attendeeRefundRequestsTable)
+      .set({
+        status: "rejected",
+        notes: parsed.data.reason ? `${request.notes ? request.notes + " | " : ""}Rejected: ${parsed.data.reason}` : request.notes,
+        processedByUserId: req.user!.id,
+        processedAt: new Date(),
+      })
+      .where(eq(attendeeRefundRequestsTable.id, id))
+      .returning();
+
+    res.json({ refundRequest: updated });
   },
 );
 

@@ -9,6 +9,8 @@ import {
   updateSession,
   type SessionData,
 } from "../lib/auth";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 declare global {
   namespace Express {
@@ -78,6 +80,18 @@ export async function authMiddleware(
   if (!refreshed) {
     await clearSession(res, sid);
     next();
+    return;
+  }
+
+  // Verify the user is still active (not suspended) on each request
+  const [freshUser] = await db
+    .select({ isSuspended: usersTable.isSuspended, isBlocked: usersTable.isBlocked })
+    .from(usersTable)
+    .where(eq(usersTable.id, refreshed.user.id));
+
+  if (freshUser?.isSuspended) {
+    await clearSession(res, sid);
+    res.status(403).json({ error: "ACCOUNT_SUSPENDED: Tu cuenta está suspendida temporalmente. Contacta al administrador." });
     return;
   }
 

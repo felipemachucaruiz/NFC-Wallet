@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable } from "@workspace/db";
-import { eq, sql, and, ilike, or, count } from "drizzle-orm";
+import { eq, sql, and, ilike, or, count, sum } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 
@@ -910,6 +910,112 @@ router.post(
       eventId,
       braceletsFlagged: result.braceletsFlagged,
       refundRequestsCreated: result.refundRequestsCreated,
+    });
+  }
+);
+
+/**
+ * GET /events/:eventId/settlement-report
+ * Generate or retrieve a settlement report per merchant for an event.
+ * Returns gross sales, commissions, tips, and net payout per merchant.
+ * Accessible by admin and event_admin. Supports ?format=csv for CSV download.
+ */
+router.get(
+  "/events/:eventId/settlement-report",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { eventId } = req.params as { eventId: string };
+    const format = req.query.format as string | undefined;
+
+    if (req.user.role === "event_admin" && req.user.eventId !== eventId) {
+      res.status(403).json({ error: "Forbidden: cannot access another event's settlement report" });
+      return;
+    }
+
+    const [event] = await db
+      .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId));
+
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    // Get all merchants for this event
+    const merchants = await db
+      .select()
+      .from(merchantsTable)
+      .where(eq(merchantsTable.eventId, eventId));
+
+    // Compute per-merchant aggregates from transaction logs
+    const merchantRows = await db
+      .select({
+        merchantId: transactionLogsTable.merchantId,
+        grossSalesCop: sum(transactionLogsTable.grossAmountCop),
+        tipsCop: sum(transactionLogsTable.tipAmountCop),
+        commissionsCop: sum(transactionLogsTable.commissionAmountCop),
+        netPayoutCop: sum(transactionLogsTable.netAmountCop),
+        transactionCount: count(),
+      })
+      .from(transactionLogsTable)
+      .where(eq(transactionLogsTable.eventId, eventId))
+      .groupBy(transactionLogsTable.merchantId);
+
+    const merchantMap = new Map(merchants.map((m) => [m.id, m]));
+    const aggregateMap = new Map(merchantRows.map((r) => [r.merchantId, r]));
+
+    const report = merchants.map((merchant) => {
+      const agg = aggregateMap.get(merchant.id);
+      return {
+        merchantId: merchant.id,
+        merchantName: merchant.name,
+        commissionRatePercent: merchant.commissionRatePercent,
+        grossSalesCop: Number(agg?.grossSalesCop ?? 0),
+        tipsCop: Number(agg?.tipsCop ?? 0),
+        commissionsCop: Number(agg?.commissionsCop ?? 0),
+        netPayoutCop: Number(agg?.netPayoutCop ?? 0),
+        transactionCount: Number(agg?.transactionCount ?? 0),
+      };
+    });
+
+    // Totals row
+    const totals = {
+      grossSalesCop: report.reduce((s, r) => s + r.grossSalesCop, 0),
+      tipsCop: report.reduce((s, r) => s + r.tipsCop, 0),
+      commissionsCop: report.reduce((s, r) => s + r.commissionsCop, 0),
+      netPayoutCop: report.reduce((s, r) => s + r.netPayoutCop, 0),
+      transactionCount: report.reduce((s, r) => s + r.transactionCount, 0),
+    };
+
+    void merchantMap;
+
+    if (format === "csv") {
+      const header = "merchantId,merchantName,commissionRatePercent,grossSalesCop,tipsCop,commissionsCop,netPayoutCop,transactionCount\n";
+      const rows = report.map((r) =>
+        [r.merchantId, `"${r.merchantName.replace(/"/g, '""')}"`, r.commissionRatePercent, r.grossSalesCop, r.tipsCop, r.commissionsCop, r.netPayoutCop, r.transactionCount].join(",")
+      ).join("\n");
+      const totalsRow = `"TOTAL","","",${totals.grossSalesCop},${totals.tipsCop},${totals.commissionsCop},${totals.netPayoutCop},${totals.transactionCount}`;
+      const csv = header + rows + "\n" + totalsRow;
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="settlement-${eventId}.csv"`);
+      res.send(csv);
+      return;
+    }
+
+    res.json({
+      eventId,
+      eventName: event.name,
+      eventClosed: !event.active,
+      generatedAt: new Date().toISOString(),
+      merchants: report,
+      totals,
     });
   }
 );

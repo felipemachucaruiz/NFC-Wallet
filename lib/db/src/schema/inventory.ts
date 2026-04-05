@@ -18,6 +18,7 @@ export const stockMovementTypeEnum = pgEnum("stock_movement_type", [
   "location_transfer_in",
   "sale",
   "manual_adjustment",
+  "initial_load",
 ]);
 
 export const restockOrdersTable = pgTable("restock_orders", {

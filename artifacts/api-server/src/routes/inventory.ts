@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable, stockMovementsTable, locationsTable } from "@workspace/db";
+import { db, warehousesTable, warehouseInventoryTable, locationInventoryTable, productsTable, stockMovementsTable, locationsTable, merchantsTable } from "@workspace/db";
 import { eq, and, sql, gte } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
@@ -359,6 +359,133 @@ router.patch(
     }
 
     res.json(item);
+  },
+);
+
+/**
+ * POST /merchants/:merchantId/locations/:locationId/stock/initialize
+ * Initialize or upsert stock quantities for a merchant location.
+ * Each product gets an initial_load stock movement record.
+ * Accessible by merchant_admin (own merchant), admin, and event_admin.
+ */
+router.post(
+  "/merchants/:merchantId/locations/:locationId/stock/initialize",
+  requireRole("admin", "event_admin", "merchant_admin"),
+  async (req: Request, res: Response) => {
+    const { merchantId, locationId } = req.params as { merchantId: string; locationId: string };
+    const user = req.user!;
+
+    const schema = z.object({
+      items: z.array(z.object({
+        productId: z.string().min(1),
+        quantity: z.number().int().min(0),
+      })).min(1),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    // Verify merchant exists
+    const [merchant] = await db
+      .select()
+      .from(merchantsTable)
+      .where(eq(merchantsTable.id, merchantId));
+
+    if (!merchant) {
+      res.status(404).json({ error: "Merchant not found" });
+      return;
+    }
+
+    // merchant_admin: can only initialize their own merchant's locations
+    if (user.role === "merchant_admin") {
+      if (!user.merchantId || user.merchantId !== merchantId) {
+        res.status(403).json({ error: "Access denied: location does not belong to your merchant" });
+        return;
+      }
+    }
+
+    // event_admin: can only initialize locations for their event
+    if (user.role === "event_admin") {
+      if (!user.eventId || merchant.eventId !== user.eventId) {
+        res.status(403).json({ error: "Access denied: merchant does not belong to your event" });
+        return;
+      }
+    }
+
+    // Verify location exists and belongs to this merchant
+    const [location] = await db
+      .select()
+      .from(locationsTable)
+      .where(and(eq(locationsTable.id, locationId), eq(locationsTable.merchantId, merchantId)));
+
+    if (!location) {
+      res.status(404).json({ error: "Location not found or does not belong to this merchant" });
+      return;
+    }
+
+    const results = await db.transaction(async (tx) => {
+      const initialized = [];
+      for (const item of parsed.data.items) {
+        // Verify product belongs to this merchant
+        const [product] = await tx
+          .select({ id: productsTable.id, name: productsTable.name })
+          .from(productsTable)
+          .where(and(eq(productsTable.id, item.productId), eq(productsTable.merchantId, merchantId)));
+
+        if (!product) {
+          throw Object.assign(new Error(`Product ${item.productId} not found or does not belong to this merchant`), { httpStatus: 404 });
+        }
+
+        // Upsert location_inventory
+        const existing = await tx
+          .select()
+          .from(locationInventoryTable)
+          .where(and(
+            eq(locationInventoryTable.locationId, locationId),
+            eq(locationInventoryTable.productId, item.productId),
+          ));
+
+        let inventoryRow;
+        if (existing.length === 0) {
+          const [inserted] = await tx
+            .insert(locationInventoryTable)
+            .values({
+              locationId,
+              productId: item.productId,
+              quantityOnHand: item.quantity,
+            })
+            .returning();
+          inventoryRow = inserted;
+        } else {
+          const [updated] = await tx
+            .update(locationInventoryTable)
+            .set({ quantityOnHand: item.quantity, updatedAt: new Date() })
+            .where(eq(locationInventoryTable.id, existing[0].id))
+            .returning();
+          inventoryRow = updated;
+        }
+
+        // Log initial_load stock movement
+        await tx.insert(stockMovementsTable).values({
+          movementType: "initial_load",
+          productId: item.productId,
+          quantity: item.quantity,
+          toLocationId: locationId,
+          performedByUserId: user.id,
+          notes: `Stock initialization for ${product.name}`,
+        });
+
+        initialized.push({ productId: item.productId, quantity: item.quantity, inventoryId: inventoryRow.id });
+      }
+      return initialized;
+    }).catch((err: Error & { httpStatus?: number }) => {
+      throw err;
+    });
+
+    res.status(200).json({ initialized: results });
   },
 );
 

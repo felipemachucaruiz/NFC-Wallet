@@ -515,6 +515,82 @@ router.patch(
 );
 
 /**
+ * POST /users/:userId/suspend
+ * Suspend a user without deleting them. Preserves all historical data.
+ * Admin can target any user; event_admin only their event users.
+ */
+router.post(
+  "/users/:userId/suspend",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const userId = req.params.userId as string;
+
+    const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!target) {
+      res.status(404).json({ error: "Usuario no encontrado" });
+      return;
+    }
+
+    if (req.user!.role === "event_admin") {
+      if (target.eventId !== req.user!.eventId) {
+        res.status(403).json({ error: "Solo puedes gestionar usuarios de tu propio evento" });
+        return;
+      }
+      if (target.role === "event_admin") {
+        res.status(403).json({ error: "No puedes suspender a otro event admin" });
+        return;
+      }
+    }
+
+    if (target.id === req.user!.id) {
+      res.status(400).json({ error: "No puedes suspenderte a ti mismo" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(usersTable)
+      .set({ isSuspended: true, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .returning({ id: usersTable.id, isSuspended: usersTable.isSuspended });
+
+    res.json(updated);
+  },
+);
+
+/**
+ * POST /users/:userId/unsuspend
+ * Re-activate a previously suspended user.
+ */
+router.post(
+  "/users/:userId/unsuspend",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const userId = req.params.userId as string;
+
+    const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!target) {
+      res.status(404).json({ error: "Usuario no encontrado" });
+      return;
+    }
+
+    if (req.user!.role === "event_admin") {
+      if (target.eventId !== req.user!.eventId) {
+        res.status(403).json({ error: "Solo puedes gestionar usuarios de tu propio evento" });
+        return;
+      }
+    }
+
+    const [updated] = await db
+      .update(usersTable)
+      .set({ isSuspended: false, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .returning({ id: usersTable.id, isSuspended: usersTable.isSuspended });
+
+    res.json(updated);
+  },
+);
+
+/**
  * Create a new user account (admin/event_admin only).
  * Used by the staff app to create event_admin client accounts.
  */

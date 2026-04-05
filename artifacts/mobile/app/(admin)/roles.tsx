@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useUpdateUserRole } from "@workspace/api-client-react";
+import { useUpdateUserRole, useSuspendUser, useUnsuspendUser } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
@@ -36,6 +36,7 @@ type UserItem = {
   firstName: string | null;
   lastName: string | null;
   role: string;
+  isSuspended?: boolean;
 };
 
 const getApiBase = () => API_BASE_URL;
@@ -56,12 +57,14 @@ export default function RolesScreen() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Tab inside the assign sheet: "role" or "password"
-  const [activeTab, setActiveTab] = useState<"role" | "password">("role");
+  // Tab inside the assign sheet: "role", "password", or "suspend"
+  const [activeTab, setActiveTab] = useState<"role" | "password" | "suspend">("role");
   const [newPassword, setNewPassword] = useState("");
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const updateRole = useUpdateUserRole();
+  const suspendUser = useSuspendUser();
+  const unsuspendUser = useUnsuspendUser();
 
   const fetchUsers = useCallback(async () => {
     if (!token) return;
@@ -312,9 +315,18 @@ export default function RolesScreen() {
                       {t("admin.resetPassword")}
                     </Text>
                   </Pressable>
+                  <Pressable
+                    onPress={() => setActiveTab("suspend")}
+                    style={[styles.tabBtn, activeTab === "suspend" && { backgroundColor: C.card }]}
+                  >
+                    <Feather name="pause-circle" size={13} color={activeTab === "suspend" ? C.danger : C.textSecondary} />
+                    <Text style={[styles.tabBtnText, { color: activeTab === "suspend" ? C.danger : C.textSecondary }]}>
+                      Suspender
+                    </Text>
+                  </Pressable>
                 </View>
 
-                {activeTab === "role" ? (
+                {activeTab === "role" && (
                   <>
                     <View style={styles.roleGrid}>
                       {ROLES.map((role) => (
@@ -340,7 +352,8 @@ export default function RolesScreen() {
                       <Button title={t("admin.assignRole")} onPress={handleAssign} variant="primary" loading={updateRole.isPending} />
                     </View>
                   </>
-                ) : (
+                )}
+                {activeTab === "password" && (
                   <>
                     <Input
                       label={t("admin.newPassword")}
@@ -352,6 +365,55 @@ export default function RolesScreen() {
                     <View style={styles.sheetActions}>
                       <Button title={t("common.cancel")} onPress={() => setShowAssign(false)} variant="secondary" />
                       <Button title={t("admin.resetPassword")} onPress={handleResetPassword} variant="danger" loading={isResettingPassword} />
+                    </View>
+                  </>
+                )}
+                {activeTab === "suspend" && (
+                  <>
+                    <View style={{ backgroundColor: C.inputBg, borderRadius: 12, padding: 14, gap: 6 }}>
+                      <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: C.text }}>
+                        Estado: {selectedUser.isSuspended ? "Suspendido" : "Activo"}
+                      </Text>
+                      <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: C.textMuted }}>
+                        {selectedUser.isSuspended
+                          ? "Este usuario está suspendido. No puede iniciar sesión hasta que lo reactives."
+                          : "Suspender a este usuario le impedirá iniciar sesión temporalmente. Sus datos históricos se conservarán."
+                        }
+                      </Text>
+                    </View>
+                    <View style={styles.sheetActions}>
+                      <Button title={t("common.cancel")} onPress={() => setShowAssign(false)} variant="secondary" />
+                      {selectedUser.isSuspended ? (
+                        <Button
+                          title="Reactivar"
+                          onPress={async () => {
+                            try {
+                              await unsuspendUser.mutateAsync(selectedUser.id);
+                              showAlert(t("common.success"), "Usuario reactivado.");
+                              setShowAssign(false);
+                            } catch (err: unknown) {
+                              showAlert(t("common.error"), String((err as { message?: string })?.message ?? err));
+                            }
+                          }}
+                          variant="primary"
+                          loading={unsuspendUser.isPending}
+                        />
+                      ) : (
+                        <Button
+                          title="Suspender"
+                          onPress={async () => {
+                            try {
+                              await suspendUser.mutateAsync(selectedUser.id);
+                              showAlert(t("common.success"), "Usuario suspendido.");
+                              setShowAssign(false);
+                            } catch (err: unknown) {
+                              showAlert(t("common.error"), String((err as { message?: string })?.message ?? err));
+                            }
+                          }}
+                          variant="danger"
+                          loading={suspendUser.isPending}
+                        />
+                      )}
                     </View>
                   </>
                 )}

@@ -13,6 +13,10 @@ import {
   useGetAnalyticsHeatmap,
   useListEvents,
   useCreateRestockOrder,
+  useListRefundRequests,
+  useApproveRefundRequest,
+  useRejectRefundRequest,
+  type AttendeeRefundRequest,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
@@ -23,7 +27,7 @@ import { Loading } from "@/components/ui/Loading";
 const REFETCH_INTERVAL = 60_000;
 const DAYS_ORDER = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-type AnalyticsTab = "summary" | "sales" | "products" | "merchants" | "stock" | "heatmap";
+type AnalyticsTab = "summary" | "sales" | "products" | "merchants" | "stock" | "heatmap" | "refunds";
 
 function SummaryPanel({
   data,
@@ -433,6 +437,135 @@ function HeatmapPanel({
   );
 }
 
+const REFUND_METHOD_LABELS: Record<string, string> = {
+  cash: "Efectivo",
+  nequi: "Nequi",
+  bancolombia: "Bancolombia",
+  other: "Otro",
+};
+
+function RefundRequestsPanel({
+  eventId,
+  onApprove,
+  onReject,
+}: {
+  eventId: string | undefined;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+}) {
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+  const [statusFilter, setStatusFilter] = useState<"pending" | "approved" | "rejected">("pending");
+  const { data, isLoading } = useListRefundRequests(eventId ?? null, statusFilter);
+  const requests: AttendeeRefundRequest[] = (data as { refundRequests?: AttendeeRefundRequest[] })?.refundRequests ?? [];
+
+  if (!eventId) {
+    return (
+      <Card padding={24}>
+        <Text style={[styles.emptyText, { color: C.textMuted }]}>Selecciona un evento para ver las solicitudes de reembolso.</Text>
+      </Card>
+    );
+  }
+
+  if (isLoading) return <Loading label="Cargando..." />;
+
+  const filterButtons: { key: "pending" | "approved" | "rejected"; label: string; color: string }[] = [
+    { key: "pending", label: "Pendientes", color: C.warning },
+    { key: "approved", label: "Aprobadas", color: C.success },
+    { key: "rejected", label: "Rechazadas", color: C.danger },
+  ];
+
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {filterButtons.map((btn) => (
+          <Pressable
+            key={btn.key}
+            onPress={() => setStatusFilter(btn.key)}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 8,
+              backgroundColor: statusFilter === btn.key ? btn.color : C.inputBg,
+              borderWidth: 1,
+              borderColor: statusFilter === btn.key ? btn.color : C.border,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: statusFilter === btn.key ? "#fff" : C.textSecondary }}>
+              {btn.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {requests.length === 0 ? (
+        <Card padding={24}>
+          <Text style={[styles.emptyText, { color: C.textMuted }]}>No hay solicitudes {statusFilter === "pending" ? "pendientes" : statusFilter === "approved" ? "aprobadas" : "rechazadas"}.</Text>
+        </Card>
+      ) : (
+        requests.map((req) => (
+          <Card key={req.id} padding={16}>
+            <View style={{ gap: 6 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: C.text }}>
+                  Pulsera: {req.braceletUid.slice(0, 8)}...
+                </Text>
+                <CopAmount amount={req.amountCop} size={16} color={C.primary} />
+              </View>
+              <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: C.textMuted }}>
+                Método: {REFUND_METHOD_LABELS[req.refundMethod] ?? req.refundMethod}
+              </Text>
+              {req.accountDetails && (
+                <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: C.textMuted }}>
+                  Cuenta: {req.accountDetails}
+                </Text>
+              )}
+              {req.notes && (
+                <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: C.textMuted }} numberOfLines={2}>
+                  Nota: {req.notes}
+                </Text>
+              )}
+              <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: C.textMuted }}>
+                {new Date(req.createdAt).toLocaleDateString("es-CO")}
+              </Text>
+              {req.status === "pending" && (
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                  <Pressable
+                    onPress={() => onApprove(req.id)}
+                    style={{ flex: 1, backgroundColor: C.success, borderRadius: 8, padding: 10, alignItems: "center" }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" }}>Aprobar</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => onReject(req.id)}
+                    style={{ flex: 1, backgroundColor: C.danger, borderRadius: 8, padding: 10, alignItems: "center" }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" }}>Rechazar</Text>
+                  </Pressable>
+                </View>
+              )}
+              {req.status !== "pending" && (
+                <View style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                  backgroundColor: req.status === "approved" ? C.success + "22" : C.danger + "22",
+                  alignSelf: "flex-start",
+                  marginTop: 4,
+                }}>
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: req.status === "approved" ? C.success : C.danger }}>
+                    {req.status === "approved" ? "Aprobada" : "Rechazada"}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Card>
+        ))
+      )}
+    </View>
+  );
+}
+
 type EventOption = { id: string; name: string };
 type RestockTarget = { locationId: string; locationName: string; productId: string; productName: string; deficit: number };
 
@@ -452,6 +585,10 @@ export default function AdminAnalyticsScreen() {
   const [restockNote, setRestockNote] = useState("");
 
   const createRestock = useCreateRestockOrder();
+  const approveRefund = useApproveRefundRequest();
+  const rejectRefund = useRejectRefundRequest();
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const { data: eventsData } = useListEvents({}, { query: { staleTime: 30_000, queryKey: ["events-list"] } });
   const events: EventOption[] = ((eventsData as { events?: EventOption[] })?.events ?? []);
@@ -489,6 +626,7 @@ export default function AdminAnalyticsScreen() {
     { key: "merchants", label: t("analytics.tabMerchants"), icon: "users" },
     { key: "stock", label: t("analytics.tabStock"), icon: "alert-triangle" },
     { key: "heatmap", label: t("analytics.tabHeatmap"), icon: "grid" },
+    { key: "refunds", label: "Reembolsos", icon: "rotate-ccw" },
   ];
 
   function handleSubmitRestock() {
@@ -514,8 +652,72 @@ export default function AdminAnalyticsScreen() {
     );
   }
 
+  function handleApproveRefund(id: string) {
+    approveRefund.mutate(id, {
+      onSuccess: () => showAlert("Éxito", "Solicitud de reembolso aprobada."),
+      onError: (err: unknown) => showAlert("Error", String((err as { message?: string })?.message ?? err)),
+    });
+  }
+
+  function handleRejectRefund() {
+    if (!rejectTarget) return;
+    rejectRefund.mutate(
+      { id: rejectTarget, reason: rejectReason || undefined },
+      {
+        onSuccess: () => {
+          showAlert("Éxito", "Solicitud de reembolso rechazada.");
+          setRejectTarget(null);
+          setRejectReason("");
+        },
+        onError: (err: unknown) => showAlert("Error", String((err as { message?: string })?.message ?? err)),
+      },
+    );
+  }
+
   return (
     <>
+      <Modal
+        visible={rejectTarget !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => { setRejectTarget(null); setRejectReason(""); }}
+      >
+        <View style={[styles.modalOverlay]}>
+          <View style={[styles.modalCard, { backgroundColor: C.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: C.text }]}>Rechazar solicitud</Text>
+              <Pressable onPress={() => { setRejectTarget(null); setRejectReason(""); }}>
+                <Feather name="x" size={20} color={C.textMuted} />
+              </Pressable>
+            </View>
+            <Text style={[styles.modalLabel, { color: C.textSecondary }]}>Motivo (opcional)</Text>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+              value={rejectReason}
+              onChangeText={setRejectReason}
+              placeholder="Escribe el motivo del rechazo..."
+              placeholderTextColor={C.textMuted}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalCancelBtn, { borderColor: C.border }]}
+                onPress={() => { setRejectTarget(null); setRejectReason(""); }}
+              >
+                <Text style={[styles.modalCancelText, { color: C.textSecondary }]}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalSubmitBtn, { backgroundColor: C.danger }, rejectRefund.isPending && { opacity: 0.6 }]}
+                onPress={handleRejectRefund}
+                disabled={rejectRefund.isPending}
+              >
+                <Text style={[styles.modalSubmitText, { color: "#fff" }]}>{rejectRefund.isPending ? "..." : "Rechazar"}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={restockTarget !== null}
         animationType="slide"
@@ -677,6 +879,13 @@ export default function AdminAnalyticsScreen() {
           />
         )}
         {activeTab === "heatmap" && <HeatmapPanel data={heatmapData} isLoading={heatmapLoading} />}
+        {activeTab === "refunds" && (
+          <RefundRequestsPanel
+            eventId={selectedEventId}
+            onApprove={handleApproveRefund}
+            onReject={(id) => { setRejectTarget(id); setRejectReason(""); }}
+          />
+        )}
       </ScrollView>
     </>
   );
