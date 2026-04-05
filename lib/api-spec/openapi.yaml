@@ -2690,6 +2690,18 @@ components:
         promoterCompanyId:
           type: [string, 'null']
           description: Set for event_admin users linked to a promoter company; determines which company's events they manage
+        merchantName:
+          type: [string, 'null']
+          description: Display name of the merchant (merchant_admin / merchant_staff only)
+        merchantType:
+          type: [string, 'null']
+          description: Merchant type (event_managed or external)
+        eventName:
+          type: [string, 'null']
+          description: Display name of the event (event_admin / gate users)
+        gateZoneId:
+          type: [string, 'null']
+          description: ID of the gate zone this gate user is assigned to
 
     AuthUserEnvelope:
       type: object

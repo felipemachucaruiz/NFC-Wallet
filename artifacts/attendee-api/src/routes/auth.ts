@@ -8,7 +8,7 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, merchantsTable, eventsTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import {
   clearSession,
@@ -91,7 +91,40 @@ router.get("/auth/user", async (req: Request, res: Response) => {
   }
 
   const u = req.user;
-  res.json(GetCurrentAuthUserResponse.parse({ user: u }));
+  let merchantName: string | null = null;
+  let merchantType: string | null = null;
+  let eventName: string | null = null;
+
+  try {
+    if (u.merchantId) {
+      const [merchant] = await db
+        .select({ name: merchantsTable.name, merchantType: merchantsTable.merchantType })
+        .from(merchantsTable)
+        .where(eq(merchantsTable.id, u.merchantId));
+      merchantName = merchant?.name ?? null;
+      merchantType = merchant?.merchantType ?? null;
+    }
+    if (u.eventId) {
+      const [event] = await db
+        .select({ name: eventsTable.name })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, u.eventId));
+      eventName = event?.name ?? null;
+    }
+  } catch {
+    // Non-fatal: names are display-only
+  }
+
+  res.json({
+    ...GetCurrentAuthUserResponse.parse({ user: u }),
+    user: {
+      ...GetCurrentAuthUserResponse.parse({ user: u }).user,
+      merchantName,
+      merchantType,
+      eventName,
+      gateZoneId: (u as unknown as { gateZoneId?: string | null }).gateZoneId ?? null,
+    },
+  });
 });
 
 const PasswordLoginBody = z.object({

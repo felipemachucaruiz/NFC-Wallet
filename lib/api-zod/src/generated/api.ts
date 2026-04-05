@@ -60,6 +60,10 @@ export const GetCurrentAuthUserResponse = zod.object({
         .describe(
           "Set for event_admin users linked to a promoter company; determines which company's events they manage",
         ),
+      merchantName: zod.string().nullish(),
+      merchantType: zod.string().nullish(),
+      eventName: zod.string().nullish(),
+      gateZoneId: zod.string().nullish(),
     }),
     zod.null(),
   ]),
