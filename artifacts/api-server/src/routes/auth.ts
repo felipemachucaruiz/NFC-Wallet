@@ -1,12 +1,13 @@
 import * as oidc from "openid-client";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import {
   GetCurrentAuthUserResponse,
 } from "@workspace/api-zod";
-import { db, usersTable, merchantsTable, eventsTable } from "@workspace/db";
-import { eq, or } from "drizzle-orm";
+import { db, usersTable, merchantsTable, eventsTable, passwordResetTokensTable, sessionsTable } from "@workspace/db";
+import { eq, or, and, sql as drizzleSql } from "drizzle-orm";
 import { createPartialSession } from "./twoFactor";
 import {
   clearSession,
@@ -19,6 +20,38 @@ import {
   ISSUER_URL,
   type SessionData,
 } from "../lib/auth";
+
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const FROM_EMAIL = process.env.EMAIL_FROM ?? "noreply@tapee.app";
+const FROM_NAME = process.env.EMAIL_FROM_NAME ?? "Tapee";
+
+async function sendEmail(opts: { to: string; toName?: string; subject: string; htmlContent: string; textContent?: string }): Promise<boolean> {
+  if (!BREVO_API_KEY) return false;
+  try {
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "api-key": BREVO_API_KEY },
+      body: JSON.stringify({
+        sender: { name: FROM_NAME, email: FROM_EMAIL },
+        to: [{ email: opts.to, name: opts.toName ?? opts.to }],
+        subject: opts.subject,
+        htmlContent: opts.htmlContent,
+        textContent: opts.textContent,
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function buildStaffPasswordResetEmail(opts: { firstName: string | null; resetUrl: string }): { subject: string; htmlContent: string; textContent: string } {
+  const name = opts.firstName ?? "there";
+  const subject = "Reset your Tapee staff password";
+  const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:0;"><div style="max-width:480px;margin:40px auto;background:#161b22;border-radius:12px;overflow:hidden;border:1px solid #30363d;"><div style="background:linear-gradient(135deg,#0d1117,#111827);padding:32px 32px 24px;text-align:center;"><h1 style="color:#00f1ff;font-size:28px;margin:0 0 8px;">Tapee</h1><p style="color:#8b949e;margin:0;font-size:14px;">Staff portal</p></div><div style="padding:32px;"><h2 style="color:#e6edf3;font-size:20px;margin:0 0 16px;">Reset your password</h2><p style="color:#8b949e;margin:0 0 24px;">Hi ${name}, we received a request to reset your Tapee staff account password. Click the button below to set a new one.</p><div style="text-align:center;margin:24px 0;"><a href="${opts.resetUrl}" style="display:inline-block;background:#00f1ff;color:#0d1117;font-weight:bold;font-size:16px;padding:14px 32px;border-radius:8px;text-decoration:none;">Reset Password</a></div><p style="color:#6e7681;font-size:13px;margin:24px 0 0;">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p></div><div style="padding:16px 32px;background:#0d1117;text-align:center;border-top:1px solid #30363d;"><p style="color:#484f58;font-size:12px;margin:0;">© Tapee · Cashless events</p></div></div></body></html>`;
+  const textContent = `Hi ${name},\n\nWe received a request to reset your Tapee staff account password.\n\nReset your password here:\n${opts.resetUrl}\n\nThis link expires in 1 hour. If you didn't request a password reset, ignore this email.\n\n— The Tapee Team`;
+  return { subject, htmlContent, textContent };
+}
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 
@@ -211,6 +244,104 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
   }
   res.clearCookie(SESSION_COOKIE, { path: "/" });
   res.json({ success: true });
+});
+
+// ── Staff forgot-password ────────────────────────────────────────────────────
+
+const StaffForgotPasswordBody = z.object({
+  email: z.string().email(),
+});
+
+const STAFF_ROLES_FOR_RESET = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"] as const;
+
+router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+  const parsed = StaffForgotPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid email address is required" });
+    return;
+  }
+
+  const { email } = parsed.data;
+  const lower = email.toLowerCase().trim();
+
+  // Always 200 to prevent user enumeration
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, lower));
+
+  if (user && (STAFF_ROLES_FOR_RESET as readonly string[]).includes(user.role)) {
+    try {
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await db.insert(passwordResetTokensTable).values({ token, userId: user.id, expiresAt });
+
+      const staffAppUrl = process.env.STAFF_APP_URL;
+      if (!staffAppUrl) {
+        throw new Error("STAFF_APP_URL env var is not configured");
+      }
+      const resetUrl = `${staffAppUrl.replace(/\/$/, "")}/reset-password?token=${token}`;
+      const emailContent = buildStaffPasswordResetEmail({ firstName: user.firstName, resetUrl });
+      await sendEmail({
+        to: lower,
+        toName: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
+        ...emailContent,
+      });
+    } catch {
+      // Non-fatal — don't leak errors
+    }
+  }
+
+  res.json({ message: "If a staff account with that email exists, a reset link has been sent." });
+});
+
+const StaffResetPasswordBody = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8),
+});
+
+router.post("/auth/reset-password", async (req: Request, res: Response) => {
+  const parsed = StaffResetPasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Token and new password (min 8 chars) are required" });
+    return;
+  }
+
+  const { token, password } = parsed.data;
+
+  const [resetToken] = await db
+    .select()
+    .from(passwordResetTokensTable)
+    .where(eq(passwordResetTokensTable.token, token));
+
+  if (!resetToken || resetToken.used || resetToken.expiresAt < new Date()) {
+    res.status(400).json({ error: "This reset link is invalid or has expired" });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(usersTable)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(usersTable.id, resetToken.userId));
+
+    await tx
+      .update(passwordResetTokensTable)
+      .set({ used: true })
+      .where(eq(passwordResetTokensTable.token, token));
+
+    // Invalidate all active sessions for the user (defense-in-depth)
+    // Sessions store user data in a JSONB 'sess' column as {user:{id:...},...}
+    const userFilter = JSON.stringify({ user: { id: resetToken.userId } });
+    await tx
+      .delete(sessionsTable)
+      .where(drizzleSql`${sessionsTable.sess} @> ${userFilter}::jsonb`);
+  });
+
+  res.json({ message: "Password updated successfully. You can now log in." });
 });
 
 const SetupBody = z.object({

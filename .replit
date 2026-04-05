@@ -127,6 +127,7 @@ timeoutMs = 20000
 [userenv.shared]
 EMAIL_FROM = "No-reply@mailer.tapee.app"
 EMAIL_FROM_NAME = "Tapee"
+STAFF_APP_URL = "https://tapee.app"
 
 [nix]
 channel = "stable-25_05"

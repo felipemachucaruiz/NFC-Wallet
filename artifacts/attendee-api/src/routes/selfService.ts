@@ -82,6 +82,8 @@ const selfServiceInitiateSchema = z.object({
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
   contactEmail: z.string().email().optional(),
+  userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
+  userLegalId: z.string().max(20).optional(),
 });
 
 router.post(
@@ -97,7 +99,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { braceletUid, amountCop, paymentMethod, phoneNumber, bankCode, contactEmail } = parsed.data;
+    const { braceletUid, amountCop, paymentMethod, phoneNumber, bankCode, contactEmail, userLegalIdType, userLegalId } = parsed.data;
 
     if (paymentMethod === "nequi" && !phoneNumber) {
       res.status(400).json({ error: "phoneNumber is required for Nequi payments" });
@@ -105,6 +107,10 @@ router.post(
     }
     if (paymentMethod === "pse" && !bankCode) {
       res.status(400).json({ error: "bankCode is required for PSE payments" });
+      return;
+    }
+    if (paymentMethod === "pse" && !userLegalId) {
+      res.status(400).json({ error: "userLegalId is required for PSE payments" });
       return;
     }
 
@@ -202,8 +208,8 @@ router.post(
           payment_method: {
             type: "PSE",
             user_type: 0,
-            user_legal_id_type: "CC",
-            user_legal_id: "1234567890",
+            user_legal_id_type: userLegalIdType ?? "CC",
+            user_legal_id: userLegalId!,
             financial_institution_code: bankCode,
             payment_description: "Recarga pulsera evento",
           },

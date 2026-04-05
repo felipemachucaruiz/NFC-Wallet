@@ -13,6 +13,7 @@ import { PasscodeScreen } from "@/components/PasscodeScreen";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Colors from "@/constants/colors";
+import { API_BASE_URL } from "@/constants/domain";
 
 const loginBgVideo = require("@/assets/login-bg.mp4");
 
@@ -35,6 +36,39 @@ export default function LoginScreen() {
 
   const [setupStep, setSetupStep] = useState<SetupStep | null>(null);
   const firstCodeRef = useRef("");
+
+  // Forgot password state
+  const [forgotModal, setForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotSent, setForgotSent] = useState(false);
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail.trim()) {
+      setForgotError("Ingresa tu correo electrónico.");
+      return;
+    }
+    setForgotError(null);
+    setForgotSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() }),
+      });
+      if (res.ok) {
+        setForgotSent(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setForgotError((data as { error?: string }).error ?? "Error enviando el correo. Intenta de nuevo.");
+      }
+    } catch {
+      setForgotError("Error de red. Verifica tu conexión.");
+    } finally {
+      setForgotSubmitting(false);
+    }
+  };
 
   // 2FA state
   const [totpModal, setTotpModal] = useState(false);
@@ -252,6 +286,15 @@ export default function LoginScreen() {
               fullWidth
               testID="login-button"
             />
+
+            <Pressable
+              onPress={() => { setForgotEmail(""); setForgotError(null); setForgotSent(false); setForgotModal(true); }}
+              style={{ alignSelf: "center", paddingVertical: 4 }}
+            >
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, fontFamily: "Inter_400Regular" }}>
+                ¿Olvidaste tu contraseña?
+              </Text>
+            </Pressable>
           </View>
 
           {/* Passcode setup prompt */}
@@ -298,6 +341,78 @@ export default function LoginScreen() {
           <Text style={[styles.disclaimer, { color: "rgba(255,255,255,0.35)" }]}>{t("auth.disclaimer")}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Forgot password modal */}
+      <Modal
+        visible={forgotModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setForgotModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setForgotModal(false)}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ width: "100%" }}>
+            <View style={[styles.totpSheet, { backgroundColor: "#161b22", borderColor: "rgba(255,255,255,0.1)" }]}>
+              <View style={[styles.totpIcon, { backgroundColor: "rgba(0,241,255,0.1)" }]}>
+                <Feather name="mail" size={28} color="#00f1ff" />
+              </View>
+              <Text style={styles.totpTitle}>Recuperar contraseña</Text>
+
+              {forgotSent ? (
+                <>
+                  <View style={[styles.totpIcon, { backgroundColor: "rgba(0,255,100,0.1)" }]}>
+                    <Feather name="check-circle" size={28} color="#22c55e" />
+                  </View>
+                  <Text style={[styles.totpHint, { textAlign: "center" }]}>
+                    Si existe una cuenta de personal con ese correo, recibirás un enlace para restablecer tu contraseña en breve.
+                  </Text>
+                  <Button
+                    title="Cerrar"
+                    onPress={() => setForgotModal(false)}
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                  />
+                </>
+              ) : (
+                <>
+                  <Text style={styles.totpHint}>
+                    Ingresa tu correo de trabajo. Te enviaremos un enlace para restablecer tu contraseña.
+                  </Text>
+                  <TextInput
+                    style={[styles.totpInput, { backgroundColor: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 16, letterSpacing: 0, fontFamily: "Inter_400Regular" }]}
+                    value={forgotEmail}
+                    onChangeText={(v) => { setForgotEmail(v); setForgotError(null); }}
+                    placeholder="correo@empresa.com"
+                    placeholderTextColor="rgba(255,255,255,0.25)"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="send"
+                    onSubmitEditing={handleForgotPassword}
+                  />
+                  {forgotError && (
+                    <View style={[styles.totpErrorBox, { backgroundColor: "rgba(239,68,68,0.15)" }]}>
+                      <Feather name="alert-circle" size={13} color="#ef4444" />
+                      <Text style={[styles.totpErrorText, { color: "#ef4444" }]}>{forgotError}</Text>
+                    </View>
+                  )}
+                  <Button
+                    title={forgotSubmitting ? "Enviando..." : "Enviar enlace"}
+                    onPress={handleForgotPassword}
+                    variant="primary"
+                    size="lg"
+                    loading={forgotSubmitting}
+                    fullWidth
+                  />
+                  <Pressable onPress={() => setForgotModal(false)} style={styles.totpCancel}>
+                    <Text style={styles.totpCancelText}>Cancelar</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
 
       {/* 2FA verification modal */}
       <Modal

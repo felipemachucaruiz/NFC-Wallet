@@ -2,17 +2,18 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import i18n, { setStoredLanguage, SUPPORTED_LANGUAGES } from "@/i18n";
 import { useAuth } from "@/contexts/AuthContext";
 import Colors from "@/constants/colors";
 import { Card } from "@/components/ui/Card";
+import { API_BASE_URL } from "@/constants/domain";
 
 export function ProfileSettings() {
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user, token, refreshUser, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
@@ -20,6 +21,57 @@ export function ProfileSettings() {
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const [editMode, setEditMode] = useState(false);
+  const [editFirstName, setEditFirstName] = useState(user?.firstName ?? "");
+  const [editLastName, setEditLastName] = useState(user?.lastName ?? "");
+  const [editPhone, setEditPhone] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const handleEditOpen = () => {
+    setEditFirstName(user?.firstName ?? "");
+    setEditLastName(user?.lastName ?? "");
+    setEditPhone("");
+    setEditError(null);
+    setEditMode(true);
+  };
+
+  const handleProfileSave = async () => {
+    if (!editFirstName.trim()) {
+      setEditError("El nombre es obligatorio.");
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const body: Record<string, string> = {
+        firstName: editFirstName.trim(),
+        lastName: editLastName.trim(),
+      };
+      if (editPhone.trim()) body.phone = editPhone.trim();
+
+      const res = await fetch(`${API_BASE_URL}/api/users/me`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setEditError((data as { error?: string }).error ?? "Error al guardar. Intenta de nuevo.");
+        return;
+      }
+      await refreshUser();
+      setEditMode(false);
+    } catch {
+      setEditError("Error de red. Verifica tu conexión.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const handleLogoutConfirm = async () => {
     setLoggingOut(true);
@@ -80,9 +132,86 @@ export function ProfileSettings() {
               {user?.role ? (roleLabels[user.role] ?? user.role) : ""}
             </Text>
           </View>
+          {!editMode && (
+            <Pressable
+              onPress={handleEditOpen}
+              style={({ pressed }) => [styles.editBtn, { backgroundColor: pressed ? C.inputBg : C.primaryLight }]}
+            >
+              <Feather name="edit-2" size={15} color={C.primary} />
+            </Pressable>
+          )}
         </View>
 
-        {(user?.merchantName || user?.eventName) ? (
+        {editMode && (
+          <View style={[styles.editSection, { borderTopColor: C.separator }]}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary, marginBottom: 8 }]}>
+              EDITAR PERFIL
+            </Text>
+            <View style={styles.editRow}>
+              <Text style={[styles.editLabel, { color: C.textSecondary }]}>Nombre</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
+                value={editFirstName}
+                onChangeText={setEditFirstName}
+                placeholder="Nombre"
+                placeholderTextColor={C.textMuted}
+                autoCapitalize="words"
+                editable={!editSaving}
+              />
+            </View>
+            <View style={styles.editRow}>
+              <Text style={[styles.editLabel, { color: C.textSecondary }]}>Apellido</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
+                value={editLastName}
+                onChangeText={setEditLastName}
+                placeholder="Apellido"
+                placeholderTextColor={C.textMuted}
+                autoCapitalize="words"
+                editable={!editSaving}
+              />
+            </View>
+            <View style={styles.editRow}>
+              <Text style={[styles.editLabel, { color: C.textSecondary }]}>Teléfono</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
+                value={editPhone}
+                onChangeText={setEditPhone}
+                placeholder="Opcional"
+                placeholderTextColor={C.textMuted}
+                keyboardType="phone-pad"
+                editable={!editSaving}
+              />
+            </View>
+            {editError && (
+              <View style={[styles.editError, { backgroundColor: "rgba(239,68,68,0.1)" }]}>
+                <Feather name="alert-circle" size={13} color="#ef4444" />
+                <Text style={[styles.editErrorText, { color: "#ef4444" }]}>{editError}</Text>
+              </View>
+            )}
+            <View style={styles.editActions}>
+              <Pressable
+                onPress={() => setEditMode(false)}
+                style={[styles.editCancelBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
+                disabled={editSaving}
+              >
+                <Text style={[styles.editCancelText, { color: C.textSecondary }]}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleProfileSave}
+                style={[styles.editSaveBtn, { backgroundColor: C.primary, opacity: editSaving ? 0.7 : 1 }]}
+                disabled={editSaving}
+              >
+                {editSaving
+                  ? <ActivityIndicator size="small" color="#0d1117" />
+                  : <Text style={styles.editSaveText}>Guardar</Text>
+                }
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {(user?.merchantName || user?.eventName) && !editMode ? (
           <View style={[styles.contextRow, { borderTopColor: C.separator }]}>
             {user.merchantName ? (
               <View style={styles.contextItem}>
@@ -243,6 +372,75 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_600SemiBold",
     flex: 1,
+  },
+  editBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editSection: {
+    borderTopWidth: 1,
+    marginTop: 14,
+    paddingTop: 14,
+    gap: 10,
+  },
+  editRow: {
+    gap: 4,
+  },
+  editLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  editError: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    padding: 10,
+    borderRadius: 8,
+  },
+  editErrorText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    flex: 1,
+  },
+  editActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  editCancelBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    alignItems: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  editCancelText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  editSaveBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    alignItems: "center",
+    borderRadius: 10,
+  },
+  editSaveText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#0d1117",
   },
   sectionLabel: {
     fontSize: 12,

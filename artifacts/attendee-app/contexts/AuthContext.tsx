@@ -29,10 +29,14 @@ interface AuthContextValue {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  sessionExpired: boolean;
+  clearSessionExpired: () => void;
   login: (identifier: string, password: string, keepMeLoggedIn?: boolean) => Promise<string | null>;
   register: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  /** Intercept a 401 response: attempt a token refresh, return new token or null */
+  handleUnauthorized: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -81,9 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const queryClient = useQueryClient();
   const tokenRef = useRef<string | null>(null);
+  // Promise queue: when a refresh is in-flight, concurrent 401 callers await
+  // the same promise instead of returning null immediately.
+  const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
 
   const setAuthToken = useCallback((t: string | null) => {
     tokenRef.current = t;
@@ -209,16 +217,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const clearSessionExpired = useCallback(() => {
+    setSessionExpired(false);
+  }, []);
+
+  /**
+   * Called by API hooks when they receive a 401.
+   * Attempts a silent token refresh via /api/auth/refresh.
+   * Concurrent callers share the same in-flight refresh promise so only one
+   * refresh request is ever made at a time; all callers get the new token.
+   * If the refresh fails, clears the session and sets sessionExpired=true.
+   */
+  const handleUnauthorized = useCallback((): Promise<string | null> => {
+    // If a refresh is already in progress, wait for it instead of firing another
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    const doRefresh = async (): Promise<string | null> => {
+      try {
+        const currentToken = tokenRef.current;
+        if (!currentToken) {
+          setSessionExpired(true);
+          setAuthToken(null);
+          setUser(null);
+          await clearToken();
+          return null;
+        }
+
+        const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${currentToken}` },
+        });
+
+        if (res.ok) {
+          const data = await res.json() as { token?: string };
+          if (data.token) {
+            await storeToken(data.token);
+            setAuthToken(data.token);
+            const userResult = await fetchCurrentUser(data.token);
+            if (userResult && userResult !== "network_error") {
+              setUser(userResult as AuthUser);
+            }
+            return data.token;
+          }
+        }
+
+        // Refresh failed — session is truly expired
+        queryClient.clear();
+        await clearToken();
+        setAuthToken(null);
+        setUser(null);
+        setSessionExpired(true);
+        return null;
+      } catch {
+        // Network error during refresh — don't force logout, caller handles gracefully
+        return null;
+      } finally {
+        refreshPromiseRef.current = null;
+      }
+    };
+
+    refreshPromiseRef.current = doRefresh();
+    return refreshPromiseRef.current;
+  }, [setAuthToken, queryClient]);
+
   return (
     <AuthContext.Provider value={{
       user,
       token,
       isLoading,
       isAuthenticated: !!user,
+      sessionExpired,
+      clearSessionExpired,
       login,
       register,
       logout,
       refreshUser,
+      handleUnauthorized,
     }}>
       {children}
     </AuthContext.Provider>

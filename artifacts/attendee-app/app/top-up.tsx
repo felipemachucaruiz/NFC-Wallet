@@ -23,6 +23,15 @@ import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneI
 import { useInitiateTopUp, useMyBracelets, usePseBanks } from "@/hooks/useAttendeeApi";
 
 type DigitalMethod = "nequi" | "pse";
+type LegalIdType = "CC" | "CE" | "NIT" | "PP" | "TI";
+
+const LEGAL_ID_TYPES: { code: LegalIdType; label: string }[] = [
+  { code: "CC", label: "Cédula de Ciudadanía" },
+  { code: "CE", label: "Cédula de Extranjería" },
+  { code: "NIT", label: "NIT" },
+  { code: "PP", label: "Pasaporte" },
+  { code: "TI", label: "Tarjeta de Identidad" },
+];
 
 const AMOUNTS = [10000, 20000, 50000, 100000, 200000];
 
@@ -57,6 +66,9 @@ export default function TopUpScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedBank, setSelectedBank] = useState<{ code: string; name: string } | null>(null);
   const [showBankPicker, setShowBankPicker] = useState(false);
+  const [legalIdType, setLegalIdType] = useState<LegalIdType>("CC");
+  const [legalId, setLegalId] = useState("");
+  const [showLegalIdTypePicker, setShowLegalIdTypePicker] = useState(false);
 
   const { data: pseBanksRaw, isPending: pseBanksLoading, isError: pseBanksError, refetch: refetchPseBanks } = usePseBanks();
   const pseBanks = (pseBanksRaw ?? []).map((b) => ({
@@ -88,7 +100,7 @@ export default function TopUpScreen() {
     braceletUid.length > 0 &&
     (method === "nequi"
       ? phoneNumber.replace(/\D/g, "").length === 10
-      : selectedBank !== null);
+      : selectedBank !== null && legalId.trim().length >= 5);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -98,7 +110,11 @@ export default function TopUpScreen() {
       paymentMethod: method,
     };
     if (method === "nequi") body.phoneNumber = phoneNumber.replace(/\D/g, "");
-    else body.bankCode = selectedBank!.code;
+    else {
+      body.bankCode = selectedBank!.code;
+      body.userLegalIdType = legalIdType;
+      body.userLegalId = legalId.trim();
+    }
 
     initiatePayment(body, {
       onSuccess: (result) => {
@@ -356,6 +372,50 @@ export default function TopUpScreen() {
                 )}
               </>
             )}
+
+            <Text style={[styles.sectionLabel, { color: C.textSecondary, marginTop: 8 }]}>
+              DOCUMENTO DE IDENTIDAD
+            </Text>
+            <Pressable
+              onPress={() => setShowLegalIdTypePicker(!showLegalIdTypePicker)}
+              style={[styles.bankSelector, { backgroundColor: C.inputBg, borderColor: C.border }]}
+            >
+              <Text style={{ color: C.text, flex: 1, fontFamily: "Inter_400Regular" }}>
+                {LEGAL_ID_TYPES.find(t => t.code === legalIdType)?.label ?? "Cédula de Ciudadanía"}
+              </Text>
+              <Feather name={showLegalIdTypePicker ? "chevron-up" : "chevron-down"} size={18} color={C.textSecondary} />
+            </Pressable>
+            {showLegalIdTypePicker && (
+              <View style={[styles.bankList, { backgroundColor: C.card, borderColor: C.border }]}>
+                {LEGAL_ID_TYPES.map((idType) => (
+                  <Pressable
+                    key={idType.code}
+                    onPress={() => { setLegalIdType(idType.code); setShowLegalIdTypePicker(false); }}
+                    style={[
+                      styles.bankItem,
+                      {
+                        backgroundColor: legalIdType === idType.code ? C.primaryLight : "transparent",
+                        borderBottomColor: C.separator,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: C.text, fontFamily: "Inter_400Regular" }}>{idType.label}</Text>
+                    {legalIdType === idType.code && <Feather name="check" size={16} color={C.primary} />}
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            <TextInput
+              style={[styles.input, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
+              placeholder="Número de documento"
+              placeholderTextColor={C.textMuted}
+              value={legalId}
+              onChangeText={(v) => setLegalId(v.replace(/[^0-9a-zA-Z\-]/g, ""))}
+              keyboardType="default"
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={20}
+            />
           </Card>
         )}
 

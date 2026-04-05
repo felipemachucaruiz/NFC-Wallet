@@ -8,21 +8,63 @@ function useAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function apiFetch<T>(url: string, headers: Record<string, string>): Promise<T> {
-  const res = await pinnedFetch(url, {
-    headers: { ...headers, "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-  return res.json() as Promise<T>;
+/**
+ * Shared request helper used by all query and mutation functions.
+ * On a 401 response it calls handleUnauthorized() to attempt a silent token
+ * refresh, then retries the original request once with the new token.
+ * If the refresh also fails the request throws so React Query surfaces the
+ * error, and the session-expired overlay (rendered by _layout.tsx) is shown
+ * because handleUnauthorized() sets sessionExpired=true.
+ */
+function useApiFetch() {
+  const { handleUnauthorized } = useAuth();
+
+  return async function apiFetch<T>(
+    url: string,
+    headers: Record<string, string>,
+    options?: RequestInit,
+  ): Promise<T> {
+    const res = await pinnedFetch(url, {
+      ...options,
+      headers: { ...headers, "Content-Type": "application/json", ...options?.headers },
+      cache: "no-store",
+    });
+
+    if (res.status === 401) {
+      const newToken = await handleUnauthorized();
+      if (newToken) {
+        const retryRes = await pinnedFetch(url, {
+          ...options,
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+            ...options?.headers,
+            Authorization: `Bearer ${newToken}`,
+          },
+          cache: "no-store",
+        });
+        if (!retryRes.ok) {
+          const body = await retryRes.json().catch(() => ({}));
+          const msg = (body as { error?: string }).error || retryRes.statusText || `HTTP ${retryRes.status}`;
+          throw new Error(msg);
+        }
+        return retryRes.json() as Promise<T>;
+      }
+      throw new Error("Sesión expirada");
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return res.json() as Promise<T>;
+  };
 }
 
 export function useMyBracelets() {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   return useQuery({
     queryKey: ["attendee", "bracelets"],
     queryFn: () => apiFetch(`${API_BASE_URL}/api/attendee/me/bracelets`, headers),
@@ -33,6 +75,7 @@ export function useMyBracelets() {
 
 export function useMyTransactions(cursor?: string) {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   const url = cursor
     ? `${API_BASE_URL}/api/attendee/me/transactions?cursor=${encodeURIComponent(cursor)}`
     : `${API_BASE_URL}/api/attendee/me/transactions`;
@@ -45,6 +88,7 @@ export function useMyTransactions(cursor?: string) {
 
 export function useMyRefundRequests() {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   return useQuery({
     queryKey: ["attendee", "refundRequests"],
     queryFn: () => apiFetch(`${API_BASE_URL}/api/attendee/me/refund-requests`, headers),
@@ -54,21 +98,14 @@ export function useMyRefundRequests() {
 
 export function useBlockBracelet() {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ uid, reason }: { uid: string; reason?: string }) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/bracelets/${uid}/block`, {
+    mutationFn: ({ uid, reason }: { uid: string; reason?: string }) =>
+      apiFetch(`${API_BASE_URL}/api/attendee/me/bracelets/${uid}/block`, headers, {
         method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["attendee", "bracelets"] });
     },
@@ -77,20 +114,15 @@ export function useBlockBracelet() {
 
 export function useUnlinkBracelet() {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ uid }: { uid: string }) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/bracelets/${encodeURIComponent(uid)}`, {
-        method: "DELETE",
-        headers: { ...headers, "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      return res.json() as Promise<{ success: boolean; uid: string; balanceCop: number }>;
-    },
+    mutationFn: ({ uid }: { uid: string }) =>
+      apiFetch<{ success: boolean; uid: string; balanceCop: number }>(
+        `${API_BASE_URL}/api/attendee/me/bracelets/${encodeURIComponent(uid)}`,
+        headers,
+        { method: "DELETE" },
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["attendee", "bracelets"] });
     },
@@ -99,26 +131,19 @@ export function useUnlinkBracelet() {
 
 export function useSubmitRefundRequest() {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: {
+    mutationFn: (data: {
       braceletUid: string;
       refundMethod: "cash" | "nequi" | "bancolombia" | "other";
       accountDetails?: string;
       notes?: string;
-    }) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/refund-request`, {
+    }) =>
+      apiFetch(`${API_BASE_URL}/api/attendee/me/refund-request`, headers, {
         method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["attendee", "refundRequests"] });
     },
@@ -127,21 +152,15 @@ export function useSubmitRefundRequest() {
 
 export function useLinkBracelet() {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ uid, attendeeName }: { uid: string; attendeeName?: string }) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/bracelets/link`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, attendeeName }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      return res.json() as Promise<{ uid: string; balanceCop: number; attendeeName?: string | null }>;
-    },
+    mutationFn: ({ uid, attendeeName }: { uid: string; attendeeName?: string }) =>
+      apiFetch<{ uid: string; balanceCop: number; attendeeName?: string | null }>(
+        `${API_BASE_URL}/api/attendee/me/bracelets/link`,
+        headers,
+        { method: "POST", body: JSON.stringify({ uid, attendeeName }) },
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["attendee", "bracelets"] });
     },
@@ -153,31 +172,28 @@ export function useLinkBracelet() {
 
 export function useInitiateTopUp() {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   return useMutation({
-    mutationFn: async (data: {
+    mutationFn: (data: {
       braceletUid: string;
       amountCop: number;
       paymentMethod: "nequi" | "pse";
       phoneNumber?: string;
       bankCode?: string;
-    }) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/payments/initiate`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      return res.json() as Promise<{ intentId: string; status: string; redirectUrl?: string | null }>;
-    },
+      userLegalIdType?: string;
+      userLegalId?: string;
+    }) =>
+      apiFetch<{ intentId: string; status: string; redirectUrl?: string | null }>(
+        `${API_BASE_URL}/api/payments/initiate`,
+        headers,
+        { method: "POST", body: JSON.stringify(data) },
+      ),
   });
 }
 
 export function usePaymentStatus(intentId: string) {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   return useQuery({
     queryKey: ["payment", "status", intentId],
     queryFn: () => apiFetch<{ status: string }>(`${API_BASE_URL}/api/payments/${intentId}/status`, headers),
@@ -188,16 +204,13 @@ export function usePaymentStatus(intentId: string) {
 
 export function useRegisterPushToken() {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   return useMutation({
-    mutationFn: async (token: string) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/push-token`, {
+    mutationFn: (token: string) =>
+      apiFetch(`${API_BASE_URL}/api/attendee/me/push-token`, headers, {
         method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
-      });
-      if (!res.ok) return;
-      return res.json();
-    },
+      }).catch(() => null),
   });
 }
 
@@ -205,6 +218,7 @@ export type PseBank = { financial_institution_code: string; financial_institutio
 
 export function usePseBanks() {
   const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
   return useQuery<PseBank[]>({
     queryKey: ["pse", "banks"],
     queryFn: () => apiFetch<{ data: PseBank[] }>(`${API_BASE_URL}/api/payments/pse/banks`, headers).then((r) => r.data),

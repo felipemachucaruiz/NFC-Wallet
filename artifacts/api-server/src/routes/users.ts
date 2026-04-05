@@ -10,6 +10,41 @@ const router: IRouter = Router();
 const userRoles = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"] as const;
 const eventAdminAllowedRoles = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin"] as const;
 
+// ── Self-service profile update ──────────────────────────────────────────────
+
+const UpdateMyProfileBody = z.object({
+  firstName: z.string().min(1).max(80).optional(),
+  lastName: z.string().max(80).optional(),
+  phone: z.string().max(30).optional(),
+});
+
+router.patch("/users/me", requireAuth, async (req: Request, res: Response) => {
+  const parsed = UpdateMyProfileBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
+    return;
+  }
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (parsed.data.firstName !== undefined) updates.firstName = parsed.data.firstName;
+  if (parsed.data.lastName !== undefined) updates.lastName = parsed.data.lastName;
+  if (parsed.data.phone !== undefined) updates.phone = parsed.data.phone;
+
+  const [updated] = await db
+    .update(usersTable)
+    .set(updates)
+    .where(eq(usersTable.id, req.user!.id))
+    .returning({
+      id: usersTable.id,
+      firstName: usersTable.firstName,
+      lastName: usersTable.lastName,
+      phone: usersTable.phone,
+      email: usersTable.email,
+    });
+
+  res.json({ user: updated });
+});
+
 router.get("/users", requireRole("admin", "event_admin"), async (req: Request, res: Response) => {
   if (req.user!.role === "event_admin") {
     if (!req.user!.eventId) {

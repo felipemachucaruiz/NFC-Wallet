@@ -67,6 +67,9 @@ export default function SelfServiceScreen() {
   const [phone, setPhone] = useState("");
   const [selectedBank, setSelectedBank] = useState<{ code: string; name: string } | null>(null);
   const [showBankPicker, setShowBankPicker] = useState(false);
+  const [pseLegalIdType, setPseLegalIdType] = useState<"CC" | "CE" | "NIT" | "PP" | "TI">("CC");
+  const [pseLegalId, setPseLegalId] = useState("");
+  const [showLegalIdTypePicker, setShowLegalIdTypePicker] = useState(false);
   const [paying, setPaying] = useState(false);
 
   const [intentId, setIntentId] = useState<string | null>(null);
@@ -91,7 +94,7 @@ export default function SelfServiceScreen() {
     bracelet !== null &&
     (method === "nequi"
       ? phone.replace(/\D/g, "").length === 10
-      : selectedBank !== null);
+      : selectedBank !== null && pseLegalId.trim().length >= 5);
 
   const regFieldsValid =
     !wantsAccount ||
@@ -210,7 +213,11 @@ export default function SelfServiceScreen() {
         paymentMethod: method,
       };
       if (method === "nequi") body.phoneNumber = phone.replace(/\D/g, "");
-      else body.bankCode = selectedBank!.code;
+      else {
+        body.bankCode = selectedBank!.code;
+        body.userLegalIdType = pseLegalIdType;
+        body.userLegalId = pseLegalId.trim();
+      }
 
       const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/public/topup/initiate`, {
         method: "POST",
@@ -614,6 +621,42 @@ export default function SelfServiceScreen() {
                         </Pressable>
                       ))}
                     </ScrollView>
+                  </View>
+                )}
+
+                {/* ── PSE Legal ID ── */}
+                <Text style={[styles.sectionLabel, { color: C.textSecondary, marginTop: 4 }]}>
+                  TIPO Y NÚMERO DE DOCUMENTO
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    onPress={() => setShowLegalIdTypePicker(!showLegalIdTypePicker)}
+                    style={[styles.bankSelector, { backgroundColor: C.inputBg, borderColor: C.border, flex: 0, width: 80 }]}
+                  >
+                    <Text style={{ color: C.text, fontFamily: "Inter_600SemiBold", fontSize: 14 }}>{pseLegalIdType}</Text>
+                    <Feather name={showLegalIdTypePicker ? "chevron-up" : "chevron-down"} size={14} color={C.textSecondary} />
+                  </Pressable>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text, flex: 1, height: 48 }]}
+                    value={pseLegalId}
+                    onChangeText={setPseLegalId}
+                    placeholder="Número de documento"
+                    placeholderTextColor={C.textMuted}
+                    keyboardType="numeric"
+                  />
+                </View>
+                {showLegalIdTypePicker && (
+                  <View style={[styles.bankList, { backgroundColor: C.card, borderColor: C.border }]}>
+                    {(["CC", "CE", "NIT", "PP", "TI"] as const).map((type) => (
+                      <Pressable
+                        key={type}
+                        onPress={() => { setPseLegalIdType(type); setShowLegalIdTypePicker(false); }}
+                        style={[styles.bankItem, { backgroundColor: pseLegalIdType === type ? C.primaryLight : "transparent", borderBottomColor: C.separator }]}
+                      >
+                        <Text style={{ color: C.text, fontFamily: "Inter_400Regular" }}>{type}</Text>
+                        {pseLegalIdType === type && <Feather name="check" size={14} color={C.primary} />}
+                      </Pressable>
+                    ))}
                   </View>
                 )}
               </Card>

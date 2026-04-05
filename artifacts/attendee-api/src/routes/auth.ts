@@ -220,6 +220,36 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+/**
+ * Token refresh endpoint for attendee app.
+ * Validates the current session and issues a new session token with a fresh TTL.
+ * Returns 401 if the session is invalid or expired so the app knows to force logout.
+ */
+router.post("/auth/refresh", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ error: "Session expired" });
+    return;
+  }
+
+  // Issue a fresh session
+  const sessionData = {
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      firstName: req.user.firstName,
+      lastName: req.user.lastName,
+      profileImageUrl: req.user.profileImageUrl,
+      role: req.user.role,
+      merchantId: req.user.merchantId ?? null,
+      eventId: req.user.eventId ?? null,
+      promoterCompanyId: req.user.promoterCompanyId ?? null,
+    },
+  };
+
+  const newSid = await createSession(sessionData);
+  res.json({ token: newSid });
+});
+
 const CreateAccountBody = z.object({
   email: z.string().email().optional(),
   username: z.string().min(3).max(40).regex(/^[a-zA-Z0-9_.-]+$/, "Username may only contain letters, numbers, underscores, dots, and hyphens").optional(),
