@@ -714,15 +714,12 @@ export default function ChargeScreen() {
           <Button title={t("common.loading")} onPress={() => {}} loading variant="primary" size="lg" fullWidth />
         )}
         {step === "insufficient" && (
-          <View style={{ gap: 10 }}>
-            <Button title={t("pos.goToBank")} onPress={() => {}} variant="secondary" size="lg" fullWidth />
-            <Button title={t("common.retry")} onPress={() => {
-              setStep("waiting");
-              setNfcModalVisible(true);
-              scanningRef.current = false;
-              startNfcScan();
-            }} variant="primary" size="lg" fullWidth />
-          </View>
+          <Button title={t("common.retry")} onPress={() => {
+            setStep("waiting");
+            setNfcModalVisible(true);
+            scanningRef.current = false;
+            startNfcScan();
+          }} variant="primary" size="lg" fullWidth />
         )}
         {step === "hmac_fail" && (
           <Button title={t("common.cancel")} onPress={() => router.back()} variant="danger" size="lg" fullWidth />
