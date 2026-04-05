@@ -2738,7 +2738,7 @@ components:
     # ── Roles & Users ─────────────────────────────────────────────────────────
     UserRole:
       type: string
-      enum: [attendee, bank, merchant_staff, merchant_admin, warehouse_admin, event_admin, admin]
+      enum: [attendee, bank, gate, merchant_staff, merchant_admin, warehouse_admin, event_admin, admin]
 
     InventoryMode:
       type: string

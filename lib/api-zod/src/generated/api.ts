@@ -35,6 +35,7 @@ export const GetCurrentAuthUserResponse = zod.object({
       role: zod.enum([
         "attendee",
         "bank",
+        "gate",
         "merchant_staff",
         "merchant_admin",
         "warehouse_admin",
@@ -148,6 +149,7 @@ export const ListUsersResponse = zod.object({
       role: zod.enum([
         "attendee",
         "bank",
+        "gate",
         "merchant_staff",
         "merchant_admin",
         "warehouse_admin",
@@ -170,6 +172,7 @@ export const UpdateUserRoleBody = zod.object({
   role: zod.enum([
     "attendee",
     "bank",
+    "gate",
     "merchant_staff",
     "merchant_admin",
     "warehouse_admin",
@@ -187,6 +190,7 @@ export const UpdateUserRoleResponse = zod.object({
   role: zod.enum([
     "attendee",
     "bank",
+    "gate",
     "merchant_staff",
     "merchant_admin",
     "warehouse_admin",
@@ -210,6 +214,7 @@ export const ListMerchantStaffResponse = zod.object({
       role: zod.enum([
         "attendee",
         "bank",
+        "gate",
         "merchant_staff",
         "merchant_admin",
         "warehouse_admin",
