@@ -95,6 +95,7 @@ module.exports = {
           certFiles: ["tapee_api.cer", "attendee_api.cer"],
         },
       ],
+      "./plugins/withGoogleMapsManifest",
     ],
     experiments: {
       typedRoutes: true,
