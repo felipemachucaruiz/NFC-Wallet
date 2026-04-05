@@ -209,6 +209,56 @@ SSL/TLS certificate pinning has been **removed** from both apps.
 
 > If certificate pinning is re-added in future, fix the plugin to copy to `res/raw/` on Android and `<AppName>/` on iOS (Xcode bundle resources).
 
+## Pending APK Builds (New Native Modules Added)
+
+Both apps need fresh APK builds because new native modules were added. OTAs cannot deliver native modules — the existing APKs have lazy-load guards so they work normally until the new APKs are installed.
+
+### Native modules added (not yet in current APKs):
+| Module | Staff app | Attendee app |
+|--------|-----------|--------------|
+| `expo-notifications` | ✅ added | ✅ added |
+| `expo-sqlite` | ✅ added | — |
+
+### Build commands (run from the app directory):
+```bash
+# Staff app
+cd artifacts/mobile
+pnpm exec eas build --profile production-apk --platform android --non-interactive --no-wait
+
+# Attendee app  
+cd artifacts/attendee-app
+pnpm exec eas build --profile production-apk --platform android --non-interactive --no-wait
+```
+
+EAS account: `felipemachucadj` (logged in).  
+Both builds use the `production-apk` profile → channel: `production`, APK output.
+
+> **Note**: The 246 MB archive makes EAS upload slow from Replit. Trigger builds from local machine or EAS dashboard (https://expo.dev) if upload times out.
+
+### After new APKs are installed → push OTA to activate native features:
+```bash
+# Staff app (BOTH channels always)
+cd artifacts/mobile
+bash ota-update.sh preview  "feat: activate expo-sqlite offline queue + push notifications"
+bash ota-update.sh production "feat: activate expo-sqlite offline queue + push notifications"
+
+# Attendee app (script pushes both automatically)
+cd artifacts/attendee-app
+bash ota-update.sh "feat: activate push notifications"
+```
+
+### Plugins confirmed in app.config.js:
+- **Staff app** (`artifacts/mobile/app.config.js`): `expo-notifications` ✅, `expo-location` ✅, `expo-image-picker` ✅, `react-native-maps` (via `withGoogleMapsManifest` plugin) ✅, `expo-sqlite` (no plugin needed) ✅
+- **Attendee app** (`artifacts/attendee-app/app.config.js`): `expo-notifications` ✅  
+
+### Maps SDK (staff app only):
+- `react-native-maps@1.20.1` — no bundled `app.plugin.js`, so manual `./plugins/withGoogleMapsManifest` injects `com.google.android.geo.API_KEY` meta-data
+- API key read from `GOOGLE_MAPS_API_KEY` env var at build time (set in `eas.json` env section)
+- At runtime: `Constants.expoConfig.extra.googleMapsApiKey` used in `LocationMapPicker.tsx`
+- `LocationMapPicker.tsx` uses a lazy `require('react-native-maps')` → graceful fallback if native module missing
+
+---
+
 ## Pending Setup
 
 - **Wompi keys not yet configured**: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_EVENTS_SECRET`, and `APP_URL` must be added as secrets before digital top-ups (Nequi/PSE) will work. Get sandbox keys from https://commerce.wompi.co
