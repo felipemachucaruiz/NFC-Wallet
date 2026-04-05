@@ -195,6 +195,7 @@ export default function RootLayout() {
                       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
                         <KeyboardProvider>
                           <AlertProvider>
+                            <UpdateBanner />
                             <CrashLogReporter />
                             <RootLayoutNav />
                             {!splashDone && (
