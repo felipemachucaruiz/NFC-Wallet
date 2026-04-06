@@ -6,27 +6,17 @@ import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import https from "https";
 import { URL } from "url";
 
+// PORT is only used by the dev/preview server — not during `vite build`.
+// Default to 3000 so CI / Railway build steps don't fail without this var.
 const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
+const port = Number(rawPort || "3000");
+if (rawPort && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+// In Railway production the app is served at the root path.
+// Locally in Replit, BASE_PATH is injected as "/admin-web/".
+const basePath = process.env.BASE_PATH || "/";
 
 const API_TARGET = process.env.VITE_API_TARGET || "https://prod.tapee.app";
 const proxyPrefix = `${basePath}_srv`;
