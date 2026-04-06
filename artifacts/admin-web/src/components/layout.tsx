@@ -43,11 +43,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background text-foreground">
       <aside className="w-64 border-r border-border bg-sidebar flex flex-col">
-        <div className="p-6 border-b border-border">
-          <h1 className="text-xl font-bold tracking-tight text-sidebar-foreground">
-            Tapee <span className="text-primary">Ops</span>
-          </h1>
-          <p className="text-xs text-sidebar-foreground/60 mt-1 uppercase tracking-wider font-semibold">
+        <div className="p-5 border-b border-border">
+          <img src={`${import.meta.env.BASE_URL}tapee-logo.png`} alt="Tapee" className="h-8 mb-2" />
+          <p className="text-xs text-primary/80 uppercase tracking-wider font-semibold">
             {isGlobalAdmin ? "Global Command" : "Event Control"}
           </p>
         </div>

@@ -4,7 +4,7 @@ import { apiForgotPassword } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Shield, ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [, setLocation] = useLocation();
@@ -40,10 +40,8 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-primary/10 mb-4">
-            <Shield className="h-6 w-6 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Tapee Admin</h1>
+          <img src={`${import.meta.env.BASE_URL}tapee-logo.png`} alt="Tapee" className="h-14 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-foreground">Admin Portal</h1>
           <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>
         </div>
 
