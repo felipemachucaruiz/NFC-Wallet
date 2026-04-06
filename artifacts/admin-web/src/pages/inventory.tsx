@@ -9,7 +9,6 @@ import {
   useListProducts,
   useGetInventoryReport,
   getListWarehousesQueryKey,
-  getListStockMovementsQueryKey,
 } from "@workspace/api-client-react";
 import type { Warehouse, StockMovement } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,8 +21,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Package, AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function Inventory() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -52,8 +53,8 @@ export default function Inventory() {
     createWarehouse.mutate(
       { data: { name: whForm.name, eventId, notes: whForm.notes || undefined } },
       {
-        onSuccess: () => { toast({ title: "Warehouse created" }); setCreateWhOpen(false); setWhForm({ name: "", notes: "" }); queryClient.invalidateQueries({ queryKey: getListWarehousesQueryKey({ eventId }) }); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("inventory.created") }); setCreateWhOpen(false); setWhForm({ name: "", notes: "" }); queryClient.invalidateQueries({ queryKey: getListWarehousesQueryKey({ eventId }) }); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -69,33 +70,33 @@ export default function Inventory() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Package className="w-7 h-7" /> Inventory
+            <Package className="w-7 h-7" /> {t("inventory.title")}
           </h1>
-          <p className="text-muted-foreground mt-1">Warehouses, stock movements, and reports across events.</p>
+          <p className="text-muted-foreground mt-1">{t("inventory.subtitle")}</p>
         </div>
         <Button data-testid="button-create-warehouse" onClick={() => setCreateWhOpen(true)} disabled={!eventId}>
-          <Plus className="w-4 h-4 mr-2" /> Add Warehouse
+          <Plus className="w-4 h-4 mr-2" /> {t("inventory.addWarehouse")}
         </Button>
       </div>
 
       <div className="flex gap-3">
         <Select value={eventId || "none"} onValueChange={(v) => setEventId(v === "none" ? "" : v)}>
-          <SelectTrigger className="w-56"><SelectValue placeholder="Select event" /></SelectTrigger>
+          <SelectTrigger className="w-56"><SelectValue placeholder={t("inventory.selectEventPlaceholder")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">Select event...</SelectItem>
+            <SelectItem value="none">{t("inventory.selectEventPlaceholder")}</SelectItem>
             {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
 
       {!eventId ? (
-        <p className="text-muted-foreground text-center py-12">Select an event to view inventory.</p>
+        <p className="text-muted-foreground text-center py-12">{t("inventory.selectEventPrompt")}</p>
       ) : (
         <Tabs defaultValue="warehouses">
           <TabsList>
-            <TabsTrigger value="warehouses">Warehouses</TabsTrigger>
-            <TabsTrigger value="movements">Stock Movements</TabsTrigger>
-            <TabsTrigger value="report">Report</TabsTrigger>
+            <TabsTrigger value="warehouses">{t("inventory.tabWarehouses")}</TabsTrigger>
+            <TabsTrigger value="movements">{t("inventory.tabMovements")}</TabsTrigger>
+            <TabsTrigger value="report">{t("inventory.tabReport")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="warehouses" className="mt-4">
@@ -103,16 +104,16 @@ export default function Inventory() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Warehouse</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>{t("inventory.colWarehouse")}</TableHead>
+                    <TableHead>{t("inventory.colNotes")}</TableHead>
+                    <TableHead>{t("inventory.colCreated")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {whLoading ? (
-                    <TableRow><TableCell colSpan={3} className="text-center py-8">Loading...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={3} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                   ) : warehouses.length === 0 ? (
-                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">No warehouses.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">{t("inventory.noWarehouses")}</TableCell></TableRow>
                   ) : (
                     warehouses.map((wh: Warehouse) => (
                       <TableRow key={wh.id}>
@@ -132,17 +133,17 @@ export default function Inventory() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
-                    <TableHead>From</TableHead>
-                    <TableHead>To</TableHead>
+                    <TableHead>{t("inventory.colTime")}</TableHead>
+                    <TableHead>{t("inventory.colType")}</TableHead>
+                    <TableHead>{t("inventory.colProduct")}</TableHead>
+                    <TableHead className="text-right">{t("inventory.colQuantity")}</TableHead>
+                    <TableHead>{t("inventory.colFrom")}</TableHead>
+                    <TableHead>{t("inventory.colTo")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {movements.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No stock movements.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("inventory.noMovements")}</TableCell></TableRow>
                   ) : (
                     movements.map((mv: StockMovement) => (
                       <TableRow key={mv.id}>
@@ -165,18 +166,19 @@ export default function Inventory() {
               <div className="space-y-4">
                 {lowStockCount > 0 && (
                   <div className="flex items-center gap-2 text-destructive text-sm font-medium">
-                    <AlertTriangle className="w-4 h-4" /> {lowStockCount} low stock alert{lowStockCount > 1 ? "s" : ""}
+                    <AlertTriangle className="w-4 h-4" />
+                    {t("inventory.lowStockAlerts", { count: lowStockCount, plural: lowStockCount > 1 ? "s" : "" })}
                   </div>
                 )}
                 <div className="border border-border rounded-lg bg-card">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">On Hand</TableHead>
-                        <TableHead className="text-right">Restock Trigger</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>{t("inventory.colLocation")}</TableHead>
+                        <TableHead>{t("inventory.colProduct")}</TableHead>
+                        <TableHead className="text-right">{t("inventory.colOnHand")}</TableHead>
+                        <TableHead className="text-right">{t("inventory.colRestockTrigger")}</TableHead>
+                        <TableHead>{t("common.status")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -188,7 +190,7 @@ export default function Inventory() {
                           <TableCell className="text-right font-mono">{item.restockTrigger}</TableCell>
                           <TableCell>
                             <Badge variant={item.isLowStock ? "destructive" : "default"} className="text-xs">
-                              {item.isLowStock ? "Low Stock" : "OK"}
+                              {item.isLowStock ? t("inventory.lowStock") : "OK"}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -198,7 +200,7 @@ export default function Inventory() {
                 </div>
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-8">No inventory data available.</p>
+              <p className="text-muted-foreground text-center py-8">{t("inventory.noInventory")}</p>
             )}
           </TabsContent>
         </Tabs>
@@ -206,14 +208,16 @@ export default function Inventory() {
 
       <Dialog open={createWhOpen} onOpenChange={setCreateWhOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Warehouse</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("inventory.addWarehouseTitle")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1"><Label>Name *</Label><Input value={whForm.name} onChange={(e) => setWhForm((f) => ({ ...f, name: e.target.value }))} /></div>
-            <div className="space-y-1"><Label>Notes</Label><Input value={whForm.notes} onChange={(e) => setWhForm((f) => ({ ...f, notes: e.target.value }))} /></div>
+            <div className="space-y-1"><Label>{t("inventory.warehouseName")}</Label><Input value={whForm.name} onChange={(e) => setWhForm((f) => ({ ...f, name: e.target.value }))} /></div>
+            <div className="space-y-1"><Label>{t("inventory.notes")}</Label><Input value={whForm.notes} onChange={(e) => setWhForm((f) => ({ ...f, notes: e.target.value }))} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateWhOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateWarehouse} disabled={createWarehouse.isPending || !whForm.name}>{createWarehouse.isPending ? "Creating..." : "Create"}</Button>
+            <Button variant="outline" onClick={() => setCreateWhOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleCreateWarehouse} disabled={createWarehouse.isPending || !whForm.name}>
+              {createWarehouse.isPending ? t("inventory.creating") : t("common.create")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

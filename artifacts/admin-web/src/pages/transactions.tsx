@@ -7,14 +7,15 @@ import {
 } from "@workspace/api-client-react";
 import type { EventTransaction } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Eye, Receipt } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function Transactions() {
+  const { t } = useTranslation();
   const { data: eventsData } = useListEvents();
   const events = eventsData?.events ?? [];
   const { data: merchantsData } = useListMerchants();
@@ -40,53 +41,53 @@ export default function Transactions() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <Receipt className="w-7 h-7" /> Transactions
+          <Receipt className="w-7 h-7" /> {t("transactions.title")}
         </h1>
-        <p className="text-muted-foreground mt-1">View transactions across all events.</p>
+        <p className="text-muted-foreground mt-1">{t("transactions.subtitle")}</p>
       </div>
 
       <div className="flex gap-3">
         <Select value={eventId || "none"} onValueChange={(v) => { setEventId(v === "none" ? "" : v); setPage(1); }}>
-          <SelectTrigger className="w-56"><SelectValue placeholder="Select event" /></SelectTrigger>
+          <SelectTrigger className="w-56"><SelectValue placeholder={t("transactions.selectEventPlaceholder")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">Select event...</SelectItem>
+            <SelectItem value="none">{t("transactions.selectEventPlaceholder")}</SelectItem>
             {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by bracelet UID or merchant..."
+            placeholder={t("transactions.searchPlaceholder")}
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           />
         </div>
-        <Button variant="outline" onClick={handleSearch}>Search</Button>
+        <Button variant="outline" onClick={handleSearch}>{t("transactions.search")}</Button>
       </div>
 
       <div className="border border-border rounded-lg bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Time</TableHead>
-              <TableHead>Bracelet UID</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Merchant</TableHead>
-              <TableHead className="text-right">Gross (COP)</TableHead>
-              <TableHead className="text-right">Net (COP)</TableHead>
-              <TableHead>Items</TableHead>
+              <TableHead>{t("transactions.colTime")}</TableHead>
+              <TableHead>{t("transactions.colBracelet")}</TableHead>
+              <TableHead>{t("transactions.colLocation")}</TableHead>
+              <TableHead>{t("transactions.colMerchant")}</TableHead>
+              <TableHead className="text-right">{t("transactions.colGross")}</TableHead>
+              <TableHead className="text-right">{t("transactions.colNet")}</TableHead>
+              <TableHead>{t("transactions.colItems")}</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {!eventId ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Select an event to view transactions.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{t("transactions.selectEventPrompt")}</TableCell></TableRow>
             ) : isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
             ) : transactions.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No transactions found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{t("transactions.noTransactions")}</TableCell></TableRow>
             ) : (
               transactions.map((tx) => (
                 <TableRow key={tx.id}>
@@ -107,10 +108,10 @@ export default function Transactions() {
         </Table>
         {data && eventId && (
           <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border flex justify-between items-center">
-            <span>Page {data.page} — Showing {transactions.length} of {data.total} transactions</span>
+            <span>{t("transactions.pageInfo", { page: data.page, showing: transactions.length, total: data.total })}</span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>
-              <Button variant="outline" size="sm" disabled={transactions.length < 50} onClick={() => setPage((p) => p + 1)}>Next</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("common.prev")}</Button>
+              <Button variant="outline" size="sm" disabled={transactions.length < 50} onClick={() => setPage((p) => p + 1)}>{t("common.next")}</Button>
             </div>
           </div>
         )}
@@ -118,29 +119,29 @@ export default function Transactions() {
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Transaction Detail</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("transactions.detailTitle")}</DialogTitle></DialogHeader>
           {selected && (
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-3">
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">ID</p><p className="font-mono text-xs break-all">{selected.id}</p></div>
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">Bracelet UID</p><p className="font-mono">{selected.braceletUid}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelId")}</p><p className="font-mono text-xs break-all">{selected.id}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelBracelet")}</p><p className="font-mono">{selected.braceletUid}</p></div>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">Gross</p><p className="font-mono font-bold">${selected.grossAmountCop.toLocaleString()}</p></div>
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">Commission</p><p className="font-mono">${selected.commissionAmountCop.toLocaleString()}</p></div>
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">Net</p><p className="font-mono font-bold">${selected.netAmountCop.toLocaleString()}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelGross")}</p><p className="font-mono font-bold">${selected.grossAmountCop.toLocaleString()}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelCommission")}</p><p className="font-mono">${selected.commissionAmountCop.toLocaleString()}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelNet")}</p><p className="font-mono font-bold">${selected.netAmountCop.toLocaleString()}</p></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">Location</p><p>{selected.locationName ?? selected.locationId.slice(0, 8)}</p></div>
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">Created</p><p>{new Date(selected.createdAt).toLocaleString()}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelLocation")}</p><p>{selected.locationName ?? selected.locationId.slice(0, 8)}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelCreated")}</p><p>{new Date(selected.createdAt).toLocaleString()}</p></div>
               </div>
               {selected.items && selected.items.length > 0 && (
                 <div>
-                  <p className="text-muted-foreground text-xs uppercase mb-2">Line Items</p>
+                  <p className="text-muted-foreground text-xs uppercase mb-2">{t("transactions.labelLineItems")}</p>
                   <div className="space-y-1 border border-border rounded p-2">
                     {selected.items.map((item, i) => (
                       <div key={i} className="flex justify-between text-sm">
-                        <span>{item.productName ?? item.productId ?? "Unknown"} x{item.quantity}</span>
+                        <span>{item.productName ?? item.productId ?? t("transactions.unknown")} x{item.quantity}</span>
                         <span className="font-mono">${(item.unitPrice * item.quantity).toLocaleString()}</span>
                       </div>
                     ))}
@@ -149,7 +150,7 @@ export default function Transactions() {
               )}
             </div>
           )}
-          <DialogFooter><Button onClick={() => setDetailOpen(false)}>Close</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => setDetailOpen(false)}>{t("transactions.close")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

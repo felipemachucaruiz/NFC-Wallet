@@ -18,11 +18,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type ZoneForm = { name: string; description: string; colorHex: string; rank: string; upgradePriceCop: string };
 const emptyForm: ZoneForm = { name: "", description: "", colorHex: "#6366f1", rank: "0", upgradePriceCop: "" };
 
 export default function EventAccessZones() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
@@ -69,8 +71,8 @@ export default function EventAccessZones() {
         }
       },
       {
-        onSuccess: () => { toast({ title: "Zone created" }); setCreateOpen(false); setForm(emptyForm); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("accessZones.created") }); setCreateOpen(false); setForm(emptyForm); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -90,8 +92,8 @@ export default function EventAccessZones() {
         }
       },
       {
-        onSuccess: () => { toast({ title: "Zone updated" }); setEditOpen(false); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("accessZones.updated") }); setEditOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -101,8 +103,8 @@ export default function EventAccessZones() {
     deleteZone.mutate(
       { eventId, zoneId: selected.id },
       {
-        onSuccess: () => { toast({ title: "Zone deleted" }); setDeleteOpen(false); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("accessZones.deleted") }); setDeleteOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -110,20 +112,20 @@ export default function EventAccessZones() {
   const FormFields = () => (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label>Zone Name *</Label>
+        <Label>{t("accessZones.zoneName")}</Label>
         <Input data-testid="input-zone-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
       </div>
       <div className="space-y-1">
-        <Label>Description</Label>
+        <Label>{t("accessZones.description")}</Label>
         <Input data-testid="input-zone-description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1">
-          <Label>Rank *</Label>
+          <Label>{t("accessZones.rank")}</Label>
           <Input data-testid="input-zone-rank" type="number" min="0" value={form.rank} onChange={(e) => setForm((f) => ({ ...f, rank: e.target.value }))} />
         </div>
         <div className="space-y-1">
-          <Label>Color</Label>
+          <Label>{t("accessZones.color")}</Label>
           <div className="flex items-center gap-2">
             <input
               type="color"
@@ -136,8 +138,8 @@ export default function EventAccessZones() {
           </div>
         </div>
         <div className="space-y-1">
-          <Label>Upgrade Price COP</Label>
-          <Input data-testid="input-zone-price" type="number" min="0" value={form.upgradePriceCop} onChange={(e) => setForm((f) => ({ ...f, upgradePriceCop: e.target.value }))} placeholder="Free" />
+          <Label>{t("accessZones.upgradePriceCop")}</Label>
+          <Input data-testid="input-zone-price" type="number" min="0" value={form.upgradePriceCop} onChange={(e) => setForm((f) => ({ ...f, upgradePriceCop: e.target.value }))} placeholder={t("accessZones.free")} />
         </div>
       </div>
     </div>
@@ -147,11 +149,11 @@ export default function EventAccessZones() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Access Zones</h1>
-          <p className="text-muted-foreground mt-1">Manage gated areas and access permissions.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("accessZones.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("accessZones.subtitle")}</p>
         </div>
         <Button data-testid="button-create-zone" onClick={() => { setForm(emptyForm); setCreateOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> Add Zone
+          <Plus className="w-4 h-4 mr-2" /> {t("accessZones.addZone")}
         </Button>
       </div>
 
@@ -159,20 +161,20 @@ export default function EventAccessZones() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Zone</TableHead>
-              <TableHead>Rank</TableHead>
-              <TableHead>Upgrade Price (COP)</TableHead>
-              <TableHead>Description</TableHead>
+              <TableHead>{t("accessZones.colZone")}</TableHead>
+              <TableHead>{t("accessZones.colRank")}</TableHead>
+              <TableHead>{t("accessZones.colUpgradePrice")}</TableHead>
+              <TableHead>{t("accessZones.colDescription")}</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
             ) : !eventId ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No event assigned.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">{t("accessZones.noEvent")}</TableCell></TableRow>
             ) : zones.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No access zones defined.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">{t("accessZones.noZones")}</TableCell></TableRow>
             ) : (
               [...zones].sort((a, b) => a.rank - b.rank).map((zone) => (
                 <TableRow key={zone.id} data-testid={`row-zone-${zone.id}`}>
@@ -186,7 +188,7 @@ export default function EventAccessZones() {
                   </TableCell>
                   <TableCell className="font-mono text-sm">{zone.rank}</TableCell>
                   <TableCell className="font-mono text-sm">
-                    {zone.upgradePriceCop != null ? `$${zone.upgradePriceCop.toLocaleString()}` : <span className="text-muted-foreground">Free</span>}
+                    {zone.upgradePriceCop != null ? `$${zone.upgradePriceCop.toLocaleString()}` : <span className="text-muted-foreground">{t("accessZones.free")}</span>}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{zone.description ?? "—"}</TableCell>
                   <TableCell>
@@ -195,10 +197,10 @@ export default function EventAccessZones() {
                         <Button variant="ghost" size="icon" data-testid={`button-zone-menu-${zone.id}`}><MoreHorizontal className="w-4 h-4" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(zone)}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(zone)}><Pencil className="w-4 h-4 mr-2" /> {t("common.edit")}</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => { setSelected(zone); setDeleteOpen(true); }}>
-                          <Trash2 className="w-4 h-4 mr-2" /> Delete
+                          <Trash2 className="w-4 h-4 mr-2" /> {t("common.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -212,12 +214,12 @@ export default function EventAccessZones() {
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Add Access Zone</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("accessZones.addZoneTitle")}</DialogTitle></DialogHeader>
           <FormFields />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-zone" onClick={handleCreate} disabled={createZone.isPending || !form.name}>
-              {createZone.isPending ? "Creating..." : "Create"}
+              {createZone.isPending ? t("accessZones.creating") : t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -225,12 +227,12 @@ export default function EventAccessZones() {
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Edit Zone — {selected?.name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("accessZones.editZoneTitle")} — {selected?.name}</DialogTitle></DialogHeader>
           <FormFields />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-edit-zone" onClick={handleUpdate} disabled={updateZone.isPending || !form.name}>
-              {updateZone.isPending ? "Saving..." : "Save"}
+              {updateZone.isPending ? t("accessZones.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -239,13 +241,13 @@ export default function EventAccessZones() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Zone</AlertDialogTitle>
-            <AlertDialogDescription>Delete zone "{selected?.name}"? This will fail if bracelets reference it.</AlertDialogDescription>
+            <AlertDialogTitle>{t("accessZones.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("accessZones.deleteDesc", { name: selected?.name })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction data-testid="button-confirm-delete-zone" onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleteZone.isPending ? "Deleting..." : "Delete"}
+              {deleteZone.isPending ? t("accessZones.deleting") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

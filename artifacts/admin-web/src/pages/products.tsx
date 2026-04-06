@@ -6,7 +6,6 @@ import {
   useUpdateProduct,
   useDeleteProduct,
   useListMerchants,
-  useListEvents,
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import type { Product } from "@workspace/api-client-react";
@@ -22,6 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type ProductForm = {
   name: string;
@@ -38,6 +38,7 @@ type ProductForm = {
 const emptyForm: ProductForm = { name: "", priceCop: "", costCop: "0", category: "", barcode: "", merchantId: "", ivaRate: "0", ivaExento: false, active: true };
 
 export default function Products() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -97,8 +98,8 @@ export default function Products() {
         },
       },
       {
-        onSuccess: () => { toast({ title: "Product created" }); setCreateOpen(false); setForm(emptyForm); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("products.created") }); setCreateOpen(false); setForm(emptyForm); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -120,8 +121,8 @@ export default function Products() {
         },
       },
       {
-        onSuccess: () => { toast({ title: "Product updated" }); setEditOpen(false); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("products.updated") }); setEditOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -131,8 +132,8 @@ export default function Products() {
     deleteProduct.mutate(
       { productId: selected.id },
       {
-        onSuccess: () => { toast({ title: "Product deleted" }); setDeleteOpen(false); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("products.deleted") }); setDeleteOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -141,23 +142,23 @@ export default function Products() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Products</h1>
-          <p className="text-muted-foreground mt-1">Manage products across all merchants.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("products.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("products.subtitle")}</p>
         </div>
         <Button data-testid="button-create-product" onClick={() => { setForm(emptyForm); setCreateOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> Add Product
+          <Plus className="w-4 h-4 mr-2" /> {t("products.addProduct")}
         </Button>
       </div>
 
       <div className="flex gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search products..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder={t("products.searchPlaceholder")} className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={merchantFilter} onValueChange={setMerchantFilter}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="All merchants" /></SelectTrigger>
+          <SelectTrigger className="w-48"><SelectValue placeholder={t("products.allMerchants")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All merchants</SelectItem>
+            <SelectItem value="all">{t("products.allMerchants")}</SelectItem>
             {merchants.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -167,20 +168,20 @@ export default function Products() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>Merchant</TableHead>
-              <TableHead className="text-right">Price (COP)</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>IVA</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{t("products.colProduct")}</TableHead>
+              <TableHead>{t("products.colMerchant")}</TableHead>
+              <TableHead className="text-right">{t("products.colPrice")}</TableHead>
+              <TableHead>{t("products.colCategory")}</TableHead>
+              <TableHead>{t("products.colIVA")}</TableHead>
+              <TableHead>{t("products.colStatus")}</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No products found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("products.noProducts")}</TableCell></TableRow>
             ) : (
               filtered.map((product) => (
                 <TableRow key={product.id}>
@@ -188,17 +189,17 @@ export default function Products() {
                   <TableCell className="text-sm text-muted-foreground">{merchants.find((m) => m.id === product.merchantId)?.name ?? product.merchantId.slice(0, 8)}</TableCell>
                   <TableCell className="text-right font-mono">${product.priceCop.toLocaleString()}</TableCell>
                   <TableCell className="text-sm">{product.category ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{product.ivaExento ? "Exento" : `${product.ivaRate}%`}</TableCell>
+                  <TableCell className="text-sm">{product.ivaExento ? t("products.ivaExempt") : `${product.ivaRate}%`}</TableCell>
                   <TableCell>
-                    <Badge variant={product.active ? "default" : "secondary"} className="text-xs">{product.active ? "Active" : "Inactive"}</Badge>
+                    <Badge variant={product.active ? "default" : "secondary"} className="text-xs">{product.active ? t("common.active") : t("common.inactive")}</Badge>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(product)}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(product)}><Pencil className="w-4 h-4 mr-2" /> {t("products.edit")}</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={() => { setSelected(product); setDeleteOpen(true); }}><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => { setSelected(product); setDeleteOpen(true); }}><Trash2 className="w-4 h-4 mr-2" /> {t("common.delete")}</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -211,33 +212,33 @@ export default function Products() {
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Product</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("products.addProductTitle")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1"><Label>Name *</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
+            <div className="space-y-1"><Label>{t("products.productName")}</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>Price (COP) *</Label><Input type="number" min="0" value={form.priceCop} onChange={(e) => setForm((f) => ({ ...f, priceCop: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>Cost (COP)</Label><Input type="number" min="0" value={form.costCop} onChange={(e) => setForm((f) => ({ ...f, costCop: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.priceCOP")}</Label><Input type="number" min="0" value={form.priceCop} onChange={(e) => setForm((f) => ({ ...f, priceCop: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.costCOP")}</Label><Input type="number" min="0" value={form.costCop} onChange={(e) => setForm((f) => ({ ...f, costCop: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>Category</Label><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>Barcode</Label><Input value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.category")}</Label><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.barcode")}</Label><Input value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} /></div>
             </div>
             <div className="space-y-1">
-              <Label>Merchant *</Label>
+              <Label>{t("products.merchant")}</Label>
               <Select value={form.merchantId} onValueChange={(v) => setForm((f) => ({ ...f, merchantId: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select merchant" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("products.selectMerchant")} /></SelectTrigger>
                 <SelectContent>{merchants.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>IVA Rate (%)</Label><Input type="text" value={form.ivaRate} onChange={(e) => setForm((f) => ({ ...f, ivaRate: e.target.value }))} /></div>
-              <div className="flex items-center gap-2 pt-6"><Switch checked={form.ivaExento} onCheckedChange={(v) => setForm((f) => ({ ...f, ivaExento: v }))} /><Label>IVA Exento</Label></div>
+              <div className="space-y-1"><Label>{t("products.ivaRate")}</Label><Input type="text" value={form.ivaRate} onChange={(e) => setForm((f) => ({ ...f, ivaRate: e.target.value }))} /></div>
+              <div className="flex items-center gap-2 pt-6"><Switch checked={form.ivaExento} onCheckedChange={(v) => setForm((f) => ({ ...f, ivaExento: v }))} /><Label>{t("products.ivaExento")}</Label></div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleCreate} disabled={createProduct.isPending || !form.name || !form.priceCop || !form.merchantId}>
-              {createProduct.isPending ? "Creating..." : "Create"}
+              {createProduct.isPending ? t("products.creating") : t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -245,27 +246,27 @@ export default function Products() {
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Edit — {selected?.name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("products.editTitle")} — {selected?.name}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1"><Label>Name *</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
+            <div className="space-y-1"><Label>{t("products.productName")}</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>Price (COP) *</Label><Input type="number" min="0" value={form.priceCop} onChange={(e) => setForm((f) => ({ ...f, priceCop: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>Cost (COP)</Label><Input type="number" min="0" value={form.costCop} onChange={(e) => setForm((f) => ({ ...f, costCop: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.priceCOP")}</Label><Input type="number" min="0" value={form.priceCop} onChange={(e) => setForm((f) => ({ ...f, priceCop: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.costCOP")}</Label><Input type="number" min="0" value={form.costCop} onChange={(e) => setForm((f) => ({ ...f, costCop: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>Category</Label><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>Barcode</Label><Input value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.category")}</Label><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.barcode")}</Label><Input value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>IVA Rate (%)</Label><Input type="text" value={form.ivaRate} onChange={(e) => setForm((f) => ({ ...f, ivaRate: e.target.value }))} /></div>
-              <div className="flex items-center gap-2 pt-6"><Switch checked={form.ivaExento} onCheckedChange={(v) => setForm((f) => ({ ...f, ivaExento: v }))} /><Label>IVA Exento</Label></div>
+              <div className="space-y-1"><Label>{t("products.ivaRate")}</Label><Input type="text" value={form.ivaRate} onChange={(e) => setForm((f) => ({ ...f, ivaRate: e.target.value }))} /></div>
+              <div className="flex items-center gap-2 pt-6"><Switch checked={form.ivaExento} onCheckedChange={(v) => setForm((f) => ({ ...f, ivaExento: v }))} /><Label>{t("products.ivaExento")}</Label></div>
             </div>
-            <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} /><Label>Active</Label></div>
+            <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} /><Label>{t("common.active")}</Label></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleUpdate} disabled={updateProduct.isPending || !form.name || !form.priceCop}>
-              {updateProduct.isPending ? "Saving..." : "Save"}
+              {updateProduct.isPending ? t("products.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -274,13 +275,13 @@ export default function Products() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Product</AlertDialogTitle>
-            <AlertDialogDescription>Delete "{selected?.name}"?</AlertDialogDescription>
+            <AlertDialogTitle>{t("products.deleteProduct")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("products.deleteConfirm", { name: selected?.name })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleteProduct.isPending ? "Deleting..." : "Delete"}
+              {deleteProduct.isPending ? t("products.deleting") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

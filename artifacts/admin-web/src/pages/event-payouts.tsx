@@ -16,8 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function EventPayouts() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
@@ -49,12 +51,12 @@ export default function EventPayouts() {
       },
       {
         onSuccess: () => {
-          toast({ title: "Payout created" });
+          toast({ title: t("payouts.created") });
           setCreateOpen(false);
           setForm({ merchantId: "", periodFrom: "", periodTo: "", paidAt: "", paymentMethod: "cash", referenceNote: "" });
           queryClient.invalidateQueries({ queryKey: getListPayoutsQueryKey({ eventId }) });
         },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -63,11 +65,11 @@ export default function EventPayouts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payouts</h1>
-          <p className="text-muted-foreground mt-1">Merchant disbursements for your event.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("payouts.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("payouts.subtitleEvent")}</p>
         </div>
         <Button data-testid="button-create-payout" onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Create Payout
+          <Plus className="w-4 h-4 mr-2" /> {t("payouts.createPayout")}
         </Button>
       </div>
 
@@ -75,19 +77,19 @@ export default function EventPayouts() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Merchant</TableHead>
-              <TableHead>Period</TableHead>
-              <TableHead className="text-right">Gross Sales (COP)</TableHead>
-              <TableHead className="text-right">Net Payout (COP)</TableHead>
-              <TableHead>Method</TableHead>
-              <TableHead>Paid At</TableHead>
+              <TableHead>{t("payouts.colMerchant")}</TableHead>
+              <TableHead>{t("payouts.colPeriod")}</TableHead>
+              <TableHead className="text-right">{t("payouts.colGross")}</TableHead>
+              <TableHead className="text-right">{t("payouts.colNet")}</TableHead>
+              <TableHead>{t("payouts.colMethod")}</TableHead>
+              <TableHead>{t("payouts.colPaidAt")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
             ) : payouts.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No payouts yet.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("payouts.noPayouts")}</TableCell></TableRow>
             ) : (
               payouts.map((payout: MerchantPayout) => (
                 <TableRow key={payout.id} data-testid={`row-payout-${payout.id}`}>
@@ -106,12 +108,12 @@ export default function EventPayouts() {
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Create Payout</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("payouts.createPayoutTitle")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Merchant *</Label>
+              <Label>{t("payouts.merchant")}</Label>
               <Select value={form.merchantId} onValueChange={(v) => setForm((f) => ({ ...f, merchantId: v }))}>
-                <SelectTrigger data-testid="select-payout-merchant"><SelectValue placeholder="Select merchant" /></SelectTrigger>
+                <SelectTrigger data-testid="select-payout-merchant"><SelectValue placeholder={t("payouts.selectMerchant")} /></SelectTrigger>
                 <SelectContent>
                   {merchants.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                 </SelectContent>
@@ -119,42 +121,42 @@ export default function EventPayouts() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Period From *</Label>
+                <Label>{t("payouts.periodFrom")}</Label>
                 <Input data-testid="input-period-from" type="date" value={form.periodFrom} onChange={(e) => setForm((f) => ({ ...f, periodFrom: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label>Period To *</Label>
+                <Label>{t("payouts.periodTo")}</Label>
                 <Input data-testid="input-period-to" type="date" value={form.periodTo} onChange={(e) => setForm((f) => ({ ...f, periodTo: e.target.value }))} />
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Paid At *</Label>
+              <Label>{t("payouts.paidAt")}</Label>
               <Input data-testid="input-paid-at" type="date" value={form.paidAt} onChange={(e) => setForm((f) => ({ ...f, paidAt: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label>Payment Method *</Label>
+              <Label>{t("payouts.paymentMethod")}</Label>
               <Select value={form.paymentMethod} onValueChange={(v) => setForm((f) => ({ ...f, paymentMethod: v }))}>
                 <SelectTrigger data-testid="select-payment-method"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="nequi">Nequi</SelectItem>
+                  <SelectItem value="cash">{t("payouts.methodCash")}</SelectItem>
+                  <SelectItem value="transfer">{t("payouts.methodTransfer")}</SelectItem>
+                  <SelectItem value="nequi">{t("payouts.methodNequi")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Reference Note</Label>
+              <Label>{t("payouts.referenceNote")}</Label>
               <Input data-testid="input-reference-note" value={form.referenceNote} onChange={(e) => setForm((f) => ({ ...f, referenceNote: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button
               data-testid="button-submit-payout"
               onClick={handleCreate}
               disabled={createPayout.isPending || !form.merchantId || !form.periodFrom || !form.periodTo || !form.paidAt}
             >
-              {createPayout.isPending ? "Creating..." : "Create"}
+              {createPayout.isPending ? t("payouts.creating") : t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -7,8 +7,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Users, ShieldAlert, DollarSign, Building, TrendingUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { data: summary, isLoading: summaryLoading } = useGetAnalyticsSummary();
   const { data: fraudData } = useGetFraudAlerts({ status: "open" });
   const { data: eventsData } = useListEvents();
@@ -24,56 +26,56 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Global Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Platform-wide operational overview.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t("dashboard.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card data-testid="card-events">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Calendar className="w-4 h-4" /> Events
+              <Calendar className="w-4 h-4" /> {t("dashboard.events")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{events.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">{activeEvents.length} active</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.activeEvents", { count: activeEvents.length })}</p>
           </CardContent>
         </Card>
 
         <Card data-testid="card-promoters">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Building className="w-4 h-4" /> Promoters
+              <Building className="w-4 h-4" /> {t("dashboard.promoters")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{companies.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">companies registered</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.companiesRegistered")}</p>
           </CardContent>
         </Card>
 
         <Card data-testid="card-revenue" className={summaryLoading ? "opacity-60" : ""}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="w-4 h-4" /> Revenue
+              <DollarSign className="w-4 h-4" /> {t("dashboard.revenue")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">${fmt(summary?.totalSalesCop)}</p>
-            <p className="text-xs text-muted-foreground mt-1">total sales (COP)</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.totalSalesCop")}</p>
           </CardContent>
         </Card>
 
         <Card data-testid="card-fraud-alerts" className={alerts.length > 0 ? "border-destructive/50" : ""}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ShieldAlert className={`w-4 h-4 ${alerts.length > 0 ? "text-destructive" : ""}`} /> Fraud Alerts
+              <ShieldAlert className={`w-4 h-4 ${alerts.length > 0 ? "text-destructive" : ""}`} /> {t("dashboard.fraudAlerts")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className={`text-3xl font-bold ${alerts.length > 0 ? "text-destructive" : ""}`}>{alerts.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">open alerts</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.openAlerts")}</p>
           </CardContent>
         </Card>
       </div>
@@ -83,24 +85,24 @@ export default function Dashboard() {
           <Card data-testid="card-analytics">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" /> Analytics Snapshot
+                <TrendingUp className="w-4 h-4" /> {t("dashboard.analyticsSnapshot")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total Transactions</span>
+                <span className="text-muted-foreground">{t("dashboard.totalTransactions")}</span>
                 <span className="font-mono font-medium">{fmt(summary.transactionCount)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Top-Up Total (COP)</span>
+                <span className="text-muted-foreground">{t("dashboard.topUpTotal")}</span>
                 <span className="font-mono font-medium">${fmt(summary.totalTopUpsCop)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Pending Balance (COP)</span>
+                <span className="text-muted-foreground">{t("dashboard.pendingBalance")}</span>
                 <span className="font-mono font-medium">${fmt(summary.pendingBalanceCop)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Top-Up Count</span>
+                <span className="text-muted-foreground">{t("dashboard.topUpCount")}</span>
                 <span className="font-mono font-medium">{fmt(summary.topUpCount)}</span>
               </div>
             </CardContent>
@@ -110,22 +112,22 @@ export default function Dashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Calendar className="w-4 h-4" /> Recent Events
+              <Calendar className="w-4 h-4" /> {t("dashboard.recentEvents")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {events.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No events yet.</p>
+              <p className="text-muted-foreground text-sm">{t("dashboard.noEvents")}</p>
             ) : (
               <div className="space-y-2">
                 {events.slice(0, 6).map((event) => (
                   <div key={event.id} className="flex items-center justify-between" data-testid={`text-event-${event.id}`}>
                     <div>
                       <p className="text-sm font-medium">{event.name}</p>
-                      <p className="text-xs text-muted-foreground">{event.venueAddress ?? "No venue"}</p>
+                      <p className="text-xs text-muted-foreground">{event.venueAddress ?? t("dashboard.noVenue")}</p>
                     </div>
                     <Badge variant={event.active ? "default" : "secondary"} className="text-xs ml-2 flex-shrink-0">
-                      {event.active ? "Active" : "Inactive"}
+                      {event.active ? t("common.active") : t("common.inactive")}
                     </Badge>
                   </div>
                 ))}
@@ -139,7 +141,7 @@ export default function Dashboard() {
         <Card className="border-destructive/50">
           <CardHeader>
             <CardTitle className="text-base text-destructive flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4" /> Open Fraud Alerts
+              <ShieldAlert className="w-4 h-4" /> {t("dashboard.openFraudAlerts")}
             </CardTitle>
           </CardHeader>
           <CardContent>

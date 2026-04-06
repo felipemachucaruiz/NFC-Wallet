@@ -7,8 +7,10 @@ import {
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Users, ShoppingCart, TrendingUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function EventDashboard() {
+  const { t } = useTranslation();
   const { data: auth } = useGetCurrentAuthUser();
   const eventId = auth?.user?.eventId ?? "";
 
@@ -27,56 +29,56 @@ export default function EventDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Event Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Real-time analytics for your event.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t("eventDashboard.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("eventDashboard.subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card data-testid="card-revenue" className={summaryLoading ? "opacity-60" : ""}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="w-4 h-4" /> Revenue
+              <DollarSign className="w-4 h-4" /> {t("eventDashboard.revenue")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">${fmt(summary?.totalSalesCop)}</p>
-            <p className="text-xs text-muted-foreground mt-1">total sales (COP)</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.totalSalesCop")}</p>
           </CardContent>
         </Card>
 
         <Card data-testid="card-transactions">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4" /> Transactions
+              <ShoppingCart className="w-4 h-4" /> {t("eventDashboard.transactions")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{fmt(summary?.transactionCount)}</p>
-            <p className="text-xs text-muted-foreground mt-1">total processed</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.totalProcessed")}</p>
           </CardContent>
         </Card>
 
         <Card data-testid="card-topups">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" /> Top-Ups
+              <TrendingUp className="w-4 h-4" /> {t("eventDashboard.topUps")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">${fmt(summary?.totalTopUpsCop)}</p>
-            <p className="text-xs text-muted-foreground mt-1">total loaded (COP)</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.totalLoaded")}</p>
           </CardContent>
         </Card>
 
         <Card data-testid="card-bracelets">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="w-4 h-4" /> Bracelets
+              <Users className="w-4 h-4" /> {t("eventDashboard.bracelets")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{fmt(summary?.pendingBalanceCop)}</p>
-            <p className="text-xs text-muted-foreground mt-1">active wristbands</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.activeWristbands")}</p>
           </CardContent>
         </Card>
       </div>
@@ -85,7 +87,7 @@ export default function EventDashboard() {
         {topMerchants.length > 0 && (
           <Card data-testid="card-top-merchants">
             <CardHeader>
-              <CardTitle className="text-base">Top Merchants</CardTitle>
+              <CardTitle className="text-base">{t("eventDashboard.topMerchants")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -97,7 +99,7 @@ export default function EventDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="font-mono">${(m.totalSalesCop ?? 0).toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">{m.txCount} txns</p>
+                      <p className="text-xs text-muted-foreground">{m.txCount} {t("eventDashboard.txns")}</p>
                     </div>
                   </div>
                 ))}
@@ -109,7 +111,7 @@ export default function EventDashboard() {
         {topProducts.length > 0 && (
           <Card data-testid="card-top-products">
             <CardHeader>
-              <CardTitle className="text-base">Top Products</CardTitle>
+              <CardTitle className="text-base">{t("eventDashboard.topProducts")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -121,7 +123,7 @@ export default function EventDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="font-mono">${(p.totalRevenueCop ?? 0).toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">{p.totalUnits} sold</p>
+                      <p className="text-xs text-muted-foreground">{p.totalUnits} {t("eventDashboard.sold")}</p>
                     </div>
                   </div>
                 ))}
@@ -134,7 +136,7 @@ export default function EventDashboard() {
       {salesByHour.length > 0 && (
         <Card data-testid="card-sales-by-hour">
           <CardHeader>
-            <CardTitle className="text-base">Sales by Hour</CardTitle>
+            <CardTitle className="text-base">{t("eventDashboard.salesByHour")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-1 h-32">

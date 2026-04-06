@@ -7,12 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
 import { getGetCurrentAuthUserQueryKey, setAuthTokenGetter } from "@workspace/api-client-react";
 import { apiLogin, apiVerify2FA } from "@/lib/api";
+import { useTranslation } from "react-i18next";
 
 export const AUTH_TOKEN_KEY = "tapee_admin_token";
 
 type Step = "credentials" | "totp";
 
 export default function Login() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
@@ -28,9 +30,9 @@ export default function Login() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "unauthorized_role") {
-      setError("Your account does not have access to the admin portal.");
+      setError(t("login.unauthorizedRole"));
     }
-  }, []);
+  }, [t]);
 
   const finishLogin = async (token: string) => {
     localStorage.setItem(AUTH_TOKEN_KEY, token);
@@ -43,7 +45,7 @@ export default function Login() {
     } else {
       localStorage.removeItem(AUTH_TOKEN_KEY);
       setAuthTokenGetter(null);
-      setError("Your account does not have access to the admin portal.");
+      setError(t("login.unauthorizedRole"));
     }
   };
 
@@ -61,7 +63,7 @@ export default function Login() {
         await finishLogin(result.token);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : t("login.loginFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +78,7 @@ export default function Login() {
       const result = await apiVerify2FA(partialToken, totpCode.trim());
       await finishLogin(result.token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "2FA verification failed");
+      setError(err instanceof Error ? err.message : t("login.twoFaFailed"));
       setTotpCode("");
     } finally {
       setIsLoading(false);
@@ -88,9 +90,9 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <img src={`${import.meta.env.BASE_URL}tapee-logo.png`} alt="Tapee" className="h-14 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">Admin Portal</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("login.title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {step === "credentials" ? "Sign in to your account" : "Two-factor authentication"}
+            {step === "credentials" ? t("login.signIn") : t("login.twoFactor")}
           </p>
         </div>
 
@@ -98,7 +100,7 @@ export default function Login() {
           {step === "credentials" ? (
             <form onSubmit={handleCredentialsSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="identifier">Email or username</Label>
+                <Label htmlFor="identifier">{t("login.emailOrUsername")}</Label>
                 <Input
                   id="identifier"
                   type="text"
@@ -113,7 +115,7 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("login.password")}</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -144,7 +146,7 @@ export default function Login() {
               )}
 
               <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-submit">
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? t("login.signingIn") : t("login.submitSignIn")}
               </Button>
 
               <div className="text-center">
@@ -153,18 +155,18 @@ export default function Login() {
                   onClick={() => setLocation("/forgot-password")}
                   className="text-sm text-primary hover:underline"
                 >
-                  Forgot your password?
+                  {t("login.forgotPassword")}
                 </button>
               </div>
             </form>
           ) : (
             <form onSubmit={handleTotpSubmit} className="space-y-4">
               <div className="text-sm text-muted-foreground text-center">
-                Enter the 6-digit code from your authenticator app
+                {t("login.enterCode")}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="totp">Verification code</Label>
+                <Label htmlFor="totp">{t("login.verificationCode")}</Label>
                 <Input
                   id="totp"
                   type="text"
@@ -188,7 +190,7 @@ export default function Login() {
               )}
 
               <Button type="submit" className="w-full" disabled={isLoading || totpCode.length !== 6}>
-                {isLoading ? "Verifying..." : "Verify"}
+                {isLoading ? t("login.verifying") : t("login.verify")}
               </Button>
 
               <div className="text-center">
@@ -197,7 +199,7 @@ export default function Login() {
                   onClick={() => { setStep("credentials"); setError(""); setTotpCode(""); }}
                   className="text-sm text-muted-foreground hover:text-foreground"
                 >
-                  Back to login
+                  {t("login.backToLogin")}
                 </button>
               </div>
             </form>

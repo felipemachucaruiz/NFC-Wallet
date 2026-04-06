@@ -16,8 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Search, ShieldOff, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function EventBracelets() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
@@ -42,8 +44,8 @@ export default function EventBracelets() {
     unflag.mutate(
       { nfcUid: bracelet.nfcUid },
       {
-        onSuccess: () => { toast({ title: "Bracelet unflagged" }); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("wristbands.unflagged") }); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -53,8 +55,8 @@ export default function EventBracelets() {
     deleteB.mutate(
       { nfcUid: selected.nfcUid },
       {
-        onSuccess: () => { toast({ title: "Bracelet deleted" }); setDeleteOpen(false); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("wristbands.deleted") }); setDeleteOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -62,23 +64,23 @@ export default function EventBracelets() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Wristbands</h1>
-        <p className="text-muted-foreground mt-1">Browse and manage event wristbands.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t("wristbands.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("wristbands.subtitle")}</p>
       </div>
 
       <div className="flex gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input data-testid="input-bracelet-search" placeholder="Search NFC UID or attendee name..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input data-testid="input-bracelet-search" placeholder={t("wristbands.searchPlaceholder")} className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={flaggedFilter} onValueChange={setFlaggedFilter}>
           <SelectTrigger className="w-36" data-testid="select-bracelet-filter">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="flagged">Flagged</SelectItem>
-            <SelectItem value="ok">OK</SelectItem>
+            <SelectItem value="all">{t("wristbands.all")}</SelectItem>
+            <SelectItem value="flagged">{t("wristbands.flagged")}</SelectItem>
+            <SelectItem value="ok">{t("wristbands.ok")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -87,32 +89,32 @@ export default function EventBracelets() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>NFC UID</TableHead>
-              <TableHead>Attendee</TableHead>
-              <TableHead className="text-right">Balance (COP)</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Registered</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
+              <TableHead>{t("wristbands.colNfcUid")}</TableHead>
+              <TableHead>{t("wristbands.colAttendee")}</TableHead>
+              <TableHead className="text-right">{t("wristbands.colBalance")}</TableHead>
+              <TableHead>{t("wristbands.colStatus")}</TableHead>
+              <TableHead>{t("wristbands.colRegistered")}</TableHead>
+              <TableHead className="w-24">{t("wristbands.colActions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
             ) : !eventId ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No event assigned to your account.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("wristbands.noEvent")}</TableCell></TableRow>
             ) : filteredBracelets.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No wristbands found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("wristbands.noWristbands")}</TableCell></TableRow>
             ) : (
               filteredBracelets.map((bracelet) => (
                 <TableRow key={bracelet.id} data-testid={`row-bracelet-${bracelet.id}`}>
                   <TableCell className="font-mono text-sm">{bracelet.nfcUid}</TableCell>
-                  <TableCell>{bracelet.attendeeName ?? <span className="text-muted-foreground italic">unnamed</span>}</TableCell>
+                  <TableCell>{bracelet.attendeeName ?? <span className="text-muted-foreground italic">{t("wristbands.unnamed")}</span>}</TableCell>
                   <TableCell className="text-right font-mono">{(bracelet.lastKnownBalanceCop ?? 0).toLocaleString()}</TableCell>
                   <TableCell>
                     {bracelet.flagged ? (
-                      <Badge variant="destructive" className="text-xs">Flagged</Badge>
+                      <Badge variant="destructive" className="text-xs">{t("wristbands.statusFlagged")}</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-xs text-green-500 border-green-500">OK</Badge>
+                      <Badge variant="outline" className="text-xs text-green-500 border-green-500">{t("wristbands.ok")}</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(bracelet.createdAt).toLocaleDateString()}</TableCell>
@@ -135,7 +137,7 @@ export default function EventBracelets() {
         </Table>
         {data && (
           <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border">
-            Showing {filteredBracelets.length} of {data.total} wristbands
+            {t("wristbands.showingOf", { showing: filteredBracelets.length, total: data.total })}
           </div>
         )}
       </div>
@@ -143,15 +145,15 @@ export default function EventBracelets() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Wristband</AlertDialogTitle>
+            <AlertDialogTitle>{t("wristbands.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete wristband {selected?.nfcUid}? This will permanently remove it and cannot be undone.
+              {t("wristbands.deleteDesc", { uid: selected?.nfcUid })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction data-testid="button-confirm-delete-bracelet" onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleteB.isPending ? "Deleting..." : "Delete"}
+              {deleteB.isPending ? t("wristbands.deleting") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

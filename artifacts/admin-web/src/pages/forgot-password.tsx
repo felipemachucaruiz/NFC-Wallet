@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, CheckCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -28,20 +30,20 @@ export default function ForgotPasswordPage() {
       await apiForgotPassword(email.trim().toLowerCase(), source);
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send reset email");
+      setError(err instanceof Error ? err.message : t("forgotPassword.failedToSend"));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const subtitle = source === "attendee" ? "Reset attendee password" : "Reset your password";
+  const subtitle = source === "attendee" ? t("forgotPassword.resetAttendeePassword") : t("forgotPassword.resetPassword");
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <img src={`${import.meta.env.BASE_URL}tapee-logo.png`} alt="Tapee" className="h-14 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">Admin Portal</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("forgotPassword.title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>
         </div>
 
@@ -52,32 +54,28 @@ export default function ForgotPasswordPage() {
                 <CheckCircle className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="font-medium text-foreground">Check your email</p>
+                <p className="font-medium text-foreground">{t("forgotPassword.checkEmail")}</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {source === "attendee"
-                    ? "If an attendee account with that email exists, a reset link has been sent."
-                    : "If a staff account with that email exists, a reset link has been sent."}
+                  {source === "attendee" ? t("forgotPassword.attendeeEmailSent") : t("forgotPassword.adminEmailSent")}
                 </p>
               </div>
               <Button variant="outline" className="w-full" onClick={() => setLocation("/login")}>
-                Back to login
+                {t("forgotPassword.backToLogin")}
               </Button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {source === "attendee" && (
                 <div className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-                  Sending reset link to an attendee account via the Attendee API
+                  {t("forgotPassword.attendeeApiNote")}
                 </div>
               )}
               <p className="text-sm text-muted-foreground">
-                {source === "attendee"
-                  ? "Enter the attendee's email address to send them a password reset link."
-                  : "Enter the email address associated with your admin account and we'll send you a link to reset your password."}
+                {source === "attendee" ? t("forgotPassword.attendeeDescription") : t("forgotPassword.adminDescription")}
               </p>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email">{t("forgotPassword.emailAddress")}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -97,7 +95,7 @@ export default function ForgotPasswordPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Sending..." : "Send reset link"}
+                {isLoading ? t("forgotPassword.sending") : t("forgotPassword.sendResetLink")}
               </Button>
 
               <button
@@ -106,7 +104,7 @@ export default function ForgotPasswordPage() {
                 className="w-full flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="h-3 w-3" />
-                Back to login
+                {t("forgotPassword.backToLogin")}
               </button>
             </form>
           )}

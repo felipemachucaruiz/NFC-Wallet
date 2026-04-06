@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DollarSign, TrendingUp, RefreshCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function EventReports() {
+  const { t } = useTranslation();
   const { data: auth } = useGetCurrentAuthUser();
   const eventId = auth?.user?.eventId ?? "";
 
@@ -28,17 +30,17 @@ export default function EventReports() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-        <p className="text-muted-foreground mt-1">Financial summaries for your event.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t("reports.title")}</h1>
+        <p className="text-muted-foreground mt-1">{t("reports.subtitleEvent")}</p>
       </div>
 
       <div className="flex gap-4 p-4 bg-card border border-border rounded-lg">
         <div className="space-y-1">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Start Date</Label>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("reports.startDate")}</Label>
           <Input data-testid="input-report-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">End Date</Label>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("reports.endDate")}</Label>
           <Input data-testid="input-report-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
         </div>
       </div>
@@ -47,16 +49,16 @@ export default function EventReports() {
         <Card data-testid="card-revenue">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="w-4 h-4" /> Revenue
+              <DollarSign className="w-4 h-4" /> {t("reports.revenue")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {revLoading ? <p className="text-muted-foreground text-sm">Loading...</p> : (
+            {revLoading ? <p className="text-muted-foreground text-sm">{t("common.loading")}</p> : (
               <div className="space-y-1">
                 <p className="text-2xl font-bold">${fmt(revenue?.totals.grossSalesCop)}</p>
-                <p className="text-xs text-muted-foreground">Gross sales (COP)</p>
-                <p className="text-sm">Net: ${fmt(revenue?.totals.netCop)}</p>
-                <p className="text-sm text-muted-foreground">Commission: ${fmt(revenue?.totals.commissionCop)}</p>
+                <p className="text-xs text-muted-foreground">{t("reports.grossSales")}</p>
+                <p className="text-sm">{t("reports.net", { value: fmt(revenue?.totals.netCop) })}</p>
+                <p className="text-sm text-muted-foreground">{t("reports.commission", { value: fmt(revenue?.totals.commissionCop) })}</p>
               </div>
             )}
           </CardContent>
@@ -65,14 +67,14 @@ export default function EventReports() {
         <Card data-testid="card-topups">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" /> Top-Ups
+              <TrendingUp className="w-4 h-4" /> {t("reports.topUps")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {topupLoading ? <p className="text-muted-foreground text-sm">Loading...</p> : (
+            {topupLoading ? <p className="text-muted-foreground text-sm">{t("common.loading")}</p> : (
               <div className="space-y-1">
                 <p className="text-2xl font-bold">${fmt(topups?.totalCop)}</p>
-                <p className="text-xs text-muted-foreground">Total loaded (COP)</p>
+                <p className="text-xs text-muted-foreground">{t("reports.totalLoaded")}</p>
               </div>
             )}
           </CardContent>
@@ -81,15 +83,15 @@ export default function EventReports() {
         <Card data-testid="card-refunds">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <RefreshCcw className="w-4 h-4" /> Refunds
+              <RefreshCcw className="w-4 h-4" /> {t("reports.refunds")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {refundLoading ? <p className="text-muted-foreground text-sm">Loading...</p> : (
+            {refundLoading ? <p className="text-muted-foreground text-sm">{t("common.loading")}</p> : (
               <div className="space-y-1">
                 <p className="text-2xl font-bold">${fmt(refunds?.totalRefundedCop)}</p>
-                <p className="text-xs text-muted-foreground">Total refunded (COP)</p>
-                <p className="text-sm">Count: {(refunds?.count ?? 0).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{t("reports.totalRefunded")}</p>
+                <p className="text-sm">{t("reports.count", { count: (refunds?.count ?? 0).toLocaleString() })}</p>
               </div>
             )}
           </CardContent>
@@ -99,7 +101,7 @@ export default function EventReports() {
       {revenue?.byMerchant && revenue.byMerchant.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Revenue by Merchant</CardTitle>
+            <CardTitle className="text-base">{t("reports.revenueByMerchant")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">

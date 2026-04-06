@@ -17,11 +17,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type CompanyForm = { companyName: string; nit: string; address: string; phone: string; email: string };
 const emptyForm: CompanyForm = { companyName: "", nit: "", address: "", phone: "", email: "" };
 
 export default function Promoters() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data, isLoading } = useListPromoterCompanies();
@@ -55,8 +57,8 @@ export default function Promoters() {
     createCompany.mutate(
       { data: { companyName: form.companyName, nit: form.nit || undefined, address: form.address || undefined, phone: form.phone || undefined, email: form.email || undefined } },
       {
-        onSuccess: () => { toast({ title: "Company created" }); setCreateOpen(false); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("promoters.created") }); setCreateOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -66,8 +68,8 @@ export default function Promoters() {
     updateCompany.mutate(
       { id: selected.id, data: { companyName: form.companyName, nit: form.nit || undefined, address: form.address || undefined, phone: form.phone || undefined, email: form.email || undefined } },
       {
-        onSuccess: () => { toast({ title: "Company updated" }); setEditOpen(false); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("promoters.updated") }); setEditOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -77,8 +79,8 @@ export default function Promoters() {
     deleteCompany.mutate(
       { id: selected.id },
       {
-        onSuccess: () => { toast({ title: "Company deleted" }); setDeleteOpen(false); invalidate(); },
-        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+        onSuccess: () => { toast({ title: t("promoters.deleted") }); setDeleteOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
   };
@@ -86,25 +88,25 @@ export default function Promoters() {
   const FormFields = ({ f, setF }: { f: CompanyForm; setF: (u: (prev: CompanyForm) => CompanyForm) => void }) => (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label>Company Name *</Label>
+        <Label>{t("promoters.companyName")}</Label>
         <Input data-testid="input-company-name" value={f.companyName} onChange={(e) => setF((p) => ({ ...p, companyName: e.target.value }))} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <Label>NIT</Label>
+          <Label>{t("promoters.nit")}</Label>
           <Input data-testid="input-company-nit" value={f.nit} onChange={(e) => setF((p) => ({ ...p, nit: e.target.value }))} />
         </div>
         <div className="space-y-1">
-          <Label>Phone</Label>
+          <Label>{t("promoters.phone")}</Label>
           <Input data-testid="input-company-phone" value={f.phone} onChange={(e) => setF((p) => ({ ...p, phone: e.target.value }))} />
         </div>
       </div>
       <div className="space-y-1">
-        <Label>Email</Label>
+        <Label>{t("promoters.email")}</Label>
         <Input data-testid="input-company-email" type="email" value={f.email} onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))} />
       </div>
       <div className="space-y-1">
-        <Label>Address</Label>
+        <Label>{t("promoters.address")}</Label>
         <Input data-testid="input-company-address" value={f.address} onChange={(e) => setF((p) => ({ ...p, address: e.target.value }))} />
       </div>
     </div>
@@ -114,36 +116,36 @@ export default function Promoters() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Promoter Companies</h1>
-          <p className="text-muted-foreground mt-1">Manage event promoter organizations.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("promoters.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("promoters.subtitle")}</p>
         </div>
         <Button data-testid="button-create-promoter" onClick={() => { setForm(emptyForm); setCreateOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> New Company
+          <Plus className="w-4 h-4 mr-2" /> {t("promoters.newCompany")}
         </Button>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input data-testid="input-promoter-search" placeholder="Search companies..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input data-testid="input-promoter-search" placeholder={t("promoters.searchPlaceholder")} className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <div className="border border-border rounded-lg bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Company</TableHead>
-              <TableHead>NIT</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead>{t("promoters.colCompany")}</TableHead>
+              <TableHead>{t("promoters.colNit")}</TableHead>
+              <TableHead>{t("promoters.colEmail")}</TableHead>
+              <TableHead>{t("promoters.colPhone")}</TableHead>
+              <TableHead>{t("promoters.colCreated")}</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No companies found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("promoters.noCompanies")}</TableCell></TableRow>
             ) : (
               filtered.map((company) => (
                 <TableRow key={company.id} data-testid={`row-promoter-${company.id}`}>
@@ -160,10 +162,10 @@ export default function Promoters() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(company)}><Pencil className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(company)}><Pencil className="w-4 h-4 mr-2" /> {t("common.edit")}</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => { setSelected(company); setDeleteOpen(true); }}>
-                          <Trash2 className="w-4 h-4 mr-2" /> Delete
+                          <Trash2 className="w-4 h-4 mr-2" /> {t("common.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -177,12 +179,12 @@ export default function Promoters() {
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Create Promoter Company</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("promoters.createTitle")}</DialogTitle></DialogHeader>
           <FormFields f={form} setF={setForm} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-promoter" onClick={handleCreate} disabled={createCompany.isPending || !form.companyName}>
-              {createCompany.isPending ? "Creating..." : "Create"}
+              {createCompany.isPending ? t("promoters.creating") : t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -190,12 +192,12 @@ export default function Promoters() {
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Edit — {selected?.companyName}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("promoters.editTitle")} — {selected?.companyName}</DialogTitle></DialogHeader>
           <FormFields f={form} setF={setForm} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-edit-promoter" onClick={handleUpdate} disabled={updateCompany.isPending || !form.companyName}>
-              {updateCompany.isPending ? "Saving..." : "Save"}
+              {updateCompany.isPending ? t("promoters.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -204,13 +206,13 @@ export default function Promoters() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Company</AlertDialogTitle>
-            <AlertDialogDescription>Delete {selected?.companyName}? This cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>{t("promoters.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("promoters.deleteDesc", { name: selected?.companyName })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction data-testid="button-confirm-delete-promoter" onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleteCompany.isPending ? "Deleting..." : "Delete"}
+              {deleteCompany.isPending ? t("promoters.deleting") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
