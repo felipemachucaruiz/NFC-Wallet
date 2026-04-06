@@ -281,7 +281,7 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
       if (!staffAppUrl) {
         throw new Error("STAFF_APP_URL env var is not configured");
       }
-      const resetUrl = `${staffAppUrl.replace(/\/$/, "")}/reset-password?token=${token}`;
+      const resetUrl = `${staffAppUrl.replace(/\/$/, "")}/reset-password?token=${token}&source=admin`;
       const emailContent = buildStaffPasswordResetEmail({ firstName: user.firstName, resetUrl });
       await sendEmail({
         to: lower,

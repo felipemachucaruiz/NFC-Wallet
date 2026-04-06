@@ -334,6 +334,7 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
 
 const ForgotPasswordBody = z.object({
   email: z.string().email(),
+  redirectBaseUrl: z.string().url().max(512).optional(),
 });
 
 router.post("/auth/forgot-password", async (req: Request, res: Response) => {
@@ -343,7 +344,7 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
     return;
   }
 
-  const { email } = parsed.data;
+  const { email, redirectBaseUrl } = parsed.data;
   const lower = email.toLowerCase().trim();
 
   // Always respond 200 to avoid user enumeration
@@ -363,8 +364,26 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
         expiresAt,
       });
 
-      const origin = getOrigin(req);
-      const resetUrl = `${origin}/attendee-app/reset-password?token=${token}`;
+      let resetUrl: string;
+      if (redirectBaseUrl) {
+        // Validate redirectBaseUrl against the configured STAFF_APP_URL to prevent
+        // open-redirect token exfiltration attacks.
+        const staffAppUrl = process.env.STAFF_APP_URL ?? "";
+        const allowedOrigin = staffAppUrl ? new URL(staffAppUrl.replace(/\/$/, "")).origin : null;
+        const requestedOrigin = new URL(redirectBaseUrl).origin;
+        if (!allowedOrigin || requestedOrigin !== allowedOrigin) {
+          // Silently fall back to default to avoid leaking whether STAFF_APP_URL is set
+          const origin = getOrigin(req);
+          resetUrl = `${origin}/attendee-app/reset-password?token=${token}`;
+        } else {
+          const base = redirectBaseUrl.replace(/\/$/, "");
+          resetUrl = `${base}?token=${token}&source=attendee`;
+        }
+      } else {
+        const origin = getOrigin(req);
+        resetUrl = `${origin}/attendee-app/reset-password?token=${token}`;
+      }
+
       const emailContent = buildPasswordResetEmail({ firstName: user.firstName, resetUrl });
       await sendEmail({
         to: lower,

@@ -1,7 +1,7 @@
 # Railway Deployment Guide
 
-This guide walks through deploying both backend services (**API Server** and
-**Attendee API**) to Railway and rebuilding the Expo web app to point at the
+This guide walks through deploying all services (**API Server**, **Attendee API**,
+and **Web Admin**) to Railway and rebuilding the Expo web app to point at the
 new Railway URLs.
 
 ---
@@ -37,11 +37,19 @@ monorepos via the **Root Directory** setting.
 
 Repeat the same steps with **Root Directory** set to `artifacts/attendee-api`.
 
+### Web Admin
+
+Repeat the same steps with **Root Directory** set to `artifacts/web-admin`.
+
+The Web Admin is a static Vite site served by `serve`. Its `railway.toml` builds
+the Vite bundle and starts a static file server on `$PORT`.
+
 > **Using the CLI instead?**
 > ```bash
 > railway link          # link CLI to your project
 > railway up --service api-server       --rootDirectory artifacts/api-server
 > railway up --service attendee-api     --rootDirectory artifacts/attendee-api
+> railway up --service web-admin        --rootDirectory artifacts/web-admin
 > ```
 
 ---
@@ -84,6 +92,7 @@ See the per-service `.env.example` files for the full list of optional variables
 | `WOMPI_PRIVATE_KEY` | Wompi dashboard private key (optional). |
 | `WOMPI_EVENTS_SECRET` | Wompi webhook secret (optional). |
 | `APP_URL` | Public URL of the attendee web app, used for Wompi redirect URLs (optional). |
+| `STAFF_APP_URL` | Public URL of the Web Admin app. Used to validate `redirectBaseUrl` on web-admin-originated attendee password reset requests (prevents open-redirect attacks). Optional but required for the web-admin forgot-password-for-attendee flow to work. |
 
 ### Additional variables for API Server only
 
@@ -91,6 +100,22 @@ See the per-service `.env.example` files for the full list of optional variables
 |---|---|
 | `HMAC_SECRET` | Global HMAC signing secret for bracelet transactions (optional). |
 | `HMAC_MASTER_KEY` | Master key for deriving per-event HMAC secrets (optional). |
+| `STAFF_APP_URL` | Public URL of the Web Admin app (e.g. `https://web-admin.up.railway.app`). Used by the API Server to generate password-reset links for admin/event_admin users, and by the Attendee API to validate redirect URLs in web-admin-originated attendee password resets. |
+| `CORS_ORIGIN` | Comma-separated list of allowed CORS origins. Include the Web Admin URL here (e.g. `https://web-admin.up.railway.app`). |
+
+### Variables required by Web Admin only
+
+The Web Admin (`artifacts/web-admin`) is a **static Vite bundle** — these variables
+must be set as Railway build-time variables so Vite can inline them at bundle time.
+
+| Variable | Description |
+|---|---|
+| `VITE_API_URL` | Full URL of the API Server Railway service (e.g. `https://my-api-server.up.railway.app`). Controls which backend the admin portal calls. |
+| `VITE_ATTENDEE_API_URL` | Full URL of the Attendee API Railway service (e.g. `https://my-attendee-api.up.railway.app`). Used for attendee password reset flows. Defaults to `VITE_API_URL` if omitted. |
+
+> **Build-time variables:** Because Vite inlines `VITE_*` variables at build
+> time (not at runtime), you must set them in Railway **before the first build**
+> or trigger a redeploy after changing them.
 
 ---
 
@@ -185,6 +210,11 @@ Railway Project
 │   ├── Build:   pnpm install && pnpm run build
 │   ├── Release: drizzle-kit migrate
 │   └── Start:   pnpm run start
+│
+├── web-admin           (artifacts/web-admin)
+│   ├── Build:   pnpm install && pnpm --filter @workspace/web-admin run build
+│   └── Start:   npx serve artifacts/web-admin/dist/public -l $PORT --single
+│   (Env vars: VITE_API_URL, VITE_ATTENDEE_API_URL — set before first build)
 │
 └── PostgreSQL plugin   (shared DATABASE_URL)
 
