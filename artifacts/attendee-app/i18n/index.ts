@@ -1,6 +1,5 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import * as Localization from "expo-localization";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import es from "./es.json";
@@ -22,10 +21,21 @@ export async function setStoredLanguage(lang: string): Promise<void> {
   } catch {}
 }
 
+async function getDeviceLanguage(): Promise<string> {
+  // Use dynamic import so a missing or incompatible expo-localization native
+  // module (e.g. in an OTA update applied to an older binary) never crashes
+  // the JS runtime at module-load time. Defaults to Spanish on any error.
+  try {
+    const { getLocales } = await import("expo-localization");
+    return getLocales()[0]?.languageCode === "en" ? "en" : "es";
+  } catch {
+    return "es";
+  }
+}
+
 export async function initI18n(): Promise<void> {
   const stored = await getStoredLanguage();
-  const deviceLocale = Localization.getLocales()[0]?.languageCode ?? "es";
-  const lng = stored ?? (deviceLocale === "en" ? "en" : "es");
+  const lng = stored ?? (await getDeviceLanguage());
 
   await i18n.use(initReactI18next).init({
     resources: { es: { translation: es }, en: { translation: en } },
