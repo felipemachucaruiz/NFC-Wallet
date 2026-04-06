@@ -60,13 +60,7 @@
       "expo-font",
       "expo-web-browser",
       "react-native-nfc-manager",
-      "expo-updates",
-      [
-        "./plugins/withSslPinning",
-        {
-          "certFiles": ["tapee_api.cer", "attendee_api.cer"]
-        }
-      ]
+      "expo-updates"
     ],
     "experiments": {
       "typedRoutes": true

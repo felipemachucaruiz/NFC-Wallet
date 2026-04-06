@@ -69,12 +69,6 @@
         {
           "photosPermission": "The app needs access to your photos to upload product images."
         }
-      ],
-      [
-        "./plugins/withSslPinning",
-        {
-          "certFiles": ["tapee_api.cer", "attendee_api.cer"]
-        }
       ]
     ],
     "experiments": {

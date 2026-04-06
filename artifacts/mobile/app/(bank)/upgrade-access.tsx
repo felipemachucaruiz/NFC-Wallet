@@ -26,6 +26,7 @@ import {
 } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { API_BASE_URL } from "@/constants/domain";
+import { pinnedFetch } from "@/utils/pinnedFetch";
 import { useGetSigningKey } from "@workspace/api-client-react";
 
 type FlowStep = "select" | "confirm" | "writing" | "done" | "error";
@@ -110,7 +111,7 @@ export default function UpgradeAccessScreen() {
   useEffect(() => {
     if (!uid || !token) return;
     setLoadingUpgrades(true);
-    fetch(`${API_BASE_URL}/api/bracelets/${uid}/available-upgrades`, {
+    pinnedFetch(`${API_BASE_URL}/api/bracelets/${uid}/available-upgrades`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(async (r) => {
@@ -121,7 +122,13 @@ export default function UpgradeAccessScreen() {
           atMaxLevel: boolean;
         };
         setCurrentZoneIds(body.currentZones.map((z) => z.id));
-        setAvailableUpgrades(body.availableUpgrades);
+        setAvailableUpgrades(
+          body.availableUpgrades.map((opt) => ({
+            ...opt,
+            zonesGranted: opt.zonesGranted ?? [],
+            totalUpgradePriceCop: opt.totalUpgradePriceCop ?? opt.upgradePriceCop ?? 0,
+          })),
+        );
         setMaxAccess(body.atMaxLevel);
       })
       .catch(() => {})
@@ -142,7 +149,7 @@ export default function UpgradeAccessScreen() {
 
     try {
       // 1. Call server with targetZoneId — server adds all intermediate zones automatically
-      const upgradeRes = await fetch(`${API_BASE_URL}/api/bracelets/${uid}/upgrade-access`, {
+      const upgradeRes = await pinnedFetch(`${API_BASE_URL}/api/bracelets/${uid}/upgrade-access`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ targetZoneId: selectedOption.id }),

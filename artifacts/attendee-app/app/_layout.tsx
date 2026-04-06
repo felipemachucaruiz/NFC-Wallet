@@ -166,7 +166,9 @@ export default function RootLayout() {
   const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
-    initI18n().then(() => setI18nReady(true));
+    initI18n()
+      .then(() => setI18nReady(true))
+      .catch(() => setI18nReady(true));
     initNfc();
   }, []);
 
