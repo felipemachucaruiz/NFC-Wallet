@@ -13,13 +13,16 @@ try {
 } catch {}
 
 function LoginVideoBackground({ source }: { source: unknown }) {
-  const player = _expoVideo!.useVideoPlayer(source, (p) => {
+  // Destructure inside the function so JSX receives plain variable names.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const { useVideoPlayer: useVP, VideoView: VV } = _expoVideo!;
+  const player = useVP(source, (p) => {
     p.loop = true;
     p.muted = true;
     p.play();
   });
   return (
-    <_expoVideo!.VideoView
+    <VV
       player={player}
       style={StyleSheet.absoluteFill}
       contentFit="cover"
