@@ -97,30 +97,3 @@ export function useGetSettlementReport(eventId: string | null) {
   });
 }
 
-export function useSuspendUser() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (userId: string) => {
-      return customFetch<{ id: string; isSuspended: boolean }>(`/users/${userId}/suspend`, {
-        method: "POST",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-  });
-}
-
-export function useUnsuspendUser() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (userId: string) => {
-      return customFetch<{ id: string; isSuspended: boolean }>(`/users/${userId}/unsuspend`, {
-        method: "POST",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-  });
-}

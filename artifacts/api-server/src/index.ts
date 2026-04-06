@@ -165,10 +165,7 @@ async function runStartupMigrations(): Promise<void> {
           CHECK (quantity_on_hand >= 0);
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-      -- ── Restore admin password (post-task-79 db wipe recovery) ────────────
-      UPDATE users
-        SET password_hash = '$2b$12$E3NC65u5WmPsbtBLFksY8.AdiGq1sNsqiOa1bWno0AGVT74EfCIKy'
-        WHERE email = 'hola@tapee.app' AND role = 'admin';
+      -- (no additional seeding required)
     `);
 
     logger.info("Startup migrations complete.");

@@ -10,6 +10,8 @@ import type { UserRole } from "./userRole";
 export interface UserProfile {
   id: string;
   /** @nullable */
+  username?: string | null;
+  /** @nullable */
   email?: string | null;
   /** @nullable */
   firstName?: string | null;
@@ -18,5 +20,17 @@ export interface UserProfile {
   /** @nullable */
   profileImageUrl?: string | null;
   role: UserRole;
+  /** @nullable */
+  eventId?: string | null;
+  /** @nullable */
+  merchantId?: string | null;
+  /** @nullable */
+  promoterCompanyId?: string | null;
+  /** @nullable */
+  gateZoneId?: string | null;
+  isBlocked?: boolean;
+  isSuspended?: boolean;
   createdAt: Date;
+  /** @nullable */
+  updatedAt?: Date | null;
 }

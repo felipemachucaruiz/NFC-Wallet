@@ -160,6 +160,7 @@ export const ListUsersResponse = zod.object({
   users: zod.array(
     zod.object({
       id: zod.string(),
+      username: zod.string().nullish(),
       email: zod.string().nullish(),
       firstName: zod.string().nullish(),
       lastName: zod.string().nullish(),
@@ -174,7 +175,14 @@ export const ListUsersResponse = zod.object({
         "event_admin",
         "admin",
       ]),
+      eventId: zod.string().nullish(),
+      merchantId: zod.string().nullish(),
+      promoterCompanyId: zod.string().nullish(),
+      gateZoneId: zod.string().nullish(),
+      isBlocked: zod.boolean().optional(),
+      isSuspended: zod.boolean().optional(),
       createdAt: zod.date(),
+      updatedAt: zod.date().nullish(),
     }),
   ),
 });
@@ -201,6 +209,7 @@ export const UpdateUserRoleBody = zod.object({
 
 export const UpdateUserRoleResponse = zod.object({
   id: zod.string(),
+  username: zod.string().nullish(),
   email: zod.string().nullish(),
   firstName: zod.string().nullish(),
   lastName: zod.string().nullish(),
@@ -215,7 +224,14 @@ export const UpdateUserRoleResponse = zod.object({
     "event_admin",
     "admin",
   ]),
+  eventId: zod.string().nullish(),
+  merchantId: zod.string().nullish(),
+  promoterCompanyId: zod.string().nullish(),
+  gateZoneId: zod.string().nullish(),
+  isBlocked: zod.boolean().optional(),
+  isSuspended: zod.boolean().optional(),
   createdAt: zod.date(),
+  updatedAt: zod.date().nullish(),
 });
 
 /**
@@ -225,6 +241,7 @@ export const ListMerchantStaffResponse = zod.object({
   staff: zod.array(
     zod.object({
       id: zod.string(),
+      username: zod.string().nullish(),
       email: zod.string().nullish(),
       firstName: zod.string().nullish(),
       lastName: zod.string().nullish(),
@@ -239,7 +256,14 @@ export const ListMerchantStaffResponse = zod.object({
         "event_admin",
         "admin",
       ]),
+      eventId: zod.string().nullish(),
+      merchantId: zod.string().nullish(),
+      promoterCompanyId: zod.string().nullish(),
+      gateZoneId: zod.string().nullish(),
+      isBlocked: zod.boolean().optional(),
+      isSuspended: zod.boolean().optional(),
       createdAt: zod.date(),
+      updatedAt: zod.date().nullish(),
     }),
   ),
 });
@@ -2481,6 +2505,238 @@ export const ReportSuspiciousBraceletBody = zod.object({
     "other",
   ]),
   notes: zod.string().optional(),
+});
+
+/**
+ * @summary Permanently delete a user (admin or event_admin scoped)
+ */
+export const DeleteUserParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const DeleteUserResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Block or unblock a user (admin or event_admin scoped)
+ */
+export const BlockUserParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const BlockUserBody = zod.object({
+  isBlocked: zod.boolean(),
+});
+
+export const BlockUserResponse = zod.object({
+  id: zod.string().optional(),
+  isBlocked: zod.boolean().optional(),
+});
+
+/**
+ * @summary Suspend a user (admin or event_admin scoped)
+ */
+export const SuspendUserParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const SuspendUserResponse = zod.object({
+  id: zod.string().optional(),
+  isSuspended: zod.boolean().optional(),
+});
+
+/**
+ * @summary Re-activate a suspended user (admin or event_admin scoped)
+ */
+export const UnsuspendUserParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const UnsuspendUserResponse = zod.object({
+  id: zod.string().optional(),
+  isSuspended: zod.boolean().optional(),
+});
+
+/**
+ * @summary Reset a user's password (admin or event_admin scoped)
+ */
+export const ResetUserPasswordParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const resetUserPasswordBodyNewPasswordMin = 6;
+
+export const ResetUserPasswordBody = zod.object({
+  newPassword: zod.string().min(resetUserPasswordBodyNewPasswordMin),
+});
+
+export const ResetUserPasswordResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Assign a user to an event (admin only)
+ */
+export const AssignUserToEventParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const AssignUserToEventBody = zod.object({
+  eventId: zod.string().nullable(),
+});
+
+export const AssignUserToEventResponse = zod.object({
+  id: zod.string(),
+  username: zod.string().nullish(),
+  email: zod.string().nullish(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
+  profileImageUrl: zod.string().nullish(),
+  role: zod.enum([
+    "attendee",
+    "bank",
+    "gate",
+    "merchant_staff",
+    "merchant_admin",
+    "warehouse_admin",
+    "event_admin",
+    "admin",
+  ]),
+  eventId: zod.string().nullish(),
+  merchantId: zod.string().nullish(),
+  promoterCompanyId: zod.string().nullish(),
+  gateZoneId: zod.string().nullish(),
+  isBlocked: zod.boolean().optional(),
+  isSuspended: zod.boolean().optional(),
+  createdAt: zod.date(),
+  updatedAt: zod.date().nullish(),
+});
+
+/**
+ * @summary Assign a user to a promoter company (admin only)
+ */
+export const AssignUserToPromoterCompanyParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const AssignUserToPromoterCompanyBody = zod.object({
+  promoterCompanyId: zod.string().nullable(),
+});
+
+export const AssignUserToPromoterCompanyResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Create a new user account (admin or event_admin)
+ */
+
+export const createAccountBodyUsernameMin = 3;
+
+export const createAccountBodyPasswordMin = 6;
+
+export const CreateAccountBody = zod.object({
+  firstName: zod.string().min(1),
+  lastName: zod.string().optional(),
+  email: zod.string().email().optional(),
+  username: zod.string().min(createAccountBodyUsernameMin).optional(),
+  password: zod.string().min(createAccountBodyPasswordMin),
+  role: zod.enum([
+    "attendee",
+    "bank",
+    "gate",
+    "merchant_staff",
+    "merchant_admin",
+    "warehouse_admin",
+    "event_admin",
+    "admin",
+  ]),
+  eventId: zod.string().optional(),
+  gateZoneId: zod.string().nullish(),
+  merchantId: zod.string().nullish(),
+});
+
+/**
+ * @summary List access zones for an event
+ */
+export const ListAccessZonesParams = zod.object({
+  eventId: zod.coerce.string(),
+});
+
+export const ListAccessZonesResponse = zod.object({
+  zones: zod.array(
+    zod.object({
+      id: zod.string(),
+      eventId: zod.string(),
+      name: zod.string(),
+      description: zod.string().nullish(),
+      colorHex: zod.string().nullish(),
+      rank: zod.number(),
+      upgradePriceCop: zod.number().nullish(),
+      createdAt: zod.date(),
+      updatedAt: zod.date().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create an access zone for an event
+ */
+export const CreateAccessZoneParams = zod.object({
+  eventId: zod.coerce.string(),
+});
+
+export const createAccessZoneBodyRankMin = 0;
+
+export const CreateAccessZoneBody = zod.object({
+  name: zod.string().min(1),
+  description: zod.string().optional(),
+  colorHex: zod.string().optional(),
+  rank: zod.number().min(createAccessZoneBodyRankMin),
+  upgradePriceCop: zod.number().nullish(),
+});
+
+/**
+ * @summary Update an access zone
+ */
+export const UpdateAccessZoneParams = zod.object({
+  eventId: zod.coerce.string(),
+  zoneId: zod.coerce.string(),
+});
+
+export const updateAccessZoneBodyRankMin = 0;
+
+export const UpdateAccessZoneBody = zod.object({
+  name: zod.string().min(1).optional(),
+  description: zod.string().optional(),
+  colorHex: zod.string().optional(),
+  rank: zod.number().min(updateAccessZoneBodyRankMin).optional(),
+  upgradePriceCop: zod.number().nullish(),
+});
+
+export const UpdateAccessZoneResponse = zod.object({
+  id: zod.string(),
+  eventId: zod.string(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  colorHex: zod.string().nullish(),
+  rank: zod.number(),
+  upgradePriceCop: zod.number().nullish(),
+  createdAt: zod.date(),
+  updatedAt: zod.date().optional(),
+});
+
+/**
+ * @summary Delete an access zone
+ */
+export const DeleteAccessZoneParams = zod.object({
+  eventId: zod.coerce.string(),
+  zoneId: zod.coerce.string(),
+});
+
+export const DeleteAccessZoneResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**

@@ -126,6 +126,8 @@ export const MerchantType = {
 export interface UserProfile {
   id: string;
   /** @nullable */
+  username?: string | null;
+  /** @nullable */
   email?: string | null;
   /** @nullable */
   firstName?: string | null;
@@ -134,7 +136,19 @@ export interface UserProfile {
   /** @nullable */
   profileImageUrl?: string | null;
   role: UserRole;
+  /** @nullable */
+  eventId?: string | null;
+  /** @nullable */
+  merchantId?: string | null;
+  /** @nullable */
+  promoterCompanyId?: string | null;
+  /** @nullable */
+  gateZoneId?: string | null;
+  isBlocked?: boolean;
+  isSuspended?: boolean;
   createdAt: string;
+  /** @nullable */
+  updatedAt?: string | null;
 }
 
 export interface UpdateUserRoleBody {
@@ -1394,6 +1408,60 @@ export interface ListEventTransactions200 {
   limit: number;
 }
 
+export interface CreateAccountBody {
+  /** @minLength 1 */
+  firstName: string;
+  lastName?: string;
+  email?: string;
+  /** @minLength 3 */
+  username?: string;
+  /** @minLength 6 */
+  password: string;
+  role: UserRole;
+  eventId?: string;
+  /** @nullable */
+  gateZoneId?: string | null;
+  /** @nullable */
+  merchantId?: string | null;
+}
+
+export interface AccessZone {
+  id: string;
+  eventId: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  colorHex?: string | null;
+  rank: number;
+  /** @nullable */
+  upgradePriceCop?: number | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateAccessZoneBody {
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+  colorHex?: string;
+  /** @minimum 0 */
+  rank: number;
+  /** @nullable */
+  upgradePriceCop?: number | null;
+}
+
+export interface UpdateAccessZoneBody {
+  /** @minLength 1 */
+  name?: string;
+  description?: string;
+  colorHex?: string;
+  /** @minimum 0 */
+  rank?: number;
+  /** @nullable */
+  upgradePriceCop?: number | null;
+}
+
 /**
  * Invalid request body or parameters.
  */
@@ -1718,6 +1786,44 @@ export const GetFraudAlertsSeverity = {
   high: "high",
   critical: "critical",
 } as const;
+
+export type BlockUserBody = {
+  isBlocked: boolean;
+};
+
+export type BlockUser200 = {
+  id?: string;
+  isBlocked?: boolean;
+};
+
+export type SuspendUser200 = {
+  id?: string;
+  isSuspended?: boolean;
+};
+
+export type UnsuspendUser200 = {
+  id?: string;
+  isSuspended?: boolean;
+};
+
+export type ResetUserPasswordBody = {
+  /** @minLength 6 */
+  newPassword: string;
+};
+
+export type AssignUserToEventBody = {
+  /** @nullable */
+  eventId: string | null;
+};
+
+export type AssignUserToPromoterCompanyBody = {
+  /** @nullable */
+  promoterCompanyId: string | null;
+};
+
+export type ListAccessZones200 = {
+  zones: AccessZone[];
+};
 
 export type RegisterPushToken200 = {
   ok?: boolean;

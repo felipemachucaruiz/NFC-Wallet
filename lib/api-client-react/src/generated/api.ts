@@ -17,18 +17,25 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AccessZone,
   AnalyticsHeatmap,
   AnalyticsSalesByHour,
   AnalyticsStockAlerts,
   AnalyticsSummary,
   AnalyticsTopMerchants,
   AnalyticsTopProducts,
+  AssignUserToEventBody,
   AssignUserToLocationBody,
+  AssignUserToPromoterCompanyBody,
   AuthUserEnvelope,
   BadRequestResponse,
   BeginBrowserLoginParams,
+  BlockUser200,
+  BlockUserBody,
   Bracelet,
   ConflictResponse,
+  CreateAccessZoneBody,
+  CreateAccountBody,
   CreateEventBody,
   CreateInventoryAuditBody,
   CreateLocationBody,
@@ -70,6 +77,7 @@ import type {
   InternalErrorResponse,
   InventoryAuditResult,
   InventoryReport,
+  ListAccessZones200,
   ListDamagedGoods200,
   ListDamagedGoodsParams,
   ListEventBracelets200,
@@ -121,6 +129,7 @@ import type {
   RegisterPushToken200,
   RegisterPushTokenBody,
   ResetMerchantStaffPasswordBody,
+  ResetUserPasswordBody,
   RestockOrder,
   RevenueReport,
   ShiftTopUpSummary,
@@ -129,6 +138,7 @@ import type {
   StockMovement,
   SuccessEnvelope,
   SuccessResponse,
+  SuspendUser200,
   SyncTransactionsBody,
   SyncTransactionsResult,
   TamperReportBody,
@@ -138,6 +148,8 @@ import type {
   TransferBetweenLocations201,
   UnauthorizedResponse,
   UnclaimedBalancesResponse,
+  UnsuspendUser200,
+  UpdateAccessZoneBody,
   UpdateBraceletContactBody,
   UpdateEventBody,
   UpdateLocationBody,
@@ -8959,6 +8971,1193 @@ export const useReportSuspiciousBracelet = <
   TContext
 > => {
   return useMutation(getReportSuspiciousBraceletMutationOptions(options));
+};
+
+/**
+ * @summary Permanently delete a user (admin or event_admin scoped)
+ */
+export const getDeleteUserUrl = (userId: string) => {
+  return `/api/users/${userId}`;
+};
+
+export const deleteUser = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<SuccessEnvelope> => {
+  return customFetch<SuccessEnvelope>(getDeleteUserUrl(userId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteUserMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteUser>>,
+    TError,
+    { userId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteUser>>,
+    { userId: string }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return deleteUser(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteUser>>
+>;
+
+export type DeleteUserMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+>;
+
+/**
+ * @summary Permanently delete a user (admin or event_admin scoped)
+ */
+export const useDeleteUser = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteUser>>,
+    TError,
+    { userId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  return useMutation(getDeleteUserMutationOptions(options));
+};
+
+/**
+ * @summary Block or unblock a user (admin or event_admin scoped)
+ */
+export const getBlockUserUrl = (userId: string) => {
+  return `/api/users/${userId}/block`;
+};
+
+export const blockUser = async (
+  userId: string,
+  blockUserBody: BlockUserBody,
+  options?: RequestInit,
+): Promise<BlockUser200> => {
+  return customFetch<BlockUser200>(getBlockUserUrl(userId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(blockUserBody),
+  });
+};
+
+export const getBlockUserMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockUser>>,
+    TError,
+    { userId: string; data: BodyType<BlockUserBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof blockUser>>,
+  TError,
+  { userId: string; data: BodyType<BlockUserBody> },
+  TContext
+> => {
+  const mutationKey = ["blockUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof blockUser>>,
+    { userId: string; data: BodyType<BlockUserBody> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return blockUser(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BlockUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof blockUser>>
+>;
+export type BlockUserMutationBody = BodyType<BlockUserBody>;
+export type BlockUserMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+>;
+
+/**
+ * @summary Block or unblock a user (admin or event_admin scoped)
+ */
+export const useBlockUser = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof blockUser>>,
+    TError,
+    { userId: string; data: BodyType<BlockUserBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof blockUser>>,
+  TError,
+  { userId: string; data: BodyType<BlockUserBody> },
+  TContext
+> => {
+  return useMutation(getBlockUserMutationOptions(options));
+};
+
+/**
+ * @summary Suspend a user (admin or event_admin scoped)
+ */
+export const getSuspendUserUrl = (userId: string) => {
+  return `/api/users/${userId}/suspend`;
+};
+
+export const suspendUser = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<SuspendUser200> => {
+  return customFetch<SuspendUser200>(getSuspendUserUrl(userId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSuspendUserMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof suspendUser>>,
+    TError,
+    { userId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof suspendUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  const mutationKey = ["suspendUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof suspendUser>>,
+    { userId: string }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return suspendUser(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SuspendUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof suspendUser>>
+>;
+
+export type SuspendUserMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+>;
+
+/**
+ * @summary Suspend a user (admin or event_admin scoped)
+ */
+export const useSuspendUser = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof suspendUser>>,
+    TError,
+    { userId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof suspendUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  return useMutation(getSuspendUserMutationOptions(options));
+};
+
+/**
+ * @summary Re-activate a suspended user (admin or event_admin scoped)
+ */
+export const getUnsuspendUserUrl = (userId: string) => {
+  return `/api/users/${userId}/unsuspend`;
+};
+
+export const unsuspendUser = async (
+  userId: string,
+  options?: RequestInit,
+): Promise<UnsuspendUser200> => {
+  return customFetch<UnsuspendUser200>(getUnsuspendUserUrl(userId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getUnsuspendUserMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unsuspendUser>>,
+    TError,
+    { userId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unsuspendUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  const mutationKey = ["unsuspendUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unsuspendUser>>,
+    { userId: string }
+  > = (props) => {
+    const { userId } = props ?? {};
+
+    return unsuspendUser(userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnsuspendUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unsuspendUser>>
+>;
+
+export type UnsuspendUserMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Re-activate a suspended user (admin or event_admin scoped)
+ */
+export const useUnsuspendUser = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unsuspendUser>>,
+    TError,
+    { userId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unsuspendUser>>,
+  TError,
+  { userId: string },
+  TContext
+> => {
+  return useMutation(getUnsuspendUserMutationOptions(options));
+};
+
+/**
+ * @summary Reset a user's password (admin or event_admin scoped)
+ */
+export const getResetUserPasswordUrl = (userId: string) => {
+  return `/api/users/${userId}/password`;
+};
+
+export const resetUserPassword = async (
+  userId: string,
+  resetUserPasswordBody: ResetUserPasswordBody,
+  options?: RequestInit,
+): Promise<SuccessEnvelope> => {
+  return customFetch<SuccessEnvelope>(getResetUserPasswordUrl(userId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(resetUserPasswordBody),
+  });
+};
+
+export const getResetUserPasswordMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetUserPassword>>,
+    TError,
+    { userId: string; data: BodyType<ResetUserPasswordBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resetUserPassword>>,
+  TError,
+  { userId: string; data: BodyType<ResetUserPasswordBody> },
+  TContext
+> => {
+  const mutationKey = ["resetUserPassword"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resetUserPassword>>,
+    { userId: string; data: BodyType<ResetUserPasswordBody> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return resetUserPassword(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResetUserPasswordMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resetUserPassword>>
+>;
+export type ResetUserPasswordMutationBody = BodyType<ResetUserPasswordBody>;
+export type ResetUserPasswordMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+>;
+
+/**
+ * @summary Reset a user's password (admin or event_admin scoped)
+ */
+export const useResetUserPassword = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetUserPassword>>,
+    TError,
+    { userId: string; data: BodyType<ResetUserPasswordBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resetUserPassword>>,
+  TError,
+  { userId: string; data: BodyType<ResetUserPasswordBody> },
+  TContext
+> => {
+  return useMutation(getResetUserPasswordMutationOptions(options));
+};
+
+/**
+ * @summary Assign a user to an event (admin only)
+ */
+export const getAssignUserToEventUrl = (userId: string) => {
+  return `/api/users/${userId}/event`;
+};
+
+export const assignUserToEvent = async (
+  userId: string,
+  assignUserToEventBody: AssignUserToEventBody,
+  options?: RequestInit,
+): Promise<UserProfile> => {
+  return customFetch<UserProfile>(getAssignUserToEventUrl(userId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(assignUserToEventBody),
+  });
+};
+
+export const getAssignUserToEventMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignUserToEvent>>,
+    TError,
+    { userId: string; data: BodyType<AssignUserToEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignUserToEvent>>,
+  TError,
+  { userId: string; data: BodyType<AssignUserToEventBody> },
+  TContext
+> => {
+  const mutationKey = ["assignUserToEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignUserToEvent>>,
+    { userId: string; data: BodyType<AssignUserToEventBody> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return assignUserToEvent(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignUserToEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignUserToEvent>>
+>;
+export type AssignUserToEventMutationBody = BodyType<AssignUserToEventBody>;
+export type AssignUserToEventMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+>;
+
+/**
+ * @summary Assign a user to an event (admin only)
+ */
+export const useAssignUserToEvent = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignUserToEvent>>,
+    TError,
+    { userId: string; data: BodyType<AssignUserToEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignUserToEvent>>,
+  TError,
+  { userId: string; data: BodyType<AssignUserToEventBody> },
+  TContext
+> => {
+  return useMutation(getAssignUserToEventMutationOptions(options));
+};
+
+/**
+ * @summary Assign a user to a promoter company (admin only)
+ */
+export const getAssignUserToPromoterCompanyUrl = (userId: string) => {
+  return `/api/users/${userId}/promoter-company`;
+};
+
+export const assignUserToPromoterCompany = async (
+  userId: string,
+  assignUserToPromoterCompanyBody: AssignUserToPromoterCompanyBody,
+  options?: RequestInit,
+): Promise<SuccessEnvelope> => {
+  return customFetch<SuccessEnvelope>(
+    getAssignUserToPromoterCompanyUrl(userId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(assignUserToPromoterCompanyBody),
+    },
+  );
+};
+
+export const getAssignUserToPromoterCompanyMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignUserToPromoterCompany>>,
+    TError,
+    { userId: string; data: BodyType<AssignUserToPromoterCompanyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignUserToPromoterCompany>>,
+  TError,
+  { userId: string; data: BodyType<AssignUserToPromoterCompanyBody> },
+  TContext
+> => {
+  const mutationKey = ["assignUserToPromoterCompany"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignUserToPromoterCompany>>,
+    { userId: string; data: BodyType<AssignUserToPromoterCompanyBody> }
+  > = (props) => {
+    const { userId, data } = props ?? {};
+
+    return assignUserToPromoterCompany(userId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignUserToPromoterCompanyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignUserToPromoterCompany>>
+>;
+export type AssignUserToPromoterCompanyMutationBody =
+  BodyType<AssignUserToPromoterCompanyBody>;
+export type AssignUserToPromoterCompanyMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Assign a user to a promoter company (admin only)
+ */
+export const useAssignUserToPromoterCompany = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignUserToPromoterCompany>>,
+    TError,
+    { userId: string; data: BodyType<AssignUserToPromoterCompanyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignUserToPromoterCompany>>,
+  TError,
+  { userId: string; data: BodyType<AssignUserToPromoterCompanyBody> },
+  TContext
+> => {
+  return useMutation(getAssignUserToPromoterCompanyMutationOptions(options));
+};
+
+/**
+ * @summary Create a new user account (admin or event_admin)
+ */
+export const getCreateAccountUrl = () => {
+  return `/api/auth/create-account`;
+};
+
+export const createAccount = async (
+  createAccountBody: CreateAccountBody,
+  options?: RequestInit,
+): Promise<UserProfile> => {
+  return customFetch<UserProfile>(getCreateAccountUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createAccountBody),
+  });
+};
+
+export const getCreateAccountMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAccount>>,
+    TError,
+    { data: BodyType<CreateAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAccount>>,
+  TError,
+  { data: BodyType<CreateAccountBody> },
+  TContext
+> => {
+  const mutationKey = ["createAccount"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAccount>>,
+    { data: BodyType<CreateAccountBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createAccount(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAccountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAccount>>
+>;
+export type CreateAccountMutationBody = BodyType<CreateAccountBody>;
+export type CreateAccountMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | ConflictResponse
+>;
+
+/**
+ * @summary Create a new user account (admin or event_admin)
+ */
+export const useCreateAccount = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAccount>>,
+    TError,
+    { data: BodyType<CreateAccountBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAccount>>,
+  TError,
+  { data: BodyType<CreateAccountBody> },
+  TContext
+> => {
+  return useMutation(getCreateAccountMutationOptions(options));
+};
+
+/**
+ * @summary List access zones for an event
+ */
+export const getListAccessZonesUrl = (eventId: string) => {
+  return `/api/events/${eventId}/access-zones`;
+};
+
+export const listAccessZones = async (
+  eventId: string,
+  options?: RequestInit,
+): Promise<ListAccessZones200> => {
+  return customFetch<ListAccessZones200>(getListAccessZonesUrl(eventId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAccessZonesQueryKey = (eventId: string) => {
+  return [`/api/events/${eventId}/access-zones`] as const;
+};
+
+export const getListAccessZonesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAccessZones>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  eventId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAccessZones>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListAccessZonesQueryKey(eventId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAccessZones>>> = ({
+    signal,
+  }) => listAccessZones(eventId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!eventId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAccessZones>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAccessZonesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAccessZones>>
+>;
+export type ListAccessZonesQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary List access zones for an event
+ */
+
+export function useListAccessZones<
+  TData = Awaited<ReturnType<typeof listAccessZones>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  eventId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listAccessZones>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAccessZonesQueryOptions(eventId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create an access zone for an event
+ */
+export const getCreateAccessZoneUrl = (eventId: string) => {
+  return `/api/events/${eventId}/access-zones`;
+};
+
+export const createAccessZone = async (
+  eventId: string,
+  createAccessZoneBody: CreateAccessZoneBody,
+  options?: RequestInit,
+): Promise<AccessZone> => {
+  return customFetch<AccessZone>(getCreateAccessZoneUrl(eventId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createAccessZoneBody),
+  });
+};
+
+export const getCreateAccessZoneMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAccessZone>>,
+    TError,
+    { eventId: string; data: BodyType<CreateAccessZoneBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAccessZone>>,
+  TError,
+  { eventId: string; data: BodyType<CreateAccessZoneBody> },
+  TContext
+> => {
+  const mutationKey = ["createAccessZone"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAccessZone>>,
+    { eventId: string; data: BodyType<CreateAccessZoneBody> }
+  > = (props) => {
+    const { eventId, data } = props ?? {};
+
+    return createAccessZone(eventId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAccessZoneMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAccessZone>>
+>;
+export type CreateAccessZoneMutationBody = BodyType<CreateAccessZoneBody>;
+export type CreateAccessZoneMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | ConflictResponse
+>;
+
+/**
+ * @summary Create an access zone for an event
+ */
+export const useCreateAccessZone = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAccessZone>>,
+    TError,
+    { eventId: string; data: BodyType<CreateAccessZoneBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAccessZone>>,
+  TError,
+  { eventId: string; data: BodyType<CreateAccessZoneBody> },
+  TContext
+> => {
+  return useMutation(getCreateAccessZoneMutationOptions(options));
+};
+
+/**
+ * @summary Update an access zone
+ */
+export const getUpdateAccessZoneUrl = (eventId: string, zoneId: string) => {
+  return `/api/events/${eventId}/access-zones/${zoneId}`;
+};
+
+export const updateAccessZone = async (
+  eventId: string,
+  zoneId: string,
+  updateAccessZoneBody: UpdateAccessZoneBody,
+  options?: RequestInit,
+): Promise<AccessZone> => {
+  return customFetch<AccessZone>(getUpdateAccessZoneUrl(eventId, zoneId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateAccessZoneBody),
+  });
+};
+
+export const getUpdateAccessZoneMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAccessZone>>,
+    TError,
+    { eventId: string; zoneId: string; data: BodyType<UpdateAccessZoneBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAccessZone>>,
+  TError,
+  { eventId: string; zoneId: string; data: BodyType<UpdateAccessZoneBody> },
+  TContext
+> => {
+  const mutationKey = ["updateAccessZone"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAccessZone>>,
+    { eventId: string; zoneId: string; data: BodyType<UpdateAccessZoneBody> }
+  > = (props) => {
+    const { eventId, zoneId, data } = props ?? {};
+
+    return updateAccessZone(eventId, zoneId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAccessZoneMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAccessZone>>
+>;
+export type UpdateAccessZoneMutationBody = BodyType<UpdateAccessZoneBody>;
+export type UpdateAccessZoneMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+  | ConflictResponse
+>;
+
+/**
+ * @summary Update an access zone
+ */
+export const useUpdateAccessZone = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAccessZone>>,
+    TError,
+    { eventId: string; zoneId: string; data: BodyType<UpdateAccessZoneBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAccessZone>>,
+  TError,
+  { eventId: string; zoneId: string; data: BodyType<UpdateAccessZoneBody> },
+  TContext
+> => {
+  return useMutation(getUpdateAccessZoneMutationOptions(options));
+};
+
+/**
+ * @summary Delete an access zone
+ */
+export const getDeleteAccessZoneUrl = (eventId: string, zoneId: string) => {
+  return `/api/events/${eventId}/access-zones/${zoneId}`;
+};
+
+export const deleteAccessZone = async (
+  eventId: string,
+  zoneId: string,
+  options?: RequestInit,
+): Promise<SuccessEnvelope> => {
+  return customFetch<SuccessEnvelope>(getDeleteAccessZoneUrl(eventId, zoneId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteAccessZoneMutationOptions = <
+  TError = ErrorType<
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAccessZone>>,
+    TError,
+    { eventId: string; zoneId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAccessZone>>,
+  TError,
+  { eventId: string; zoneId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteAccessZone"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAccessZone>>,
+    { eventId: string; zoneId: string }
+  > = (props) => {
+    const { eventId, zoneId } = props ?? {};
+
+    return deleteAccessZone(eventId, zoneId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAccessZoneMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAccessZone>>
+>;
+
+export type DeleteAccessZoneMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Delete an access zone
+ */
+export const useDeleteAccessZone = <
+  TError = ErrorType<
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+    | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAccessZone>>,
+    TError,
+    { eventId: string; zoneId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAccessZone>>,
+  TError,
+  { eventId: string; zoneId: string },
+  TContext
+> => {
+  return useMutation(getDeleteAccessZoneMutationOptions(options));
 };
 
 /**

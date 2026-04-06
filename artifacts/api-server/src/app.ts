@@ -28,6 +28,11 @@ app.use(
   cors({
     credentials: true,
     origin: (origin, callback) => {
+      // In development, allow all origins (Replit preview proxy, localhost, etc.)
+      if (process.env.NODE_ENV !== "production") {
+        callback(null, true);
+        return;
+      }
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {

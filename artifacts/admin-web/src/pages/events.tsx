@@ -1,0 +1,219 @@
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useListEvents,
+  useCreateEvent,
+  useUpdateEvent,
+  getListEventsQueryKey,
+} from "@workspace/api-client-react";
+import type { Event } from "@workspace/api-client-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Search, Pencil } from "lucide-react";
+
+type EventForm = {
+  name: string;
+  description: string;
+  venueAddress: string;
+  startsAt: string;
+  endsAt: string;
+};
+
+const emptyForm: EventForm = { name: "", description: "", venueAddress: "", startsAt: "", endsAt: "" };
+
+export default function Events() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data, isLoading } = useListEvents();
+  const events = data?.events ?? [];
+
+  const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [form, setForm] = useState<EventForm>(emptyForm);
+
+  const createEvent = useCreateEvent();
+  const updateEvent = useUpdateEvent();
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: getListEventsQueryKey() });
+
+  const filtered = events.filter((e) => {
+    const q = search.toLowerCase();
+    return e.name.toLowerCase().includes(q) || (e.venueAddress ?? "").toLowerCase().includes(q);
+  });
+
+  const openCreate = () => {
+    setForm(emptyForm);
+    setCreateOpen(true);
+  };
+
+  const openEdit = (event: Event) => {
+    setSelectedEvent(event);
+    setForm({
+      name: event.name,
+      description: event.description ?? "",
+      venueAddress: event.venueAddress ?? "",
+      startsAt: event.startsAt ? event.startsAt.slice(0, 16) : "",
+      endsAt: event.endsAt ? event.endsAt.slice(0, 16) : "",
+    });
+    setEditOpen(true);
+  };
+
+  const handleCreate = () => {
+    createEvent.mutate(
+      { data: { ...form, startsAt: form.startsAt || undefined, endsAt: form.endsAt || undefined } },
+      {
+        onSuccess: () => { toast({ title: "Event created" }); setCreateOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+      }
+    );
+  };
+
+  const handleUpdate = () => {
+    if (!selectedEvent) return;
+    updateEvent.mutate(
+      { eventId: selectedEvent.id, data: { ...form, startsAt: form.startsAt || undefined, endsAt: form.endsAt || undefined } },
+      {
+        onSuccess: () => { toast({ title: "Event updated" }); setEditOpen(false); invalidate(); },
+        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+      }
+    );
+  };
+
+  const handleToggleActive = (event: Event) => {
+    updateEvent.mutate(
+      { eventId: event.id, data: { active: !event.active } },
+      {
+        onSuccess: () => { toast({ title: event.active ? "Event deactivated" : "Event activated" }); invalidate(); },
+        onError: (e: unknown) => toast({ title: "Error", description: (e as { message?: string }).message, variant: "destructive" }),
+      }
+    );
+  };
+
+  const FormFields = () => (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <Label>Event Name *</Label>
+        <Input data-testid="input-event-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+      </div>
+      <div className="space-y-1">
+        <Label>Description</Label>
+        <Input data-testid="input-event-description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+      </div>
+      <div className="space-y-1">
+        <Label>Venue Address</Label>
+        <Input data-testid="input-event-venue" value={form.venueAddress} onChange={(e) => setForm((f) => ({ ...f, venueAddress: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label>Starts At</Label>
+          <Input data-testid="input-event-starts" type="datetime-local" value={form.startsAt} onChange={(e) => setForm((f) => ({ ...f, startsAt: e.target.value }))} />
+        </div>
+        <div className="space-y-1">
+          <Label>Ends At</Label>
+          <Input data-testid="input-event-ends" type="datetime-local" value={form.endsAt} onChange={(e) => setForm((f) => ({ ...f, endsAt: e.target.value }))} />
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Events</h1>
+          <p className="text-muted-foreground mt-1">Create and manage platform events.</p>
+        </div>
+        <Button data-testid="button-create-event" onClick={openCreate}>
+          <Plus className="w-4 h-4 mr-2" /> New Event
+        </Button>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input data-testid="input-event-search" placeholder="Search events..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+
+      <div className="border border-border rounded-lg bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Venue</TableHead>
+              <TableHead>Starts</TableHead>
+              <TableHead>Ends</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-24">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow><TableCell colSpan={6} className="text-center py-8">Loading...</TableCell></TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No events found.</TableCell></TableRow>
+            ) : (
+              filtered.map((event) => (
+                <TableRow key={event.id} data-testid={`row-event-${event.id}`}>
+                  <TableCell className="font-medium">{event.name}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{event.venueAddress ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{event.startsAt ? new Date(event.startsAt).toLocaleDateString() : "—"}</TableCell>
+                  <TableCell className="text-sm">{event.endsAt ? new Date(event.endsAt).toLocaleDateString() : "—"}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        data-testid={`toggle-event-active-${event.id}`}
+                        checked={event.active}
+                        onCheckedChange={() => handleToggleActive(event)}
+                      />
+                      <Badge variant={event.active ? "default" : "secondary"} className="text-xs">
+                        {event.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" data-testid={`button-edit-event-${event.id}`} onClick={() => openEdit(event)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Create Event</DialogTitle></DialogHeader>
+          <FormFields />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button data-testid="button-submit-event" onClick={handleCreate} disabled={createEvent.isPending || !form.name}>
+              {createEvent.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Edit Event — {selectedEvent?.name}</DialogTitle></DialogHeader>
+          <FormFields />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button data-testid="button-submit-edit-event" onClick={handleUpdate} disabled={updateEvent.isPending || !form.name}>
+              {updateEvent.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
