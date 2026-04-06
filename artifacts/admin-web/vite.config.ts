@@ -2,9 +2,10 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import https from "https";
 import { URL } from "url";
+
+const isReplit = !!process.env.REPL_ID;
 
 // PORT is only used by the dev/preview server — not during `vite build`.
 // Default to 3000 so CI / Railway build steps don't fail without this var.
@@ -86,9 +87,14 @@ export default defineConfig({
     apiProxyPlugin(),
     react(),
     tailwindcss(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
+    ...(isReplit
+      ? [
+          (
+            await import("@replit/vite-plugin-runtime-error-modal")
+          ).default(),
+        ]
+      : []),
+    ...(process.env.NODE_ENV !== "production" && isReplit
       ? [
           await import("@replit/vite-plugin-cartographer").then((m) =>
             m.cartographer({
