@@ -12,7 +12,6 @@ import React, { useEffect, useState } from "react";
 import { Appearance, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl, setFetchImplementation } from "@workspace/api-client-react";
 import { API_BASE_URL } from "@/constants/domain";
@@ -35,6 +34,17 @@ import { pinnedFetch } from "@/utils/pinnedFetch";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
 import { useTranslation } from "react-i18next";
+
+// Safe import: if react-native-keyboard-controller is not in the native binary
+// (e.g. OTA applied to an older build) the app will still start without keyboard
+// handling rather than crashing permanently at module-load time.
+const KeyboardProvider: React.ComponentType<{ children: React.ReactNode }> = (() => {
+  try {
+    return require("react-native-keyboard-controller").KeyboardProvider;
+  } catch {
+    return ({ children }: { children: React.ReactNode }) => <>{children}</>;
+  }
+})();
 
 if (Platform.OS !== "web") {
   Appearance.setColorScheme("dark");

@@ -75,6 +75,76 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 - **API Definition & Codegen:** OpenAPI 3.1 specification and Orval.
 - **Offline Queuing:** `expo-sqlite` in the staff mobile application.
 
+# OTA Update Safety Rules (CRITICAL — READ BEFORE TOUCHING EITHER MOBILE APP)
+
+Both Expo apps (`artifacts/mobile` and `artifacts/attendee-app`) use `runtimeVersion: { policy: "appVersion" }`. This means **any OTA published for the same app version is applied to ALL devices, even if native modules have changed**. A bad OTA bundle causes a permanent crash that only clears on app reinstall.
+
+## What causes a permanent OTA crash
+
+A static top-level `import` of a native module that was NOT in the native binary when the app was built.
+
+When Metro loads the JS bundle, it executes all `import` statements synchronously before any React component renders. If a `require()` call for a native module fails (module not in binary), it throws and crashes the entire JS runtime. Since this happens before `<ErrorBoundary>` mounts, nothing can catch it. The app crashes on every subsequent launch.
+
+## Safe pattern for any native/third-party module
+
+**NEVER do this in a file that loads at startup:**
+```ts
+import * as Something from "some-native-package"; // static = permanent crash if not in binary
+```
+
+**ALWAYS do this instead:**
+```ts
+// For value imports:
+async function getDeviceLanguage() {
+  try {
+    const { getLocales } = await import("expo-localization"); // dynamic = catchable
+    return getLocales()[0]?.languageCode ?? "es";
+  } catch {
+    return "es"; // safe default
+  }
+}
+
+// For JSX component imports (providers, wrappers):
+const KeyboardProvider: React.ComponentType<{ children: React.ReactNode }> = (() => {
+  try {
+    return require("react-native-keyboard-controller").KeyboardProvider;
+  } catch {
+    return ({ children }) => <>{children}</>; // transparent fallback
+  }
+})();
+```
+
+## Currently protected (both apps)
+
+| Module | Pattern | File |
+|--------|---------|------|
+| `expo-localization` | dynamic `import()` in try-catch | `i18n/index.ts` |
+| `react-native-nfc-manager` | try-require at module level | `utils/nfc.ts` |
+| `react-native-keyboard-controller` | IIFE try-require + fallback | `app/_layout.tsx` |
+
+## Modules NOT in app.json plugins (require special care on OTA)
+
+These were NOT listed in either app's `app.json` plugins at the time of last known native build. Treat any changes to files that import these as high-risk for OTA:
+- `expo-localization` — now safe (dynamic import)
+- `react-native-keyboard-controller` — now safe (try-require)
+- `expo-secure-store` — in AuthContext (monitor; core Expo SDK, likely safe)
+- `expo-notifications` — in usePushNotifications (monitor)
+
+## Before publishing an OTA
+
+1. **Check every new `import` statement** added since the last native build — if it imports a native module, apply the safe pattern above.
+2. Pure-JS packages (`i18next`, `react-i18next`, `@tanstack/react-query`, etc.) are always safe.
+3. Any `expo-*` or `react-native-*` package added after the last EAS Build requires the safe pattern.
+4. Run a quick grep before publishing: `grep -rn "^import.*from ['\"]expo-\|^import.*from ['\"]react-native-" artifacts/mobile/app/_layout.tsx artifacts/attendee-app/app/_layout.tsx` — all results should either be known-safe core packages or already use the try-require pattern.
+
+## Recovery from a crashed device
+
+Users whose app is permanently crashed must **uninstall and reinstall** to recover. A new OTA alone will not fix them (the crashed bundle prevents the OTA check from running). Push a fixed OTA first so that fresh installs + reinstalls get the working bundle.
+
+## Long-term fix
+
+Change `runtimeVersion.policy` from `"appVersion"` to `"fingerprint"` in both `app.json` files, then rebuild native binaries. With fingerprint policy, Expo rejects OTA bundles whose native dependency set doesn't match the installed binary — preventing this entire class of crash.
+
 # Admin Web Portal (artifacts/admin-web)
 
 **Tapee Admin Portal** — A full-featured web admin portal for the cashless event payment system.
