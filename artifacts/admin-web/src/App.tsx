@@ -20,6 +20,9 @@ import Users from "@/pages/users";
 import FraudAlerts from "@/pages/fraud-alerts";
 import Payouts from "@/pages/payouts";
 import Reports from "@/pages/reports";
+import Products from "@/pages/products";
+import Transactions from "@/pages/transactions";
+import Inventory from "@/pages/inventory";
 
 import EventDashboard from "@/pages/event-dashboard";
 import EventUsers from "@/pages/event-users";
@@ -28,6 +31,12 @@ import EventBracelets from "@/pages/event-bracelets";
 import EventAccessZones from "@/pages/event-access-zones";
 import EventPayouts from "@/pages/event-payouts";
 import EventReports from "@/pages/event-reports";
+import EventProducts from "@/pages/event-products";
+import EventLocations from "@/pages/event-locations";
+import EventTransactions from "@/pages/event-transactions";
+import EventInventory from "@/pages/event-inventory";
+import EventRefundRequests from "@/pages/event-refund-requests";
+import EventSettlement from "@/pages/event-settlement";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +96,15 @@ function Router() {
       <Route path="/reports">
         <ProtectedRoute component={Reports} allowedRoles={["admin"]} />
       </Route>
+      <Route path="/products">
+        <ProtectedRoute component={Products} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/transactions">
+        <ProtectedRoute component={Transactions} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/inventory">
+        <ProtectedRoute component={Inventory} allowedRoles={["admin"]} />
+      </Route>
 
       {/* Event Admin Routes */}
       <Route path="/event-dashboard">
@@ -109,6 +127,24 @@ function Router() {
       </Route>
       <Route path="/event-reports">
         <ProtectedRoute component={EventReports} allowedRoles={["event_admin"]} />
+      </Route>
+      <Route path="/event-products">
+        <ProtectedRoute component={EventProducts} allowedRoles={["event_admin"]} />
+      </Route>
+      <Route path="/event-locations">
+        <ProtectedRoute component={EventLocations} allowedRoles={["event_admin"]} />
+      </Route>
+      <Route path="/event-transactions">
+        <ProtectedRoute component={EventTransactions} allowedRoles={["event_admin"]} />
+      </Route>
+      <Route path="/event-inventory">
+        <ProtectedRoute component={EventInventory} allowedRoles={["event_admin"]} />
+      </Route>
+      <Route path="/event-refund-requests">
+        <ProtectedRoute component={EventRefundRequests} allowedRoles={["event_admin"]} />
+      </Route>
+      <Route path="/event-settlement">
+        <ProtectedRoute component={EventSettlement} allowedRoles={["event_admin"]} />
       </Route>
 
       <Route component={NotFound} />

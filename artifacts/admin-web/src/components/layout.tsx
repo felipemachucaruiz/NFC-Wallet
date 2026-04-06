@@ -13,7 +13,13 @@ import {
   Building,
   Store,
   Ticket,
-  MapPin
+  MapPin,
+  ShoppingBag,
+  Receipt,
+  Package,
+  MapPinned,
+  RefreshCcw,
+  FileBarChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +63,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/events" icon={Calendar} label="Events" />
               <NavItem href="/promoters" icon={Building} label="Promoters" />
               <NavItem href="/users" icon={Users} label="Users" />
+              <NavItem href="/products" icon={ShoppingBag} label="Products" />
+              <NavItem href="/transactions" icon={Receipt} label="Transactions" />
+              <NavItem href="/inventory" icon={Package} label="Inventory" />
               <NavItem href="/fraud-alerts" icon={ShieldAlert} label="Fraud Alerts" />
               <NavItem href="/payouts" icon={CreditCard} label="Payouts" />
               <NavItem href="/reports" icon={FileText} label="Reports" />
@@ -68,9 +77,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/event-dashboard" icon={LayoutDashboard} label="Dashboard" />
               <NavItem href="/event-users" icon={Users} label="Staff & Users" />
               <NavItem href="/event-merchants" icon={Store} label="Merchants" />
+              <NavItem href="/event-products" icon={ShoppingBag} label="Products" />
+              <NavItem href="/event-locations" icon={MapPinned} label="Locations" />
               <NavItem href="/event-bracelets" icon={Ticket} label="Wristbands" />
               <NavItem href="/event-access-zones" icon={MapPin} label="Access Zones" />
+              <NavItem href="/event-transactions" icon={Receipt} label="Transactions" />
+              <NavItem href="/event-inventory" icon={Package} label="Inventory" />
+              <NavItem href="/event-refund-requests" icon={RefreshCcw} label="Refunds" />
               <NavItem href="/event-payouts" icon={CreditCard} label="Payouts" />
+              <NavItem href="/event-settlement" icon={FileBarChart} label="Settlement" />
               <NavItem href="/event-reports" icon={FileText} label="Reports" />
             </>
           )}

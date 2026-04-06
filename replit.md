@@ -85,8 +85,8 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 - **Vite Proxy:** `/admin-web/_srv` is proxied to `https://prod.tapee.app` (production Railway API). The `_srv` suffix avoids Replit infrastructure intercepting paths containing `/api/` segments. Client-side code uses `setBaseUrl(BASE_URL + "_srv")` and `API_BASE = BASE_URL + "_srv"`. NEVER use `_proxy` as the suffix — Replit intercepts POST requests with `/api/` in the path.
 
 **Roles:**
-- **SaaS Admin** (`role=admin`): Dashboard, Events, Promoters, Users, Fraud Alerts, Payouts, Reports
-- **Event Admin** (`role=event_admin`): Event Dashboard, Staff (Event Users), Merchants, Bracelets, Access Zones, Payouts, Reports
+- **SaaS Admin** (`role=admin`): Dashboard, Events, Promoters, Users, Products, Transactions, Inventory, Fraud Alerts, Payouts, Reports
+- **Event Admin** (`role=event_admin`): Event Dashboard, Staff (Event Users), Merchants, Products, Locations, Bracelets, Access Zones, Transactions, Inventory, Refund Requests, Payouts, Settlement Report, Reports
 
 **Key Implementation Notes:**
 - Startup migration in `artifacts/api-server/src/index.ts` no longer force-resets the admin password (was removed after task-79 recovery is complete)
