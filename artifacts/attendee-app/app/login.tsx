@@ -2,7 +2,32 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useVideoPlayer, VideoView } from "expo-video";
+// Safe dynamic require — expo-video needs a native binary; OTA updates on older
+// APKs that predate expo-video would crash at static import time. Try-require
+// at module level keeps the rest of the file from ever being evaluated if the
+// module is absent, without violating React hooks rules (the hook is always
+// called inside LoginVideoBackground when it renders).
+let _expoVideo: typeof import("expo-video") | null = null;
+try {
+  _expoVideo = require("expo-video");
+} catch {}
+
+function LoginVideoBackground({ source }: { source: unknown }) {
+  const player = _expoVideo!.useVideoPlayer(source, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+  return (
+    <_expoVideo!.VideoView
+      player={player}
+      style={StyleSheet.absoluteFill}
+      contentFit="cover"
+      nativeControls={false}
+      allowsPictureInPicture={false}
+    />
+  );
+}
 import React, { useEffect, useState } from "react";
 import {
   Dimensions,
@@ -73,11 +98,6 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
-  const player = useVideoPlayer(!isWeb ? loginBgVideo : null, (p) => {
-    p.loop = true;
-    p.muted = true;
-    p.play();
-  });
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -125,14 +145,8 @@ export default function LoginScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      {!isWeb ? (
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          nativeControls={false}
-          allowsPictureInPicture={false}
-        />
+      {!isWeb && _expoVideo ? (
+        <LoginVideoBackground source={loginBgVideo} />
       ) : (
         <LinearGradient
           colors={["#0a0a0a", "#111111", "#0a0a0a"]}

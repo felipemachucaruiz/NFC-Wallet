@@ -1,7 +1,13 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
-import { SymbolView } from "expo-symbols";
+// expo-symbols requires iOS SF Symbols native support — not available in all
+// binary builds. Dynamic require prevents a crash when the native module is
+// absent in an OTA-updated APK/IPA that predates this package being linked.
+let SymbolView: React.ComponentType<{ name: string; tintColor: string; size: number }> | null = null;
+try {
+  SymbolView = require("expo-symbols").SymbolView;
+} catch {}
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
@@ -59,7 +65,7 @@ export default function TabsLayout() {
         options={{
           title: t("home.tab"),
           tabBarIcon: ({ color }) =>
-            isIOS
+            isIOS && SymbolView
               ? <SymbolView name="house.fill" tintColor={color} size={22} />
               : <Feather name="home" size={22} color={color} />,
         }}
@@ -69,7 +75,7 @@ export default function TabsLayout() {
         options={{
           title: t("history.tab"),
           tabBarIcon: ({ color }) =>
-            isIOS
+            isIOS && SymbolView
               ? <SymbolView name="list.bullet" tintColor={color} size={22} />
               : <Feather name="list" size={22} color={color} />,
         }}
@@ -79,7 +85,7 @@ export default function TabsLayout() {
         options={{
           title: t("notifications.tab"),
           tabBarIcon: ({ color }) =>
-            isIOS
+            isIOS && SymbolView
               ? <SymbolView name="bell.fill" tintColor={color} size={22} />
               : <Feather name="bell" size={22} color={color} />,
         }}
@@ -89,7 +95,7 @@ export default function TabsLayout() {
         options={{
           title: t("profile.tab"),
           tabBarIcon: ({ color }) =>
-            isIOS
+            isIOS && SymbolView
               ? <SymbolView name="person.circle.fill" tintColor={color} size={22} />
               : <Feather name="user" size={22} color={color} />,
         }}

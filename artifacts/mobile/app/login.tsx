@@ -2,7 +2,33 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useVideoPlayer, VideoView } from "expo-video";
+// Safe dynamic require — expo-video needs a native binary; OTA updates on older
+// APKs that predate expo-video would crash at static import time. Try-require
+// at module level keeps the rest of the file from ever being evaluated if the
+// module is absent, without violating React hooks rules (the hook is always
+// called inside LoginVideoBackground when it renders).
+let _expoVideo: typeof import("expo-video") | null = null;
+try {
+  _expoVideo = require("expo-video");
+} catch {}
+
+function LoginVideoBackground({ source }: { source: unknown }) {
+  const player = _expoVideo!.useVideoPlayer(source, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+  return (
+    <_expoVideo!.VideoView
+      player={player}
+      style={StyleSheet.absoluteFill}
+      contentFit="cover"
+      nativeControls={false}
+      allowsFullscreen={false}
+      allowsPictureInPicture={false}
+    />
+  );
+}
 import React, { useEffect, useRef, useState } from "react";
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -77,11 +103,6 @@ export default function LoginScreen() {
   const [totpError, setTotpError] = useState<string | null>(null);
   const [totpSubmitting, setTotpSubmitting] = useState(false);
 
-  const player = useVideoPlayer(!isWeb ? loginBgVideo : null, (p) => {
-    p.loop = true;
-    p.muted = true;
-    p.play();
-  });
 
   // Guard: if the user is already authenticated when this screen mounts
   // (e.g. navigated back to /login while logged in), go home immediately.
@@ -199,16 +220,9 @@ export default function LoginScreen() {
   // ── Main login form ────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { paddingTop: isWeb ? 67 : insets.top }]}>
-      {/* Background — video on native, gradient on web */}
-      {!isWeb ? (
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          nativeControls={false}
-          allowsFullscreen={false}
-          allowsPictureInPicture={false}
-        />
+      {/* Background — video on native (if expo-video is linked), gradient fallback */}
+      {!isWeb && _expoVideo ? (
+        <LoginVideoBackground source={loginBgVideo} />
       ) : (
         <LinearGradient
           colors={["#0a0a0a", "#111111", "#0a0a0a"]}
