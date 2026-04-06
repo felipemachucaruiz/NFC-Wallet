@@ -3,10 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
-import { useGetCurrentAuthUser, setAuthTokenGetter } from "@workspace/api-client-react";
+import { useGetCurrentAuthUser, setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { AUTH_TOKEN_KEY } from "@/pages/login";
 
-// Initialize auth token getter from persisted storage on startup
+setBaseUrl(`${import.meta.env.BASE_URL}_srv`);
 setAuthTokenGetter(() => localStorage.getItem(AUTH_TOKEN_KEY));
 
 import NotFound from "@/pages/not-found";

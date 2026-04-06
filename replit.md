@@ -82,7 +82,7 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 - **Technology:** React + Vite, TailwindCSS, ShadCN UI components, Wouter for routing, TanStack Query
 - **Port:** 24276 (preview path: `/admin-web`)
 - **Authentication:** Custom JWT session auth — login returns a `{ token }` stored in `localStorage` as `tapee_admin_token`, passed as `Authorization: Bearer <token>` on all API calls. `setAuthTokenGetter` from `@workspace/api-client-react` wires this up.
-- **Vite Proxy:** `/api/*` is proxied to `localhost:8080` (the API server) for development. CORS on the API server is open in `NODE_ENV !== 'production'`.
+- **Vite Proxy:** `/admin-web/_srv` is proxied to `https://prod.tapee.app` (production Railway API). The `_srv` suffix avoids Replit infrastructure intercepting paths containing `/api/` segments. Client-side code uses `setBaseUrl(BASE_URL + "_srv")` and `API_BASE = BASE_URL + "_srv"`. NEVER use `_proxy` as the suffix — Replit intercepts POST requests with `/api/` in the path.
 
 **Roles:**
 - **SaaS Admin** (`role=admin`): Dashboard, Events, Promoters, Users, Fraud Alerts, Payouts, Reports

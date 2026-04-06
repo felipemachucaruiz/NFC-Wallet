@@ -67,9 +67,11 @@ export default defineConfig({
       deny: ["**/.*"],
     },
     proxy: {
-      "/api": {
-        target: "http://localhost:8080",
+      [`${basePath}_srv`]: {
+        target: process.env.VITE_API_TARGET || "https://prod.tapee.app",
         changeOrigin: true,
+        secure: true,
+        rewrite: (p: string) => p.replace(`${basePath}_srv`, ""),
       },
     },
   },
