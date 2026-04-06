@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Platform, StyleSheet, View } from "react-native";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -92,6 +92,14 @@ export function AnimatedSplash({ onFinished }: Props) {
 
   const screenOpacity = useSharedValue(1);
 
+  const calledRef = useRef(false);
+  const safeFinish = () => {
+    if (!calledRef.current) {
+      calledRef.current = true;
+      onFinished();
+    }
+  };
+
   useEffect(() => {
     logoOpacity.value = withTiming(1, { duration: 380 });
     logoScale.value = withSpring(1, { damping: 13, stiffness: 140 });
@@ -102,9 +110,14 @@ export function AnimatedSplash({ onFinished }: Props) {
     screenOpacity.value = withDelay(
       2900,
       withTiming(0, { duration: 400 }, (finished) => {
-        if (finished) runOnJS(onFinished)();
+        if (finished) runOnJS(safeFinish)();
       }),
     );
+
+    // Fallback: runOnJS inside withTiming callbacks doesn't fire on Expo Web.
+    // Guarantee the splash is dismissed after the full animation window + buffer.
+    const fallback = setTimeout(safeFinish, 2900 + 400 + 300);
+    return () => clearTimeout(fallback);
   }, []);
 
   const logoStyle = useAnimatedStyle(() => ({

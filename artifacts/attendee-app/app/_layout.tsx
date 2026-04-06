@@ -163,7 +163,9 @@ export default function RootLayout() {
     Inter_700Bold,
   });
   const [i18nReady, setI18nReady] = useState(false);
-  const [splashDone, setSplashDone] = useState(false);
+  // On web, the reanimated worklet bridge doesn't fire completion callbacks
+  // reliably, so the animated splash is skipped entirely on that platform.
+  const [splashDone, setSplashDone] = useState(Platform.OS === "web");
 
   useEffect(() => {
     initI18n()
