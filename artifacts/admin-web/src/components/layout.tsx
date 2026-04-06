@@ -73,11 +73,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
               <NavItem href="/events" icon={Calendar} label={t("nav.events")} />
               <NavItem href="/events-map" icon={MapPinned} label={t("nav.eventsMap")} />
+              <NavItem href="/bracelets" icon={Ticket} label={t("nav.wristbands")} />
               <NavItem href="/promoters" icon={Building} label={t("nav.promoters")} />
               <NavItem href="/users" icon={Users} label={t("nav.users")} />
               <NavItem href="/products" icon={ShoppingBag} label={t("nav.products")} />
               <NavItem href="/transactions" icon={Receipt} label={t("nav.transactions")} />
-              <NavItem href="/inventory" icon={Package} label={t("nav.inventory")} />
               <NavItem href="/fraud-alerts" icon={ShieldAlert} label={t("nav.fraudAlerts")} />
               <NavItem href="/payouts" icon={CreditCard} label={t("nav.payouts")} />
               <NavItem href="/reports" icon={FileText} label={t("nav.reports")} />

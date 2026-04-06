@@ -15,6 +15,7 @@ import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import Dashboard from "@/pages/dashboard";
 import Events from "@/pages/events";
+import Bracelets from "@/pages/bracelets";
 import Promoters from "@/pages/promoters";
 import Users from "@/pages/users";
 import FraudAlerts from "@/pages/fraud-alerts";
@@ -84,6 +85,9 @@ function Router() {
       </Route>
       <Route path="/events-map">
         <ProtectedRoute component={EventsMap} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/bracelets">
+        <ProtectedRoute component={Bracelets} allowedRoles={["admin"]} />
       </Route>
       <Route path="/promoters">
         <ProtectedRoute component={Promoters} allowedRoles={["admin"]} />
