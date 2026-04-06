@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
-        <div className="bg-card border border-card-border rounded-xl p-6 shadow-lg">
+        <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
           {!token ? (
             <div className="text-center space-y-4">
               <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-destructive/10">
@@ -156,7 +156,7 @@ export default function ResetPasswordPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={isLoading || !password || !confirmPassword}>
-                {isLoading ? "Resetting…" : "Reset password"}
+                {isLoading ? "Resetting..." : "Reset password"}
               </Button>
             </form>
           )}

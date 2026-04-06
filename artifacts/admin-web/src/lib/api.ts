@@ -1,23 +1,12 @@
-const ADMIN_API_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
-const ATTENDEE_API_URL = (import.meta.env.VITE_ATTENDEE_API_URL ?? ADMIN_API_URL).replace(/\/+$/, "");
+const API_BASE = "";
+const ATTENDEE_API_URL = (import.meta.env.VITE_ATTENDEE_API_URL ?? "").replace(/\/+$/, "");
 
-export function adminApiUrl(path: string): string {
-  return `${ADMIN_API_URL}${path}`;
+function apiUrl(path: string): string {
+  return `${API_BASE}${path}`;
 }
 
-export function attendeeApiUrl(path: string): string {
+function attendeeApiUrl(path: string): string {
   return `${ATTENDEE_API_URL}${path}`;
-}
-
-export interface AuthUser {
-  id: string;
-  email: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  role: string;
-  merchantId?: string | null;
-  eventId?: string | null;
-  promoterCompanyId?: string | null;
 }
 
 export interface LoginResult {
@@ -27,7 +16,7 @@ export interface LoginResult {
 }
 
 export async function apiLogin(identifier: string, password: string): Promise<LoginResult> {
-  const res = await fetch(adminApiUrl("/api/auth/login"), {
+  const res = await fetch(apiUrl("/api/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ identifier, password }),
@@ -38,7 +27,7 @@ export async function apiLogin(identifier: string, password: string): Promise<Lo
 }
 
 export async function apiVerify2FA(partialToken: string, code: string): Promise<{ token: string }> {
-  const res = await fetch(adminApiUrl("/api/2fa/verify"), {
+  const res = await fetch(apiUrl("/api/2fa/verify"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ partial_token: partialToken, totp_code: code }),
@@ -48,30 +37,13 @@ export async function apiVerify2FA(partialToken: string, code: string): Promise<
   return data as { token: string };
 }
 
-export async function apiGetCurrentUser(token: string): Promise<AuthUser | null> {
-  const res = await fetch(adminApiUrl("/api/auth/user"), {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return (data.user as AuthUser) ?? null;
-}
-
-export async function apiLogout(token: string): Promise<void> {
-  await fetch(adminApiUrl("/api/auth/logout"), {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-}
-
 export async function apiForgotPassword(email: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/forgot-password")
-    : adminApiUrl("/api/auth/forgot-password");
+    : apiUrl("/api/auth/forgot-password");
 
   const body: Record<string, string> = { email };
   if (source === "attendee") {
-    // Tell the attendee-api to send the reset link back to this web-admin app
     const origin = window.location.origin;
     const base = import.meta.env.BASE_URL ?? "/";
     const resetPath = base.replace(/\/$/, "") + "/reset-password";
@@ -92,7 +64,7 @@ export async function apiForgotPassword(email: string, source: "admin" | "attend
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")
-    : adminApiUrl("/api/auth/reset-password");
+    : apiUrl("/api/auth/reset-password");
 
   const res = await fetch(url, {
     method: "POST",

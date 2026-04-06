@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
           <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>
         </div>
 
-        <div className="bg-card border border-card-border rounded-xl p-6 shadow-lg">
+        <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
           {sent ? (
             <div className="text-center space-y-4">
               <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-primary/10">
@@ -99,7 +99,7 @@ export default function ForgotPasswordPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Sending…" : "Send reset link"}
+                {isLoading ? "Sending..." : "Send reset link"}
               </Button>
 
               <button

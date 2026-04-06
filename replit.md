@@ -30,7 +30,8 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 - `artifacts/attendee-api` — Separate Express 5 API server for attendee-facing endpoints at `/api` (attendee app)
 - `artifacts/mobile` — Expo React Native staff mobile app
 - `artifacts/attendee-app` — Expo React Native attendee mobile app
-- `artifacts/web-admin` — React + Vite web admin portal at `/web-admin/`; serves `admin` and `event_admin` users with login, 2FA, forgot/reset password, and dashboard scaffolding
+- `artifacts/admin-web` — React + Vite web admin portal at `/admin-web/`; serves `admin` and `event_admin` users with login (2FA), forgot/reset password, dashboard, events, users, merchants, bracelets, access zones, payouts, reports
+- `artifacts/web-admin` — DEPRECATED, source removed (consolidated into admin-web)
 
 **UI/UX Decisions:**
 - **Attendee App:** Features a "Tapee Black" dark theme with cyan accents on a #0a0a0a background for a modern and sleek user experience. Supports NFC read-only functions, push notifications, and i18n (ES/EN).

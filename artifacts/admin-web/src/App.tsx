@@ -11,6 +11,8 @@ setAuthTokenGetter(() => localStorage.getItem(AUTH_TOKEN_KEY));
 
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import Dashboard from "@/pages/dashboard";
 import Events from "@/pages/events";
 import Promoters from "@/pages/promoters";
@@ -57,6 +59,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       
       <Route path="/">
         {isLoading ? null : user?.user ? <Redirect to={user.user.role === "admin" ? "/dashboard" : "/event-dashboard"} /> : <Redirect to="/login" />}
