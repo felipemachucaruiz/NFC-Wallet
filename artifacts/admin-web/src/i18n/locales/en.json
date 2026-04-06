@@ -31,6 +31,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "events": "Events",
+    "eventsMap": "Events Map",
     "promoters": "Promoters",
     "users": "Users",
     "products": "Products",

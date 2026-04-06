@@ -33,6 +33,7 @@ import EventPayouts from "@/pages/event-payouts";
 import EventReports from "@/pages/event-reports";
 import EventProducts from "@/pages/event-products";
 import EventLocations from "@/pages/event-locations";
+import EventsMap from "@/pages/events-map";
 import EventTransactions from "@/pages/event-transactions";
 import EventInventory from "@/pages/event-inventory";
 import EventRefundRequests from "@/pages/event-refund-requests";
@@ -80,6 +81,9 @@ function Router() {
       </Route>
       <Route path="/events">
         <ProtectedRoute component={Events} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/events-map">
+        <ProtectedRoute component={EventsMap} allowedRoles={["admin"]} />
       </Route>
       <Route path="/promoters">
         <ProtectedRoute component={Promoters} allowedRoles={["admin"]} />

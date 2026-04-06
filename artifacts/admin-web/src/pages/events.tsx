@@ -15,8 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil } from "lucide-react";
+import { Plus, Search, Pencil, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { LocationMapPicker } from "@/components/LocationMapPicker";
 
 type EventForm = {
   name: string;
@@ -40,6 +41,7 @@ export default function Events() {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [form, setForm] = useState<EventForm>(emptyForm);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
 
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent();
@@ -111,8 +113,32 @@ export default function Events() {
       </div>
       <div className="space-y-1">
         <Label>{t("events.venueAddress")}</Label>
-        <Input data-testid="input-event-venue" value={form.venueAddress} onChange={(e) => setForm((f) => ({ ...f, venueAddress: e.target.value }))} />
+        <div className="flex gap-2">
+          <Input
+            data-testid="input-event-venue"
+            value={form.venueAddress}
+            onChange={(e) => setForm((f) => ({ ...f, venueAddress: e.target.value }))}
+            className="flex-1"
+            placeholder="Address or search on map…"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="shrink-0"
+            title="Pick on map"
+            onClick={() => setMapPickerOpen(true)}
+          >
+            <MapPin className="w-4 h-4 text-primary" />
+          </Button>
+        </div>
       </div>
+      <LocationMapPicker
+        open={mapPickerOpen}
+        initialAddress={form.venueAddress}
+        onConfirm={(addr) => setForm((f) => ({ ...f, venueAddress: addr }))}
+        onClose={() => setMapPickerOpen(false)}
+      />
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>{t("events.startsAt")}</Label>
