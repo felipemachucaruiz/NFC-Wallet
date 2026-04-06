@@ -80,7 +80,9 @@ app.use(PROXY_PREFIX, (req, res) => {
 const staticDir = path.join(__dirname, "../dist/public");
 app.use(express.static(staticDir));
 
-app.get("*", (_req, res) => {
+// Express 5 uses path-to-regexp v8 which rejects bare "*".
+// Use app.use() for the SPA catch-all instead.
+app.use((_req, res) => {
   res.sendFile(path.join(staticDir, "index.html"));
 });
 
