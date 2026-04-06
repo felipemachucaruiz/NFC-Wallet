@@ -1,7 +1,0 @@
-[build]
-buildCommand = "pnpm install && pnpm run build"
-
-[deploy]
-startCommand = "npx serve dist/public -l $PORT --single"
-healthcheckPath = "/"
-healthcheckTimeout = 30
