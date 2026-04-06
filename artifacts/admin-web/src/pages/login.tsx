@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
-import { getGetCurrentAuthUserQueryKey, setAuthTokenGetter } from "@workspace/api-client-react";
+import { getGetCurrentAuthUserQueryKey, getGetCurrentAuthUserQueryOptions, setAuthTokenGetter } from "@workspace/api-client-react";
 import { apiLogin, apiVerify2FA } from "@/lib/api";
 import { useTranslation } from "react-i18next";
 
@@ -38,7 +38,7 @@ export default function Login() {
     localStorage.setItem(AUTH_TOKEN_KEY, token);
     setAuthTokenGetter(() => localStorage.getItem(AUTH_TOKEN_KEY));
     await queryClient.invalidateQueries({ queryKey: getGetCurrentAuthUserQueryKey() });
-    const authData = await queryClient.fetchQuery({ queryKey: getGetCurrentAuthUserQueryKey() });
+    const authData = await queryClient.fetchQuery(getGetCurrentAuthUserQueryOptions());
     const role = (authData as { user?: { role?: string } } | null)?.user?.role;
     if (role === "admin" || role === "event_admin") {
       setLocation(role === "event_admin" ? "/event-dashboard" : "/dashboard");
