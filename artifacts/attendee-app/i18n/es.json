@@ -214,7 +214,6 @@
     "method": "Método de devolución",
     "methodCash": "Efectivo",
     "methodNequi": "Nequi",
-    "methodBancolombia": "Bancolombia",
     "methodOther": "Otro",
     "accountPlaceholder": "Número de teléfono o cuenta",
     "notes": "Notas (opcional)",
@@ -226,7 +225,16 @@
     "successTitle": "Solicitud enviada",
     "successMessage": "El equipo bancario te contactará cuando sea procesada.",
     "alreadyPendingTitle": "Solicitud ya pendiente",
-    "alreadyPendingMessage": "Ya tienes una solicitud de reembolso pendiente para esta pulsera. Espera a que sea procesada."
+    "alreadyPendingMessage": "Ya tienes una solicitud de reembolso pendiente para esta pulsera. Espera a que sea procesada.",
+    "methodBankTransfer": "Cuenta Bancaria",
+    "bankPlaceholder": "Selecciona un banco",
+    "bankPickerTitle": "Selecciona banco",
+    "accountNumberPlaceholder": "Número de cuenta",
+    "accountHolderPlaceholder": "Titular de la cuenta",
+    "docTypePlaceholder": "Tipo de documento",
+    "docTypePickerTitle": "Tipo de documento",
+    "docNumberPlaceholder": "Número de documento",
+    "bankTransferIncomplete": "Por favor completa todos los campos de la cuenta bancaria."
   },
   "update": {
     "downloading": "Descargando actualización…",

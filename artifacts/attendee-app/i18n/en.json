@@ -214,7 +214,6 @@
     "method": "Refund method",
     "methodCash": "Cash",
     "methodNequi": "Nequi",
-    "methodBancolombia": "Bancolombia",
     "methodOther": "Other",
     "accountPlaceholder": "Phone number or account",
     "notes": "Notes (optional)",
@@ -226,7 +225,16 @@
     "successTitle": "Request submitted",
     "successMessage": "The bank team will contact you once it's processed.",
     "alreadyPendingTitle": "Request already pending",
-    "alreadyPendingMessage": "You already have a pending refund request for this wristband. Please wait for it to be processed."
+    "alreadyPendingMessage": "You already have a pending refund request for this wristband. Please wait for it to be processed.",
+    "methodBankTransfer": "Bank Account",
+    "bankPlaceholder": "Select a bank",
+    "bankPickerTitle": "Select bank",
+    "accountNumberPlaceholder": "Account number",
+    "accountHolderPlaceholder": "Account holder name",
+    "docTypePlaceholder": "Document type",
+    "docTypePickerTitle": "Document type",
+    "docNumberPlaceholder": "Document number",
+    "bankTransferIncomplete": "Please complete all bank account fields."
   },
   "update": {
     "downloading": "Downloading update…",

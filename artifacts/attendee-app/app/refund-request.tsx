@@ -2,7 +2,17 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -13,7 +23,7 @@ import { Card } from "@/components/ui/Card";
 import { useSubmitRefundRequest } from "@/hooks/useAttendeeApi";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 
-type RefundMethod = "cash" | "nequi" | "bancolombia" | "other";
+type RefundMethod = "cash" | "nequi" | "bank_transfer" | "other";
 
 const REFUND_METHODS: {
   value: RefundMethod;
@@ -23,9 +33,119 @@ const REFUND_METHODS: {
 }[] = [
   { value: "cash", icon: "dollar-sign", labelKey: "refund.methodCash", needsAccount: false },
   { value: "nequi", icon: "smartphone", labelKey: "refund.methodNequi", needsAccount: true },
-  { value: "bancolombia", icon: "home", labelKey: "refund.methodBancolombia", needsAccount: true },
+  { value: "bank_transfer", icon: "credit-card", labelKey: "refund.methodBankTransfer", needsAccount: true },
   { value: "other", icon: "more-horizontal", labelKey: "refund.methodOther", needsAccount: false },
 ];
+
+const COLOMBIAN_BANKS = [
+  "BANCO DE BOGOTÁ",
+  "BANCO POPULAR",
+  "BANCO ITAÚ",
+  "BANCOLOMBIA",
+  "CITIBANK",
+  "BANCO GNB SUDAMERIS",
+  "BANCO BBVA COLOMBIA S.A.",
+  "SCOTIABANK COLPATRIA",
+  "BANCO DE OCCIDENTE",
+  "BANCO CAJA SOCIAL",
+  "BANCO AGRARIO",
+  "BANCO MUNDO MUJER S.A.",
+  "BANCO DAVIVIENDA",
+  "BANCO AV VILLAS",
+  "BANCO PROCREDIT",
+  "BANCAMIA S.A.",
+  "BANCO PICHINCHA S.A.",
+  "BANCOOMEVA S.A.",
+  "BANCO FALABELLA",
+  "BANCO FINANDINA S.A. BIC",
+  "BANCO SANTANDER COLOMBIA",
+  "BANCO COOPERATIVO COOPCENTRAL",
+  "BANCO SERFINANZA",
+  "LULO BANK",
+  "JP MORGAN",
+  "DALE",
+  "RAPPIPAY DAVIPLATA",
+  "CFA COOPERATIVA FINANCIERA",
+  "JFK COOPERATIVA FINANCIERA",
+  "COTRAFA",
+  "COOFINEP COOPERATIVA FINANCIERA",
+  "CONFIAR COOPERATIVA FINANCIERA",
+  "BANCO UNIÓN",
+  "COLTEFINANCIERA",
+  "NEQUI",
+  "DAVIPLATA",
+  "BANCO CREDIFINANCIERA",
+  "IRIS",
+  "MOVII S.A.",
+  "UALÁ",
+  "NU COLOMBIA COMPAÑÍA DE FINANCIAMIENTO S.A.",
+  "RAPPIPAY",
+  "ALIANZA FIDUCIARIA",
+  "CREZCAMOS S.A. COMPAÑÍA DE FINANCIAMIENTO",
+];
+
+const DOCUMENT_TYPES = [
+  "Cédula de ciudadanía",
+  "NIT",
+  "Pasaporte",
+  "Cédula de extranjería",
+  "Tarjeta de identidad",
+  "Registro civil",
+  "Documento venezolano",
+  "Carnet diplomático",
+];
+
+interface PickerModalProps {
+  visible: boolean;
+  title: string;
+  options: string[];
+  selected: string;
+  onSelect: (value: string) => void;
+  onClose: () => void;
+  C: typeof Colors.dark;
+}
+
+function PickerModal({ visible, title, options, selected, onSelect, onClose, C }: PickerModalProps) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={[styles.modalSheet, { backgroundColor: C.card }]} onPress={() => {}}>
+          <View style={[styles.modalHandle, { backgroundColor: C.border }]} />
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: C.text }]}>{title}</Text>
+            <Pressable onPress={onClose}>
+              <Feather name="x" size={22} color={C.textSecondary} />
+            </Pressable>
+          </View>
+          <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
+            {options.map((opt) => {
+              const isSelected = opt === selected;
+              return (
+                <TouchableOpacity
+                  key={opt}
+                  style={[
+                    styles.modalOption,
+                    { borderBottomColor: C.border },
+                    isSelected && { backgroundColor: C.primaryLight },
+                  ]}
+                  onPress={() => {
+                    onSelect(opt);
+                    onClose();
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, { color: isSelected ? C.primary : C.text }]}>
+                    {opt}
+                  </Text>
+                  {isSelected && <Feather name="check" size={16} color={C.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
 
 export default function RefundRequestScreen() {
   const { t } = useTranslation();
@@ -45,10 +165,46 @@ export default function RefundRequestScreen() {
   const [notes, setNotes] = useState("");
   const [step, setStep] = useState<"form" | "success">("form");
 
+  const [bankName, setBankName] = useState("");
+  const [accountType, setAccountType] = useState<"Ahorros" | "Corriente">("Ahorros");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [accountHolder, setAccountHolder] = useState("");
+  const [docType, setDocType] = useState("");
+  const [docNumber, setDocNumber] = useState("");
+  const [showBankPicker, setShowBankPicker] = useState(false);
+  const [showDocTypePicker, setShowDocTypePicker] = useState(false);
+
   const submitRequest = useSubmitRefundRequest();
   const selectedMethod = REFUND_METHODS.find((m) => m.value === refundMethod);
 
+  const buildBankAccountDetails = () => {
+    return [
+      `Banco: ${bankName}`,
+      `Tipo de cuenta: ${accountType}`,
+      `Número de cuenta: ${bankAccountNumber}`,
+      `Titular: ${accountHolder}`,
+      `Tipo documento: ${docType}`,
+      `Número documento: ${docNumber}`,
+    ].join(" | ");
+  };
+
+  const isBankTransferValid = () => {
+    if (refundMethod !== "bank_transfer") return true;
+    return (
+      bankName.trim() !== "" &&
+      bankAccountNumber.trim() !== "" &&
+      accountHolder.trim() !== "" &&
+      docType.trim() !== "" &&
+      docNumber.trim() !== ""
+    );
+  };
+
   const handleSubmit = () => {
+    if (!isBankTransferValid()) {
+      showAlert(t("common.error"), t("refund.bankTransferIncomplete"));
+      return;
+    }
+
     showAlert(
       t("refund.confirmTitle"),
       t("refund.confirmMessage"),
@@ -58,12 +214,17 @@ export default function RefundRequestScreen() {
           text: t("common.confirm"),
           onPress: async () => {
             try {
+              const details =
+                refundMethod === "nequi" && accountDetails.trim()
+                  ? `${phoneCountry.code}${accountDetails.trim()}`
+                  : refundMethod === "bank_transfer"
+                  ? buildBankAccountDetails()
+                  : accountDetails.trim() || undefined;
+
               await submitRequest.mutateAsync({
                 braceletUid: uid,
                 refundMethod,
-                accountDetails: refundMethod === "nequi" && accountDetails.trim()
-                  ? `${phoneCountry.code}${accountDetails.trim()}`
-                  : accountDetails.trim() || undefined,
+                accountDetails: details,
                 notes: notes.trim() || undefined,
               });
               setStep("success");
@@ -99,6 +260,14 @@ export default function RefundRequestScreen() {
   const inputStyle = [
     styles.textInput,
     { backgroundColor: C.inputBg, color: C.text, borderColor: C.border },
+  ];
+
+  const selectorStyle = (hasValue: boolean) => [
+    styles.selector,
+    {
+      backgroundColor: C.inputBg,
+      borderColor: hasValue ? C.border : C.border,
+    },
   ];
 
   return (
@@ -166,25 +335,80 @@ export default function RefundRequestScreen() {
         </View>
       </View>
 
-      {selectedMethod?.needsAccount && (
-        refundMethod === "nequi" ? (
-          <PhoneInput
-            number={accountDetails}
-            onNumberChange={setAccountDetails}
-            country={phoneCountry}
-            onCountryChange={setPhoneCountry}
-            placeholder={t("refund.accountPlaceholder")}
-          />
-        ) : (
+      {refundMethod === "nequi" && (
+        <PhoneInput
+          number={accountDetails}
+          onNumberChange={setAccountDetails}
+          country={phoneCountry}
+          onCountryChange={setPhoneCountry}
+          placeholder={t("refund.accountPlaceholder")}
+        />
+      )}
+
+      {refundMethod === "bank_transfer" && (
+        <View style={{ gap: 12 }}>
+          <Pressable style={selectorStyle(!!bankName)} onPress={() => setShowBankPicker(true)}>
+            <Text style={[styles.selectorText, { color: bankName ? C.text : C.textMuted }]}>
+              {bankName || t("refund.bankPlaceholder")}
+            </Text>
+            <Feather name="chevron-down" size={18} color={C.textMuted} />
+          </Pressable>
+
+          <View style={styles.accountTypeRow}>
+            {(["Ahorros", "Corriente"] as const).map((type) => (
+              <Pressable
+                key={type}
+                onPress={() => setAccountType(type)}
+                style={[
+                  styles.accountTypeBtn,
+                  {
+                    backgroundColor: accountType === type ? C.primaryLight : C.inputBg,
+                    borderColor: accountType === type ? C.primary : C.border,
+                    flex: 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.accountTypeText, { color: accountType === type ? C.primary : C.textSecondary }]}>
+                  {type}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
           <TextInput
             style={inputStyle}
-            placeholder={t("refund.accountPlaceholder")}
+            placeholder={t("refund.accountNumberPlaceholder")}
             placeholderTextColor={C.textMuted}
-            value={accountDetails}
-            onChangeText={setAccountDetails}
-            keyboardType="phone-pad"
+            value={bankAccountNumber}
+            onChangeText={setBankAccountNumber}
+            keyboardType="numeric"
           />
-        )
+
+          <TextInput
+            style={inputStyle}
+            placeholder={t("refund.accountHolderPlaceholder")}
+            placeholderTextColor={C.textMuted}
+            value={accountHolder}
+            onChangeText={setAccountHolder}
+            autoCapitalize="words"
+          />
+
+          <Pressable style={selectorStyle(!!docType)} onPress={() => setShowDocTypePicker(true)}>
+            <Text style={[styles.selectorText, { color: docType ? C.text : C.textMuted }]}>
+              {docType || t("refund.docTypePlaceholder")}
+            </Text>
+            <Feather name="chevron-down" size={18} color={C.textMuted} />
+          </Pressable>
+
+          <TextInput
+            style={inputStyle}
+            placeholder={t("refund.docNumberPlaceholder")}
+            placeholderTextColor={C.textMuted}
+            value={docNumber}
+            onChangeText={setDocNumber}
+            keyboardType="numeric"
+          />
+        </View>
       )}
 
       <TextInput
@@ -215,6 +439,26 @@ export default function RefundRequestScreen() {
         loading={submitRequest.isPending}
         testID="submit-refund-request-btn"
       />
+
+      <PickerModal
+        visible={showBankPicker}
+        title={t("refund.bankPickerTitle")}
+        options={COLOMBIAN_BANKS}
+        selected={bankName}
+        onSelect={setBankName}
+        onClose={() => setShowBankPicker(false)}
+        C={C}
+      />
+
+      <PickerModal
+        visible={showDocTypePicker}
+        title={t("refund.docTypePickerTitle")}
+        options={DOCUMENT_TYPES}
+        selected={docType}
+        onSelect={setDocType}
+        onClose={() => setShowDocTypePicker(false)}
+        C={C}
+      />
     </ScrollView>
   );
 }
@@ -244,4 +488,53 @@ const styles = StyleSheet.create({
   textInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: "Inter_400Regular" },
   infoRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   infoText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
+  selector: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  selectorText: { fontSize: 15, fontFamily: "Inter_400Regular", flex: 1 },
+  accountTypeRow: { flexDirection: "row", gap: 10 },
+  accountTypeBtn: { borderWidth: 1.5, borderRadius: 12, padding: 12, alignItems: "center" },
+  accountTypeText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "75%",
+    paddingBottom: 24,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  modalTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  modalList: { flex: 1 },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modalOptionText: { fontSize: 15, fontFamily: "Inter_400Regular", flex: 1 },
 });
