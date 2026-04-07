@@ -137,8 +137,9 @@ function LocationInventory({
       showAlert(t("common.success"), t("merchant_admin.stockUpdated"));
       setEditTarget(null);
       refetch();
-    } catch {
-      showAlert(t("common.error"), t("common.unknownError"));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("common.unknownError");
+      showAlert(t("common.error"), msg);
     }
   };
 
@@ -165,8 +166,9 @@ function LocationInventory({
       showAlert(t("common.success"), t("merchant_admin.transferSuccess"));
       setTransferTarget(null);
       refetch();
-    } catch {
-      showAlert(t("common.error"), t("common.unknownError"));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("common.unknownError");
+      showAlert(t("common.error"), msg);
     }
   };
 

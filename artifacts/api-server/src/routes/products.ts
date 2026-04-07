@@ -156,11 +156,33 @@ router.post(
       }
     }
 
-    const [product] = await db
-      .insert(productsTable)
-      .values(parsed.data)
-      .returning();
-    res.status(201).json(product);
+    const [merchant] = await db
+      .select({ id: merchantsTable.id })
+      .from(merchantsTable)
+      .where(eq(merchantsTable.id, parsed.data.merchantId));
+    if (!merchant) {
+      res.status(400).json({ error: "Merchant not found. The specified merchant does not exist." });
+      return;
+    }
+
+    try {
+      const [product] = await db
+        .insert(productsTable)
+        .values(parsed.data)
+        .returning();
+      res.status(201).json(product);
+    } catch (err: unknown) {
+      const pgErr = err as { code?: string; detail?: string };
+      if (pgErr.code === "23503") {
+        res.status(400).json({ error: "Invalid reference: merchant does not exist" });
+        return;
+      }
+      if (pgErr.code === "23505") {
+        res.status(409).json({ error: "A product with that barcode already exists" });
+        return;
+      }
+      throw err;
+    }
   },
 );
 

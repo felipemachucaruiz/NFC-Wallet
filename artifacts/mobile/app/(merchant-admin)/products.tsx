@@ -189,8 +189,9 @@ export default function MerchantProductsScreen() {
       showAlert(t("common.success"), t("merchant_admin.productCreated"));
       resetForm();
       refetch();
-    } catch {
-      showAlert(t("common.error"), t("common.unknownError"));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("common.unknownError");
+      showAlert(t("common.error"), msg);
     }
   };
 
@@ -226,8 +227,9 @@ export default function MerchantProductsScreen() {
       showAlert(t("common.success"), t("merchant_admin.productUpdated"));
       resetForm();
       refetch();
-    } catch {
-      showAlert(t("common.error"), t("common.unknownError"));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("common.unknownError");
+      showAlert(t("common.error"), msg);
     }
   };
 
