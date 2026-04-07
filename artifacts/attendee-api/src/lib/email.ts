@@ -36,13 +36,14 @@ export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
 
     if (!res.ok) {
       const body = await res.text();
-      logger.error({ status: res.status, body }, "Brevo email send failed");
+      logger.error(`Brevo email send failed — status=${res.status} body=${body}`);
       return false;
     }
 
+    logger.info(`Brevo email sent successfully to=${opts.to}`);
     return true;
   } catch (err) {
-    logger.error({ err }, "Brevo email send error");
+    logger.error(`Brevo email send error — ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
