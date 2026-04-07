@@ -54,11 +54,27 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 
 # Deployment & Hosting
 
-All apps are deployed and managed on **Railway** (not Replit deployments). Railway auto-deploys from the GitHub repo (`felipemachucaruiz/NFC-Wallet`, branch `main`). To deploy any backend or web change, push to GitHub:
+All apps are deployed and managed on **Railway** (not Replit deployments). Railway auto-deploys from the GitHub repo (`felipemachucaruiz/NFC-Wallet`). **CRITICAL: Two separate branches control different services:**
+
+- **`master` branch** → API services (Tapee Staff at `prod.tapee.app`, Tapee Wallet at `attendee.tapee.app`)
+- **`main` branch** → Web Admin only (Tapee Web Admin at `admin.tapee.app`)
+
+**⚠️ NEVER push API changes to `main`. NEVER push web admin changes to `master`. Pushing to the wrong branch WILL overwrite production services and cause downtime.**
+
 ```bash
+# Push API changes (api-server, attendee-api) → master branch
+git push "https://${GITHUB_TOKEN}@github.com/felipemachucaruiz/NFC-Wallet.git" master:master
+
+# Push Web Admin changes (admin-web) → main branch (ONLY when explicitly requested)
 git push "https://${GITHUB_TOKEN}@github.com/felipemachucaruiz/NFC-Wallet.git" master:main
 ```
+
 A **Railway API key** is available in environment secrets for programmatic access to Railway services if needed.
+
+**Railway domains:**
+- `prod.tapee.app` — Tapee Staff API (api-server) — deploys from `master`
+- `attendee.tapee.app` — Tapee Wallet API (attendee-api) — deploys from `master`
+- `admin.tapee.app` — Tapee Web Admin (admin-web) — deploys from `main`
 
 ## Mobile App Updates — APK BUILDS ONLY (NO OTA)
 
