@@ -20,6 +20,7 @@ interface AlertConfig {
   title: string;
   message?: string;
   buttons?: AlertButton[];
+  onDismiss?: () => void;
 }
 
 interface AlertContextValue {
@@ -46,15 +47,17 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   }, [fadeAnim, scaleAnim]);
 
   const dismiss = useCallback((onPress?: () => void) => {
+    const onDismiss = config?.onDismiss;
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 0, duration: 140, useNativeDriver: true }),
       Animated.timing(scaleAnim, { toValue: 0.92, duration: 140, useNativeDriver: true }),
     ]).start(() => {
       setVisible(false);
       setConfig(null);
+      onDismiss?.();
       onPress?.();
     });
-  }, [fadeAnim, scaleAnim]);
+  }, [fadeAnim, scaleAnim, config]);
 
   const buttons: AlertButton[] = config?.buttons?.length
     ? config.buttons
@@ -131,8 +134,9 @@ export function useAlert() {
       title: string,
       message?: string,
       buttons?: AlertButton[],
+      onDismiss?: () => void,
     ) => {
-      ctx.show({ title, message, buttons });
+      ctx.show({ title, message, buttons, onDismiss });
     },
     [ctx],
   );

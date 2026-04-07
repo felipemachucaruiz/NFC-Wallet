@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { BackHandler, FlatList, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { AppState, BackHandler, FlatList, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListLocations, useGetLocationInventory, getProductByBarcode } from "@workspace/api-client-react";
@@ -91,9 +91,28 @@ export default function MerchantPosScreen() {
     setTimeout(() => setBarcodeToast(null), 2500);
   };
 
+  // Track whether another legitimate TextInput (e.g., catalog search) currently
+  // has focus so that the onBlur guard does not fight it.
+  const otherInputFocused = useRef(false);
+
   const refocusBarcodeInput = () => {
-    setTimeout(() => barcodeInputRef.current?.focus(), 100);
+    setTimeout(() => {
+      if (!otherInputFocused.current) {
+        barcodeInputRef.current?.focus();
+      }
+    }, 100);
   };
+
+  // AppState listener: refocus barcode input when app returns to foreground
+  useEffect(() => {
+    if (!selectedLocationId) return;
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        refocusBarcodeInput();
+      }
+    });
+    return () => subscription.remove();
+  }, [selectedLocationId]);
 
   const handleBarcodeScan = async (barcode: string) => {
     const trimmed = barcode.trim();
@@ -117,10 +136,10 @@ export default function MerchantPosScreen() {
           });
           showBarcodeToast(t("pos.barcodeAdded"));
         } else {
-          showAlert(t("common.error"), t("pos.barcodeNotFound"));
+          showAlert(t("common.error"), t("pos.barcodeNotFound"), undefined, refocusBarcodeInput);
         }
       } catch {
-        showAlert(t("common.error"), t("pos.barcodeNotFound"));
+        showAlert(t("common.error"), t("pos.barcodeNotFound"), undefined, refocusBarcodeInput);
       }
     } else {
       addItem({
@@ -190,6 +209,7 @@ export default function MerchantPosScreen() {
           value={barcodeInput}
           onChangeText={setBarcodeInput}
           onSubmitEditing={() => handleBarcodeScan(barcodeInput)}
+          onBlur={refocusBarcodeInput}
           returnKeyType="done"
           autoFocus={true}
           blurOnSubmit={false}
@@ -226,6 +246,11 @@ export default function MerchantPosScreen() {
               placeholderTextColor={C.textMuted}
               value={search}
               onChangeText={setSearch}
+              onFocus={() => { otherInputFocused.current = true; }}
+              onBlur={() => {
+                otherInputFocused.current = false;
+                refocusBarcodeInput();
+              }}
             />
           </View>
           {invLoading ? (
