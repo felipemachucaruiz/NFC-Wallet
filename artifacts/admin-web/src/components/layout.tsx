@@ -72,7 +72,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <>
               <NavItem href="/dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
               <NavItem href="/events" icon={Calendar} label={t("nav.events")} />
-              <NavItem href="/events-map" icon={MapPinned} label={t("nav.eventsMap")} />
               <NavItem href="/bracelets" icon={Ticket} label={t("nav.wristbands")} />
               <NavItem href="/promoters" icon={Building} label={t("nav.promoters")} />
               <NavItem href="/users" icon={Users} label={t("nav.users")} />
