@@ -71,10 +71,12 @@ git push "https://${GITHUB_TOKEN}@github.com/felipemachucaruiz/NFC-Wallet.git" m
 
 A **Railway API key** is available in environment secrets for programmatic access to Railway services if needed.
 
-**Railway domains:**
-- `prod.tapee.app` — Tapee Staff API (api-server) — deploys from `master`
-- `attendee.tapee.app` — Tapee Wallet API (attendee-api) — deploys from `master`
-- `admin.tapee.app` — Tapee Web Admin (admin-web) — deploys from `main`
+**Railway domains & health checks:**
+- `prod.tapee.app` — Tapee Staff API (api-server) — deploys from `master` — health: `/api/healthz`
+- `attendee.tapee.app` — Tapee Wallet API (attendee-api) — deploys from `master` — health: `/api/healthz`
+- `admin.tapee.app` — Tapee Web Admin (admin-web) — deploys from `main` — health: `/health`
+
+**Health check paths:** APIs use `/api/healthz` (NOT `/api/health`). Web Admin uses `/health`.
 
 ## Mobile App Updates — APK BUILDS ONLY (NO OTA)
 
