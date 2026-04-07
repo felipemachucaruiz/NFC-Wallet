@@ -27,9 +27,12 @@ export function getAppUrl(): string {
 function emailWrapper(body: string): string {
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family: Arial, sans-serif; background: #0a0a0a; color: #e6edf3; margin: 0; padding: 0;">
-  <div style="max-width: 480px; margin: 40px auto; background: #111111; border-radius: 12px; overflow: hidden; border: 1px solid #222;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+</head>
+<body style="font-family: Arial, sans-serif; background: #f4f4f5; color: #1a1a1a; margin: 0; padding: 0;">
+  <div style="max-width: 480px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e4e4e7;">
     <div style="background: linear-gradient(135deg, #0a0a0a, #111827); padding: 32px 32px 24px; text-align: center;">
       ${getLogoImg()}
       <p style="color: #8b949e; margin: 0; font-size: 14px;">Pagos cashless para eventos</p>
@@ -37,8 +40,8 @@ function emailWrapper(body: string): string {
     <div style="padding: 32px;">
       ${body}
     </div>
-    <div style="padding: 16px 32px; background: #0a0a0a; text-align: center; border-top: 1px solid #222;">
-      <p style="color: #484f58; font-size: 12px; margin: 0;">&copy; Tapee &middot; Eventos cashless</p>
+    <div style="padding: 16px 32px; background: #f4f4f5; text-align: center; border-top: 1px solid #e4e4e7;">
+      <p style="color: #71717a; font-size: 12px; margin: 0;">&copy; Tapee &middot; Eventos cashless</p>
     </div>
   </div>
 </body>
@@ -97,12 +100,12 @@ export function buildPasswordResetEmail(opts: {
   const greeting = name ? `Hola ${name},` : "Hola,";
   const subject = "Restablece tu contraseña de Tapee";
   const body = `
-      <h2 style="color: #e6edf3; font-size: 20px; margin: 0 0 16px;">Restablecer contraseña</h2>
-      <p style="color: #8b949e; margin: 0 0 24px;">${greeting} recibimos una solicitud para restablecer tu contraseña. Haz clic en el botón de abajo para crear una nueva.</p>
+      <h2 style="color: #1a1a1a; font-size: 20px; margin: 0 0 16px;">Restablecer contraseña</h2>
+      <p style="color: #52525b; margin: 0 0 24px;">${greeting} recibimos una solicitud para restablecer tu contraseña. Haz clic en el botón de abajo para crear una nueva.</p>
       <div style="text-align: center; margin: 24px 0;">
-        <a href="${opts.resetUrl}" style="display: inline-block; background: #00f1ff; color: #0a0a0a; font-weight: bold; font-size: 16px; padding: 14px 32px; border-radius: 8px; text-decoration: none;">Restablecer Contraseña</a>
+        <a href="${opts.resetUrl}" style="display: inline-block; background-color: #00f1ff; color: #000000; font-weight: bold; font-size: 16px; padding: 14px 32px; border-radius: 8px; text-decoration: none;">Restablecer Contraseña</a>
       </div>
-      <p style="color: #6e7681; font-size: 13px; margin: 24px 0 0;">Este enlace expira en 1 hora. Si no solicitaste un cambio de contraseña, puedes ignorar este correo.</p>`;
+      <p style="color: #71717a; font-size: 13px; margin: 24px 0 0;">Este enlace expira en 1 hora. Si no solicitaste un cambio de contraseña, puedes ignorar este correo.</p>`;
   const htmlContent = emailWrapper(body);
   const textContent = `${greeting}\n\nRecibimos una solicitud para restablecer tu contraseña de Tapee.\n\nRestablece tu contraseña aquí:\n${opts.resetUrl}\n\nEste enlace expira en 1 hora. Si no solicitaste un cambio de contraseña, ignora este correo.\n\n— El equipo de Tapee`;
   return { subject, htmlContent, textContent };
@@ -116,12 +119,12 @@ export function buildVerificationEmail(opts: {
   const greeting = name ? `Hola ${name},` : "Hola,";
   const subject = "Verifica tu correo electrónico de Tapee";
   const body = `
-      <h2 style="color: #e6edf3; font-size: 20px; margin: 0 0 16px;">Verificar correo electrónico</h2>
-      <p style="color: #8b949e; margin: 0 0 24px;">${greeting} ¡bienvenido/a a Tapee! Haz clic en el botón de abajo para verificar tu correo electrónico y activar tu cuenta.</p>
+      <h2 style="color: #1a1a1a; font-size: 20px; margin: 0 0 16px;">Verificar correo electrónico</h2>
+      <p style="color: #52525b; margin: 0 0 24px;">${greeting} ¡bienvenido/a a Tapee! Haz clic en el botón de abajo para verificar tu correo electrónico y activar tu cuenta.</p>
       <div style="text-align: center; margin: 24px 0;">
-        <a href="${opts.verifyUrl}" style="display: inline-block; background: #00f1ff; color: #0a0a0a; font-weight: bold; font-size: 16px; padding: 14px 32px; border-radius: 8px; text-decoration: none;">Verificar Correo</a>
+        <a href="${opts.verifyUrl}" style="display: inline-block; background-color: #00f1ff; color: #000000; font-weight: bold; font-size: 16px; padding: 14px 32px; border-radius: 8px; text-decoration: none;">Verificar Correo</a>
       </div>
-      <p style="color: #6e7681; font-size: 13px; margin: 24px 0 0;">Este enlace expira en 24 horas.</p>`;
+      <p style="color: #71717a; font-size: 13px; margin: 24px 0 0;">Este enlace expira en 24 horas.</p>`;
   const htmlContent = emailWrapper(body);
   const textContent = `${greeting}\n\n¡Bienvenido/a a Tapee! Verifica tu correo electrónico visitando:\n${opts.verifyUrl}\n\nEste enlace expira en 24 horas.\n\n— El equipo de Tapee`;
   return { subject, htmlContent, textContent };
@@ -129,15 +132,15 @@ export function buildVerificationEmail(opts: {
 
 export function buildVerifySuccessPage(): string {
   return emailWrapper(`
-      <h2 style="color: #e6edf3; font-size: 20px; margin: 0 0 16px;">✅ Correo verificado</h2>
-      <p style="color: #8b949e; margin: 0 0 24px;">Tu correo electrónico ha sido verificado exitosamente. Ya puedes volver a la app de Tapee.</p>
+      <h2 style="color: #1a1a1a; font-size: 20px; margin: 0 0 16px;">&#x2705; Correo verificado</h2>
+      <p style="color: #52525b; margin: 0 0 24px;">Tu correo electrónico ha sido verificado exitosamente. Ya puedes volver a la app de Tapee.</p>
   `);
 }
 
 export function buildVerifyErrorPage(message: string): string {
   return emailWrapper(`
-      <h2 style="color: #e6edf3; font-size: 20px; margin: 0 0 16px;">❌ Error de verificación</h2>
-      <p style="color: #8b949e; margin: 0 0 24px;">${escapeHtml(message)}</p>
+      <h2 style="color: #1a1a1a; font-size: 20px; margin: 0 0 16px;">&#x274C; Error de verificación</h2>
+      <p style="color: #52525b; margin: 0 0 24px;">${escapeHtml(message)}</p>
   `);
 }
 
