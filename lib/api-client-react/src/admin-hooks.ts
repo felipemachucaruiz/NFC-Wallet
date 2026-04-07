@@ -24,8 +24,8 @@ export function useListRefundRequests(eventId: string | null, status?: string) {
     queryFn: async () => {
       if (!eventId) return { refundRequests: [] as AttendeeRefundRequest[] };
       const url = status
-        ? `/events/${eventId}/refund-requests?status=${status}`
-        : `/events/${eventId}/refund-requests`;
+        ? `/api/events/${eventId}/refund-requests?status=${status}`
+        : `/api/events/${eventId}/refund-requests`;
       return customFetch<{ refundRequests: AttendeeRefundRequest[] }>(url);
     },
     enabled: !!eventId,
@@ -37,7 +37,7 @@ export function useApproveRefundRequest() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      return customFetch<{ refundRequest: AttendeeRefundRequest }>(`/refund-requests/${id}/approve`, {
+      return customFetch<{ refundRequest: AttendeeRefundRequest }>(`/api/refund-requests/${id}/approve`, {
         method: "POST",
       });
     },
@@ -51,7 +51,7 @@ export function useRejectRefundRequest() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
-      return customFetch<{ refundRequest: AttendeeRefundRequest }>(`/refund-requests/${id}/reject`, {
+      return customFetch<{ refundRequest: AttendeeRefundRequest }>(`/api/refund-requests/${id}/reject`, {
         method: "POST",
         body: JSON.stringify({ reason }),
         headers: { "Content-Type": "application/json" },
@@ -90,7 +90,7 @@ export function useGetSettlementReport(eventId: string | null) {
           netPayoutCop: number;
           transactionCount: number;
         };
-      }>(`/events/${eventId}/settlement-report`);
+      }>(`/api/events/${eventId}/settlement-report`);
     },
     enabled: !!eventId,
     staleTime: 60_000,
