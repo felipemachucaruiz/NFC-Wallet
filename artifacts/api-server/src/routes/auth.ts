@@ -22,7 +22,7 @@ import {
 } from "../lib/auth";
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const FROM_EMAIL = process.env.EMAIL_FROM ?? "noreply@tapee.app";
+const FROM_EMAIL = process.env.EMAIL_FROM ?? "no-reply@mailing.tapee.app";
 const FROM_NAME = process.env.EMAIL_FROM_NAME ?? "Tapee";
 
 async function sendEmail(opts: { to: string; toName?: string; subject: string; htmlContent: string; textContent?: string }): Promise<boolean> {
