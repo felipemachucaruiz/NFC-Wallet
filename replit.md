@@ -52,6 +52,12 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 - **Validation:** Zod v3 is used for robust schema validation, integrated with `drizzle-zod`.
 - **Cost of Goods Sold (COGS) Tracking:** `unit_cost_snapshot` is stored on transaction line items, and products include both `price_cop` and `cost_cop` for accurate COGS calculation.
 
+# Deployment & Hosting
+
+All apps are deployed and managed on **Railway** (not Replit deployments). Railway auto-deploys from the GitHub repo (`felipemachucaruiz/NFC-Wallet`, branch `main`). To deploy, push to GitHub with `git push "https://${GITHUB_TOKEN}@github.com/felipemachucaruiz/NFC-Wallet.git" master:main`.
+
+A **Railway API key** is available in environment secrets for programmatic access to Railway services if needed.
+
 # External Dependencies
 
 - **Database:** PostgreSQL
