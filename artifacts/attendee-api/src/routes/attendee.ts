@@ -23,7 +23,7 @@ router.get(
   "/attendee/me/bracelets",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
-    const userId = req.user.id;
+    const userId = req.user!.id;
 
     const bracelets = await db
       .select()
@@ -77,7 +77,7 @@ router.get(
   "/attendee/me/transactions",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const cursorRaw = req.query.cursor as string | undefined;
     const limitRaw = parseInt((req.query.limit as string) ?? String(PAGE_SIZE), 10);
     const limit = Math.min(Math.max(1, Number.isNaN(limitRaw) ? PAGE_SIZE : limitRaw), 50);
@@ -354,7 +354,7 @@ router.post(
   "/attendee/me/bracelets/link",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
-    const userId = req.user.id;
+    const userId = req.user!.id;
 
     const parsed = linkBraceletSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -475,7 +475,7 @@ router.post(
   "/attendee/me/bracelets/:uid/block",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const rawUid = (req.params as { uid: string }).uid;
 
     const uid = normalizeUidLocal(rawUid);
@@ -528,7 +528,7 @@ router.post(
   "/attendee/me/refund-request",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
-    const userId = req.user.id;
+    const userId = req.user!.id;
 
     const parsed = attendeeRefundRequestSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -607,7 +607,7 @@ router.delete(
   "/attendee/me/bracelets/:uid",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
-    const userId = req.user.id;
+    const userId = req.user!.id;
     const rawUid = (req.params as { uid: string }).uid;
 
     const uid = normalizeUidLocal(rawUid);
@@ -653,7 +653,7 @@ router.get(
   "/attendee/me/refund-requests",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
-    const userId = req.user.id;
+    const userId = req.user!.id;
 
     const refundRequests = await db
       .select()
@@ -687,7 +687,7 @@ router.post(
     await db
       .update(usersTable)
       .set({ expoPushToken: parsed.data.token, updatedAt: new Date() })
-      .where(eq(usersTable.id, req.user.id));
+      .where(eq(usersTable.id, req.user!.id));
 
     res.json({ success: true });
   }

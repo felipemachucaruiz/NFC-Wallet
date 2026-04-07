@@ -345,7 +345,7 @@ export async function processSelfServicePayment(intentId: string, wompiTransacti
         braceletUid: intent.braceletUid,
         amountCop: intent.amountCop,
         paymentMethod: intent.paymentMethod,
-        performedByUserId: null,
+        performedByUserId: intent.performedByUserId ?? "self-service",
         wompiTransactionId,
         status: "completed",
         newBalanceCop: newBalance,

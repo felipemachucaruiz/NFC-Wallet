@@ -317,7 +317,7 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
         braceletUid: intent.braceletUid,
         amountCop: intent.amountCop,
         paymentMethod: intent.paymentMethod,
-        performedByUserId: intent.performedByUserId,
+        performedByUserId: intent.performedByUserId ?? "self-service",
         wompiTransactionId,
         status: "completed",
         newBalanceCop: newBalance,
