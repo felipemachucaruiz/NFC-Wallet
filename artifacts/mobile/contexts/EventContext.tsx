@@ -10,6 +10,9 @@ interface EventContextValue {
   nfcChipType: NfcChipType;
   allowedNfcTypes: NfcChipType[];
   isLoading: boolean;
+  isEventEnded: boolean;
+  eventName: string | null;
+  eventEndsAt: string | null;
   refetch: () => void;
 }
 
@@ -18,6 +21,9 @@ const EventContext = createContext<EventContextValue>({
   nfcChipType: "ntag_21x",
   allowedNfcTypes: ["ntag_21x"],
   isLoading: false,
+  isEventEnded: false,
+  eventName: null,
+  eventEndsAt: null,
   refetch: () => {},
 });
 
@@ -29,13 +35,27 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     { query: { enabled: !!user?.eventId, queryKey: ["event-context", user?.eventId] } },
   );
 
-  const event = eventData as { inventoryMode?: InventoryMode; nfcChipType?: NfcChipType; allowedNfcTypes?: NfcChipType[] } | undefined;
+  const event = eventData as {
+    inventoryMode?: InventoryMode;
+    nfcChipType?: NfcChipType;
+    allowedNfcTypes?: NfcChipType[];
+    name?: string;
+    endsAt?: string | null;
+    active?: boolean;
+  } | undefined;
+
   const inventoryMode: InventoryMode = event?.inventoryMode ?? "location_based";
   const nfcChipType: NfcChipType = event?.nfcChipType ?? "ntag_21x";
   const allowedNfcTypes: NfcChipType[] = event?.allowedNfcTypes ?? [nfcChipType];
+  const eventName: string | null = event?.name ?? null;
+  const eventEndsAt: string | null = event?.endsAt ?? null;
+  const isEventEnded: boolean =
+    !isLoading &&
+    !!event &&
+    (event.active === false || (!!eventEndsAt && new Date(eventEndsAt) < new Date()));
 
   return (
-    <EventContext.Provider value={{ inventoryMode, nfcChipType, allowedNfcTypes, isLoading, refetch }}>
+    <EventContext.Provider value={{ inventoryMode, nfcChipType, allowedNfcTypes, isLoading, isEventEnded, eventName, eventEndsAt, refetch }}>
       {children}
     </EventContext.Provider>
   );

@@ -1307,5 +1307,10 @@
     "resetBalanceConfirm": "Esto escribirá 0 en el tag NFC de la pulsera y reseteará su saldo en el sistema. Escanea la pulsera para confirmar.",
     "resetBalanceSuccess": "Saldo reseteado a cero exitosamente",
     "resetBalanceError": "No se pudo resetear el saldo. Intenta nuevamente."
+  },
+  "eventEnded": {
+    "title": "Evento Finalizado",
+    "message": "Este evento ha concluido. No es posible realizar más cobros ni recargas de saldo.",
+    "hint": "Contacta al administrador si crees que esto es un error."
   }
 }

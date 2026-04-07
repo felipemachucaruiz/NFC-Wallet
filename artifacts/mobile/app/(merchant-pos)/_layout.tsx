@@ -6,19 +6,26 @@ import { ActivityIndicator, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
+import { useEventContext } from "@/contexts/EventContext";
+import { EventEndedOverlay } from "@/components/EventEndedOverlay";
 
 export default function MerchantPosLayout() {
   const { isReady } = useRoleGuard("merchant_staff");
+  const { isEventEnded, isLoading: isEventLoading } = useEventContext();
   const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
-  if (!isReady) {
+  if (!isReady || isEventLoading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: C.background }}>
         <ActivityIndicator color={C.primary} />
       </View>
     );
+  }
+
+  if (isEventEnded) {
+    return <EventEndedOverlay />;
   }
 
   return (

@@ -7,6 +7,8 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
+import { useEventContext } from "@/contexts/EventContext";
+import { EventEndedOverlay } from "@/components/EventEndedOverlay";
 
 function ClassicTabLayout() {
   const { t } = useTranslation();
@@ -71,14 +73,21 @@ function ClassicTabLayout() {
 
 export default function BankLayout() {
   const { isReady } = useRoleGuard("bank");
+  const { isEventEnded, isLoading: isEventLoading } = useEventContext();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
-  if (!isReady) {
+
+  if (!isReady || isEventLoading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: C.background }}>
         <ActivityIndicator color={C.primary} />
       </View>
     );
   }
+
+  if (isEventEnded) {
+    return <EventEndedOverlay />;
+  }
+
   return <ClassicTabLayout />;
 }

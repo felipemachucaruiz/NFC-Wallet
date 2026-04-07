@@ -119,15 +119,19 @@ router.post(
       }
     }
 
-    // Closed-event guard: reject top-up if the bracelet's event is inactive
+    // Closed-event guard: reject top-up if the bracelet's event is inactive or ended
     const effectiveEventIdForCheck = bracelet.eventId ?? bankEventId;
     if (effectiveEventIdForCheck) {
       const [braceletEvent] = await db
-        .select({ active: eventsTable.active })
+        .select({ active: eventsTable.active, endsAt: eventsTable.endsAt })
         .from(eventsTable)
         .where(eq(eventsTable.id, effectiveEventIdForCheck));
       if (braceletEvent && !braceletEvent.active) {
         res.status(400).json({ error: "BRACELET_WRONG_EVENT: Este evento ha sido cerrado y la pulsera no puede usarse" });
+        return;
+      }
+      if (braceletEvent?.endsAt && new Date(braceletEvent.endsAt) < new Date()) {
+        res.status(400).json({ error: "EVENT_ENDED: Este evento ya ha finalizado. No se pueden procesar más recargas." });
         return;
       }
     }
@@ -246,15 +250,19 @@ router.post(
       }
     }
 
-    // Closed-event guard: reject sync top-up if bracelet's event is inactive
+    // Closed-event guard: reject sync top-up if bracelet's event is inactive or ended
     const syncEffectiveEventIdForCheck = bracelet.eventId ?? syncBankEventId;
     if (syncEffectiveEventIdForCheck) {
       const [syncBraceletEvent] = await db
-        .select({ active: eventsTable.active })
+        .select({ active: eventsTable.active, endsAt: eventsTable.endsAt })
         .from(eventsTable)
         .where(eq(eventsTable.id, syncEffectiveEventIdForCheck));
       if (syncBraceletEvent && !syncBraceletEvent.active) {
         res.status(400).json({ error: "BRACELET_WRONG_EVENT: Este evento ha sido cerrado y la pulsera no puede usarse" });
+        return;
+      }
+      if (syncBraceletEvent?.endsAt && new Date(syncBraceletEvent.endsAt) < new Date()) {
+        res.status(400).json({ error: "EVENT_ENDED: Este evento ya ha finalizado. No se pueden procesar más recargas." });
         return;
       }
     }

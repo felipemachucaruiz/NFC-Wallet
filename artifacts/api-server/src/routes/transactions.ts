@@ -161,15 +161,18 @@ async function processTransaction(
     }
   }
 
-  // Closed-event guard: reject if the bracelet's event is inactive
+  // Closed-event guard: reject if the bracelet's event is inactive or past its end date
   const eventIdForCheck = bracelet.eventId ?? merchantForEventCheck.eventId;
   if (eventIdForCheck) {
     const [braceletEvent] = await db
-      .select({ active: eventsTable.active })
+      .select({ active: eventsTable.active, endsAt: eventsTable.endsAt })
       .from(eventsTable)
       .where(eq(eventsTable.id, eventIdForCheck));
     if (braceletEvent && !braceletEvent.active) {
       return { status: "error", error: "BRACELET_WRONG_EVENT: Este evento ha sido cerrado y la pulsera no puede usarse" };
+    }
+    if (braceletEvent?.endsAt && new Date(braceletEvent.endsAt) < new Date()) {
+      return { status: "error", error: "EVENT_ENDED: Este evento ya ha finalizado. No se pueden procesar más transacciones." };
     }
   }
 

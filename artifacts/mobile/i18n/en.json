@@ -1317,5 +1317,10 @@
     "resetBalanceConfirm": "This will write 0 to the bracelet's NFC tag and reset its balance in the system. Scan the bracelet to confirm.",
     "resetBalanceSuccess": "Balance reset to zero successfully",
     "resetBalanceError": "Failed to reset balance. Please try again."
+  },
+  "eventEnded": {
+    "title": "Event Ended",
+    "message": "This event has concluded. No more charges or top-ups can be processed.",
+    "hint": "Contact the administrator if you believe this is an error."
   }
 }
