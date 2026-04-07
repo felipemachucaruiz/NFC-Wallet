@@ -173,21 +173,20 @@ router.post(
         .returning();
       res.status(201).json(product);
     } catch (err: unknown) {
-      const pgErr = err as { code?: string; detail?: string; message?: string; column?: string; table?: string };
-      console.error("[products] insert error:", JSON.stringify({ code: pgErr.code, detail: pgErr.detail, message: pgErr.message, column: pgErr.column, table: pgErr.table }));
-      if (pgErr.code === "23503") {
+      const rootCause = (err as { cause?: { code?: string; detail?: string; message?: string; column?: string } }).cause;
+      const pgCode = rootCause?.code || (err as { code?: string }).code;
+      const pgDetail = rootCause?.detail || (err as { detail?: string }).detail;
+      const pgMessage = rootCause?.message || (err as { message?: string }).message || "Unknown DB error";
+      console.error("[products] insert error:", JSON.stringify({ code: pgCode, detail: pgDetail, message: pgMessage }));
+      if (pgCode === "23503") {
         res.status(400).json({ error: "Invalid reference: merchant does not exist" });
         return;
       }
-      if (pgErr.code === "23505") {
+      if (pgCode === "23505") {
         res.status(409).json({ error: "A product with that barcode already exists" });
         return;
       }
-      if (pgErr.code === "42703") {
-        res.status(500).json({ error: `Database column error: ${pgErr.message}` });
-        return;
-      }
-      res.status(500).json({ error: pgErr.message || "Failed to create product" });
+      res.status(500).json({ error: pgMessage });
     }
   },
 );
