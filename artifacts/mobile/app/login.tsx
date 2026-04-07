@@ -2,19 +2,31 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-// Safe dynamic require — expo-video needs a native binary; OTA updates on older
-// APKs that predate expo-video would crash at static import time. Try-require
-// at module level keeps the rest of the file from ever being evaluated if the
-// module is absent, without violating React hooks rules (the hook is always
-// called inside LoginVideoBackground when it renders).
+import React, { useEffect, useRef, useState } from "react";
+import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePasscode } from "@/contexts/PasscodeContext";
+import { PasscodeScreen } from "@/components/PasscodeScreen";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import Colors from "@/constants/colors";
+import { API_BASE_URL } from "@/constants/domain";
+
+const loginBgVideo = require("@/assets/login-bg.mp4");
+
+// expo-video has native components that must be linked in the APK/IPA binary.
+// A module-level try/catch prevents OTA updates from crashing on devices whose
+// binary does not have expo-video linked (e.g. builds before expo-video was
+// added to app.json plugins). The hook is always called at the top level of
+// LoginVideoBackground (never conditionally), so React's Rules of Hooks hold.
 let _expoVideo: typeof import("expo-video") | null = null;
 try {
   _expoVideo = require("expo-video");
 } catch {}
 
 function LoginVideoBackground({ source }: { source: unknown }) {
-  // Destructure inside the function so JSX receives plain variable names.
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const { useVideoPlayer: useVP, VideoView: VV } = _expoVideo!;
   const player = useVP(source, (p) => {
     p.loop = true;
@@ -32,19 +44,6 @@ function LoginVideoBackground({ source }: { source: unknown }) {
     />
   );
 }
-import React, { useEffect, useRef, useState } from "react";
-import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
-import { usePasscode } from "@/contexts/PasscodeContext";
-import { PasscodeScreen } from "@/components/PasscodeScreen";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import Colors from "@/constants/colors";
-import { API_BASE_URL } from "@/constants/domain";
-
-const loginBgVideo = require("@/assets/login-bg.mp4");
 
 type SetupStep = "prompt" | "enter" | "confirm";
 

@@ -1,9 +1,8 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { Image } from "expo-image";
 import React, { useRef, useState } from "react";
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -369,7 +368,7 @@ export default function MerchantProductsScreen() {
                   <Image
                     source={{ uri: currentImageUri }}
                     style={styles.imagePreview}
-                    contentFit="cover"
+                    resizeMode="cover"
                   />
                 ) : (
                   <View style={styles.imagePickerPlaceholder}>
@@ -485,7 +484,7 @@ export default function MerchantProductsScreen() {
                 <Image
                   source={{ uri: resolveImageUrl(product.imageUrl)! }}
                   style={styles.productThumbnail}
-                  contentFit="cover"
+                  resizeMode="cover"
                 />
               ) : (
                 <View style={[styles.productThumbnailPlaceholder, { backgroundColor: C.inputBg }]}>

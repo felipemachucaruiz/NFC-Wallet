@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -39,6 +38,13 @@ const DELTA = 0.01;
 const GOOGLE_MAPS_API_KEY: string =
   (Constants.expoConfig?.extra as { googleMapsApiKey?: string } | undefined)
     ?.googleMapsApiKey ?? "";
+
+// expo-location requires native permissions API — not in app.json plugins, so
+// use a safe module-level try/catch to avoid crashing on older APKs.
+let _expoLocation: typeof import("expo-location") | null = null;
+try {
+  _expoLocation = require("expo-location");
+} catch {}
 
 // Safely load native map modules — they require native code baked into the APK.
 // If the current APK was built before these packages were added, the require
@@ -197,13 +203,18 @@ function FullMapPicker({ visible, initialLatitude, initialLongitude, onConfirm, 
     setLocating(true);
     setError("");
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (!_expoLocation) {
+        setError(t("admin.locationUnavailable", "Location unavailable on this device."));
+        setLocating(false);
+        return;
+      }
+      const { status } = await _expoLocation.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setError(t("admin.locationPermissionDenied"));
         setLocating(false);
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const loc = await _expoLocation.getCurrentPositionAsync({ accuracy: _expoLocation.Accuracy.High });
       animateTo(loc.coords.latitude, loc.coords.longitude);
       setAddress("");
     } catch {

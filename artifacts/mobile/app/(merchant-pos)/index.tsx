@@ -1,9 +1,8 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { BackHandler, FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { BackHandler, FlatList, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListLocations, useGetLocationInventory, getProductByBarcode } from "@workspace/api-client-react";
@@ -256,7 +255,7 @@ export default function MerchantPosScreen() {
                       <Image
                         source={{ uri: item.product.imageUrl.startsWith("/api/") ? `${API_BASE_URL}${item.product.imageUrl}` : item.product.imageUrl }}
                         style={[styles.productIconBg, { borderRadius: 12 }]}
-                        contentFit="cover"
+                        resizeMode="cover"
                       />
                     ) : (
                       <View style={[styles.productIconBg, { backgroundColor: outOfStock ? C.dangerLight : C.primaryLight }]}>
