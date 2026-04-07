@@ -9,6 +9,7 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useUnlinkBracelet } from "@/hooks/useAttendeeApi";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 export default function UnlinkBraceletScreen() {
   const { t } = useTranslation();
@@ -35,7 +36,7 @@ export default function UnlinkBraceletScreen() {
         router.replace("/(tabs)/home" as never);
       }, 2000);
     } catch (e: unknown) {
-      setErrorMsg(e instanceof Error ? e.message : t("common.unknownError"));
+      setErrorMsg(extractErrorMessage(e, t("common.unknownError")));
     }
   };
 

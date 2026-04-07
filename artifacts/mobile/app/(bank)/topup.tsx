@@ -21,6 +21,7 @@ import { computeHmac } from "@/utils/hmac";
 import { formatCOP, parseCOPInput } from "@/utils/format";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 const PENDING_NFC_WRITES_KEY = "@pendingNfcWrites";
 
@@ -340,7 +341,7 @@ export default function TopUpScreen() {
         setStep("success");
       } catch (e: unknown) {
         if (cancelledRef.current) return;
-        const msg = e instanceof Error ? e.message : String(e);
+        const msg = extractErrorMessage(e, "NFC write error");
 
         const attempt = writeRetryRef.current;
         if (attempt < MAX_WRITE_RETRIES) {

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSubmitRefundRequest } from "@/hooks/useAttendeeApi";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 type RefundMethod = "nequi" | "bank_transfer";
 
@@ -233,7 +234,7 @@ export default function RefundRequestScreen() {
               });
               setStep("success");
             } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : "";
+              const msg = extractErrorMessage(e, "");
               if (msg === "REFUND_REQUEST_ALREADY_PENDING") {
                 showAlert(t("refund.alreadyPendingTitle"), t("refund.alreadyPendingMessage"));
               } else {

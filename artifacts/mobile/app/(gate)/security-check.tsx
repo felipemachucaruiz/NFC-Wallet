@@ -18,6 +18,7 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useZoneCache } from "@/contexts/ZoneCacheContext";
+import { extractErrorMessage } from "@/utils/errorMessage";
 import { useBannedBracelets } from "@/contexts/BannedBraceletsContext";
 import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
 import { API_BASE_URL } from "@/constants/domain";
@@ -145,7 +146,7 @@ export default function SecurityCheckScreen() {
       setScanState("result");
     } catch (e: unknown) {
       if (cancelledRef.current) return;
-      const msg = e instanceof Error ? e.message : "";
+      const msg = extractErrorMessage(e, "");
       if (msg === "NFC_CANCELLED" || msg === "USER_CANCELLED" || msg.includes("cancel")) {
         setScanState("zone-select");
       } else {

@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { API_BASE_URL, ATTENDEE_API_BASE_URL } from "@/constants/domain";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 const ATTESTATION_TTL_MS = 60 * 60 * 1000; // 1 hour — matches server-side cache
 
@@ -125,7 +126,7 @@ export function useAttestation() {
       setIsVerifying(false);
       return null;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Attestation request failed";
+      const message = extractErrorMessage(err, "Attestation request failed");
       setAttestationError(message);
       setIsVerifying(false);
       return null;

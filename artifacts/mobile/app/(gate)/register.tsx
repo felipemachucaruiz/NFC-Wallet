@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
+import { extractErrorMessage } from "@/utils/errorMessage";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
@@ -107,7 +108,7 @@ export default function RegisterWristbandScreen() {
         setPageState("ready");
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "";
+      const msg = extractErrorMessage(err, "");
       if (msg === "NFC_CANCELLED" || msg === "USER_CANCELLED") {
         setPageState("ready");
       } else {

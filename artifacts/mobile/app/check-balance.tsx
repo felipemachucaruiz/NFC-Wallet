@@ -17,6 +17,7 @@ import { computeHmac } from "@/utils/hmac";
 import { customFetch } from "@workspace/api-client-react";
 import { useGetSigningKey } from "@workspace/api-client-react";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 type BraceletInfo = {
   nfcUid: string;
@@ -107,7 +108,7 @@ export default function CheckBalanceScreen() {
         loadServerData(uid);
       }
     } catch (e: unknown) {
-      const msg = (e instanceof Error ? e.message : String(e)) ?? "";
+      const msg = extractErrorMessage(e, "");
       if (!msg.includes("cancelled") && !msg.includes("UserCancel")) {
         showAlert(t("common.error"), t("pos.scanError"));
       }
@@ -156,7 +157,7 @@ export default function CheckBalanceScreen() {
               setBracelet((prev) => prev);
               showAlert(t("common.success"), t("checkBalance.resetBalanceSuccess"));
             } catch (e: unknown) {
-              const msg = (e instanceof Error ? e.message : String(e)) ?? "";
+              const msg = extractErrorMessage(e, "");
               if (!msg.includes("cancelled") && !msg.includes("UserCancel")) {
                 showAlert(t("common.error"), t("checkBalance.resetBalanceError"));
               }

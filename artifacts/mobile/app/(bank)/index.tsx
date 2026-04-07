@@ -18,6 +18,7 @@ import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo, type TagType, ty
 import { readDesfireBracelet } from "@/utils/desfire";
 import { useGetSigningKey } from "@workspace/api-client-react";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { extractErrorMessage } from "@/utils/errorMessage";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 import { useAuth } from "@/contexts/AuthContext";
 import type { NfcChipType } from "@/contexts/EventContext";
@@ -144,7 +145,7 @@ export default function BankLookupScreen() {
           })
           .catch((e: unknown) => {
             if (cancelledRef.current) return;
-            const msg = e instanceof Error ? e.message : "";
+            const msg = extractErrorMessage(e, "");
             if (!msg.includes("cancelled") && !msg.includes("cancel") && !msg.includes("Cancel")) {
               // Silently fail — user can tap the button manually
             }
@@ -214,7 +215,7 @@ export default function BankLookupScreen() {
       setFetchUid(result.payload.uid);
     } catch (e: unknown) {
       if (cancelledRef.current) return;
-      const msg = e instanceof Error ? e.message : "";
+      const msg = extractErrorMessage(e, "");
       if (!msg.includes("cancelled") && !msg.includes("cancel") && !msg.includes("Cancel")) {
         showAlert(t("common.error"), t("common.unknownError"));
       }

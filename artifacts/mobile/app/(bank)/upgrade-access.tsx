@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { CopAmount } from "@/components/CopAmount";
+import { extractErrorMessage } from "@/utils/errorMessage";
 import { useAuth } from "@/contexts/AuthContext";
 import { useZoneCache, type AccessZone } from "@/contexts/ZoneCacheContext";
 import {
@@ -188,7 +189,7 @@ export default function UpgradeAccessScreen() {
             resolvedTagInfo,
           );
         } catch (nfcErr: unknown) {
-          const msg = nfcErr instanceof Error ? nfcErr.message : "";
+          const msg = extractErrorMessage(nfcErr, "");
           if (!msg.includes("cancel") && msg !== "USER_CANCELLED") {
             setErrorMsg(t("zones.nfcWriteFailed"));
           }
@@ -198,7 +199,7 @@ export default function UpgradeAccessScreen() {
       setStep("done");
     } catch (e: unknown) {
       if (cancelledRef.current) return;
-      const msg = e instanceof Error ? e.message : "";
+      const msg = extractErrorMessage(e, "");
       setErrorMsg(msg || t("common.unknownError"));
       setStep("error");
     }

@@ -10,6 +10,7 @@ import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useBlockBracelet } from "@/hooks/useAttendeeApi";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 export default function BlockBraceletScreen() {
   const { t } = useTranslation();
@@ -39,8 +40,7 @@ export default function BlockBraceletScreen() {
               await blockBracelet.mutateAsync({ uid, reason: "Blocked by attendee via app" });
               setStep("success");
             } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : t("common.unknownError");
-              showAlert(t("common.error"), msg);
+              showAlert(t("common.error"), extractErrorMessage(e, t("common.unknownError")));
             }
           },
         },

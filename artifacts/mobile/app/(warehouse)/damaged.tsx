@@ -23,6 +23,7 @@ import { useAlert } from "@/components/CustomAlert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Empty } from "@/components/ui/Empty";
+import { extractErrorMessage } from "@/utils/errorMessage";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { useEventContext } from "@/contexts/EventContext";
@@ -96,8 +97,7 @@ export default function DamagedGoodsScreen() {
       refetch();
       showAlert(t("common.success"), t("warehouse.damagedGoodsSuccess"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t("common.unknownError");
-      showAlert(t("common.error"), msg);
+      showAlert(t("common.error"), extractErrorMessage(err, t("common.unknownError")));
     }
   };
 

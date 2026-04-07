@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useSubmitRefundRequest } from "@/hooks/useAttendeeApi";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 type RefundMethod = "cash" | "nequi" | "bancolombia" | "other";
 
@@ -68,7 +69,7 @@ export default function AttendeeRefundRequestScreen() {
               });
               setStep("success");
             } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : "";
+              const msg = extractErrorMessage(e, "");
               if (msg === "REFUND_REQUEST_ALREADY_PENDING") {
                 showAlert(
                   t("attendeeRefund.alreadyPendingTitle"),

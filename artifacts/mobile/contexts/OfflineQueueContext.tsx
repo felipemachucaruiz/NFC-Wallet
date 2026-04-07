@@ -11,6 +11,7 @@ import { syncTransactions } from "@workspace/api-client-react";
 import { customFetch } from "@workspace/api-client-react";
 import { generateId } from "@/utils/hmac";
 import { cacheSigningKey, getCachedSigningKey } from "@/utils/signingKeyCache";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 const QUEUE_KEY = "@offline_queue";
 const TOPUP_QUEUE_KEY = "@offline_topup_queue";
@@ -356,7 +357,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           anyError = true;
           const httpErr = err as { status?: number };
           if (!httpErr.status) hasNetworkError = true;
-          const msg = err instanceof Error ? err.message : "Network error";
+          const msg = extractErrorMessage(err, "Network error");
           q = queueRef.current.map((t) =>
             t.id === item.id
               ? {
@@ -390,7 +391,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           anySuccess = true;
         } catch (err: unknown) {
           const httpErr = err as { status?: number; data?: { error?: string } };
-          const msg = err instanceof Error ? err.message : "Network error";
+          const msg = extractErrorMessage(err, "Network error");
           const reason = (httpErr.data?.error ?? msg).toLowerCase();
           const isTopUpPermanent =
             reason.includes("flagged") ||

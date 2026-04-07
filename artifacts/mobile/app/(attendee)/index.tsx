@@ -15,6 +15,7 @@ import { Loading } from "@/components/ui/Loading";
 import { isNfcSupported, scanBracelet, type TagInfo } from "@/utils/nfc";
 import { verifyHmac, type BraceletPayload } from "@/utils/hmac";
 import { formatDateTime } from "@/utils/format";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 function TagBadge({ tagInfo, colors }: { tagInfo: TagInfo; colors: typeof Colors.light }) {
   const label =
@@ -80,7 +81,7 @@ export default function AttendeeBalanceScreen() {
       setTagInfo(result.tagInfo);
       setLastRead(new Date().toISOString());
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "";
+      const msg = extractErrorMessage(e, "");
       if (msg !== "NFC_NOT_AVAILABLE") {
         showAlert(t("common.error"), t("common.unknownError"));
       }

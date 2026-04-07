@@ -20,22 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { Empty } from "@/components/ui/Empty";
-
-function extractErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof Error) return err.message;
-  if (err && typeof err === "object") {
-    const e = err as Record<string, unknown>;
-    if (typeof e.message === "string" && e.message) return e.message;
-    if (e.data && typeof e.data === "object") {
-      const d = e.data as Record<string, unknown>;
-      if (typeof d.error === "string" && d.error) return d.error;
-      if (typeof d.message === "string" && d.message) return d.message;
-    }
-    if (typeof e.error === "string" && e.error) return e.error;
-  }
-  if (typeof err === "string" && err) return err;
-  return fallback;
-}
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 type Product = {
   id: string;
@@ -128,8 +113,7 @@ export default function MerchantProductsScreen() {
         setForm((f) => ({ ...f, imageUrl: uri }));
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      showAlert(t("common.error"), msg);
+      showAlert(t("common.error"), extractErrorMessage(err, t("common.unknownError")));
     }
   };
 

@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { isNfcSupported, scanBracelet } from "@/utils/nfc";
 import { useGetBracelet } from "@workspace/api-client-react";
 import { useLinkAndTransfer } from "@/hooks/useAttendeeApi";
+import { extractErrorMessage } from "@/utils/errorMessage";
 
 export default function TransferBalanceScreen() {
   const { t } = useTranslation();
@@ -85,8 +86,7 @@ export default function TransferBalanceScreen() {
               setTransferredAmount((result as { transferredAmountCop?: number }).transferredAmountCop ?? amount);
               setStep("success");
             } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : t("common.unknownError");
-              showAlert(t("common.error"), msg);
+              showAlert(t("common.error"), extractErrorMessage(e, t("common.unknownError")));
             }
           },
         },

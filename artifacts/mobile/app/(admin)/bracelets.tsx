@@ -26,6 +26,7 @@ import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { extractErrorMessage } from "@/utils/errorMessage";
 import { Card } from "@/components/ui/Card";
 import { CopAmount } from "@/components/CopAmount";
 import { isNfcSupported, scanBracelet, scanAndWriteBracelet } from "@/utils/nfc";
@@ -245,7 +246,7 @@ export default function BraceletsAdminScreen() {
               refetch();
               refetchList();
             } catch (e: unknown) {
-              const msg = (e instanceof Error ? e.message : String(e)) ?? "";
+              const msg = extractErrorMessage(e, "");
               if (!msg.includes("cancelled") && !msg.includes("UserCancel")) {
                 showAlert(t("common.error"), t("admin.resetBalanceError"));
               }

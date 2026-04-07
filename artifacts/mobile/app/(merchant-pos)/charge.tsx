@@ -19,6 +19,7 @@ import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCOP } from "@/utils/format";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { extractErrorMessage } from "@/utils/errorMessage";
 import { useAlert } from "@/components/CustomAlert";
 import type { NfcChipType } from "@/contexts/EventContext";
 
@@ -220,7 +221,7 @@ export default function ChargeScreen() {
         },
       });
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = extractErrorMessage(err, "Unknown charge error");
       if (errMsg.includes("BRACELET_WRONG_EVENT")) {
         setStep("wrong_event");
         return;

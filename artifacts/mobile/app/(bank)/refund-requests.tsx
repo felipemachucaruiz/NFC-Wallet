@@ -18,6 +18,7 @@ import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
+import { extractErrorMessage } from "@/utils/errorMessage";
 import { Card } from "@/components/ui/Card";
 import { Empty } from "@/components/ui/Empty";
 import { Loading } from "@/components/ui/Loading";
@@ -123,8 +124,7 @@ export default function BankRefundRequestsScreen() {
             await processRequest.mutateAsync({ id, status: "rejected" });
             showAlert(t("common.success"), t("bankRefundRequests.processSuccess"));
           } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : t("common.unknownError");
-            showAlert(t("common.error"), msg);
+            showAlert(t("common.error"), extractErrorMessage(e, t("common.unknownError")));
           }
         },
       },
@@ -149,8 +149,7 @@ export default function BankRefundRequestsScreen() {
               );
             }
           } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : t("common.unknownError");
-            showAlert(t("common.error"), msg);
+            showAlert(t("common.error"), extractErrorMessage(e, t("common.unknownError")));
           }
         },
       },
@@ -196,7 +195,7 @@ export default function BankRefundRequestsScreen() {
     } catch (e: unknown) {
       if (cancelledRef.current) { writingRef.current = false; return; }
       writingRef.current = false;
-      let msg = e instanceof Error ? e.message : String(e);
+      let msg = extractErrorMessage(e, "Unknown error");
       if (msg.startsWith("WRONG_BRACELET:")) {
         msg = t("bankRefundRequests.wrongBracelet").replace(
           "{{uid}}",
