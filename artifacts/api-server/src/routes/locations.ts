@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, locationsTable, userLocationAssignmentsTable, usersTable } from "@workspace/db";
+import { db, locationsTable, userLocationAssignmentsTable, usersTable, merchantsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertLocationAccess, isMerchantScoped } from "../lib/ownershipGuards";
@@ -9,7 +9,7 @@ const router: IRouter = Router();
 
 const createLocationSchema = z.object({
   merchantId: z.string().min(1),
-  eventId: z.string().min(1),
+  eventId: z.string().optional(),
   name: z.string().min(1),
 });
 
@@ -95,23 +95,42 @@ router.post(
     }
 
     const user = req.user!;
+    let resolvedEventId = parsed.data.eventId;
+
     if (user.role === "merchant_admin") {
       if (!user.merchantId || parsed.data.merchantId !== user.merchantId) {
         res.status(403).json({ error: "Access denied: can only create locations for your own merchant" });
         return;
       }
+      if (!resolvedEventId) {
+        const [merchant] = await db
+          .select({ eventId: merchantsTable.eventId })
+          .from(merchantsTable)
+          .where(eq(merchantsTable.id, user.merchantId));
+        if (!merchant?.eventId) {
+          res.status(400).json({ error: "No event associated with your merchant" });
+          return;
+        }
+        resolvedEventId = merchant.eventId;
+      }
     }
 
     if (user.role === "event_admin") {
-      if (!user.eventId || parsed.data.eventId !== user.eventId) {
+      if (!user.eventId || (resolvedEventId && resolvedEventId !== user.eventId)) {
         res.status(403).json({ error: "Access denied: can only create locations for your event" });
         return;
       }
+      if (!resolvedEventId) resolvedEventId = user.eventId;
+    }
+
+    if (!resolvedEventId) {
+      res.status(400).json({ error: "eventId is required" });
+      return;
     }
 
     const [location] = await db
       .insert(locationsTable)
-      .values(parsed.data)
+      .values({ merchantId: parsed.data.merchantId, eventId: resolvedEventId, name: parsed.data.name })
       .returning();
     res.status(201).json(location);
   },
