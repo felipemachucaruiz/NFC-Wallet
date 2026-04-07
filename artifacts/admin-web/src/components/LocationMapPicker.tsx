@@ -38,10 +38,10 @@ async function fetchSuggestions(input: string): Promise<PlaceSuggestion[]> {
     if (!res.ok) return [];
     const data = await res.json();
     return (data.suggestions ?? [])
-      .filter((s: any) => s.placePredictions)
+      .filter((s: any) => s.placePrediction)
       .map((s: any) => ({
-        placeId: s.placePredictions.placeId,
-        text: s.placePredictions.text?.text ?? "",
+        placeId: s.placePrediction.placeId,
+        text: s.placePrediction.text?.text ?? "",
       }));
   } catch {
     return [];
