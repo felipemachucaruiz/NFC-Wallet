@@ -24,6 +24,7 @@ import Reports from "@/pages/reports";
 import Products from "@/pages/products";
 import Transactions from "@/pages/transactions";
 import Inventory from "@/pages/inventory";
+import Commissions from "@/pages/commissions";
 
 import EventDashboard from "@/pages/event-dashboard";
 import EventUsers from "@/pages/event-users";
@@ -109,6 +110,9 @@ function Router() {
       </Route>
       <Route path="/inventory">
         <ProtectedRoute component={Inventory} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/commissions">
+        <ProtectedRoute component={Commissions} allowedRoles={["admin"]} />
       </Route>
 
       {/* Event Admin Routes */}

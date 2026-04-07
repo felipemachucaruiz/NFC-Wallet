@@ -39,6 +39,7 @@
     "inventory": "Inventory",
     "fraudAlerts": "Fraud Alerts",
     "payouts": "Payouts",
+    "commissions": "Commissions",
     "reports": "Reports",
     "staffUsers": "Staff & Users",
     "merchants": "Merchants",
@@ -691,6 +692,25 @@
     "created": "Location created",
     "updated": "Location updated",
     "userAssigned": "User assigned to location"
+  },
+  "commissions": {
+    "title": "Platform Commissions",
+    "subtitle": "Gross sales and Tapee commissions per event.",
+    "totalEvents": "Total Events",
+    "eventsWithSales": "registered events",
+    "totalSales": "Total Sales",
+    "grossSales": "cumulative gross sales",
+    "totalCommission": "Tapee Commission",
+    "tapeeEarnings": "platform earnings",
+    "colEvent": "Event",
+    "colPeriod": "Period",
+    "colRate": "Commission",
+    "colSales": "Gross Sales",
+    "colCommission": "Tapee Commission",
+    "colStatus": "Status",
+    "noEvents": "No events found.",
+    "total": "TOTAL",
+    "footnote": "* Commission calculated on gross sales based on the rate configured for each event."
   },
   "payouts": {
     "title": "Payouts",

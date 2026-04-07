@@ -39,6 +39,7 @@
     "inventory": "Inventario",
     "fraudAlerts": "Alertas de Fraude",
     "payouts": "Pagos",
+    "commissions": "Comisiones",
     "reports": "Reportes",
     "staffUsers": "Personal y Usuarios",
     "merchants": "Comerciantes",
@@ -691,6 +692,25 @@
     "created": "Ubicación creada",
     "updated": "Ubicación actualizada",
     "userAssigned": "Usuario asignado a ubicación"
+  },
+  "commissions": {
+    "title": "Comisiones de Plataforma",
+    "subtitle": "Ventas brutas y comisiones Tapee por evento.",
+    "totalEvents": "Total Eventos",
+    "eventsWithSales": "eventos registrados",
+    "totalSales": "Ventas Totales",
+    "grossSales": "ventas brutas acumuladas",
+    "totalCommission": "Comisión Tapee",
+    "tapeeEarnings": "ingresos de plataforma",
+    "colEvent": "Evento",
+    "colPeriod": "Período",
+    "colRate": "Comisión",
+    "colSales": "Ventas Brutas",
+    "colCommission": "Comisión Tapee",
+    "colStatus": "Estado",
+    "noEvents": "No hay eventos registrados.",
+    "total": "TOTAL",
+    "footnote": "* Comisión calculada sobre ventas brutas según la tasa configurada en cada evento."
   },
   "payouts": {
     "title": "Pagos",
