@@ -5,9 +5,12 @@ import { locationsTable, productsTable } from "./merchants";
 import { usersTable } from "./auth";
 
 export const damagedGoodsReasonEnum = pgEnum("damaged_goods_reason", [
-  "damaged",
-  "lost",
+  "broken",
   "expired",
+  "contaminated",
+  "lost",
+  "damaged",
+  "other",
 ]);
 
 export const restockOrderStatusEnum = pgEnum("restock_order_status", [
