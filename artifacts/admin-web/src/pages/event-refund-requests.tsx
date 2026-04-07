@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useGetCurrentAuthUser,
   useListRefundRequests,
@@ -29,6 +29,12 @@ export default function EventRefundRequests() {
   const { data: eventsData } = useListEvents(isGlobalAdmin ? {} : undefined);
   const events = (eventsData as { events?: { id: string; name: string }[] })?.events ?? [];
   const [selectedEventId, setSelectedEventId] = useState("");
+
+  useEffect(() => {
+    if (isGlobalAdmin && !selectedEventId && events.length > 0) {
+      setSelectedEventId(events[0].id);
+    }
+  }, [isGlobalAdmin, selectedEventId, events]);
 
   const eventId = isGlobalAdmin ? selectedEventId : userEventId;
 
