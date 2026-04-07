@@ -36,9 +36,68 @@ type BraceletItem = {
   flagged: boolean;
   flagReason?: string | null;
   pendingRefund?: boolean;
+  refundStatus?: string | null;
   attendeeName?: string | null;
   event?: { id: string; name: string; active: boolean } | null;
   updatedAt: string;
+};
+
+type RefundStatusConfig = {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  titleKey: string;
+  hintKey: string;
+  badgeKey: string;
+};
+
+const REFUND_STATUS_MAP: Record<string, RefundStatusConfig> = {
+  pending: {
+    icon: "clock",
+    color: "#eab308",
+    bgColor: "rgba(234,179,8,0.10)",
+    borderColor: "rgba(234,179,8,0.28)",
+    titleKey: "home.refundSent",
+    hintKey: "home.refundStatusPendingHint",
+    badgeKey: "home.refundStatusPending",
+  },
+  approved: {
+    icon: "check-circle",
+    color: "#00f1ff",
+    bgColor: "rgba(0,241,255,0.08)",
+    borderColor: "rgba(0,241,255,0.22)",
+    titleKey: "home.refundSent",
+    hintKey: "home.refundStatusApprovedHint",
+    badgeKey: "home.refundStatusApproved",
+  },
+  disbursement_pending: {
+    icon: "send",
+    color: "#00f1ff",
+    bgColor: "rgba(0,241,255,0.08)",
+    borderColor: "rgba(0,241,255,0.22)",
+    titleKey: "home.refundSent",
+    hintKey: "home.refundStatusDisbursementPendingHint",
+    badgeKey: "home.refundStatusDisbursementPending",
+  },
+  disbursement_failed: {
+    icon: "alert-circle",
+    color: "#f97316",
+    bgColor: "rgba(249,115,22,0.10)",
+    borderColor: "rgba(249,115,22,0.28)",
+    titleKey: "home.refundSent",
+    hintKey: "home.refundStatusDisbursementFailedHint",
+    badgeKey: "home.refundStatusDisbursementFailed",
+  },
+  rejected: {
+    icon: "x-circle",
+    color: "#ef4444",
+    bgColor: "rgba(239,68,68,0.10)",
+    borderColor: "rgba(239,68,68,0.28)",
+    titleKey: "home.refundSent",
+    hintKey: "home.refundStatusRejectedHint",
+    badgeKey: "home.refundStatusRejected",
+  },
 };
 
 export default function HomeScreen() {
@@ -51,8 +110,10 @@ export default function HomeScreen() {
 
   const { data, isPending, refetch } = useMyBracelets();
   const bracelets = ((data as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
-  const totalBalance = bracelets.reduce((sum, b) => sum + b.balanceCop, 0);
-  const activeBracelet = bracelets.find((b) => b.event?.active) ?? bracelets[0] ?? null;
+  const activeBracelets = bracelets.filter((b) => b.refundStatus !== "disbursement_completed");
+  const archivedBracelets = bracelets.filter((b) => b.refundStatus === "disbursement_completed");
+  const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balanceCop, 0);
+  const activeBracelet = activeBracelets.find((b) => b.event?.active) ?? activeBracelets[0] ?? null;
 
   const [manualRefreshing, setManualRefreshing] = useState(false);
 
@@ -281,114 +342,171 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {bracelets.length > 0 && (
+        {activeBracelets.length > 0 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
               {t("home.myBracelets")}
             </Text>
-            {bracelets.map((b) => (
-              <Card key={b.uid} style={{ marginBottom: 10, padding: 0, overflow: "hidden" }}>
-                <View style={styles.braceletCardInner}>
-                  <View style={styles.nfcTagContainer}>
-                    <Image
-                      source={NFC_TAG_IMAGE}
-                      style={styles.nfcTagImage}
-                      resizeMode="contain"
-                    />
-                    <View style={styles.nfcTagOverlay}>
-                      <Text style={styles.nfcTagUid}>{b.uid.replace(/:/g, "")}</Text>
-                    </View>
-                    {selectedUid === b.uid && (
-                      <View style={[styles.nfcTagSelected, { borderColor: C.primary }]} />
-                    )}
-                  </View>
-
-                  <View style={styles.braceletInfo}>
-                    <View style={{ flex: 1 }}>
-                      {b.event && (
-                        <Text style={[styles.braceletEvent, { color: C.textMuted }]}>
-                          {b.event.name}
-                        </Text>
+            {activeBracelets.map((b) => {
+              const refundCfg = b.refundStatus ? REFUND_STATUS_MAP[b.refundStatus] : null;
+              const hasActiveRefund = refundCfg !== null && refundCfg !== undefined;
+              return (
+                <Card key={b.uid} style={{ marginBottom: 10, padding: 0, overflow: "hidden" }}>
+                  <View style={styles.braceletCardInner}>
+                    <View style={styles.nfcTagContainer}>
+                      <Image
+                        source={NFC_TAG_IMAGE}
+                        style={styles.nfcTagImage}
+                        resizeMode="contain"
+                      />
+                      <View style={styles.nfcTagOverlay}>
+                        <Text style={styles.nfcTagUid}>{b.uid.replace(/:/g, "")}</Text>
+                      </View>
+                      {selectedUid === b.uid && (
+                        <View style={[styles.nfcTagSelected, { borderColor: C.primary }]} />
                       )}
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
-                        <CopAmount amount={b.balanceCop} size={18} />
-                        {b.pendingRefund
-                          ? <Badge label={t("home.refundPending")} variant="warning" />
-                          : b.flagged
-                          ? <Badge label={t("home.blocked")} variant="danger" />
-                          : null}
+                    </View>
+
+                    <View style={styles.braceletInfo}>
+                      <View style={{ flex: 1 }}>
+                        {b.event && (
+                          <Text style={[styles.braceletEvent, { color: C.textMuted }]}>
+                            {b.event.name}
+                          </Text>
+                        )}
+                        <View style={{ marginTop: 4 }}>
+                          <CopAmount amount={b.balanceCop} size={18} />
+                        </View>
+                        {b.flagged && !hasActiveRefund && (
+                          <View style={{ marginTop: 6 }}>
+                            <Badge label={t("home.blocked")} variant="danger" />
+                          </View>
+                        )}
                       </View>
                     </View>
                   </View>
-                </View>
 
-                {!b.flagged && !b.pendingRefund && (
-                  <View style={[styles.braceletActions, { borderTopColor: C.separator }]}>
-                    <Pressable
-                      style={styles.actionBtn}
-                      onPress={() => router.push({ pathname: "/top-up", params: { braceletUid: b.uid } })}
-                    >
-                      <View style={[styles.actionIcon, { backgroundColor: C.primaryLight }]}>
-                        <Feather name="plus-circle" size={14} color={C.primary} />
+                  {hasActiveRefund && refundCfg && (
+                    <View style={[
+                      styles.refundStatusCard,
+                      { backgroundColor: refundCfg.bgColor, borderColor: refundCfg.borderColor },
+                    ]}>
+                      <View style={[styles.refundStatusIconWrap, { backgroundColor: refundCfg.bgColor }]}>
+                        <Feather name={refundCfg.icon} size={22} color={refundCfg.color} />
                       </View>
-                      <Text style={[styles.actionText, { color: C.primary }]}>{t("home.topUp")}</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.actionBtn}
-                      onPress={() => router.push({
-                        pathname: "/unlink-bracelet",
-                        params: { uid: b.uid, balance: String(b.balanceCop) },
-                      })}
-                    >
-                      <View style={[styles.actionIcon, { backgroundColor: "#4C1D9520" }]}>
-                        <Feather name="user-x" size={14} color="#7C3AED" />
+                      <View style={{ flex: 1, gap: 4 }}>
+                        <Text style={[styles.refundStatusTitle, { color: refundCfg.color }]}>
+                          {t(refundCfg.titleKey)}
+                        </Text>
+                        <View style={styles.refundStatusBadgeRow}>
+                          <View style={[styles.refundStatusBadge, { backgroundColor: refundCfg.borderColor }]}>
+                            <Text style={[styles.refundStatusBadgeText, { color: refundCfg.color }]}>
+                              {t("home.refundStatusLabel")}: {t(refundCfg.badgeKey)}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.refundStatusHint, { color: C.textSecondary }]}>
+                          {t(refundCfg.hintKey)}
+                        </Text>
                       </View>
-                      <Text style={[styles.actionText, { color: "#7C3AED" }]}>{t("home.transfer")}</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.actionBtn}
-                      onPress={() => router.push({ pathname: "/block-bracelet", params: { uid: b.uid } })}
-                    >
-                      <View style={[styles.actionIcon, { backgroundColor: C.dangerLight }]}>
-                        <Feather name="lock" size={14} color={C.danger} />
-                      </View>
-                      <Text style={[styles.actionText, { color: C.danger }]}>{t("home.blockBracelet")}</Text>
-                    </Pressable>
-                    {b.balanceCop > 0 && (
+                    </View>
+                  )}
+
+                  {!hasActiveRefund && !b.flagged && (
+                    <View style={[styles.braceletActions, { borderTopColor: C.separator }]}>
+                      <Pressable
+                        style={styles.actionBtn}
+                        onPress={() => router.push({ pathname: "/top-up", params: { braceletUid: b.uid } })}
+                      >
+                        <View style={[styles.actionIcon, { backgroundColor: C.primaryLight }]}>
+                          <Feather name="plus-circle" size={14} color={C.primary} />
+                        </View>
+                        <Text style={[styles.actionText, { color: C.primary }]}>{t("home.topUp")}</Text>
+                      </Pressable>
                       <Pressable
                         style={styles.actionBtn}
                         onPress={() => router.push({
-                          pathname: "/refund-request",
+                          pathname: "/unlink-bracelet",
                           params: { uid: b.uid, balance: String(b.balanceCop) },
                         })}
                       >
-                        <View style={[styles.actionIcon, { backgroundColor: C.warningLight }]}>
-                          <Feather name="arrow-left-circle" size={14} color={C.warning} />
+                        <View style={[styles.actionIcon, { backgroundColor: "#4C1D9520" }]}>
+                          <Feather name="user-x" size={14} color="#7C3AED" />
                         </View>
-                        <Text style={[styles.actionText, { color: C.warning }]}>{t("home.requestRefund")}</Text>
+                        <Text style={[styles.actionText, { color: "#7C3AED" }]}>{t("home.transfer")}</Text>
                       </Pressable>
+                      <Pressable
+                        style={styles.actionBtn}
+                        onPress={() => router.push({ pathname: "/block-bracelet", params: { uid: b.uid } })}
+                      >
+                        <View style={[styles.actionIcon, { backgroundColor: C.dangerLight }]}>
+                          <Feather name="lock" size={14} color={C.danger} />
+                        </View>
+                        <Text style={[styles.actionText, { color: C.danger }]}>{t("home.blockBracelet")}</Text>
+                      </Pressable>
+                      {b.balanceCop > 0 && (
+                        <Pressable
+                          style={styles.actionBtn}
+                          onPress={() => router.push({
+                            pathname: "/refund-request",
+                            params: { uid: b.uid, balance: String(b.balanceCop) },
+                          })}
+                        >
+                          <View style={[styles.actionIcon, { backgroundColor: C.warningLight }]}>
+                            <Feather name="arrow-left-circle" size={14} color={C.warning} />
+                          </View>
+                          <Text style={[styles.actionText, { color: C.warning }]}>{t("home.requestRefund")}</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
+
+                  {!hasActiveRefund && b.flagged && (
+                    <View style={[styles.flaggedInfo, { backgroundColor: C.dangerLight }]}>
+                      <Feather name="alert-triangle" size={13} color={C.danger} />
+                      <Text style={[styles.flaggedText, { color: C.danger }]}>
+                        {t("home.blockedHint")}
+                      </Text>
+                    </View>
+                  )}
+                </Card>
+              );
+            })}
+          </View>
+        )}
+
+        {archivedBracelets.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
+              {t("home.archivedBracelets")}
+            </Text>
+            {archivedBracelets.map((b) => (
+              <View
+                key={b.uid}
+                style={[styles.archivedCard, { backgroundColor: C.card, borderColor: C.border }]}
+              >
+                <View style={styles.archivedCardInner}>
+                  <View style={[styles.archivedIconWrap, { backgroundColor: "rgba(34,197,94,0.10)" }]}>
+                    <Feather name="check-circle" size={20} color="#22c55e" />
+                  </View>
+                  <View style={{ flex: 1, gap: 3 }}>
+                    {b.event && (
+                      <Text style={[styles.archivedEvent, { color: C.textSecondary }]}>
+                        {b.event.name}
+                      </Text>
                     )}
-                  </View>
-                )}
-
-                {b.pendingRefund && (
-                  <View style={[styles.flaggedInfo, { backgroundColor: "rgba(234,179,8,0.10)", borderColor: "rgba(234,179,8,0.25)", borderWidth: 1 }]}>
-                    <Feather name="clock" size={13} color="#eab308" />
-                    <Text style={[styles.flaggedText, { color: "#eab308" }]}>
-                      {t("home.refundPendingHint")}
+                    <Text style={[styles.archivedUid, { color: C.textMuted }]}>
+                      UID: {b.uid.replace(/:/g, "")}
                     </Text>
                   </View>
-                )}
-
-                {!b.pendingRefund && b.flagged && (
-                  <View style={[styles.flaggedInfo, { backgroundColor: C.dangerLight }]}>
-                    <Feather name="alert-triangle" size={13} color={C.danger} />
-                    <Text style={[styles.flaggedText, { color: C.danger }]}>
-                      {t("home.blockedHint")}
+                  <View style={[styles.archivedBadge, { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.3)" }]}>
+                    <Feather name="check" size={11} color="#22c55e" />
+                    <Text style={[styles.archivedBadgeText, { color: "#22c55e" }]}>
+                      {t("home.archivedRefundCompleted")}
                     </Text>
                   </View>
-                )}
-              </Card>
+                </View>
+              </View>
             ))}
           </View>
         )}
@@ -416,7 +534,7 @@ export default function HomeScreen() {
               </View>
               <Text style={[styles.quickLabel, { color: C.text }]}>{t("home.addBracelet")}</Text>
             </Pressable>
-            {bracelets.length > 0 && !activeBracelet?.pendingRefund && !activeBracelet?.flagged && (
+            {activeBracelets.length > 0 && !activeBracelet?.pendingRefund && !activeBracelet?.flagged && (
               <Pressable
                 style={[styles.quickCard, { backgroundColor: C.card, borderColor: C.border }]}
                 onPress={() => router.push({
@@ -581,4 +699,64 @@ const styles = StyleSheet.create({
   },
   quickIcon: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   quickLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  refundStatusCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    margin: 12,
+    marginTop: 0,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  refundStatusIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  refundStatusTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  refundStatusBadgeRow: { flexDirection: "row" },
+  refundStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 100,
+  },
+  refundStatusBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  refundStatusHint: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  archivedCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  archivedCardInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+  },
+  archivedIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  archivedEvent: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  archivedUid: { fontSize: 11, fontFamily: "Inter_400Regular", letterSpacing: 0.5 },
+  archivedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 100,
+    borderWidth: 1,
+    flexShrink: 0,
+  },
+  archivedBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 });

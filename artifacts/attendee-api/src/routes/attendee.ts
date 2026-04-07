@@ -34,7 +34,7 @@ router.get(
     const braceletUids = bracelets.map((b) => b.nfcUid);
     const eventIds = [...new Set(bracelets.map((b) => b.eventId).filter(Boolean) as string[])];
 
-    const [eventsRows, pendingRefundRows] = await Promise.all([
+    const [eventsRows, refundRows] = await Promise.all([
       eventIds.length > 0
         ? db
             .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active })
@@ -43,28 +43,36 @@ router.get(
         : Promise.resolve([]),
       braceletUids.length > 0
         ? db
-            .select({ braceletUid: attendeeRefundRequestsTable.braceletUid })
+            .select({
+              braceletUid: attendeeRefundRequestsTable.braceletUid,
+              status: attendeeRefundRequestsTable.status,
+              createdAt: attendeeRefundRequestsTable.createdAt,
+            })
             .from(attendeeRefundRequestsTable)
-            .where(
-              and(
-                inArray(attendeeRefundRequestsTable.braceletUid, braceletUids),
-                eq(attendeeRefundRequestsTable.status, "pending")
-              )
-            )
+            .where(inArray(attendeeRefundRequestsTable.braceletUid, braceletUids))
+            .orderBy(desc(attendeeRefundRequestsTable.createdAt))
         : Promise.resolve([]),
     ]);
 
     const eventsById = new Map(eventsRows.map((ev) => [ev.id, ev]));
-    const pendingRefundUids = new Set(pendingRefundRows.map((r) => r.braceletUid));
+
+    const refundStatusByUid = new Map<string, string>();
+    for (const row of refundRows) {
+      if (!refundStatusByUid.has(row.braceletUid)) {
+        refundStatusByUid.set(row.braceletUid, row.status);
+      }
+    }
 
     const result = bracelets.map((b) => {
       const event = b.eventId ? (eventsById.get(b.eventId) ?? null) : null;
+      const refundStatus = refundStatusByUid.get(b.nfcUid) ?? null;
       return {
         uid: b.nfcUid,
         balanceCop: b.lastKnownBalanceCop,
         flagged: b.flagged,
         flagReason: b.flagReason,
-        pendingRefund: pendingRefundUids.has(b.nfcUid),
+        pendingRefund: refundStatus !== null && refundStatus !== "rejected",
+        refundStatus,
         attendeeName: b.attendeeName,
         event,
         updatedAt: b.updatedAt,
