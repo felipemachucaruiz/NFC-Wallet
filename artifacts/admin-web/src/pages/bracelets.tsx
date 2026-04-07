@@ -6,6 +6,7 @@ import {
   useUnflagBracelet,
   useDeleteAdminBracelet,
   getListEventBraceletsQueryKey,
+  useFlagBracelet,
 } from "@workspace/api-client-react";
 import type { EventBracelet } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ShieldOff, Trash2, Ticket } from "lucide-react";
+import { Search, ShieldOff, ShieldAlert, Trash2, Ticket } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export default function Bracelets() {
@@ -30,6 +31,7 @@ export default function Bracelets() {
   const [flaggedFilter, setFlaggedFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [freezeOpen, setFreezeOpen] = useState(false);
   const [selected, setSelected] = useState<EventBracelet | null>(null);
 
   const queryParams = { search: search || undefined };
@@ -53,6 +55,7 @@ export default function Bracelets() {
       : bracelets;
 
   const unflag = useUnflagBracelet();
+  const flagB = useFlagBracelet();
   const deleteB = useDeleteAdminBracelet();
 
   const invalidate = () =>
@@ -63,6 +66,18 @@ export default function Bracelets() {
       { nfcUid: bracelet.nfcUid },
       {
         onSuccess: () => { toast({ title: t("wristbands.unflagged") }); invalidate(); },
+        onError: (e: unknown) =>
+          toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
+      }
+    );
+  };
+
+  const handleFreeze = () => {
+    if (!selected) return;
+    flagB.mutate(
+      { nfcUid: selected.nfcUid },
+      {
+        onSuccess: () => { toast({ title: t("wristbands.frozen") }); setFreezeOpen(false); invalidate(); },
         onError: (e: unknown) =>
           toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
@@ -233,7 +248,7 @@ export default function Bracelets() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {bracelet.flagged && (
+                        {bracelet.flagged ? (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -242,6 +257,16 @@ export default function Bracelets() {
                             title={t("wristbands.unflag")}
                           >
                             <ShieldOff className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            data-testid={`button-freeze-${bracelet.id}`}
+                            onClick={() => { setSelected(bracelet); setFreezeOpen(true); }}
+                            title={t("wristbands.freeze")}
+                          >
+                            <ShieldAlert className="w-4 h-4 text-amber-500" />
                           </Button>
                         )}
                         <Button
@@ -268,6 +293,27 @@ export default function Bracelets() {
           )}
         </div>
       )}
+
+      <AlertDialog open={freezeOpen} onOpenChange={setFreezeOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("wristbands.freezeTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("wristbands.freezeDesc", { uid: selected?.nfcUid })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="button-confirm-freeze-bracelet"
+              onClick={handleFreeze}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              {flagB.isPending ? t("wristbands.freezing") : t("wristbands.freeze")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

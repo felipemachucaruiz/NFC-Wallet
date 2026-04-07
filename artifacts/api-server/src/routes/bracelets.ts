@@ -323,6 +323,32 @@ router.get(
 );
 
 /**
+ * @summary Flag (freeze) a bracelet
+ */
+router.patch(
+  "/admin/bracelets/:nfcUid/flag",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const { nfcUid } = req.params as { nfcUid: string };
+    const { reason } = req.body as { reason?: string };
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+    if (!bracelet) {
+      res.status(404).json({ error: "Bracelet not found" });
+      return;
+    }
+    const [updated] = await db
+      .update(braceletsTable)
+      .set({ flagged: true, flagReason: reason || "Frozen by admin", updatedAt: new Date() })
+      .where(eq(braceletsTable.nfcUid, nfcUid))
+      .returning();
+    res.json(updated);
+  },
+);
+
+/**
  * @summary Unflag a bracelet (remove ban)
  */
 router.patch(

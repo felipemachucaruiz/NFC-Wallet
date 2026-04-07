@@ -267,7 +267,12 @@
     "deleting": "Deleting...",
     "unflagged": "Bracelet unflagged",
     "deleted": "Bracelet deleted",
-    "statusFlagged": "Flagged"
+    "statusFlagged": "Flagged",
+    "freeze": "Freeze",
+    "freezeTitle": "Freeze Wristband",
+    "freezeDesc": "Freeze wristband {{uid}}? It will not be able to make purchases until unfrozen.",
+    "freezing": "Freezing...",
+    "frozen": "Wristband frozen"
   },
   "merchants": {
     "title": "Merchants",

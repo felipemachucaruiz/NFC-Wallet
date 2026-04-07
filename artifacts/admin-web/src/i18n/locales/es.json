@@ -267,7 +267,12 @@
     "deleting": "Eliminando...",
     "unflagged": "Brazalete desmarcado",
     "deleted": "Brazalete eliminado",
-    "statusFlagged": "Marcado"
+    "statusFlagged": "Marcado",
+    "freeze": "Congelar",
+    "freezeTitle": "Congelar Brazalete",
+    "freezeDesc": "¿Congelar brazalete {{uid}}? No podrá realizar compras hasta que sea descongelado.",
+    "freezing": "Congelando...",
+    "frozen": "Brazalete congelado"
   },
   "merchants": {
     "title": "Comerciantes",
