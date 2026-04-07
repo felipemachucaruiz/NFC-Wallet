@@ -25,6 +25,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2, ImageIcon, Upload, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("/api/")) return `${import.meta.env.BASE_URL}_srv${url}`;
+  return url;
+}
+
 type ProductForm = {
   name: string;
   priceCop: string;
@@ -243,7 +249,7 @@ export default function Products() {
               <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{t("products.noProducts")}</TableCell></TableRow>
             ) : (
               filtered.map((product) => {
-                const imgUrl = (product as Product & { imageUrl?: string | null }).imageUrl;
+                const imgUrl = resolveImageUrl((product as Product & { imageUrl?: string | null }).imageUrl);
                 return (
                 <TableRow key={product.id}>
                   <TableCell>
@@ -340,7 +346,7 @@ export default function Products() {
                   {imagePreview ? (
                     <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
                   ) : currentImageUrl ? (
-                    <img src={currentImageUrl} alt={form.name} className="w-full h-full object-cover" />
+                    <img src={resolveImageUrl(currentImageUrl) ?? ""} alt={form.name} className="w-full h-full object-cover" />
                   ) : (
                     <ImageIcon className="w-8 h-8 text-muted-foreground" />
                   )}
