@@ -161,6 +161,8 @@
     "eventName": "Nombre del Evento *",
     "description": "Descripción",
     "venueAddress": "Dirección del Venue",
+    "capacity": "Aforo",
+    "capacityPlaceholder": "Cantidad de personas",
     "startsAt": "Inicio",
     "endsAt": "Fin",
     "creating": "Creando...",

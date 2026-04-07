@@ -161,6 +161,8 @@
     "eventName": "Event Name *",
     "description": "Description",
     "venueAddress": "Venue Address",
+    "capacity": "Capacity",
+    "capacityPlaceholder": "Number of people",
     "startsAt": "Starts At",
     "endsAt": "Ends At",
     "creating": "Creating...",

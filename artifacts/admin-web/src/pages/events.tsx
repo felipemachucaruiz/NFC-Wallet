@@ -23,13 +23,14 @@ type EventForm = {
   name: string;
   description: string;
   venueAddress: string;
+  capacity: string;
   startsAt: string;
   endsAt: string;
   latitude: number | null;
   longitude: number | null;
 };
 
-const emptyForm: EventForm = { name: "", description: "", venueAddress: "", startsAt: "", endsAt: "", latitude: null, longitude: null };
+const emptyForm: EventForm = { name: "", description: "", venueAddress: "", capacity: "", startsAt: "", endsAt: "", latitude: null, longitude: null };
 
 export default function Events() {
   const { t } = useTranslation();
@@ -67,6 +68,7 @@ export default function Events() {
       name: event.name,
       description: event.description ?? "",
       venueAddress: event.venueAddress ?? "",
+      capacity: raw.capacity != null ? String(raw.capacity) : "",
       startsAt: event.startsAt ? event.startsAt.slice(0, 16) : "",
       endsAt: event.endsAt ? event.endsAt.slice(0, 16) : "",
       latitude: raw.latitude ? parseFloat(raw.latitude) : null,
@@ -76,10 +78,12 @@ export default function Events() {
   };
 
   const handleCreate = () => {
+    const capNum = form.capacity ? parseInt(form.capacity, 10) : undefined;
     const payload: any = {
       ...form,
       startsAt: form.startsAt || undefined,
       endsAt: form.endsAt || undefined,
+      capacity: capNum && capNum > 0 ? capNum : undefined,
       latitude: form.latitude ?? undefined,
       longitude: form.longitude ?? undefined,
     };
@@ -94,10 +98,12 @@ export default function Events() {
 
   const handleUpdate = () => {
     if (!selectedEvent) return;
+    const capNum = form.capacity ? parseInt(form.capacity, 10) : undefined;
     const payload: any = {
       ...form,
       startsAt: form.startsAt || undefined,
       endsAt: form.endsAt || undefined,
+      capacity: capNum && capNum > 0 ? capNum : null,
       latitude: form.latitude ?? undefined,
       longitude: form.longitude ?? undefined,
     };
@@ -158,6 +164,17 @@ export default function Events() {
         onConfirm={(addr, lat, lng) => setForm((f) => ({ ...f, venueAddress: addr, latitude: lat ?? null, longitude: lng ?? null }))}
         onClose={() => setMapPickerOpen(false)}
       />
+      <div className="space-y-1">
+        <Label>{t("events.capacity")}</Label>
+        <Input
+          data-testid="input-event-capacity"
+          type="number"
+          min="1"
+          value={form.capacity}
+          onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
+          placeholder={t("events.capacityPlaceholder")}
+        />
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>{t("events.startsAt")}</Label>
