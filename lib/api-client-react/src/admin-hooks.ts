@@ -98,7 +98,6 @@ export function useGetSettlementReport(eventId: string | null) {
 }
 
 export function useFlagBracelet() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ nfcUid, reason }: { nfcUid: string; reason?: string }) => {
       return customFetch<unknown>(`/api/admin/bracelets/${nfcUid}/flag`, {
@@ -106,9 +105,6 @@ export function useFlagBracelet() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
       });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/admin/events"] });
     },
   });
 }
