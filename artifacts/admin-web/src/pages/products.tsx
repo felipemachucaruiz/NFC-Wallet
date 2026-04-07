@@ -6,6 +6,7 @@ import {
   useUpdateProduct,
   useDeleteProduct,
   useListMerchants,
+  useListEvents,
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import type { Product } from "@workspace/api-client-react";
@@ -42,10 +43,19 @@ export default function Products() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const [eventFilter, setEventFilter] = useState("all");
   const [merchantFilter, setMerchantFilter] = useState("all");
-  const { data, isLoading } = useListProducts(merchantFilter !== "all" ? { merchantId: merchantFilter } : undefined);
+
+  const { data: eventsData } = useListEvents();
+  const events = eventsData?.events ?? [];
+
+  const productParams: Record<string, string> = {};
+  if (eventFilter !== "all") productParams.eventId = eventFilter;
+  if (merchantFilter !== "all") productParams.merchantId = merchantFilter;
+  const { data, isLoading } = useListProducts(Object.keys(productParams).length > 0 ? productParams as any : undefined);
   const products = data?.products ?? [];
-  const { data: merchantsData } = useListMerchants();
+
+  const { data: merchantsData } = useListMerchants(eventFilter !== "all" ? { eventId: eventFilter } : undefined);
   const merchants = merchantsData?.merchants ?? [];
 
   const [search, setSearch] = useState("");
@@ -155,6 +165,13 @@ export default function Products() {
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder={t("products.searchPlaceholder")} className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
+        <Select value={eventFilter} onValueChange={(v) => { setEventFilter(v); setMerchantFilter("all"); }}>
+          <SelectTrigger className="w-48"><SelectValue placeholder={t("products.allEvents")} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("products.allEvents")}</SelectItem>
+            {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Select value={merchantFilter} onValueChange={setMerchantFilter}>
           <SelectTrigger className="w-48"><SelectValue placeholder={t("products.allMerchants")} /></SelectTrigger>
           <SelectContent>

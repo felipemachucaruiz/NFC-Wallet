@@ -115,7 +115,30 @@ router.get("/products", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  const { merchantId } = req.query as { merchantId?: string };
+  const { merchantId, eventId } = req.query as { merchantId?: string; eventId?: string };
+
+  if (eventId) {
+    const eventMerchants = await db
+      .select({ id: merchantsTable.id })
+      .from(merchantsTable)
+      .where(eq(merchantsTable.eventId, eventId));
+    const merchantIds = eventMerchants.map((m) => m.id);
+    if (merchantIds.length === 0) {
+      res.json({ products: [] });
+      return;
+    }
+    const products = await db
+      .select()
+      .from(productsTable)
+      .where(
+        merchantId
+          ? and(eq(productsTable.merchantId, merchantId), inArray(productsTable.merchantId, merchantIds))
+          : inArray(productsTable.merchantId, merchantIds),
+      );
+    res.json({ products });
+    return;
+  }
+
   const products = await db
     .select()
     .from(productsTable)
