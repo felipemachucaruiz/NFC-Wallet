@@ -59,7 +59,7 @@ module.exports = {
       fallbackToCacheTimeout: 0,
       checkAutomatically: "ON_LOAD",
       requestHeaders: {
-        "expo-channel-name": "preview",
+        "expo-channel-name": "production",
       },
     },
     runtimeVersion: "1.0.0",
