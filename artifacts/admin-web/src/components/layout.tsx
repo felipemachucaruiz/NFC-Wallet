@@ -21,6 +21,7 @@ import {
   RefreshCcw,
   FileBarChart,
   Languages,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -98,6 +99,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
               <NavItem href="/event-payouts" icon={CreditCard} label={t("nav.payouts")} />
               <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />
+              <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
               <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
             </>
           )}

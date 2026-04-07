@@ -353,7 +353,7 @@ router.patch(
  */
 router.patch(
   "/admin/bracelets/:nfcUid/unflag",
-  requireRole("admin"),
+  requireRole("admin", "event_admin"),
   async (req: Request, res: Response) => {
     const { nfcUid } = req.params as { nfcUid: string };
     const [bracelet] = await db
@@ -362,6 +362,10 @@ router.patch(
       .where(eq(braceletsTable.nfcUid, nfcUid));
     if (!bracelet) {
       res.status(404).json({ error: "Bracelet not found" });
+      return;
+    }
+    if (req.user!.role === "event_admin" && bracelet.eventId !== req.user!.eventId) {
+      res.status(403).json({ error: "Access denied" });
       return;
     }
     const [updated] = await db

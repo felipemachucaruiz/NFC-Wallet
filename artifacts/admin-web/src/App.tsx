@@ -38,6 +38,7 @@ import EventTransactions from "@/pages/event-transactions";
 import EventInventory from "@/pages/event-inventory";
 import EventRefundRequests from "@/pages/event-refund-requests";
 import EventSettlement from "@/pages/event-settlement";
+import EventSettings from "@/pages/event-settings";
 
 const queryClient = new QueryClient();
 
@@ -149,6 +150,9 @@ function Router() {
       </Route>
       <Route path="/event-settlement">
         <ProtectedRoute component={EventSettlement} allowedRoles={["event_admin"]} />
+      </Route>
+      <Route path="/event-settings">
+        <ProtectedRoute component={EventSettings} allowedRoles={["event_admin"]} />
       </Route>
 
       <Route component={NotFound} />
