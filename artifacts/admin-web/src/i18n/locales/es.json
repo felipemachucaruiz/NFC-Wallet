@@ -336,7 +336,9 @@
     "rejecting": "Rechazando...",
     "reject": "Rechazar",
     "approved": "Reembolso aprobado",
-    "rejected": "Reembolso rechazado"
+    "rejected": "Reembolso rechazado",
+    "exportCsv": "Exportar CSV",
+    "labelEmail": "Correo"
   },
   "users": {
     "title": "Usuarios",

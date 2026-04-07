@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Check, X, Eye, RefreshCcw } from "lucide-react";
+import { Check, X, Eye, RefreshCcw, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export default function EventRefundRequests() {
@@ -74,6 +74,54 @@ export default function EventRefundRequests() {
     return <Badge variant="outline" className="text-xs text-yellow-500 border-yellow-500">{t("refunds.statusPending")}</Badge>;
   }
 
+  const handleExportCsv = () => {
+    if (requests.length === 0) return;
+    const escCsv = (val: string | number | boolean | null | undefined) => {
+      if (val == null) return "";
+      const s = String(val);
+      if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const headers = [
+      "ID",
+      t("refunds.colBracelet"),
+      t("refunds.colAttendee"),
+      t("refunds.labelEmail"),
+      t("refunds.colAmount"),
+      t("refunds.colMethod"),
+      t("refunds.colStatus"),
+      t("refunds.labelAccountDetails"),
+      t("refunds.labelNotes"),
+      t("refunds.labelChipZeroed"),
+      t("refunds.colRequested"),
+      t("refunds.labelProcessed"),
+    ];
+    const rows = requests.map((r) => [
+      escCsv(r.id),
+      escCsv(r.braceletUid),
+      escCsv([r.attendeeFirstName, r.attendeeLastName].filter(Boolean).join(" ")),
+      escCsv(r.attendeeEmail),
+      escCsv(r.amountCop),
+      escCsv(r.refundMethod),
+      escCsv(r.status),
+      escCsv(r.accountDetails),
+      escCsv(r.notes),
+      escCsv(r.chipZeroed ? t("common.yes") : t("common.no")),
+      escCsv(r.createdAt ? new Date(r.createdAt).toLocaleString() : ""),
+      escCsv(r.processedAt ? new Date(r.processedAt).toLocaleString() : ""),
+    ]);
+    const bom = "\uFEFF";
+    const csv = bom + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const eventName = events.find((e) => e.id === eventId)?.name ?? "reembolsos";
+    a.download = `reembolsos_${eventName.replace(/\s+/g, "_")}_${statusFilter}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -106,6 +154,16 @@ export default function EventRefundRequests() {
               <SelectItem value="rejected">{t("refunds.statusRejected")}</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            disabled={requests.length === 0}
+            data-testid="button-export-csv"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {t("refunds.exportCsv")}
+          </Button>
         </div>
       </div>
 

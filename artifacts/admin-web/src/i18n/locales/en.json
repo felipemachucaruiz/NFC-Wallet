@@ -336,7 +336,9 @@
     "rejecting": "Rejecting...",
     "reject": "Reject",
     "approved": "Refund approved",
-    "rejected": "Refund rejected"
+    "rejected": "Refund rejected",
+    "exportCsv": "Export CSV",
+    "labelEmail": "Email"
   },
   "users": {
     "title": "Users",
