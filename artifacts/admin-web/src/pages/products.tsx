@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProducts,
@@ -8,6 +8,7 @@ import {
   useListMerchants,
   useListEvents,
   getListProductsQueryKey,
+  customFetch,
 } from "@workspace/api-client-react";
 import type { Product } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, ImageIcon, Upload, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 type ProductForm = {
@@ -64,6 +65,11 @@ export default function Products() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -89,7 +95,42 @@ export default function Products() {
       ivaExento: product.ivaExento ?? false,
       active: product.active,
     });
+    setCurrentImageUrl((product as Product & { imageUrl?: string | null }).imageUrl ?? null);
+    setImageFile(null);
+    setImagePreview(null);
     setEditOpen(true);
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = async () => {
+    if (!selected || !imageFile) return;
+    setImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", imageFile);
+      const result = await customFetch<{ imageUrl: string }>(`/api/products/${selected.id}/image`, {
+        method: "POST",
+        body: fd,
+      });
+      setCurrentImageUrl(result.imageUrl);
+      setImageFile(null);
+      setImagePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      toast({ title: t("products.imageUploaded") });
+      invalidate();
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" });
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const handleCreate = () => {
@@ -185,6 +226,7 @@ export default function Products() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12"></TableHead>
               <TableHead>{t("products.colProduct")}</TableHead>
               <TableHead>{t("products.colMerchant")}</TableHead>
               <TableHead className="text-right">{t("products.colPrice")}</TableHead>
@@ -196,12 +238,23 @@ export default function Products() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("products.noProducts")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{t("products.noProducts")}</TableCell></TableRow>
             ) : (
-              filtered.map((product) => (
+              filtered.map((product) => {
+                const imgUrl = (product as Product & { imageUrl?: string | null }).imageUrl;
+                return (
                 <TableRow key={product.id}>
+                  <TableCell>
+                    {imgUrl ? (
+                      <img src={imgUrl} alt={product.name} className="w-9 h-9 rounded object-cover border border-border" />
+                    ) : (
+                      <div className="w-9 h-9 rounded border border-border bg-muted flex items-center justify-center">
+                        <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{merchants.find((m) => m.id === product.merchantId)?.name ?? product.merchantId.slice(0, 8)}</TableCell>
                   <TableCell className="text-right font-mono">${product.priceCop.toLocaleString()}</TableCell>
@@ -221,7 +274,7 @@ export default function Products() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
+              );})
             )}
           </TableBody>
         </Table>
@@ -262,7 +315,7 @@ export default function Products() {
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("products.editTitle")} — {selected?.name}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><Label>{t("products.productName")}</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
@@ -279,6 +332,46 @@ export default function Products() {
               <div className="flex items-center gap-2 pt-6"><Switch checked={form.ivaExento} onCheckedChange={(v) => setForm((f) => ({ ...f, ivaExento: v }))} /><Label>{t("products.ivaExento")}</Label></div>
             </div>
             <div className="flex items-center gap-2"><Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} /><Label>{t("common.active")}</Label></div>
+
+            <div className="space-y-2 pt-1 border-t border-border">
+              <Label>{t("products.productImage")}</Label>
+              <div className="flex items-start gap-3">
+                <div className="w-20 h-20 rounded-lg border border-border bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+                  ) : currentImageUrl ? (
+                    <img src={currentImageUrl} alt={form.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="text-sm cursor-pointer"
+                      onChange={handleImageFileChange}
+                    />
+                    {imageFile && (
+                      <Button variant="ghost" size="icon" onClick={() => { setImageFile(null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {imageFile && (
+                    <Button size="sm" onClick={handleImageUpload} disabled={imageUploading} className="w-full">
+                      <Upload className="w-3 h-3 mr-1.5" />
+                      {imageUploading ? t("products.uploading") : t("products.uploadImage")}
+                    </Button>
+                  )}
+                  {currentImageUrl && !imageFile && (
+                    <p className="text-xs text-muted-foreground">{t("products.imageSet")}</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
