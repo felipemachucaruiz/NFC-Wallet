@@ -30,27 +30,46 @@ router.get(
       .from(braceletsTable)
       .where(eq(braceletsTable.attendeeUserId, userId));
 
-    const result = await Promise.all(
-      bracelets.map(async (b) => {
-        let event = null;
-        if (b.eventId) {
-          const [ev] = await db
+    // Batch-fetch events and pending refunds to avoid N+1 queries
+    const braceletUids = bracelets.map((b) => b.nfcUid);
+    const eventIds = [...new Set(bracelets.map((b) => b.eventId).filter(Boolean) as string[])];
+
+    const [eventsRows, pendingRefundRows] = await Promise.all([
+      eventIds.length > 0
+        ? db
             .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active })
             .from(eventsTable)
-            .where(eq(eventsTable.id, b.eventId));
-          event = ev ?? null;
-        }
-        return {
-          uid: b.nfcUid,
-          balanceCop: b.lastKnownBalanceCop,
-          flagged: b.flagged,
-          flagReason: b.flagReason,
-          attendeeName: b.attendeeName,
-          event,
-          updatedAt: b.updatedAt,
-        };
-      })
-    );
+            .where(inArray(eventsTable.id, eventIds))
+        : Promise.resolve([]),
+      braceletUids.length > 0
+        ? db
+            .select({ braceletUid: attendeeRefundRequestsTable.braceletUid })
+            .from(attendeeRefundRequestsTable)
+            .where(
+              and(
+                inArray(attendeeRefundRequestsTable.braceletUid, braceletUids),
+                eq(attendeeRefundRequestsTable.status, "pending")
+              )
+            )
+        : Promise.resolve([]),
+    ]);
+
+    const eventsById = new Map(eventsRows.map((ev) => [ev.id, ev]));
+    const pendingRefundUids = new Set(pendingRefundRows.map((r) => r.braceletUid));
+
+    const result = bracelets.map((b) => {
+      const event = b.eventId ? (eventsById.get(b.eventId) ?? null) : null;
+      return {
+        uid: b.nfcUid,
+        balanceCop: b.lastKnownBalanceCop,
+        flagged: b.flagged,
+        flagReason: b.flagReason,
+        pendingRefund: pendingRefundUids.has(b.nfcUid),
+        attendeeName: b.attendeeName,
+        event,
+        updatedAt: b.updatedAt,
+      };
+    });
 
     res.json({ bracelets: result });
   }
@@ -558,6 +577,14 @@ router.post(
       return;
     }
 
+    // Prevent refund requests on bracelets blocked for non-refund reasons.
+    // A bracelet flagged as "refund_pending" already has a pending request (caught below).
+    // Any other block reason (fraud, admin, attendee-initiated) should not be overwritten.
+    if (bracelet.flagged && bracelet.flagReason !== "refund_pending") {
+      res.status(403).json({ error: "BRACELET_BLOCKED" });
+      return;
+    }
+
     // Block duplicate pending requests for the same bracelet
     const [pendingRequest] = await db
       .select({ id: attendeeRefundRequestsTable.id })
@@ -574,19 +601,28 @@ router.post(
     }
 
     try {
-      const [request] = await db
-        .insert(attendeeRefundRequestsTable)
-        .values({
-          attendeeUserId: userId,
-          braceletUid,
-          eventId: bracelet.eventId,
-          amountCop: bracelet.lastKnownBalanceCop,
-          refundMethod,
-          accountDetails,
-          notes,
-          status: "pending",
-        })
-        .returning();
+      const [request] = await db.transaction(async (tx) => {
+        const [inserted] = await tx
+          .insert(attendeeRefundRequestsTable)
+          .values({
+            attendeeUserId: userId,
+            braceletUid,
+            eventId: bracelet.eventId,
+            amountCop: bracelet.lastKnownBalanceCop,
+            refundMethod,
+            accountDetails,
+            notes,
+            status: "pending",
+          })
+          .returning();
+
+        await tx
+          .update(braceletsTable)
+          .set({ flagged: true, flagReason: "refund_pending", updatedAt: new Date() })
+          .where(eq(braceletsTable.nfcUid, braceletUid));
+
+        return [inserted];
+      });
 
       res.status(201).json({ request });
     } catch (e: unknown) {

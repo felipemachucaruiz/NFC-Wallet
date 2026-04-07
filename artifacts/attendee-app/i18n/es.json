@@ -59,6 +59,8 @@
     "myBracelets": "Mis pulseras",
     "blocked": "Bloqueada",
     "blockedHint": "Esta pulsera está bloqueada. Ve a la estación bancaria para desbloquearla.",
+    "refundPending": "Solicitud de reembolso enviada",
+    "refundPendingHint": "Solicitud de reembolso enviada. Tu pulsera está congelada mientras se procesa.",
     "blockBracelet": "Bloquear",
     "requestRefund": "Devolución",
     "topUp": "Recargar",

@@ -462,16 +462,26 @@ router.post(
       return;
     }
 
-    const [updated] = await db
-      .update(attendeeRefundRequestsTable)
-      .set({
-        status: "rejected",
-        notes: parsed.data.reason ? `${request.notes ? request.notes + " | " : ""}Rejected: ${parsed.data.reason}` : request.notes,
-        processedByUserId: req.user!.id,
-        processedAt: new Date(),
-      })
-      .where(eq(attendeeRefundRequestsTable.id, id))
-      .returning();
+    const updated = await db.transaction(async (tx) => {
+      const [updatedRequest] = await tx
+        .update(attendeeRefundRequestsTable)
+        .set({
+          status: "rejected",
+          notes: parsed.data.reason ? `${request.notes ? request.notes + " | " : ""}Rejected: ${parsed.data.reason}` : request.notes,
+          processedByUserId: req.user!.id,
+          processedAt: new Date(),
+        })
+        .where(eq(attendeeRefundRequestsTable.id, id))
+        .returning();
+
+      // Unfreeze the bracelet if it was frozen due to this pending refund
+      await tx
+        .update(braceletsTable)
+        .set({ flagged: false, flagReason: null, updatedAt: new Date() })
+        .where(and(eq(braceletsTable.nfcUid, request.braceletUid), eq(braceletsTable.flagReason, "refund_pending")));
+
+      return updatedRequest;
+    });
 
     void notifyRefundRequestRejected({
       attendeeUserId: request.attendeeUserId,

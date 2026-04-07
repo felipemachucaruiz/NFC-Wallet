@@ -20,7 +20,7 @@ import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { useSubmitRefundRequest } from "@/hooks/useAttendeeApi";
+import { useSubmitRefundRequest, useMyBracelets } from "@/hooks/useAttendeeApi";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 import { extractErrorMessage } from "@/utils/errorMessage";
 
@@ -164,6 +164,11 @@ export default function RefundRequestScreen() {
   const uid = params.uid ?? "";
   const balance = parseInt(params.balance ?? "0", 10);
 
+  const { data: braceletsData } = useMyBracelets();
+  const braceletInfo = (braceletsData as { bracelets?: { uid: string; pendingRefund?: boolean }[] } | undefined)
+    ?.bracelets?.find((b) => b.uid === uid);
+  const hasPendingRefund = braceletInfo?.pendingRefund ?? false;
+
   const [refundMethod, setRefundMethod] = useState<RefundMethod>("nequi");
   const [phoneCountry, setPhoneCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
   const [accountDetails, setAccountDetails] = useState("");
@@ -247,15 +252,17 @@ export default function RefundRequestScreen() {
     );
   };
 
-  if (step === "success") {
+  if (step === "success" || hasPendingRefund) {
     return (
       <View style={[styles.center, { backgroundColor: C.background }]}>
-        <View style={[styles.iconBox, { backgroundColor: C.successLight }]}>
-          <Feather name="check-circle" size={52} color={C.success} />
+        <View style={[styles.iconBox, { backgroundColor: hasPendingRefund ? "rgba(234,179,8,0.15)" : C.successLight }]}>
+          <Feather name={hasPendingRefund ? "clock" : "check-circle"} size={52} color={hasPendingRefund ? "#eab308" : C.success} />
         </View>
-        <Text style={[styles.successTitle, { color: C.text }]}>{t("refund.successTitle")}</Text>
+        <Text style={[styles.successTitle, { color: C.text }]}>
+          {hasPendingRefund ? t("refund.alreadyPendingTitle") : t("refund.successTitle")}
+        </Text>
         <Text style={[styles.successSubtitle, { color: C.textSecondary }]}>
-          {t("refund.successMessage")}
+          {hasPendingRefund ? t("refund.alreadyPendingMessage") : t("refund.successMessage")}
         </Text>
         <Button title={t("common.back")} onPress={() => router.back()} variant="primary" size="lg" fullWidth />
       </View>

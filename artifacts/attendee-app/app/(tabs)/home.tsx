@@ -35,6 +35,7 @@ type BraceletItem = {
   balanceCop: number;
   flagged: boolean;
   flagReason?: string | null;
+  pendingRefund?: boolean;
   attendeeName?: string | null;
   event?: { id: string; name: string; active: boolean } | null;
   updatedAt: string;
@@ -311,13 +312,17 @@ export default function HomeScreen() {
                       )}
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
                         <CopAmount amount={b.balanceCop} size={18} />
-                        {b.flagged && <Badge label={t("home.blocked")} variant="danger" />}
+                        {b.pendingRefund
+                          ? <Badge label={t("home.refundPending")} variant="warning" />
+                          : b.flagged
+                          ? <Badge label={t("home.blocked")} variant="danger" />
+                          : null}
                       </View>
                     </View>
                   </View>
                 </View>
 
-                {!b.flagged && (
+                {!b.flagged && !b.pendingRefund && (
                   <View style={[styles.braceletActions, { borderTopColor: C.separator }]}>
                     <Pressable
                       style={styles.actionBtn}
@@ -366,7 +371,16 @@ export default function HomeScreen() {
                   </View>
                 )}
 
-                {b.flagged && (
+                {b.pendingRefund && (
+                  <View style={[styles.flaggedInfo, { backgroundColor: "rgba(234,179,8,0.10)", borderColor: "rgba(234,179,8,0.25)", borderWidth: 1 }]}>
+                    <Feather name="clock" size={13} color="#eab308" />
+                    <Text style={[styles.flaggedText, { color: "#eab308" }]}>
+                      {t("home.refundPendingHint")}
+                    </Text>
+                  </View>
+                )}
+
+                {!b.pendingRefund && b.flagged && (
                   <View style={[styles.flaggedInfo, { backgroundColor: C.dangerLight }]}>
                     <Feather name="alert-triangle" size={13} color={C.danger} />
                     <Text style={[styles.flaggedText, { color: C.danger }]}>
@@ -402,7 +416,7 @@ export default function HomeScreen() {
               </View>
               <Text style={[styles.quickLabel, { color: C.text }]}>{t("home.addBracelet")}</Text>
             </Pressable>
-            {bracelets.length > 0 && (
+            {bracelets.length > 0 && !activeBracelet?.pendingRefund && !activeBracelet?.flagged && (
               <Pressable
                 style={[styles.quickCard, { backgroundColor: C.card, borderColor: C.border }]}
                 onPress={() => router.push({

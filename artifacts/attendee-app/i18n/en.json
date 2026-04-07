@@ -59,6 +59,8 @@
     "myBracelets": "My wristbands",
     "blocked": "Blocked",
     "blockedHint": "This wristband is blocked. Visit the bank station to unblock it.",
+    "refundPending": "Refund request submitted",
+    "refundPendingHint": "Refund request submitted. Your wristband is frozen while it is being processed.",
     "blockBracelet": "Block",
     "requestRefund": "Refund",
     "topUp": "Top up",

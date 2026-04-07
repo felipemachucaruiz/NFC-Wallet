@@ -146,6 +146,7 @@ export function useSubmitRefundRequest() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["attendee", "refundRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["attendee", "bracelets"] });
     },
   });
 }
