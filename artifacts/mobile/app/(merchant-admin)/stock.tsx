@@ -21,6 +21,22 @@ import { Empty } from "@/components/ui/Empty";
 import { useInventoryMode } from "@/hooks/useInventoryMode";
 import { useMerchantType } from "@/hooks/useMerchantType";
 
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object") {
+    const e = err as Record<string, unknown>;
+    if (typeof e.message === "string" && e.message) return e.message;
+    if (e.data && typeof e.data === "object") {
+      const d = e.data as Record<string, unknown>;
+      if (typeof d.error === "string" && d.error) return d.error;
+      if (typeof d.message === "string" && d.message) return d.message;
+    }
+    if (typeof e.error === "string" && e.error) return e.error;
+  }
+  if (typeof err === "string" && err) return err;
+  return fallback;
+}
+
 type Location = { id: string; name: string; merchantId: string; active: boolean };
 
 type Product = {
@@ -138,8 +154,7 @@ function LocationInventory({
       setEditTarget(null);
       refetch();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t("common.unknownError");
-      showAlert(t("common.error"), msg);
+      showAlert(t("common.error"), extractErrorMessage(err, t("common.unknownError")));
     }
   };
 
@@ -167,8 +182,7 @@ function LocationInventory({
       setTransferTarget(null);
       refetch();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t("common.unknownError");
-      showAlert(t("common.error"), msg);
+      showAlert(t("common.error"), extractErrorMessage(err, t("common.unknownError")));
     }
   };
 

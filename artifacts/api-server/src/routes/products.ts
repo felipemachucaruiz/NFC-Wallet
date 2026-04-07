@@ -128,7 +128,8 @@ router.post(
   async (req: Request, res: Response) => {
     const parsed = createProductSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
+      console.error("[products] create validation failed:", JSON.stringify(parsed.error.issues));
+      res.status(400).json({ error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") });
       return;
     }
 
