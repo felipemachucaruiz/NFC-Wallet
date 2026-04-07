@@ -6,6 +6,7 @@ import { db, productsTable, merchantsTable } from "@workspace/db";
 import { eq, inArray, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertProductAccess, isMerchantScoped } from "../lib/ownershipGuards";
+import { uploadToR2, isR2Configured } from "../lib/r2Storage";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -42,22 +43,6 @@ const upload = multer({
   },
 });
 
-const productListColumns = {
-  id: productsTable.id,
-  merchantId: productsTable.merchantId,
-  name: productsTable.name,
-  category: productsTable.category,
-  priceCop: productsTable.priceCop,
-  costCop: productsTable.costCop,
-  ivaRate: productsTable.ivaRate,
-  ivaExento: productsTable.ivaExento,
-  active: productsTable.active,
-  imageUrl: productsTable.imageUrl,
-  barcode: productsTable.barcode,
-  createdAt: productsTable.createdAt,
-  updatedAt: productsTable.updatedAt,
-};
-
 const createProductSchema = z.object({
   merchantId: z.string().min(1),
   name: z.string().min(1),
@@ -90,7 +75,7 @@ router.get("/products", requireAuth, async (req: Request, res: Response) => {
       return;
     }
     const products = await db
-      .select(productListColumns)
+      .select()
       .from(productsTable)
       .where(eq(productsTable.merchantId, user.merchantId));
     res.json({ products });
@@ -119,7 +104,7 @@ router.get("/products", requireAuth, async (req: Request, res: Response) => {
       return;
     }
     const products = await db
-      .select(productListColumns)
+      .select()
       .from(productsTable)
       .where(
         queryMerchantId
@@ -132,7 +117,7 @@ router.get("/products", requireAuth, async (req: Request, res: Response) => {
 
   const { merchantId } = req.query as { merchantId?: string };
   const products = await db
-    .select(productListColumns)
+    .select()
     .from(productsTable)
     .where(merchantId ? eq(productsTable.merchantId, merchantId) : undefined);
   res.json({ products });
@@ -412,37 +397,32 @@ router.post(
       if (!product) { res.status(404).json({ error: "Product not found" }); return; }
     }
 
-    const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-
     try {
       let imageUrl: string;
 
-      if (bucketId) {
+      if (isR2Configured()) {
+        const key = `product-images/${randomUUID()}`;
+        imageUrl = await uploadToR2(key, req.file.buffer, req.file.mimetype);
+      } else {
+        const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+        if (!bucketId) {
+          res.status(500).json({ error: "No image storage configured (set R2 or Replit Object Storage)" });
+          return;
+        }
         const objectName = `product-images/${randomUUID()}`;
         const bucket = objectStorageClient.bucket(bucketId);
         const file = bucket.file(objectName);
-
         await file.save(req.file.buffer, {
           metadata: { contentType: req.file.mimetype },
           resumable: false,
         });
-
         imageUrl = `/api/storage/objects/${objectName}`;
-
-        await db
-          .update(productsTable)
-          .set({ imageUrl, updatedAt: new Date() })
-          .where(eq(productsTable.id, productId));
-      } else {
-        const base64 = req.file.buffer.toString("base64");
-        const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
-        imageUrl = `/api/products/${productId}/image-data`;
-
-        await db
-          .update(productsTable)
-          .set({ imageUrl, imageData: dataUrl, updatedAt: new Date() })
-          .where(eq(productsTable.id, productId));
       }
+
+      await db
+        .update(productsTable)
+        .set({ imageUrl, updatedAt: new Date() })
+        .where(eq(productsTable.id, productId));
 
       res.json({ imageUrl });
     } catch (err: unknown) {
@@ -450,34 +430,6 @@ router.post(
       console.error("[products] image upload error:", msg);
       res.status(500).json({ error: `Failed to upload image: ${msg}` });
     }
-  },
-);
-
-router.get(
-  "/products/:productId/image-data",
-  async (req: Request, res: Response) => {
-    const productId = req.params.productId as string;
-    const [product] = await db
-      .select({ imageData: productsTable.imageData })
-      .from(productsTable)
-      .where(eq(productsTable.id, productId));
-
-    if (!product?.imageData) {
-      res.status(404).json({ error: "Image not found" });
-      return;
-    }
-
-    const match = product.imageData.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) {
-      res.status(500).json({ error: "Invalid image data" });
-      return;
-    }
-
-    const contentType = match[1];
-    const buffer = Buffer.from(match[2], "base64");
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    res.send(buffer);
   },
 );
 
