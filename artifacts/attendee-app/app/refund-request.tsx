@@ -107,15 +107,20 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose, C }
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={[styles.modalSheet, { backgroundColor: C.card }]} onPress={() => {}}>
+        <View style={[styles.modalSheet, { backgroundColor: C.card }]} onStartShouldSetResponder={() => true}>
           <View style={[styles.modalHandle, { backgroundColor: C.border }]} />
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: C.text }]}>{title}</Text>
-            <Pressable onPress={onClose}>
+            <Pressable onPress={onClose} hitSlop={12}>
               <Feather name="x" size={22} color={C.textSecondary} />
             </Pressable>
           </View>
-          <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.modalList}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
+            bounces={false}
+          >
             {options.map((opt) => {
               const isSelected = opt === selected;
               return (
@@ -130,6 +135,7 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose, C }
                     onSelect(opt);
                     onClose();
                   }}
+                  activeOpacity={0.7}
                 >
                   <Text style={[styles.modalOptionText, { color: isSelected ? C.primary : C.text }]}>
                     {opt}
@@ -139,7 +145,7 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose, C }
               );
             })}
           </ScrollView>
-        </Pressable>
+        </View>
       </Pressable>
     </Modal>
   );
@@ -506,7 +512,7 @@ const styles = StyleSheet.create({
   modalSheet: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: "75%",
+    height: "60%",
     paddingBottom: 24,
   },
   modalHandle: {
