@@ -515,7 +515,7 @@ router.post(
   }
 );
 
-const refundMethodValues = ["cash", "nequi", "bancolombia", "other"] as const;
+const refundMethodValues = ["cash", "nequi", "bancolombia", "bank_transfer", "other"] as const;
 
 const attendeeRefundRequestSchema = z.object({
   braceletUid: z.string().min(1),

@@ -6,6 +6,7 @@ export const attendeeRefundMethodEnum = pgEnum("attendee_refund_method", [
   "cash",
   "nequi",
   "bancolombia",
+  "bank_transfer",
   "other",
 ]);
 
