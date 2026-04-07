@@ -54,9 +54,48 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 
 # Deployment & Hosting
 
-All apps are deployed and managed on **Railway** (not Replit deployments). Railway auto-deploys from the GitHub repo (`felipemachucaruiz/NFC-Wallet`, branch `main`). To deploy, push to GitHub with `git push "https://${GITHUB_TOKEN}@github.com/felipemachucaruiz/NFC-Wallet.git" master:main`.
-
+All apps are deployed and managed on **Railway** (not Replit deployments). Railway auto-deploys from the GitHub repo (`felipemachucaruiz/NFC-Wallet`, branch `main`). To deploy any backend or web change, push to GitHub:
+```bash
+git push "https://${GITHUB_TOKEN}@github.com/felipemachucaruiz/NFC-Wallet.git" master:main
+```
 A **Railway API key** is available in environment secrets for programmatic access to Railway services if needed.
+
+## Mobile App OTA Updates
+
+OTA updates are run from the **Replit Shell** (not automated tool calls — Metro bundler exceeds the 120s shell timeout). Always use `EAS_SKIP_AUTO_FINGERPRINT=1` to skip slow fingerprinting (safe because both apps use `runtimeVersion: "1.0.0"`, not fingerprint policy).
+
+### Staff app (`artifacts/mobile`)
+- **OTA channel devices listen to:** `production`
+- **Script signature:** `bash ota-update.sh <branch> <message>` — branch is the FIRST arg, message is SECOND
+- **Correct OTA command:**
+  ```bash
+  cd /home/runner/workspace/artifacts/mobile
+  EAS_SKIP_AUTO_FINGERPRINT=1 EXPO_METRO_PORT=8087 bash ota-update.sh production "your message here"
+  ```
+
+### Attendee app (`artifacts/attendee-app`)
+- **OTA channel devices listen to:** `production`
+- **Script signature:** `bash ota-update.sh <message>` — message is the ONLY arg; script always publishes to BOTH `preview` AND `production` automatically
+- **Correct OTA command:**
+  ```bash
+  cd /home/runner/workspace/artifacts/attendee-app
+  EAS_SKIP_AUTO_FINGERPRINT=1 EXPO_METRO_PORT=8088 bash ota-update.sh "your message here"
+  ```
+
+## Mobile App APK Builds
+
+OTA updates cannot rescue apps that crash before the update check runs. When native fixes or channel changes are made, build new APKs. Builds run on Expo's servers (~15–20 min); use `--no-wait` so the shell returns immediately.
+
+```bash
+# Staff APK (profile: production-apk → channel: production)
+cd /home/runner/workspace/artifacts/mobile
+npx eas-cli build --platform android --profile production-apk --non-interactive --no-wait
+
+# Attendee APK (profile: production-apk → channel: production)
+cd /home/runner/workspace/artifacts/attendee-app
+npx eas-cli build --platform android --profile production-apk --non-interactive --no-wait
+```
+Download links appear on expo.dev when builds finish.
 
 # External Dependencies
 
