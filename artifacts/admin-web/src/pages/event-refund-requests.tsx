@@ -114,6 +114,7 @@ export default function EventRefundRequests() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("refunds.colBracelet")}</TableHead>
+              <TableHead>{t("refunds.colAttendee")}</TableHead>
               <TableHead className="text-right">{t("refunds.colAmount")}</TableHead>
               <TableHead>{t("refunds.colMethod")}</TableHead>
               <TableHead>{t("refunds.colStatus")}</TableHead>
@@ -123,15 +124,28 @@ export default function EventRefundRequests() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
             ) : !eventId ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("refunds.noEvent")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("refunds.noEvent")}</TableCell></TableRow>
             ) : requests.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("refunds.noRequests")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("refunds.noRequests")}</TableCell></TableRow>
             ) : (
               requests.map((req) => (
                 <TableRow key={req.id} data-testid={`row-refund-${req.id}`}>
                   <TableCell className="font-mono text-sm">{req.braceletUid}</TableCell>
+                  <TableCell className="text-sm">
+                    <div>
+                      {(req.attendeeFirstName || req.attendeeLastName) && (
+                        <div className="font-medium">{[req.attendeeFirstName, req.attendeeLastName].filter(Boolean).join(" ")}</div>
+                      )}
+                      {req.attendeeEmail && (
+                        <div className="text-muted-foreground text-xs">{req.attendeeEmail}</div>
+                      )}
+                      {!req.attendeeFirstName && !req.attendeeLastName && !req.attendeeEmail && (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right font-mono">${req.amountCop.toLocaleString()}</TableCell>
                   <TableCell className="text-sm capitalize">{req.refundMethod}</TableCell>
                   <TableCell>{statusBadge(req.status)}</TableCell>
@@ -165,6 +179,17 @@ export default function EventRefundRequests() {
           <DialogHeader><DialogTitle>{t("refunds.detailTitle")}</DialogTitle></DialogHeader>
           {selected && (
             <div className="space-y-4 text-sm">
+              {(selected.attendeeFirstName || selected.attendeeLastName || selected.attendeeEmail) && (
+                <div>
+                  <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("refunds.colAttendee")}</p>
+                  {(selected.attendeeFirstName || selected.attendeeLastName) && (
+                    <p className="font-medium">{[selected.attendeeFirstName, selected.attendeeLastName].filter(Boolean).join(" ")}</p>
+                  )}
+                  {selected.attendeeEmail && (
+                    <p className="text-muted-foreground text-xs">{selected.attendeeEmail}</p>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("refunds.labelBracelet")}</p>

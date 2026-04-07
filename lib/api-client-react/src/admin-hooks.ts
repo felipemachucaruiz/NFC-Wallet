@@ -16,6 +16,9 @@ export interface AttendeeRefundRequest {
   processedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  attendeeFirstName?: string | null;
+  attendeeLastName?: string | null;
+  attendeeEmail?: string | null;
 }
 
 export function useListRefundRequests(eventId: string | null, status?: string) {

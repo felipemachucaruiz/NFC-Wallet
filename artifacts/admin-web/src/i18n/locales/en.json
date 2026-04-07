@@ -309,6 +309,7 @@
     "statusApproved": "Approved",
     "statusRejected": "Rejected",
     "colBracelet": "Bracelet UID",
+    "colAttendee": "Attendee",
     "colAmount": "Amount (COP)",
     "colMethod": "Refund Method",
     "colStatus": "Status",

@@ -223,13 +223,35 @@ router.get(
       conditions.push(eq(attendeeRefundRequestsTable.status, status as "pending" | "approved" | "rejected" | "disbursement_pending" | "disbursement_completed" | "disbursement_failed"));
     }
 
-    const requests = await db
-      .select()
+    const rows = await db
+      .select({
+        id: attendeeRefundRequestsTable.id,
+        attendeeUserId: attendeeRefundRequestsTable.attendeeUserId,
+        braceletUid: attendeeRefundRequestsTable.braceletUid,
+        eventId: attendeeRefundRequestsTable.eventId,
+        amountCop: attendeeRefundRequestsTable.amountCop,
+        refundMethod: attendeeRefundRequestsTable.refundMethod,
+        accountDetails: attendeeRefundRequestsTable.accountDetails,
+        notes: attendeeRefundRequestsTable.notes,
+        status: attendeeRefundRequestsTable.status,
+        chipZeroed: attendeeRefundRequestsTable.chipZeroed,
+        processedByUserId: attendeeRefundRequestsTable.processedByUserId,
+        processedAt: attendeeRefundRequestsTable.processedAt,
+        disbursementReference: attendeeRefundRequestsTable.disbursementReference,
+        disbursementWompiId: attendeeRefundRequestsTable.disbursementWompiId,
+        disbursementError: attendeeRefundRequestsTable.disbursementError,
+        createdAt: attendeeRefundRequestsTable.createdAt,
+        updatedAt: attendeeRefundRequestsTable.updatedAt,
+        attendeeFirstName: usersTable.firstName,
+        attendeeLastName: usersTable.lastName,
+        attendeeEmail: usersTable.email,
+      })
       .from(attendeeRefundRequestsTable)
+      .leftJoin(usersTable, eq(attendeeRefundRequestsTable.attendeeUserId, usersTable.id))
       .where(and(...conditions))
       .orderBy(desc(attendeeRefundRequestsTable.createdAt));
 
-    res.json({ refundRequests: requests });
+    res.json({ refundRequests: rows });
   },
 );
 

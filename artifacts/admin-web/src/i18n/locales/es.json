@@ -309,6 +309,7 @@
     "statusApproved": "Aprobado",
     "statusRejected": "Rechazado",
     "colBracelet": "UID Brazalete",
+    "colAttendee": "Asistente",
     "colAmount": "Monto (COP)",
     "colMethod": "Método de Reembolso",
     "colStatus": "Estado",
