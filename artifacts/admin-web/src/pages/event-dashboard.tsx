@@ -15,7 +15,8 @@ export default function EventDashboard() {
   const eventId = auth?.user?.eventId ?? "";
 
   const params = eventId ? { eventId } : {};
-  const { data: summary, isLoading: summaryLoading } = useGetAnalyticsSummary(params);
+  const { data: rawSummary, isLoading: summaryLoading } = useGetAnalyticsSummary(params);
+  const summary = rawSummary as (typeof rawSummary & { braceletCount?: number }) | undefined;
   const { data: hourlyData } = useGetAnalyticsSalesByHour(params);
   const { data: productsData } = useGetAnalyticsTopProducts(params);
   const { data: merchantsData } = useGetAnalyticsTopMerchants(params);
@@ -33,7 +34,7 @@ export default function EventDashboard() {
         <p className="text-muted-foreground mt-1">{t("eventDashboard.subtitle")}</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <Card data-testid="card-revenue" className={summaryLoading ? "opacity-60" : ""}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -77,8 +78,20 @@ export default function EventDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{fmt(summary?.pendingBalanceCop)}</p>
+            <p className="text-3xl font-bold">{fmt(summary?.braceletCount)}</p>
             <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.activeWristbands")}</p>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-pending-balance">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <DollarSign className="w-4 h-4" /> {t("eventDashboard.pendingBalance")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">${fmt(summary?.pendingBalanceCop)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.balanceOnWristbands")}</p>
           </CardContent>
         </Card>
       </div>
