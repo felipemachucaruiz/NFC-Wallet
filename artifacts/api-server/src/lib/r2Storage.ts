@@ -28,6 +28,7 @@ function getClient(): S3Client {
         accessKeyId: R2_ACCESS_KEY_ID!,
         secretAccessKey: R2_SECRET_ACCESS_KEY!,
       },
+      forcePathStyle: true,
     });
   }
   return s3Client;
@@ -39,6 +40,7 @@ export async function uploadToR2(
   contentType: string,
 ): Promise<string> {
   const client = getClient();
+  console.log(`[R2] Uploading to bucket="${R2_BUCKET_NAME}", key="${key}", endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"`);
   await client.send(
     new PutObjectCommand({
       Bucket: R2_BUCKET_NAME!,
@@ -47,6 +49,7 @@ export async function uploadToR2(
       ContentType: contentType,
     }),
   );
+  console.log(`[R2] Upload successful: ${key}`);
 
   if (R2_PUBLIC_URL) {
     return `${R2_PUBLIC_URL}/${key}`;
