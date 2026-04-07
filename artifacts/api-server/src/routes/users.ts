@@ -647,6 +647,15 @@ router.post(
       })
       .refine((d) => d.email || d.username, {
         message: "Debes proporcionar email o nombre de usuario",
+      })
+      .refine((d) => {
+        if (d.role === "merchant_admin" || d.role === "merchant_staff") {
+          return !!d.merchantId;
+        }
+        return true;
+      }, {
+        message: "merchantId es obligatorio para el rol merchant_admin o merchant_staff",
+        path: ["merchantId"],
       });
 
     const parsed = schema.safeParse(req.body);

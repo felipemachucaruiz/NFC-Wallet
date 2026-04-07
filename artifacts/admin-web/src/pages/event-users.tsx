@@ -10,6 +10,7 @@ import {
   useUnsuspendUser,
   useResetUserPassword,
   useGetCurrentAuthUser,
+  useListMerchants,
   getListUsersQueryKey,
 } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -45,9 +46,13 @@ export default function EventUsers() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<typeof users[0] | null>(null);
 
-  const [newUser, setNewUser] = useState({ firstName: "", lastName: "", username: "", password: "", role: "bank" });
+  const [newUser, setNewUser] = useState({ firstName: "", lastName: "", username: "", password: "", role: "bank", merchantId: "" });
   const [newRole, setNewRole] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  const { data: merchantsData } = useListMerchants();
+  const merchants = (merchantsData?.merchants ?? []).filter((m: { eventId?: string | null }) => m.eventId === eventId);
+  const needsMerchant = newUser.role === "merchant_admin" || newUser.role === "merchant_staff";
 
   const createAccount = useCreateAccount();
   const updateRole = useUpdateUserRole();
@@ -77,10 +82,11 @@ export default function EventUsers() {
 
   const handleCreate = () => {
     if (!eventId) return;
+    if (needsMerchant && !newUser.merchantId) return;
     createAccount.mutate(
-      { data: { ...newUser, eventId } },
+      { data: { firstName: newUser.firstName, lastName: newUser.lastName || undefined, username: newUser.username, password: newUser.password, role: newUser.role as "bank" | "gate" | "merchant_staff" | "merchant_admin" | "warehouse_admin" | "event_admin", eventId, ...(needsMerchant ? { merchantId: newUser.merchantId } : {}) } },
       {
-        onSuccess: () => { toast({ title: t("eventUsers.created") }); setCreateOpen(false); setNewUser({ firstName: "", lastName: "", username: "", password: "", role: "bank" }); invalidate(); },
+        onSuccess: () => { toast({ title: t("eventUsers.created") }); setCreateOpen(false); setNewUser({ firstName: "", lastName: "", username: "", password: "", role: "bank", merchantId: "" }); invalidate(); },
         onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
@@ -89,7 +95,7 @@ export default function EventUsers() {
   const handleRoleUpdate = () => {
     if (!selectedUser) return;
     updateRole.mutate(
-      { userId: selectedUser.id, data: { role: newRole } },
+      { userId: selectedUser.id, data: { role: newRole as "bank" | "gate" | "merchant_staff" | "merchant_admin" | "warehouse_admin" | "event_admin" } },
       {
         onSuccess: () => { toast({ title: t("eventUsers.roleUpdated") }); setRoleOpen(false); invalidate(); },
         onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
@@ -229,17 +235,28 @@ export default function EventUsers() {
             </div>
             <div className="space-y-1">
               <Label>{t("eventUsers.role")}</Label>
-              <Select value={newUser.role} onValueChange={(v) => setNewUser((u) => ({ ...u, role: v }))}>
+              <Select value={newUser.role} onValueChange={(v) => setNewUser((u) => ({ ...u, role: v, merchantId: "" }))}>
                 <SelectTrigger data-testid="select-staff-role"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {EVENT_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+            {needsMerchant && (
+              <div className="space-y-1">
+                <Label>{t("eventUsers.merchant")}</Label>
+                <Select value={newUser.merchantId} onValueChange={(v) => setNewUser((u) => ({ ...u, merchantId: v }))}>
+                  <SelectTrigger data-testid="select-merchant"><SelectValue placeholder={t("eventUsers.selectMerchant")} /></SelectTrigger>
+                  <SelectContent>
+                    {merchants.map((m: { id: string; name: string }) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
-            <Button data-testid="button-submit-create-user" onClick={handleCreate} disabled={createAccount.isPending || !newUser.firstName || !newUser.username || !newUser.password}>
+            <Button data-testid="button-submit-create-user" onClick={handleCreate} disabled={createAccount.isPending || !newUser.firstName || !newUser.username || !newUser.password || (needsMerchant && !newUser.merchantId)}>
               {createAccount.isPending ? t("eventUsers.creating") : t("common.create")}
             </Button>
           </DialogFooter>

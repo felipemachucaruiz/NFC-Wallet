@@ -425,7 +425,9 @@
     "deleted": "User deleted",
     "statusBlocked": "Blocked",
     "statusSuspended": "Suspended",
-    "statusActive": "Active"
+    "statusActive": "Active",
+    "merchant": "Merchant *",
+    "selectMerchant": "Select a merchant..."
   },
   "fraudAlerts": {
     "title": "Fraud Alerts",

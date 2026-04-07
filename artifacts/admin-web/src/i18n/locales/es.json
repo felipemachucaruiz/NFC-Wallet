@@ -425,7 +425,9 @@
     "deleted": "Usuario eliminado",
     "statusBlocked": "Bloqueado",
     "statusSuspended": "Suspendido",
-    "statusActive": "Activo"
+    "statusActive": "Activo",
+    "merchant": "Comercio *",
+    "selectMerchant": "Selecciona un comercio..."
   },
   "fraudAlerts": {
     "title": "Alertas de Fraude",
