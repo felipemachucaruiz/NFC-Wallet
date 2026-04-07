@@ -173,7 +173,8 @@ router.post(
         .returning();
       res.status(201).json(product);
     } catch (err: unknown) {
-      const pgErr = err as { code?: string; detail?: string };
+      const pgErr = err as { code?: string; detail?: string; message?: string; column?: string; table?: string };
+      console.error("[products] insert error:", JSON.stringify({ code: pgErr.code, detail: pgErr.detail, message: pgErr.message, column: pgErr.column, table: pgErr.table }));
       if (pgErr.code === "23503") {
         res.status(400).json({ error: "Invalid reference: merchant does not exist" });
         return;
@@ -182,7 +183,11 @@ router.post(
         res.status(409).json({ error: "A product with that barcode already exists" });
         return;
       }
-      throw err;
+      if (pgErr.code === "42703") {
+        res.status(500).json({ error: `Database column error: ${pgErr.message}` });
+        return;
+      }
+      res.status(500).json({ error: pgErr.message || "Failed to create product" });
     }
   },
 );
