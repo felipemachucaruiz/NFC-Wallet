@@ -738,6 +738,79 @@ router.get(
 );
 
 /**
+ * GET /events/:eventId/top-ups
+ * List top-ups for an event (joined through bracelets).
+ */
+router.get(
+  "/events/:eventId/top-ups",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const eventId = req.params.eventId as string;
+    const user = req.user!;
+
+    if (user.role === "event_admin") {
+      const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
+      const ownsSingleEvent = user.eventId === eventId;
+      if (!userCompanyId && !ownsSingleEvent) {
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
+      if (userCompanyId) {
+        const [eventForCompany] = await db
+          .select({ promoterCompanyId: eventsTable.promoterCompanyId })
+          .from(eventsTable)
+          .where(eq(eventsTable.id, eventId));
+        if (!eventForCompany || eventForCompany.promoterCompanyId !== userCompanyId) {
+          res.status(403).json({ error: "Access denied" });
+          return;
+        }
+      }
+    }
+
+    const page = Math.max(1, parseInt(req.query.page as string ?? "1", 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string ?? "50", 10) || 50));
+    const search = req.query.search as string | undefined;
+    const offset = (page - 1) * limit;
+
+    const conditions = [eq(braceletsTable.eventId, eventId)];
+    if (search) {
+      conditions.push(ilike(topUpsTable.braceletUid, `%${search}%`));
+    }
+
+    const whereClause = and(...conditions);
+
+    const [totalRow] = await db
+      .select({ total: count() })
+      .from(topUpsTable)
+      .innerJoin(braceletsTable, eq(topUpsTable.braceletUid, braceletsTable.nfcUid))
+      .where(whereClause);
+
+    const rows = await db
+      .select({
+        id: topUpsTable.id,
+        braceletUid: topUpsTable.braceletUid,
+        amountCop: topUpsTable.amountCop,
+        paymentMethod: topUpsTable.paymentMethod,
+        status: topUpsTable.status,
+        newBalanceCop: topUpsTable.newBalanceCop,
+        performedByUserId: topUpsTable.performedByUserId,
+        createdAt: topUpsTable.createdAt,
+        offlineCreatedAt: topUpsTable.offlineCreatedAt,
+        performedByName: usersTable.firstName,
+      })
+      .from(topUpsTable)
+      .innerJoin(braceletsTable, eq(topUpsTable.braceletUid, braceletsTable.nfcUid))
+      .leftJoin(usersTable, eq(topUpsTable.performedByUserId, usersTable.id))
+      .where(whereClause)
+      .orderBy(sql`${topUpsTable.createdAt} DESC`)
+      .limit(limit)
+      .offset(offset);
+
+    res.json({ topUps: rows, total: totalRow?.total ?? 0, page, limit });
+  }
+);
+
+/**
  * GET /events/:eventId/pending-refund-count
  * Returns the count of pending attendee refund requests for an event.
  * Used as a preflight check before closing an event.

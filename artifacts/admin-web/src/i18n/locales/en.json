@@ -239,7 +239,21 @@
     "labelCreated": "Created",
     "labelLineItems": "Line Items",
     "unknown": "Unknown",
-    "close": "Close"
+    "close": "Close",
+    "typeAll": "All",
+    "typeSale": "Sales",
+    "typeTopUp": "Top-ups",
+    "colType": "Type",
+    "colDetail": "Detail",
+    "colAmount": "Amount (COP)",
+    "topUpDetailTitle": "Top-up Detail",
+    "topUpNewBalance": "New Balance",
+    "topUpMethod": "Payment Method",
+    "topUpStatus": "Status",
+    "topUpPerformedBy": "Performed by",
+    "methodCash": "Cash",
+    "methodCard": "Card",
+    "methodOther": "Other"
   },
   "wristbands": {
     "title": "Wristbands",

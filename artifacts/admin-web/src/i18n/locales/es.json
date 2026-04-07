@@ -239,7 +239,21 @@
     "labelCreated": "Creado",
     "labelLineItems": "Artículos",
     "unknown": "Desconocido",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "typeAll": "Todos",
+    "typeSale": "Ventas",
+    "typeTopUp": "Recargas",
+    "colType": "Tipo",
+    "colDetail": "Detalle",
+    "colAmount": "Monto (COP)",
+    "topUpDetailTitle": "Detalle de Recarga",
+    "topUpNewBalance": "Nuevo Saldo",
+    "topUpMethod": "Método de Pago",
+    "topUpStatus": "Estado",
+    "topUpPerformedBy": "Realizado por",
+    "methodCash": "Efectivo",
+    "methodCard": "Tarjeta",
+    "methodOther": "Otro"
   },
   "wristbands": {
     "title": "Brazaletes",

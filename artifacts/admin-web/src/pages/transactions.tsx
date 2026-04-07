@@ -4,15 +4,19 @@ import {
   useListEventTransactions,
   useListMerchants,
   getListEventTransactionsQueryKey,
+  useListEventTopUps,
 } from "@workspace/api-client-react";
-import type { EventTransaction } from "@workspace/api-client-react";
+import type { EventTransaction, EventTopUp } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Eye, Receipt } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+type TxType = "sale" | "topup" | "all";
 
 export default function Transactions() {
   const { t } = useTranslation();
@@ -24,17 +28,89 @@ export default function Transactions() {
   const [eventId, setEventId] = useState("");
   const [page, setPage] = useState(1);
   const [searchParam, setSearchParam] = useState("");
+  const [txType, setTxType] = useState<TxType>("all");
+
   const txParams = { page, limit: 50, search: searchParam || undefined };
-  const { data, isLoading } = useListEventTransactions(eventId, txParams, { query: { enabled: !!eventId, queryKey: getListEventTransactionsQueryKey(eventId, txParams) } });
-  const transactions = data?.transactions ?? [];
+  const showSales = txType === "sale" || txType === "all";
+  const showTopUps = txType === "topup" || txType === "all";
+
+  const { data: salesData, isLoading: salesLoading } = useListEventTransactions(
+    eventId, txParams,
+    { query: { enabled: !!eventId && showSales, queryKey: getListEventTransactionsQueryKey(eventId, txParams) } }
+  );
+  const { data: topUpsData, isLoading: topUpsLoading } = useListEventTopUps(
+    eventId, txParams
+  );
+
+  const transactions = showSales ? (salesData?.transactions ?? []) : [];
+  const topUps = showTopUps ? (topUpsData?.topUps ?? []) : [];
+  const isLoading = (showSales && salesLoading) || (showTopUps && topUpsLoading);
 
   const [search, setSearch] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<EventTransaction | null>(null);
+  const [topUpDetailOpen, setTopUpDetailOpen] = useState(false);
+  const [selectedTopUp, setSelectedTopUp] = useState<EventTopUp | null>(null);
 
   const handleSearch = () => {
     setSearchParam(search);
     setPage(1);
+  };
+
+  type UnifiedRow = {
+    kind: "sale" | "topup";
+    id: string;
+    braceletUid: string;
+    amountCop: number;
+    createdAt: string;
+    sale?: EventTransaction;
+    topUp?: EventTopUp;
+  };
+
+  const unified: UnifiedRow[] = [];
+  if (txType === "sale" || txType === "all") {
+    for (const tx of transactions) {
+      unified.push({
+        kind: "sale",
+        id: tx.id,
+        braceletUid: tx.braceletUid,
+        amountCop: tx.grossAmountCop,
+        createdAt: tx.createdAt,
+        sale: tx,
+      });
+    }
+  }
+  if (txType === "topup" || txType === "all") {
+    for (const tu of topUps) {
+      unified.push({
+        kind: "topup",
+        id: tu.id,
+        braceletUid: tu.braceletUid,
+        amountCop: tu.amountCop,
+        createdAt: tu.createdAt,
+        topUp: tu,
+      });
+    }
+  }
+  unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const totalRecords = txType === "sale"
+    ? (salesData?.total ?? 0)
+    : txType === "topup"
+    ? (topUpsData?.total ?? 0)
+    : (salesData?.total ?? 0) + (topUpsData?.total ?? 0);
+
+  const paymentMethodLabel = (method: string) => {
+    const map: Record<string, string> = {
+      cash: t("transactions.methodCash"),
+      card_external: t("transactions.methodCard"),
+      nequi_transfer: "Nequi",
+      bancolombia_transfer: "Bancolombia",
+      nequi: "Nequi",
+      pse: "PSE",
+      other: t("transactions.methodOther"),
+    };
+    return map[method] ?? method;
   };
 
   return (
@@ -46,7 +122,7 @@ export default function Transactions() {
         <p className="text-muted-foreground mt-1">{t("transactions.subtitle")}</p>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <Select value={eventId || "none"} onValueChange={(v) => { setEventId(v === "none" ? "" : v); setPage(1); }}>
           <SelectTrigger className="w-56"><SelectValue placeholder={t("transactions.selectEventPlaceholder")} /></SelectTrigger>
           <SelectContent>
@@ -54,7 +130,19 @@ export default function Transactions() {
             {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <div className="relative flex-1">
+
+        <Select value={txType} onValueChange={(v) => { setTxType(v as TxType); setPage(1); }}>
+          <SelectTrigger className="w-40" data-testid="select-tx-type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("transactions.typeAll")}</SelectItem>
+            <SelectItem value="sale">{t("transactions.typeSale")}</SelectItem>
+            <SelectItem value="topup">{t("transactions.typeTopUp")}</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t("transactions.searchPlaceholder")}
@@ -71,47 +159,60 @@ export default function Transactions() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>{t("transactions.colType")}</TableHead>
               <TableHead>{t("transactions.colTime")}</TableHead>
               <TableHead>{t("transactions.colBracelet")}</TableHead>
-              <TableHead>{t("transactions.colLocation")}</TableHead>
-              <TableHead>{t("transactions.colMerchant")}</TableHead>
-              <TableHead className="text-right">{t("transactions.colGross")}</TableHead>
-              <TableHead className="text-right">{t("transactions.colNet")}</TableHead>
-              <TableHead>{t("transactions.colItems")}</TableHead>
+              <TableHead>{t("transactions.colDetail")}</TableHead>
+              <TableHead className="text-right">{t("transactions.colAmount")}</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {!eventId ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{t("transactions.selectEventPrompt")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("transactions.selectEventPrompt")}</TableCell></TableRow>
             ) : isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
-            ) : transactions.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">{t("transactions.noTransactions")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
+            ) : unified.length === 0 ? (
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("transactions.noTransactions")}</TableCell></TableRow>
             ) : (
-              transactions.map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{new Date(tx.createdAt).toLocaleString()}</TableCell>
-                  <TableCell className="font-mono text-xs">{tx.braceletUid}</TableCell>
-                  <TableCell className="text-sm">{tx.locationName ?? tx.locationId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-sm">{tx.merchantName ?? merchants.find((m) => m.id === tx.merchantId)?.name ?? tx.merchantId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-right font-mono">${tx.grossAmountCop.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-mono">${tx.netAmountCop.toLocaleString()}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{tx.itemCount}</TableCell>
+              unified.map((row) => (
+                <TableRow key={`${row.kind}-${row.id}`}>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => { setSelected(tx); setDetailOpen(true); }}><Eye className="w-4 h-4" /></Button>
+                    {row.kind === "sale" ? (
+                      <Badge variant="outline" className="text-xs">{t("transactions.typeSale")}</Badge>
+                    ) : (
+                      <Badge variant="default" className="text-xs bg-green-600">{t("transactions.typeTopUp")}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{new Date(row.createdAt).toLocaleString()}</TableCell>
+                  <TableCell className="font-mono text-xs">{row.braceletUid}</TableCell>
+                  <TableCell className="text-sm">
+                    {row.kind === "sale" && row.sale ? (
+                      <span>{row.sale.merchantName ?? merchants.find((m) => m.id === row.sale!.merchantId)?.name ?? "—"} · {row.sale.locationName ?? "—"}</span>
+                    ) : row.topUp ? (
+                      <span>{paymentMethodLabel(row.topUp.paymentMethod)}{row.topUp.performedByName ? ` · ${row.topUp.performedByName}` : ""}</span>
+                    ) : "—"}
+                  </TableCell>
+                  <TableCell className={`text-right font-mono ${row.kind === "topup" ? "text-green-500" : ""}`}>
+                    {row.kind === "topup" ? "+" : "-"}${row.amountCop.toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      if (row.kind === "sale" && row.sale) { setSelected(row.sale); setDetailOpen(true); }
+                      else if (row.kind === "topup" && row.topUp) { setSelectedTopUp(row.topUp); setTopUpDetailOpen(true); }
+                    }}><Eye className="w-4 h-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
-        {data && eventId && (
+        {eventId && (
           <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border flex justify-between items-center">
-            <span>{t("transactions.pageInfo", { page: data.page, showing: transactions.length, total: data.total })}</span>
+            <span>{t("transactions.pageInfo", { page, showing: unified.length, total: totalRecords })}</span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("common.prev")}</Button>
-              <Button variant="outline" size="sm" disabled={transactions.length < 50} onClick={() => setPage((p) => p + 1)}>{t("common.next")}</Button>
+              <Button variant="outline" size="sm" disabled={unified.length < 50} onClick={() => setPage((p) => p + 1)}>{t("common.next")}</Button>
             </div>
           </div>
         )}
@@ -151,6 +252,39 @@ export default function Transactions() {
             </div>
           )}
           <DialogFooter><Button onClick={() => setDetailOpen(false)}>{t("transactions.close")}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={topUpDetailOpen} onOpenChange={setTopUpDetailOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("transactions.topUpDetailTitle")}</DialogTitle></DialogHeader>
+          {selectedTopUp && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">ID</p><p className="font-mono text-xs break-all">{selectedTopUp.id}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelBracelet")}</p><p className="font-mono">{selectedTopUp.braceletUid}</p></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.colAmount")}</p><p className="font-mono font-bold text-green-500">+${selectedTopUp.amountCop.toLocaleString()} COP</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.topUpNewBalance")}</p><p className="font-mono">${selectedTopUp.newBalanceCop.toLocaleString()} COP</p></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.topUpMethod")}</p><p>{paymentMethodLabel(selectedTopUp.paymentMethod)}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.topUpStatus")}</p>
+                  <Badge variant={selectedTopUp.status === "completed" ? "default" : selectedTopUp.status === "failed" ? "destructive" : "outline"} className="text-xs">
+                    {selectedTopUp.status}
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {selectedTopUp.performedByName && (
+                  <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.topUpPerformedBy")}</p><p>{selectedTopUp.performedByName}</p></div>
+                )}
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelCreated")}</p><p>{new Date(selectedTopUp.createdAt).toLocaleString()}</p></div>
+              </div>
+            </div>
+          )}
+          <DialogFooter><Button onClick={() => setTopUpDetailOpen(false)}>{t("transactions.close")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

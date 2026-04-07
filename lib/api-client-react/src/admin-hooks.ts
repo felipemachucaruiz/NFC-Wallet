@@ -100,6 +100,36 @@ export function useGetSettlementReport(eventId: string | null) {
   });
 }
 
+export interface EventTopUp {
+  id: string;
+  braceletUid: string;
+  amountCop: number;
+  paymentMethod: string;
+  status: string;
+  newBalanceCop: number;
+  performedByUserId: string;
+  createdAt: string;
+  offlineCreatedAt: string | null;
+  performedByName: string | null;
+}
+
+export function useListEventTopUps(eventId: string, params?: { page?: number; limit?: number; search?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.search) qs.set("search", params.search);
+  const suffix = qs.toString() ? `?${qs}` : "";
+  return useQuery({
+    queryKey: ["event-top-ups", eventId, params],
+    queryFn: async () => {
+      return customFetch<{ topUps: EventTopUp[]; total: number; page: number; limit: number }>(
+        `/api/events/${eventId}/top-ups${suffix}`
+      );
+    },
+    enabled: !!eventId,
+  });
+}
+
 export function useFlagBracelet() {
   return useMutation({
     mutationFn: async ({ nfcUid, reason }: { nfcUid: string; reason?: string }) => {
