@@ -59,7 +59,7 @@ module.exports = {
       ],
       "expo-font",
       "expo-web-browser",
-      "react-native-nfc-manager",
+      ["react-native-nfc-manager", { includeNdefEntitlement: false }],
       "expo-updates",
       [
         "expo-notifications",
