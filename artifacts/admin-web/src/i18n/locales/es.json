@@ -254,6 +254,10 @@
     "colActions": "Acciones",
     "noEvent": "Sin evento asignado a tu cuenta.",
     "noWristbands": "No se encontraron brazaletes.",
+    "noBracelets": "No se encontraron brazaletes.",
+    "adminSubtitle": "Ver y gestionar brazaletes de todos los eventos.",
+    "colOwner": "Propietario",
+    "unflag": "Desmarcar",
     "showingOf": "Mostrando {{showing}} de {{total}} brazaletes",
     "unnamed": "sin nombre",
     "deleteTitle": "Eliminar Brazalete",
@@ -692,5 +696,30 @@
   "notFound": {
     "title": "404 Página No Encontrada",
     "desc": "¿Olvidaste agregar la página al router?"
+  },
+  "eventsMap": {
+    "title": "Mapa de Eventos",
+    "subtitle": "Todos los eventos ubicados por dirección del venue",
+    "refresh": "Actualizar",
+    "totalEvents": "Total eventos",
+    "pinnedOnMap": "Ubicados en mapa",
+    "missingAddress": "Sin dirección",
+    "loadingEvents": "Cargando eventos…",
+    "loadingMap": "Cargando mapa…",
+    "activeEvent": "Evento activo",
+    "inactiveEvent": "Evento inactivo",
+    "geocoding": "Geocodificando direcciones…",
+    "eventsWithoutAddress": "{{count}} evento(s) sin dirección de venue",
+    "selectAnEvent": "Selecciona un evento",
+    "chooseEvent": "Elige un evento arriba para ver sus brazaletes registrados."
+  },
+  "locationPicker": {
+    "title": "Establecer Ubicación del Evento",
+    "searchPlaceholder": "Buscar una dirección o ciudad…",
+    "searchHint": "Busca arriba o haz clic en cualquier lugar del mapa para colocar el pin.",
+    "loadingMap": "Cargando mapa…",
+    "useThisLocation": "Usar esta ubicación",
+    "addressPlaceholder": "Dirección o buscar en mapa…",
+    "pickOnMap": "Seleccionar en mapa"
   }
 }

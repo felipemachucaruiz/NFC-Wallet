@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MapPin, Loader2 } from "lucide-react";
 import { GOOGLE_MAPS_API_KEY, DEFAULT_CENTER } from "@/lib/maps";
+import { useTranslation } from "react-i18next";
 
 // Uses Places API (New) REST endpoints — compatible with API keys created after March 2025.
 // The old google.maps.places.Autocomplete class is not available to new customers.
@@ -85,6 +86,7 @@ type Props = {
 };
 
 export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: Props) {
+  const { t } = useTranslation();
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: MAP_LIBRARIES,
@@ -198,21 +200,21 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
         <DialogHeader className="px-5 pt-5 pb-3">
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-primary" />
-            Set Event Location
+            {t("locationPicker.title")}
           </DialogTitle>
         </DialogHeader>
 
         {!isLoaded ? (
           <div className="h-96 flex items-center justify-center text-muted-foreground text-sm gap-2">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Loading map…
+            {t("locationPicker.loadingMap")}
           </div>
         ) : (
           <>
             <div className="px-5 pb-3" ref={dropdownRef}>
               <div className="relative">
                 <Input
-                  placeholder="Search for an address or city…"
+                  placeholder={t("locationPicker.searchPlaceholder")}
                   value={searchValue}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
@@ -241,7 +243,7 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                Search above or click anywhere on the map to set the pin.
+                {t("locationPicker.searchHint")}
               </p>
             </div>
 
@@ -271,10 +273,10 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
         )}
 
         <DialogFooter className="px-5 py-4 border-t">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
           <Button onClick={handleConfirm} disabled={!address} className="gap-2">
             <MapPin className="w-4 h-4" />
-            Use this location
+            {t("locationPicker.useThisLocation")}
           </Button>
         </DialogFooter>
       </DialogContent>

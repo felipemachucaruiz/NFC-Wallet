@@ -88,7 +88,7 @@ export default function Bracelets() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t("wristbands.title")}</h1>
         <p className="text-muted-foreground mt-1">
-          {t("wristbands.adminSubtitle", "View and manage wristbands across all events.")}
+          {t("wristbands.adminSubtitle")}
         </p>
       </div>
 
@@ -102,7 +102,7 @@ export default function Bracelets() {
           }}
         >
           <SelectTrigger className="w-64" data-testid="select-event-filter">
-            <SelectValue placeholder={eventsLoading ? t("common.loading") : "Select an event…"} />
+            <SelectValue placeholder={eventsLoading ? t("common.loading") : t("eventsMap.selectAnEvent")} />
           </SelectTrigger>
           <SelectContent>
             {events.map((event) => (
@@ -151,9 +151,9 @@ export default function Bracelets() {
         <div className="border border-border rounded-lg bg-card flex flex-col items-center justify-center py-20 text-center gap-3">
           <Ticket className="w-10 h-10 text-muted-foreground/40" />
           <div>
-            <p className="font-medium text-foreground">Select an event</p>
+            <p className="font-medium text-foreground">{t("eventsMap.selectAnEvent")}</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Choose an event above to view its registered wristbands.
+              {t("eventsMap.chooseEvent")}
             </p>
           </div>
         </div>
@@ -192,7 +192,7 @@ export default function Bracelets() {
               ) : filteredBracelets.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    {t("wristbands.noBracelets", "No wristbands found.")}
+                    {t("wristbands.noBracelets")}
                   </TableCell>
                 </TableRow>
               ) : (

@@ -254,6 +254,10 @@
     "colActions": "Actions",
     "noEvent": "No event assigned to your account.",
     "noWristbands": "No wristbands found.",
+    "noBracelets": "No wristbands found.",
+    "adminSubtitle": "View and manage wristbands across all events.",
+    "colOwner": "Owner",
+    "unflag": "Unflag",
     "showingOf": "Showing {{showing}} of {{total}} wristbands",
     "unnamed": "unnamed",
     "deleteTitle": "Delete Wristband",
@@ -692,5 +696,30 @@
   "notFound": {
     "title": "404 Page Not Found",
     "desc": "Did you forget to add the page to the router?"
+  },
+  "eventsMap": {
+    "title": "Events Map",
+    "subtitle": "All events plotted by venue location",
+    "refresh": "Refresh",
+    "totalEvents": "Total events",
+    "pinnedOnMap": "Pinned on map",
+    "missingAddress": "Missing address",
+    "loadingEvents": "Loading events…",
+    "loadingMap": "Loading map…",
+    "activeEvent": "Active event",
+    "inactiveEvent": "Inactive event",
+    "geocoding": "Geocoding addresses…",
+    "eventsWithoutAddress": "{{count}} event(s) without a venue address",
+    "selectAnEvent": "Select an event",
+    "chooseEvent": "Choose an event above to view its registered wristbands."
+  },
+  "locationPicker": {
+    "title": "Set Event Location",
+    "searchPlaceholder": "Search for an address or city…",
+    "searchHint": "Search above or click anywhere on the map to set the pin.",
+    "loadingMap": "Loading map…",
+    "useThisLocation": "Use this location",
+    "addressPlaceholder": "Address or search on map…",
+    "pickOnMap": "Pick on map"
   }
 }

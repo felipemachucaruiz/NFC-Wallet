@@ -7,10 +7,12 @@ import { MapPin, Calendar, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER } from "@/lib/maps";
 import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
 
 type GeocodedEvent = Event & { lat: number; lng: number };
 
 export default function EventsMap() {
+  const { t } = useTranslation();
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: MAPS_LIBRARIES,
@@ -61,9 +63,9 @@ export default function EventsMap() {
     <div className="space-y-5">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Events Map</h1>
+          <h1 className="text-2xl font-bold">{t("eventsMap.title")}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            All events plotted by venue location
+            {t("eventsMap.subtitle")}
           </p>
         </div>
         <Button
@@ -78,28 +80,28 @@ export default function EventsMap() {
           disabled={geocoding || isLoading}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${geocoding ? "animate-spin" : ""}`} />
-          Refresh
+          {t("eventsMap.refresh")}
         </Button>
       </div>
 
       <div className="grid grid-cols-3 gap-3 text-sm">
         <div className="rounded-lg border bg-card p-3">
           <div className="text-2xl font-bold text-primary">{events.length}</div>
-          <div className="text-muted-foreground text-xs mt-0.5">Total events</div>
+          <div className="text-muted-foreground text-xs mt-0.5">{t("eventsMap.totalEvents")}</div>
         </div>
         <div className="rounded-lg border bg-card p-3">
           <div className="text-2xl font-bold">{geocoded.length}</div>
-          <div className="text-muted-foreground text-xs mt-0.5">Pinned on map</div>
+          <div className="text-muted-foreground text-xs mt-0.5">{t("eventsMap.pinnedOnMap")}</div>
         </div>
         <div className="rounded-lg border bg-card p-3">
           <div className="text-2xl font-bold text-yellow-500">{withoutAddress.length}</div>
-          <div className="text-muted-foreground text-xs mt-0.5">Missing address</div>
+          <div className="text-muted-foreground text-xs mt-0.5">{t("eventsMap.missingAddress")}</div>
         </div>
       </div>
 
       {!isLoaded || isLoading ? (
         <div className="h-[560px] rounded-lg border bg-card flex items-center justify-center text-muted-foreground text-sm">
-          {isLoading ? "Loading events…" : "Loading map…"}
+          {isLoading ? t("eventsMap.loadingEvents") : t("eventsMap.loadingMap")}
         </div>
       ) : (
         <div className="rounded-lg border overflow-hidden shadow-sm">
@@ -196,7 +198,7 @@ export default function EventsMap() {
                         color: selected.active ? "#0e7490" : "#6b7280",
                       }}
                     >
-                      {selected.active ? "Active" : "Inactive"}
+                      {selected.active ? t("common.active") : t("common.inactive")}
                     </span>
                   </div>
                 </div>
@@ -209,20 +211,20 @@ export default function EventsMap() {
       <div className="flex items-center gap-5 text-xs text-muted-foreground">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-cyan-400 border-2 border-cyan-600" />
-          Active event
+          {t("eventsMap.activeEvent")}
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-gray-500 border-2 border-gray-600" />
-          Inactive event
+          {t("eventsMap.inactiveEvent")}
         </div>
-        {geocoding && <span className="text-primary animate-pulse">Geocoding addresses…</span>}
+        {geocoding && <span className="text-primary animate-pulse">{t("eventsMap.geocoding")}</span>}
       </div>
 
       {withoutAddress.length > 0 && (
         <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4">
           <div className="flex items-center gap-2 text-yellow-600 text-sm font-medium mb-2">
             <MapPin className="w-4 h-4" />
-            {withoutAddress.length} event{withoutAddress.length > 1 ? "s" : ""} without a venue address
+            {t("eventsMap.eventsWithoutAddress", { count: withoutAddress.length })}
           </div>
           <div className="flex flex-wrap gap-2">
             {withoutAddress.map((e) => (

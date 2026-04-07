@@ -119,14 +119,14 @@ export default function Events() {
             value={form.venueAddress}
             onChange={(e) => setForm((f) => ({ ...f, venueAddress: e.target.value }))}
             className="flex-1"
-            placeholder="Address or search on map…"
+            placeholder={t("locationPicker.addressPlaceholder")}
           />
           <Button
             type="button"
             variant="outline"
             size="icon"
             className="shrink-0"
-            title="Pick on map"
+            title={t("locationPicker.pickOnMap")}
             onClick={() => setMapPickerOpen(true)}
           >
             <MapPin className="w-4 h-4 text-primary" />
