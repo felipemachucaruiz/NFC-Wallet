@@ -6,7 +6,7 @@ import { db, productsTable, merchantsTable } from "@workspace/db";
 import { eq, inArray, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { assertProductAccess, isMerchantScoped } from "../lib/ownershipGuards";
-import { uploadToR2, isR2Configured } from "../lib/r2Storage";
+import { uploadObject, isBucketConfigured } from "../lib/objectStorage";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -400,13 +400,13 @@ router.post(
     try {
       let imageUrl: string;
 
-      if (isR2Configured()) {
+      if (isBucketConfigured()) {
         const key = `product-images/${randomUUID()}`;
-        imageUrl = await uploadToR2(key, req.file.buffer, req.file.mimetype);
+        imageUrl = await uploadObject(key, req.file.buffer, req.file.mimetype);
       } else {
         const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
         if (!bucketId) {
-          res.status(500).json({ error: "No image storage configured (set R2 or Replit Object Storage)" });
+          res.status(500).json({ error: "No image storage configured (set AWS_ENDPOINT_URL or Replit Object Storage)" });
           return;
         }
         const objectName = `product-images/${randomUUID()}`;

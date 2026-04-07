@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Storage } from "@google-cloud/storage";
+import { getObject, isBucketConfigured } from "../lib/objectStorage";
 
 const router: IRouter = Router();
 
@@ -37,6 +38,22 @@ router.get("/storage/objects/*objectPath", async (req: Request, res: Response) =
     return;
   }
 
+  if (isBucketConfigured()) {
+    try {
+      const result = await getObject(objectName);
+      if (!result) {
+        res.status(404).json({ error: "Object not found" });
+        return;
+      }
+      res.setHeader("Content-Type", result.contentType);
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      (result.body as NodeJS.ReadableStream).pipe(res);
+    } catch {
+      res.status(404).json({ error: "Object not found" });
+    }
+    return;
+  }
+
   const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
   if (!bucketId) {
     res.status(500).json({ error: "Object storage not configured" });
@@ -54,7 +71,7 @@ router.get("/storage/objects/*objectPath", async (req: Request, res: Response) =
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
 
     file.createReadStream().pipe(res);
-  } catch (err) {
+  } catch {
     res.status(404).json({ error: "Object not found" });
   }
 });
