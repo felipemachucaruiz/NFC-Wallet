@@ -23,7 +23,7 @@ import { Card } from "@/components/ui/Card";
 import { useSubmitRefundRequest } from "@/hooks/useAttendeeApi";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 
-type RefundMethod = "nequi" | "bank_transfer" | "other";
+type RefundMethod = "nequi" | "bank_transfer";
 
 const REFUND_METHODS: {
   value: RefundMethod;
@@ -33,7 +33,6 @@ const REFUND_METHODS: {
 }[] = [
   { value: "nequi", icon: "smartphone", labelKey: "refund.methodNequi", needsAccount: true },
   { value: "bank_transfer", icon: "credit-card", labelKey: "refund.methodBankTransfer", needsAccount: true },
-  { value: "other", icon: "more-horizontal", labelKey: "refund.methodOther", needsAccount: false },
 ];
 
 const COLOMBIAN_BANKS = [
