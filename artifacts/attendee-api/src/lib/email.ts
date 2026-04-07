@@ -160,23 +160,23 @@ export function buildResetPasswordPage(token: string, appUrl: string): string {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Restablecer Contraseña - Tapee</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #0a0a0a; color: #e6edf3; margin: 0; padding: 0; }
-  .container { max-width: 480px; margin: 40px auto; background: #111111; border-radius: 12px; overflow: hidden; border: 1px solid #222; }
+  body { font-family: Arial, sans-serif; background: #f4f4f5; color: #1a1a1a; margin: 0; padding: 0; }
+  .container { max-width: 480px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e4e4e7; }
   .header { background: linear-gradient(135deg, #0a0a0a, #111827); padding: 32px 32px 24px; text-align: center; }
   .header h1 { color: #00f1ff; font-size: 28px; margin: 0 0 8px; }
   .header p { color: #8b949e; margin: 0; font-size: 14px; }
   .body { padding: 32px; }
-  .body h2 { color: #e6edf3; font-size: 20px; margin: 0 0 16px; }
-  .body label { color: #8b949e; display: block; margin-bottom: 8px; font-size: 14px; }
-  .body input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #e6edf3; font-size: 16px; box-sizing: border-box; margin-bottom: 16px; }
+  .body h2 { color: #1a1a1a; font-size: 20px; margin: 0 0 16px; }
+  .body label { color: #52525b; display: block; margin-bottom: 8px; font-size: 14px; }
+  .body input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d4d4d8; background: #ffffff; color: #1a1a1a; font-size: 16px; box-sizing: border-box; margin-bottom: 16px; }
   .body input:focus { outline: none; border-color: #00f1ff; }
-  .body button { width: 100%; background: #00f1ff; color: #0a0a0a; font-weight: bold; font-size: 16px; padding: 14px; border-radius: 8px; border: none; cursor: pointer; }
+  .body button { width: 100%; background-color: #00f1ff; color: #000000; font-weight: bold; font-size: 16px; padding: 14px; border-radius: 8px; border: none; cursor: pointer; }
   .body button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .footer { padding: 16px 32px; background: #0a0a0a; text-align: center; border-top: 1px solid #222; }
-  .footer p { color: #484f58; font-size: 12px; margin: 0; }
+  .footer { padding: 16px 32px; background: #f4f4f5; text-align: center; border-top: 1px solid #e4e4e7; }
+  .footer p { color: #71717a; font-size: 12px; margin: 0; }
   .msg { padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
-  .msg-error { background: #3d1f1f; color: #f87171; border: 1px solid #7f1d1d; }
-  .msg-success { background: #1a3d1f; color: #4ade80; border: 1px solid #166534; }
+  .msg-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  .msg-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
 </style>
 </head>
 <body>
