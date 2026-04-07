@@ -115,17 +115,38 @@ const KeyboardProvider: React.ComponentType<{ children: React.ReactNode }> = (()
 
 ## Currently protected (both apps)
 
+### Staff app (`artifacts/mobile`)
 | Module | Pattern | File |
 |--------|---------|------|
 | `expo-localization` | dynamic `import()` in try-catch | `i18n/index.ts` |
 | `react-native-nfc-manager` | try-require at module level | `utils/nfc.ts` |
 | `react-native-keyboard-controller` | IIFE try-require + fallback | `app/_layout.tsx` |
+| `expo-video` | module-level try-require + helper component | `app/login.tsx` |
+| `expo-image` | replaced with `react-native` Image (`resizeMode`) | `(merchant-admin)/products.tsx`, `(merchant-pos)/index.tsx` |
+| `expo-location` | module-level try-require; null-guard in handler | `components/LocationMapPicker.tsx` |
+| `react-native-maps` | module-level try-require + fallback UI | `components/LocationMapPicker.tsx` |
+| `react-native-google-places-autocomplete` | module-level try-require + fallback UI | `components/LocationMapPicker.tsx` |
+
+### Attendee app (`artifacts/attendee-app`)
+| Module | Pattern | File |
+|--------|---------|------|
+| `expo-localization` | dynamic `import()` in try-catch | `i18n/index.ts` |
+| `react-native-keyboard-controller` | IIFE try-require + fallback | `app/_layout.tsx` |
+| `expo-video` | module-level try-require + helper component | `app/login.tsx` |
+| `expo-symbols` | module-level try-require + null render guard | `app/(tabs)/_layout.tsx` |
+
+### Critical import-ordering rule
+All static `import` statements MUST appear at the very top of the file — before any `let`, `const`, `try/catch`, or function definitions. Dynamic requires (`let x = null; try { x = require("pkg") } catch {}`) belong AFTER all static imports. Mixing order is invalid ES module syntax and can leave `React`/`StyleSheet` undefined at runtime under Hermes.
 
 ## Modules NOT in app.json plugins (require special care on OTA)
 
 These were NOT listed in either app's `app.json` plugins at the time of last known native build. Treat any changes to files that import these as high-risk for OTA:
 - `expo-localization` — now safe (dynamic import)
 - `react-native-keyboard-controller` — now safe (try-require)
+- `expo-video` — now safe (module-level try-require; import ordering corrected)
+- `expo-symbols` — now safe (attendee app only; dynamic require)
+- `expo-image` — now safe (replaced with react-native Image in all usages)
+- `expo-location` — now safe (module-level try-require + null guard)
 - `expo-secure-store` — in AuthContext (monitor; core Expo SDK, likely safe)
 - `expo-notifications` — in usePushNotifications (monitor)
 
