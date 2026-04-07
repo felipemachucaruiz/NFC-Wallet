@@ -303,7 +303,16 @@ async function processTransaction(
   const tipAmountCop = input.tipAmountCop ?? 0;
   // Total amount actually deducted from the bracelet (items + tip combined)
   const chargedAmountCop = grossAmountCop + tipAmountCop;
-  const commissionRate = parseFloat(merchant.commissionRatePercent ?? "0");
+  let commissionRate = parseFloat(merchant.commissionRatePercent ?? "0");
+  if (commissionRate === 0 && merchant.eventId) {
+    const [ev] = await db
+      .select({ platformCommissionRate: eventsTable.platformCommissionRate })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, merchant.eventId));
+    if (ev) {
+      commissionRate = parseFloat(ev.platformCommissionRate as unknown as string) || 0;
+    }
+  }
   const commissionAmountCop = Math.round(grossAmountCop * commissionRate / 100);
   // Merchant receives net items amount plus the full tip (tip is not subject to commission)
   const netAmountCop = grossAmountCop - commissionAmountCop + tipAmountCop;
