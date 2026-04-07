@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 
 type GeocodedEvent = Event & { lat: number; lng: number };
 
-type RawEvent = Event & { latitude?: string | null; longitude?: string | null };
+type RawEvent = Event & { latitude?: string | null; longitude?: string | null; capacity?: number | null; promoterCompanyName?: string | null };
 
 export default function EventsMap() {
   const { t } = useTranslation();
@@ -203,6 +203,32 @@ export default function EventsMap() {
                       <span style={{ fontSize: 11, color: "#6b7280" }}>
                         {format(new Date(selected.startsAt), "MMM d, yyyy")}
                         {selected.endsAt && ` – ${format(new Date(selected.endsAt), "MMM d, yyyy")}`}
+                      </span>
+                    </div>
+                  )}
+
+                  {selected.capacity != null && selected.capacity > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                      <span style={{ fontSize: 11, color: "#6b7280" }}>
+                        {t("eventsMap.capacity")}: {selected.capacity.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {selected.promoterCompanyName && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
+                      <span style={{ fontSize: 11, color: "#6b7280" }}>
+                        {selected.promoterCompanyName}
                       </span>
                     </div>
                   )}

@@ -715,6 +715,7 @@
     "inactiveEvent": "Evento inactivo",
     "geocoding": "Geocodificando direcciones…",
     "eventsWithoutAddress": "{{count}} evento(s) sin dirección de venue",
+    "capacity": "Aforo",
     "selectAnEvent": "Selecciona un evento",
     "chooseEvent": "Elige un evento arriba para ver sus brazaletes registrados."
   },

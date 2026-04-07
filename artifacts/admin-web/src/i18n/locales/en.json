@@ -715,6 +715,7 @@
     "inactiveEvent": "Inactive event",
     "geocoding": "Geocoding addresses…",
     "eventsWithoutAddress": "{{count}} event(s) without a venue address",
+    "capacity": "Capacity",
     "selectAnEvent": "Select an event",
     "chooseEvent": "Choose an event above to view its registered wristbands."
   },
