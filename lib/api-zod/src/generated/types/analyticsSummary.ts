@@ -12,4 +12,5 @@ export interface AnalyticsSummary {
   pendingBalanceCop: number;
   transactionCount: number;
   topUpCount: number;
+  braceletCount: number;
 }

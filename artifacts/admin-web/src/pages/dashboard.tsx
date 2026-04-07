@@ -9,7 +9,7 @@ import type { Event } from "@workspace/api-client-react";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ShieldAlert, DollarSign, Building, TrendingUp, MapPin } from "lucide-react";
+import { Calendar, ShieldAlert, DollarSign, Building, TrendingUp, MapPin, Nfc } from "lucide-react";
 import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER } from "@/lib/maps";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -98,7 +98,7 @@ export default function Dashboard() {
         <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <Card data-testid="card-events">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -120,6 +120,18 @@ export default function Dashboard() {
           <CardContent>
             <p className="text-3xl font-bold">{companies.length}</p>
             <p className="text-xs text-muted-foreground mt-1">{t("dashboard.companiesRegistered")}</p>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-bracelets" className={summaryLoading ? "opacity-60" : ""}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Nfc className="w-4 h-4" /> {t("dashboard.bracelets")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{fmt(summary?.braceletCount)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.braceletsRegistered")}</p>
           </CardContent>
         </Card>
 
