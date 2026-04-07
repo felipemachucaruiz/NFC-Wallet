@@ -7,65 +7,10 @@ import { MapPin, Loader2 } from "lucide-react";
 import { GOOGLE_MAPS_API_KEY, DEFAULT_CENTER } from "@/lib/maps";
 import { useTranslation } from "react-i18next";
 
-const PLACES_BASE = "https://places.googleapis.com/v1";
-
 type PlaceSuggestion = {
   placeId: string;
   text: string;
 };
-
-async function fetchSuggestions(input: string): Promise<PlaceSuggestion[]> {
-  if (input.trim().length < 2) return [];
-  try {
-    const res = await fetch(`${PLACES_BASE}/places:autocomplete`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
-        "X-Goog-FieldMask": "suggestions.placePrediction.text,suggestions.placePrediction.placeId",
-      },
-      body: JSON.stringify({
-        input,
-        locationBias: {
-          circle: {
-            center: { latitude: DEFAULT_CENTER.lat, longitude: DEFAULT_CENTER.lng },
-            radius: 50000,
-          },
-        },
-      }),
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data.suggestions ?? [])
-      .filter((s: any) => s.placePrediction)
-      .map((s: any) => ({
-        placeId: s.placePrediction.placeId,
-        text: s.placePrediction.text?.text ?? "",
-      }));
-  } catch {
-    return [];
-  }
-}
-
-async function fetchPlaceDetails(placeId: string): Promise<{ address: string; lat: number; lng: number } | null> {
-  try {
-    const res = await fetch(`${PLACES_BASE}/places/${placeId}`, {
-      headers: {
-        "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
-        "X-Goog-FieldMask": "formattedAddress,location",
-      },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return {
-      address: data.formattedAddress ?? "",
-      lat: data.location?.latitude ?? 0,
-      lng: data.location?.longitude ?? 0,
-    };
-  } catch {
-    return null;
-  }
-}
 
 const MAP_LIBRARIES: ("places")[] = ["places"];
 
@@ -101,6 +46,8 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
 
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -128,6 +75,8 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
     geocoderRef.current = new window.google.maps.Geocoder();
+    autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
+    placesServiceRef.current = new window.google.maps.places.PlacesService(map);
 
     if (initialAddress) {
       geocoderRef.current.geocode({ address: initialAddress }, (results, status) => {
@@ -164,28 +113,62 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
       return;
     }
     setSearching(true);
-    debounceRef.current = setTimeout(async () => {
-      const results = await fetchSuggestions(value);
-      setSuggestions(results);
-      setShowDropdown(results.length > 0);
-      setSearching(false);
+    debounceRef.current = setTimeout(() => {
+      if (!autocompleteServiceRef.current) {
+        setSearching(false);
+        return;
+      }
+      autocompleteServiceRef.current.getPlacePredictions(
+        {
+          input: value,
+          locationBias: new google.maps.Circle({
+            center: DEFAULT_CENTER,
+            radius: 50000,
+          }),
+        },
+        (predictions, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+            const results: PlaceSuggestion[] = predictions.map((p) => ({
+              placeId: p.place_id,
+              text: p.description,
+            }));
+            setSuggestions(results);
+            setShowDropdown(results.length > 0);
+          } else {
+            setSuggestions([]);
+            setShowDropdown(false);
+          }
+          setSearching(false);
+        },
+      );
     }, 350);
   };
 
-  const handleSelectSuggestion = async (suggestion: PlaceSuggestion) => {
+  const handleSelectSuggestion = (suggestion: PlaceSuggestion) => {
     setShowDropdown(false);
     setSuggestions([]);
     setSearchValue(suggestion.text);
     setSelectingPlace(true);
-    const details = await fetchPlaceDetails(suggestion.placeId);
-    setSelectingPlace(false);
-    if (!details) return;
-    const pos = { lat: details.lat, lng: details.lng };
-    setMarker(pos);
-    setAddress(details.address);
-    setSearchValue(details.address);
-    mapRef.current?.panTo(pos);
-    mapRef.current?.setZoom(15);
+
+    if (!placesServiceRef.current) {
+      setSelectingPlace(false);
+      return;
+    }
+
+    placesServiceRef.current.getDetails(
+      { placeId: suggestion.placeId, fields: ["formatted_address", "geometry"] },
+      (place, status) => {
+        setSelectingPlace(false);
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !place?.geometry?.location) return;
+        const pos = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
+        const addr = place.formatted_address ?? suggestion.text;
+        setMarker(pos);
+        setAddress(addr);
+        setSearchValue(addr);
+        mapRef.current?.panTo(pos);
+        mapRef.current?.setZoom(15);
+      },
+    );
   };
 
   const handleConfirm = () => {
