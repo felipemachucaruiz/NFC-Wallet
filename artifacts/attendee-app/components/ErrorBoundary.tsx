@@ -1,6 +1,5 @@
 import React, { Component, ReactNode } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
-import { reloadAppAsync } from "expo";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface ErrorBoundaryState {
@@ -47,7 +46,11 @@ export class ErrorBoundary extends Component<
       return (
         <ErrorFallback
           error={this.state.error}
-          onRetry={() => reloadAppAsync()}
+          onRetry={() => {
+            import("expo")
+              .then((m) => m.reloadAppAsync())
+              .catch(() => this.setState({ hasError: false }));
+          }}
         />
       );
     }

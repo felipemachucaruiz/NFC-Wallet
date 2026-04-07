@@ -6,8 +6,15 @@ import React, {
   useRef,
   useState,
 } from "react";
-import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, type AppStateStatus, Platform } from "react-native";
+
+let SecureStore: typeof import("expo-secure-store") | null = null;
+try {
+  SecureStore = require("expo-secure-store");
+} catch {
+  SecureStore = null;
+}
 
 const PASSCODE_KEY = "tapee_passcode";
 const PIN_SKIP_KEY = "tapee_pin_skip_remaining";
@@ -33,20 +40,23 @@ const PasscodeContext = createContext<PasscodeContextValue | null>(null);
 
 const storePasscode = async (code: string) => {
   if (Platform.OS === "web") { localStorage.setItem(PASSCODE_KEY, code); return; }
-  await SecureStore.setItemAsync(PASSCODE_KEY, code);
+  if (SecureStore) { await SecureStore.setItemAsync(PASSCODE_KEY, code); return; }
+  await AsyncStorage.setItem(PASSCODE_KEY, code);
 };
 
 const loadPasscode = async (): Promise<string | null> => {
   try {
     if (Platform.OS === "web") return localStorage.getItem(PASSCODE_KEY);
-    return await SecureStore.getItemAsync(PASSCODE_KEY);
+    if (SecureStore) return await SecureStore.getItemAsync(PASSCODE_KEY);
+    return await AsyncStorage.getItem(PASSCODE_KEY);
   } catch { return null; }
 };
 
 const deletePasscode = async () => {
   try {
     if (Platform.OS === "web") { localStorage.removeItem(PASSCODE_KEY); return; }
-    await SecureStore.deleteItemAsync(PASSCODE_KEY);
+    if (SecureStore) { await SecureStore.deleteItemAsync(PASSCODE_KEY); return; }
+    await AsyncStorage.removeItem(PASSCODE_KEY);
   } catch {}
 };
 
@@ -56,7 +66,11 @@ const loadSkipRemaining = async (): Promise<number> => {
       const v = localStorage.getItem(PIN_SKIP_KEY);
       return v ? parseInt(v, 10) : 0;
     }
-    const v = await SecureStore.getItemAsync(PIN_SKIP_KEY);
+    if (SecureStore) {
+      const v = await SecureStore.getItemAsync(PIN_SKIP_KEY);
+      return v ? parseInt(v, 10) : 0;
+    }
+    const v = await AsyncStorage.getItem(PIN_SKIP_KEY);
     return v ? parseInt(v, 10) : 0;
   } catch { return 0; }
 };
@@ -64,14 +78,16 @@ const loadSkipRemaining = async (): Promise<number> => {
 const saveSkipRemaining = async (n: number) => {
   try {
     if (Platform.OS === "web") { localStorage.setItem(PIN_SKIP_KEY, String(n)); return; }
-    await SecureStore.setItemAsync(PIN_SKIP_KEY, String(n));
+    if (SecureStore) { await SecureStore.setItemAsync(PIN_SKIP_KEY, String(n)); return; }
+    await AsyncStorage.setItem(PIN_SKIP_KEY, String(n));
   } catch {}
 };
 
 const clearSkipRemaining = async () => {
   try {
     if (Platform.OS === "web") { localStorage.removeItem(PIN_SKIP_KEY); return; }
-    await SecureStore.deleteItemAsync(PIN_SKIP_KEY);
+    if (SecureStore) { await SecureStore.deleteItemAsync(PIN_SKIP_KEY); return; }
+    await AsyncStorage.removeItem(PIN_SKIP_KEY);
   } catch {}
 };
 

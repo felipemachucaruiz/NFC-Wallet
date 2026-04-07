@@ -1,6 +1,5 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
-import { reloadAppAsync } from "expo";
 import React, { useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,6 +27,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
 
   const handleRestart = async () => {
     try {
+      const { reloadAppAsync } = await import("expo");
       await reloadAppAsync();
     } catch (restartError) {
       console.error("Failed to restart app:", restartError);

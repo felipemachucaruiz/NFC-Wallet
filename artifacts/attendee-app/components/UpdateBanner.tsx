@@ -89,11 +89,9 @@ export function UpdateBanner() {
     checkAndApply();
   }, []);
 
-  // Check every time app comes to foreground
   useEffect(() => {
     const sub = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
-        isChecking.current = false;
         checkAndApply();
       }
     });

@@ -49,9 +49,7 @@
         "expo-channel-name": "preview"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "plugins": [
       [
         "expo-router",

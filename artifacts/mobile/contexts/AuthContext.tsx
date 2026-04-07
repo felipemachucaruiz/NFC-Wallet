@@ -6,8 +6,15 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+
+let SecureStore: typeof import("expo-secure-store") | null = null;
+try {
+  SecureStore = require("expo-secure-store");
+} catch {
+  SecureStore = null;
+}
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { ATTENDEE_API_BASE_URL, API_BASE_URL } from "@/constants/domain";
 import { clearSigningKeyCache } from "@/utils/signingKeyCache";
@@ -63,7 +70,8 @@ const getAuthBase = (role?: string): string =>
 const getStoredToken = async (): Promise<string | null> => {
   try {
     if (Platform.OS === "web") return localStorage.getItem(TOKEN_KEY);
-    return await SecureStore.getItemAsync(TOKEN_KEY);
+    if (SecureStore) return await SecureStore.getItemAsync(TOKEN_KEY);
+    return await AsyncStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
   }
@@ -72,14 +80,16 @@ const getStoredToken = async (): Promise<string | null> => {
 const storeToken = async (token: string): Promise<void> => {
   try {
     if (Platform.OS === "web") { localStorage.setItem(TOKEN_KEY, token); return; }
-    await SecureStore.setItemAsync(TOKEN_KEY, token);
+    if (SecureStore) { await SecureStore.setItemAsync(TOKEN_KEY, token); return; }
+    await AsyncStorage.setItem(TOKEN_KEY, token);
   } catch {}
 };
 
 const clearToken = async (): Promise<void> => {
   try {
     if (Platform.OS === "web") { localStorage.removeItem(TOKEN_KEY); return; }
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    if (SecureStore) { await SecureStore.deleteItemAsync(TOKEN_KEY); return; }
+    await AsyncStorage.removeItem(TOKEN_KEY);
   } catch {}
 };
 
