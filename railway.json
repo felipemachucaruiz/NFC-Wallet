@@ -1,0 +1,1 @@
+{ "build": { "builder": "NIXPACKS" }, "deploy": { "startCommand": "node artifacts/admin-web/server/index.js", "healthcheckPath": "/health", "healthcheckTimeout": 300 } }
