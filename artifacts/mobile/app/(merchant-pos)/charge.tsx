@@ -35,7 +35,8 @@ type ChargeStep =
   | "success"
   | "manual_input"
   | "offline_limit"
-  | "wrong_event";
+  | "wrong_event"
+  | "not_activated";
 
 const STEP_KEYS: Record<ChargeStep, string> = {
   tip_selection: "pos.tipSelection",
@@ -50,6 +51,7 @@ const STEP_KEYS: Record<ChargeStep, string> = {
   manual_input: "bank.manualUid",
   offline_limit: "pos.offlineLimitReached",
   wrong_event: "pos.wrongEvent",
+  not_activated: "pos.braceletNotActivated",
 };
 
 function TagBadge({ tagInfo, colors }: { tagInfo: TagInfo; colors: typeof Colors.light }) {
@@ -222,6 +224,10 @@ export default function ChargeScreen() {
       });
     } catch (err: unknown) {
       const errMsg = extractErrorMessage(err, "Unknown charge error");
+      if (errMsg.includes("BRACELET_NOT_ACTIVATED")) {
+        setStep("not_activated");
+        return;
+      }
       if (errMsg.includes("BRACELET_WRONG_EVENT")) {
         setStep("wrong_event");
         return;
@@ -508,6 +514,7 @@ export default function ChargeScreen() {
       insufficient: { icon: "alert-circle", color: C.warning, bg: C.warningLight },
       offline_limit: { icon: "wifi-off", color: C.danger, bg: C.dangerLight },
       wrong_event: { icon: "slash", color: C.danger, bg: C.dangerLight },
+      not_activated: { icon: "alert-circle", color: C.warning, bg: C.warningLight },
     };
     const s = icons[step];
     if (!s) return null;
@@ -554,7 +561,7 @@ export default function ChargeScreen() {
       <View style={styles.centerSection}>
         <StepIcon />
 
-        {step !== "success" && step !== "hmac_fail" && step !== "insufficient" && step !== "manual_input" && step !== "offline_limit" && step !== "wrong_event" && step !== "tip_selection" && (
+        {step !== "success" && step !== "hmac_fail" && step !== "insufficient" && step !== "manual_input" && step !== "offline_limit" && step !== "wrong_event" && step !== "not_activated" && step !== "tip_selection" && (
           <Text style={[styles.stepTitle, { color: C.text }]}>{t(STEP_KEYS[step] || "pos.tapBracelet")}</Text>
         )}
 
@@ -644,6 +651,13 @@ export default function ChargeScreen() {
           </View>
         )}
 
+        {step === "not_activated" && (
+          <View style={styles.insufficientBox}>
+            <Text style={[styles.stepTitle, { color: C.warning }]}>{t("pos.braceletNotActivated")}</Text>
+            <Text style={[styles.shortfallText, { color: C.textSecondary }]}>{t("pos.braceletNotActivatedDetail")}</Text>
+          </View>
+        )}
+
         {step === "success" && (
           <View style={styles.successBox}>
             <Text style={[styles.stepTitle, { color: C.success }]}>{t("pos.chargeSuccess")}</Text>
@@ -727,6 +741,9 @@ export default function ChargeScreen() {
         )}
         {step === "wrong_event" && (
           <Button title={t("common.back")} onPress={() => router.back()} variant="danger" size="lg" fullWidth />
+        )}
+        {step === "not_activated" && (
+          <Button title={t("common.back")} onPress={() => router.back()} variant="primary" size="lg" fullWidth />
         )}
         {step === "offline_limit" && (
           <View style={{ gap: 10 }}>

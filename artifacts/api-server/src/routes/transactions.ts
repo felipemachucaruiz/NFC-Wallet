@@ -113,31 +113,7 @@ async function processTransaction(
     .where(eq(braceletsTable.nfcUid, input.nfcUid));
 
   if (!bracelet) {
-    // Auto-register unknown bracelet at merchant POS scoped to merchant's event
-    if (!merchantForEventCheck.eventId) {
-      return { status: "error", error: "Bracelet not registered" };
-    }
-    // Inherit maxOfflineSpend from the event default
-    const [eventDefaults] = await db
-      .select({ maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet })
-      .from(eventsTable)
-      .where(eq(eventsTable.id, merchantForEventCheck.eventId));
-    const [created] = await db
-      .insert(braceletsTable)
-      .values({
-        nfcUid: input.nfcUid,
-        eventId: merchantForEventCheck.eventId,
-        maxOfflineSpend: eventDefaults?.maxOfflineSpendPerBracelet ?? null,
-      })
-      .onConflictDoNothing()
-      .returning();
-    if (created) {
-      bracelet = created;
-    } else {
-      const [existing] = await db.select().from(braceletsTable).where(eq(braceletsTable.nfcUid, input.nfcUid));
-      if (!existing) return { status: "error", error: "Failed to auto-register bracelet" };
-      bracelet = existing;
-    }
+    return { status: "error", error: "BRACELET_NOT_ACTIVATED: Esta pulsera no tiene saldo. Dirígete a un punto de recarga para activarla." };
   }
 
   if (bracelet.flagged) {

@@ -384,7 +384,9 @@
     "confirmTip": "Confirmar — Propina {{amount}}",
     "confirmTipNoAmount": "Confirmar propina",
     "tipAmount": "Propina: {{amount}} ({{pct}}%)",
-    "tipLabel": "Propina"
+    "tipLabel": "Propina",
+    "braceletNotActivated": "Pulsera sin saldo",
+    "braceletNotActivatedDetail": "Esta pulsera no tiene saldo. Envía al cliente a un punto de recarga antes de cobrar."
   },
   "merchant_admin": {
     "title": "Panel Merchant",

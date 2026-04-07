@@ -384,7 +384,9 @@
     "confirmTip": "Confirm — Tip {{amount}}",
     "confirmTipNoAmount": "Confirm tip",
     "tipAmount": "Tip: {{amount}} ({{pct}}%)",
-    "tipLabel": "Tip"
+    "tipLabel": "Tip",
+    "braceletNotActivated": "Bracelet not activated",
+    "braceletNotActivatedDetail": "This bracelet has no balance. Send the customer to a top-up point before charging."
   },
   "merchant_admin": {
     "title": "Merchant Panel",
