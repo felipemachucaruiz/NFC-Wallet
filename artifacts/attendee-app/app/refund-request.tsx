@@ -23,7 +23,7 @@ import { Card } from "@/components/ui/Card";
 import { useSubmitRefundRequest } from "@/hooks/useAttendeeApi";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 
-type RefundMethod = "cash" | "nequi" | "bank_transfer" | "other";
+type RefundMethod = "nequi" | "bank_transfer" | "other";
 
 const REFUND_METHODS: {
   value: RefundMethod;
@@ -31,7 +31,6 @@ const REFUND_METHODS: {
   labelKey: string;
   needsAccount: boolean;
 }[] = [
-  { value: "cash", icon: "dollar-sign", labelKey: "refund.methodCash", needsAccount: false },
   { value: "nequi", icon: "smartphone", labelKey: "refund.methodNequi", needsAccount: true },
   { value: "bank_transfer", icon: "credit-card", labelKey: "refund.methodBankTransfer", needsAccount: true },
   { value: "other", icon: "more-horizontal", labelKey: "refund.methodOther", needsAccount: false },
@@ -159,7 +158,7 @@ export default function RefundRequestScreen() {
   const uid = params.uid ?? "";
   const balance = parseInt(params.balance ?? "0", 10);
 
-  const [refundMethod, setRefundMethod] = useState<RefundMethod>("cash");
+  const [refundMethod, setRefundMethod] = useState<RefundMethod>("nequi");
   const [phoneCountry, setPhoneCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
   const [accountDetails, setAccountDetails] = useState("");
   const [notes, setNotes] = useState("");
