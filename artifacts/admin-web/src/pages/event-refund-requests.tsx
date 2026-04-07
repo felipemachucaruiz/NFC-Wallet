@@ -4,6 +4,7 @@ import {
   useListRefundRequests,
   useApproveRefundRequest,
   useRejectRefundRequest,
+  useListEvents,
 } from "@workspace/api-client-react";
 import type { AttendeeRefundRequest } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,7 +23,14 @@ export default function EventRefundRequests() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const isGlobalAdmin = auth?.user?.role === "admin";
+  const userEventId = auth?.user?.eventId ?? "";
+
+  const { data: eventsData } = useListEvents(isGlobalAdmin ? {} : undefined);
+  const events = (eventsData as { events?: { id: string; name: string }[] })?.events ?? [];
+  const [selectedEventId, setSelectedEventId] = useState("");
+
+  const eventId = isGlobalAdmin ? selectedEventId : userEventId;
 
   const [statusFilter, setStatusFilter] = useState("pending");
   const { data, isLoading } = useListRefundRequests(eventId || null, statusFilter);
@@ -62,23 +70,37 @@ export default function EventRefundRequests() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <RefreshCcw className="w-7 h-7" /> {t("refunds.title")}
           </h1>
           <p className="text-muted-foreground mt-1">{t("refunds.subtitle")}</p>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40" data-testid="select-refund-status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending">{t("refunds.statusPending")}</SelectItem>
-            <SelectItem value="approved">{t("refunds.statusApproved")}</SelectItem>
-            <SelectItem value="rejected">{t("refunds.statusRejected")}</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          {isGlobalAdmin && (
+            <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+              <SelectTrigger className="w-60" data-testid="select-refund-event">
+                <SelectValue placeholder={t("refunds.selectEvent")} />
+              </SelectTrigger>
+              <SelectContent>
+                {events.map((ev) => (
+                  <SelectItem key={ev.id} value={ev.id}>{ev.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40" data-testid="select-refund-status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">{t("refunds.statusPending")}</SelectItem>
+              <SelectItem value="approved">{t("refunds.statusApproved")}</SelectItem>
+              <SelectItem value="rejected">{t("refunds.statusRejected")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="border border-border rounded-lg bg-card">

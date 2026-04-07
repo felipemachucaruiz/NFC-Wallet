@@ -149,7 +149,7 @@ function Router() {
         <ProtectedRoute component={EventInventory} allowedRoles={["event_admin"]} />
       </Route>
       <Route path="/event-refund-requests">
-        <ProtectedRoute component={EventRefundRequests} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventRefundRequests} allowedRoles={["admin", "event_admin"]} />
       </Route>
       <Route path="/event-settlement">
         <ProtectedRoute component={EventSettlement} allowedRoles={["event_admin"]} />

@@ -80,6 +80,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/transactions" icon={Receipt} label={t("nav.transactions")} />
               <NavItem href="/fraud-alerts" icon={ShieldAlert} label={t("nav.fraudAlerts")} />
               <NavItem href="/payouts" icon={CreditCard} label={t("nav.payouts")} />
+              <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
               <NavItem href="/reports" icon={FileText} label={t("nav.reports")} />
             </>
           )}
