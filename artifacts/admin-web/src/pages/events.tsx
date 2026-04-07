@@ -25,9 +25,11 @@ type EventForm = {
   venueAddress: string;
   startsAt: string;
   endsAt: string;
+  latitude: number | null;
+  longitude: number | null;
 };
 
-const emptyForm: EventForm = { name: "", description: "", venueAddress: "", startsAt: "", endsAt: "" };
+const emptyForm: EventForm = { name: "", description: "", venueAddress: "", startsAt: "", endsAt: "", latitude: null, longitude: null };
 
 export default function Events() {
   const { t } = useTranslation();
@@ -60,19 +62,29 @@ export default function Events() {
 
   const openEdit = (event: Event) => {
     setSelectedEvent(event);
+    const raw = event as any;
     setForm({
       name: event.name,
       description: event.description ?? "",
       venueAddress: event.venueAddress ?? "",
       startsAt: event.startsAt ? event.startsAt.slice(0, 16) : "",
       endsAt: event.endsAt ? event.endsAt.slice(0, 16) : "",
+      latitude: raw.latitude ? parseFloat(raw.latitude) : null,
+      longitude: raw.longitude ? parseFloat(raw.longitude) : null,
     });
     setEditOpen(true);
   };
 
   const handleCreate = () => {
+    const payload: any = {
+      ...form,
+      startsAt: form.startsAt || undefined,
+      endsAt: form.endsAt || undefined,
+      latitude: form.latitude ?? undefined,
+      longitude: form.longitude ?? undefined,
+    };
     createEvent.mutate(
-      { data: { ...form, startsAt: form.startsAt || undefined, endsAt: form.endsAt || undefined } },
+      { data: payload },
       {
         onSuccess: () => { toast({ title: t("events.created") }); setCreateOpen(false); invalidate(); },
         onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
@@ -82,8 +94,15 @@ export default function Events() {
 
   const handleUpdate = () => {
     if (!selectedEvent) return;
+    const payload: any = {
+      ...form,
+      startsAt: form.startsAt || undefined,
+      endsAt: form.endsAt || undefined,
+      latitude: form.latitude ?? undefined,
+      longitude: form.longitude ?? undefined,
+    };
     updateEvent.mutate(
-      { eventId: selectedEvent.id, data: { ...form, startsAt: form.startsAt || undefined, endsAt: form.endsAt || undefined } },
+      { eventId: selectedEvent.id, data: payload },
       {
         onSuccess: () => { toast({ title: t("events.updated") }); setEditOpen(false); invalidate(); },
         onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
@@ -136,7 +155,7 @@ export default function Events() {
       <LocationMapPicker
         open={mapPickerOpen}
         initialAddress={form.venueAddress}
-        onConfirm={(addr) => setForm((f) => ({ ...f, venueAddress: addr }))}
+        onConfirm={(addr, lat, lng) => setForm((f) => ({ ...f, venueAddress: addr, latitude: lat ?? null, longitude: lng ?? null }))}
         onClose={() => setMapPickerOpen(false)}
       />
       <div className="grid grid-cols-2 gap-3">

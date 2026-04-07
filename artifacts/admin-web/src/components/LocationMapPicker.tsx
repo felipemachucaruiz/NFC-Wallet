@@ -7,8 +7,6 @@ import { MapPin, Loader2 } from "lucide-react";
 import { GOOGLE_MAPS_API_KEY, DEFAULT_CENTER } from "@/lib/maps";
 import { useTranslation } from "react-i18next";
 
-// Uses Places API (New) REST endpoints — compatible with API keys created after March 2025.
-// The old google.maps.places.Autocomplete class is not available to new customers.
 const PLACES_BASE = "https://places.googleapis.com/v1";
 
 type PlaceSuggestion = {
@@ -24,14 +22,14 @@ async function fetchSuggestions(input: string): Promise<PlaceSuggestion[]> {
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
-        "X-Goog-FieldMask": "suggestions.placePredictions.text,suggestions.placePredictions.placeId",
+        "X-Goog-FieldMask": "suggestions.placePrediction.text,suggestions.placePrediction.placeId",
       },
       body: JSON.stringify({
         input,
         locationBias: {
           circle: {
             center: { latitude: DEFAULT_CENTER.lat, longitude: DEFAULT_CENTER.lng },
-            radius: 1000000,
+            radius: 50000,
           },
         },
       }),
@@ -51,9 +49,10 @@ async function fetchSuggestions(input: string): Promise<PlaceSuggestion[]> {
 
 async function fetchPlaceDetails(placeId: string): Promise<{ address: string; lat: number; lng: number } | null> {
   try {
-    const res = await fetch(`${PLACES_BASE}/places/${placeId}?fields=formattedAddress,location`, {
+    const res = await fetch(`${PLACES_BASE}/places/${placeId}`, {
       headers: {
         "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
+        "X-Goog-FieldMask": "formattedAddress,location",
       },
     });
     if (!res.ok) return null;
@@ -81,7 +80,7 @@ const MAP_STYLES = [
 type Props = {
   open: boolean;
   initialAddress?: string;
-  onConfirm: (address: string) => void;
+  onConfirm: (address: string, lat?: number, lng?: number) => void;
   onClose: () => void;
 };
 
@@ -190,7 +189,7 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
   };
 
   const handleConfirm = () => {
-    onConfirm(address);
+    onConfirm(address, marker?.lat, marker?.lng);
     onClose();
   };
 

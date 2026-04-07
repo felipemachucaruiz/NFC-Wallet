@@ -11,6 +11,8 @@ import { useTranslation } from "react-i18next";
 
 type GeocodedEvent = Event & { lat: number; lng: number };
 
+type RawEvent = Event & { latitude?: string | null; longitude?: string | null };
+
 export default function EventsMap() {
   const { t } = useTranslation();
   const { isLoaded } = useJsApiLoader({
@@ -19,7 +21,7 @@ export default function EventsMap() {
   });
 
   const { data, isLoading } = useListEvents();
-  const events = data?.events ?? [];
+  const events = (data?.events ?? []) as RawEvent[];
 
   const [geocoded, setGeocoded] = useState<GeocodedEvent[]>([]);
   const [geocoding, setGeocoding] = useState(false);
@@ -29,17 +31,36 @@ export default function EventsMap() {
   const geocodedIds = useRef<Set<string>>(new Set());
 
   const runGeocoding = useCallback(() => {
-    if (!geocoderRef.current || events.length === 0) return;
-    const pending = events.filter((e) => e.venueAddress && !geocodedIds.current.has(e.id));
-    if (pending.length === 0) return;
+    const results: GeocodedEvent[] = [];
+    const needGeocode: RawEvent[] = [];
+
+    for (const event of events) {
+      if (geocodedIds.current.has(event.id)) continue;
+      const lat = event.latitude ? parseFloat(event.latitude) : NaN;
+      const lng = event.longitude ? parseFloat(event.longitude) : NaN;
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        geocodedIds.current.add(event.id);
+        results.push({ ...event, lat, lng });
+      } else if (event.venueAddress) {
+        needGeocode.push(event);
+      }
+    }
+
+    if (results.length > 0) {
+      setGeocoded((prev) => [...prev, ...results]);
+    }
+
+    if (needGeocode.length === 0) return;
+    if (!geocoderRef.current) return;
+
     setGeocoding(true);
-    let remaining = pending.length;
-    pending.forEach((event) => {
+    let remaining = needGeocode.length;
+    needGeocode.forEach((event) => {
       geocodedIds.current.add(event.id);
-      geocoderRef.current!.geocode({ address: event.venueAddress! }, (results, status) => {
+      geocoderRef.current!.geocode({ address: event.venueAddress! }, (res, status) => {
         remaining--;
-        if (status === "OK" && results?.[0]) {
-          const loc = results[0].geometry.location;
+        if (status === "OK" && res?.[0]) {
+          const loc = res[0].geometry.location;
           setGeocoded((prev) => [...prev, { ...event, lat: loc.lat(), lng: loc.lng() }]);
         }
         if (remaining === 0) setGeocoding(false);
