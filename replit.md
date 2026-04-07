@@ -60,27 +60,11 @@ git push "https://${GITHUB_TOKEN}@github.com/felipemachucaruiz/NFC-Wallet.git" m
 ```
 A **Railway API key** is available in environment secrets for programmatic access to Railway services if needed.
 
-## Mobile App OTA Updates
+## Mobile App Updates — APK BUILDS ONLY (NO OTA)
 
-OTA updates are run from the **Replit Shell** (not automated tool calls — Metro bundler exceeds the 120s shell timeout). Always use `EAS_SKIP_AUTO_FINGERPRINT=1` to skip slow fingerprinting (safe because both apps use `runtimeVersion: "1.0.0"`, not fingerprint policy).
+**⚠️ DO NOT publish OTA updates from Replit.** OTA bundles compiled locally (Node v24, Replit Linux) are incompatible with APKs built on EAS Build servers. Any OTA published from Replit crashes the app immediately on startup. Recovery requires uninstalling and reinstalling the APK.
 
-### Staff app (`artifacts/mobile`)
-- **OTA channel devices listen to:** `production`
-- **Script signature:** `bash ota-update.sh <branch> <message>` — branch is the FIRST arg, message is SECOND
-- **Correct OTA command:**
-  ```bash
-  cd /home/runner/workspace/artifacts/mobile
-  EAS_SKIP_AUTO_FINGERPRINT=1 EXPO_METRO_PORT=8087 bash ota-update.sh production "your message here"
-  ```
-
-### Attendee app (`artifacts/attendee-app`)
-- **OTA channel devices listen to:** `production`
-- **Script signature:** `bash ota-update.sh <message>` — message is the ONLY arg; script always publishes to BOTH `preview` AND `production` automatically
-- **Correct OTA command:**
-  ```bash
-  cd /home/runner/workspace/artifacts/attendee-app
-  EAS_SKIP_AUTO_FINGERPRINT=1 EXPO_METRO_PORT=8088 bash ota-update.sh "your message here"
-  ```
+**All code changes must go through new APK builds.** This is slower (~15-20 min) but reliable.
 
 ## Mobile App APK Builds
 
@@ -119,96 +103,19 @@ Download links appear on expo.dev when builds finish.
 - **API Definition & Codegen:** OpenAPI 3.1 specification and Orval.
 - **Offline Queuing:** `expo-sqlite` in the staff mobile application.
 
-# OTA Update Safety Rules (CRITICAL — READ BEFORE TOUCHING EITHER MOBILE APP)
+# OTA Updates — DISABLED (DO NOT USE)
 
-Both Expo apps (`artifacts/mobile` and `artifacts/attendee-app`) use `runtimeVersion: { policy: "appVersion" }`. This means **any OTA published for the same app version is applied to ALL devices, even if native modules have changed**. A bad OTA bundle causes a permanent crash that only clears on app reinstall.
+OTA updates from Replit are **permanently disabled**. The local build environment (Node v24, Replit Linux) produces JS bundles incompatible with APKs built on EAS Build servers (Node 18/20). This causes immediate app crashes on startup that require uninstalling and reinstalling the APK to recover.
 
-## What causes a permanent OTA crash
-
-A static top-level `import` of a native module that was NOT in the native binary when the app was built.
-
-When Metro loads the JS bundle, it executes all `import` statements synchronously before any React component renders. If a `require()` call for a native module fails (module not in binary), it throws and crashes the entire JS runtime. Since this happens before `<ErrorBoundary>` mounts, nothing can catch it. The app crashes on every subsequent launch.
-
-## Safe pattern for any native/third-party module
-
-**NEVER do this in a file that loads at startup:**
-```ts
-import * as Something from "some-native-package"; // static = permanent crash if not in binary
-```
-
-**ALWAYS do this instead:**
-```ts
-// For value imports:
-async function getDeviceLanguage() {
-  try {
-    const { getLocales } = await import("expo-localization"); // dynamic = catchable
-    return getLocales()[0]?.languageCode ?? "es";
-  } catch {
-    return "es"; // safe default
-  }
-}
-
-// For JSX component imports (providers, wrappers):
-const KeyboardProvider: React.ComponentType<{ children: React.ReactNode }> = (() => {
-  try {
-    return require("react-native-keyboard-controller").KeyboardProvider;
-  } catch {
-    return ({ children }) => <>{children}</>; // transparent fallback
-  }
-})();
-```
-
-## Currently protected (both apps)
-
-### Staff app (`artifacts/mobile`)
-| Module | Pattern | File |
-|--------|---------|------|
-| `expo-localization` | dynamic `import()` in try-catch | `i18n/index.ts` |
-| `react-native-nfc-manager` | try-require at module level | `utils/nfc.ts` |
-| `react-native-keyboard-controller` | IIFE try-require + fallback | `app/_layout.tsx` |
-| `expo-video` | module-level try-require + helper component | `app/login.tsx` |
-| `expo-image` | replaced with `react-native` Image (`resizeMode`) | `(merchant-admin)/products.tsx`, `(merchant-pos)/index.tsx` |
-| `expo-location` | module-level try-require; null-guard in handler | `components/LocationMapPicker.tsx` |
-| `react-native-maps` | module-level try-require + fallback UI | `components/LocationMapPicker.tsx` |
-| `react-native-google-places-autocomplete` | module-level try-require + fallback UI | `components/LocationMapPicker.tsx` |
-
-### Attendee app (`artifacts/attendee-app`)
-| Module | Pattern | File |
-|--------|---------|------|
-| `expo-localization` | dynamic `import()` in try-catch | `i18n/index.ts` |
-| `react-native-keyboard-controller` | IIFE try-require + fallback | `app/_layout.tsx` |
-| `expo-video` | module-level try-require + helper component | `app/login.tsx` |
-| `expo-symbols` | module-level try-require + null render guard | `app/(tabs)/_layout.tsx` |
-
-### Critical import-ordering rule
-All static `import` statements MUST appear at the very top of the file — before any `let`, `const`, `try/catch`, or function definitions. Dynamic requires (`let x = null; try { x = require("pkg") } catch {}`) belong AFTER all static imports. Mixing order is invalid ES module syntax and can leave `React`/`StyleSheet` undefined at runtime under Hermes.
-
-## Modules NOT in app.json plugins (require special care on OTA)
-
-These were NOT listed in either app's `app.json` plugins at the time of last known native build. Treat any changes to files that import these as high-risk for OTA:
-- `expo-localization` — now safe (dynamic import)
-- `react-native-keyboard-controller` — now safe (try-require)
-- `expo-video` — now safe (module-level try-require; import ordering corrected)
-- `expo-symbols` — now safe (attendee app only; dynamic require)
-- `expo-image` — now safe (replaced with react-native Image in all usages)
-- `expo-location` — now safe (module-level try-require + null guard)
-- `expo-secure-store` — in AuthContext (monitor; core Expo SDK, likely safe)
-- `expo-notifications` — in usePushNotifications (monitor)
-
-## Before publishing an OTA
-
-1. **Check every new `import` statement** added since the last native build — if it imports a native module, apply the safe pattern above.
-2. Pure-JS packages (`i18next`, `react-i18next`, `@tanstack/react-query`, etc.) are always safe.
-3. Any `expo-*` or `react-native-*` package added after the last EAS Build requires the safe pattern.
-4. Run a quick grep before publishing: `grep -rn "^import.*from ['\"]expo-\|^import.*from ['\"]react-native-" artifacts/mobile/app/_layout.tsx artifacts/attendee-app/app/_layout.tsx` — all results should either be known-safe core packages or already use the try-require pattern.
+**All mobile app changes must go through new APK builds** using `eas build`. A "roll back to embedded" directive has been published on the `production` channel for both apps, instructing devices to ignore any cached OTAs and use the APK's built-in bundle.
 
 ## Recovery from a crashed device
 
-Users whose app is permanently crashed must **uninstall and reinstall** to recover. A new OTA alone will not fix them (the crashed bundle prevents the OTA check from running). Push a fixed OTA first so that fresh installs + reinstalls get the working bundle.
-
-## Long-term fix
-
-Change `runtimeVersion.policy` from `"appVersion"` to `"fingerprint"` in both `app.json` files, then rebuild native binaries. With fingerprint policy, Expo rejects OTA bundles whose native dependency set doesn't match the installed binary — preventing this entire class of crash.
+If a user's app crashes on startup due to a previously received OTA:
+1. Uninstall the app completely
+2. Install the latest APK
+3. Open the app, wait 10 seconds (downloads the "roll back to embedded" directive)
+4. Close and reopen — should stay on the embedded bundle
 
 # Admin Web Portal (artifacts/admin-web)
 
