@@ -160,7 +160,22 @@ export default function EventRefundRequests() {
               {selected.accountDetails && (
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("refunds.labelAccountDetails")}</p>
-                  <p>{selected.accountDetails}</p>
+                  {selected.accountDetails.includes(" | ") ? (
+                    <div className="space-y-1.5 bg-muted/50 rounded-lg p-3">
+                      {selected.accountDetails.split(" | ").map((field, i) => {
+                        const [label, ...rest] = field.split(": ");
+                        const value = rest.join(": ");
+                        return (
+                          <div key={i} className="flex justify-between gap-2">
+                            <span className="text-muted-foreground text-xs">{label}:</span>
+                            <span className="font-medium text-right">{value}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p>{selected.accountDetails}</p>
+                  )}
                 </div>
               )}
               {selected.notes && (
