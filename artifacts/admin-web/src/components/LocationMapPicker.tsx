@@ -1,10 +1,81 @@
 import { useCallback, useRef, useState, useEffect } from "react";
-import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapPin } from "lucide-react";
-import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER } from "@/lib/maps";
+import { MapPin, Loader2 } from "lucide-react";
+import { GOOGLE_MAPS_API_KEY, DEFAULT_CENTER } from "@/lib/maps";
+
+// Uses Places API (New) REST endpoints — compatible with API keys created after March 2025.
+// The old google.maps.places.Autocomplete class is not available to new customers.
+const PLACES_BASE = "https://places.googleapis.com/v1";
+
+type PlaceSuggestion = {
+  placeId: string;
+  text: string;
+};
+
+async function fetchSuggestions(input: string): Promise<PlaceSuggestion[]> {
+  if (input.trim().length < 2) return [];
+  try {
+    const res = await fetch(`${PLACES_BASE}/places:autocomplete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
+        "X-Goog-FieldMask": "suggestions.placePredictions.text,suggestions.placePredictions.placeId",
+      },
+      body: JSON.stringify({
+        input,
+        locationBias: {
+          circle: {
+            center: { latitude: DEFAULT_CENTER.lat, longitude: DEFAULT_CENTER.lng },
+            radius: 1000000,
+          },
+        },
+      }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.suggestions ?? [])
+      .filter((s: any) => s.placePredictions)
+      .map((s: any) => ({
+        placeId: s.placePredictions.placeId,
+        text: s.placePredictions.text?.text ?? "",
+      }));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchPlaceDetails(placeId: string): Promise<{ address: string; lat: number; lng: number } | null> {
+  try {
+    const res = await fetch(`${PLACES_BASE}/places/${placeId}?fields=formattedAddress,location`, {
+      headers: {
+        "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
+      },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      address: data.formattedAddress ?? "",
+      lat: data.location?.latitude ?? 0,
+      lng: data.location?.longitude ?? 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const MAP_LIBRARIES: ("places")[] = ["places"];
+
+const MAP_STYLES = [
+  { elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#8a8ab0" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#1a1a2e" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2d2d44" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d1117" }] },
+];
 
 type Props = {
   open: boolean;
@@ -16,24 +87,42 @@ type Props = {
 export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: Props) {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: MAPS_LIBRARIES,
+    libraries: MAP_LIBRARIES,
   });
 
   const [marker, setMarker] = useState<google.maps.LatLngLiteral | null>(null);
   const [address, setAddress] = useState(initialAddress ?? "");
   const [searchValue, setSearchValue] = useState(initialAddress ?? "");
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [selectingPlace, setSelectingPlace] = useState(false);
 
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
       setAddress(initialAddress ?? "");
       setSearchValue(initialAddress ?? "");
       setMarker(null);
+      setSuggestions([]);
+      setShowDropdown(false);
     }
   }, [open, initialAddress]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
@@ -62,17 +151,38 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
         setSearchValue(results[0].formatted_address);
       }
     });
+    setShowDropdown(false);
   };
 
-  const handlePlaceChanged = () => {
-    const place = autocompleteRef.current?.getPlace();
-    if (!place?.geometry?.location) return;
-    const lat = place.geometry.location.lat();
-    const lng = place.geometry.location.lng();
-    const pos = { lat, lng };
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    setShowDropdown(false);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.trim().length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    setSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      const results = await fetchSuggestions(value);
+      setSuggestions(results);
+      setShowDropdown(results.length > 0);
+      setSearching(false);
+    }, 350);
+  };
+
+  const handleSelectSuggestion = async (suggestion: PlaceSuggestion) => {
+    setShowDropdown(false);
+    setSuggestions([]);
+    setSearchValue(suggestion.text);
+    setSelectingPlace(true);
+    const details = await fetchPlaceDetails(suggestion.placeId);
+    setSelectingPlace(false);
+    if (!details) return;
+    const pos = { lat: details.lat, lng: details.lng };
     setMarker(pos);
-    setAddress(place.formatted_address ?? "");
-    setSearchValue(place.formatted_address ?? "");
+    setAddress(details.address);
+    setSearchValue(details.address);
     mapRef.current?.panTo(pos);
     mapRef.current?.setZoom(15);
   };
@@ -93,23 +203,43 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
         </DialogHeader>
 
         {!isLoaded ? (
-          <div className="h-96 flex items-center justify-center text-muted-foreground text-sm">
+          <div className="h-96 flex items-center justify-center text-muted-foreground text-sm gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
             Loading map…
           </div>
         ) : (
           <>
-            <div className="px-5 pb-3">
-              <Autocomplete
-                onLoad={(a) => (autocompleteRef.current = a)}
-                onPlaceChanged={handlePlaceChanged}
-              >
+            <div className="px-5 pb-3" ref={dropdownRef}>
+              <div className="relative">
                 <Input
                   placeholder="Search for an address or city…"
                   value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
-                  className="w-full"
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
+                  className="w-full pr-8"
                 />
-              </Autocomplete>
+                {(searching || selectingPlace) && (
+                  <Loader2 className="w-4 h-4 animate-spin absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                )}
+                {showDropdown && suggestions.length > 0 && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
+                    {suggestions.map((s) => (
+                      <button
+                        key={s.placeId}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleSelectSuggestion(s);
+                        }}
+                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors flex items-start gap-2"
+                      >
+                        <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                        <span className="line-clamp-1">{s.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 Search above or click anywhere on the map to set the pin.
               </p>
@@ -125,13 +255,7 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
                 streetViewControl: false,
                 mapTypeControl: false,
                 fullscreenControl: false,
-                styles: [
-                  { elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
-                  { elementType: "labels.text.fill", stylers: [{ color: "#8a8ab0" }] },
-                  { elementType: "labels.text.stroke", stylers: [{ color: "#1a1a2e" }] },
-                  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2d2d44" }] },
-                  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d1117" }] },
-                ],
+                styles: MAP_STYLES,
               }}
             >
               {marker && <Marker position={marker} />}
