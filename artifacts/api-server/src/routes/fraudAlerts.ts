@@ -57,7 +57,7 @@ router.patch(
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    const { id } = req.params;
+    const id = req.params.id as string;
     const user = req.user as AuthUser;
 
     const schema = z.object({

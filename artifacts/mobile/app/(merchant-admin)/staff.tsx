@@ -253,7 +253,7 @@ export default function MerchantStaffScreen() {
         </View>
 
         {staff.length === 0 ? (
-          <Empty message={t("merchant_admin.noStaff")} />
+          <Empty title={t("merchant_admin.noStaff")} />
         ) : (
           staff.map((member) => (
             <Card key={member.id} style={styles.memberCard}>
@@ -389,7 +389,7 @@ export default function MerchantStaffScreen() {
           {loadingAssignments ? (
             <ActivityIndicator color={C.primary} style={{ marginTop: 24 }} />
           ) : allLocations.length === 0 ? (
-            <Empty message={t("merchant_admin.noLocations")} />
+            <Empty title={t("merchant_admin.noLocations")} />
           ) : (
             allLocations.map((loc) => {
               const checked = pendingLocationIds.has(loc.id);

@@ -140,7 +140,7 @@ export default function EventsScreen() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json() as { users: Client[] };
-      setClients((data.users ?? []).filter((u: Client & { role: string }) => (u as Client & { role: string }).role === "event_admin"));
+      setClients((data.users ?? []).filter((u) => (u as Client & { role: string }).role === "event_admin"));
     } catch {
       setClients([]);
     }

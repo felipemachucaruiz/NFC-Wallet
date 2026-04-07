@@ -30,6 +30,8 @@ export function usePushNotifications(isAuthenticated: boolean, userId?: string |
             shouldShowAlert: true,
             shouldPlaySound: true,
             shouldSetBadge: false,
+            shouldShowBanner: true,
+            shouldShowList: true,
           }),
         });
         handlerSet = true;

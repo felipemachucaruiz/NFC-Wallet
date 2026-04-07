@@ -388,7 +388,7 @@ export default function RolesScreen() {
                           title="Reactivar"
                           onPress={async () => {
                             try {
-                              await unsuspendUser.mutateAsync(selectedUser.id);
+                              await unsuspendUser.mutateAsync({ userId: selectedUser.id });
                               showAlert(t("common.success"), "Usuario reactivado.");
                               setShowAssign(false);
                             } catch (err: unknown) {
@@ -403,7 +403,7 @@ export default function RolesScreen() {
                           title="Suspender"
                           onPress={async () => {
                             try {
-                              await suspendUser.mutateAsync(selectedUser.id);
+                              await suspendUser.mutateAsync({ userId: selectedUser.id });
                               showAlert(t("common.success"), "Usuario suspendido.");
                               setShowAssign(false);
                             } catch (err: unknown) {

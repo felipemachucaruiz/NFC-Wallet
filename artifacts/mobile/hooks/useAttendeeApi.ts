@@ -3,7 +3,7 @@ import { ATTENDEE_API_BASE_URL, API_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
 import { pinnedFetch } from "@/utils/pinnedFetch";
 
-function useAuthHeaders() {
+function useAuthHeaders(): Record<string, string> {
   const { token } = useAuth();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

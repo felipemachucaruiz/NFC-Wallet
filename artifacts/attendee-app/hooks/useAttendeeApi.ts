@@ -3,7 +3,7 @@ import { API_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
 import { pinnedFetch } from "@/utils/pinnedFetch";
 
-function useAuthHeaders() {
+function useAuthHeaders(): Record<string, string> {
   const { token } = useAuth();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -136,7 +136,7 @@ export function useSubmitRefundRequest() {
   return useMutation({
     mutationFn: (data: {
       braceletUid: string;
-      refundMethod: "cash" | "nequi" | "bancolombia" | "other";
+      refundMethod: "cash" | "nequi" | "bancolombia" | "bank_transfer" | "other";
       accountDetails?: string;
       notes?: string;
     }) =>

@@ -13,7 +13,7 @@ import {
   useAssignUserToEvent,
   getListUsersQueryKey,
 } from "@workspace/api-client-react";
-import type { User } from "@workspace/api-client-react";
+import type { UserProfile as User, UserRole } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -197,7 +197,7 @@ export default function Users() {
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-user" onClick={() => {
               createAccount.mutate(
-                { data: { firstName: form.firstName, lastName: form.lastName || undefined, email: form.email || undefined, username: form.username || undefined, password: form.password, role: form.role, eventId: form.eventId || undefined } },
+                { data: { firstName: form.firstName, lastName: form.lastName || undefined, email: form.email || undefined, username: form.username || undefined, password: form.password, role: form.role as UserRole, eventId: form.eventId || undefined } },
                 {
                   onSuccess: () => { toast({ title: t("users.created") }); setCreateOpen(false); invalidate(); },
                   onError: (e: unknown) => toast({ title: t("users.errorCreating"), description: (e as { message?: string }).message, variant: "destructive" }),
@@ -221,7 +221,7 @@ export default function Users() {
             <Button variant="outline" onClick={() => setChangeRoleOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={() => {
               if (!selected) return;
-              updateRole.mutate({ userId: selected.id, data: { role: newRole } }, {
+              updateRole.mutate({ userId: selected.id, data: { role: newRole as UserRole } }, {
                 onSuccess: () => { toast({ title: t("users.roleUpdated") }); setChangeRoleOpen(false); invalidate(); },
                 onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
               });
@@ -268,7 +268,7 @@ export default function Users() {
             <Button variant="outline" onClick={() => setAssignEventOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={() => {
               if (!selected) return;
-              assignEvent.mutate({ userId: selected.id, data: { eventId: newEventId || undefined } }, {
+              assignEvent.mutate({ userId: selected.id, data: { eventId: newEventId || null } }, {
                 onSuccess: () => { toast({ title: t("users.eventAssigned") }); setAssignEventOpen(false); invalidate(); },
                 onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
               });

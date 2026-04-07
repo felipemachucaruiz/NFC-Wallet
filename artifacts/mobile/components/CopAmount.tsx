@@ -1,6 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import React from "react";
-import { Text, TextStyle } from "react-native";
+import { StyleSheet, Text, type StyleProp, type TextStyle } from "react-native";
 import Colors from "@/constants/colors";
 import { formatCOP } from "@/utils/format";
 
@@ -9,7 +9,7 @@ interface CopAmountProps {
   size?: number;
   bold?: boolean;
   color?: string;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
   positive?: boolean;
 }
 

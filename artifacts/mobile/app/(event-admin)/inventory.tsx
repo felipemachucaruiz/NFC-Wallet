@@ -78,14 +78,14 @@ function LocationInventoryPanel({ locationId }: { locationId: string }) {
                 </Text>
               ) : null}
               {item.product?.priceCop !== undefined ? (
-                <CopAmount value={item.product.priceCop} style={[styles.productPrice, { color: C.textSecondary }]} />
+                <CopAmount amount={item.product.priceCop} style={[styles.productPrice, { color: C.textSecondary }]} />
               ) : null}
             </View>
             <View style={styles.qtyContainer}>
               <Text
                 style={[
                   styles.qtyText,
-                  { color: isLow ? C.error : C.success },
+                  { color: isLow ? C.danger : C.success },
                 ]}
               >
                 {item.quantityOnHand}
@@ -203,7 +203,7 @@ export default function EventAdminInventoryScreen() {
       </Text>
 
       {merchantIds.length === 0 ? (
-        <Empty label={t("inventory.noLocations")} />
+        <Empty title={t("inventory.noLocations")} />
       ) : (
         merchantIds.map((merchantId) => (
           <View key={merchantId} style={styles.merchantGroup}>

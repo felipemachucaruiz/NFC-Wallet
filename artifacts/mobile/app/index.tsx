@@ -1,7 +1,17 @@
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import React, { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loading } from "@/components/ui/Loading";
+
+const roleRoutes: Record<string, string> = {
+  bank: "/(bank)/",
+  gate: "/(gate)/",
+  merchant_staff: "/(merchant-pos)/",
+  merchant_admin: "/(merchant-admin)/",
+  warehouse_admin: "/(warehouse)/",
+  event_admin: "/(event-admin)/",
+  admin: "/(admin)/",
+};
 
 export default function IndexScreen() {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -14,24 +24,8 @@ export default function IndexScreen() {
       return;
     }
 
-    const role = user?.role;
-    if (role === "bank") {
-      router.replace("/(bank)/");
-    } else if (role === "gate") {
-      router.replace("/(gate)/");
-    } else if (role === "merchant_staff") {
-      router.replace("/(merchant-pos)/");
-    } else if (role === "merchant_admin") {
-      router.replace("/(merchant-admin)/");
-    } else if (role === "warehouse_admin") {
-      router.replace("/(warehouse)/");
-    } else if (role === "event_admin") {
-      router.replace("/(event-admin)/");
-    } else if (role === "admin") {
-      router.replace("/(admin)/");
-    } else {
-      router.replace("/login");
-    }
+    const dest = (user?.role && roleRoutes[user.role]) || "/login";
+    router.replace(dest as Href);
   }, [isLoading, isAuthenticated, user]);
 
   return <Loading full />;

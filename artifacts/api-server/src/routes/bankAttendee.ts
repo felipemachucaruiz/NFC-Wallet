@@ -101,6 +101,7 @@ router.post(
   requireRole("bank", "admin"),
   async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
+    if (!req.user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const userId = req.user.id;
 
     const statusSchema = z.object({

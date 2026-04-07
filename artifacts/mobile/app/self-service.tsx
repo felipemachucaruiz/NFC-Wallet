@@ -796,7 +796,7 @@ export default function SelfServiceScreen() {
                   <Button
                     title="Abrir portal del banco"
                     onPress={() => Linking.openURL(redirectUrl!).catch(() => {})}
-                    variant="outline"
+                    variant="secondary"
                   />
                 )}
               </>
@@ -870,7 +870,7 @@ export default function SelfServiceScreen() {
             <Button
               title="Recargar otra pulsera"
               onPress={handleReset}
-              variant="outline"
+              variant="secondary"
             />
             <Button
               title="Volver"

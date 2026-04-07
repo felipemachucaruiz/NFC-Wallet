@@ -116,9 +116,9 @@ router.get(
       return;
     }
 
-    const { eventId } = req.params;
+    const eventId = req.params.eventId as string;
 
-    if (req.user.role === "event_admin" && req.user.eventId !== eventId) {
+    if (req.user!.role === "event_admin" && req.user!.eventId !== eventId) {
       res.status(403).json({ error: "Forbidden: cannot access another event's data" });
       return;
     }

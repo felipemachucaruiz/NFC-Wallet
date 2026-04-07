@@ -313,21 +313,26 @@ router.delete(
     const merchant = await db.query.merchantsTable.findFirst({
       where: eq(merchantsTable.id, merchantId),
     });
-    if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+    if (!merchant) {
+      res.status(404).json({ error: "Merchant not found" });
+      return;
+    }
 
     // event_admin may only delete merchants belonging to their own event
     if (user.role === "event_admin") {
       if (!user.eventId || merchant.eventId !== user.eventId) {
-        return res.status(403).json({ error: "Access denied: merchant does not belong to your event" });
+        res.status(403).json({ error: "Access denied: merchant does not belong to your event" });
+        return;
       }
     }
 
     // Block deletion if any transaction history exists
     const txCount = await db.$count(transactionLogsTable, eq(transactionLogsTable.merchantId, merchantId));
     if (txCount > 0) {
-      return res.status(409).json({
+      res.status(409).json({
         error: "Cannot delete a merchant with transaction history. Deactivate it instead.",
       });
+      return;
     }
 
     // Cascade delete in dependency order

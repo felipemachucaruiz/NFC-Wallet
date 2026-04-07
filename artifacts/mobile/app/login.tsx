@@ -26,7 +26,7 @@ try {
   _expoVideo = require("expo-video");
 } catch {}
 
-function LoginVideoBackground({ source }: { source: unknown }) {
+function LoginVideoBackground({ source }: { source: import("expo-video").VideoSource }) {
   const { useVideoPlayer: useVP, VideoView: VV } = _expoVideo!;
   const player = useVP(source, (p) => {
     p.loop = true;

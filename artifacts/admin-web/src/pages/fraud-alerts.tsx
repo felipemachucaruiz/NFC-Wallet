@@ -44,7 +44,7 @@ export default function FraudAlerts() {
   const handleUpdateStatus = () => {
     if (!selected) return;
     patchAlert.mutate(
-      { alertId: selected.id, data: { status: newStatus } },
+      { id: selected.id, data: { status: newStatus } },
       {
         onSuccess: () => {
           toast({ title: t("fraudAlerts.updated") });
