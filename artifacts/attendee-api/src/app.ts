@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import staticRouter from "./routes/static";
 import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import { generalLimiter, authLimiter, braceletLookupLimiter } from "./middlewares/rateLimiter";
@@ -78,6 +79,9 @@ app.use(
   [...RATE_LIMITED_PATHS, ...RATE_LIMITED_PATHS.map((p) => `/attendee-api${p}`)],
   authLimiter,
 );
+
+app.use("/api", staticRouter);
+app.use("/attendee-api/api", staticRouter);
 
 app.use(authMiddleware);
 

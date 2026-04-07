@@ -33,6 +33,10 @@ import {
   sendEmail,
   buildPasswordResetEmail,
   buildVerificationEmail,
+  buildVerifySuccessPage,
+  buildVerifyErrorPage,
+  buildResetPasswordPage,
+  getAppUrl,
 } from "../lib/email";
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
@@ -308,7 +312,7 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
         expiresAt,
       });
 
-      const origin = getOrigin(req);
+      const origin = getAppUrl() || getOrigin(req);
       const verifyUrl = `${origin}/api/auth/verify-email?token=${token}`;
       const emailContent = buildVerificationEmail({ firstName: newUser.firstName, verifyUrl });
       await sendEmail({
@@ -364,24 +368,20 @@ router.post("/auth/forgot-password", async (req: Request, res: Response) => {
         expiresAt,
       });
 
+      const origin = getAppUrl() || getOrigin(req);
       let resetUrl: string;
       if (redirectBaseUrl) {
-        // Validate redirectBaseUrl against the configured STAFF_APP_URL to prevent
-        // open-redirect token exfiltration attacks.
         const staffAppUrl = process.env.STAFF_APP_URL ?? "";
         const allowedOrigin = staffAppUrl ? new URL(staffAppUrl.replace(/\/$/, "")).origin : null;
         const requestedOrigin = new URL(redirectBaseUrl).origin;
         if (!allowedOrigin || requestedOrigin !== allowedOrigin) {
-          // Silently fall back to default to avoid leaking whether STAFF_APP_URL is set
-          const origin = getOrigin(req);
-          resetUrl = `${origin}/attendee-app/reset-password?token=${token}`;
+          resetUrl = `${origin}/api/auth/reset-password-form?token=${token}`;
         } else {
           const base = redirectBaseUrl.replace(/\/$/, "");
           resetUrl = `${base}?token=${token}&source=attendee`;
         }
       } else {
-        const origin = getOrigin(req);
-        resetUrl = `${origin}/attendee-app/reset-password?token=${token}`;
+        resetUrl = `${origin}/api/auth/reset-password-form?token=${token}`;
       }
 
       const emailContent = buildPasswordResetEmail({ firstName: user.firstName, resetUrl });
@@ -439,13 +439,26 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
   res.json({ message: "Password updated successfully. You can now log in." });
 });
 
+router.get("/auth/reset-password-form", (req: Request, res: Response) => {
+  const token = typeof req.query.token === "string" ? req.query.token : "";
+  if (!token || !/^[a-f0-9]+$/i.test(token)) {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.status(400).send(buildVerifyErrorPage("El enlace para restablecer la contraseña no es válido."));
+    return;
+  }
+  const appUrl = getAppUrl() || getOrigin(req);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(buildResetPasswordPage(token, appUrl));
+});
+
 // ── Email verification ──────────────────────────────────────────────────────
 
 router.get("/auth/verify-email", async (req: Request, res: Response) => {
   const token = typeof req.query.token === "string" ? req.query.token : null;
 
   if (!token) {
-    res.status(400).json({ error: "Verification token is required" });
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.status(400).send(buildVerifyErrorPage("El enlace de verificación no es válido."));
     return;
   }
 
@@ -455,7 +468,8 @@ router.get("/auth/verify-email", async (req: Request, res: Response) => {
     .where(eq(emailVerificationTokensTable.token, token));
 
   if (!verifyToken || verifyToken.used || verifyToken.expiresAt < new Date()) {
-    res.status(400).json({ error: "This verification link is invalid or has expired" });
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.status(400).send(buildVerifyErrorPage("Este enlace de verificación es inválido o ya expiró. Solicita uno nuevo desde la app."));
     return;
   }
 
@@ -471,9 +485,8 @@ router.get("/auth/verify-email", async (req: Request, res: Response) => {
       .where(eq(emailVerificationTokensTable.token, token));
   });
 
-  // Redirect to the app with a success indicator
-  const origin = getOrigin(req);
-  res.redirect(`${origin}/attendee-app/?emailVerified=1`);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(buildVerifySuccessPage());
 });
 
 router.post("/auth/resend-verification", async (req: Request, res: Response) => {
@@ -506,7 +519,7 @@ router.post("/auth/resend-verification", async (req: Request, res: Response) => 
       expiresAt,
     });
 
-    const origin = getOrigin(req);
+    const origin = getAppUrl() || getOrigin(req);
     const verifyUrl = `${origin}/api/auth/verify-email?token=${token}`;
     const emailContent = buildVerificationEmail({ firstName: user.firstName, verifyUrl });
     await sendEmail({
