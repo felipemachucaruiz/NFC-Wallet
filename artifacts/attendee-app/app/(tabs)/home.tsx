@@ -522,9 +522,9 @@ export default function HomeScreen() {
                       <Text style={[styles.archivedUid, { color: C.textMuted }]}>
                         UID: {b.uid.replace(/:/g, "")}
                       </Text>
-                      {b.balanceCop > 0 && !isRefundDone && (
+                      {b.balance > 0 && !isRefundDone && (
                         <View style={{ marginTop: 2 }}>
-                          <CopAmount amount={b.balanceCop} size={14} />
+                          <CopAmount amount={b.balance} size={14} />
                         </View>
                       )}
                     </View>
@@ -570,7 +570,7 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   )}
-                  {!isRefundDone && !hasActiveRefund && b.balanceCop > 0 && (
+                  {!isRefundDone && !hasActiveRefund && b.balance > 0 && (
                     <View style={[styles.archivedRefundHint, { borderTopColor: C.separator }]}>
                       <Feather name="info" size={14} color={C.primary} />
                       <Text style={[styles.archivedRefundHintText, { color: C.textSecondary }]}>
