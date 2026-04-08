@@ -33,37 +33,37 @@ export default function MerchantEarningsScreen() {
   );
 
   const earnings = earningsData as {
-    grossSalesCop?: number;
-    totalTipsCop?: number;
-    cogsCop?: number;
-    grossProfitCop?: number;
+    grossSales?: number;
+    totalTips?: number;
+    cogs?: number;
+    grossProfit?: number;
     profitMarginPercent?: number;
     commissionRatePercent?: number;
-    totalCommissionCop?: number;
-    netEarnedCop?: number;
-    pendingCop?: number;
-    totalIvaCop?: number;
-    totalRetencionFuenteCop?: number;
-    totalRetencionICACop?: number;
-    totalRetencionesCop?: number;
-    totalNetoCop?: number;
+    totalCommission?: number;
+    netEarned?: number;
+    pending?: number;
+    totalIva?: number;
+    totalRetencionFuente?: number;
+    totalRetencionICA?: number;
+    totalRetenciones?: number;
+    totalNeto?: number;
   } | undefined;
 
   const metrics = [
-    { label: t("merchant_admin.grossSales"), value: earnings?.grossSalesCop, icon: "trending-up" as const, color: C.primary },
-    { label: t("merchant_admin.totalTips"), value: earnings?.totalTipsCop, icon: "gift" as const, color: C.success },
-    { label: t("merchant_admin.cogs"), value: earnings?.cogsCop, icon: "package" as const, color: C.textSecondary },
-    { label: t("merchant_admin.grossProfit"), value: earnings?.grossProfitCop, icon: "dollar-sign" as const, color: C.success },
-    { label: t("merchant_admin.commissionAmount"), value: earnings?.totalCommissionCop, icon: "percent" as const, color: C.warning },
-    { label: t("merchant_admin.netOwed"), value: earnings?.pendingCop, icon: "credit-card" as const, color: C.primary, big: true },
+    { label: t("merchant_admin.grossSales"), value: earnings?.grossSales, icon: "trending-up" as const, color: C.primary },
+    { label: t("merchant_admin.totalTips"), value: earnings?.totalTips, icon: "gift" as const, color: C.success },
+    { label: t("merchant_admin.cogs"), value: earnings?.cogs, icon: "package" as const, color: C.textSecondary },
+    { label: t("merchant_admin.grossProfit"), value: earnings?.grossProfit, icon: "dollar-sign" as const, color: C.success },
+    { label: t("merchant_admin.commissionAmount"), value: earnings?.totalCommission, icon: "percent" as const, color: C.warning },
+    { label: t("merchant_admin.netOwed"), value: earnings?.pending, icon: "credit-card" as const, color: C.primary, big: true },
   ];
 
   const fiscalMetrics = [
-    { label: t("merchant_admin.totalIva"), value: earnings?.totalIvaCop },
-    { label: t("merchant_admin.retencionFuente"), value: earnings?.totalRetencionFuenteCop },
-    { label: t("merchant_admin.retencionICA"), value: earnings?.totalRetencionICACop },
-    { label: t("merchant_admin.totalRetenciones"), value: earnings?.totalRetencionesCop },
-    { label: t("merchant_admin.totalNeto"), value: earnings?.totalNetoCop },
+    { label: t("merchant_admin.totalIva"), value: earnings?.totalIva },
+    { label: t("merchant_admin.retencionFuente"), value: earnings?.totalRetencionFuente },
+    { label: t("merchant_admin.retencionICA"), value: earnings?.totalRetencionICA },
+    { label: t("merchant_admin.totalRetenciones"), value: earnings?.totalRetenciones },
+    { label: t("merchant_admin.totalNeto"), value: earnings?.totalNeto },
   ];
 
   return (
@@ -103,7 +103,7 @@ export default function MerchantEarningsScreen() {
         <>
           <View style={[styles.netOwedCard, { backgroundColor: C.primary }]}>
             <Text style={styles.netOwedLabel}>{t("merchant_admin.netOwed")}</Text>
-            <CopAmount amount={earnings?.pendingCop} size={44} color="#0a0a0a" />
+            <CopAmount amount={earnings?.pending} size={44} color="#0a0a0a" />
             <View style={styles.rateRow}>
               <Text style={styles.rateText}>
                 {t("merchant_admin.marginLabel")}: {formatPercent(earnings?.profitMarginPercent)}
@@ -123,7 +123,7 @@ export default function MerchantEarningsScreen() {
             ))}
           </View>
 
-          {(earnings?.totalIvaCop !== undefined || earnings?.totalRetencionesCop !== undefined) && (
+          {(earnings?.totalIva !== undefined || earnings?.totalRetenciones !== undefined) && (
             <View style={[styles.fiscalCard, { backgroundColor: C.card, borderColor: C.border }]}>
               <View style={styles.fiscalHeader}>
                 <Feather name="file-text" size={16} color={C.primary} />

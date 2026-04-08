@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetCurrentAuthUser,
+  useGetEvent,
   useListAccessZones,
   useCreateAccessZone,
   useUpdateAccessZone,
@@ -19,9 +20,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useToast } from "@/hooks/use-toast";
 import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
-type ZoneForm = { name: string; description: string; colorHex: string; rank: string; upgradePriceCop: string };
-const emptyForm: ZoneForm = { name: "", description: "", colorHex: "#6366f1", rank: "0", upgradePriceCop: "" };
+type ZoneForm = { name: string; description: string; colorHex: string; rank: string; upgradePrice: string };
+const emptyForm: ZoneForm = { name: "", description: "", colorHex: "#6366f1", rank: "0", upgradePrice: "" };
 
 export default function EventAccessZones() {
   const { t } = useTranslation();
@@ -29,6 +31,8 @@ export default function EventAccessZones() {
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
   const eventId = auth?.user?.eventId ?? "";
+  const { data: eventData } = useGetEvent(eventId || "");
+  const currency = (eventData as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
 
   const { data, isLoading } = useListAccessZones(eventId, { query: { enabled: !!eventId, queryKey: getListAccessZonesQueryKey(eventId) } });
   const zones = data?.zones ?? [];
@@ -52,7 +56,7 @@ export default function EventAccessZones() {
       description: zone.description ?? "",
       colorHex: zone.colorHex ?? "#6366f1",
       rank: String(zone.rank),
-      upgradePriceCop: zone.upgradePriceCop != null ? String(zone.upgradePriceCop) : "",
+      upgradePrice: zone.upgradePrice != null ? String(zone.upgradePrice) : "",
     });
     setEditOpen(true);
   };
@@ -67,7 +71,7 @@ export default function EventAccessZones() {
           rank: parseInt(form.rank),
           description: form.description || undefined,
           colorHex: form.colorHex || undefined,
-          upgradePriceCop: form.upgradePriceCop ? parseInt(form.upgradePriceCop) : undefined,
+          upgradePrice: form.upgradePrice ? parseInt(form.upgradePrice) : undefined,
         }
       },
       {
@@ -88,7 +92,7 @@ export default function EventAccessZones() {
           rank: parseInt(form.rank),
           description: form.description || undefined,
           colorHex: form.colorHex || undefined,
-          upgradePriceCop: form.upgradePriceCop ? parseInt(form.upgradePriceCop) : null,
+          upgradePrice: form.upgradePrice ? parseInt(form.upgradePrice) : null,
         }
       },
       {
@@ -138,8 +142,8 @@ export default function EventAccessZones() {
           </div>
         </div>
         <div className="space-y-1">
-          <Label>{t("accessZones.upgradePriceCop")}</Label>
-          <Input data-testid="input-zone-price" type="number" min="0" value={form.upgradePriceCop} onChange={(e) => setForm((f) => ({ ...f, upgradePriceCop: e.target.value }))} placeholder={t("accessZones.free")} />
+          <Label>{t("accessZones.upgradePrice")}</Label>
+          <Input data-testid="input-zone-price" type="number" min="0" value={form.upgradePrice} onChange={(e) => setForm((f) => ({ ...f, upgradePrice: e.target.value }))} placeholder={t("accessZones.free")} />
         </div>
       </div>
     </div>
@@ -188,7 +192,7 @@ export default function EventAccessZones() {
                   </TableCell>
                   <TableCell className="font-mono text-sm">{zone.rank}</TableCell>
                   <TableCell className="font-mono text-sm">
-                    {zone.upgradePriceCop != null ? `$${zone.upgradePriceCop.toLocaleString()}` : <span className="text-muted-foreground">{t("accessZones.free")}</span>}
+                    {zone.upgradePrice != null ? formatCurrency(zone.upgradePrice, currency) : <span className="text-muted-foreground">{t("accessZones.free")}</span>}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{zone.description ?? "—"}</TableCell>
                   <TableCell>

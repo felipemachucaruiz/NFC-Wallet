@@ -72,7 +72,7 @@ export default function SyncIssuesScreen() {
   };
 
   const handleOpenEdit = (item: QueuedItem) => {
-    const currentAmount = item.type === "charge" ? item.grossAmountCop : item.amountCop;
+    const currentAmount = item.type === "charge" ? item.grossAmount : item.amount;
     setEditState({ item, rawAmount: String(currentAmount) });
   };
 
@@ -91,8 +91,8 @@ export default function SyncIssuesScreen() {
 
     const edits =
       item.type === "charge"
-        ? { grossAmountCop: parsed }
-        : { amountCop: parsed };
+        ? { grossAmount: parsed }
+        : { amount: parsed };
 
     await retryFailedItem(item.id, itemType, edits);
     setRetrying(null);
@@ -111,9 +111,9 @@ export default function SyncIssuesScreen() {
 
   const getItemAmount = (item: QueuedItem): number => {
     if (item.type === "charge") {
-      return item.grossAmountCop;
+      return item.grossAmount;
     }
-    return item.amountCop;
+    return item.amount;
   };
 
   const getItemAmountLabel = (item: QueuedItem): string => {

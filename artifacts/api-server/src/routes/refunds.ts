@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, refundsTable, attendeeRefundRequestsTable, usersTable } from "@workspace/db";
+import { db, braceletsTable, refundsTable, attendeeRefundRequestsTable, usersTable, eventsTable } from "@workspace/db";
 import { eq, and, gt, gte, lte, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -15,7 +15,7 @@ const createRefundSchema = z.object({
   refundMethod: z.enum(refundMethods),
   notes: z.string().optional(),
   newCounter: z.number().int().optional(),
-  newBalanceCop: z.number().int().optional(),
+  newBalance: z.number().int().optional(),
 });
 
 router.post(
@@ -39,7 +39,7 @@ router.post(
       // All validation and writes happen inside the transaction so that
       // SELECT ... FOR UPDATE prevents two concurrent refunds from both
       // seeing a positive balance and both going through.
-      const { refund, amountCop } = await db.transaction(async (tx) => {
+      const { refund, amount } = await db.transaction(async (tx) => {
         const [bracelet] = await tx
           .select()
           .from(braceletsTable)
@@ -48,21 +48,21 @@ router.post(
 
         if (!bracelet)
           throw Object.assign(new Error("Bracelet not found"), { httpStatus: 404 });
-        if (bracelet.lastKnownBalanceCop <= 0)
+        if (bracelet.lastKnownBalance <= 0)
           throw Object.assign(new Error("BALANCE_ALREADY_REFUNDED"), { httpStatus: 409 });
         if (newCounter !== undefined && newCounter <= (bracelet.lastCounter ?? 0))
           throw Object.assign(new Error("Invalid counter: must be greater than current counter"), { httpStatus: 400 });
         if (!bracelet.eventId)
           throw Object.assign(new Error("Bracelet is not associated with an event"), { httpStatus: 400 });
 
-        const liveAmountCop = bracelet.lastKnownBalanceCop;
+        const liveAmount = bracelet.lastKnownBalance;
 
         const [newRefund] = await tx
           .insert(refundsTable)
           .values({
             braceletUid,
             eventId: bracelet.eventId,
-            amountCop: liveAmountCop,
+            amount: liveAmount,
             refundMethod,
             notes,
             performedByUserId: req.user.id,
@@ -70,7 +70,7 @@ router.post(
           .returning();
 
         const braceletUpdate: Record<string, unknown> = {
-          lastKnownBalanceCop: 0,
+          lastKnownBalance: 0,
           updatedAt: new Date(),
         };
         if (newCounter !== undefined) {
@@ -81,10 +81,10 @@ router.post(
           .set(braceletUpdate)
           .where(eq(braceletsTable.nfcUid, braceletUid));
 
-        return { refund: newRefund, amountCop: liveAmountCop };
+        return { refund: newRefund, amount: liveAmount };
       });
 
-      res.status(201).json({ refund, amountCop });
+      res.status(201).json({ refund, amount });
     } catch (e: unknown) {
       const err = e as { message?: string; httpStatus?: number };
       const status = err.httpStatus ?? 500;
@@ -129,7 +129,7 @@ router.get(
       .where(
         and(
           eq(braceletsTable.eventId, eventId),
-          gt(braceletsTable.lastKnownBalanceCop, 0),
+          gt(braceletsTable.lastKnownBalance, 0),
         ),
       );
 
@@ -151,9 +151,9 @@ router.get(
       latestRefund: latestRefundByUid[b.nfcUid] ?? null,
     }));
 
-    const totalUnclaimedCop = result.reduce((s, b) => s + b.lastKnownBalanceCop, 0);
+    const totalUnclaimed = result.reduce((s, b) => s + b.lastKnownBalance, 0);
 
-    res.json({ bracelets: result, totalUnclaimedCop });
+    res.json({ bracelets: result, totalUnclaimed });
   },
 );
 
@@ -168,7 +168,7 @@ router.get(
 
     if (user.role === "event_admin") {
       if (!user.eventId) {
-        res.json({ totalRefundedCop: 0, count: 0, byRefundMethod: {} });
+        res.json({ totalRefunded: 0, count: 0, byRefundMethod: {} });
         return;
       }
       conditions.push(eq(refundsTable.eventId, user.eventId));
@@ -184,19 +184,19 @@ router.get(
       .from(refundsTable)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
-    const totalRefundedCop = refunds.reduce((s, r) => s + r.amountCop, 0);
+    const totalRefunded = refunds.reduce((s, r) => s + r.amount, 0);
     const count = refunds.length;
-    const byRefundMethod: Record<string, { totalCop: number; count: number }> = {};
+    const byRefundMethod: Record<string, { total: number; count: number }> = {};
 
     for (const r of refunds) {
       if (!byRefundMethod[r.refundMethod]) {
-        byRefundMethod[r.refundMethod] = { totalCop: 0, count: 0 };
+        byRefundMethod[r.refundMethod] = { total: 0, count: 0 };
       }
-      byRefundMethod[r.refundMethod].totalCop += r.amountCop;
+      byRefundMethod[r.refundMethod].total += r.amount;
       byRefundMethod[r.refundMethod].count += 1;
     }
 
-    res.json({ totalRefundedCop, count, byRefundMethod });
+    res.json({ totalRefunded, count, byRefundMethod });
   },
 );
 
@@ -229,7 +229,7 @@ router.get(
         attendeeUserId: attendeeRefundRequestsTable.attendeeUserId,
         braceletUid: attendeeRefundRequestsTable.braceletUid,
         eventId: attendeeRefundRequestsTable.eventId,
-        amountCop: attendeeRefundRequestsTable.amountCop,
+        amount: attendeeRefundRequestsTable.amount,
         refundMethod: attendeeRefundRequestsTable.refundMethod,
         accountDetails: attendeeRefundRequestsTable.accountDetails,
         notes: attendeeRefundRequestsTable.notes,
@@ -290,11 +290,11 @@ router.post(
 
         if (!bracelet) throw Object.assign(new Error("Bracelet not found"), { httpStatus: 404 });
 
-        const newBalance = Math.max(0, bracelet.lastKnownBalanceCop - request.amountCop);
+        const newBalance = Math.max(0, bracelet.lastKnownBalance - request.amount);
 
         await tx
           .update(braceletsTable)
-          .set({ lastKnownBalanceCop: newBalance, updatedAt: new Date() })
+          .set({ lastKnownBalance: newBalance, updatedAt: new Date() })
           .where(eq(braceletsTable.nfcUid, request.braceletUid));
 
         const [updated] = await tx
@@ -310,10 +310,11 @@ router.post(
         return updated;
       });
 
-      // Always send push notification to the attendee
+      const [refundEvent] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, result.eventId)).limit(1);
       void notifyRefundRequestApproved({
         attendeeUserId: result.attendeeUserId,
-        amountCop: result.amountCop,
+        amount: result.amount,
+        currencyCode: refundEvent?.currencyCode,
       });
 
       // For cash refunds, no disbursement needed — manual collection.
@@ -382,7 +383,7 @@ router.post(
 
       const outcome = await initiateWompiDisbursement(
         result.id,
-        result.amountCop,
+        result.amount,
         target,
         customerEmail,
       );
@@ -485,7 +486,7 @@ router.post(
 
     void notifyRefundRequestRejected({
       attendeeUserId: request.attendeeUserId,
-      amountCop: request.amountCop,
+      amount: request.amount,
     });
 
     res.json({ refundRequest: updated });

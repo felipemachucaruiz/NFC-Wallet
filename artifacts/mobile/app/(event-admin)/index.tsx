@@ -113,13 +113,13 @@ export default function EventAdminDashboard() {
   const flaggedCount = flaggedData?.flaggedBracelets?.length ?? 0;
 
   const revenue = revenueData as {
-    totalTopUpsCop?: number;
-    totalSalesCop?: number;
-    totalCogsCop?: number;
-    grossProfitCop?: number;
-    totalCommissionsCop?: number;
-    netOwedToMerchantsCop?: number;
-    platformRevenueCop?: number;
+    totalTopUps?: number;
+    totalSales?: number;
+    totalCogs?: number;
+    grossProfit?: number;
+    totalCommissions?: number;
+    netOwedToMerchants?: number;
+    platformRevenue?: number;
     transactionCount?: number;
     topUpCount?: number;
     braceletCount?: number;
@@ -128,10 +128,10 @@ export default function EventAdminDashboard() {
   const event = eventData as EventDetail | undefined;
 
   const kpiCards = [
-    { label: t("admin.totalSales"), value: revenue?.totalSalesCop, icon: "shopping-bag" as const, color: C.success },
-    { label: t("admin.grossProfit"), value: revenue?.grossProfitCop, icon: "dollar-sign" as const, color: C.success },
-    { label: t("admin.totalCommissions"), value: revenue?.totalCommissionsCop, icon: "percent" as const, color: C.warning },
-    { label: t("admin.netOwedToMerchants"), value: revenue?.netOwedToMerchantsCop, icon: "credit-card" as const, color: C.textSecondary },
+    { label: t("admin.totalSales"), value: revenue?.totalSales, icon: "shopping-bag" as const, color: C.success },
+    { label: t("admin.grossProfit"), value: revenue?.grossProfit, icon: "dollar-sign" as const, color: C.success },
+    { label: t("admin.totalCommissions"), value: revenue?.totalCommissions, icon: "percent" as const, color: C.warning },
+    { label: t("admin.netOwedToMerchants"), value: revenue?.netOwedToMerchants, icon: "credit-card" as const, color: C.textSecondary },
   ];
 
   if (eventLoading) return <Loading label={t("common.loading")} />;
@@ -174,7 +174,7 @@ export default function EventAdminDashboard() {
             <View style={styles.mainRow}>
               <View>
                 <Text style={styles.mainLabel}>{t("admin.totalSales")}</Text>
-                <CopAmount amount={revenue?.totalSalesCop} size={38} color="#0a0a0a" />
+                <CopAmount amount={revenue?.totalSales} size={38} color="#0a0a0a" />
               </View>
               <View style={[styles.mainIconBox, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
                 <Feather name="trending-up" size={28} color="#0a0a0a" />

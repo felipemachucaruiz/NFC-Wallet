@@ -228,9 +228,7 @@ export default function Bracelets() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm font-medium">
-                      {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(
-                        bracelet.lastKnownBalanceCop ?? 0
-                      )}
+                      {(bracelet.lastKnownBalance ?? 0).toLocaleString()}
                     </TableCell>
                     <TableCell>
                       {bracelet.flagged ? (

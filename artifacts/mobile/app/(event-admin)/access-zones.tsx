@@ -1,6 +1,8 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState, useEffect, useCallback } from "react";
+import { formatCurrency } from "@/utils/format";
+import { useEventContext } from "@/contexts/EventContext";
 import {
   FlatList,
   Modal,
@@ -65,14 +67,14 @@ type FormData = {
   name: string;
   colorHex: string;
   rank: string;
-  upgradePriceCop: string;
+  upgradePrice: string;
 };
 
 const DEFAULT_FORM: FormData = {
   name: "",
   colorHex: "#6366F1",
   rank: "0",
-  upgradePriceCop: "",
+  upgradePrice: "",
 };
 
 export default function AccessZonesScreen() {
@@ -83,6 +85,7 @@ export default function AccessZonesScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { token, user } = useAuth();
+  const { currencyCode } = useEventContext();
   const { zones, isLoading: cacheLoading, refresh } = useZoneCache();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -110,7 +113,7 @@ export default function AccessZonesScreen() {
       name: zone.name,
       colorHex: zone.colorHex,
       rank: String(zone.rank),
-      upgradePriceCop: zone.upgradePriceCop != null ? String(zone.upgradePriceCop) : "",
+      upgradePrice: zone.upgradePrice != null ? String(zone.upgradePrice) : "",
     });
     setShowForm(true);
   };
@@ -125,10 +128,10 @@ export default function AccessZonesScreen() {
       showAlert(t("common.error"), t("zones.rankInvalid"));
       return;
     }
-    const upgradePrice = form.upgradePriceCop.trim()
-      ? parseInt(form.upgradePriceCop, 10)
+    const upgradePrice = form.upgradePrice.trim()
+      ? parseInt(form.upgradePrice, 10)
       : null;
-    if (form.upgradePriceCop.trim() && (isNaN(upgradePrice as number) || (upgradePrice as number) < 0)) {
+    if (form.upgradePrice.trim() && (isNaN(upgradePrice as number) || (upgradePrice as number) < 0)) {
       showAlert(t("common.error"), t("zones.priceInvalid"));
       return;
     }
@@ -139,7 +142,7 @@ export default function AccessZonesScreen() {
         name: form.name.trim(),
         colorHex: form.colorHex,
         rank: rankNum,
-        upgradePriceCop: upgradePrice,
+        upgradePrice: upgradePrice,
         eventId: user?.eventId,
       };
 
@@ -245,9 +248,9 @@ export default function AccessZonesScreen() {
                   <Text style={[styles.zoneMetaText, { color: C.textMuted }]}>
                     {t("zones.rank")}: {item.rank}
                   </Text>
-                  {item.upgradePriceCop != null && (
+                  {item.upgradePrice != null && (
                     <Text style={[styles.zoneMetaText, { color: C.textMuted }]}>
-                      {" · "}{t("zones.upgradePrice")}: ${item.upgradePriceCop.toLocaleString()}
+                      {" · "}{t("zones.upgradePrice")}: {formatCurrency(item.upgradePrice, currencyCode)}
                     </Text>
                   )}
                 </View>
@@ -303,8 +306,8 @@ export default function AccessZonesScreen() {
 
             <Input
               label={t("zones.upgradePriceLabel")}
-              value={form.upgradePriceCop}
-              onChangeText={(v) => setForm((f) => ({ ...f, upgradePriceCop: v.replace(/[^0-9]/g, "") }))}
+              value={form.upgradePrice}
+              onChangeText={(v) => setForm((f) => ({ ...f, upgradePrice: v.replace(/[^0-9]/g, "") }))}
               keyboardType="number-pad"
               placeholder="0"
               hint={t("zones.upgradePriceHint")}

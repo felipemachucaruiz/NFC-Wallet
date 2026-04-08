@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetCurrentAuthUser,
+  useGetEvent,
   useListProducts,
   useCreateProduct,
   useUpdateProduct,
@@ -23,11 +24,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
 type ProductForm = {
   name: string;
-  priceCop: string;
-  costCop: string;
+  price: string;
+  cost: string;
   category: string;
   barcode: string;
   merchantId: string;
@@ -36,7 +38,7 @@ type ProductForm = {
   active: boolean;
 };
 
-const emptyForm: ProductForm = { name: "", priceCop: "", costCop: "0", category: "", barcode: "", merchantId: "", ivaRate: "0", ivaExento: false, active: true };
+const emptyForm: ProductForm = { name: "", price: "", cost: "0", category: "", barcode: "", merchantId: "", ivaRate: "0", ivaExento: false, active: true };
 
 export default function EventProducts() {
   const { t } = useTranslation();
@@ -44,6 +46,9 @@ export default function EventProducts() {
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
   const eventId = auth?.user?.eventId ?? "";
+  const { data: eventData } = useGetEvent(eventId || "");
+  const currency = (eventData as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
+  const fmt = (n: number) => formatCurrency(n, currency);
 
   const { data, isLoading } = useListProducts();
   const products = data?.products ?? [];
@@ -78,8 +83,8 @@ export default function EventProducts() {
     setSelected(product);
     setForm({
       name: product.name,
-      priceCop: String(product.priceCop),
-      costCop: String(product.costCop),
+      price: String(product.price),
+      cost: String(product.cost),
       category: product.category ?? "",
       barcode: product.barcode ?? "",
       merchantId: product.merchantId,
@@ -96,8 +101,8 @@ export default function EventProducts() {
       {
         data: {
           name: form.name,
-          priceCop: parseInt(form.priceCop),
-          costCop: parseInt(form.costCop) || undefined,
+          price: parseInt(form.price),
+          cost: parseInt(form.cost) || undefined,
           merchantId: form.merchantId,
           category: form.category || undefined,
           barcode: form.barcode || undefined,
@@ -119,8 +124,8 @@ export default function EventProducts() {
         productId: selected.id,
         data: {
           name: form.name,
-          priceCop: parseInt(form.priceCop),
-          costCop: parseInt(form.costCop) || undefined,
+          price: parseInt(form.price),
+          cost: parseInt(form.cost) || undefined,
           category: form.category || undefined,
           barcode: form.barcode || undefined,
           ivaRate: form.ivaRate || undefined,
@@ -154,12 +159,12 @@ export default function EventProducts() {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <Label>{t("products.priceCOP")}</Label>
-          <Input data-testid="input-product-price" type="number" min="0" value={form.priceCop} onChange={(e) => setForm((f) => ({ ...f, priceCop: e.target.value }))} />
+          <Label>{t("products.price")}</Label>
+          <Input data-testid="input-product-price" type="number" min="0" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
         </div>
         <div className="space-y-1">
-          <Label>{t("products.costCOP")}</Label>
-          <Input type="number" min="0" value={form.costCop} onChange={(e) => setForm((f) => ({ ...f, costCop: e.target.value }))} />
+          <Label>{t("products.cost")}</Label>
+          <Input type="number" min="0" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -251,7 +256,7 @@ export default function EventProducts() {
                 <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{merchants.find((m) => m.id === product.merchantId)?.name ?? product.merchantId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-right font-mono">${product.priceCop.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{fmt(product.price)}</TableCell>
                   <TableCell className="text-sm">{product.category ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{product.barcode ?? "—"}</TableCell>
                   <TableCell>
@@ -286,7 +291,7 @@ export default function EventProducts() {
           <FormFields />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
-            <Button data-testid="button-submit-product" onClick={handleCreate} disabled={createProduct.isPending || !form.name || !form.priceCop || !form.merchantId}>
+            <Button data-testid="button-submit-product" onClick={handleCreate} disabled={createProduct.isPending || !form.name || !form.price || !form.merchantId}>
               {createProduct.isPending ? t("products.creating") : t("common.create")}
             </Button>
           </DialogFooter>
@@ -299,7 +304,7 @@ export default function EventProducts() {
           <FormFields />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
-            <Button data-testid="button-submit-edit-product" onClick={handleUpdate} disabled={updateProduct.isPending || !form.name || !form.priceCop}>
+            <Button data-testid="button-submit-edit-product" onClick={handleUpdate} disabled={updateProduct.isPending || !form.name || !form.price}>
               {updateProduct.isPending ? t("products.saving") : t("common.save")}
             </Button>
           </DialogFooter>

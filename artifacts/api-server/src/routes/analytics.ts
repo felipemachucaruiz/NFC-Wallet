@@ -55,7 +55,7 @@ router.get(
     const eventIds = await resolveEventIds(req, eventId);
 
     if (eventIds !== null && eventIds.length === 0) {
-      res.json({ totalTopUpsCop: 0, totalSalesCop: 0, pendingBalanceCop: 0, transactionCount: 0, topUpCount: 0 });
+      res.json({ totalTopUps: 0, totalSales: 0, pendingBalance: 0, transactionCount: 0, topUpCount: 0 });
       return;
     }
 
@@ -65,7 +65,7 @@ router.get(
 
     const [txAgg] = await db
       .select({
-        totalSalesCop: sql<number>`COALESCE(SUM(${transactionLogsTable.grossAmountCop}), 0)`.mapWith(Number),
+        totalSales: sql<number>`COALESCE(SUM(${transactionLogsTable.grossAmount}), 0)`.mapWith(Number),
         transactionCount: sql<number>`COUNT(*)`.mapWith(Number),
       })
       .from(transactionLogsTable)
@@ -76,7 +76,7 @@ router.get(
 
     const [braceletAgg] = await db
       .select({
-        pendingBalanceCop: sql<number>`COALESCE(SUM(${braceletsTable.lastKnownBalanceCop}), 0)`.mapWith(Number),
+        pendingBalance: sql<number>`COALESCE(SUM(${braceletsTable.lastKnownBalance}), 0)`.mapWith(Number),
         braceletCount: sql<number>`COUNT(*)`.mapWith(Number),
       })
       .from(braceletsTable)
@@ -86,36 +86,36 @@ router.get(
     if (from) topUpDateConds.push(gte(topUpsTable.createdAt, new Date(from)));
     if (to) topUpDateConds.push(lte(topUpsTable.createdAt, new Date(to)));
 
-    let totalTopUpsCop = 0;
+    let totalTopUps = 0;
     let topUpCount = 0;
 
     if (eventIds !== null && eventIds.length > 0) {
       const [topUpAgg] = await db
         .select({
-          totalTopUpsCop: sql<number>`COALESCE(SUM(${topUpsTable.amountCop}), 0)`.mapWith(Number),
+          totalTopUps: sql<number>`COALESCE(SUM(${topUpsTable.amount}), 0)`.mapWith(Number),
           topUpCount: sql<number>`COUNT(*)`.mapWith(Number),
         })
         .from(topUpsTable)
         .innerJoin(braceletsTable, eq(topUpsTable.braceletUid, braceletsTable.nfcUid))
         .where(and(inArray(braceletsTable.eventId, eventIds), ...topUpDateConds));
-      totalTopUpsCop = topUpAgg?.totalTopUpsCop ?? 0;
+      totalTopUps = topUpAgg?.totalTopUps ?? 0;
       topUpCount = topUpAgg?.topUpCount ?? 0;
     } else if (eventIds === null) {
       const [topUpAgg] = await db
         .select({
-          totalTopUpsCop: sql<number>`COALESCE(SUM(${topUpsTable.amountCop}), 0)`.mapWith(Number),
+          totalTopUps: sql<number>`COALESCE(SUM(${topUpsTable.amount}), 0)`.mapWith(Number),
           topUpCount: sql<number>`COUNT(*)`.mapWith(Number),
         })
         .from(topUpsTable)
         .where(topUpDateConds.length > 0 ? and(...topUpDateConds) : undefined);
-      totalTopUpsCop = topUpAgg?.totalTopUpsCop ?? 0;
+      totalTopUps = topUpAgg?.totalTopUps ?? 0;
       topUpCount = topUpAgg?.topUpCount ?? 0;
     }
 
     res.json({
-      totalTopUpsCop,
-      totalSalesCop: txAgg?.totalSalesCop ?? 0,
-      pendingBalanceCop: braceletAgg?.pendingBalanceCop ?? 0,
+      totalTopUps,
+      totalSales: txAgg?.totalSales ?? 0,
+      pendingBalance: braceletAgg?.pendingBalance ?? 0,
       transactionCount: txAgg?.transactionCount ?? 0,
       topUpCount,
       braceletCount: braceletAgg?.braceletCount ?? 0,
@@ -155,7 +155,7 @@ router.get(
       .select({
         hour: sql<number>`EXTRACT(HOUR FROM ${localTs})`.as("hour"),
         day: sql<string>`DATE(${localTs})`.as("day"),
-        totalCop: sql<number>`SUM(${transactionLogsTable.grossAmountCop})`.as("total_cop"),
+        total: sql<number>`SUM(${transactionLogsTable.grossAmount})`.as("total_cop"),
         txCount: sql<number>`COUNT(*)`.as("tx_count"),
       })
       .from(transactionLogsTable)
@@ -172,7 +172,7 @@ router.get(
     const salesByHour = rows.map((r) => ({
       hour: Number(r.hour),
       day: String(r.day),
-      totalCop: Number(r.totalCop),
+      total: Number(r.total),
       txCount: Number(r.txCount),
     }));
 
@@ -203,8 +203,8 @@ router.get(
         productId: transactionLineItemsTable.productId,
         productName: transactionLineItemsTable.productNameSnapshot,
         totalUnits: sql<number>`SUM(${transactionLineItemsTable.quantity})`.as("total_units"),
-        totalRevenueCop: sql<number>`SUM(${transactionLineItemsTable.quantity} * ${transactionLineItemsTable.unitPriceSnapshot})`.as("total_revenue_cop"),
-        totalCogsCop: sql<number>`SUM(${transactionLineItemsTable.quantity} * ${transactionLineItemsTable.unitCostSnapshot})`.as("total_cogs_cop"),
+        totalRevenue: sql<number>`SUM(${transactionLineItemsTable.quantity} * ${transactionLineItemsTable.unitPriceSnapshot})`.as("total_revenue_cop"),
+        totalCogs: sql<number>`SUM(${transactionLineItemsTable.quantity} * ${transactionLineItemsTable.unitCostSnapshot})`.as("total_cogs_cop"),
       })
       .from(transactionLineItemsTable)
       .innerJoin(transactionLogsTable, eq(transactionLineItemsTable.transactionLogId, transactionLogsTable.id))
@@ -214,17 +214,17 @@ router.get(
       .limit(limit);
 
     const topProducts = rows.map((r) => {
-      const rev = Number(r.totalRevenueCop);
-      const cogs = Number(r.totalCogsCop);
+      const rev = Number(r.totalRevenue);
+      const cogs = Number(r.totalCogs);
       const profit = rev - cogs;
       const marginPct = rev > 0 ? Math.round((profit / rev) * 10000) / 100 : 0;
       return {
         productId: r.productId,
         productName: r.productName,
         totalUnits: Number(r.totalUnits),
-        totalRevenueCop: rev,
-        totalCogsCop: cogs,
-        grossProfitCop: profit,
+        totalRevenue: rev,
+        totalCogs: cogs,
+        grossProfit: profit,
         profitMarginPercent: marginPct,
       };
     });
@@ -254,15 +254,15 @@ router.get(
     const rows = await db
       .select({
         merchantId: transactionLogsTable.merchantId,
-        totalSalesCop: sql<number>`SUM(${transactionLogsTable.grossAmountCop})`.as("total_sales_cop"),
-        totalCommissionCop: sql<number>`SUM(${transactionLogsTable.commissionAmountCop})`.as("total_commission_cop"),
-        totalNetCop: sql<number>`SUM(${transactionLogsTable.netAmountCop})`.as("total_net_cop"),
+        totalSales: sql<number>`SUM(${transactionLogsTable.grossAmount})`.as("total_sales_cop"),
+        totalCommission: sql<number>`SUM(${transactionLogsTable.commissionAmount})`.as("total_commission_cop"),
+        totalNet: sql<number>`SUM(${transactionLogsTable.netAmount})`.as("total_net_cop"),
         txCount: sql<number>`COUNT(*)`.as("tx_count"),
       })
       .from(transactionLogsTable)
       .where(txConditions.length > 0 ? and(...txConditions) : undefined)
       .groupBy(transactionLogsTable.merchantId)
-      .orderBy(sql`SUM(${transactionLogsTable.grossAmountCop}) DESC`)
+      .orderBy(sql`SUM(${transactionLogsTable.grossAmount}) DESC`)
       .limit(limit);
 
     const merchantIds = rows.map((r) => r.merchantId);
@@ -279,7 +279,7 @@ router.get(
       const cogsRows = await db
         .select({
           merchantId: transactionLogsTable.merchantId,
-          totalCogsCop: sql<number>`SUM(${transactionLineItemsTable.quantity} * ${transactionLineItemsTable.unitCostSnapshot})`.as("total_cogs_cop"),
+          totalCogs: sql<number>`SUM(${transactionLineItemsTable.quantity} * ${transactionLineItemsTable.unitCostSnapshot})`.as("total_cogs_cop"),
         })
         .from(transactionLineItemsTable)
         .innerJoin(transactionLogsTable, eq(transactionLineItemsTable.transactionLogId, transactionLogsTable.id))
@@ -288,21 +288,21 @@ router.get(
       return cogsRows;
     })();
 
-    const cogsMap = new Map(txCogsRows.map((r) => [r.merchantId, Number(r.totalCogsCop)]));
+    const cogsMap = new Map(txCogsRows.map((r) => [r.merchantId, Number(r.totalCogs)]));
 
     const topMerchants = rows.map((r) => {
-      const sales = Number(r.totalSalesCop);
+      const sales = Number(r.totalSales);
       const cogs = cogsMap.get(r.merchantId) ?? 0;
       const profit = sales - cogs;
       const marginPct = sales > 0 ? Math.round((profit / sales) * 10000) / 100 : 0;
       return {
         merchantId: r.merchantId,
         merchantName: merchantNameMap.get(r.merchantId) ?? r.merchantId,
-        totalSalesCop: sales,
-        totalCommissionCop: Number(r.totalCommissionCop),
-        totalNetCop: Number(r.totalNetCop),
-        totalCogsCop: cogs,
-        grossProfitCop: profit,
+        totalSales: sales,
+        totalCommission: Number(r.totalCommission),
+        totalNet: Number(r.totalNet),
+        totalCogs: cogs,
+        grossProfit: profit,
         profitMarginPercent: marginPct,
         txCount: Number(r.txCount),
       };
@@ -440,7 +440,7 @@ router.get(
         day: sql<string>`TO_CHAR(${localTs}, 'Dy')`.as("day"),
         dayNum: sql<number>`EXTRACT(DOW FROM ${localTs})`.as("day_num"),
         txCount: sql<number>`COUNT(*)`.as("tx_count"),
-        totalCop: sql<number>`SUM(${transactionLogsTable.grossAmountCop})`.as("total_cop"),
+        total: sql<number>`SUM(${transactionLogsTable.grossAmount})`.as("total_cop"),
       })
       .from(transactionLogsTable)
       .where(txConditions.length > 0 ? and(...txConditions) : undefined)
@@ -459,7 +459,7 @@ router.get(
       day: String(r.day),
       dayNum: Number(r.dayNum),
       txCount: Number(r.txCount),
-      totalCop: Number(r.totalCop),
+      total: Number(r.total),
     }));
 
     res.json({ heatmap });

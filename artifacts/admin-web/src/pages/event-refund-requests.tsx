@@ -18,6 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Check, X, Eye, RefreshCcw, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
 export default function EventRefundRequests() {
   const { t } = useTranslation();
@@ -27,7 +28,7 @@ export default function EventRefundRequests() {
   const userEventId = auth?.user?.eventId ?? "";
 
   const { data: eventsData } = useListEvents(isGlobalAdmin ? {} : undefined);
-  const events = (eventsData as { events?: { id: string; name: string }[] })?.events ?? [];
+  const events = (eventsData as { events?: { id: string; name: string; currencyCode?: string }[] })?.events ?? [];
   const [selectedEventId, setSelectedEventId] = useState("");
 
   useEffect(() => {
@@ -37,6 +38,8 @@ export default function EventRefundRequests() {
   }, [isGlobalAdmin, selectedEventId, events]);
 
   const eventId = isGlobalAdmin ? selectedEventId : userEventId;
+  const currency = events.find((e) => e.id === eventId)?.currencyCode ?? "COP";
+  const fmt = (n: number) => formatCurrency(n, currency);
 
   const [statusFilter, setStatusFilter] = useState("pending");
   const { data, isLoading } = useListRefundRequests(eventId || null, statusFilter);
@@ -101,7 +104,7 @@ export default function EventRefundRequests() {
       escCsv(r.braceletUid),
       escCsv([r.attendeeFirstName, r.attendeeLastName].filter(Boolean).join(" ")),
       escCsv(r.attendeeEmail),
-      escCsv(r.amountCop),
+      escCsv(r.amount),
       escCsv(r.refundMethod),
       escCsv(r.status),
       escCsv(r.accountDetails),
@@ -204,7 +207,7 @@ export default function EventRefundRequests() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right font-mono">${req.amountCop.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{fmt(req.amount)}</TableCell>
                   <TableCell className="text-sm capitalize">{req.refundMethod}</TableCell>
                   <TableCell>{statusBadge(req.status)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(req.createdAt).toLocaleString()}</TableCell>
@@ -255,7 +258,7 @@ export default function EventRefundRequests() {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("refunds.labelAmount")}</p>
-                  <p className="font-mono font-bold">${selected.amountCop.toLocaleString()} COP</p>
+                  <p className="font-mono font-bold">{fmt(selected.amount)}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -322,7 +325,7 @@ export default function EventRefundRequests() {
           <AlertDialogHeader>
             <AlertDialogTitle>{t("refunds.rejectTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("refunds.rejectDesc", { amount: selected?.amountCop.toLocaleString(), bracelet: selected?.braceletUid })}
+              {t("refunds.rejectDesc", { amount: selected?.amount.toLocaleString(), bracelet: selected?.braceletUid, currency: events.find((e) => e.id === eventId)?.currencyCode ?? "COP" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="px-6 pb-2">

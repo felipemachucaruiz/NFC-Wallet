@@ -7,10 +7,9 @@
  */
 
 export interface AnalyticsSummary {
-  totalTopUpsCop: number;
-  totalSalesCop: number;
-  pendingBalanceCop: number;
+  totalTopUps: number;
+  totalSales: number;
+  pendingBalance: number;
   transactionCount: number;
   topUpCount: number;
-  braceletCount: number;
 }

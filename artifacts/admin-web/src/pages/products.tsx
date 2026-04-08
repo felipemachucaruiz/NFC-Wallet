@@ -24,6 +24,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2, ImageIcon, Upload, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
 function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -33,8 +34,8 @@ function resolveImageUrl(url: string | null | undefined): string | null {
 
 type ProductForm = {
   name: string;
-  priceCop: string;
-  costCop: string;
+  price: string;
+  cost: string;
   category: string;
   barcode: string;
   merchantId: string;
@@ -43,7 +44,7 @@ type ProductForm = {
   active: boolean;
 };
 
-const emptyForm: ProductForm = { name: "", priceCop: "", costCop: "0", category: "", barcode: "", merchantId: "", ivaRate: "0", ivaExento: false, active: true };
+const emptyForm: ProductForm = { name: "", price: "", cost: "0", category: "", barcode: "", merchantId: "", ivaRate: "0", ivaExento: false, active: true };
 
 export default function Products() {
   const { t } = useTranslation();
@@ -55,6 +56,8 @@ export default function Products() {
 
   const { data: eventsData } = useListEvents();
   const events = eventsData?.events ?? [];
+  const selectedCurrency = (events.find((e) => e.id === eventFilter) as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
+  const fmtPrice = (n: number) => formatCurrency(n, selectedCurrency);
 
   const productParams: Record<string, string> = {};
   if (eventFilter !== "all") productParams.eventId = eventFilter;
@@ -92,8 +95,8 @@ export default function Products() {
     setSelected(product);
     setForm({
       name: product.name,
-      priceCop: String(product.priceCop),
-      costCop: String(product.costCop),
+      price: String(product.price),
+      cost: String(product.cost),
       category: product.category ?? "",
       barcode: product.barcode ?? "",
       merchantId: product.merchantId,
@@ -145,8 +148,8 @@ export default function Products() {
       {
         data: {
           name: form.name,
-          priceCop: parseInt(form.priceCop),
-          costCop: parseInt(form.costCop) || undefined,
+          price: parseInt(form.price),
+          cost: parseInt(form.cost) || undefined,
           merchantId: form.merchantId,
           category: form.category || undefined,
           barcode: form.barcode || undefined,
@@ -168,8 +171,8 @@ export default function Products() {
         productId: selected.id,
         data: {
           name: form.name,
-          priceCop: parseInt(form.priceCop),
-          costCop: parseInt(form.costCop) || undefined,
+          price: parseInt(form.price),
+          cost: parseInt(form.cost) || undefined,
           category: form.category || undefined,
           barcode: form.barcode || undefined,
           ivaRate: form.ivaRate || undefined,
@@ -263,7 +266,7 @@ export default function Products() {
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{merchants.find((m) => m.id === product.merchantId)?.name ?? product.merchantId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-right font-mono">${product.priceCop.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{fmtPrice(product.price)}</TableCell>
                   <TableCell className="text-sm">{product.category ?? "—"}</TableCell>
                   <TableCell className="text-sm">{product.ivaExento ? t("products.ivaExempt") : `${product.ivaRate}%`}</TableCell>
                   <TableCell>
@@ -292,8 +295,8 @@ export default function Products() {
           <div className="space-y-3">
             <div className="space-y-1"><Label>{t("products.productName")}</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>{t("products.priceCOP")}</Label><Input type="number" min="0" value={form.priceCop} onChange={(e) => setForm((f) => ({ ...f, priceCop: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>{t("products.costCOP")}</Label><Input type="number" min="0" value={form.costCop} onChange={(e) => setForm((f) => ({ ...f, costCop: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.price")}</Label><Input type="number" min="0" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.cost")}</Label><Input type="number" min="0" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>{t("products.category")}</Label><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
@@ -313,7 +316,7 @@ export default function Products() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handleCreate} disabled={createProduct.isPending || !form.name || !form.priceCop || !form.merchantId}>
+            <Button onClick={handleCreate} disabled={createProduct.isPending || !form.name || !form.price || !form.merchantId}>
               {createProduct.isPending ? t("products.creating") : t("common.create")}
             </Button>
           </DialogFooter>
@@ -326,8 +329,8 @@ export default function Products() {
           <div className="space-y-3">
             <div className="space-y-1"><Label>{t("products.productName")}</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>{t("products.priceCOP")}</Label><Input type="number" min="0" value={form.priceCop} onChange={(e) => setForm((f) => ({ ...f, priceCop: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>{t("products.costCOP")}</Label><Input type="number" min="0" value={form.costCop} onChange={(e) => setForm((f) => ({ ...f, costCop: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.price")}</Label><Input type="number" min="0" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.cost")}</Label><Input type="number" min="0" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>{t("products.category")}</Label><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
@@ -381,7 +384,7 @@ export default function Products() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handleUpdate} disabled={updateProduct.isPending || !form.name || !form.priceCop}>
+            <Button onClick={handleUpdate} disabled={updateProduct.isPending || !form.name || !form.price}>
               {updateProduct.isPending ? t("products.saving") : t("common.save")}
             </Button>
           </DialogFooter>

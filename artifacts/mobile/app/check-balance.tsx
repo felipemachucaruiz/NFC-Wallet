@@ -29,8 +29,8 @@ type BraceletInfo = {
 type TxEntry = {
   id: string;
   type?: "charge" | "topup";
-  grossAmountCop: number;
-  newBalanceCop: number;
+  grossAmount: number;
+  newBalance: number;
   createdAt: string;
   offlineCreatedAt?: string | null;
   merchantName?: string | null;
@@ -279,7 +279,7 @@ export default function CheckBalanceScreen() {
             transactions.map((tx) => {
               const isTopup = tx.type === "topup";
               const amountColor = isTopup ? C.success ?? "#16a34a" : C.danger;
-              const amountValue = isTopup ? tx.grossAmountCop : -tx.grossAmountCop;
+              const amountValue = isTopup ? tx.grossAmount : -tx.grossAmount;
               const label = isTopup
                 ? (tx.merchantName ?? t("bank.topUpLabel"))
                 : (tx.merchantName ?? "—");
@@ -308,7 +308,7 @@ export default function CheckBalanceScreen() {
                         style={[styles.txAmount, { color: amountColor }]}
                       />
                       <Text style={[styles.txBalance, { color: C.textMuted }]}>
-                        → {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(tx.newBalanceCop)}
+                        → {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(tx.newBalance)}
                       </Text>
                     </View>
                   </View>

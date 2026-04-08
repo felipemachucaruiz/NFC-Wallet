@@ -10,17 +10,13 @@ export const braceletsTable = pgTable("bracelets", {
   attendeeName: varchar("attendee_name", { length: 255 }),
   phone: varchar("phone", { length: 32 }),
   email: varchar("email", { length: 255 }),
-  lastKnownBalanceCop: integer("last_known_balance_cop").notNull().default(0),
+  lastKnownBalance: integer("last_known_balance").notNull().default(0),
   lastCounter: integer("last_counter").notNull().default(0),
   maxOfflineSpend: integer("max_offline_spend"),
   flagged: boolean("flagged").notNull().default(false),
   flagReason: text("flag_reason"),
   pendingSync: boolean("pending_sync").notNull().default(false),
-  pendingBalanceCop: integer("pending_balance_cop").notNull().default(0),
-  /**
-   * Array of access zone IDs granted to this bracelet.
-   * Populated at registration (from gate user's gateZoneId) and via upgrade endpoint.
-   */
+  pendingBalance: integer("pending_balance").notNull().default(0),
   accessZoneIds: text("access_zone_ids").array().notNull().default(sql`'{}'::text[]`),
   registeredByUserId: varchar("registered_by_user_id").references(() => usersTable.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

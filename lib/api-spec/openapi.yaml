@@ -3369,7 +3369,7 @@ components:
 
     PromoterCompanySummary:
       type: object
-      required: [companyId, companyName, eventCount, totalRevenueCop, totalTopupsCop, totalUnclaimedCop, totalAttendees]
+      required: [companyId, companyName, eventCount, totalRevenue, totalTopups, totalUnclaimed, totalAttendees]
       properties:
         companyId:
           type: string
@@ -3377,11 +3377,11 @@ components:
           type: string
         eventCount:
           type: integer
-        totalRevenueCop:
+        totalRevenue:
           type: number
-        totalTopupsCop:
+        totalTopups:
           type: number
-        totalUnclaimedCop:
+        totalUnclaimed:
           type: number
         totalAttendees:
           type: integer
@@ -3401,7 +3401,7 @@ components:
     # ── Events ────────────────────────────────────────────────────────────────
     Event:
       type: object
-      required: [id, name, active, createdAt]
+      required: [id, name, active, currencyCode, createdAt]
       properties:
         id:
           type: string
@@ -3419,6 +3419,10 @@ components:
           format: date-time
         active:
           type: boolean
+        currencyCode:
+          type: string
+          enum: [COP, MXN, CLP, ARS, PEN, UYU, BOB, BRL, USD]
+          default: COP
         inventoryMode:
           $ref: '#/components/schemas/InventoryMode'
         createdAt:
@@ -3436,6 +3440,10 @@ components:
           type: string
         venueAddress:
           type: string
+        currencyCode:
+          type: string
+          enum: [COP, MXN, CLP, ARS, PEN, UYU, BOB, BRL, USD]
+          default: COP
         startsAt:
           type: string
           format: date-time
@@ -3455,6 +3463,9 @@ components:
           type: string
         venueAddress:
           type: string
+        currencyCode:
+          type: string
+          enum: [COP, MXN, CLP, ARS, PEN, UYU, BOB, BRL, USD]
         startsAt:
           type: string
           format: date-time
@@ -3469,7 +3480,7 @@ components:
     # ── Bracelets ─────────────────────────────────────────────────────────────
     Bracelet:
       type: object
-      required: [id, nfcUid, lastKnownBalanceCop, lastCounter, flagged, createdAt]
+      required: [id, nfcUid, lastKnownBalance, lastCounter, flagged, createdAt]
       properties:
         id:
           type: string
@@ -3483,7 +3494,7 @@ components:
           type: [string, 'null']
         email:
           type: [string, 'null']
-        lastKnownBalanceCop:
+        lastKnownBalance:
           type: integer
         lastCounter:
           type: integer
@@ -3527,7 +3538,7 @@ components:
 
     Refund:
       type: object
-      required: [id, braceletUid, eventId, amountCop, refundMethod, performedByUserId, createdAt]
+      required: [id, braceletUid, eventId, amount, refundMethod, performedByUserId, createdAt]
       properties:
         id:
           type: string
@@ -3535,7 +3546,7 @@ components:
           type: string
         eventId:
           type: string
-        amountCop:
+        amount:
           type: integer
         refundMethod:
           $ref: '#/components/schemas/RefundMethod'
@@ -3561,22 +3572,22 @@ components:
         newCounter:
           type: integer
           description: Updated counter after NFC write (for bracelet sync)
-        newBalanceCop:
+        newBalance:
           type: integer
           description: New bracelet balance after refund (typically 0)
 
     RefundResult:
       type: object
-      required: [refund, amountCop]
+      required: [refund, amount]
       properties:
         refund:
           $ref: '#/components/schemas/Refund'
-        amountCop:
+        amount:
           type: integer
 
     UnclaimedBracelet:
       type: object
-      required: [id, nfcUid, lastKnownBalanceCop, lastCounter, flagged, createdAt]
+      required: [id, nfcUid, lastKnownBalance, lastCounter, flagged, createdAt]
       properties:
         id:
           type: string
@@ -3590,7 +3601,7 @@ components:
           type: [string, 'null']
         email:
           type: [string, 'null']
-        lastKnownBalanceCop:
+        lastKnownBalance:
           type: integer
         lastCounter:
           type: integer
@@ -3608,13 +3619,13 @@ components:
 
     UnclaimedBalancesResponse:
       type: object
-      required: [bracelets, totalUnclaimedCop]
+      required: [bracelets, totalUnclaimed]
       properties:
         bracelets:
           type: array
           items:
             $ref: '#/components/schemas/UnclaimedBracelet'
-        totalUnclaimedCop:
+        totalUnclaimed:
           type: integer
 
     # ── Top-Ups ───────────────────────────────────────────────────────────────
@@ -3624,13 +3635,13 @@ components:
 
     TopUp:
       type: object
-      required: [id, braceletUid, amountCop, paymentMethod, status, newBalanceCop, newCounter, createdAt]
+      required: [id, braceletUid, amount, paymentMethod, status, newBalance, newCounter, createdAt]
       properties:
         id:
           type: string
         braceletUid:
           type: string
-        amountCop:
+        amount:
           type: integer
         paymentMethod:
           $ref: '#/components/schemas/PaymentMethod'
@@ -3641,7 +3652,7 @@ components:
         status:
           type: string
           enum: [pending, completed, failed]
-        newBalanceCop:
+        newBalance:
           type: integer
         newCounter:
           type: integer
@@ -3651,12 +3662,12 @@ components:
 
     CreateTopUpBody:
       type: object
-      required: [nfcUid, amountCop, paymentMethod]
+      required: [nfcUid, amount, paymentMethod]
       properties:
         nfcUid:
           type: string
           minLength: 1
-        amountCop:
+        amount:
           type: integer
           minimum: 1
         paymentMethod:
@@ -3686,13 +3697,13 @@ components:
 
     ShiftTopUpSummary:
       type: object
-      required: [topUps, totalCop, byPaymentMethod]
+      required: [topUps, total, byPaymentMethod]
       properties:
         topUps:
           type: array
           items:
             $ref: '#/components/schemas/TopUp'
-        totalCop:
+        total:
           type: integer
         byPaymentMethod:
           type: object
@@ -3775,42 +3786,42 @@ components:
 
     MerchantEarnings:
       type: object
-      required: [merchantId, grossSalesCop, cogsCop, grossProfitCop, profitMarginPercent, marginPercent, totalCommissionCop, netEarnedCop, totalPaidOutCop, pendingCop, totalIvaCop, totalRetencionFuenteCop, totalRetencionICACop, totalRetencionesCop, totalNetoCop]
+      required: [merchantId, grossSales, cogs, grossProfit, profitMarginPercent, marginPercent, totalCommission, netEarned, totalPaidOut, pending, totalIva, totalRetencionFuente, totalRetencionICA, totalRetenciones, totalNeto]
       properties:
         merchantId:
           type: string
-        grossSalesCop:
+        grossSales:
           type: integer
-        cogsCop:
+        cogs:
           type: integer
-        grossProfitCop:
+        grossProfit:
           type: integer
         profitMarginPercent:
           type: number
         marginPercent:
           type: number
           description: Alias for profitMarginPercent
-        totalCommissionCop:
+        totalCommission:
           type: integer
-        netEarnedCop:
+        netEarned:
           type: integer
-        totalPaidOutCop:
+        totalPaidOut:
           type: integer
-        pendingCop:
+        pending:
           type: integer
-        totalIvaCop:
+        totalIva:
           type: integer
           description: Total IVA recaudado en ventas
-        totalRetencionFuenteCop:
+        totalRetencionFuente:
           type: integer
           description: Total retención en la fuente aplicada
-        totalRetencionICACop:
+        totalRetencionICA:
           type: integer
           description: Total retención de ICA aplicada
-        totalRetencionesCop:
+        totalRetenciones:
           type: integer
           description: Total retenciones (fuente + ICA)
-        totalNetoCop:
+        totalNeto:
           type: integer
           description: Neto efectivo para el merchant (bruto - comisión - retenciones)
         payouts:
@@ -3868,7 +3879,7 @@ components:
     # ── Products ──────────────────────────────────────────────────────────────
     Product:
       type: object
-      required: [id, merchantId, name, priceCop, costCop, active, createdAt, ivaRate, ivaExento]
+      required: [id, merchantId, name, price, cost, active, createdAt, ivaRate, ivaExento]
       properties:
         id:
           type: string
@@ -3881,9 +3892,9 @@ components:
         barcode:
           type: [string, 'null']
           description: "Optional barcode for PDA hardware scanner lookup"
-        priceCop:
+        price:
           type: integer
-        costCop:
+        cost:
           type: integer
         ivaRate:
           type: string
@@ -3899,7 +3910,7 @@ components:
 
     CreateProductBody:
       type: object
-      required: [merchantId, name, priceCop]
+      required: [merchantId, name, price]
       properties:
         merchantId:
           type: string
@@ -3911,10 +3922,10 @@ components:
         barcode:
           type: string
           description: "Optional barcode for PDA hardware scanner lookup"
-        priceCop:
+        price:
           type: integer
           minimum: 0
-        costCop:
+        cost:
           type: integer
           minimum: 0
         ivaRate:
@@ -3939,10 +3950,10 @@ components:
         imageUrl:
           type: [string, 'null']
           description: "Product image URL (null to remove)"
-        priceCop:
+        price:
           type: integer
           minimum: 0
-        costCop:
+        cost:
           type: integer
           minimum: 0
         active:
@@ -4355,7 +4366,7 @@ components:
 
     TransactionLog:
       type: object
-      required: [id, idempotencyKey, braceletUid, locationId, merchantId, eventId, grossAmountCop, commissionAmountCop, netAmountCop, newBalanceCop, counter, createdAt]
+      required: [id, idempotencyKey, braceletUid, locationId, merchantId, eventId, grossAmount, commissionAmount, netAmount, newBalance, counter, createdAt]
       properties:
         id:
           type: string
@@ -4369,13 +4380,13 @@ components:
           type: string
         eventId:
           type: string
-        grossAmountCop:
+        grossAmount:
           type: integer
-        commissionAmountCop:
+        commissionAmount:
           type: integer
-        netAmountCop:
+        netAmount:
           type: integer
-        newBalanceCop:
+        newBalance:
           type: integer
         counter:
           type: integer
@@ -4456,7 +4467,7 @@ components:
 
     MerchantPayout:
       type: object
-      required: [id, merchantId, eventId, periodFrom, periodTo, grossSalesCop, commissionCop, netPayoutCop, paymentMethod, performedByUserId, paidAt, createdAt]
+      required: [id, merchantId, eventId, periodFrom, periodTo, grossSales, commission, netPayout, paymentMethod, performedByUserId, paidAt, createdAt]
       properties:
         id:
           type: string
@@ -4470,11 +4481,11 @@ components:
         periodTo:
           type: string
           format: date-time
-        grossSalesCop:
+        grossSales:
           type: integer
-        commissionCop:
+        commission:
           type: integer
-        netPayoutCop:
+        netPayout:
           type: integer
         paymentMethod:
           $ref: '#/components/schemas/PayoutPaymentMethod'
@@ -4524,18 +4535,18 @@ components:
 
     RefundMethodBreakdown:
       type: object
-      required: [totalCop, count]
+      required: [total, count]
       properties:
-        totalCop:
+        total:
           type: integer
         count:
           type: integer
 
     RefundReport:
       type: object
-      required: [totalRefundedCop, count, byRefundMethod]
+      required: [totalRefunded, count, byRefundMethod]
       properties:
-        totalRefundedCop:
+        totalRefunded:
           type: integer
         count:
           type: integer
@@ -4547,36 +4558,36 @@ components:
     # ── Reports ───────────────────────────────────────────────────────────────
     RevenueReportRow:
       type: object
-      required: [grossSalesCop, cogsCop, grossProfitCop, profitMarginPercent, commissionCop, netCop, transactionCount, totalIvaCop, totalRetencionFuenteCop, totalRetencionICACop, totalRetencionesCop, totalNetoCop]
+      required: [grossSales, cogs, grossProfit, profitMarginPercent, commission, net, transactionCount, totalIva, totalRetencionFuente, totalRetencionICA, totalRetenciones, totalNeto]
       properties:
-        grossSalesCop:
+        grossSales:
           type: integer
-        cogsCop:
+        cogs:
           type: integer
-        grossProfitCop:
+        grossProfit:
           type: integer
         profitMarginPercent:
           type: number
-        commissionCop:
+        commission:
           type: integer
-        netCop:
+        net:
           type: integer
         transactionCount:
           type: integer
-        totalIvaCop:
+        totalIva:
           type: integer
-        totalRetencionFuenteCop:
+        totalRetencionFuente:
           type: integer
-        totalRetencionICACop:
+        totalRetencionICA:
           type: integer
-        totalRetencionesCop:
+        totalRetenciones:
           type: integer
-        totalNetoCop:
+        totalNeto:
           type: integer
 
     FiscalSummaryRow:
       type: object
-      required: [merchantId, merchantName, transactionCount, totalBrutoCop, totalIvaCop, totalRetencionFuenteCop, totalRetencionICACop, totalRetencionesCop, totalComisionCop, totalNetoCop]
+      required: [merchantId, merchantName, transactionCount, totalBruto, totalIva, totalRetencionFuente, totalRetencionICA, totalRetenciones, totalComision, totalNeto]
       properties:
         merchantId:
           type: string
@@ -4584,38 +4595,38 @@ components:
           type: string
         transactionCount:
           type: integer
-        totalBrutoCop:
+        totalBruto:
           type: integer
-        totalIvaCop:
+        totalIva:
           type: integer
-        totalRetencionFuenteCop:
+        totalRetencionFuente:
           type: integer
-        totalRetencionICACop:
+        totalRetencionICA:
           type: integer
-        totalRetencionesCop:
+        totalRetenciones:
           type: integer
-        totalComisionCop:
+        totalComision:
           type: integer
-        totalNetoCop:
+        totalNeto:
           type: integer
 
     FiscalSummaryTotals:
       type: object
-      required: [totalBrutoCop, totalIvaCop, totalRetencionFuenteCop, totalRetencionICACop, totalRetencionesCop, totalComisionCop, totalNetoCop]
+      required: [totalBruto, totalIva, totalRetencionFuente, totalRetencionICA, totalRetenciones, totalComision, totalNeto]
       properties:
-        totalBrutoCop:
+        totalBruto:
           type: integer
-        totalIvaCop:
+        totalIva:
           type: integer
-        totalRetencionFuenteCop:
+        totalRetencionFuente:
           type: integer
-        totalRetencionICACop:
+        totalRetencionICA:
           type: integer
-        totalRetencionesCop:
+        totalRetenciones:
           type: integer
-        totalComisionCop:
+        totalComision:
           type: integer
-        totalNetoCop:
+        totalNeto:
           type: integer
 
     RevenueReport:
@@ -4651,9 +4662,9 @@ components:
 
     TopUpReport:
       type: object
-      required: [totalCop, byPaymentMethod, byUser, bySource]
+      required: [total, byPaymentMethod, byUser, bySource]
       properties:
-        totalCop:
+        total:
           type: integer
         byPaymentMethod:
           type: object
@@ -4663,7 +4674,7 @@ components:
           type: array
           items:
             type: object
-            required: [userId, totalCop, count]
+            required: [userId, total, count]
             properties:
               userId:
                 type: string
@@ -4671,7 +4682,7 @@ components:
                 type: [string, 'null']
               lastName:
                 type: [string, 'null']
-              totalCop:
+              total:
                 type: integer
               count:
                 type: integer
@@ -4681,17 +4692,17 @@ components:
           properties:
             bank:
               type: object
-              required: [totalCop, count]
+              required: [total, count]
               properties:
-                totalCop:
+                total:
                   type: integer
                 count:
                   type: integer
             digital:
               type: object
-              required: [totalCop, count]
+              required: [total, count]
               properties:
-                totalCop:
+                total:
                   type: integer
                 count:
                   type: integer
@@ -4727,12 +4738,12 @@ components:
 
     InitiateDigitalTopUpBody:
       type: object
-      required: [braceletUid, amountCop, paymentMethod]
+      required: [braceletUid, amount, paymentMethod]
       properties:
         braceletUid:
           type: string
           minLength: 1
-        amountCop:
+        amount:
           type: integer
           minimum: 1000
         paymentMethod:
@@ -4782,13 +4793,13 @@ components:
 
     AnalyticsSummary:
       type: object
-      required: [totalTopUpsCop, totalSalesCop, pendingBalanceCop, transactionCount, topUpCount]
+      required: [totalTopUps, totalSales, pendingBalance, transactionCount, topUpCount]
       properties:
-        totalTopUpsCop:
+        totalTopUps:
           type: integer
-        totalSalesCop:
+        totalSales:
           type: integer
-        pendingBalanceCop:
+        pendingBalance:
           type: integer
         transactionCount:
           type: integer
@@ -4797,7 +4808,7 @@ components:
 
     AnalyticsSalesByHourItem:
       type: object
-      required: [hour, day, totalCop, txCount]
+      required: [hour, day, total, txCount]
       properties:
         hour:
           type: integer
@@ -4805,7 +4816,7 @@ components:
           maximum: 23
         day:
           type: string
-        totalCop:
+        total:
           type: integer
         txCount:
           type: integer
@@ -4821,7 +4832,7 @@ components:
 
     AnalyticsTopProductItem:
       type: object
-      required: [productId, productName, totalUnits, totalRevenueCop, totalCogsCop, grossProfitCop, profitMarginPercent]
+      required: [productId, productName, totalUnits, totalRevenue, totalCogs, grossProfit, profitMarginPercent]
       properties:
         productId:
           type: string
@@ -4830,11 +4841,11 @@ components:
           type: string
         totalUnits:
           type: integer
-        totalRevenueCop:
+        totalRevenue:
           type: integer
-        totalCogsCop:
+        totalCogs:
           type: integer
-        grossProfitCop:
+        grossProfit:
           type: integer
         profitMarginPercent:
           type: number
@@ -4850,21 +4861,21 @@ components:
 
     AnalyticsTopMerchantItem:
       type: object
-      required: [merchantId, merchantName, totalSalesCop, totalCommissionCop, totalNetCop, totalCogsCop, grossProfitCop, profitMarginPercent, txCount]
+      required: [merchantId, merchantName, totalSales, totalCommission, totalNet, totalCogs, grossProfit, profitMarginPercent, txCount]
       properties:
         merchantId:
           type: string
         merchantName:
           type: string
-        totalSalesCop:
+        totalSales:
           type: integer
-        totalCommissionCop:
+        totalCommission:
           type: integer
-        totalNetCop:
+        totalNet:
           type: integer
-        totalCogsCop:
+        totalCogs:
           type: integer
-        grossProfitCop:
+        grossProfit:
           type: integer
         profitMarginPercent:
           type: number
@@ -4917,7 +4928,7 @@ components:
 
     AnalyticsHeatmapItem:
       type: object
-      required: [hour, day, dayNum, txCount, totalCop]
+      required: [hour, day, dayNum, txCount, total]
       properties:
         hour:
           type: integer
@@ -4931,7 +4942,7 @@ components:
           maximum: 6
         txCount:
           type: integer
-        totalCop:
+        total:
           type: integer
 
     AnalyticsHeatmap:
@@ -5051,7 +5062,7 @@ components:
 
     EventBracelet:
       type: object
-      required: [id, nfcUid, lastKnownBalanceCop, flagged, createdAt]
+      required: [id, nfcUid, lastKnownBalance, flagged, createdAt]
       properties:
         id:
           type: string
@@ -5065,7 +5076,7 @@ components:
           type: [string, 'null']
         email:
           type: [string, 'null']
-        lastKnownBalanceCop:
+        lastKnownBalance:
           type: [integer, 'null']
         lastCounter:
           type: [integer, 'null']
@@ -5099,7 +5110,7 @@ components:
 
     TransactionLineItemSummary:
       type: object
-      required: [id, productName, unitPrice, quantity, ivaAmountCop]
+      required: [id, productName, unitPrice, quantity, ivaAmount]
       properties:
         id:
           type: string
@@ -5111,12 +5122,12 @@ components:
           type: integer
         quantity:
           type: integer
-        ivaAmountCop:
+        ivaAmount:
           type: integer
 
     EventTransaction:
       type: object
-      required: [id, braceletUid, locationId, merchantId, eventId, grossAmountCop, commissionAmountCop, netAmountCop, newBalanceCop, counter, createdAt, itemCount, items]
+      required: [id, braceletUid, locationId, merchantId, eventId, grossAmount, commissionAmount, netAmount, newBalance, counter, createdAt, itemCount, items]
       properties:
         id:
           type: string
@@ -5134,13 +5145,13 @@ components:
           type: [string, 'null']
         eventId:
           type: string
-        grossAmountCop:
+        grossAmount:
           type: integer
-        commissionAmountCop:
+        commissionAmount:
           type: integer
-        netAmountCop:
+        netAmount:
           type: integer
-        newBalanceCop:
+        newBalance:
           type: integer
         counter:
           type: integer
@@ -5220,7 +5231,7 @@ components:
           type: [string, 'null']
         rank:
           type: integer
-        upgradePriceCop:
+        upgradePrice:
           type: [integer, 'null']
         createdAt:
           type: string
@@ -5243,7 +5254,7 @@ components:
         rank:
           type: integer
           minimum: 0
-        upgradePriceCop:
+        upgradePrice:
           type: [integer, 'null']
 
     UpdateAccessZoneBody:
@@ -5259,5 +5270,5 @@ components:
         rank:
           type: integer
           minimum: 0
-        upgradePriceCop:
+        upgradePrice:
           type: [integer, 'null']

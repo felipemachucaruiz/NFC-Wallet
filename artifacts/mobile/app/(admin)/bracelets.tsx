@@ -42,7 +42,7 @@ type BraceletListItem = {
   attendeeName?: string | null;
   phone?: string | null;
   email?: string | null;
-  lastKnownBalanceCop: number;
+  lastKnownBalance: number;
   lastCounter: number;
   flagged: boolean;
   flagReason?: string | null;
@@ -396,7 +396,7 @@ export default function BraceletsAdminScreen() {
               label={t("admin.braceletBalance")}
               value={null}
               C={C}
-              customValue={<CopAmount amount={(bracelet as { lastKnownBalanceCop?: number }).lastKnownBalanceCop ?? 0} style={{ color: C.text, fontFamily: "Inter_600SemiBold", fontSize: 16 }} />}
+              customValue={<CopAmount amount={(bracelet as { lastKnownBalance?: number }).lastKnownBalance ?? 0} style={{ color: C.text, fontFamily: "Inter_600SemiBold", fontSize: 16 }} />}
             />
             <InfoRow
               label={t("admin.braceletCounter")}
@@ -593,7 +593,7 @@ export default function BraceletsAdminScreen() {
                   )}
                 </View>
                 <View style={styles.braceletRight}>
-                  <CopAmount amount={b.lastKnownBalanceCop} size={14} style={{ color: C.text, fontFamily: "Inter_600SemiBold" }} />
+                  <CopAmount amount={b.lastKnownBalance} size={14} style={{ color: C.text, fontFamily: "Inter_600SemiBold" }} />
                   <View style={[styles.statusDot, { backgroundColor: b.flagged ? C.danger : C.success }]} />
                 </View>
               </Pressable>

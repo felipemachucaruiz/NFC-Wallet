@@ -13,7 +13,7 @@ export const refundsTable = pgTable("refunds", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   braceletUid: varchar("bracelet_uid", { length: 64 }).notNull(),
   eventId: varchar("event_id").notNull(),
-  amountCop: integer("amount_cop").notNull(),
+  amount: integer("amount").notNull(),
   refundMethod: refundMethodEnum("refund_method").notNull(),
   notes: text("notes"),
   performedByUserId: varchar("performed_by_user_id").notNull().references(() => usersTable.id),

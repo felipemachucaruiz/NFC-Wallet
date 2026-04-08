@@ -18,7 +18,8 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { isNfcSupported, writeBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
 import { writeDesfireBracelet, type DesfireTagInfo } from "@/utils/desfire";
 import { computeHmac } from "@/utils/hmac";
-import { formatCOP, parseCOPInput } from "@/utils/format";
+import { formatCurrency, parseCOPInput } from "@/utils/format";
+import { useEventContext } from "@/contexts/EventContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
 import { extractErrorMessage } from "@/utils/errorMessage";
@@ -28,7 +29,7 @@ const PENDING_NFC_WRITES_KEY = "@pendingNfcWrites";
 export interface PendingNfcWrite {
   id: string;
   nfcUid: string;
-  amountCop: number;
+  amount: number;
   newBalance: number;
   savedAt: string;
 }
@@ -124,6 +125,8 @@ export default function TopUpScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { currencyCode } = useEventContext();
+  const fmt = (n: number) => formatCurrency(n, currencyCode);
 
   const params = useLocalSearchParams<{
     uid: string;
@@ -330,7 +333,7 @@ export default function TopUpScreen() {
         // Write succeeded — enqueue for server sync
         await enqueueTopUp({
           nfcUid: uid,
-          amountCop: amount,
+          amount: amount,
           paymentMethod,
           newBalance,
           newCounter,
@@ -355,7 +358,7 @@ export default function TopUpScreen() {
         } else {
           console.error("[TopUp] NFC write failed — all retries exhausted", {
             nfcUid: uid,
-            amountCop: amount,
+            amount: amount,
             newBalance,
             timestamp: new Date().toISOString(),
             error: msg,
@@ -393,14 +396,14 @@ export default function TopUpScreen() {
     await addPendingNfcWrite({
       id: `${uid}_${Date.now()}`,
       nfcUid: uid,
-      amountCop: amount,
+      amount: amount,
       newBalance,
       savedAt: new Date().toISOString(),
     });
     try {
       await enqueueTopUp({
         nfcUid: uid,
-        amountCop: amount,
+        amount: amount,
         paymentMethod,
         newBalance,
         newCounter,
@@ -586,7 +589,7 @@ export default function TopUpScreen() {
         />
 
         <Button
-          title={`${t("bank.confirmTopUp")} ${amount > 0 ? formatCOP(amount) : ""}`}
+          title={`${t("bank.confirmTopUp")} ${amount > 0 ? fmt(amount) : ""}`}
           onPress={handleConfirm}
           variant="success"
           size="lg"

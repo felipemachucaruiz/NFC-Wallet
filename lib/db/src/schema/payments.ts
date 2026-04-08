@@ -18,7 +18,7 @@ export const wompiPaymentStatusEnum = pgEnum("wompi_payment_status", [
 export const wompiPaymentIntentsTable = pgTable("wompi_payment_intents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   braceletUid: varchar("bracelet_uid", { length: 64 }).notNull(),
-  amountCop: integer("amount_cop").notNull(),
+  amount: integer("amount").notNull(),
   paymentMethod: wompiPaymentMethodEnum("payment_method").notNull(),
   phoneNumber: varchar("phone_number", { length: 20 }),
   bankCode: varchar("bank_code", { length: 20 }),

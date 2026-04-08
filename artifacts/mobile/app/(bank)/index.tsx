@@ -21,10 +21,10 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { extractErrorMessage } from "@/utils/errorMessage";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 import { useAuth } from "@/contexts/AuthContext";
-import type { NfcChipType } from "@/contexts/EventContext";
+import { useEventContext, type NfcChipType } from "@/contexts/EventContext";
 import { useZoneCache } from "@/contexts/ZoneCacheContext";
 import { getPendingNfcWrites, removePendingNfcWrite, type PendingNfcWrite } from "./topup";
-import { formatCOP } from "@/utils/format";
+import { formatCurrency } from "@/utils/format";
 
 interface BraceletState {
   uid: string;
@@ -78,6 +78,8 @@ export default function BankLookupScreen() {
   const isWeb = Platform.OS === "web";
 
   const { user } = useAuth();
+  const { currencyCode } = useEventContext();
+  const fmt = (n: number) => formatCurrency(n, currencyCode);
   const { data: eventData } = useGetEvent(user?.eventId ?? "", {
     query: { enabled: !!user?.eventId },
   });
@@ -245,14 +247,14 @@ export default function BankLookupScreen() {
   const { getZonesByIds } = useZoneCache();
 
   const apiRecord = apiData as {
-    balanceCop?: number;
+    balance?: number;
     isFlagged?: boolean;
     attendeeName?: string | null;
     phone?: string | null;
     email?: string | null;
-    lastKnownBalanceCop?: number;
+    lastKnownBalance?: number;
     pendingSync?: boolean;
-    pendingBalanceCop?: number;
+    pendingBalance?: number;
     eventId?: string | null;
     accessZoneIds?: string[];
   } | undefined;
@@ -261,16 +263,16 @@ export default function BankLookupScreen() {
   // written to the chip. We must use the server balance as the source of truth —
   // even when NFC was scanned — so the bank operator topups from the correct base.
   const hasPendingSync = apiRecord?.pendingSync === true;
-  const serverBalance = apiRecord?.pendingBalanceCop
-    ? apiRecord.pendingBalanceCop
-    : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop);
+  const serverBalance = apiRecord?.pendingBalance
+    ? apiRecord.pendingBalance
+    : (apiRecord?.lastKnownBalance ?? apiRecord?.balance);
 
   const resolveStartBalance = () => {
     if (!bracelet) return 0;
     if (hasPendingSync && serverBalance !== undefined) return serverBalance;
     return tagInfo
       ? bracelet.balance
-      : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet.balance);
+      : (apiRecord?.lastKnownBalance ?? apiRecord?.balance ?? bracelet.balance);
   };
 
   const handleTopUp = () => {
@@ -319,7 +321,7 @@ export default function BankLookupScreen() {
     ? serverBalance
     : tagInfo
       ? (bracelet?.balance ?? 0)
-      : (apiRecord?.lastKnownBalanceCop ?? apiRecord?.balanceCop ?? bracelet?.balance ?? 0);
+      : (apiRecord?.lastKnownBalance ?? apiRecord?.balance ?? bracelet?.balance ?? 0);
   const isFlagged = apiRecord?.isFlagged ?? false;
   const isWrongEvent = !!apiRecord && !!apiRecord.eventId && !!user?.eventId && apiRecord.eventId !== user.eventId;
   const currentZones = getZonesByIds(apiRecord?.accessZoneIds ?? []);
@@ -519,7 +521,7 @@ export default function BankLookupScreen() {
               <Feather name="wifi-off" size={14} color={C.danger ?? "#EF4444"} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.pendingWriteAmount, { color: C.text }]}>
-                  {formatCOP(pw.amountCop)} — {pw.nfcUid}
+                  {fmt(pw.amount)} — {pw.nfcUid}
                 </Text>
                 <Text style={[styles.pendingWriteTime, { color: C.textMuted }]}>
                   {t("bank.pendingNfcWriteAt", { time: new Date(pw.savedAt).toLocaleTimeString() })}

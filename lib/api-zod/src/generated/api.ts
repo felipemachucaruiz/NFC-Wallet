@@ -317,6 +317,8 @@ export const ListEventsQueryParams = zod.object({
   promoterCompanyId: zod.coerce.string().optional(),
 });
 
+export const listEventsResponseEventsItemCurrencyCodeDefault = `COP`;
+
 export const ListEventsResponse = zod.object({
   events: zod.array(
     zod.object({
@@ -327,6 +329,9 @@ export const ListEventsResponse = zod.object({
       startsAt: zod.date().nullish(),
       endsAt: zod.date().nullish(),
       active: zod.boolean(),
+      currencyCode: zod
+        .enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"])
+        .default(listEventsResponseEventsItemCurrencyCodeDefault),
       inventoryMode: zod
         .enum(["location_based", "centralized_warehouse"])
         .optional(),
@@ -339,10 +344,15 @@ export const ListEventsResponse = zod.object({
  * @summary Create a new event (admin only)
  */
 
+export const createEventBodyCurrencyCodeDefault = `COP`;
+
 export const CreateEventBody = zod.object({
   name: zod.string().min(1),
   description: zod.string().optional(),
   venueAddress: zod.string().optional(),
+  currencyCode: zod
+    .enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"])
+    .default(createEventBodyCurrencyCodeDefault),
   startsAt: zod.date().optional(),
   endsAt: zod.date().optional(),
   inventoryMode: zod
@@ -357,6 +367,8 @@ export const GetEventParams = zod.object({
   eventId: zod.coerce.string(),
 });
 
+export const getEventResponseCurrencyCodeDefault = `COP`;
+
 export const GetEventResponse = zod.object({
   id: zod.string(),
   name: zod.string(),
@@ -365,6 +377,9 @@ export const GetEventResponse = zod.object({
   startsAt: zod.date().nullish(),
   endsAt: zod.date().nullish(),
   active: zod.boolean(),
+  currencyCode: zod
+    .enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"])
+    .default(getEventResponseCurrencyCodeDefault),
   inventoryMode: zod
     .enum(["location_based", "centralized_warehouse"])
     .optional(),
@@ -382,6 +397,9 @@ export const UpdateEventBody = zod.object({
   name: zod.string().min(1).optional(),
   description: zod.string().optional(),
   venueAddress: zod.string().optional(),
+  currencyCode: zod
+    .enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"])
+    .optional(),
   startsAt: zod.date().optional(),
   endsAt: zod.date().optional(),
   active: zod.boolean().optional(),
@@ -389,6 +407,8 @@ export const UpdateEventBody = zod.object({
     .enum(["location_based", "centralized_warehouse"])
     .optional(),
 });
+
+export const updateEventResponseCurrencyCodeDefault = `COP`;
 
 export const UpdateEventResponse = zod.object({
   id: zod.string(),
@@ -398,6 +418,9 @@ export const UpdateEventResponse = zod.object({
   startsAt: zod.date().nullish(),
   endsAt: zod.date().nullish(),
   active: zod.boolean(),
+  currencyCode: zod
+    .enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"])
+    .default(updateEventResponseCurrencyCodeDefault),
   inventoryMode: zod
     .enum(["location_based", "centralized_warehouse"])
     .optional(),
@@ -500,9 +523,9 @@ export const GetPromoterCompanySummaryResponse = zod.object({
   companyId: zod.string(),
   companyName: zod.string(),
   eventCount: zod.number(),
-  totalRevenueCop: zod.number(),
-  totalTopupsCop: zod.number(),
-  totalUnclaimedCop: zod.number(),
+  totalRevenue: zod.number(),
+  totalTopups: zod.number(),
+  totalUnclaimed: zod.number(),
   totalAttendees: zod.number(),
   events: zod
     .array(
@@ -541,7 +564,7 @@ export const GetBraceletResponse = zod.object({
   attendeeName: zod.string().nullish(),
   phone: zod.string().nullish(),
   email: zod.string().nullish(),
-  lastKnownBalanceCop: zod.number(),
+  lastKnownBalance: zod.number(),
   lastCounter: zod.number(),
   flagged: zod.boolean(),
   flagReason: zod.string().nullish(),
@@ -568,7 +591,7 @@ export const UpdateBraceletContactResponse = zod.object({
   attendeeName: zod.string().nullish(),
   phone: zod.string().nullish(),
   email: zod.string().nullish(),
-  lastKnownBalanceCop: zod.number(),
+  lastKnownBalance: zod.number(),
   lastCounter: zod.number(),
   flagged: zod.boolean(),
   flagReason: zod.string().nullish(),
@@ -589,7 +612,7 @@ export const UnflagBraceletResponse = zod.object({
   attendeeName: zod.string().nullish(),
   phone: zod.string().nullish(),
   email: zod.string().nullish(),
-  lastKnownBalanceCop: zod.number(),
+  lastKnownBalance: zod.number(),
   lastCounter: zod.number(),
   flagged: zod.boolean(),
   flagReason: zod.string().nullish(),
@@ -619,7 +642,7 @@ export const CreateRefundBody = zod.object({
     .number()
     .optional()
     .describe("Updated counter after NFC write (for bracelet sync)"),
-  newBalanceCop: zod
+  newBalance: zod
     .number()
     .optional()
     .describe("New bracelet balance after refund (typically 0)"),
@@ -641,7 +664,7 @@ export const GetUnclaimedBalancesResponse = zod.object({
       attendeeName: zod.string().nullish(),
       phone: zod.string().nullish(),
       email: zod.string().nullish(),
-      lastKnownBalanceCop: zod.number(),
+      lastKnownBalance: zod.number(),
       lastCounter: zod.number(),
       flagged: zod.boolean(),
       flagReason: zod.string().nullish(),
@@ -652,7 +675,7 @@ export const GetUnclaimedBalancesResponse = zod.object({
             id: zod.string(),
             braceletUid: zod.string(),
             eventId: zod.string(),
-            amountCop: zod.number(),
+            amount: zod.number(),
             refundMethod: zod.enum(["cash", "nequi", "bancolombia", "other"]),
             notes: zod.string().nullish(),
             performedByUserId: zod.string(),
@@ -663,7 +686,7 @@ export const GetUnclaimedBalancesResponse = zod.object({
         .optional(),
     }),
   ),
-  totalUnclaimedCop: zod.number(),
+  totalUnclaimed: zod.number(),
 });
 
 /**
@@ -697,7 +720,7 @@ export const ListEventBraceletsResponse = zod.object({
       attendeeName: zod.string().nullish(),
       phone: zod.string().nullish(),
       email: zod.string().nullish(),
-      lastKnownBalanceCop: zod.number().nullable(),
+      lastKnownBalance: zod.number().nullable(),
       lastCounter: zod.number().nullish(),
       flagged: zod.boolean(),
       flagReason: zod.string().nullish(),
@@ -751,10 +774,10 @@ export const ListEventTransactionsResponse = zod.object({
       merchantId: zod.string(),
       merchantName: zod.string().nullish(),
       eventId: zod.string(),
-      grossAmountCop: zod.number(),
-      commissionAmountCop: zod.number(),
-      netAmountCop: zod.number(),
-      newBalanceCop: zod.number(),
+      grossAmount: zod.number(),
+      commissionAmount: zod.number(),
+      netAmount: zod.number(),
+      newBalance: zod.number(),
       counter: zod.number(),
       itemCount: zod.number(),
       items: zod.array(
@@ -764,7 +787,7 @@ export const ListEventTransactionsResponse = zod.object({
           productName: zod.string().nullable(),
           unitPrice: zod.number(),
           quantity: zod.number(),
-          ivaAmountCop: zod.number(),
+          ivaAmount: zod.number(),
         }),
       ),
       performedByUserId: zod.string().nullish(),
@@ -784,7 +807,7 @@ export const ListEventTransactionsResponse = zod.object({
 
 export const CreateTopUpBody = zod.object({
   nfcUid: zod.string().min(1),
-  amountCop: zod.number().min(1),
+  amount: zod.number().min(1),
   paymentMethod: zod.enum([
     "cash",
     "card_external",
@@ -803,7 +826,7 @@ export const GetMyShiftTopUpsResponse = zod.object({
     zod.object({
       id: zod.string(),
       braceletUid: zod.string(),
-      amountCop: zod.number(),
+      amount: zod.number(),
       paymentMethod: zod.enum([
         "cash",
         "card_external",
@@ -814,12 +837,12 @@ export const GetMyShiftTopUpsResponse = zod.object({
       performedByUserId: zod.string().optional(),
       wompiTransactionId: zod.string().nullish(),
       status: zod.enum(["pending", "completed", "failed"]),
-      newBalanceCop: zod.number(),
+      newBalance: zod.number(),
       newCounter: zod.number(),
       createdAt: zod.date(),
     }),
   ),
-  totalCop: zod.number(),
+  total: zod.number(),
   byPaymentMethod: zod.record(zod.string(), zod.number()),
 });
 
@@ -986,26 +1009,22 @@ export const GetMerchantEarningsQueryParams = zod.object({
 
 export const GetMerchantEarningsResponse = zod.object({
   merchantId: zod.string(),
-  grossSalesCop: zod.number(),
-  cogsCop: zod.number(),
-  grossProfitCop: zod.number(),
+  grossSales: zod.number(),
+  cogs: zod.number(),
+  grossProfit: zod.number(),
   profitMarginPercent: zod.number(),
   marginPercent: zod.number().describe("Alias for profitMarginPercent"),
-  totalCommissionCop: zod.number(),
-  netEarnedCop: zod.number(),
-  totalPaidOutCop: zod.number(),
-  pendingCop: zod.number(),
-  totalIvaCop: zod.number().describe("Total IVA recaudado en ventas"),
-  totalRetencionFuenteCop: zod
+  totalCommission: zod.number(),
+  netEarned: zod.number(),
+  totalPaidOut: zod.number(),
+  pending: zod.number(),
+  totalIva: zod.number().describe("Total IVA recaudado en ventas"),
+  totalRetencionFuente: zod
     .number()
     .describe("Total retención en la fuente aplicada"),
-  totalRetencionICACop: zod
-    .number()
-    .describe("Total retención de ICA aplicada"),
-  totalRetencionesCop: zod
-    .number()
-    .describe("Total retenciones (fuente + ICA)"),
-  totalNetoCop: zod
+  totalRetencionICA: zod.number().describe("Total retención de ICA aplicada"),
+  totalRetenciones: zod.number().describe("Total retenciones (fuente + ICA)"),
+  totalNeto: zod
     .number()
     .describe(
       "Neto efectivo para el merchant (bruto - comisión - retenciones)",
@@ -1018,9 +1037,9 @@ export const GetMerchantEarningsResponse = zod.object({
         eventId: zod.string(),
         periodFrom: zod.date(),
         periodTo: zod.date(),
-        grossSalesCop: zod.number(),
-        commissionCop: zod.number(),
-        netPayoutCop: zod.number(),
+        grossSales: zod.number(),
+        commission: zod.number(),
+        netPayout: zod.number(),
         paymentMethod: zod.enum(["transfer", "nequi", "cash", "other"]),
         referenceNote: zod.string().nullish(),
         performedByUserId: zod.string(),
@@ -1147,8 +1166,8 @@ export const ListProductsResponse = zod.object({
         .string()
         .nullish()
         .describe("Optional barcode for PDA hardware scanner lookup"),
-      priceCop: zod.number(),
-      costCop: zod.number(),
+      price: zod.number(),
+      cost: zod.number(),
       ivaRate: zod
         .string()
         .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
@@ -1167,9 +1186,9 @@ export const ListProductsResponse = zod.object({
  * @summary Create a product (admin or merchant_admin)
  */
 
-export const createProductBodyPriceCopMin = 0;
+export const createProductBodyPriceMin = 0;
 
-export const createProductBodyCostCopMin = 0;
+export const createProductBodyCostMin = 0;
 
 export const createProductBodyIvaRateRegExp = new RegExp(
   "^\\d+(\\.\\d{1,2})?$",
@@ -1183,8 +1202,8 @@ export const CreateProductBody = zod.object({
     .string()
     .optional()
     .describe("Optional barcode for PDA hardware scanner lookup"),
-  priceCop: zod.number().min(createProductBodyPriceCopMin),
-  costCop: zod.number().min(createProductBodyCostCopMin).optional(),
+  price: zod.number().min(createProductBodyPriceMin),
+  cost: zod.number().min(createProductBodyCostMin).optional(),
   ivaRate: zod
     .string()
     .regex(createProductBodyIvaRateRegExp)
@@ -1209,8 +1228,8 @@ export const GetProductResponse = zod.object({
     .string()
     .nullish()
     .describe("Optional barcode for PDA hardware scanner lookup"),
-  priceCop: zod.number(),
-  costCop: zod.number(),
+  price: zod.number(),
+  cost: zod.number(),
   ivaRate: zod
     .string()
     .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
@@ -1230,9 +1249,9 @@ export const UpdateProductParams = zod.object({
   productId: zod.coerce.string(),
 });
 
-export const updateProductBodyPriceCopMin = 0;
+export const updateProductBodyPriceMin = 0;
 
-export const updateProductBodyCostCopMin = 0;
+export const updateProductBodyCostMin = 0;
 
 export const updateProductBodyIvaRateRegExp = new RegExp(
   "^\\d+(\\.\\d{1,2})?$",
@@ -1249,8 +1268,8 @@ export const UpdateProductBody = zod.object({
     .string()
     .nullish()
     .describe("Product image URL (null to remove)"),
-  priceCop: zod.number().min(updateProductBodyPriceCopMin).optional(),
-  costCop: zod.number().min(updateProductBodyCostCopMin).optional(),
+  price: zod.number().min(updateProductBodyPriceMin).optional(),
+  cost: zod.number().min(updateProductBodyCostMin).optional(),
   active: zod.boolean().optional(),
   ivaRate: zod
     .string()
@@ -1269,8 +1288,8 @@ export const UpdateProductResponse = zod.object({
     .string()
     .nullish()
     .describe("Optional barcode for PDA hardware scanner lookup"),
-  priceCop: zod.number(),
-  costCop: zod.number(),
+  price: zod.number(),
+  cost: zod.number(),
   ivaRate: zod
     .string()
     .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
@@ -1306,8 +1325,8 @@ export const GetProductByBarcodeResponse = zod.object({
     .string()
     .nullish()
     .describe("Optional barcode for PDA hardware scanner lookup"),
-  priceCop: zod.number(),
-  costCop: zod.number(),
+  price: zod.number(),
+  cost: zod.number(),
   ivaRate: zod
     .string()
     .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
@@ -1343,8 +1362,8 @@ export const GetLocationInventoryResponse = zod.object({
             .string()
             .nullish()
             .describe("Optional barcode for PDA hardware scanner lookup"),
-          priceCop: zod.number(),
-          costCop: zod.number(),
+          price: zod.number(),
+          cost: zod.number(),
           ivaRate: zod
             .string()
             .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
@@ -1402,8 +1421,8 @@ export const UpdateLocationInventoryItemResponse = zod.object({
         .string()
         .nullish()
         .describe("Optional barcode for PDA hardware scanner lookup"),
-      priceCop: zod.number(),
-      costCop: zod.number(),
+      price: zod.number(),
+      cost: zod.number(),
       ivaRate: zod
         .string()
         .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
@@ -1444,8 +1463,8 @@ export const GetWarehouseInventoryResponse = zod.object({
             .string()
             .nullish()
             .describe("Optional barcode for PDA hardware scanner lookup"),
-          priceCop: zod.number(),
-          costCop: zod.number(),
+          price: zod.number(),
+          cost: zod.number(),
           ivaRate: zod
             .string()
             .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
@@ -1489,8 +1508,8 @@ export const UpdateWarehouseInventoryResponse = zod.object({
         .string()
         .nullish()
         .describe("Optional barcode for PDA hardware scanner lookup"),
-      priceCop: zod.number(),
-      costCop: zod.number(),
+      price: zod.number(),
+      cost: zod.number(),
       ivaRate: zod
         .string()
         .describe("Porcentaje de IVA aplicable al producto (ej: '19.00')"),
@@ -1743,9 +1762,9 @@ export const ListPayoutsResponse = zod.object({
       eventId: zod.string(),
       periodFrom: zod.date(),
       periodTo: zod.date(),
-      grossSalesCop: zod.number(),
-      commissionCop: zod.number(),
-      netPayoutCop: zod.number(),
+      grossSales: zod.number(),
+      commission: zod.number(),
+      netPayout: zod.number(),
       paymentMethod: zod.enum(["transfer", "nequi", "cash", "other"]),
       referenceNote: zod.string().nullish(),
       performedByUserId: zod.string(),
@@ -1782,9 +1801,9 @@ export const GetPayoutTransactionsResponse = zod.object({
     eventId: zod.string(),
     periodFrom: zod.date(),
     periodTo: zod.date(),
-    grossSalesCop: zod.number(),
-    commissionCop: zod.number(),
-    netPayoutCop: zod.number(),
+    grossSales: zod.number(),
+    commission: zod.number(),
+    netPayout: zod.number(),
     paymentMethod: zod.enum(["transfer", "nequi", "cash", "other"]),
     referenceNote: zod.string().nullish(),
     performedByUserId: zod.string(),
@@ -1799,10 +1818,10 @@ export const GetPayoutTransactionsResponse = zod.object({
       locationId: zod.string(),
       merchantId: zod.string(),
       eventId: zod.string(),
-      grossAmountCop: zod.number(),
-      commissionAmountCop: zod.number(),
-      netAmountCop: zod.number(),
-      newBalanceCop: zod.number(),
+      grossAmount: zod.number(),
+      commissionAmount: zod.number(),
+      netAmount: zod.number(),
+      newBalance: zod.number(),
       counter: zod.number(),
       performedByUserId: zod.string().nullish(),
       offlineCreatedAt: zod.date().nullish(),
@@ -1839,36 +1858,36 @@ export const GetRevenueReportQueryParams = zod.object({
 
 export const GetRevenueReportResponse = zod.object({
   totals: zod.object({
-    grossSalesCop: zod.number(),
-    cogsCop: zod.number(),
-    grossProfitCop: zod.number(),
+    grossSales: zod.number(),
+    cogs: zod.number(),
+    grossProfit: zod.number(),
     profitMarginPercent: zod.number(),
-    commissionCop: zod.number(),
-    netCop: zod.number(),
+    commission: zod.number(),
+    net: zod.number(),
     transactionCount: zod.number(),
-    totalIvaCop: zod.number(),
-    totalRetencionFuenteCop: zod.number(),
-    totalRetencionICACop: zod.number(),
-    totalRetencionesCop: zod.number(),
-    totalNetoCop: zod.number(),
+    totalIva: zod.number(),
+    totalRetencionFuente: zod.number(),
+    totalRetencionICA: zod.number(),
+    totalRetenciones: zod.number(),
+    totalNeto: zod.number(),
   }),
   byMerchant: zod.array(
     zod.object({
       merchantId: zod.string(),
       merchantName: zod.string(),
       data: zod.object({
-        grossSalesCop: zod.number(),
-        cogsCop: zod.number(),
-        grossProfitCop: zod.number(),
+        grossSales: zod.number(),
+        cogs: zod.number(),
+        grossProfit: zod.number(),
         profitMarginPercent: zod.number(),
-        commissionCop: zod.number(),
-        netCop: zod.number(),
+        commission: zod.number(),
+        net: zod.number(),
         transactionCount: zod.number(),
-        totalIvaCop: zod.number(),
-        totalRetencionFuenteCop: zod.number(),
-        totalRetencionICACop: zod.number(),
-        totalRetencionesCop: zod.number(),
-        totalNetoCop: zod.number(),
+        totalIva: zod.number(),
+        totalRetencionFuente: zod.number(),
+        totalRetencionICA: zod.number(),
+        totalRetenciones: zod.number(),
+        totalNeto: zod.number(),
       }),
       byLocation: zod
         .array(
@@ -1876,18 +1895,18 @@ export const GetRevenueReportResponse = zod.object({
             locationId: zod.string(),
             locationName: zod.string(),
             data: zod.object({
-              grossSalesCop: zod.number(),
-              cogsCop: zod.number(),
-              grossProfitCop: zod.number(),
+              grossSales: zod.number(),
+              cogs: zod.number(),
+              grossProfit: zod.number(),
               profitMarginPercent: zod.number(),
-              commissionCop: zod.number(),
-              netCop: zod.number(),
+              commission: zod.number(),
+              net: zod.number(),
               transactionCount: zod.number(),
-              totalIvaCop: zod.number(),
-              totalRetencionFuenteCop: zod.number(),
-              totalRetencionICACop: zod.number(),
-              totalRetencionesCop: zod.number(),
-              totalNetoCop: zod.number(),
+              totalIva: zod.number(),
+              totalRetencionFuente: zod.number(),
+              totalRetencionICA: zod.number(),
+              totalRetenciones: zod.number(),
+              totalNeto: zod.number(),
             }),
           }),
         )
@@ -1907,24 +1926,24 @@ export const GetTopUpReportQueryParams = zod.object({
 });
 
 export const GetTopUpReportResponse = zod.object({
-  totalCop: zod.number(),
+  total: zod.number(),
   byPaymentMethod: zod.record(zod.string(), zod.number()),
   byUser: zod.array(
     zod.object({
       userId: zod.string(),
       firstName: zod.string().nullish(),
       lastName: zod.string().nullish(),
-      totalCop: zod.number(),
+      total: zod.number(),
       count: zod.number(),
     }),
   ),
   bySource: zod.object({
     bank: zod.object({
-      totalCop: zod.number(),
+      total: zod.number(),
       count: zod.number(),
     }),
     digital: zod.object({
-      totalCop: zod.number(),
+      total: zod.number(),
       count: zod.number(),
     }),
   }),
@@ -1934,11 +1953,11 @@ export const GetTopUpReportResponse = zod.object({
  * @summary Initiate a digital top-up via Nequi or PSE (Wompi)
  */
 
-export const initiateDigitalTopUpBodyAmountCopMin = 1000;
+export const initiateDigitalTopUpBodyAmountMin = 1000;
 
 export const InitiateDigitalTopUpBody = zod.object({
   braceletUid: zod.string().min(1),
-  amountCop: zod.number().min(initiateDigitalTopUpBodyAmountCopMin),
+  amount: zod.number().min(initiateDigitalTopUpBodyAmountMin),
   paymentMethod: zod.enum(["nequi", "pse"]),
   phoneNumber: zod.string().optional(),
   bankCode: zod.string().optional(),
@@ -1976,12 +1995,12 @@ export const GetRefundsReportQueryParams = zod.object({
 });
 
 export const GetRefundsReportResponse = zod.object({
-  totalRefundedCop: zod.number(),
+  totalRefunded: zod.number(),
   count: zod.number(),
   byRefundMethod: zod.record(
     zod.string(),
     zod.object({
-      totalCop: zod.number(),
+      total: zod.number(),
       count: zod.number(),
     }),
   ),
@@ -1999,26 +2018,26 @@ export const GetFiscalSummaryQueryParams = zod.object({
 
 export const GetFiscalSummaryResponse = zod.object({
   totals: zod.object({
-    totalBrutoCop: zod.number(),
-    totalIvaCop: zod.number(),
-    totalRetencionFuenteCop: zod.number(),
-    totalRetencionICACop: zod.number(),
-    totalRetencionesCop: zod.number(),
-    totalComisionCop: zod.number(),
-    totalNetoCop: zod.number(),
+    totalBruto: zod.number(),
+    totalIva: zod.number(),
+    totalRetencionFuente: zod.number(),
+    totalRetencionICA: zod.number(),
+    totalRetenciones: zod.number(),
+    totalComision: zod.number(),
+    totalNeto: zod.number(),
   }),
   byMerchant: zod.array(
     zod.object({
       merchantId: zod.string(),
       merchantName: zod.string(),
       transactionCount: zod.number(),
-      totalBrutoCop: zod.number(),
-      totalIvaCop: zod.number(),
-      totalRetencionFuenteCop: zod.number(),
-      totalRetencionICACop: zod.number(),
-      totalRetencionesCop: zod.number(),
-      totalComisionCop: zod.number(),
-      totalNetoCop: zod.number(),
+      totalBruto: zod.number(),
+      totalIva: zod.number(),
+      totalRetencionFuente: zod.number(),
+      totalRetencionICA: zod.number(),
+      totalRetenciones: zod.number(),
+      totalComision: zod.number(),
+      totalNeto: zod.number(),
     }),
   ),
 });
@@ -2157,6 +2176,8 @@ export const GetSnapshotQueryParams = zod.object({
   eventId: zod.coerce.string(),
 });
 
+export const getSnapshotResponseEventCurrencyCodeDefault = `COP`;
+
 export const GetSnapshotResponse = zod.object({
   eventId: zod.string(),
   exportedAt: zod.date(),
@@ -2169,6 +2190,9 @@ export const GetSnapshotResponse = zod.object({
       startsAt: zod.date().nullish(),
       endsAt: zod.date().nullish(),
       active: zod.boolean(),
+      currencyCode: zod
+        .enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"])
+        .default(getSnapshotResponseEventCurrencyCodeDefault),
       inventoryMode: zod
         .enum(["location_based", "centralized_warehouse"])
         .optional(),
@@ -2204,10 +2228,10 @@ export const GetSnapshotResponse = zod.object({
         locationId: zod.string(),
         merchantId: zod.string(),
         eventId: zod.string(),
-        grossAmountCop: zod.number(),
-        commissionAmountCop: zod.number(),
-        netAmountCop: zod.number(),
-        newBalanceCop: zod.number(),
+        grossAmount: zod.number(),
+        commissionAmount: zod.number(),
+        netAmount: zod.number(),
+        newBalance: zod.number(),
         counter: zod.number(),
         performedByUserId: zod.string().nullish(),
         offlineCreatedAt: zod.date().nullish(),
@@ -2234,7 +2258,7 @@ export const GetSnapshotResponse = zod.object({
       zod.object({
         id: zod.string(),
         braceletUid: zod.string(),
-        amountCop: zod.number(),
+        amount: zod.number(),
         paymentMethod: zod.enum([
           "cash",
           "card_external",
@@ -2245,7 +2269,7 @@ export const GetSnapshotResponse = zod.object({
         performedByUserId: zod.string().optional(),
         wompiTransactionId: zod.string().nullish(),
         status: zod.enum(["pending", "completed", "failed"]),
-        newBalanceCop: zod.number(),
+        newBalance: zod.number(),
         newCounter: zod.number(),
         createdAt: zod.date(),
       }),
@@ -2259,9 +2283,9 @@ export const GetSnapshotResponse = zod.object({
         eventId: zod.string(),
         periodFrom: zod.date(),
         periodTo: zod.date(),
-        grossSalesCop: zod.number(),
-        commissionCop: zod.number(),
-        netPayoutCop: zod.number(),
+        grossSales: zod.number(),
+        commission: zod.number(),
+        netPayout: zod.number(),
         paymentMethod: zod.enum(["transfer", "nequi", "cash", "other"]),
         referenceNote: zod.string().nullish(),
         performedByUserId: zod.string(),
@@ -2282,9 +2306,9 @@ export const GetAnalyticsSummaryQueryParams = zod.object({
 });
 
 export const GetAnalyticsSummaryResponse = zod.object({
-  totalTopUpsCop: zod.number(),
-  totalSalesCop: zod.number(),
-  pendingBalanceCop: zod.number(),
+  totalTopUps: zod.number(),
+  totalSales: zod.number(),
+  pendingBalance: zod.number(),
   transactionCount: zod.number(),
   topUpCount: zod.number(),
 });
@@ -2309,7 +2333,7 @@ export const GetAnalyticsSalesByHourResponse = zod.object({
         .min(getAnalyticsSalesByHourResponseSalesByHourItemHourMin)
         .max(getAnalyticsSalesByHourResponseSalesByHourItemHourMax),
       day: zod.string(),
-      totalCop: zod.number(),
+      total: zod.number(),
       txCount: zod.number(),
     }),
   ),
@@ -2333,9 +2357,9 @@ export const GetAnalyticsTopProductsResponse = zod.object({
       productId: zod.string().nullable(),
       productName: zod.string(),
       totalUnits: zod.number(),
-      totalRevenueCop: zod.number(),
-      totalCogsCop: zod.number(),
-      grossProfitCop: zod.number(),
+      totalRevenue: zod.number(),
+      totalCogs: zod.number(),
+      grossProfit: zod.number(),
       profitMarginPercent: zod.number(),
     }),
   ),
@@ -2358,11 +2382,11 @@ export const GetAnalyticsTopMerchantsResponse = zod.object({
     zod.object({
       merchantId: zod.string(),
       merchantName: zod.string(),
-      totalSalesCop: zod.number(),
-      totalCommissionCop: zod.number(),
-      totalNetCop: zod.number(),
-      totalCogsCop: zod.number(),
-      grossProfitCop: zod.number(),
+      totalSales: zod.number(),
+      totalCommission: zod.number(),
+      totalNet: zod.number(),
+      totalCogs: zod.number(),
+      grossProfit: zod.number(),
       profitMarginPercent: zod.number(),
       txCount: zod.number(),
     }),
@@ -2421,7 +2445,7 @@ export const GetAnalyticsHeatmapResponse = zod.object({
         .min(getAnalyticsHeatmapResponseHeatmapItemDayNumMin)
         .max(getAnalyticsHeatmapResponseHeatmapItemDayNumMax),
       txCount: zod.number(),
-      totalCop: zod.number(),
+      total: zod.number(),
     }),
   ),
 });
@@ -2673,7 +2697,7 @@ export const ListAccessZonesResponse = zod.object({
       description: zod.string().nullish(),
       colorHex: zod.string().nullish(),
       rank: zod.number(),
-      upgradePriceCop: zod.number().nullish(),
+      upgradePrice: zod.number().nullish(),
       createdAt: zod.date(),
       updatedAt: zod.date().optional(),
     }),
@@ -2694,7 +2718,7 @@ export const CreateAccessZoneBody = zod.object({
   description: zod.string().optional(),
   colorHex: zod.string().optional(),
   rank: zod.number().min(createAccessZoneBodyRankMin),
-  upgradePriceCop: zod.number().nullish(),
+  upgradePrice: zod.number().nullish(),
 });
 
 /**
@@ -2712,7 +2736,7 @@ export const UpdateAccessZoneBody = zod.object({
   description: zod.string().optional(),
   colorHex: zod.string().optional(),
   rank: zod.number().min(updateAccessZoneBodyRankMin).optional(),
-  upgradePriceCop: zod.number().nullish(),
+  upgradePrice: zod.number().nullish(),
 });
 
 export const UpdateAccessZoneResponse = zod.object({
@@ -2722,7 +2746,7 @@ export const UpdateAccessZoneResponse = zod.object({
   description: zod.string().nullish(),
   colorHex: zod.string().nullish(),
   rank: zod.number(),
-  upgradePriceCop: zod.number().nullish(),
+  upgradePrice: zod.number().nullish(),
   createdAt: zod.date(),
   updatedAt: zod.date().optional(),
 });

@@ -139,8 +139,23 @@ async function runStartupMigrations(): Promise<void> {
       ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude numeric(9,6);
 
       -- ── transaction_logs: tip column ───────────────────────────────────────
-      ALTER TABLE transaction_logs ADD COLUMN IF NOT EXISTS tip_amount_cop
-        integer NOT NULL DEFAULT 0;
+      DO $$ BEGIN
+        ALTER TABLE transaction_logs ADD COLUMN tip_amount integer NOT NULL DEFAULT 0;
+      EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE transaction_logs ADD COLUMN tip_amount_cop integer NOT NULL DEFAULT 0;
+      EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+      -- ── Multi-currency support ─────────────────────────────────────────────
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS currency_code varchar(10) NOT NULL DEFAULT 'COP';
+
+      CREATE TABLE IF NOT EXISTS exchange_rates (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        base_currency varchar(10) NOT NULL,
+        target_currency varchar(10) NOT NULL,
+        rate numeric(18,6) NOT NULL,
+        fetched_at timestamptz NOT NULL DEFAULT now()
+      );
 
       -- ── FK constraint for gate_zone_id (idempotent) ────────────────────────
       DO $$ BEGIN
@@ -166,6 +181,94 @@ async function runStartupMigrations(): Promise<void> {
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
       -- (no additional seeding required)
+    `);
+
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE bracelets RENAME COLUMN last_known_balance_cop TO last_known_balance;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE bracelets RENAME COLUMN pending_balance_cop TO pending_balance;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE transaction_logs RENAME COLUMN gross_amount_cop TO gross_amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE transaction_logs RENAME COLUMN tip_amount_cop TO tip_amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE transaction_logs RENAME COLUMN commission_amount_cop TO commission_amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE transaction_logs RENAME COLUMN net_amount_cop TO net_amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE transaction_logs RENAME COLUMN new_balance_cop TO new_balance;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE transaction_line_items RENAME COLUMN iva_amount_cop TO iva_amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE transaction_line_items RENAME COLUMN retencion_fuente_amount_cop TO retencion_fuente_amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE transaction_line_items RENAME COLUMN retencion_ica_amount_cop TO retencion_ica_amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE top_ups RENAME COLUMN amount_cop TO amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE top_ups RENAME COLUMN new_balance_cop TO new_balance;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE merchant_payouts RENAME COLUMN gross_sales_cop TO gross_sales;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE merchant_payouts RENAME COLUMN commission_cop TO commission;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE merchant_payouts RENAME COLUMN net_payout_cop TO net_payout;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE products RENAME COLUMN price_cop TO price;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      DO $$ BEGIN
+        ALTER TABLE products RENAME COLUMN cost_cop TO cost;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE refunds RENAME COLUMN amount_cop TO amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE attendee_refund_requests RENAME COLUMN amount_cop TO amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE wompi_payment_intents RENAME COLUMN amount_cop TO amount;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE access_zones RENAME COLUMN upgrade_price_cop TO upgrade_price;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      DO $$ BEGIN
+        ALTER TABLE bracelet_transfer_logs RENAME COLUMN balance_cop TO balance;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+
+      -- Migrate data from leftover _cop column if both exist, then drop
+      DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transaction_logs' AND column_name='tip_amount_cop')
+           AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transaction_logs' AND column_name='tip_amount') THEN
+          UPDATE transaction_logs SET tip_amount = tip_amount_cop WHERE tip_amount_cop != 0 AND tip_amount = 0;
+          ALTER TABLE transaction_logs DROP COLUMN tip_amount_cop;
+        END IF;
+      END $$;
     `);
 
     logger.info("Startup migrations complete.");

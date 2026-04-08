@@ -37,7 +37,7 @@ router.get(
     const [eventsRows, refundRows] = await Promise.all([
       eventIds.length > 0
         ? db
-            .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active, endsAt: eventsTable.endsAt })
+            .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active, endsAt: eventsTable.endsAt, currencyCode: eventsTable.currencyCode })
             .from(eventsTable)
             .where(inArray(eventsTable.id, eventIds))
         : Promise.resolve([]),
@@ -73,7 +73,7 @@ router.get(
       const refundStatus = refundStatusByUid.get(b.nfcUid) ?? null;
       return {
         uid: b.nfcUid,
-        balanceCop: b.lastKnownBalanceCop,
+        balance: b.lastKnownBalance,
         flagged: b.flagged,
         flagReason: b.flagReason,
         pendingRefund: refundStatus !== null && refundStatus !== "rejected",
@@ -218,14 +218,14 @@ router.get(
             id: tx.id,
             type: "purchase" as const,
             braceletUid: tx.braceletUid,
-            amountCop: tx.grossAmountCop,
-            newBalanceCop: tx.newBalanceCop,
+            amount: tx.grossAmount,
+            newBalance: tx.newBalance,
             merchantName: merchant?.name ?? null,
             locationName: location?.name ?? null,
             lineItems: lineItems.map((li) => ({
               name: li.productNameSnapshot,
               quantity: li.quantity,
-              unitPriceCop: li.unitPriceSnapshot,
+              unitPrice: li.unitPriceSnapshot,
             })),
             createdAt: tx.createdAt,
             refundStatus: null,
@@ -236,8 +236,8 @@ router.get(
             id: ref.id,
             type: "refund" as const,
             braceletUid: ref.braceletUid,
-            amountCop: ref.amountCop,
-            newBalanceCop: 0,
+            amount: ref.amount,
+            newBalance: 0,
             merchantName: null,
             locationName: null,
             lineItems: [],
@@ -251,8 +251,8 @@ router.get(
             id: tr.id,
             type: "transfer" as const,
             braceletUid: tr.braceletUid,
-            amountCop: tr.balanceCop,
-            newBalanceCop: 0,
+            amount: tr.balance,
+            newBalance: 0,
             merchantName: null,
             locationName: null,
             lineItems: [],
@@ -265,8 +265,8 @@ router.get(
             id: tu.id,
             type: "top_up" as const,
             braceletUid: tu.braceletUid,
-            amountCop: tu.amountCop,
-            newBalanceCop: tu.newBalanceCop,
+            amount: tu.amount,
+            newBalance: tu.newBalance,
             merchantName: null,
             locationName: null,
             lineItems: [],
@@ -337,6 +337,7 @@ router.get(
         name: eventsTable.name,
         description: eventsTable.description,
         venueAddress: eventsTable.venueAddress,
+        currencyCode: eventsTable.currencyCode,
         startsAt: eventsTable.startsAt,
         endsAt: eventsTable.endsAt,
         latitude: eventsTable.latitude,
@@ -422,7 +423,7 @@ router.post(
         .values({
           nfcUid: uid,
           eventId: requestedEventId,
-          lastKnownBalanceCop: 0,
+          lastKnownBalance: 0,
           lastCounter: 0,
           pendingSync: false,
         })
@@ -500,7 +501,7 @@ router.post(
 
     res.json({
       uid: updated.nfcUid,
-      balanceCop: updated.lastKnownBalanceCop,
+      balance: updated.lastKnownBalance,
       attendeeName: updated.attendeeName,
     });
   }
@@ -583,7 +584,7 @@ router.post(
       return;
     }
 
-    if (bracelet.lastKnownBalanceCop <= 0) {
+    if (bracelet.lastKnownBalance <= 0) {
       res.status(400).json({ error: "Bracelet has no balance to refund" });
       return;
     }
@@ -623,8 +624,8 @@ router.post(
           .values({
             attendeeUserId: userId,
             braceletUid,
-            eventId: bracelet.eventId,
-            amountCop: bracelet.lastKnownBalanceCop,
+            eventId: bracelet.eventId!,
+            amount: bracelet.lastKnownBalance ?? 0,
             refundMethod,
             accountDetails,
             notes,
@@ -693,11 +694,11 @@ router.delete(
       await tx.insert(braceletTransferLogsTable).values({
         braceletUid: uid,
         fromUserId: userId,
-        balanceCop: bracelet.lastKnownBalanceCop,
+        balance: bracelet.lastKnownBalance,
       });
     });
 
-    res.json({ success: true, uid, balanceCop: bracelet.lastKnownBalanceCop });
+    res.json({ success: true, uid, balance: bracelet.lastKnownBalance });
   }
 );
 

@@ -13,6 +13,7 @@ import { Calendar, ShieldAlert, DollarSign, Building, TrendingUp, MapPin, Nfc } 
 import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER } from "@/lib/maps";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
 type GeocodedEvent = Event & { lat: number; lng: number };
 type RawEvent = Event & { latitude?: string | null; longitude?: string | null; capacity?: number | null; promoterCompanyName?: string | null };
@@ -29,7 +30,7 @@ export default function Dashboard() {
   const alerts = fraudData?.alerts ?? [];
   const companies = promotersData?.companies ?? [];
 
-  const fmt = (n?: number | null) => (n ?? 0).toLocaleString();
+  const fmt = (n?: number | null) => formatCurrency(n ?? 0, "COP");
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -142,8 +143,8 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">${fmt(summary?.totalSalesCop)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.totalSalesCop")}</p>
+            <p className="text-3xl font-bold">{fmt(summary?.totalSales)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.totalSales")}</p>
           </CardContent>
         </Card>
 
@@ -337,11 +338,11 @@ export default function Dashboard() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t("dashboard.topUpTotal")}</span>
-                <span className="font-mono font-medium">${fmt(summary.totalTopUpsCop)}</span>
+                <span className="font-mono font-medium">{fmt(summary.totalTopUps)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t("dashboard.pendingBalance")}</span>
-                <span className="font-mono font-medium">${fmt(summary.pendingBalanceCop)}</span>
+                <span className="font-mono font-medium">{fmt(summary.pendingBalance)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t("dashboard.topUpCount")}</span>

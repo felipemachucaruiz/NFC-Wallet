@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { formatCurrency } from "@/lib/currency";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,6 +58,7 @@ type EventDetail = {
   id: string;
   name: string;
   active?: boolean;
+  currencyCode?: string;
   inventoryMode?: InventoryMode;
   nfcChipType?: NfcChipType;
   allowedNfcTypes?: NfcChipType[];
@@ -95,7 +97,7 @@ export default function EventSettings() {
     enabled: !!eventId,
     queryFn: async () => {
       const res = await customFetch(`/api/events/${eventId}/flagged-bracelets`, { method: "GET" });
-      return res as { flaggedBracelets: Array<{ nfcUid: string; lastKnownBalanceCop?: number; flagReason: string | null; updatedAt: string }> };
+      return res as { flaggedBracelets: Array<{ nfcUid: string; lastKnownBalance?: number; flagReason: string | null; updatedAt: string }> };
     },
   });
   const flaggedBracelets = flaggedData?.flaggedBracelets ?? [];
@@ -660,7 +662,7 @@ export default function EventSettings() {
                   {flaggedBracelets.map((b) => (
                     <TableRow key={b.nfcUid}>
                       <TableCell className="font-mono font-medium">{b.nfcUid}</TableCell>
-                      <TableCell>{b.lastKnownBalanceCop != null ? `$${b.lastKnownBalanceCop.toLocaleString()} COP` : "—"}</TableCell>
+                      <TableCell>{b.lastKnownBalance != null ? formatCurrency(b.lastKnownBalance, event?.currencyCode ?? "COP") : "—"}</TableCell>
                       <TableCell className="text-muted-foreground">{b.flagReason || "—"}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" onClick={() => handleUnflag(b.nfcUid)} disabled={unflagBracelet.isPending}>

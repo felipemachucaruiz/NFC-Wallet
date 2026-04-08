@@ -190,35 +190,35 @@ router.get(
       .from(transactionLogsTable)
       .where(and(...conditions));
 
-    const grossSalesCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
-    const totalTipsCop = txRows.reduce((s, r) => s + (r.tipAmountCop ?? 0), 0);
-    const totalCommissionCop = txRows.reduce((s, r) => s + r.commissionAmountCop, 0);
-    const netEarnedCop = txRows.reduce((s, r) => s + r.netAmountCop, 0);
+    const grossSales = txRows.reduce((s, r) => s + r.grossAmount, 0);
+    const totalTips = txRows.reduce((s, r) => s + (r.tipAmount ?? 0), 0);
+    const totalCommission = txRows.reduce((s, r) => s + r.commissionAmount, 0);
+    const netEarned = txRows.reduce((s, r) => s + r.netAmount, 0);
 
     const txIds = txRows.map((r) => r.id);
-    let cogsCop = 0;
-    let totalIvaCop = 0;
-    let totalRetencionFuenteCop = 0;
-    let totalRetencionICACop = 0;
+    let cogs = 0;
+    let totalIva = 0;
+    let totalRetencionFuente = 0;
+    let totalRetencionICA = 0;
     if (txIds.length > 0) {
       const lineItemRows = await db
         .select()
         .from(transactionLineItemsTable)
         .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map((id) => sql`${id}`), sql`, `)}]::text[])`);
-      cogsCop = lineItemRows.reduce((s, li) => s + li.unitCostSnapshot * li.quantity, 0);
+      cogs = lineItemRows.reduce((s, li) => s + li.unitCostSnapshot * li.quantity, 0);
       for (const li of lineItemRows) {
-        totalIvaCop += li.ivaAmountCop;
-        totalRetencionFuenteCop += li.retencionFuenteAmountCop;
-        totalRetencionICACop += li.retencionICAAmountCop;
+        totalIva += li.ivaAmount;
+        totalRetencionFuente += li.retencionFuenteAmount;
+        totalRetencionICA += li.retencionICAAmount;
       }
     }
 
-    const grossProfitCop = grossSalesCop - cogsCop;
-    const profitMarginPercent = grossSalesCop > 0
-      ? Math.round((grossProfitCop / grossSalesCop) * 10000) / 100
+    const grossProfit = grossSales - cogs;
+    const profitMarginPercent = grossSales > 0
+      ? Math.round((grossProfit / grossSales) * 10000) / 100
       : 0;
-    const totalRetencionesCop = totalRetencionFuenteCop + totalRetencionICACop;
-    const totalNetoCop = grossSalesCop - totalCommissionCop - totalRetencionesCop;
+    const totalRetenciones = totalRetencionFuente + totalRetencionICA;
+    const totalNeto = grossSales - totalCommission - totalRetenciones;
 
     const payoutConditions: ReturnType<typeof eq>[] = [eq(merchantPayoutsTable.merchantId, merchantId)];
     if (eventId) payoutConditions.push(eq(merchantPayoutsTable.eventId, eventId));
@@ -229,26 +229,26 @@ router.get(
       .from(merchantPayoutsTable)
       .where(and(...payoutConditions));
 
-    const totalPaidOutCop = payouts.reduce((s, p) => s + p.netPayoutCop, 0);
-    const pendingCop = netEarnedCop - totalPaidOutCop;
+    const totalPaidOut = payouts.reduce((s, p) => s + p.netPayout, 0);
+    const pending = netEarned - totalPaidOut;
 
     res.json({
       merchantId,
-      grossSalesCop,
-      totalTipsCop,
-      cogsCop,
-      grossProfitCop,
+      grossSales,
+      totalTips,
+      cogs,
+      grossProfit,
       profitMarginPercent,
       marginPercent: profitMarginPercent,
-      totalCommissionCop,
-      netEarnedCop,
-      totalPaidOutCop,
-      pendingCop,
-      totalIvaCop,
-      totalRetencionFuenteCop,
-      totalRetencionICACop,
-      totalRetencionesCop,
-      totalNetoCop,
+      totalCommission,
+      netEarned,
+      totalPaidOut,
+      pending,
+      totalIva,
+      totalRetencionFuente,
+      totalRetencionICA,
+      totalRetenciones,
+      totalNeto,
       payouts,
     });
   },
@@ -285,10 +285,10 @@ router.get(
       .select({
         id: transactionLogsTable.id,
         braceletUid: transactionLogsTable.braceletUid,
-        grossAmountCop: transactionLogsTable.grossAmountCop,
-        tipAmountCop: transactionLogsTable.tipAmountCop,
-        commissionAmountCop: transactionLogsTable.commissionAmountCop,
-        netAmountCop: transactionLogsTable.netAmountCop,
+        grossAmount: transactionLogsTable.grossAmount,
+        tipAmount: transactionLogsTable.tipAmount,
+        commissionAmount: transactionLogsTable.commissionAmount,
+        netAmount: transactionLogsTable.netAmount,
         createdAt: transactionLogsTable.createdAt,
         offlineCreatedAt: transactionLogsTable.offlineCreatedAt,
         locationName: locationsTable.name,

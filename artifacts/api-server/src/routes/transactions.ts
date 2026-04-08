@@ -24,7 +24,7 @@ const logTransactionSchema = z.object({
   newBalance: z.number().int().min(0),
   counter: z.number().int().min(0),
   lineItems: z.array(lineItemInputSchema).min(1),
-  tipAmountCop: z.number().int().min(0).optional().default(0),
+  tipAmount: z.number().int().min(0).optional().default(0),
   offlineCreatedAt: z.string().optional(),
   hmac: z.string().optional(),
 });
@@ -157,9 +157,9 @@ async function processTransaction(
     return { status: "error", error: `Counter replay detected: submitted ${input.counter} ≤ stored ${bracelet.lastCounter}` };
   }
   // Balance consistency: newBalance should equal lastKnownBalance minus gross
-  // (skip when lastKnownBalanceCop is null — first use on server side)
-  if (bracelet.lastKnownBalanceCop !== null) {
-    const expectedNewBalance = bracelet.lastKnownBalanceCop - input.newBalance;
+  // (skip when lastKnownBalance is null — first use on server side)
+  if (bracelet.lastKnownBalance !== null) {
+    const expectedNewBalance = bracelet.lastKnownBalance - input.newBalance;
     if (expectedNewBalance < 0) {
       return { status: "error", error: "Insufficient bracelet balance" };
     }
@@ -231,17 +231,17 @@ async function processTransaction(
   const merchant = merchantForEventCheck;
 
   // Resolve products and compute totals
-  let grossAmountCop = 0;
-  let cogsCop = 0;
+  let grossAmount = 0;
+  let cogs = 0;
   const resolvedItems: {
     productId: string;
     name: string;
-    priceCop: number;
-    costCop: number;
+    price: number;
+    cost: number;
     quantity: number;
-    ivaAmountCop: number;
-    retencionFuenteAmountCop: number;
-    retencionICAAmountCop: number;
+    ivaAmount: number;
+    retencionFuenteAmount: number;
+    retencionICAAmount: number;
   }[] = [];
 
   const retencionFuenteRate = parseFloat(merchant.retencionFuenteRate ?? "0");
@@ -255,33 +255,33 @@ async function processTransaction(
     if (!product) {
       return { status: "error", error: `Product ${item.productId} not found` };
     }
-    const lineGross = product.priceCop * item.quantity;
-    grossAmountCop += lineGross;
-    cogsCop += product.costCop * item.quantity;
+    const lineGross = product.price * item.quantity;
+    grossAmount += lineGross;
+    cogs += product.cost * item.quantity;
 
     const ivaRate = product.ivaExento ? 0 : parseFloat(product.ivaRate ?? "0");
-    const ivaAmountCop = Math.round(lineGross * ivaRate / 100);
-    const retencionFuenteAmountCop = Math.round(lineGross * retencionFuenteRate / 100);
-    const retencionICAAmountCop = Math.round(lineGross * retencionICARate / 100);
+    const ivaAmount = Math.round(lineGross * ivaRate / 100);
+    const retencionFuenteAmount = Math.round(lineGross * retencionFuenteRate / 100);
+    const retencionICAAmount = Math.round(lineGross * retencionICARate / 100);
 
     resolvedItems.push({
       productId: product.id,
       name: product.name,
-      priceCop: product.priceCop,
-      costCop: product.costCop,
+      price: product.price,
+      cost: product.cost,
       quantity: item.quantity,
-      ivaAmountCop,
-      retencionFuenteAmountCop,
-      retencionICAAmountCop,
+      ivaAmount,
+      retencionFuenteAmount,
+      retencionICAAmount,
     });
   }
 
-  void cogsCop;
+  void cogs;
 
   // Commission calculation — commission is on items subtotal only, not on tip
-  const tipAmountCop = input.tipAmountCop ?? 0;
+  const tipAmount = input.tipAmount ?? 0;
   // Total amount actually deducted from the bracelet (items + tip combined)
-  const chargedAmountCop = grossAmountCop + tipAmountCop;
+  const chargedAmount = grossAmount + tipAmount;
   let commissionRate = parseFloat(merchant.commissionRatePercent ?? "0");
   if (commissionRate === 0 && merchant.eventId) {
     const [ev] = await db
@@ -292,33 +292,33 @@ async function processTransaction(
       commissionRate = parseFloat(ev.platformCommissionRate as unknown as string) || 0;
     }
   }
-  const commissionAmountCop = Math.round(grossAmountCop * commissionRate / 100);
+  const commissionAmount = Math.round(grossAmount * commissionRate / 100);
   // Merchant receives net items amount plus the full tip (tip is not subject to commission)
-  const netAmountCop = grossAmountCop - commissionAmountCop + tipAmountCop;
+  const netAmount = grossAmount - commissionAmount + tipAmount;
 
   // Compute bracelet update fields before entering the transaction so we can
   // determine the final state (flagged vs clean) consistently.
   let wasFlagged = false;
   let braceletUpdate: Record<string, unknown> = {
-    lastKnownBalanceCop: input.newBalance,
+    lastKnownBalance: input.newBalance,
     lastCounter: input.counter,
     pendingSync: false,
-    pendingBalanceCop: 0,
+    pendingBalance: 0,
     updatedAt: new Date(),
   };
 
-  if (isSyncBatch && bracelet.lastKnownBalanceCop !== null) {
-    if (bracelet.pendingSync && bracelet.pendingBalanceCop !== null && bracelet.pendingBalanceCop > 0) {
-      const reconciledBalance = Math.max(0, bracelet.pendingBalanceCop - chargedAmountCop);
+  if (isSyncBatch && bracelet.lastKnownBalance !== null) {
+    if (bracelet.pendingSync && bracelet.pendingBalance !== null && bracelet.pendingBalance > 0) {
+      const reconciledBalance = Math.max(0, bracelet.pendingBalance - chargedAmount);
       braceletUpdate = {
-        lastKnownBalanceCop: reconciledBalance,
+        lastKnownBalance: reconciledBalance,
         lastCounter: input.counter,
         pendingSync: false,
-        pendingBalanceCop: 0,
+        pendingBalance: 0,
         updatedAt: new Date(),
       };
     } else {
-      const expectedNewBalance = bracelet.lastKnownBalanceCop - chargedAmountCop;
+      const expectedNewBalance = bracelet.lastKnownBalance - chargedAmount;
       const discrepancy = Math.abs(expectedNewBalance - input.newBalance);
       if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
         wasFlagged = true;
@@ -327,32 +327,32 @@ async function processTransaction(
   }
 
   if (!wasFlagged && isSyncBatch && bracelet.maxOfflineSpend !== null && bracelet.maxOfflineSpend !== undefined) {
-    if (chargedAmountCop > bracelet.maxOfflineSpend) {
+    if (chargedAmount > bracelet.maxOfflineSpend) {
       wasFlagged = true;
     }
   }
 
   if (wasFlagged) {
     let flagReason = "";
-    if (isSyncBatch && bracelet.lastKnownBalanceCop !== null) {
-      const expectedNewBalance = bracelet.lastKnownBalanceCop - chargedAmountCop;
+    if (isSyncBatch && bracelet.lastKnownBalance !== null) {
+      const expectedNewBalance = bracelet.lastKnownBalance - chargedAmount;
       const discrepancy = Math.abs(expectedNewBalance - input.newBalance);
       if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
         flagReason = `Balance discrepancy during sync: expected ${expectedNewBalance} COP but device reported ${input.newBalance} COP (diff: ${discrepancy} COP).`;
       }
     }
-    if (isSyncBatch && bracelet.maxOfflineSpend !== null && bracelet.maxOfflineSpend !== undefined && chargedAmountCop > bracelet.maxOfflineSpend) {
+    if (isSyncBatch && bracelet.maxOfflineSpend !== null && bracelet.maxOfflineSpend !== undefined && chargedAmount > bracelet.maxOfflineSpend) {
       flagReason = flagReason
-        ? flagReason + ` Also: single offline transaction amount ${chargedAmountCop} COP exceeds limit ${bracelet.maxOfflineSpend} COP.`
-        : `Single offline transaction amount ${chargedAmountCop} COP exceeds bracelet max offline spend limit ${bracelet.maxOfflineSpend} COP.`;
+        ? flagReason + ` Also: single offline transaction amount ${chargedAmount} COP exceeds limit ${bracelet.maxOfflineSpend} COP.`
+        : `Single offline transaction amount ${chargedAmount} COP exceeds bracelet max offline spend limit ${bracelet.maxOfflineSpend} COP.`;
     }
     braceletUpdate = {
       flagged: true,
       flagReason,
-      lastKnownBalanceCop: input.newBalance,
+      lastKnownBalance: input.newBalance,
       lastCounter: input.counter,
       pendingSync: false,
-      pendingBalanceCop: 0,
+      pendingBalance: 0,
       updatedAt: new Date(),
     };
   }
@@ -374,11 +374,11 @@ async function processTransaction(
         locationId: input.locationId,
         merchantId: merchant.id,
         eventId: merchant.eventId,
-        grossAmountCop,
-        tipAmountCop,
-        commissionAmountCop,
-        netAmountCop,
-        newBalanceCop: input.newBalance,
+        grossAmount,
+        tipAmount,
+        commissionAmount,
+        netAmount,
+        newBalance: input.newBalance,
         counter: input.counter,
         performedByUserId: user.id,
         syncedAt: isSyncBatch ? new Date() : null,
@@ -391,12 +391,12 @@ async function processTransaction(
       transactionLogId: txLog.id,
       productId: item.productId,
       productNameSnapshot: item.name,
-      unitPriceSnapshot: item.priceCop,
-      unitCostSnapshot: item.costCop,
+      unitPriceSnapshot: item.price,
+      unitCostSnapshot: item.cost,
       quantity: item.quantity,
-      ivaAmountCop: item.ivaAmountCop,
-      retencionFuenteAmountCop: item.retencionFuenteAmountCop,
-      retencionICAAmountCop: item.retencionICAAmountCop,
+      ivaAmount: item.ivaAmount,
+      retencionFuenteAmount: item.retencionFuenteAmount,
+      retencionICAAmount: item.retencionICAAmount,
     }));
     const insertedLineItems = await tx
       .insert(transactionLineItemsTable)
@@ -515,9 +515,9 @@ async function processTransaction(
     nfcUid: input.nfcUid,
     locationId: input.locationId,
     eventId: merchant.eventId,
-    grossAmountCop,
-    previousBalanceCop: bracelet.lastKnownBalanceCop ?? input.newBalance,
-    newBalanceCop: input.newBalance,
+    grossAmount,
+    previousBalance: bracelet.lastKnownBalance ?? input.newBalance,
+    newBalance: input.newBalance,
     performedByUserId: user.id,
     transactionTime: new Date(),
   });

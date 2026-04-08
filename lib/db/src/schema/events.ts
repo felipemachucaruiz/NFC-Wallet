@@ -13,6 +13,7 @@ export const eventsTable = pgTable("events", {
   startsAt: timestamp("starts_at", { withTimezone: true }),
   endsAt: timestamp("ends_at", { withTimezone: true }),
   active: boolean("active").notNull().default(true),
+  currencyCode: varchar("currency_code", { length: 10 }).notNull().default("COP"),
   platformCommissionRate: numeric("platform_commission_rate", { precision: 5, scale: 2 }).notNull().default("0"),
   capacity: integer("capacity"),
   promoterCompanyId: varchar("promoter_company_id"),
@@ -35,6 +36,14 @@ export const eventsTable = pgTable("events", {
   index("idx_events_promoter_company_id").on(table.promoterCompanyId),
 ]);
 
+export const exchangeRatesTable = pgTable("exchange_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  baseCurrency: varchar("base_currency", { length: 10 }).notNull(),
+  targetCurrency: varchar("target_currency", { length: 10 }).notNull(),
+  rate: numeric("rate", { precision: 18, scale: 6 }).notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const warehousesTable = pgTable("warehouses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   eventId: varchar("event_id").notNull().references(() => eventsTable.id),
@@ -55,5 +64,6 @@ export const warehouseInventoryTable = pgTable("warehouse_inventory", {
 
 export type Event = typeof eventsTable.$inferSelect;
 export type InsertEvent = typeof eventsTable.$inferInsert;
+export type ExchangeRate = typeof exchangeRatesTable.$inferSelect;
 export type Warehouse = typeof warehousesTable.$inferSelect;
 export type InsertWarehouse = typeof warehousesTable.$inferInsert;

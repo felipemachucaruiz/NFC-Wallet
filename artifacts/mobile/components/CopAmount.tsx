@@ -1,11 +1,13 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import React from "react";
-import { StyleSheet, Text, type StyleProp, type TextStyle } from "react-native";
+import { Text, type StyleProp, type TextStyle } from "react-native";
 import Colors from "@/constants/colors";
-import { formatCOP } from "@/utils/format";
+import { formatCurrency } from "@/utils/format";
+import { useEventContext } from "@/contexts/EventContext";
 
 interface CopAmountProps {
   amount: number | undefined | null;
+  currencyCode?: string;
   size?: number;
   bold?: boolean;
   color?: string;
@@ -15,6 +17,7 @@ interface CopAmountProps {
 
 export function CopAmount({
   amount,
+  currencyCode,
   size = 16,
   bold = true,
   color,
@@ -23,6 +26,9 @@ export function CopAmount({
 }: CopAmountProps) {
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  const { currencyCode: contextCurrency } = useEventContext();
+  const resolvedCurrency = currencyCode ?? contextCurrency;
 
   const resolvedColor =
     color ??
@@ -43,7 +49,9 @@ export function CopAmount({
         style,
       ]}
     >
-      {formatCOP(amount)}
+      {formatCurrency(amount, resolvedCurrency)}
     </Text>
   );
 }
+
+export { CopAmount as CurrencyAmount };

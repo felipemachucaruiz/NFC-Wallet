@@ -25,7 +25,7 @@ interface RefundRecord {
   id: string;
   braceletUid: string;
   eventId: string;
-  amountCop: number;
+  amount: number;
   refundMethod: string;
   notes?: string | null;
   performedByUserId: string;
@@ -39,7 +39,7 @@ interface UnclaimedBracelet {
   attendeeName?: string | null;
   phone?: string | null;
   email?: string | null;
-  lastKnownBalanceCop: number;
+  lastKnownBalance: number;
   lastCounter: number;
   flagged: boolean;
   createdAt: string;
@@ -47,7 +47,7 @@ interface UnclaimedBracelet {
 }
 
 interface RefundMethodBreakdown {
-  totalCop: number;
+  total: number;
   count: number;
 }
 
@@ -77,27 +77,27 @@ export default function EventAdminReportsScreen() {
   );
 
   type RevenueResponse = {
-    totalSalesCop?: number;
-    totalCogsCop?: number;
-    grossProfitCop?: number;
-    totalCommissionsCop?: number;
-    netOwedToMerchantsCop?: number;
-    totalTopUpsCop?: number;
-    totals?: { totalTipsCop?: number; [key: string]: number | undefined };
+    totalSales?: number;
+    totalCogs?: number;
+    grossProfit?: number;
+    totalCommissions?: number;
+    netOwedToMerchants?: number;
+    totalTopUps?: number;
+    totals?: { totalTips?: number; [key: string]: number | undefined };
   };
   const revenue = revenueData as RevenueResponse | undefined;
   const topUps = topUpData as Record<string, number | string | Array<Record<string, unknown>> | undefined> | undefined;
   const inventory = inventoryData as Record<string, number | Array<Record<string, unknown>> | undefined> | undefined;
 
-  const unclaimedRaw = (unclaimedData as { bracelets?: UnclaimedBracelet[]; totalUnclaimedCop?: number } | undefined);
+  const unclaimedRaw = (unclaimedData as { bracelets?: UnclaimedBracelet[]; totalUnclaimed?: number } | undefined);
   const unclaimedBracelets = (unclaimedRaw?.bracelets ?? []).filter((b) => {
     if (unclaimedFilter === "pending") return !b.latestRefund;
     if (unclaimedFilter === "refunded") return !!b.latestRefund;
     return true;
   });
-  const totalUnclaimedCop = unclaimedRaw?.totalUnclaimedCop;
+  const totalUnclaimed = unclaimedRaw?.totalUnclaimed;
 
-  const refunds = refundsData as { totalRefundedCop?: number; count?: number; byRefundMethod?: Record<string, RefundMethodBreakdown> } | undefined;
+  const refunds = refundsData as { totalRefunded?: number; count?: number; byRefundMethod?: Record<string, RefundMethodBreakdown> } | undefined;
 
   const tabs: { key: ReportTab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
     { key: "revenue", label: t("admin.revenueReport"), icon: "trending-up" },
@@ -163,13 +163,13 @@ export default function EventAdminReportsScreen() {
           {activeTab === "revenue" && (
             <View style={{ gap: 12 }}>
               {[
-                { label: t("admin.totalTopUps"), value: revenue?.totalTopUpsCop, positive: true },
-                { label: t("admin.totalSales"), value: revenue?.totalSalesCop, positive: true },
-                { label: t("admin.totalTips"), value: revenue?.totals?.totalTipsCop, positive: true },
-                { label: t("admin.totalCogs"), value: revenue?.totalCogsCop, positive: false },
-                { label: t("admin.grossProfit"), value: revenue?.grossProfitCop, positive: true },
-                { label: t("admin.totalCommissions"), value: revenue?.totalCommissionsCop, positive: false },
-                { label: t("admin.netOwedToMerchants"), value: revenue?.netOwedToMerchantsCop, positive: false },
+                { label: t("admin.totalTopUps"), value: revenue?.totalTopUps, positive: true },
+                { label: t("admin.totalSales"), value: revenue?.totalSales, positive: true },
+                { label: t("admin.totalTips"), value: revenue?.totals?.totalTips, positive: true },
+                { label: t("admin.totalCogs"), value: revenue?.totalCogs, positive: false },
+                { label: t("admin.grossProfit"), value: revenue?.grossProfit, positive: true },
+                { label: t("admin.totalCommissions"), value: revenue?.totalCommissions, positive: false },
+                { label: t("admin.netOwedToMerchants"), value: revenue?.netOwedToMerchants, positive: false },
               ].map((row) => (
                 <Card key={row.label} padding={16}>
                   <View style={styles.reportRow}>
@@ -184,15 +184,15 @@ export default function EventAdminReportsScreen() {
           {activeTab === "topups" && (
             <View style={{ gap: 12 }}>
               {[
-                { label: t("admin.totalTopUpAmount"), value: topUps?.totalAmountCop as number | undefined },
-                { label: t("admin.topUpCount"), value: topUps?.totalCount as number | undefined, isCOP: false },
-                { label: t("admin.averageTopUp"), value: topUps?.averageAmountCop as number | undefined },
-                { label: t("admin.uniqueBracelets"), value: topUps?.uniqueBraceletsCount as number | undefined, isCOP: false },
+                { label: t("admin.totalTopUpAmount"), value: topUps?.totalAmount as number | undefined },
+                { label: t("admin.topUpCount"), value: topUps?.totalCount as number | undefined, isCurrency: false },
+                { label: t("admin.averageTopUp"), value: topUps?.averageAmount as number | undefined },
+                { label: t("admin.uniqueBracelets"), value: topUps?.uniqueBraceletsCount as number | undefined, isCurrency: false },
               ].map((row) => (
                 <Card key={row.label} padding={16}>
                   <View style={styles.reportRow}>
                     <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{row.label}</Text>
-                    {row.isCOP === false ? (
+                    {row.isCurrency === false ? (
                       <Text style={[styles.countValue, { color: C.text }]}>{row.value ?? "—"}</Text>
                     ) : (
                       <CopAmount amount={row.value} size={18} />
@@ -206,15 +206,15 @@ export default function EventAdminReportsScreen() {
           {activeTab === "inventory" && (
             <View style={{ gap: 12 }}>
               {[
-                { label: t("admin.totalUnitsInStock"), value: inventory?.totalUnitsInStock as number | undefined, isCOP: false },
-                { label: t("admin.inventoryValue"), value: inventory?.totalInventoryValueCop as number | undefined },
-                { label: t("admin.lowStockCount"), value: inventory?.lowStockCount as number | undefined, isCOP: false },
-                { label: t("admin.unitsSoldToday"), value: inventory?.unitsSoldToday as number | undefined, isCOP: false },
+                { label: t("admin.totalUnitsInStock"), value: inventory?.totalUnitsInStock as number | undefined, isCurrency: false },
+                { label: t("admin.inventoryValue"), value: inventory?.totalInventoryValue as number | undefined },
+                { label: t("admin.lowStockCount"), value: inventory?.lowStockCount as number | undefined, isCurrency: false },
+                { label: t("admin.unitsSoldToday"), value: inventory?.unitsSoldToday as number | undefined, isCurrency: false },
               ].map((row) => (
                 <Card key={row.label} padding={16}>
                   <View style={styles.reportRow}>
                     <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{row.label}</Text>
-                    {row.isCOP === false ? (
+                    {row.isCurrency === false ? (
                       <Text style={[styles.countValue, { color: C.text }]}>{row.value ?? "—"}</Text>
                     ) : (
                       <CopAmount amount={row.value} size={18} />
@@ -233,11 +233,11 @@ export default function EventAdminReportsScreen() {
                 </Text>
               </View>
 
-              {totalUnclaimedCop !== undefined && (
+              {totalUnclaimed !== undefined && (
                 <Card padding={16}>
                   <View style={styles.reportRow}>
                     <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("eventAdmin.totalUnclaimed")}</Text>
-                    <CopAmount amount={totalUnclaimedCop} size={18} />
+                    <CopAmount amount={totalUnclaimed} size={18} />
                   </View>
                 </Card>
               )}
@@ -292,7 +292,7 @@ export default function EventAdminReportsScreen() {
                           ) : null}
                         </View>
                         <View style={styles.rightCol}>
-                          <CopAmount amount={b.lastKnownBalanceCop} size={16} />
+                          <CopAmount amount={b.lastKnownBalance} size={16} />
                           {b.latestRefund ? (
                             <Badge label={t("eventAdmin.refundIssued")} variant="success" />
                           ) : (
@@ -336,7 +336,7 @@ export default function EventAdminReportsScreen() {
                   <Card padding={16}>
                     <View style={styles.reportRow}>
                       <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("eventAdmin.totalRefunded")}</Text>
-                      <CopAmount amount={refunds?.totalRefundedCop} size={18} />
+                      <CopAmount amount={refunds?.totalRefunded} size={18} />
                     </View>
                   </Card>
 
@@ -363,7 +363,7 @@ export default function EventAdminReportsScreen() {
                                 {data.count} {t("merchant_admin.transactions")}
                               </Text>
                             </View>
-                            <CopAmount amount={data.totalCop} size={16} />
+                            <CopAmount amount={data.total} size={16} />
                           </View>
                         ))}
                       </View>

@@ -79,7 +79,7 @@ export default function PromoterSummaryScreen() {
         <View style={styles.mainRow}>
           <View>
             <Text style={styles.mainLabel}>{t("eventAdmin.totalRevenue")}</Text>
-            <CopAmount amount={summary?.totalRevenueCop} size={36} color="#0a0a0a" />
+            <CopAmount amount={summary?.totalRevenue} size={36} color="#0a0a0a" />
           </View>
           <View style={[styles.mainIconBox, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
             <Feather name="trending-up" size={28} color="#0a0a0a" />
@@ -105,7 +105,7 @@ export default function PromoterSummaryScreen() {
           <Text style={[styles.kpiLabel, { color: C.textSecondary }]}>
             {t("eventAdmin.totalTopUps")}
           </Text>
-          <CopAmount amount={summary?.totalTopupsCop} size={18} color={C.success} />
+          <CopAmount amount={summary?.totalTopups} size={18} color={C.success} />
         </Card>
         <Card style={styles.kpiCard} padding={16}>
           <View style={[styles.kpiIcon, { backgroundColor: C.warning + "22" }]}>
@@ -114,7 +114,7 @@ export default function PromoterSummaryScreen() {
           <Text style={[styles.kpiLabel, { color: C.textSecondary }]}>
             {t("eventAdmin.unclaimedBalance")}
           </Text>
-          <CopAmount amount={summary?.totalUnclaimedCop} size={18} color={C.warning} />
+          <CopAmount amount={summary?.totalUnclaimed} size={18} color={C.warning} />
         </Card>
       </View>
 

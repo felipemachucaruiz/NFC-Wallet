@@ -12,7 +12,7 @@ import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { formatCOP } from "@/utils/format";
+import { formatCurrency } from "@/utils/format";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
 
 type DigitalMethod = "nequi" | "pse";
@@ -70,7 +70,7 @@ export default function TopUpDigitalScreen() {
 
   const { token } = useAuth();
   const { mutate: initiatePayment, isPending } = useMutation({
-    mutationFn: async (body: { braceletUid: string; amountCop: number; paymentMethod: "nequi" | "pse"; phoneNumber?: string; bankCode?: string }) => {
+    mutationFn: async (body: { braceletUid: string; amount: number; paymentMethod: "nequi" | "pse"; phoneNumber?: string; bankCode?: string }) => {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(`${ATTENDEE_API_BASE_URL}/api/payments/initiate`, {
@@ -98,9 +98,9 @@ export default function TopUpDigitalScreen() {
   const handleSubmit = () => {
     if (!canSubmit) return;
 
-    const body: { braceletUid: string; amountCop: number; paymentMethod: "nequi" | "pse"; phoneNumber?: string; bankCode?: string } = {
+    const body: { braceletUid: string; amount: number; paymentMethod: "nequi" | "pse"; phoneNumber?: string; bankCode?: string } = {
       braceletUid,
-      amountCop: effectiveAmount,
+      amount: effectiveAmount,
       paymentMethod: method,
     };
 
@@ -166,7 +166,7 @@ export default function TopUpDigitalScreen() {
                 ]}
               >
                 <Text style={[styles.amountChipText, { color: selectedAmount === amt ? "#0a0a0a" : C.text }]}>
-                  {formatCOP(amt)}
+                  {formatCurrency(amt, "COP")}
                 </Text>
               </Pressable>
             ))}
@@ -182,7 +182,7 @@ export default function TopUpDigitalScreen() {
           />
           {effectiveAmount > 0 && (
             <Text style={[styles.amountPreview, { color: C.primary }]}>
-              Total: {formatCOP(effectiveAmount)}
+              Total: {formatCurrency(effectiveAmount, "COP")}
             </Text>
           )}
         </Card>
@@ -286,7 +286,7 @@ export default function TopUpDigitalScreen() {
         </View>
 
         <Button
-          title={isPending ? "Iniciando pago..." : `Pagar ${effectiveAmount > 0 ? formatCOP(effectiveAmount) : ""}`}
+          title={isPending ? "Iniciando pago..." : `Pagar ${effectiveAmount > 0 ? formatCurrency(effectiveAmount, "COP") : ""}`}
           onPress={handleSubmit}
           disabled={!canSubmit || isPending}
           loading={isPending}

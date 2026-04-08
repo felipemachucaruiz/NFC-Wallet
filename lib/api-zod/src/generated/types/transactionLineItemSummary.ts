@@ -14,5 +14,5 @@ export interface TransactionLineItemSummary {
   productName: string | null;
   unitPrice: number;
   quantity: number;
-  ivaAmountCop: number;
+  ivaAmount: number;
 }

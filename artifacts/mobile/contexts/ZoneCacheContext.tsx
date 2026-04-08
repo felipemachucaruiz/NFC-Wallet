@@ -9,7 +9,7 @@ export interface AccessZone {
   name: string;
   colorHex: string;
   rank: number;
-  upgradePriceCop: number | null;
+  upgradePrice: number | null;
   description?: string | null;
 }
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   useGetCurrentAuthUser,
+  useGetEvent,
   useListEventTransactions,
   useListMerchants,
   getListEventTransactionsQueryKey,
@@ -12,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Eye, Receipt } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
 export default function EventTransactions() {
   const { t } = useTranslation();
@@ -25,6 +27,9 @@ export default function EventTransactions() {
   const transactions = data?.transactions ?? [];
   const { data: merchantsData } = useListMerchants({ eventId: eventId || undefined });
   const merchants = merchantsData?.merchants ?? [];
+  const { data: eventData } = useGetEvent(eventId || "");
+  const currency = (eventData as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
+  const fmt = (n: number) => formatCurrency(n, currency);
 
   const [search, setSearch] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
@@ -87,8 +92,8 @@ export default function EventTransactions() {
                   <TableCell className="font-mono text-xs">{tx.braceletUid}</TableCell>
                   <TableCell className="text-sm">{tx.locationName ?? tx.locationId.slice(0, 8)}</TableCell>
                   <TableCell className="text-sm">{tx.merchantName ?? merchants.find((m) => m.id === tx.merchantId)?.name ?? tx.merchantId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-right font-mono">${tx.grossAmountCop.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-mono">${tx.netAmountCop.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{fmt(tx.grossAmount)}</TableCell>
+                  <TableCell className="text-right font-mono">{fmt(tx.netAmount)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{tx.itemCount}</TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={() => { setSelected(tx); setDetailOpen(true); }}>
@@ -129,15 +134,15 @@ export default function EventTransactions() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("transactions.labelGross")}</p>
-                  <p className="font-mono font-bold">${selected.grossAmountCop.toLocaleString()}</p>
+                  <p className="font-mono font-bold">{fmt(selected.grossAmount)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("transactions.labelCommission")}</p>
-                  <p className="font-mono">${selected.commissionAmountCop.toLocaleString()}</p>
+                  <p className="font-mono">{fmt(selected.commissionAmount)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("transactions.labelNet")}</p>
-                  <p className="font-mono font-bold">${selected.netAmountCop.toLocaleString()}</p>
+                  <p className="font-mono font-bold">{fmt(selected.netAmount)}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -157,7 +162,7 @@ export default function EventTransactions() {
                     {selected.items.map((item, i) => (
                       <div key={i} className="flex justify-between text-sm">
                         <span>{item.productName ?? item.productId ?? t("transactions.unknown")} x{item.quantity}</span>
-                        <span className="font-mono">${(item.unitPrice * item.quantity).toLocaleString()}</span>
+                        <span className="font-mono">{fmt(item.unitPrice * item.quantity)}</span>
                       </div>
                     ))}
                   </div>

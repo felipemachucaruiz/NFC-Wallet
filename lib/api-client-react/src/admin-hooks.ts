@@ -6,7 +6,7 @@ export interface AttendeeRefundRequest {
   attendeeUserId: string;
   braceletUid: string;
   eventId: string;
-  amountCop: number;
+  amount: number;
   refundMethod: "cash" | "nequi" | "bancolombia" | "other";
   accountDetails: string | null;
   notes: string | null;
@@ -80,19 +80,30 @@ export function useGetSettlementReport(eventId: string | null) {
           merchantId: string;
           merchantName: string;
           commissionRatePercent: string;
-          grossSalesCop: number;
-          tipsCop: number;
-          commissionsCop: number;
-          netPayoutCop: number;
+          grossSales: number;
+          tips: number;
+          commissions: number;
+          netPayout: number;
           transactionCount: number;
         }[];
         totals: {
-          grossSalesCop: number;
-          tipsCop: number;
-          commissionsCop: number;
-          netPayoutCop: number;
+          grossSales: number;
+          tips: number;
+          commissions: number;
+          netPayout: number;
           transactionCount: number;
         };
+        currencyCode?: string;
+        copConversion?: {
+          rate: number;
+          copTotals: {
+            grossSales: number;
+            tips: number;
+            commissions: number;
+            netPayout: number;
+            transactionCount: number;
+          };
+        } | null;
       }>(`/api/events/${eventId}/settlement-report`);
     },
     enabled: !!eventId,
@@ -103,10 +114,10 @@ export function useGetSettlementReport(eventId: string | null) {
 export interface EventTopUp {
   id: string;
   braceletUid: string;
-  amountCop: number;
+  amount: number;
   paymentMethod: string;
   status: string;
-  newBalanceCop: number;
+  newBalance: number;
   performedByUserId: string;
   createdAt: string;
   offlineCreatedAt: string | null;

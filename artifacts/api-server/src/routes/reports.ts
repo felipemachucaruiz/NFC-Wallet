@@ -26,7 +26,7 @@ router.get(
     const conditions = [];
     let topUpEventIds: string[] | null = null;
 
-    const emptyRevenue = { totalSalesCop: 0, totalCogsCop: 0, grossProfitCop: 0, totalCommissionsCop: 0, platformRevenueCop: 0, netOwedToMerchantsCop: 0, transactionCount: 0, totalTopUpsCop: 0, topUpCount: 0, braceletCount: 0, totals: { grossSalesCop: 0, totalTipsCop: 0, cogsCop: 0, grossProfitCop: 0, profitMarginPercent: 0, commissionCop: 0, netCop: 0, transactionCount: 0 }, byMerchant: [] };
+    const emptyRevenue = { totalSales: 0, totalCogs: 0, grossProfit: 0, totalCommissions: 0, platformRevenue: 0, netOwedToMerchants: 0, transactionCount: 0, totalTopUps: 0, topUpCount: 0, braceletCount: 0, totals: { grossSales: 0, totalTips: 0, cogs: 0, grossProfit: 0, profitMarginPercent: 0, commission: 0, net: 0, transactionCount: 0 }, byMerchant: [] };
 
     if (user.role === "event_admin") {
       const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
@@ -93,7 +93,7 @@ router.get(
 
     // Compute COGS from line items (per-tx map for accurate group-level breakdowns)
     const txIds = txRows.map((r) => r.id);
-    let cogsCop = 0;
+    let cogs = 0;
     const cogsByTxId = new Map<string, number>();
     const ivaByTxId = new Map<string, number>();
     const retencionFuenteByTxId = new Map<string, number>();
@@ -106,41 +106,41 @@ router.get(
       for (const li of lineItemRows) {
         const txCogs = (cogsByTxId.get(li.transactionLogId) ?? 0) + li.unitCostSnapshot * li.quantity;
         cogsByTxId.set(li.transactionLogId, txCogs);
-        ivaByTxId.set(li.transactionLogId, (ivaByTxId.get(li.transactionLogId) ?? 0) + li.ivaAmountCop);
-        retencionFuenteByTxId.set(li.transactionLogId, (retencionFuenteByTxId.get(li.transactionLogId) ?? 0) + li.retencionFuenteAmountCop);
-        retencionICAByTxId.set(li.transactionLogId, (retencionICAByTxId.get(li.transactionLogId) ?? 0) + li.retencionICAAmountCop);
+        ivaByTxId.set(li.transactionLogId, (ivaByTxId.get(li.transactionLogId) ?? 0) + li.ivaAmount);
+        retencionFuenteByTxId.set(li.transactionLogId, (retencionFuenteByTxId.get(li.transactionLogId) ?? 0) + li.retencionFuenteAmount);
+        retencionICAByTxId.set(li.transactionLogId, (retencionICAByTxId.get(li.transactionLogId) ?? 0) + li.retencionICAAmount);
       }
-      cogsCop = [...cogsByTxId.values()].reduce((s, c) => s + c, 0);
+      cogs = [...cogsByTxId.values()].reduce((s, c) => s + c, 0);
     }
 
-    const grossSalesCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
-    const totalTipsCop = txRows.reduce((s, r) => s + (r.tipAmountCop ?? 0), 0);
-    const commissionCop = txRows.reduce((s, r) => s + r.commissionAmountCop, 0);
-    const netCop = txRows.reduce((s, r) => s + r.netAmountCop, 0);
-    const grossProfitCop = grossSalesCop - cogsCop;
-    const profitMarginPercent = grossSalesCop > 0
-      ? Math.round((grossProfitCop / grossSalesCop) * 10000) / 100
+    const grossSales = txRows.reduce((s, r) => s + r.grossAmount, 0);
+    const totalTips = txRows.reduce((s, r) => s + (r.tipAmount ?? 0), 0);
+    const commission = txRows.reduce((s, r) => s + r.commissionAmount, 0);
+    const net = txRows.reduce((s, r) => s + r.netAmount, 0);
+    const grossProfit = grossSales - cogs;
+    const profitMarginPercent = grossSales > 0
+      ? Math.round((grossProfit / grossSales) * 10000) / 100
       : 0;
-    const totalIvaCop = [...ivaByTxId.values()].reduce((s, v) => s + v, 0);
-    const totalRetencionFuenteCop = [...retencionFuenteByTxId.values()].reduce((s, v) => s + v, 0);
-    const totalRetencionICACop = [...retencionICAByTxId.values()].reduce((s, v) => s + v, 0);
-    const totalRetencionesCop = totalRetencionFuenteCop + totalRetencionICACop;
-    const totalNetoCop = grossSalesCop - commissionCop - totalRetencionesCop;
+    const totalIva = [...ivaByTxId.values()].reduce((s, v) => s + v, 0);
+    const totalRetencionFuente = [...retencionFuenteByTxId.values()].reduce((s, v) => s + v, 0);
+    const totalRetencionICA = [...retencionICAByTxId.values()].reduce((s, v) => s + v, 0);
+    const totalRetenciones = totalRetencionFuente + totalRetencionICA;
+    const totalNeto = grossSales - commission - totalRetenciones;
 
     const totals = {
-      grossSalesCop,
-      totalTipsCop,
-      cogsCop,
-      grossProfitCop,
+      grossSales,
+      totalTips,
+      cogs,
+      grossProfit,
       profitMarginPercent,
-      commissionCop,
-      netCop,
+      commission,
+      net,
       transactionCount: txRows.length,
-      totalIvaCop,
-      totalRetencionFuenteCop,
-      totalRetencionICACop,
-      totalRetencionesCop,
-      totalNetoCop,
+      totalIva,
+      totalRetencionFuente,
+      totalRetencionICA,
+      totalRetenciones,
+      totalNeto,
     };
 
     // Group by merchant
@@ -204,10 +204,10 @@ router.get(
     }
 
     function summarizeRows(rows: typeof txRows) {
-      const gross = rows.reduce((s, r) => s + r.grossAmountCop, 0);
-      const tips = rows.reduce((s, r) => s + (r.tipAmountCop ?? 0), 0);
-      const comm = rows.reduce((s, r) => s + r.commissionAmountCop, 0);
-      const net = rows.reduce((s, r) => s + r.netAmountCop, 0);
+      const gross = rows.reduce((s, r) => s + r.grossAmount, 0);
+      const tips = rows.reduce((s, r) => s + (r.tipAmount ?? 0), 0);
+      const comm = rows.reduce((s, r) => s + r.commissionAmount, 0);
+      const net = rows.reduce((s, r) => s + r.netAmount, 0);
       const groupCogs = rows.reduce((s, r) => s + (cogsByTxId.get(r.id) ?? 0), 0);
       const profit = gross - groupCogs;
       const margin = gross > 0 ? Math.round((profit / gross) * 10000) / 100 : 0;
@@ -217,19 +217,19 @@ router.get(
       const groupRetenciones = groupRetencionFuente + groupRetencionICA;
       const groupNeto = gross - comm - groupRetenciones;
       return {
-        grossSalesCop: gross,
-        totalTipsCop: tips,
-        cogsCop: groupCogs,
-        grossProfitCop: profit,
+        grossSales: gross,
+        totalTips: tips,
+        cogs: groupCogs,
+        grossProfit: profit,
         profitMarginPercent: margin,
-        commissionCop: comm,
-        netCop: net,
+        commission: comm,
+        net: net,
         transactionCount: rows.length,
-        totalIvaCop: groupIva,
-        totalRetencionFuenteCop: groupRetencionFuente,
-        totalRetencionICACop: groupRetencionICA,
-        totalRetencionesCop: groupRetenciones,
-        totalNetoCop: groupNeto,
+        totalIva: groupIva,
+        totalRetencionFuente: groupRetencionFuente,
+        totalRetencionICA: groupRetencionICA,
+        totalRetenciones: groupRetenciones,
+        totalNeto: groupNeto,
       };
     }
 
@@ -244,12 +244,12 @@ router.get(
       })),
     }));
 
-    let totalTopUpsCop = 0;
+    let totalTopUps = 0;
     let topUpCount = 0;
     let braceletCount = 0;
     if (topUpEventIds !== null && topUpEventIds.length > 0) {
       const eventTopUps = await getTopUpsForEventIds(topUpEventIds, from, to);
-      totalTopUpsCop = eventTopUps.reduce((s, t) => s + t.amountCop, 0);
+      totalTopUps = eventTopUps.reduce((s, t) => s + t.amount, 0);
       topUpCount = eventTopUps.length;
       const [bAgg] = await db
         .select({ count: sql<number>`COUNT(*)`.mapWith(Number) })
@@ -261,7 +261,7 @@ router.get(
       if (from) topUpConditions.push(gte(topUpsTable.createdAt, new Date(from)));
       if (to) topUpConditions.push(lte(topUpsTable.createdAt, new Date(to)));
       const allTopUps = await db.select().from(topUpsTable).where(and(...topUpConditions));
-      totalTopUpsCop = allTopUps.reduce((s, t) => s + t.amountCop, 0);
+      totalTopUps = allTopUps.reduce((s, t) => s + t.amount, 0);
       topUpCount = allTopUps.length;
       const braceletConditions = [];
       if (from) braceletConditions.push(gte(braceletsTable.createdAt, new Date(from)));
@@ -274,14 +274,14 @@ router.get(
     }
 
     res.json({
-      totalSalesCop: totals.grossSalesCop,
-      totalCogsCop: totals.cogsCop,
-      grossProfitCop: totals.grossProfitCop,
-      totalCommissionsCop: totals.commissionCop,
-      platformRevenueCop: totals.commissionCop,
-      netOwedToMerchantsCop: totals.netCop,
+      totalSales: totals.grossSales,
+      totalCogs: totals.cogs,
+      grossProfit: totals.grossProfit,
+      totalCommissions: totals.commission,
+      platformRevenue: totals.commission,
+      netOwedToMerchants: totals.net,
       transactionCount: totals.transactionCount,
-      totalTopUpsCop,
+      totalTopUps,
       topUpCount,
       braceletCount,
       totals,
@@ -317,26 +317,26 @@ router.get(
 
     type TopUpRow = typeof topUpsTable.$inferSelect;
     const buildTopUpSummary = async (topUps: TopUpRow[]) => {
-      const totalCop = topUps.reduce((s, t) => s + t.amountCop, 0);
+      const total = topUps.reduce((s, t) => s + t.amount, 0);
       const totalCount = topUps.length;
-      const averageAmountCop = totalCount > 0 ? Math.round(totalCop / totalCount) : 0;
+      const averageAmount = totalCount > 0 ? Math.round(total / totalCount) : 0;
       const uniqueBraceletsCount = new Set(topUps.map((t) => t.braceletUid)).size;
       const byPaymentMethod: Record<string, number> = {};
-      const byUserMap = new Map<string, { totalCop: number; count: number }>();
-      let bankTotalCop = 0;
+      const byUserMap = new Map<string, { total: number; count: number }>();
+      let bankTotal = 0;
       let bankCount = 0;
-      let digitalTotalCop = 0;
+      let digitalTotal = 0;
       let digitalCount = 0;
       for (const t of topUps) {
-        byPaymentMethod[t.paymentMethod] = (byPaymentMethod[t.paymentMethod] ?? 0) + t.amountCop;
-        if (!byUserMap.has(t.performedByUserId)) byUserMap.set(t.performedByUserId, { totalCop: 0, count: 0 });
+        byPaymentMethod[t.paymentMethod] = (byPaymentMethod[t.paymentMethod] ?? 0) + t.amount;
+        if (!byUserMap.has(t.performedByUserId)) byUserMap.set(t.performedByUserId, { total: 0, count: 0 });
         const u = byUserMap.get(t.performedByUserId)!;
-        u.totalCop += t.amountCop; u.count += 1;
+        u.total += t.amount; u.count += 1;
         if (DIGITAL_PAYMENT_METHODS.has(t.paymentMethod) && t.wompiTransactionId) {
-          digitalTotalCop += t.amountCop;
+          digitalTotal += t.amount;
           digitalCount += 1;
         } else {
-          bankTotalCop += t.amountCop;
+          bankTotal += t.amount;
           bankCount += 1;
         }
       }
@@ -345,13 +345,13 @@ router.get(
       const byUser = userIds.map((uid) => {
         const usr = users.find((u) => u.id === uid);
         const data = byUserMap.get(uid)!;
-        return { userId: uid, firstName: usr?.firstName ?? null, lastName: usr?.lastName ?? null, totalCop: data.totalCop, count: data.count };
+        return { userId: uid, firstName: usr?.firstName ?? null, lastName: usr?.lastName ?? null, total: data.total, count: data.count };
       });
       const bySource = {
-        bank: { totalCop: bankTotalCop, count: bankCount },
-        digital: { totalCop: digitalTotalCop, count: digitalCount },
+        bank: { total: bankTotal, count: bankCount },
+        digital: { total: digitalTotal, count: digitalCount },
       };
-      return { totalCop, totalAmountCop: totalCop, totalCount, averageAmountCop, uniqueBraceletsCount, byPaymentMethod, byUser, bySource };
+      return { total, totalAmount: total, totalCount, averageAmount, uniqueBraceletsCount, byPaymentMethod, byUser, bySource };
     };
 
     // event_admin: scope top-ups to their event via bracelet.eventId
@@ -360,7 +360,7 @@ router.get(
       if (userCompanyId) {
         const companyEventIds = await getEventIdsByPromoterCompany(userCompanyId);
         if (companyEventIds.length === 0) {
-          res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { totalCop: 0, count: 0 }, digital: { totalCop: 0, count: 0 } } });
+          res.json({ total: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { total: 0, count: 0 }, digital: { total: 0, count: 0 } } });
           return;
         }
         const topUps = await getTopUpsForEventIds(companyEventIds, from, to);
@@ -368,7 +368,7 @@ router.get(
         return;
       }
       if (!user.eventId) {
-        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { totalCop: 0, count: 0 }, digital: { totalCop: 0, count: 0 } } });
+        res.json({ total: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { total: 0, count: 0 }, digital: { total: 0, count: 0 } } });
         return;
       }
       const eventBracelets = await db
@@ -377,7 +377,7 @@ router.get(
         .where(eq(braceletsTable.eventId, user.eventId));
       const braceletUids = eventBracelets.map((b) => b.nfcUid);
       if (braceletUids.length === 0) {
-        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { totalCop: 0, count: 0 }, digital: { totalCop: 0, count: 0 } } });
+        res.json({ total: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { total: 0, count: 0 }, digital: { total: 0, count: 0 } } });
         return;
       }
       const topUpConditions = [
@@ -400,7 +400,7 @@ router.get(
     if (promoterCompanyId) {
       const companyEventIds = await getEventIdsByPromoterCompany(promoterCompanyId);
       if (companyEventIds.length === 0) {
-        res.json({ totalCop: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { totalCop: 0, count: 0 }, digital: { totalCop: 0, count: 0 } } });
+        res.json({ total: 0, byPaymentMethod: {}, byUser: [], bySource: { bank: { total: 0, count: 0 }, digital: { total: 0, count: 0 } } });
         return;
       }
       const topUps = await getTopUpsForEventIds(companyEventIds, from, to);
@@ -454,10 +454,10 @@ router.get(
       const report = items.map((item) => {
         const loc = eventLocations.find((l) => l.id === item.locationId);
         const prod = products.find((p) => p.id === item.productId);
-        return { locationId: item.locationId, locationName: loc?.name ?? item.locationId, productId: item.productId, productName: prod?.name ?? item.productId, priceCop: prod?.priceCop ?? 0, quantityOnHand: item.quantityOnHand, restockTrigger: item.restockTrigger, isLowStock: item.quantityOnHand <= item.restockTrigger };
+        return { locationId: item.locationId, locationName: loc?.name ?? item.locationId, productId: item.productId, productName: prod?.name ?? item.productId, price: prod?.price ?? 0, quantityOnHand: item.quantityOnHand, restockTrigger: item.restockTrigger, isLowStock: item.quantityOnHand <= item.restockTrigger };
       });
       const totalUnitsInStock = report.reduce((s, i) => s + i.quantityOnHand, 0);
-      const totalInventoryValueCop = report.reduce((s, i) => s + i.quantityOnHand * i.priceCop, 0);
+      const totalInventoryValue = report.reduce((s, i) => s + i.quantityOnHand * i.price, 0);
       const lowStockCount = report.filter((i) => i.isLowStock).length;
 
       const [eventTzRow] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, scopedEventId));
@@ -470,7 +470,7 @@ router.get(
           eq(transactionLogsTable.eventId, scopedEventId),
           sql`DATE(${transactionLogsTable.createdAt} AT TIME ZONE ${eventTz}) = CURRENT_DATE AT TIME ZONE ${eventTz}`,
         ));
-      res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday: soldTodayAgg?.units ?? 0 });
+      res.json({ items: report, totalUnitsInStock, totalInventoryValue, lowStockCount, unitsSoldToday: soldTodayAgg?.units ?? 0 });
       return;
     }
 
@@ -539,7 +539,7 @@ router.get(
         locationName: loc?.name ?? item.locationId,
         productId: item.productId,
         productName: prod?.name ?? item.productId,
-        priceCop: prod?.priceCop ?? 0,
+        price: prod?.price ?? 0,
         quantityOnHand: item.quantityOnHand,
         restockTrigger: item.restockTrigger,
         isLowStock: item.quantityOnHand <= item.restockTrigger,
@@ -547,7 +547,7 @@ router.get(
     });
 
     const totalUnitsInStock = report.reduce((s, i) => s + i.quantityOnHand, 0);
-    const totalInventoryValueCop = report.reduce((s, i) => s + i.quantityOnHand * i.priceCop, 0);
+    const totalInventoryValue = report.reduce((s, i) => s + i.quantityOnHand * i.price, 0);
     const lowStockCount = report.filter((i) => i.isLowStock).length;
 
     const reportedLocationIds = report.map((i) => i.locationId);
@@ -602,7 +602,7 @@ router.get(
 
     void inventoryAuditItemsTable;
 
-    res.json({ items: report, totalUnitsInStock, totalInventoryValueCop, lowStockCount, unitsSoldToday, recentAudits, recentDamagedGoods });
+    res.json({ items: report, totalUnitsInStock, totalInventoryValue, lowStockCount, unitsSoldToday, recentAudits, recentDamagedGoods });
   },
 );
 
@@ -699,16 +699,16 @@ router.get(
           .from(transactionLogsTable)
           .where(eq(transactionLogsTable.eventId, event.id));
 
-        const totalSalesCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
+        const totalSales = txRows.reduce((s, r) => s + r.grossAmount, 0);
         const commissionRate = parseFloat(event.platformCommissionRate as unknown as string) || 0;
-        const platformCommissionEarnedCop = Math.round(totalSalesCop * (commissionRate / 100));
+        const platformCommissionEarned = Math.round(totalSales * (commissionRate / 100));
 
         return {
           eventId: event.id,
           eventName: event.name,
           platformCommissionRate: commissionRate,
-          totalSalesCop,
-          platformCommissionEarnedCop,
+          totalSales,
+          platformCommissionEarned,
         };
       }),
     );
@@ -763,9 +763,9 @@ router.get(
         .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map(id => sql`${id}`), sql`, `)}]::text[])`);
       for (const li of lineItems) {
         const cur = liByTxId.get(li.transactionLogId) ?? { iva: 0, fuente: 0, ica: 0 };
-        cur.iva += li.ivaAmountCop;
-        cur.fuente += li.retencionFuenteAmountCop;
-        cur.ica += li.retencionICAAmountCop;
+        cur.iva += li.ivaAmount;
+        cur.fuente += li.retencionFuenteAmount;
+        cur.ica += li.retencionICAAmount;
         liByTxId.set(li.transactionLogId, cur);
       }
     }
@@ -794,41 +794,41 @@ router.get(
     }
 
     const byMerchant = [...byMerchantMap.values()].map((mg) => {
-      const totalBrutoCop = mg.rows.reduce((s, r) => s + r.grossAmountCop, 0);
-      const totalTipsCop = mg.rows.reduce((s, r) => s + (r.tipAmountCop ?? 0), 0);
-      const totalComisionCop = mg.rows.reduce((s, r) => s + r.commissionAmountCop, 0);
-      const totalIvaCop = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.iva ?? 0), 0);
-      const totalRetencionFuenteCop = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.fuente ?? 0), 0);
-      const totalRetencionICACop = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.ica ?? 0), 0);
-      const totalRetencionesCop = totalRetencionFuenteCop + totalRetencionICACop;
-      const totalNetoCop = totalBrutoCop - totalComisionCop - totalRetencionesCop;
+      const totalBruto = mg.rows.reduce((s, r) => s + r.grossAmount, 0);
+      const totalTips = mg.rows.reduce((s, r) => s + (r.tipAmount ?? 0), 0);
+      const totalComision = mg.rows.reduce((s, r) => s + r.commissionAmount, 0);
+      const totalIva = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.iva ?? 0), 0);
+      const totalRetencionFuente = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.fuente ?? 0), 0);
+      const totalRetencionICA = mg.rows.reduce((s, r) => s + (liByTxId.get(r.id)?.ica ?? 0), 0);
+      const totalRetenciones = totalRetencionFuente + totalRetencionICA;
+      const totalNeto = totalBruto - totalComision - totalRetenciones;
       return {
         merchantId: mg.merchantId,
         merchantName: mg.merchantName,
         transactionCount: mg.rows.length,
-        totalBrutoCop,
-        totalTipsCop,
-        totalIvaCop,
-        totalRetencionFuenteCop,
-        totalRetencionICACop,
-        totalRetencionesCop,
-        totalComisionCop,
-        totalNetoCop,
+        totalBruto,
+        totalTips,
+        totalIva,
+        totalRetencionFuente,
+        totalRetencionICA,
+        totalRetenciones,
+        totalComision,
+        totalNeto,
       };
     });
 
     const grandTotals = byMerchant.reduce(
       (acc, m) => ({
-        totalBrutoCop: acc.totalBrutoCop + m.totalBrutoCop,
-        totalTipsCop: acc.totalTipsCop + m.totalTipsCop,
-        totalIvaCop: acc.totalIvaCop + m.totalIvaCop,
-        totalRetencionFuenteCop: acc.totalRetencionFuenteCop + m.totalRetencionFuenteCop,
-        totalRetencionICACop: acc.totalRetencionICACop + m.totalRetencionICACop,
-        totalRetencionesCop: acc.totalRetencionesCop + m.totalRetencionesCop,
-        totalComisionCop: acc.totalComisionCop + m.totalComisionCop,
-        totalNetoCop: acc.totalNetoCop + m.totalNetoCop,
+        totalBruto: acc.totalBruto + m.totalBruto,
+        totalTips: acc.totalTips + m.totalTips,
+        totalIva: acc.totalIva + m.totalIva,
+        totalRetencionFuente: acc.totalRetencionFuente + m.totalRetencionFuente,
+        totalRetencionICA: acc.totalRetencionICA + m.totalRetencionICA,
+        totalRetenciones: acc.totalRetenciones + m.totalRetenciones,
+        totalComision: acc.totalComision + m.totalComision,
+        totalNeto: acc.totalNeto + m.totalNeto,
       }),
-      { totalBrutoCop: 0, totalTipsCop: 0, totalIvaCop: 0, totalRetencionFuenteCop: 0, totalRetencionICACop: 0, totalRetencionesCop: 0, totalComisionCop: 0, totalNetoCop: 0 },
+      { totalBruto: 0, totalTips: 0, totalIva: 0, totalRetencionFuente: 0, totalRetencionICA: 0, totalRetenciones: 0, totalComision: 0, totalNeto: 0 },
     );
 
     res.json({ totals: grandTotals, byMerchant });

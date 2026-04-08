@@ -1100,6 +1100,7 @@
     "hourAxis": "Hour of day (0–23)",
     "salesInThousands": "values in thousands (COP)",
     "salesInMillions": "values in millions (COP)",
+    "salesInAmount": "values",
     "salesInCop": "values in COP",
     "topProducts": "Top Products",
     "topProductsSubtitle": "Ranked by units sold",

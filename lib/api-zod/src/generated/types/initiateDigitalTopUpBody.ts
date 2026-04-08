@@ -11,7 +11,7 @@ export interface InitiateDigitalTopUpBody {
   /** @minLength 1 */
   braceletUid: string;
   /** @minimum 1000 */
-  amountCop: number;
+  amount: number;
   paymentMethod: InitiateDigitalTopUpBodyPaymentMethod;
   phoneNumber?: string;
   bankCode?: string;

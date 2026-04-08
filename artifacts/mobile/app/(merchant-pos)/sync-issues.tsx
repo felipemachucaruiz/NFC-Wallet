@@ -74,7 +74,7 @@ export default function MerchantSyncIssuesScreen() {
 
   const getItemAmount = (item: QueuedItem): number => {
     if (item.type === "charge") return item.newBalance;
-    return item.amountCop;
+    return item.amount;
   };
 
   return (

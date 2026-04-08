@@ -26,7 +26,7 @@ type RefundRequest = {
   id: string;
   braceletUid: string;
   refundMethod: string;
-  amountCop: number;
+  amount: number;
   status: "pending" | "approved" | "rejected";
   chipZeroed?: boolean;
   createdAt: string;
@@ -151,8 +151,8 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 <View style={styles.refundRight}>
-                  {r.amountCop > 0 && (
-                    <CopAmount amount={r.amountCop} positive size={14} />
+                  {r.amount > 0 && (
+                    <CopAmount amount={r.amount} positive size={14} />
                   )}
                   <Badge
                     label={statusLabel(r)}

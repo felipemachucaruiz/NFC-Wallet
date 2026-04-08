@@ -30,11 +30,11 @@ export interface QueuedTransaction {
   lineItems: Array<{
     productId: string;
     quantity: number;
-    unitPriceCop: number;
-    unitCostCop: number;
+    unitPrice: number;
+    unitCost: number;
   }>;
-  grossAmountCop: number;
-  tipAmountCop?: number;
+  grossAmount: number;
+  tipAmount?: number;
   hmac?: string;
   createdAt: string;
   status: "pending" | "syncing" | "failed";
@@ -46,7 +46,7 @@ export interface QueuedTopUp {
   id: string;
   type: "topup";
   nfcUid: string;
-  amountCop: number;
+  amount: number;
   paymentMethod: string;
   newBalance: number;
   newCounter: number;
@@ -65,9 +65,9 @@ interface TopUpSyncResult {
 
 export interface FailedItemEdit {
   newBalance?: number;
-  grossAmountCop?: number;
-  tipAmountCop?: number;
-  amountCop?: number;
+  grossAmount?: number;
+  tipAmount?: number;
+  amount?: number;
 }
 
 interface OfflineQueueContextValue {
@@ -84,7 +84,7 @@ interface OfflineQueueContextValue {
   pendingCount: number;
   cachedHmacSecret: string;
   offlineSyncLimit: number;
-  unsyncedSpendCop: number;
+  unsyncedSpend: number;
   isOfflineLimitReached: boolean;
   updateCachedHmacSecret: (secret: string) => Promise<void>;
   updateOfflineLimits: (syncLimit: number) => Promise<void>;
@@ -109,7 +109,7 @@ async function loadQueue(): Promise<QueuedTransaction[]> {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as QueuedTransaction[];
-    return parsed.map((t) => ({ ...t, type: "charge" as const, grossAmountCop: t.grossAmountCop ?? 0 }));
+    return parsed.map((t) => ({ ...t, type: "charge" as const, grossAmount: t.grossAmount ?? 0 }));
   } catch {
     return [];
   }
@@ -159,7 +159,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
   const [isSyncing, setIsSyncing] = useState(false);
   const [cachedHmacSecret, setCachedHmacSecret] = useState<string>("");
   const [offlineSyncLimit, setOfflineSyncLimit] = useState<number>(DEFAULT_OFFLINE_SYNC_LIMIT);
-  const [unsyncedSpendCop, setUnsyncedSpendCop] = useState<number>(0);
+  const [unsyncedSpend, setUnsyncedSpendCop] = useState<number>(0);
   const queueRef = useRef<QueuedTransaction[]>([]);
   const topUpQueueRef = useRef<QueuedTopUp[]>([]);
   const unsyncedSpendRef = useRef<number>(0);
@@ -234,7 +234,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
       const q = [...queueRef.current, item];
       await updateQueue(q);
       // Accumulate unsynced spend using total charged amount (items + tip)
-      const newSpend = unsyncedSpendRef.current + tx.grossAmountCop + (tx.tipAmountCop ?? 0);
+      const newSpend = unsyncedSpendRef.current + tx.grossAmount + (tx.tipAmount ?? 0);
       await updateUnsyncedSpend(newSpend);
     },
     [updateQueue, updateUnsyncedSpend]
@@ -313,7 +313,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
                   productId: li.productId,
                   quantity: li.quantity,
                 })),
-                ...(item.tipAmountCop ? { tipAmountCop: item.tipAmountCop } : {}),
+                ...(item.tipAmount ? { tipAmount: item.tipAmount } : {}),
                 offlineCreatedAt: item.createdAt,
                 ...(item.hmac ? { hmac: item.hmac } : {}),
               },
@@ -337,7 +337,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
             (r.includes("insufficient") && r.includes("balance"));
           if (!syncResult || syncResult.status === "created" || syncResult.status === "duplicate" || isPermanentRejection) {
             q = queueRef.current.filter((t) => t.id !== item.id);
-            if (!isPermanentRejection) syncedSpend += item.grossAmountCop + (item.tipAmountCop ?? 0);
+            if (!isPermanentRejection) syncedSpend += item.grossAmount + (item.tipAmount ?? 0);
           } else {
             q = queueRef.current.map((t) =>
               t.id === item.id
@@ -378,7 +378,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
             body: JSON.stringify({
               id: item.id,
               nfcUid: item.nfcUid,
-              amountCop: item.amountCop,
+              amount: item.amount,
               paymentMethod: item.paymentMethod,
               newBalance: item.newBalance,
               newCounter: item.newCounter,
@@ -449,7 +449,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         await updateQueue(updated);
         // Reduce unsynced spend when dismissing a failed item
         if (item) {
-          const newSpend = Math.max(0, unsyncedSpendRef.current - (item.grossAmountCop + (item.tipAmountCop ?? 0)));
+          const newSpend = Math.max(0, unsyncedSpendRef.current - (item.grossAmount + (item.tipAmount ?? 0)));
           await updateUnsyncedSpend(newSpend);
         }
       } else {
@@ -471,9 +471,9 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         const item = queueRef.current.find((t) => t.id === id);
         if (!item) return;
 
-        const oldSpend = item.grossAmountCop + (item.tipAmountCop ?? 0);
-        const newGross = edits.grossAmountCop ?? item.grossAmountCop;
-        const newTip = edits.tipAmountCop ?? item.tipAmountCop ?? 0;
+        const oldSpend = item.grossAmount + (item.tipAmount ?? 0);
+        const newGross = edits.grossAmount ?? item.grossAmount;
+        const newTip = edits.tipAmount ?? item.tipAmount ?? 0;
         const newSpendDelta = (newGross + newTip) - oldSpend;
 
         const updated = queueRef.current.map((t) =>
@@ -481,8 +481,8 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
             ? {
                 ...t,
                 ...(edits.newBalance !== undefined ? { newBalance: edits.newBalance } : {}),
-                ...(edits.grossAmountCop !== undefined ? { grossAmountCop: edits.grossAmountCop } : {}),
-                ...(edits.tipAmountCop !== undefined ? { tipAmountCop: edits.tipAmountCop } : {}),
+                ...(edits.grossAmount !== undefined ? { grossAmount: edits.grossAmount } : {}),
+                ...(edits.tipAmount !== undefined ? { tipAmount: edits.tipAmount } : {}),
                 status: "pending" as const,
                 failCount: 0,
                 failReason: undefined,
@@ -502,7 +502,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           t.id === id
             ? {
                 ...t,
-                ...(edits.amountCop !== undefined ? { amountCop: edits.amountCop } : {}),
+                ...(edits.amount !== undefined ? { amount: edits.amount } : {}),
                 status: "pending" as const,
                 failCount: 0,
                 failReason: undefined,
@@ -526,7 +526,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     ...topUpQueue.filter((t) => t.status === "failed"),
   ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  const isOfflineLimitReached = unsyncedSpendCop >= offlineSyncLimit;
+  const isOfflineLimitReached = unsyncedSpend >= offlineSyncLimit;
 
   return (
     <OfflineQueueContext.Provider
@@ -544,7 +544,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
         pendingCount,
         cachedHmacSecret,
         offlineSyncLimit,
-        unsyncedSpendCop,
+        unsyncedSpend,
         isOfflineLimitReached,
         updateCachedHmacSecret,
         updateOfflineLimits,

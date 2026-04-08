@@ -21,9 +21,9 @@ export interface UpdateProductBody {
    */
   imageUrl?: string | null;
   /** @minimum 0 */
-  priceCop?: number;
+  price?: number;
   /** @minimum 0 */
-  costCop?: number;
+  cost?: number;
   active?: boolean;
   /**
    * Tasa de IVA en porcentaje

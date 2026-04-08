@@ -25,11 +25,11 @@ type TxItem = {
   id: string;
   type: "purchase" | "top_up" | "refund" | "transfer";
   braceletUid: string;
-  amountCop: number;
-  newBalanceCop: number;
+  amount: number;
+  newBalance: number;
   merchantName: string | null;
   locationName: string | null;
-  lineItems: Array<{ name: string; quantity: number; unitPriceCop: number }>;
+  lineItems: Array<{ name: string; quantity: number; unitPrice: number }>;
   createdAt: string;
   refundStatus?: "pending" | "approved" | "rejected" | null;
   refundChipZeroed?: boolean | null;
@@ -49,8 +49,8 @@ export default function HistoryScreen() {
   const { data: initialData, isLoading, refetch, isRefetching } = useMyTransactions();
   const { data: braceletData } = useMyBracelets();
 
-  const bracelets = ((braceletData as { bracelets?: { uid: string; balanceCop: number }[] } | undefined)?.bracelets ?? []);
-  const totalBalance = bracelets.reduce((sum, b) => sum + b.balanceCop, 0);
+  const bracelets = ((braceletData as { bracelets?: { uid: string; balance: number }[] } | undefined)?.bracelets ?? []);
+  const totalBalance = bracelets.reduce((sum, b) => sum + b.balance, 0);
 
   const initialTxData = initialData as { transactions?: TxItem[]; nextCursor?: string | null } | undefined;
   const initialTransactions = initialTxData?.transactions ?? [];
@@ -218,7 +218,7 @@ function TxCard({
             <Text style={[styles.txDate, { color: C.textMuted }]}>{formatDateTime(tx.createdAt)}</Text>
           </View>
           <View style={styles.txRight}>
-            <CopAmount amount={tx.amountCop} positive={cfg.positive} />
+            <CopAmount amount={tx.amount} positive={cfg.positive} />
             {tx.type === "refund" && tx.refundStatus && (
               <Badge
                 label={refundStatusLabel(tx.refundStatus, tx.refundChipZeroed, t)}
@@ -235,7 +235,7 @@ function TxCard({
                   {li.quantity}× {li.name}
                 </Text>
                 <Text style={[styles.lineItemPrice, { color: C.textSecondary }]}>
-                  ${(li.unitPriceCop * li.quantity).toLocaleString("es-CO")}
+                  ${(li.unitPrice * li.quantity).toLocaleString("es-CO")}
                 </Text>
               </View>
             ))}

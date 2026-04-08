@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
-import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable } from "@workspace/db";
+import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable, eventsTable } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -27,7 +27,7 @@ async function fetchWompiAcceptanceToken(): Promise<string> {
 
 const initiatePaymentSchema = z.object({
   braceletUid: z.string().min(1),
-  amountCop: z.number().int().min(1000),
+  amount: z.number().int().min(1000),
   paymentMethod: z.enum(["nequi", "pse"]),
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
@@ -54,7 +54,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { braceletUid, amountCop, paymentMethod, phoneNumber, bankCode, userLegalIdType, userLegalId } = parsed.data;
+    const { braceletUid, amount, paymentMethod, phoneNumber, bankCode, userLegalIdType, userLegalId } = parsed.data;
 
     if (paymentMethod === "nequi" && !phoneNumber) {
       res.status(400).json({ error: "phoneNumber is required for Nequi payments" });
@@ -112,7 +112,9 @@ router.post(
 
     try {
       const acceptanceToken = await fetchWompiAcceptanceToken();
-      const amountCentavos = amountCop * 100;
+      // Wompi (Colombian payment gateway) only processes COP transactions.
+      // For non-COP events, amount is collected in COP and credited to bracelet in event currency.
+      const amountCentavos = amount * 100;
 
       if (paymentMethod === "nequi") {
         const wompiBody = {
@@ -189,7 +191,7 @@ router.post(
       .insert(wompiPaymentIntentsTable)
       .values({
         braceletUid,
-        amountCop,
+        amount,
         paymentMethod,
         phoneNumber,
         bankCode,
@@ -255,7 +257,10 @@ router.get(
               .set({ status: "failed", updatedAt: new Date() })
               .where(eq(wompiPaymentIntentsTable.id, id));
             if (intent.performedByUserId) {
-              void notifyTopUpFailed(intent.performedByUserId, intent.amountCop).catch(() => {});
+              const [fb] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1);
+              let fcc = "COP";
+              if (fb?.eventId) { const [fe] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb.eventId)).limit(1); if (fe) fcc = fe.currencyCode; }
+              void notifyTopUpFailed(intent.performedByUserId, intent.amount, fcc).catch(() => {});
             }
             res.json({ intentId: id, status: "failed" });
             return;
@@ -303,31 +308,31 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
     if (!bracelet) {
       const [created] = await tx
         .insert(braceletsTable)
-        .values({ nfcUid: intent.braceletUid, lastKnownBalanceCop: 0, lastCounter: 0 })
+        .values({ nfcUid: intent.braceletUid, lastKnownBalance: 0, lastCounter: 0 })
         .returning();
       bracelet = created;
     }
 
-    const newBalance = bracelet.lastKnownBalanceCop + intent.amountCop;
+    const newBalance = bracelet.lastKnownBalance + intent.amount;
     const newCounter = bracelet.lastCounter + 1;
 
     const [topUp] = await tx
       .insert(topUpsTable)
       .values({
         braceletUid: intent.braceletUid,
-        amountCop: intent.amountCop,
+        amount: intent.amount,
         paymentMethod: intent.paymentMethod,
         performedByUserId: intent.performedByUserId ?? "self-service",
         wompiTransactionId,
         status: "completed",
-        newBalanceCop: newBalance,
+        newBalance: newBalance,
         newCounter,
       })
       .returning();
 
     await tx
       .update(braceletsTable)
-      .set({ lastKnownBalanceCop: newBalance, lastCounter: newCounter, updatedAt: new Date() })
+      .set({ lastKnownBalance: newBalance, lastCounter: newCounter, updatedAt: new Date() })
       .where(eq(braceletsTable.nfcUid, intent.braceletUid));
 
     await tx
@@ -336,12 +341,18 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
       .where(eq(wompiPaymentIntentsTable.id, intentId));
 
     notifyBraceletUid = intent.braceletUid;
-    notifyAmount = intent.amountCop;
+    notifyAmount = intent.amount;
     notifyNewBalance = newBalance;
   });
 
   if (notifyBraceletUid) {
-    void notifyTopUpSuccess(notifyBraceletUid, notifyAmount, notifyNewBalance).catch(() => {});
+    const [b] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, notifyBraceletUid)).limit(1);
+    let cc = "COP";
+    if (b?.eventId) {
+      const [ev] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, b.eventId)).limit(1);
+      if (ev) cc = ev.currencyCode;
+    }
+    void notifyTopUpSuccess(notifyBraceletUid, notifyAmount, notifyNewBalance, cc).catch(() => {});
   }
 }
 
@@ -446,7 +457,10 @@ router.post(
             .set({ status: "failed", updatedAt: new Date() })
             .where(eq(wompiPaymentIntentsTable.id, intent.id));
           if (intent.performedByUserId) {
-            void notifyTopUpFailed(intent.performedByUserId, intent.amountCop).catch(() => {});
+            const [fb2] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1);
+            let fcc2 = "COP";
+            if (fb2?.eventId) { const [fe2] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb2.eventId)).limit(1); if (fe2) fcc2 = fe2.currencyCode; }
+            void notifyTopUpFailed(intent.performedByUserId, intent.amount, fcc2).catch(() => {});
           }
         }
       }

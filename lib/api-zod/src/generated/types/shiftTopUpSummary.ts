@@ -10,6 +10,6 @@ import type { TopUp } from "./topUp";
 
 export interface ShiftTopUpSummary {
   topUps: TopUp[];
-  totalCop: number;
+  total: number;
   byPaymentMethod: ShiftTopUpSummaryByPaymentMethod;
 }

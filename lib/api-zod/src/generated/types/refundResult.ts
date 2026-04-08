@@ -9,5 +9,5 @@ import type { Refund } from "./refund";
 
 export interface RefundResult {
   refund: Refund;
-  amountCop: number;
+  amount: number;
 }

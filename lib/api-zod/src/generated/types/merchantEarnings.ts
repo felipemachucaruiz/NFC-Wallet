@@ -9,25 +9,25 @@ import type { MerchantPayout } from "./merchantPayout";
 
 export interface MerchantEarnings {
   merchantId: string;
-  grossSalesCop: number;
-  cogsCop: number;
-  grossProfitCop: number;
+  grossSales: number;
+  cogs: number;
+  grossProfit: number;
   profitMarginPercent: number;
   /** Alias for profitMarginPercent */
   marginPercent: number;
-  totalCommissionCop: number;
-  netEarnedCop: number;
-  totalPaidOutCop: number;
-  pendingCop: number;
+  totalCommission: number;
+  netEarned: number;
+  totalPaidOut: number;
+  pending: number;
   /** Total IVA recaudado en ventas */
-  totalIvaCop: number;
+  totalIva: number;
   /** Total retención en la fuente aplicada */
-  totalRetencionFuenteCop: number;
+  totalRetencionFuente: number;
   /** Total retención de ICA aplicada */
-  totalRetencionICACop: number;
+  totalRetencionICA: number;
   /** Total retenciones (fuente + ICA) */
-  totalRetencionesCop: number;
+  totalRetenciones: number;
   /** Neto efectivo para el merchant (bruto - comisión - retenciones) */
-  totalNetoCop: number;
+  totalNeto: number;
   payouts?: MerchantPayout[];
 }

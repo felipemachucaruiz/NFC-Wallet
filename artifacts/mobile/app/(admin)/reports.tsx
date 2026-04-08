@@ -21,8 +21,8 @@ type BillingRow = {
   eventId: string;
   eventName: string;
   platformCommissionRate: number;
-  totalSalesCop: number;
-  platformCommissionEarnedCop: number;
+  totalSales: number;
+  platformCommissionEarned: number;
 };
 
 const getApiBase = (): string => API_BASE_URL;
@@ -44,15 +44,15 @@ export default function ReportsScreen() {
 
   const revenue = revenueData as {
     totals?: {
-      grossSalesCop?: number;
-      totalTipsCop?: number;
-      cogsCop?: number;
-      grossProfitCop?: number;
-      commissionCop?: number;
-      netCop?: number;
+      grossSales?: number;
+      totalTips?: number;
+      cogs?: number;
+      grossProfit?: number;
+      commission?: number;
+      net?: number;
       transactionCount?: number;
     };
-    totalTopUpsCop?: number;
+    totalTopUps?: number;
   } | undefined;
 
   const topUps = topUpData as Record<string, number | string | Array<Record<string, unknown>> | undefined> | undefined;
@@ -109,12 +109,12 @@ export default function ReportsScreen() {
           {activeTab === "revenue" && (
             <View style={{ gap: 12 }}>
               {[
-                { label: t("admin.totalSales"), value: revenue?.totals?.grossSalesCop, positive: true },
-                { label: t("admin.totalTips"), value: revenue?.totals?.totalTipsCop, positive: true },
-                { label: t("admin.totalCogs"), value: revenue?.totals?.cogsCop, positive: false },
-                { label: t("admin.grossProfit"), value: revenue?.totals?.grossProfitCop, positive: true },
-                { label: t("admin.totalCommissions"), value: revenue?.totals?.commissionCop, positive: false },
-                { label: t("admin.netOwedToMerchants"), value: revenue?.totals?.netCop, positive: false },
+                { label: t("admin.totalSales"), value: revenue?.totals?.grossSales, positive: true },
+                { label: t("admin.totalTips"), value: revenue?.totals?.totalTips, positive: true },
+                { label: t("admin.totalCogs"), value: revenue?.totals?.cogs, positive: false },
+                { label: t("admin.grossProfit"), value: revenue?.totals?.grossProfit, positive: true },
+                { label: t("admin.totalCommissions"), value: revenue?.totals?.commission, positive: false },
+                { label: t("admin.netOwedToMerchants"), value: revenue?.totals?.net, positive: false },
               ].map((row) => (
                 <Card key={row.label} padding={16}>
                   <View style={styles.reportRow}>
@@ -129,15 +129,15 @@ export default function ReportsScreen() {
           {activeTab === "topups" && (
             <View style={{ gap: 12 }}>
               {[
-                { label: t("admin.totalTopUpAmount"), value: topUps?.totalAmountCop as number | undefined },
-                { label: t("admin.topUpCount"), value: topUps?.totalCount as number | undefined, isCOP: false },
-                { label: t("admin.averageTopUp"), value: topUps?.averageAmountCop as number | undefined },
-                { label: t("admin.uniqueBracelets"), value: topUps?.uniqueBraceletsCount as number | undefined, isCOP: false },
+                { label: t("admin.totalTopUpAmount"), value: topUps?.totalAmount as number | undefined },
+                { label: t("admin.topUpCount"), value: topUps?.totalCount as number | undefined, isCurrency: false },
+                { label: t("admin.averageTopUp"), value: topUps?.averageAmount as number | undefined },
+                { label: t("admin.uniqueBracelets"), value: topUps?.uniqueBraceletsCount as number | undefined, isCurrency: false },
               ].map((row) => (
                 <Card key={row.label} padding={16}>
                   <View style={styles.reportRow}>
                     <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{row.label}</Text>
-                    {row.isCOP === false ? (
+                    {row.isCurrency === false ? (
                       <Text style={[styles.countValue, { color: C.text }]}>{row.value ?? "—"}</Text>
                     ) : (
                       <CopAmount amount={row.value} size={18} />
@@ -161,7 +161,7 @@ export default function ReportsScreen() {
                     <Text style={[styles.eventBillingName, { color: C.text }]}>{row.eventName}</Text>
                     <View style={styles.reportRow}>
                       <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("admin.totalSales")}</Text>
-                      <CopAmount amount={row.totalSalesCop} size={16} />
+                      <CopAmount amount={row.totalSales} size={16} />
                     </View>
                     <View style={styles.reportRow}>
                       <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("eventAdmin.platformCommission")}</Text>
@@ -169,7 +169,7 @@ export default function ReportsScreen() {
                     </View>
                     <View style={[styles.reportRow, styles.billingTotal, { borderTopColor: C.border }]}>
                       <Text style={[styles.reportLabel, { color: C.text, fontFamily: "Inter_600SemiBold" }]}>{t("admin.platformCommissionEarned")}</Text>
-                      <CopAmount amount={row.platformCommissionEarnedCop} size={18} color={C.primary} />
+                      <CopAmount amount={row.platformCommissionEarned} size={18} color={C.primary} />
                     </View>
                   </Card>
                 ))}

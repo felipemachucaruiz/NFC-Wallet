@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Percent, TrendingUp, DollarSign, Calendar } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
 type EventRow = {
   id: string;
@@ -12,17 +13,18 @@ type EventRow = {
   startsAt: string | null;
   endsAt: string | null;
   active: boolean;
+  currencyCode: string;
   platformCommissionRate: string | null;
 };
 
 type SummaryResult = {
-  totalSalesCop: number;
-  totalTopUpsCop: number;
+  totalSales: number;
+  totalTopUps: number;
   transactionCount: number;
 };
 
-function fmt(n: number) {
-  return `$${Math.round(n).toLocaleString("es-CO")}`;
+function fmt(n: number, cur: string = "COP") {
+  return formatCurrency(Math.round(n), cur);
 }
 
 function formatDate(d: string | null) {
@@ -47,7 +49,7 @@ export default function Commissions() {
   const rows = events.map((ev, i) => {
     const rate = parseFloat(ev.platformCommissionRate ?? "0") || 0;
     const summary = summaryQueries[i]?.data;
-    const sales = summary?.totalSalesCop ?? 0;
+    const sales = summary?.totalSales ?? 0;
     const commission = (sales * rate) / 100;
     const loading = summaryQueries[i]?.isLoading ?? true;
     return { ev, rate, sales, commission, loading };
@@ -140,10 +142,10 @@ export default function Commissions() {
                     </Badge>
                   </TableCell>
                   <TableCell className={`text-right font-mono tabular-nums ${loading ? "opacity-40" : ""}`}>
-                    {fmt(sales)}
+                    {fmt(sales, ev.currencyCode)}
                   </TableCell>
                   <TableCell className={`text-right font-mono tabular-nums font-semibold text-primary ${loading ? "opacity-40" : ""}`}>
-                    {fmt(commission)}
+                    {fmt(commission, ev.currencyCode)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={ev.active ? "default" : "secondary"} className="text-xs">

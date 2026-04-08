@@ -28,8 +28,8 @@ type Product = {
   name: string;
   category?: string | null;
   barcode?: string | null;
-  priceCop: number;
-  costCop: number;
+  price: number;
+  cost: number;
   ivaRate: string;
   ivaExento: boolean;
   active: boolean;
@@ -40,14 +40,14 @@ type FormState = {
   name: string;
   category: string;
   barcode: string;
-  priceCop: string;
-  costCop: string;
+  price: string;
+  cost: string;
   ivaRate: string;
   ivaExento: boolean;
   imageUrl: string | null;
 };
 
-const emptyForm: FormState = { name: "", category: "", barcode: "", priceCop: "", costCop: "", ivaRate: "0", ivaExento: false, imageUrl: null };
+const emptyForm: FormState = { name: "", category: "", barcode: "", price: "", cost: "", ivaRate: "0", ivaExento: false, imageUrl: null };
 
 export default function MerchantProductsScreen() {
   const { t } = useTranslation();
@@ -157,9 +157,9 @@ export default function MerchantProductsScreen() {
 
   const handleCreate = async () => {
     if (!form.name.trim()) { showAlert(t("common.error"), t("merchant_admin.nameRequired")); return; }
-    if (!form.priceCop.trim()) { showAlert(t("common.error"), t("merchant_admin.priceRequired")); return; }
-    const price = parseInt(form.priceCop, 10);
-    const cost = parseInt(form.costCop || "0", 10);
+    if (!form.price.trim()) { showAlert(t("common.error"), t("merchant_admin.priceRequired")); return; }
+    const price = parseInt(form.price, 10);
+    const cost = parseInt(form.cost || "0", 10);
     if (isNaN(price) || price < 0) { showAlert(t("common.error"), t("merchant_admin.priceRequired")); return; }
     const ivaRateVal = form.ivaExento ? "0" : (parseFloat(form.ivaRate || "0").toFixed(2));
     try {
@@ -169,8 +169,8 @@ export default function MerchantProductsScreen() {
           name: form.name.trim(),
           category: form.category.trim() || undefined,
           barcode: form.barcode.trim() || undefined,
-          priceCop: price,
-          costCop: isNaN(cost) ? 0 : cost,
+          price: price,
+          cost: isNaN(cost) ? 0 : cost,
           ivaRate: ivaRateVal,
           ivaExento: form.ivaExento,
         },
@@ -196,8 +196,8 @@ export default function MerchantProductsScreen() {
   const handleUpdate = async () => {
     if (!editingProduct) return;
     if (!form.name.trim()) { showAlert(t("common.error"), t("merchant_admin.nameRequired")); return; }
-    const price = parseInt(form.priceCop, 10);
-    const cost = parseInt(form.costCop || "0", 10);
+    const price = parseInt(form.price, 10);
+    const cost = parseInt(form.cost || "0", 10);
     const ivaRateVal = form.ivaExento ? "0" : (parseFloat(form.ivaRate || "0").toFixed(2));
     try {
       if (pendingImageUri) {
@@ -215,8 +215,8 @@ export default function MerchantProductsScreen() {
           category: form.category.trim() || undefined,
           barcode: form.barcode.trim() || null,
           imageUrl: form.imageUrl === null && editingProduct.imageUrl !== null ? null : undefined,
-          priceCop: isNaN(price) ? editingProduct.priceCop : price,
-          costCop: isNaN(cost) ? 0 : cost,
+          price: isNaN(price) ? editingProduct.price : price,
+          cost: isNaN(cost) ? 0 : cost,
           ivaRate: ivaRateVal,
           ivaExento: form.ivaExento,
         },
@@ -259,8 +259,8 @@ export default function MerchantProductsScreen() {
       name: product.name,
       category: product.category ?? "",
       barcode: product.barcode ?? "",
-      priceCop: String(product.priceCop),
-      costCop: product.costCop ? String(product.costCop) : "",
+      price: String(product.price),
+      cost: product.cost ? String(product.cost) : "",
       ivaRate: product.ivaRate ?? "0",
       ivaExento: product.ivaExento ?? false,
       imageUrl: product.imageUrl ?? null,
@@ -404,17 +404,17 @@ export default function MerchantProductsScreen() {
               testID="product-barcode-input"
             />
             <Input
-              label={t("merchant_admin.priceCop")}
+              label={t("merchant_admin.price")}
               placeholder="0"
-              value={form.priceCop}
-              onChangeText={(v) => setForm((f) => ({ ...f, priceCop: v }))}
+              value={form.price}
+              onChangeText={(v) => setForm((f) => ({ ...f, price: v }))}
               keyboardType="numeric"
             />
             <Input
-              label={t("merchant_admin.costCop")}
+              label={t("merchant_admin.cost")}
               placeholder="0"
-              value={form.costCop}
-              onChangeText={(v) => setForm((f) => ({ ...f, costCop: v }))}
+              value={form.cost}
+              onChangeText={(v) => setForm((f) => ({ ...f, cost: v }))}
               keyboardType="numeric"
             />
             <View style={[styles.ivaExentoRow, { backgroundColor: C.inputBg, borderRadius: 10 }]}>
@@ -518,7 +518,7 @@ export default function MerchantProductsScreen() {
                     <Text style={[styles.barcodeText, { color: C.textMuted }]}>{product.barcode}</Text>
                   </View>
                 ) : null}
-                <CopAmount amount={product.priceCop} size={14} style={{ color: C.primary }} />
+                <CopAmount amount={product.price} size={14} style={{ color: C.primary }} />
               </View>
               <View style={styles.productActions}>
                 <Pressable

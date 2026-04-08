@@ -16,7 +16,7 @@ export interface AccessZone {
   colorHex?: string | null;
   rank: number;
   /** @nullable */
-  upgradePriceCop?: number | null;
+  upgradePrice?: number | null;
   createdAt: Date;
   updatedAt?: Date;
 }

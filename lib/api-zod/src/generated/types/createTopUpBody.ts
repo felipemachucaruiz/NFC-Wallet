@@ -11,7 +11,7 @@ export interface CreateTopUpBody {
   /** @minLength 1 */
   nfcUid: string;
   /** @minimum 1 */
-  amountCop: number;
+  amount: number;
   paymentMethod: PaymentMethod;
   wompiTransactionId?: string;
 }

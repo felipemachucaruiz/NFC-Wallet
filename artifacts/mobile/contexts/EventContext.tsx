@@ -13,6 +13,7 @@ interface EventContextValue {
   isEventEnded: boolean;
   eventName: string | null;
   eventEndsAt: string | null;
+  currencyCode: string;
   refetch: () => void;
 }
 
@@ -24,6 +25,7 @@ const EventContext = createContext<EventContextValue>({
   isEventEnded: false,
   eventName: null,
   eventEndsAt: null,
+  currencyCode: "COP",
   refetch: () => {},
 });
 
@@ -42,6 +44,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     name?: string;
     endsAt?: string | null;
     active?: boolean;
+    currencyCode?: string;
   } | undefined;
 
   const inventoryMode: InventoryMode = event?.inventoryMode ?? "location_based";
@@ -49,13 +52,14 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
   const allowedNfcTypes: NfcChipType[] = event?.allowedNfcTypes ?? [nfcChipType];
   const eventName: string | null = event?.name ?? null;
   const eventEndsAt: string | null = event?.endsAt ?? null;
+  const currencyCode: string = event?.currencyCode ?? "COP";
   const isEventEnded: boolean =
     !isLoading &&
     !!event &&
     (event.active === false || (!!eventEndsAt && new Date(eventEndsAt) < new Date()));
 
   return (
-    <EventContext.Provider value={{ inventoryMode, nfcChipType, allowedNfcTypes, isLoading, isEventEnded, eventName, eventEndsAt, refetch }}>
+    <EventContext.Provider value={{ inventoryMode, nfcChipType, allowedNfcTypes, isLoading, isEventEnded, eventName, eventEndsAt, currencyCode, refetch }}>
       {children}
     </EventContext.Provider>
   );

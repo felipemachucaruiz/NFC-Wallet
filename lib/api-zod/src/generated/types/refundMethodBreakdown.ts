@@ -7,6 +7,6 @@
  */
 
 export interface RefundMethodBreakdown {
-  totalCop: number;
+  total: number;
   count: number;
 }

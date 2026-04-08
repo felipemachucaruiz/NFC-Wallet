@@ -109,17 +109,20 @@ export async function sendFraudAlertPushNotifications(params: {
  */
 export async function notifyRefundRequestApproved(params: {
   attendeeUserId: string;
-  amountCop: number;
+  amount: number;
+  currencyCode?: string;
 }): Promise<void> {
   try {
     const tokens = await getTokenForUser(params.attendeeUserId);
     if (tokens.length === 0) return;
+    const cc = params.currencyCode ?? "COP";
+    const decimals = ["COP", "CLP"].includes(cc) ? 0 : 2;
 
     const formattedAmount = new Intl.NumberFormat("es-CO", {
       style: "currency",
-      currency: "COP",
-      maximumFractionDigits: 0,
-    }).format(params.amountCop);
+      currency: cc,
+      maximumFractionDigits: decimals,
+    }).format(params.amount);
 
     const messages: ExpoPushMessage[] = tokens.map((to) => ({
       to,
@@ -143,17 +146,20 @@ export async function notifyRefundRequestApproved(params: {
  */
 export async function notifyRefundRequestRejected(params: {
   attendeeUserId: string;
-  amountCop: number;
+  amount: number;
+  currencyCode?: string;
 }): Promise<void> {
   try {
     const tokens = await getTokenForUser(params.attendeeUserId);
     if (tokens.length === 0) return;
+    const cc = params.currencyCode ?? "COP";
+    const decimals = ["COP", "CLP"].includes(cc) ? 0 : 2;
 
     const formattedAmount = new Intl.NumberFormat("es-CO", {
       style: "currency",
-      currency: "COP",
-      maximumFractionDigits: 0,
-    }).format(params.amountCop);
+      currency: cc,
+      maximumFractionDigits: decimals,
+    }).format(params.amount);
 
     const messages: ExpoPushMessage[] = tokens.map((to) => ({
       to,

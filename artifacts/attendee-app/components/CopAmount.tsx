@@ -2,10 +2,11 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import React from "react";
 import { Text, TextStyle } from "react-native";
 import Colors from "@/constants/colors";
-import { formatCOP } from "@/utils/format";
+import { formatCurrency, formatCOP } from "@/utils/format";
 
 interface CopAmountProps {
   amount: number | undefined | null;
+  currencyCode?: string;
   size?: number;
   bold?: boolean;
   color?: string;
@@ -15,6 +16,7 @@ interface CopAmountProps {
 
 export function CopAmount({
   amount,
+  currencyCode = "COP",
   size = 16,
   bold = true,
   color,
@@ -43,7 +45,9 @@ export function CopAmount({
         style,
       ]}
     >
-      {formatCOP(amount)}
+      {formatCurrency(amount, currencyCode)}
     </Text>
   );
 }
+
+export { CopAmount as CurrencyAmount };

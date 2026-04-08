@@ -39,7 +39,7 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 
 **Technical Implementations:**
 - **NFC Security:** Uses HMAC-SHA256 for securing NFC bracelet payloads (`balance:counter`) to prevent rollback attacks.
-- **Monetary Values:** All monetary values are handled in Colombian Pesos (COP) as integers.
+- **Monetary Values:** Multi-currency support for Latin America. Events are currency-configurable (COP, MXN, CLP, ARS, PEN, UYU, BOB, BRL, USD). Existing COP events continue working unchanged. Admin financial views show amounts in the event's currency. Exchange rate service caches rates in the `exchange_rates` table (12hr TTL) using exchangerate-api.com. Shared currency utilities in `lib/db/src/currency.ts` provide `formatCurrency()`, `CURRENCY_CONFIGS`, and exchange rate functions.
 - **Authentication:** Employs email and password authentication with bcrypt, utilizing server-side sessions stored in the database.
 - **Inventory Management:** Supports two modes: `location_based` (self-managed stock per location) and `centralized_warehouse` (warehouse dispatches). Includes features for inventory audits and tracking damaged goods.
 - **Auto-Restock:** Automatically creates restock orders when inventory levels fall below a defined threshold (`restockTrigger`) after a transaction, provided no pending restock order exists.
@@ -152,4 +152,4 @@ If a user's app crashes on startup due to a previously received OTA:
 - Startup migration in `artifacts/api-server/src/index.ts` no longer force-resets the admin password (was removed after task-79 recovery is complete)
 - PayoutPaymentMethod enum values: `transfer | nequi | cash` (not bank_transfer/other)
 - `UserRole` enum must be used for role assignments
-- All monetary values in COP (integer cents)
+- Monetary values use the event's configured currency (default COP)

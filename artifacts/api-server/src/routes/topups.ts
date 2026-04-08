@@ -12,7 +12,7 @@ const paymentMethods = ["cash", "card_external", "nequi_transfer", "bancolombia_
 
 const createTopUpSchema = z.object({
   nfcUid: z.string().min(1),
-  amountCop: z.number().int().min(1),
+  amount: z.number().int().min(1),
   paymentMethod: z.enum(paymentMethods),
   wompiTransactionId: z.string().optional(),
 });
@@ -85,7 +85,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { nfcUid, amountCop, paymentMethod, wompiTransactionId } = parsed.data;
+    const { nfcUid, amount, paymentMethod, wompiTransactionId } = parsed.data;
 
     let [bracelet] = await db
       .select()
@@ -97,7 +97,7 @@ router.post(
     if (!bracelet) {
       const [created] = await db
         .insert(braceletsTable)
-        .values({ nfcUid, lastKnownBalanceCop: 0, lastCounter: 0, eventId: bankEventId })
+        .values({ nfcUid, lastKnownBalance: 0, lastCounter: 0, eventId: bankEventId })
         .returning();
       bracelet = created;
     } else if (!bracelet.eventId && bankEventId) {
@@ -137,7 +137,7 @@ router.post(
     }
 
     const effectiveEventId = bracelet.eventId ?? bankEventId;
-    const newBalance = bracelet.lastKnownBalanceCop + amountCop;
+    const newBalance = bracelet.lastKnownBalance + amount;
     const newCounter = bracelet.lastCounter + 1;
 
     let hmac: string;
@@ -154,12 +154,12 @@ router.post(
       .insert(topUpsTable)
       .values({
         braceletUid: nfcUid,
-        amountCop,
+        amount,
         paymentMethod,
         performedByUserId: req.user.id,
         wompiTransactionId,
         status: "completed",
-        newBalanceCop: newBalance,
+        newBalance: newBalance,
         newCounter,
       })
       .returning();
@@ -167,10 +167,10 @@ router.post(
     await db
       .update(braceletsTable)
       .set({
-        lastKnownBalanceCop: newBalance,
+        lastKnownBalance: newBalance,
         lastCounter: newCounter,
         pendingSync: false,
-        pendingBalanceCop: 0,
+        pendingBalance: 0,
         updatedAt: new Date(),
       })
       .where(eq(braceletsTable.nfcUid, nfcUid));
@@ -185,7 +185,7 @@ router.post(
 const syncTopUpSchema = z.object({
   id: z.string().min(1),
   nfcUid: z.string().min(1),
-  amountCop: z.number().int().min(1),
+  amount: z.number().int().min(1),
   paymentMethod: z.enum(paymentMethods),
   newBalance: z.number().int().min(0),
   newCounter: z.number().int().min(1),
@@ -208,7 +208,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { id, nfcUid, amountCop, paymentMethod, newBalance, newCounter, offlineCreatedAt } = parsed.data;
+    const { id, nfcUid, amount, paymentMethod, newBalance, newCounter, offlineCreatedAt } = parsed.data;
 
     // Idempotency: check if already processed (use id as idempotency key)
     const existing = await db
@@ -230,7 +230,7 @@ router.post(
     if (!bracelet) {
       const [created] = await db
         .insert(braceletsTable)
-        .values({ nfcUid, lastKnownBalanceCop: 0, lastCounter: 0, eventId: syncBankEventId })
+        .values({ nfcUid, lastKnownBalance: 0, lastCounter: 0, eventId: syncBankEventId })
         .returning();
       bracelet = created;
     } else if (!bracelet.eventId && syncBankEventId) {
@@ -273,11 +273,11 @@ router.post(
       return;
     }
 
-    // Balance consistency: newBalance must equal stored balance + amountCop
-    const expectedBalance = bracelet.lastKnownBalanceCop + amountCop;
+    // Balance consistency: newBalance must equal stored balance + amount
+    const expectedBalance = bracelet.lastKnownBalance + amount;
     if (newBalance !== expectedBalance) {
       res.status(400).json({
-        error: `Balance mismatch: expected ${expectedBalance} (${bracelet.lastKnownBalanceCop} + ${amountCop}), got ${newBalance}`,
+        error: `Balance mismatch: expected ${expectedBalance} (${bracelet.lastKnownBalance} + ${amount}), got ${newBalance}`,
       });
       return;
     }
@@ -314,11 +314,11 @@ router.post(
       .values({
         idempotencyKey: id,
         braceletUid: nfcUid,
-        amountCop,
+        amount,
         paymentMethod,
         performedByUserId: req.user.id,
         status: "completed",
-        newBalanceCop: newBalance,
+        newBalance: newBalance,
         newCounter,
         syncedAt: new Date(),
         offlineCreatedAt: offlineCreatedAt ? new Date(offlineCreatedAt) : null,
@@ -328,7 +328,7 @@ router.post(
     await db
       .update(braceletsTable)
       .set({
-        lastKnownBalanceCop: newBalance,
+        lastKnownBalance: newBalance,
         lastCounter: newCounter,
         updatedAt: new Date(),
       })
@@ -368,13 +368,13 @@ router.get(
         ),
       );
 
-    const totalCop = topUps.reduce((sum, t) => sum + t.amountCop, 0);
+    const total = topUps.reduce((sum, t) => sum + t.amount, 0);
     const byPaymentMethod: Record<string, number> = {};
     for (const t of topUps) {
-      byPaymentMethod[t.paymentMethod] = (byPaymentMethod[t.paymentMethod] ?? 0) + t.amountCop;
+      byPaymentMethod[t.paymentMethod] = (byPaymentMethod[t.paymentMethod] ?? 0) + t.amount;
     }
 
-    res.json({ topUps, totalCop, byPaymentMethod });
+    res.json({ topUps, total, byPaymentMethod });
   },
 );
 

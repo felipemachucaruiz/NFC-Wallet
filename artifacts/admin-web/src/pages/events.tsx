@@ -45,6 +45,7 @@ type EventForm = {
   promoterCompanyId: string;
   pulepId: string;
   nfcChipType: string;
+  currencyCode: string;
   eventAdmin: EventAdminForm;
 };
 
@@ -63,8 +64,21 @@ const emptyForm: EventForm = {
   promoterCompanyId: "",
   pulepId: "",
   nfcChipType: "ntag_21x",
+  currencyCode: "COP",
   eventAdmin: { ...emptyAdmin },
 };
+
+const CURRENCY_OPTIONS = [
+  { value: "COP", label: "COP — Peso colombiano" },
+  { value: "MXN", label: "MXN — Peso mexicano" },
+  { value: "CLP", label: "CLP — Peso chileno" },
+  { value: "ARS", label: "ARS — Peso argentino" },
+  { value: "PEN", label: "PEN — Sol peruano" },
+  { value: "UYU", label: "UYU — Peso uruguayo" },
+  { value: "BOB", label: "BOB — Boliviano" },
+  { value: "BRL", label: "BRL — Real brasileño" },
+  { value: "USD", label: "USD — US Dollar" },
+];
 
 const NFC_CHIP_OPTIONS = [
   { value: "ntag_21x", label: "NTAG 21x" },
@@ -82,6 +96,7 @@ type RawEvent = Event & {
   platformCommissionRate?: string | null;
   pulepId?: string | null;
   nfcChipType?: string | null;
+  currencyCode?: string | null;
 };
 
 type FormFieldsProps = {
@@ -181,6 +196,23 @@ function FormFields({
           <Label>{t("events.endsAt")}</Label>
           <Input data-testid="input-event-ends" type="datetime-local" value={form.endsAt} onChange={(e) => setForm((f) => ({ ...f, endsAt: e.target.value }))} />
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label>{t("events.currency")}</Label>
+        <Select
+          value={form.currencyCode}
+          onValueChange={(v) => setForm((f) => ({ ...f, currencyCode: v }))}
+        >
+          <SelectTrigger data-testid="select-currency">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CURRENCY_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="border-t pt-3 space-y-3">
@@ -372,6 +404,7 @@ export default function Events() {
       promoterCompanyId: raw.promoterCompanyId ?? "",
       pulepId: raw.pulepId ?? "",
       nfcChipType: raw.nfcChipType ?? "ntag_21x",
+      currencyCode: raw.currencyCode ?? "COP",
       eventAdmin: { ...emptyAdmin },
     });
     setEditOpen(true);
@@ -399,6 +432,7 @@ export default function Events() {
       promoterCompanyId: form.promoterCompanyId || undefined,
       pulepId: form.pulepId || undefined,
       nfcChipType: form.nfcChipType || undefined,
+      currencyCode: form.currencyCode || "COP",
       ...(hasAdmin ? {
         eventAdmin: {
           email: form.eventAdmin.email,
@@ -433,6 +467,7 @@ export default function Events() {
       promoterCompanyId: form.promoterCompanyId || null,
       pulepId: form.pulepId || null,
       nfcChipType: form.nfcChipType || undefined,
+      currencyCode: form.currencyCode || undefined,
     };
     updateEvent.mutate(
       { eventId: selectedEvent.id, data: payload },

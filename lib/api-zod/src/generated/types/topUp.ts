@@ -11,13 +11,13 @@ import type { TopUpStatus } from "./topUpStatus";
 export interface TopUp {
   id: string;
   braceletUid: string;
-  amountCop: number;
+  amount: number;
   paymentMethod: PaymentMethod;
   performedByUserId?: string;
   /** @nullable */
   wompiTransactionId?: string | null;
   status: TopUpStatus;
-  newBalanceCop: number;
+  newBalance: number;
   newCounter: number;
   createdAt: Date;
 }

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Empty } from "@/components/ui/Empty";
 import { Loading } from "@/components/ui/Loading";
 import { Card } from "@/components/ui/Card";
-import { formatDate } from "@/utils/format";
+import { formatDate, formatCurrency } from "@/utils/format";
 
 interface Payout {
   id: string;
@@ -21,9 +21,9 @@ interface Payout {
   eventId: string;
   periodFrom: string;
   periodTo: string;
-  grossSalesCop: number;
-  commissionCop: number;
-  netPayoutCop: number;
+  grossSales: number;
+  commission: number;
+  netPayout: number;
   paymentMethod: string;
   referenceNote: string | null;
   performedByUserId: string;
@@ -34,26 +34,26 @@ interface Payout {
 interface Transaction {
   id: string;
   braceletUid: string;
-  grossAmountCop: number;
-  tipAmountCop?: number | null;
-  commissionAmountCop: number;
-  netAmountCop: number;
+  grossAmount: number;
+  tipAmount?: number | null;
+  commissionAmount: number;
+  netAmount: number;
   createdAt: string;
   offlineCreatedAt?: string | null;
   locationName?: string | null;
 }
 
 interface MerchantEarnings {
-  grossSalesCop: number;
-  cogsCop: number;
-  grossProfitCop: number;
+  grossSales: number;
+  cogs: number;
+  grossProfit: number;
   profitMarginPercent: number;
-  totalCommissionCop: number;
-  netEarnedCop: number;
-  totalPaidOutCop: number;
-  pendingCop: number;
-  totalIvaCop: number;
-  totalRetencionesCop: number;
+  totalCommission: number;
+  netEarned: number;
+  totalPaidOut: number;
+  pending: number;
+  totalIva: number;
+  totalRetenciones: number;
 }
 
 function PayoutTransactionsModal({
@@ -112,14 +112,14 @@ function PayoutTransactionsModal({
                     <Text style={[styles.txDate, { color: C.textMuted }]}>{formatDate(tx.createdAt)}</Text>
                   </View>
                   <View style={styles.txAmounts}>
-                    <CopAmount amount={tx.grossAmountCop + (tx.tipAmountCop ?? 0)} size={15} positive />
-                    {(tx.tipAmountCop ?? 0) > 0 && (
+                    <CopAmount amount={tx.grossAmount + (tx.tipAmount ?? 0)} size={15} positive />
+                    {(tx.tipAmount ?? 0) > 0 && (
                       <Text style={[styles.txComm, { color: C.textMuted }]}>
-                        {t("pos.tipLabel")}: {(tx.tipAmountCop ?? 0).toLocaleString("es-CO")}
+                        {t("pos.tipLabel")}: {formatCurrency(tx.tipAmount ?? 0, "COP")}
                       </Text>
                     )}
                     <Text style={[styles.txComm, { color: C.textMuted }]}>
-                      -{tx.commissionAmountCop.toLocaleString("es-CO")}
+                      -{formatCurrency(tx.commissionAmount, "COP")}
                     </Text>
                   </View>
                 </View>
@@ -164,7 +164,7 @@ export default function MerchantPayoutsScreen() {
 
   if (isLoading) return <Loading label={t("common.loading")} />;
 
-  const totalPaid = payouts.reduce((s, p) => s + p.netPayoutCop, 0);
+  const totalPaid = payouts.reduce((s, p) => s + p.netPayout, 0);
 
   return (
     <>
@@ -189,20 +189,20 @@ export default function MerchantPayoutsScreen() {
                 <Text style={[styles.earningsTitle, { color: C.text }]}>{t("merchant_admin.salesSummary")}</Text>
                 <View style={styles.earningsRow}>
                   <Text style={[styles.earningsLabel, { color: C.textSecondary }]}>{t("merchant_admin.totalSalesLabel")}</Text>
-                  <CopAmount amount={earnings.grossSalesCop ?? 0} size={15} positive />
+                  <CopAmount amount={earnings.grossSales ?? 0} size={15} positive />
                 </View>
                 <View style={styles.earningsRow}>
                   <Text style={[styles.earningsLabel, { color: C.textSecondary }]}>{t("merchant_admin.cogsLabel")}</Text>
-                  <CopAmount amount={earnings.cogsCop ?? 0} size={15} />
+                  <CopAmount amount={earnings.cogs ?? 0} size={15} />
                 </View>
                 <View style={styles.earningsRow}>
                   <Text style={[styles.earningsLabel, { color: C.textSecondary }]}>{t("merchant_admin.grossProfitLabel")}</Text>
-                  <CopAmount amount={earnings.grossProfitCop ?? 0} size={15} positive />
+                  <CopAmount amount={earnings.grossProfit ?? 0} size={15} positive />
                 </View>
-                {earnings.totalCommissionCop > 0 && (
+                {earnings.totalCommission > 0 && (
                   <View style={styles.earningsRow}>
                     <Text style={[styles.earningsLabel, { color: C.textSecondary }]}>{t("merchant_admin.commissionLabel")}</Text>
-                    <CopAmount amount={earnings.totalCommissionCop} size={15} />
+                    <CopAmount amount={earnings.totalCommission} size={15} />
                   </View>
                 )}
                 {earnings.profitMarginPercent !== undefined && (
@@ -214,10 +214,10 @@ export default function MerchantPayoutsScreen() {
                     />
                   </View>
                 )}
-                {earnings.pendingCop > 0 && (
+                {earnings.pending > 0 && (
                   <View style={[styles.earningsRow, styles.pendingRow]}>
                     <Text style={[styles.earningsLabel, { color: C.warning }]}>{t("merchant_admin.pendingLabel")}</Text>
-                    <CopAmount amount={earnings.pendingCop} size={15} color={C.warning} />
+                    <CopAmount amount={earnings.pending} size={15} color={C.warning} />
                   </View>
                 )}
               </View>
@@ -243,10 +243,10 @@ export default function MerchantPayoutsScreen() {
                         <Text style={[styles.txDate, { color: C.textMuted }]}>{formatDate(tx.offlineCreatedAt ?? tx.createdAt)}</Text>
                       </View>
                       <View style={styles.txAmounts}>
-                        <CopAmount amount={tx.grossAmountCop} size={15} positive />
-                        {tx.commissionAmountCop > 0 && (
+                        <CopAmount amount={tx.grossAmount} size={15} positive />
+                        {tx.commissionAmount > 0 && (
                           <Text style={[styles.txComm, { color: C.textMuted }]}>
-                            comisión: -{tx.commissionAmountCop.toLocaleString("es-CO")}
+                            comisión: -{formatCurrency(tx.commissionAmount, "COP")}
                           </Text>
                         )}
                       </View>
@@ -286,7 +286,7 @@ export default function MerchantPayoutsScreen() {
                   </Text>
                 </View>
                 <View style={styles.payRight}>
-                  <CopAmount amount={item.netPayoutCop} size={17} positive />
+                  <CopAmount amount={item.netPayout} size={17} positive />
                   <View style={[styles.viewTxBtn, { borderColor: C.primary + "55" }]}>
                     <Text style={[styles.viewTxLabel, { color: C.primary }]}>{t("merchant_admin.viewTransactions")}</Text>
                   </View>

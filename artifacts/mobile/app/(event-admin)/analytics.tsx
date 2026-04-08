@@ -31,9 +31,9 @@ function SummaryPanel({
   isLoading,
 }: {
   data: {
-    totalTopUpsCop?: number;
-    totalSalesCop?: number;
-    pendingBalanceCop?: number;
+    totalTopUps?: number;
+    totalSales?: number;
+    pendingBalance?: number;
     transactionCount?: number;
     topUpCount?: number;
   } | undefined;
@@ -46,11 +46,11 @@ function SummaryPanel({
   if (isLoading) return <Loading label={t("common.loading")} />;
 
   const cards = [
-    { label: t("analytics.totalTopUps"), value: data?.totalTopUpsCop, isCop: true, color: C.primary, icon: "arrow-up-circle" as const },
-    { label: t("analytics.totalSales"), value: data?.totalSalesCop, isCop: true, color: C.success, icon: "shopping-bag" as const },
-    { label: t("analytics.pendingBalance"), value: data?.pendingBalanceCop, isCop: true, color: C.warning, icon: "credit-card" as const },
-    { label: t("analytics.transactions"), value: data?.transactionCount, isCop: false, color: C.textSecondary, icon: "activity" as const },
-    { label: t("analytics.topUpCount"), value: data?.topUpCount, isCop: false, color: C.textSecondary, icon: "plus-circle" as const },
+    { label: t("analytics.totalTopUps"), value: data?.totalTopUps, isCurrency: true, color: C.primary, icon: "arrow-up-circle" as const },
+    { label: t("analytics.totalSales"), value: data?.totalSales, isCurrency: true, color: C.success, icon: "shopping-bag" as const },
+    { label: t("analytics.pendingBalance"), value: data?.pendingBalance, isCurrency: true, color: C.warning, icon: "credit-card" as const },
+    { label: t("analytics.transactions"), value: data?.transactionCount, isCurrency: false, color: C.textSecondary, icon: "activity" as const },
+    { label: t("analytics.topUpCount"), value: data?.topUpCount, isCurrency: false, color: C.textSecondary, icon: "plus-circle" as const },
   ];
 
   return (
@@ -62,7 +62,7 @@ function SummaryPanel({
               <Feather name={c.icon} size={20} color={c.color} />
               <Text style={[styles.summaryLabel, { color: C.textSecondary }]}>{c.label}</Text>
             </View>
-            {c.isCop ? (
+            {c.isCurrency ? (
               <CopAmount amount={c.value as number | undefined} size={18} color={c.color} />
             ) : (
               <Text style={[styles.summaryCount, { color: C.text }]}>{c.value ?? "—"}</Text>
@@ -78,7 +78,7 @@ function SalesByHourPanel({
   data,
   isLoading,
 }: {
-  data: { salesByHour: { hour: number; day: string; totalCop: number; txCount: number }[] } | undefined;
+  data: { salesByHour: { hour: number; day: string; total: number; txCount: number }[] } | undefined;
   isLoading: boolean;
 }) {
   const { t } = useTranslation();
@@ -91,7 +91,7 @@ function SalesByHourPanel({
 
   const hourTotals: Record<number, number> = {};
   for (const row of salesByHour) {
-    hourTotals[row.hour] = (hourTotals[row.hour] ?? 0) + row.totalCop;
+    hourTotals[row.hour] = (hourTotals[row.hour] ?? 0) + row.total;
   }
 
   const maxVal = Math.max(...Object.values(hourTotals), 1);
@@ -145,8 +145,8 @@ function TopProductsPanel({
       productId: string | null;
       productName: string;
       totalUnits: number;
-      totalRevenueCop: number;
-      grossProfitCop: number;
+      totalRevenue: number;
+      grossProfit: number;
       profitMarginPercent: number;
     }[];
   } | undefined;
@@ -195,7 +195,7 @@ function TopProductsPanel({
               />
             </View>
             <View style={styles.productMeta}>
-              <CopAmount amount={p.totalRevenueCop} size={13} />
+              <CopAmount amount={p.totalRevenue} size={13} />
               <Text style={[styles.marginBadge, { color: C.success, backgroundColor: C.successLight }]}>
                 {p.profitMarginPercent.toFixed(1)}% {t("analytics.margin")}
               </Text>
@@ -215,8 +215,8 @@ function TopMerchantsPanel({
     topMerchants: {
       merchantId: string;
       merchantName: string;
-      totalSalesCop: number;
-      grossProfitCop: number;
+      totalSales: number;
+      grossProfit: number;
       profitMarginPercent: number;
       txCount: number;
     }[];
@@ -239,7 +239,7 @@ function TopMerchantsPanel({
     );
   }
 
-  const maxSales = Math.max(...merchants.map((m) => m.totalSalesCop), 1);
+  const maxSales = Math.max(...merchants.map((m) => m.totalSales), 1);
 
   return (
     <Card padding={16}>
@@ -261,12 +261,12 @@ function TopMerchantsPanel({
               <View
                 style={[
                   styles.progressFill,
-                  { width: `${(m.totalSalesCop / maxSales) * 100}%`, backgroundColor: C.success },
+                  { width: `${(m.totalSales / maxSales) * 100}%`, backgroundColor: C.success },
                 ]}
               />
             </View>
             <View style={styles.productMeta}>
-              <CopAmount amount={m.totalSalesCop} size={13} />
+              <CopAmount amount={m.totalSales} size={13} />
               <Text style={[styles.marginBadge, { color: C.success, backgroundColor: C.successLight }]}>
                 {m.profitMarginPercent.toFixed(1)}% {t("analytics.margin")}
               </Text>
@@ -389,7 +389,7 @@ function HeatmapPanel({
   data,
   isLoading,
 }: {
-  data: { heatmap: { hour: number; day: string; dayNum: number; txCount: number; totalCop: number }[] } | undefined;
+  data: { heatmap: { hour: number; day: string; dayNum: number; txCount: number; total: number }[] } | undefined;
   isLoading: boolean;
 }) {
   const { t } = useTranslation();

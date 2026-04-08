@@ -134,9 +134,9 @@ router.get(
         companyId,
         companyName: company.companyName,
         eventCount: 0,
-        totalRevenueCop: 0,
-        totalTopupsCop: 0,
-        totalUnclaimedCop: 0,
+        totalRevenue: 0,
+        totalTopups: 0,
+        totalUnclaimed: 0,
         totalAttendees: 0,
       });
       return;
@@ -145,39 +145,39 @@ router.get(
     const eventIds = events.map((e) => e.id);
 
     const txRows = await db
-      .select({ grossAmountCop: transactionLogsTable.grossAmountCop })
+      .select({ grossAmount: transactionLogsTable.grossAmount })
       .from(transactionLogsTable)
       .where(inArray(transactionLogsTable.eventId, eventIds));
 
-    const totalRevenueCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
+    const totalRevenue = txRows.reduce((s, r) => s + r.grossAmount, 0);
 
     const eventBracelets = await db
-      .select({ nfcUid: braceletsTable.nfcUid, lastKnownBalanceCop: braceletsTable.lastKnownBalanceCop })
+      .select({ nfcUid: braceletsTable.nfcUid, lastKnownBalance: braceletsTable.lastKnownBalance })
       .from(braceletsTable)
       .where(inArray(braceletsTable.eventId, eventIds));
 
     const braceletUids = eventBracelets.map((b) => b.nfcUid);
     const totalAttendees = braceletUids.length;
-    const totalUnclaimedCop = eventBracelets.reduce((s, b) => s + (b.lastKnownBalanceCop ?? 0), 0);
+    const totalUnclaimed = eventBracelets.reduce((s, b) => s + (b.lastKnownBalance ?? 0), 0);
 
-    let totalTopupsCop = 0;
+    let totalTopups = 0;
     if (braceletUids.length > 0) {
       const topUpRows = await db
-        .select({ amountCop: topUpsTable.amountCop })
+        .select({ amount: topUpsTable.amount })
         .from(topUpsTable)
         .where(
           sql`${topUpsTable.braceletUid} = ANY(ARRAY[${sql.join(braceletUids.map((uid) => sql`${uid}`), sql`, `)}]::text[])`,
         );
-      totalTopupsCop = topUpRows.reduce((s, t) => s + t.amountCop, 0);
+      totalTopups = topUpRows.reduce((s, t) => s + t.amount, 0);
     }
 
     res.json({
       companyId,
       companyName: company.companyName,
       eventCount,
-      totalRevenueCop,
-      totalTopupsCop,
-      totalUnclaimedCop,
+      totalRevenue,
+      totalTopups,
+      totalUnclaimed,
       totalAttendees,
       events: events.map((e) => ({ id: e.id, name: e.name, active: e.active })),
     });

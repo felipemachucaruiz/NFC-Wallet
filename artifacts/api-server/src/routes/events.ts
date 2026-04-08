@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable } from "@workspace/db";
+import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable, convertToCOP, getExchangeRatesForDisplay } from "@workspace/db";
 import { eq, sql, and, ilike, or, count, sum, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -49,6 +49,7 @@ const createEventSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   venueAddress: z.string().optional(),
+  currencyCode: z.enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"]).optional().default("COP"),
   startsAt: z.string().optional(),
   endsAt: z.string().optional(),
   platformCommissionRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
@@ -73,6 +74,7 @@ const updateEventSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   venueAddress: z.string().optional(),
+  currencyCode: z.enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"]).optional(),
   startsAt: z.string().optional(),
   endsAt: z.string().optional(),
   active: z.boolean().optional(),
@@ -98,6 +100,7 @@ const SAFE_EVENT_FIELDS = {
   startsAt: eventsTable.startsAt,
   endsAt: eventsTable.endsAt,
   active: eventsTable.active,
+  currencyCode: eventsTable.currencyCode,
   capacity: eventsTable.capacity,
   platformCommissionRate: eventsTable.platformCommissionRate,
   promoterCompanyId: eventsTable.promoterCompanyId,
@@ -186,6 +189,7 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
       startsAt: eventsTable.startsAt,
       endsAt: eventsTable.endsAt,
       active: eventsTable.active,
+      currencyCode: eventsTable.currencyCode,
       capacity: eventsTable.capacity,
       platformCommissionRate: eventsTable.platformCommissionRate,
       promoterCompanyId: eventsTable.promoterCompanyId,
@@ -222,7 +226,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, latitude, longitude, eventAdmin } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, latitude, longitude, eventAdmin } = parsed.data;
 
   // Pre-validate event admin email uniqueness BEFORE inserting event (atomicity)
   let normalizedAdminEmail: string | null = null;
@@ -250,6 +254,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
         name,
         description,
         venueAddress,
+        currencyCode: currencyCode ?? "COP",
         startsAt: startsAt ? new Date(startsAt) : undefined,
         endsAt: endsAt ? new Date(endsAt) : undefined,
         platformCommissionRate: platformCommissionRate ?? "0",
@@ -317,12 +322,13 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude } = parsed.data;
 
   const updateData: Record<string, unknown> = {
     ...(name !== undefined && { name }),
     ...(description !== undefined && { description }),
     ...(venueAddress !== undefined && { venueAddress }),
+    ...(currencyCode !== undefined && { currencyCode }),
     ...(startsAt !== undefined && { startsAt: new Date(startsAt) }),
     ...(endsAt !== undefined && { endsAt: new Date(endsAt) }),
     ...(active !== undefined && { active }),
@@ -673,11 +679,11 @@ router.get(
         locationId: transactionLogsTable.locationId,
         merchantId: transactionLogsTable.merchantId,
         eventId: transactionLogsTable.eventId,
-        grossAmountCop: transactionLogsTable.grossAmountCop,
-        tipAmountCop: transactionLogsTable.tipAmountCop,
-        commissionAmountCop: transactionLogsTable.commissionAmountCop,
-        netAmountCop: transactionLogsTable.netAmountCop,
-        newBalanceCop: transactionLogsTable.newBalanceCop,
+        grossAmount: transactionLogsTable.grossAmount,
+        tipAmount: transactionLogsTable.tipAmount,
+        commissionAmount: transactionLogsTable.commissionAmount,
+        netAmount: transactionLogsTable.netAmount,
+        newBalance: transactionLogsTable.newBalance,
         counter: transactionLogsTable.counter,
         performedByUserId: transactionLogsTable.performedByUserId,
         offlineCreatedAt: transactionLogsTable.offlineCreatedAt,
@@ -695,7 +701,7 @@ router.get(
       .offset(offset);
 
     const txIds = txRows.map((r) => r.id);
-    const lineItemsMap = new Map<string, { id: string; productId: string | null; productName: string | null; unitPrice: number; quantity: number; ivaAmountCop: number }[]>();
+    const lineItemsMap = new Map<string, { id: string; productId: string | null; productName: string | null; unitPrice: number; quantity: number; ivaAmount: number }[]>();
     if (txIds.length > 0) {
       const lineItems = await db
         .select({
@@ -705,7 +711,7 @@ router.get(
           productName: transactionLineItemsTable.productNameSnapshot,
           unitPrice: transactionLineItemsTable.unitPriceSnapshot,
           quantity: transactionLineItemsTable.quantity,
-          ivaAmountCop: transactionLineItemsTable.ivaAmountCop,
+          ivaAmount: transactionLineItemsTable.ivaAmount,
         })
         .from(transactionLineItemsTable)
         .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map(id => sql`${id}`), sql`, `)}]::text[])`);
@@ -719,7 +725,7 @@ router.get(
           productName: li.productName,
           unitPrice: li.unitPrice,
           quantity: li.quantity,
-          ivaAmountCop: li.ivaAmountCop,
+          ivaAmount: li.ivaAmount,
         });
       }
     }
@@ -789,10 +795,10 @@ router.get(
       .select({
         id: topUpsTable.id,
         braceletUid: topUpsTable.braceletUid,
-        amountCop: topUpsTable.amountCop,
+        amount: topUpsTable.amount,
         paymentMethod: topUpsTable.paymentMethod,
         status: topUpsTable.status,
-        newBalanceCop: topUpsTable.newBalanceCop,
+        newBalance: topUpsTable.newBalance,
         performedByUserId: topUpsTable.performedByUserId,
         createdAt: topUpsTable.createdAt,
         offlineCreatedAt: topUpsTable.offlineCreatedAt,
@@ -928,7 +934,7 @@ router.post(
         .where(eq(braceletsTable.eventId, eventId));
 
       // 3. Flag all bracelets and collect those with a remaining balance
-      const braceletsWithBalance = bracelets.filter((b) => b.lastKnownBalanceCop > 0);
+      const braceletsWithBalance = bracelets.filter((b) => b.lastKnownBalance > 0);
 
       if (bracelets.length > 0) {
         await tx
@@ -963,7 +969,7 @@ router.post(
             attendeeUserId,
             braceletUid: bracelet.nfcUid,
             eventId,
-            amountCop: bracelet.lastKnownBalanceCop,
+            amount: bracelet.lastKnownBalance,
             refundMethod: "cash",
             notes: "Solicitud automática generada al cerrar el evento",
             status: "pending",
@@ -1011,7 +1017,7 @@ router.get(
     }
 
     const [event] = await db
-      .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active })
+      .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active, currencyCode: eventsTable.currencyCode })
       .from(eventsTable)
       .where(eq(eventsTable.id, eventId));
 
@@ -1019,6 +1025,8 @@ router.get(
       res.status(404).json({ error: "Event not found" });
       return;
     }
+
+    const eventCurrency = event.currencyCode ?? "COP";
 
     // Get all merchants for this event
     const merchants = await db
@@ -1030,10 +1038,10 @@ router.get(
     const merchantRows = await db
       .select({
         merchantId: transactionLogsTable.merchantId,
-        grossSalesCop: sum(transactionLogsTable.grossAmountCop),
-        tipsCop: sum(transactionLogsTable.tipAmountCop),
-        commissionsCop: sum(transactionLogsTable.commissionAmountCop),
-        netPayoutCop: sum(transactionLogsTable.netAmountCop),
+        grossSales: sum(transactionLogsTable.grossAmount),
+        tips: sum(transactionLogsTable.tipAmount),
+        commissions: sum(transactionLogsTable.commissionAmount),
+        netPayout: sum(transactionLogsTable.netAmount),
         transactionCount: count(),
       })
       .from(transactionLogsTable)
@@ -1049,20 +1057,20 @@ router.get(
         merchantId: merchant.id,
         merchantName: merchant.name,
         commissionRatePercent: merchant.commissionRatePercent,
-        grossSalesCop: Number(agg?.grossSalesCop ?? 0),
-        tipsCop: Number(agg?.tipsCop ?? 0),
-        commissionsCop: Number(agg?.commissionsCop ?? 0),
-        netPayoutCop: Number(agg?.netPayoutCop ?? 0),
+        grossSales: Number(agg?.grossSales ?? 0),
+        tips: Number(agg?.tips ?? 0),
+        commissions: Number(agg?.commissions ?? 0),
+        netPayout: Number(agg?.netPayout ?? 0),
         transactionCount: Number(agg?.transactionCount ?? 0),
       };
     });
 
     // Totals row
     const totals = {
-      grossSalesCop: report.reduce((s, r) => s + r.grossSalesCop, 0),
-      tipsCop: report.reduce((s, r) => s + r.tipsCop, 0),
-      commissionsCop: report.reduce((s, r) => s + r.commissionsCop, 0),
-      netPayoutCop: report.reduce((s, r) => s + r.netPayoutCop, 0),
+      grossSales: report.reduce((s, r) => s + r.grossSales, 0),
+      tips: report.reduce((s, r) => s + r.tips, 0),
+      commissions: report.reduce((s, r) => s + r.commissions, 0),
+      netPayout: report.reduce((s, r) => s + r.netPayout, 0),
       transactionCount: report.reduce((s, r) => s + r.transactionCount, 0),
     };
 
@@ -1074,39 +1082,39 @@ router.get(
       .from(braceletsTable)
       .where(eq(braceletsTable.eventId, eventId));
     const braceletUids = bracelets.map((b) => b.nfcUid);
-    let totalTopUpsCop = 0;
+    let totalTopUps = 0;
     let topUpCount = 0;
     if (braceletUids.length > 0) {
       const [topUpAgg] = await db
         .select({
-          total: sum(topUpsTable.amountCop),
+          total: sum(topUpsTable.amount),
           cnt: count(),
         })
         .from(topUpsTable)
         .where(inArray(topUpsTable.braceletUid, braceletUids));
-      totalTopUpsCop = Number(topUpAgg?.total ?? 0);
+      totalTopUps = Number(topUpAgg?.total ?? 0);
       topUpCount = Number(topUpAgg?.cnt ?? 0);
     }
 
     // Refund deductions (approved attendee refund requests)
     const [refundAgg] = await db
-      .select({ total: sum(attendeeRefundRequestsTable.amountCop) })
+      .select({ total: sum(attendeeRefundRequestsTable.amount) })
       .from(attendeeRefundRequestsTable)
       .where(and(
         eq(attendeeRefundRequestsTable.eventId, eventId),
         eq(attendeeRefundRequestsTable.status, "approved"),
       ));
-    const totalRefundsCop = Number(refundAgg?.total ?? 0);
+    const totalRefunds = Number(refundAgg?.total ?? 0);
 
     // Net settlement owed to the promoter = gross sales - platform commissions - refunds
-    const netSettlementCop = totals.grossSalesCop - totals.commissionsCop - totalRefundsCop;
+    const netSettlement = totals.grossSales - totals.commissions - totalRefunds;
 
     if (format === "csv") {
-      const header = "merchantId,merchantName,commissionRatePercent,grossSalesCop,tipsCop,commissionsCop,netPayoutCop,transactionCount\n";
+      const header = "merchantId,merchantName,commissionRatePercent,grossSales,tips,commissions,netPayout,transactionCount\n";
       const csvRows = report.map((r) =>
-        [r.merchantId, `"${r.merchantName.replace(/"/g, '""')}"`, r.commissionRatePercent, r.grossSalesCop, r.tipsCop, r.commissionsCop, r.netPayoutCop, r.transactionCount].join(",")
+        [r.merchantId, `"${r.merchantName.replace(/"/g, '""')}"`, r.commissionRatePercent, r.grossSales, r.tips, r.commissions, r.netPayout, r.transactionCount].join(",")
       ).join("\n");
-      const totalsRow = `"TOTAL","","",${totals.grossSalesCop},${totals.tipsCop},${totals.commissionsCop},${totals.netPayoutCop},${totals.transactionCount}`;
+      const totalsRow = `"TOTAL","","",${totals.grossSales},${totals.tips},${totals.commissions},${totals.netPayout},${totals.transactionCount}`;
       const csv = header + csvRows + "\n" + totalsRow;
 
       res.setHeader("Content-Type", "text/csv");
@@ -1115,17 +1123,36 @@ router.get(
       return;
     }
 
+    let copConversion: { rate: number; copTotals: typeof totals } | null = null;
+    if (eventCurrency !== "COP") {
+      const rateInfo = await convertToCOP(1, eventCurrency);
+      if (rateInfo) {
+        copConversion = {
+          rate: rateInfo.rate,
+          copTotals: {
+            grossSales: Math.round(totals.grossSales * rateInfo.rate),
+            tips: Math.round(totals.tips * rateInfo.rate),
+            commissions: Math.round(totals.commissions * rateInfo.rate),
+            netPayout: Math.round(totals.netPayout * rateInfo.rate),
+            transactionCount: totals.transactionCount,
+          },
+        };
+      }
+    }
+
     res.json({
       eventId,
       eventName: event.name,
       eventClosed: !event.active,
+      currencyCode: eventCurrency,
       generatedAt: new Date().toISOString(),
       merchants: report,
       totals,
-      totalTopUpsCop,
+      copConversion,
+      totalTopUps,
       topUpCount,
-      totalRefundsCop,
-      netSettlementCop,
+      totalRefunds,
+      netSettlement,
       braceletCount: bracelets.length,
     });
   }

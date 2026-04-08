@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   useGetCurrentAuthUser,
+  useGetEvent,
   useGetRevenueReport,
   useGetTopUpReport,
   useGetRefundsReport,
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DollarSign, TrendingUp, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
 export default function EventReports() {
   const { t } = useTranslation();
@@ -24,8 +26,10 @@ export default function EventReports() {
   const { data: revenue, isLoading: revLoading } = useGetRevenueReport(params);
   const { data: topups, isLoading: topupLoading } = useGetTopUpReport(params);
   const { data: refunds, isLoading: refundLoading } = useGetRefundsReport(params);
+  const { data: eventData } = useGetEvent(eventId || "");
+  const currency = (eventData as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
 
-  const fmt = (n?: number | null) => (n ?? 0).toLocaleString();
+  const fmt = (n?: number | null) => formatCurrency(n ?? 0, currency);
 
   return (
     <div className="space-y-6">
@@ -55,10 +59,10 @@ export default function EventReports() {
           <CardContent>
             {revLoading ? <p className="text-muted-foreground text-sm">{t("common.loading")}</p> : (
               <div className="space-y-1">
-                <p className="text-2xl font-bold">${fmt(revenue?.totals.grossSalesCop)}</p>
+                <p className="text-2xl font-bold">{fmt(revenue?.totals.grossSales)}</p>
                 <p className="text-xs text-muted-foreground">{t("reports.grossSales")}</p>
-                <p className="text-sm">{t("reports.net", { value: fmt(revenue?.totals.netCop) })}</p>
-                <p className="text-sm text-muted-foreground">{t("reports.commission", { value: fmt(revenue?.totals.commissionCop) })}</p>
+                <p className="text-sm">{t("reports.net", { value: fmt(revenue?.totals.net) })}</p>
+                <p className="text-sm text-muted-foreground">{t("reports.commission", { value: fmt(revenue?.totals.commission) })}</p>
               </div>
             )}
           </CardContent>
@@ -73,7 +77,7 @@ export default function EventReports() {
           <CardContent>
             {topupLoading ? <p className="text-muted-foreground text-sm">{t("common.loading")}</p> : (
               <div className="space-y-1">
-                <p className="text-2xl font-bold">${fmt(topups?.totalCop)}</p>
+                <p className="text-2xl font-bold">{fmt(topups?.total)}</p>
                 <p className="text-xs text-muted-foreground">{t("reports.totalLoaded")}</p>
               </div>
             )}
@@ -89,7 +93,7 @@ export default function EventReports() {
           <CardContent>
             {refundLoading ? <p className="text-muted-foreground text-sm">{t("common.loading")}</p> : (
               <div className="space-y-1">
-                <p className="text-2xl font-bold">${fmt(refunds?.totalRefundedCop)}</p>
+                <p className="text-2xl font-bold">{fmt(refunds?.totalRefunded)}</p>
                 <p className="text-xs text-muted-foreground">{t("reports.totalRefunded")}</p>
                 <p className="text-sm">{t("reports.count", { count: (refunds?.count ?? 0).toLocaleString() })}</p>
               </div>
@@ -108,7 +112,7 @@ export default function EventReports() {
               {revenue.byMerchant.map((row, i) => (
                 <div key={i} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0 last:pb-0">
                   <span className="font-medium">{row.merchantName}</span>
-                  <span className="font-mono">${(row.data.grossSalesCop ?? 0).toLocaleString()}</span>
+                  <span className="font-mono">{fmt(row.data.grossSales)}</span>
                 </div>
               ))}
             </div>

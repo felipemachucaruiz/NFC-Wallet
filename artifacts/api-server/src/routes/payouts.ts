@@ -73,9 +73,9 @@ router.post(
         ),
       );
 
-    const grossSalesCop = txRows.reduce((s, r) => s + r.grossAmountCop, 0);
-    const commissionCop = txRows.reduce((s, r) => s + r.commissionAmountCop, 0);
-    const netPayoutCop = txRows.reduce((s, r) => s + r.netAmountCop, 0);
+    const grossSales = txRows.reduce((s, r) => s + r.grossAmount, 0);
+    const commission = txRows.reduce((s, r) => s + r.commissionAmount, 0);
+    const netPayout = txRows.reduce((s, r) => s + r.netAmount, 0);
 
     const [payout] = await db
       .insert(merchantPayoutsTable)
@@ -84,9 +84,9 @@ router.post(
         eventId,
         periodFrom: periodFromDate,
         periodTo: periodToDate,
-        grossSalesCop,
-        commissionCop,
-        netPayoutCop,
+        grossSales,
+        commission,
+        netPayout,
         paymentMethod,
         referenceNote,
         performedByUserId: req.user!.id,

@@ -7,16 +7,16 @@
  */
 
 export interface RevenueReportRow {
-  grossSalesCop: number;
-  cogsCop: number;
-  grossProfitCop: number;
+  grossSales: number;
+  cogs: number;
+  grossProfit: number;
   profitMarginPercent: number;
-  commissionCop: number;
-  netCop: number;
+  commission: number;
+  net: number;
   transactionCount: number;
-  totalIvaCop: number;
-  totalRetencionFuenteCop: number;
-  totalRetencionICACop: number;
-  totalRetencionesCop: number;
-  totalNetoCop: number;
+  totalIva: number;
+  totalRetencionFuente: number;
+  totalRetencionICA: number;
+  totalRetenciones: number;
+  totalNeto: number;
 }

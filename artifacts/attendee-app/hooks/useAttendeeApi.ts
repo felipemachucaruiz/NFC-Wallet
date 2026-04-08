@@ -118,7 +118,7 @@ export function useUnlinkBracelet() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ uid }: { uid: string }) =>
-      apiFetch<{ success: boolean; uid: string; balanceCop: number }>(
+      apiFetch<{ success: boolean; uid: string; balance: number }>(
         `${API_BASE_URL}/api/attendee/me/bracelets/${encodeURIComponent(uid)}`,
         headers,
         { method: "DELETE" },
@@ -157,7 +157,7 @@ export function useLinkBracelet() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ uid, attendeeName }: { uid: string; attendeeName?: string }) =>
-      apiFetch<{ uid: string; balanceCop: number; attendeeName?: string | null }>(
+      apiFetch<{ uid: string; balance: number; attendeeName?: string | null }>(
         `${API_BASE_URL}/api/attendee/me/bracelets/link`,
         headers,
         { method: "POST", body: JSON.stringify({ uid, attendeeName }) },
@@ -177,7 +177,7 @@ export function useInitiateTopUp() {
   return useMutation({
     mutationFn: (data: {
       braceletUid: string;
-      amountCop: number;
+      amount: number;
       paymentMethod: "nequi" | "pse";
       phoneNumber?: string;
       bankCode?: string;

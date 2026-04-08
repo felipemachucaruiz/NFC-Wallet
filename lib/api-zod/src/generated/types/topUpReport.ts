@@ -10,7 +10,7 @@ import type { TopUpReportBySource } from "./topUpReportBySource";
 import type { TopUpReportByUserItem } from "./topUpReportByUserItem";
 
 export interface TopUpReport {
-  totalCop: number;
+  total: number;
   byPaymentMethod: TopUpReportByPaymentMethod;
   byUser: TopUpReportByUserItem[];
   bySource: TopUpReportBySource;

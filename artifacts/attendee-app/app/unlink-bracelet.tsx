@@ -18,7 +18,7 @@ export default function UnlinkBraceletScreen() {
   const insets = useSafeAreaInsets();
 
   const { uid, balance } = useLocalSearchParams<{ uid: string; balance: string }>();
-  const balanceCop = Number(balance ?? "0");
+  const balance = Number(balance ?? "0");
 
   const { mutateAsync: unlinkBracelet, isPending } = useUnlinkBracelet();
   const [done, setDone] = useState(false);
@@ -80,11 +80,11 @@ export default function UnlinkBraceletScreen() {
               <Text style={[styles.uidValue, { color: C.text }]}>
                 {uid.replace(/:/g, "").toUpperCase()}
               </Text>
-              {balanceCop > 0 && (
+              {balance > 0 && (
                 <View style={[styles.balancePill, { backgroundColor: C.warningLight }]}>
                   <Feather name="dollar-sign" size={12} color={C.warning} />
                   <Text style={[styles.balanceText, { color: C.warning }]}>
-                    {formatCop(balanceCop)}
+                    {formatCop(balance)}
                   </Text>
                 </View>
               )}
@@ -92,11 +92,11 @@ export default function UnlinkBraceletScreen() {
           </Card>
 
           {/* Balance warning */}
-          {balanceCop > 0 && (
+          {balance > 0 && (
             <Card style={[styles.warningCard, { backgroundColor: C.warningLight, borderColor: C.warning }]}>
               <Feather name="alert-triangle" size={18} color={C.warning} />
               <Text style={[styles.warningText, { color: C.warning }]}>
-                {t("unlink.balanceWarning", { amount: formatCop(balanceCop) })}
+                {t("unlink.balanceWarning", { amount: formatCop(balance) })}
               </Text>
             </Card>
           )}

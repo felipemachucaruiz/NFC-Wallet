@@ -21,7 +21,7 @@ type EventBracelet = {
   attendeeName?: string | null;
   phone?: string | null;
   email?: string | null;
-  lastKnownBalanceCop?: number | null;
+  lastKnownBalance?: number | null;
   lastCounter?: number | null;
   flagged: boolean;
   flagReason?: string | null;
@@ -93,8 +93,8 @@ export default function WristbandsScreen() {
           </Text>
         </View>
         <View style={styles.cardRight}>
-          {item.lastKnownBalanceCop !== null && item.lastKnownBalanceCop !== undefined ? (
-            <CopAmount amount={item.lastKnownBalanceCop} size={16} />
+          {item.lastKnownBalance !== null && item.lastKnownBalance !== undefined ? (
+            <CopAmount amount={item.lastKnownBalance} size={16} />
           ) : (
             <Text style={[styles.noTx, { color: C.textMuted }]}>{t("wristbands.noBalance")}</Text>
           )}

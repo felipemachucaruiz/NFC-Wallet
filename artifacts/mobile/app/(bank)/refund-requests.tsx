@@ -39,8 +39,8 @@ type RefundRequest = {
   attendeeUserId: string;
   braceletUid: string;
   eventId: string;
-  amountCop: number;
-  liveAmountCop?: number | null;
+  amount: number;
+  liveAmount?: number | null;
   refundMethod: "cash" | "nequi" | "bancolombia" | "other";
   accountDetails?: string | null;
   notes?: string | null;
@@ -386,7 +386,7 @@ export default function BankRefundRequestsScreen() {
                   {item.status === "pending" ? t("bankRefundRequests.currentBalance") : t("bankRefundRequests.amount")}
                 </Text>
                 <CopAmount
-                  amount={item.status === "pending" && item.liveAmountCop != null ? item.liveAmountCop : item.amountCop}
+                  amount={item.status === "pending" && item.liveAmount != null ? item.liveAmount : item.amount}
                   positive
                 />
               </View>

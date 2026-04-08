@@ -33,7 +33,7 @@ type InventoryItem = {
   product?: {
     id: string;
     name: string;
-    priceCop: number;
+    price: number;
     category?: string;
   } | null;
 };
@@ -77,8 +77,8 @@ function LocationInventoryPanel({ locationId }: { locationId: string }) {
                   {item.product.category}
                 </Text>
               ) : null}
-              {item.product?.priceCop !== undefined ? (
-                <CopAmount amount={item.product.priceCop} style={[styles.productPrice, { color: C.textSecondary }]} />
+              {item.product?.price !== undefined ? (
+                <CopAmount amount={item.product.price} style={[styles.productPrice, { color: C.textSecondary }]} />
               ) : null}
             </View>
             <View style={styles.qtyContainer}>

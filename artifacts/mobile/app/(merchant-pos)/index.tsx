@@ -18,7 +18,8 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { useAlert } from "@/components/CustomAlert";
 import { useCart } from "@/contexts/CartContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
-import { formatCOP } from "@/utils/format";
+import { formatCurrency } from "@/utils/format";
+import { useEventContext } from "@/contexts/EventContext";
 
 export default function MerchantPosScreen() {
   const { t } = useTranslation();
@@ -28,6 +29,8 @@ export default function MerchantPosScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
 
+  const { currencyCode } = useEventContext();
+  const fmt = (n: number) => formatCurrency(n, currencyCode);
   const { items: cartItems, addItem, removeItem, updateQty, clearCart, total, itemCount } = useCart();
   const { pendingCount } = useOfflineQueue();
 
@@ -71,7 +74,7 @@ export default function MerchantPosScreen() {
     query: { enabled: !!selectedLocationId },
   });
   const inventory = (inventoryData as {
-    inventory?: Array<{ product: { id: string; name: string; priceCop: number; costCop: number; barcode?: string | null; imageUrl?: string | null }; quantityOnHand: number }>
+    inventory?: Array<{ product: { id: string; name: string; price: number; cost: number; barcode?: string | null; imageUrl?: string | null }; quantityOnHand: number }>
   } | undefined)?.inventory ?? [];
 
   const filtered = inventory.filter((item) =>
@@ -130,8 +133,8 @@ export default function MerchantPosScreen() {
           addItem({
             productId: matched.product.id,
             name: matched.product.name,
-            priceCop: matched.product.priceCop,
-            costCop: matched.product.costCop,
+            price: matched.product.price,
+            cost: matched.product.cost,
             stockAvailable: matched.quantityOnHand,
           });
           showBarcodeToast(t("pos.barcodeAdded"));
@@ -145,8 +148,8 @@ export default function MerchantPosScreen() {
       addItem({
         productId: inventoryItem.product.id,
         name: inventoryItem.product.name,
-        priceCop: inventoryItem.product.priceCop,
-        costCop: inventoryItem.product.costCop,
+        price: inventoryItem.product.price,
+        cost: inventoryItem.product.cost,
         stockAvailable: inventoryItem.quantityOnHand,
       });
       showBarcodeToast(t("pos.barcodeAdded"));
@@ -288,7 +291,7 @@ export default function MerchantPosScreen() {
                       </View>
                     )}
                     <Text style={[styles.productName, { color: C.text }]} numberOfLines={2}>{item.product.name}</Text>
-                    <CopAmount amount={item.product.priceCop} size={16} />
+                    <CopAmount amount={item.product.price} size={16} />
                     <View style={styles.stockRow}>
                       {outOfStock ? (
                         <Badge label={t("pos.outOfStock")} variant="danger" size="sm" />
@@ -305,8 +308,8 @@ export default function MerchantPosScreen() {
                           onPress={() => addItem({
                             productId: item.product.id,
                             name: item.product.name,
-                            priceCop: item.product.priceCop,
-                            costCop: item.product.costCop,
+                            price: item.product.price,
+                            cost: item.product.cost,
                             stockAvailable: item.quantityOnHand,
                           })}
                           testID={`add-product-${item.product.id}`}
@@ -327,8 +330,8 @@ export default function MerchantPosScreen() {
                             onPress={() => addItem({
                               productId: item.product.id,
                               name: item.product.name,
-                              priceCop: item.product.priceCop,
-                              costCop: item.product.costCop,
+                              price: item.product.price,
+                              cost: item.product.cost,
                               stockAvailable: item.quantityOnHand,
                             })}
                           >
@@ -353,7 +356,7 @@ export default function MerchantPosScreen() {
                 <View key={item.productId} style={[styles.cartItem, { backgroundColor: C.card, borderColor: C.border }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.cartItemName, { color: C.text }]}>{item.name}</Text>
-                    <CopAmount amount={item.priceCop} size={13} bold={false} color={C.textSecondary} />
+                    <CopAmount amount={item.price} size={13} bold={false} color={C.textSecondary} />
                   </View>
                   <View style={styles.qtyRow}>
                     <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: C.inputBg }]} onPress={() => updateQty(item.productId, item.quantity - 1)}>
@@ -364,7 +367,7 @@ export default function MerchantPosScreen() {
                       <Feather name="plus" size={14} color="#0a0a0a" />
                     </TouchableOpacity>
                   </View>
-                  <CopAmount amount={item.priceCop * item.quantity} size={15} />
+                  <CopAmount amount={item.price * item.quantity} size={15} />
                   <TouchableOpacity onPress={() => removeItem(item.productId)}>
                     <Feather name="trash-2" size={16} color={C.danger} />
                   </TouchableOpacity>
@@ -386,7 +389,7 @@ export default function MerchantPosScreen() {
             <CopAmount amount={total} size={22} />
           </View>
           <Button
-            title={`${t("pos.charge")} ${formatCOP(total)}`}
+            title={`${t("pos.charge")} ${fmt(total)}`}
             onPress={() => router.push({ pathname: "/(merchant-pos)/charge", params: { locationId: selectedLocationId } })}
             variant="primary"
             size="lg"

@@ -8,7 +8,7 @@
 import type { RefundReportByRefundMethod } from "./refundReportByRefundMethod";
 
 export interface RefundReport {
-  totalRefundedCop: number;
+  totalRefunded: number;
   count: number;
   byRefundMethod: RefundReportByRefundMethod;
 }

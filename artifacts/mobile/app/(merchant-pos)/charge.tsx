@@ -16,12 +16,12 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
 import { scanAndWriteDesfireBracelet, type DesfireTagInfo } from "@/utils/desfire";
 import { verifyHmac, computeHmac } from "@/utils/hmac";
-import { formatCOP } from "@/utils/format";
+import { formatCurrency } from "@/utils/format";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { extractErrorMessage } from "@/utils/errorMessage";
 import { useAlert } from "@/components/CustomAlert";
-import type { NfcChipType } from "@/contexts/EventContext";
+import { useEventContext, type NfcChipType } from "@/contexts/EventContext";
 
 type ChargeStep =
   | "tip_selection"
@@ -96,6 +96,8 @@ export default function ChargeScreen() {
   const isWeb = Platform.OS === "web";
 
   const { user } = useAuth();
+  const { currencyCode } = useEventContext();
+  const fmt = (n: number) => formatCurrency(n, currencyCode);
   const { data: eventData } = useGetEvent(user?.eventId ?? "", {
     query: { enabled: !!user?.eventId },
   });
@@ -106,7 +108,7 @@ export default function ChargeScreen() {
   const locationId = params.locationId ?? "";
 
   const { items: cartItems, total: liveTotal, clearCart } = useCart();
-  const { enqueue, cachedHmacSecret, updateCachedHmacSecret, updateOfflineLimits, isOfflineLimitReached, unsyncedSpendCop, offlineSyncLimit, syncNow } = useOfflineQueue();
+  const { enqueue, cachedHmacSecret, updateCachedHmacSecret, updateOfflineLimits, isOfflineLimitReached, unsyncedSpend, offlineSyncLimit, syncNow } = useOfflineQueue();
 
   const [snapshotItems] = useState(() => [...cartItems]);
   const [snapshotTotal] = useState(() => liveTotal);
@@ -190,10 +192,10 @@ export default function ChargeScreen() {
     try {
       const data = await customFetch(`/api/bracelets/${encodeURIComponent(uid)}`) as {
         pendingSync?: boolean;
-        pendingBalanceCop?: number | null;
+        pendingBalance?: number | null;
       } | null;
-      if (data?.pendingSync && data?.pendingBalanceCop && data.pendingBalanceCop > 0) {
-        return data.pendingBalanceCop;
+      if (data?.pendingSync && data?.pendingBalance && data.pendingBalance > 0) {
+        return data.pendingBalance;
       }
     } catch {}
     return null;
@@ -204,8 +206,8 @@ export default function ChargeScreen() {
     const lineItems = snapshotItems.map((i) => ({
       productId: i.productId,
       quantity: i.quantity,
-      unitPriceCop: i.priceCop,
-      unitCostCop: i.costCop,
+      unitPrice: i.price,
+      unitCost: i.cost,
     }));
     const idempotencyKey = `${uid}-${newCounter}-${Date.now()}`;
     try {
@@ -217,7 +219,7 @@ export default function ChargeScreen() {
           newBalance,
           counter: newCounter,
           lineItems: lineItems.map((li) => ({ productId: li.productId, quantity: li.quantity })),
-          ...(confirmedTipAmount > 0 ? { tipAmountCop: confirmedTipAmount } : {}),
+          ...(confirmedTipAmount > 0 ? { tipAmount: confirmedTipAmount } : {}),
           offlineCreatedAt: new Date().toISOString(),
           ...(newHmac ? { hmac: newHmac } : {}),
         },
@@ -238,8 +240,8 @@ export default function ChargeScreen() {
         newBalance,
         counter: newCounter,
         lineItems,
-        grossAmountCop: total,
-        tipAmountCop: confirmedTipAmount,
+        grossAmount: total,
+        tipAmount: confirmedTipAmount,
         hmac: newHmac,
       });
     }
@@ -537,7 +539,7 @@ export default function ChargeScreen() {
               <Text style={[styles.lineItemName, { color: C.textSecondary }]}>
                 {item.quantity}× {item.name}
               </Text>
-              <CopAmount amount={item.priceCop * item.quantity} size={13} bold={false} color={C.textSecondary} />
+              <CopAmount amount={item.price * item.quantity} size={13} bold={false} color={C.textSecondary} />
             </View>
           ))}
           {displayItems.length > 3 && (
@@ -608,7 +610,7 @@ export default function ChargeScreen() {
             {(previewTipAmount > 0) && (
               <View style={[styles.tipPreviewBox, { backgroundColor: C.primaryLight, borderColor: C.primary }]}>
                 <Text style={[styles.tipPreviewText, { color: C.primary }]}>
-                  {t("pos.tipAmount", { amount: formatCOP(previewTipAmount), pct: activeTipPercent?.toFixed(0) })}
+                  {t("pos.tipAmount", { amount: fmt(previewTipAmount), pct: activeTipPercent?.toFixed(0) })}
                 </Text>
               </View>
             )}
@@ -619,7 +621,7 @@ export default function ChargeScreen() {
           <View style={styles.insufficientBox}>
             <Text style={[styles.stepTitle, { color: C.danger }]}>{t("pos.offlineLimitReached")}</Text>
             <Text style={[styles.shortfallText, { color: C.textSecondary }]}>
-              {t("pos.offlineLimitDetail", { spent: formatCOP(unsyncedSpendCop), limit: formatCOP(offlineSyncLimit) })}
+              {t("pos.offlineLimitDetail", { spent: fmt(unsyncedSpend), limit: fmt(offlineSyncLimit) })}
             </Text>
           </View>
         )}
@@ -628,10 +630,10 @@ export default function ChargeScreen() {
           <View style={styles.insufficientBox}>
             <Text style={[styles.stepTitle, { color: C.text }]}>{t("pos.insufficientBalance")}</Text>
             <Text style={[styles.shortfallText, { color: C.danger }]}>
-              {t("pos.shortfall", { amount: formatCOP(shortfall) })}
+              {t("pos.shortfall", { amount: fmt(shortfall) })}
             </Text>
             <Text style={[styles.currentBalText, { color: C.textSecondary }]}>
-              {t("pos.currentBalance")}: {formatCOP(braceletBalance ?? 0)}
+              {t("pos.currentBalance")}: {fmt(braceletBalance ?? 0)}
             </Text>
             {tagInfo && <TagBadge tagInfo={tagInfo} colors={C} />}
           </View>
@@ -668,7 +670,7 @@ export default function ChargeScreen() {
             {confirmedTipAmount > 0 && (
               <View style={[styles.tipPreviewBox, { backgroundColor: C.successLight, borderColor: C.success }]}>
                 <Text style={[styles.tipPreviewText, { color: C.success }]}>
-                  {t("pos.tipAmount", { amount: formatCOP(confirmedTipAmount), pct: confirmedTipPercent?.toFixed(0) ?? "—" })}
+                  {t("pos.tipAmount", { amount: fmt(confirmedTipAmount), pct: confirmedTipPercent?.toFixed(0) ?? "—" })}
                 </Text>
               </View>
             )}
@@ -683,7 +685,7 @@ export default function ChargeScreen() {
             <Button
               title={
                 previewTipAmount > 0
-                  ? t("pos.confirmTip", { amount: formatCOP(previewTipAmount) })
+                  ? t("pos.confirmTip", { amount: fmt(previewTipAmount) })
                   : t("pos.confirmTipNoAmount")
               }
               onPress={() => handleTipConfirm(false)}

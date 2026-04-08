@@ -27,18 +27,19 @@ export default function AttendeeHomeScreen() {
 
   type BraceletItem = {
     uid: string;
-    balanceCop: number;
+    balance: number;
     flagged: boolean;
     flagReason?: string | null;
     attendeeName?: string | null;
-    event?: { id: string; name: string; active: boolean } | null;
+    event?: { id: string; name: string; active: boolean; currencyCode?: string } | null;
     updatedAt: string;
   };
   type BraceletsData = { bracelets?: BraceletItem[] };
   const bracelets = (data as BraceletsData)?.bracelets ?? [];
 
   const activeBracelet = bracelets.find((b) => b.event?.active) ?? bracelets[0] ?? null;
-  const totalBalance = bracelets.reduce((sum, b) => sum + b.balanceCop, 0);
+  const totalBalance = bracelets.reduce((sum, b) => sum + b.balance, 0);
+  const eventCurrency = activeBracelet?.event?.currencyCode ?? "COP";
 
   if (isLoading) return <Loading label={t("common.loading")} />;
 
@@ -76,7 +77,7 @@ export default function AttendeeHomeScreen() {
               <Text style={[styles.balanceLabel, { color: C.textSecondary }]}>
                 {bracelets.length > 1 ? t("attendeeHome.totalBalance") : t("attendeeHome.currentBalance")}
               </Text>
-              <CopAmount amount={totalBalance} size={52} />
+              <CopAmount amount={totalBalance} size={52} currencyCode={eventCurrency} />
               {activeBracelet.event?.active && (
                 <View style={[styles.eventBadge, { backgroundColor: C.primaryLight }]}>
                   <Feather name="calendar" size={12} color={C.primary} />
@@ -125,7 +126,7 @@ export default function AttendeeHomeScreen() {
                     )}
                   </View>
                   <View style={{ alignItems: "flex-end", gap: 4 }}>
-                    <CopAmount amount={b.balanceCop} size={16} />
+                    <CopAmount amount={b.balance} size={16} currencyCode={b.event?.currencyCode ?? "COP"} />
                     {b.flagged && <Badge label={t("attendeeHome.blocked")} variant="danger" />}
                   </View>
                 </View>
@@ -143,12 +144,12 @@ export default function AttendeeHomeScreen() {
                         {t("attendeeHome.blockBracelet")}
                       </Text>
                     </Pressable>
-                    {b.balanceCop > 0 && (
+                    {b.balance > 0 && (
                       <Pressable
                         style={styles.braceletActionBtn}
                         onPress={() => router.push({
                           pathname: "/(attendee)/refund-request",
-                          params: { uid: b.uid, balance: String(b.balanceCop) }
+                          params: { uid: b.uid, balance: String(b.balance) }
                         })}
                       >
                         <Feather name="arrow-left-circle" size={14} color={C.primary} />

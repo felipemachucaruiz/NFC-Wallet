@@ -1089,6 +1089,7 @@
     "hourAxis": "Hora del día (0–23)",
     "salesInThousands": "valores en miles (COP)",
     "salesInMillions": "valores en millones (COP)",
+    "salesInAmount": "valores",
     "salesInCop": "valores en COP",
     "topProducts": "Top Productos",
     "topProductsSubtitle": "Ordenado por unidades vendidas",

@@ -33,18 +33,18 @@ export default function ShiftSummaryScreen() {
   const shiftData = data as {
     topUps?: Array<{
       id: string;
-      amountCop: number;
+      amount: number;
       paymentMethod: string;
       braceletUid: string;
       createdAt: string;
     }>;
-    totalCop?: number;
+    total?: number;
     byPaymentMethod?: Record<string, number>;
     count?: number;
   } | undefined;
 
   const topUps = shiftData?.topUps ?? [];
-  const totalCop = shiftData?.totalCop ?? 0;
+  const total = shiftData?.total ?? 0;
   const byMethod = shiftData?.byPaymentMethod ?? {};
 
   if (isLoading) return <Loading label={t("common.loading")} />;
@@ -69,7 +69,7 @@ export default function ShiftSummaryScreen() {
             <Card style={{ marginTop: 4 }}>
               <View style={styles.totalSection}>
                 <Text style={[styles.totalLabel, { color: C.textSecondary }]}>{t("bank.totalCollected")}</Text>
-                <CopAmount amount={totalCop} size={40} positive />
+                <CopAmount amount={total} size={40} positive />
                 <Text style={[styles.countText, { color: C.textMuted }]}>{topUps.length} {t("bank.topUpCount")}</Text>
               </View>
             </Card>
@@ -121,7 +121,7 @@ export default function ShiftSummaryScreen() {
                 <Text style={[styles.braceletUid, { color: C.text }]}>{item.braceletUid}</Text>
                 <Text style={[styles.txDate, { color: C.textMuted }]}>{formatDateTime(item.createdAt)}</Text>
               </View>
-              <CopAmount amount={item.amountCop} positive size={15} />
+              <CopAmount amount={item.amount} positive size={15} />
             </View>
           );
         }}

@@ -63,13 +63,13 @@ router.get(
           attendeeName: braceletsTable.attendeeName,
           phone: braceletsTable.phone,
           email: braceletsTable.email,
-          lastKnownBalanceCop: braceletsTable.lastKnownBalanceCop,
+          lastKnownBalance: braceletsTable.lastKnownBalance,
           lastCounter: braceletsTable.lastCounter,
           maxOfflineSpend: braceletsTable.maxOfflineSpend,
           flagged: braceletsTable.flagged,
           flagReason: braceletsTable.flagReason,
           pendingSync: braceletsTable.pendingSync,
-          pendingBalanceCop: braceletsTable.pendingBalanceCop,
+          pendingBalance: braceletsTable.pendingBalance,
           accessZoneIds: braceletsTable.accessZoneIds,
           registeredByUserId: braceletsTable.registeredByUserId,
           createdAt: braceletsTable.createdAt,
@@ -261,8 +261,8 @@ router.get(
       db
         .select({
           id: transactionLogsTable.id,
-          grossAmountCop: transactionLogsTable.grossAmountCop,
-          newBalanceCop: transactionLogsTable.newBalanceCop,
+          grossAmount: transactionLogsTable.grossAmount,
+          newBalance: transactionLogsTable.newBalance,
           createdAt: transactionLogsTable.createdAt,
           offlineCreatedAt: transactionLogsTable.offlineCreatedAt,
           merchantName: merchantsTable.name,
@@ -277,8 +277,8 @@ router.get(
       db
         .select({
           id: topUpsTable.id,
-          grossAmountCop: topUpsTable.amountCop,
-          newBalanceCop: topUpsTable.newBalanceCop,
+          grossAmount: topUpsTable.amount,
+          newBalance: topUpsTable.newBalance,
           createdAt: topUpsTable.createdAt,
           offlineCreatedAt: topUpsTable.offlineCreatedAt,
           agentFirstName: usersTable.firstName,
@@ -295,8 +295,8 @@ router.get(
     const chargeRows = charges.map((c) => ({
       id: c.id,
       type: "charge" as const,
-      grossAmountCop: c.grossAmountCop,
-      newBalanceCop: c.newBalanceCop,
+      grossAmount: c.grossAmount,
+      newBalance: c.newBalance,
       createdAt: c.createdAt,
       offlineCreatedAt: c.offlineCreatedAt,
       merchantName: c.merchantName ?? null,
@@ -306,8 +306,8 @@ router.get(
     const topupRows = topups.map((t) => ({
       id: t.id,
       type: "topup" as const,
-      grossAmountCop: t.grossAmountCop,
-      newBalanceCop: t.newBalanceCop,
+      grossAmount: t.grossAmount,
+      newBalance: t.newBalance,
       createdAt: t.createdAt,
       offlineCreatedAt: t.offlineCreatedAt,
       merchantName: [t.agentFirstName, t.agentLastName].filter(Boolean).join(" ") || null,
@@ -381,7 +381,7 @@ router.patch(
 /**
  * @summary Reset a bracelet's balance to zero (admin only).
  * The NFC tag must also be physically written by the caller; this endpoint
- * syncs the server-side lastKnownBalanceCop to 0.
+ * syncs the server-side lastKnownBalance to 0.
  */
 router.post(
   "/admin/bracelets/:nfcUid/reset-balance",
@@ -398,7 +398,7 @@ router.post(
     }
     const [updated] = await db
       .update(braceletsTable)
-      .set({ lastKnownBalanceCop: 0, updatedAt: new Date() })
+      .set({ lastKnownBalance: 0, updatedAt: new Date() })
       .where(eq(braceletsTable.nfcUid, nfcUid))
       .returning();
     res.json(updated);

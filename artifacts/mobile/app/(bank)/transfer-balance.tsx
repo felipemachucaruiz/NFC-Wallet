@@ -14,6 +14,8 @@ import { isNfcSupported, scanBracelet } from "@/utils/nfc";
 import { useGetBracelet } from "@workspace/api-client-react";
 import { useLinkAndTransfer } from "@/hooks/useAttendeeApi";
 import { extractErrorMessage } from "@/utils/errorMessage";
+import { formatCurrency } from "@/utils/format";
+import { useEventContext } from "@/contexts/EventContext";
 
 export default function TransferBalanceScreen() {
   const { t } = useTranslation();
@@ -22,6 +24,8 @@ export default function TransferBalanceScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { currencyCode } = useEventContext();
+  const fmt = (n: number) => formatCurrency(n, currencyCode);
 
   const [oldUid, setOldUid] = useState<string | null>(null);
   const [newUid, setNewUid] = useState<string | null>(null);
@@ -41,8 +45,8 @@ export default function TransferBalanceScreen() {
     query: { enabled: !!newUid, queryKey: ["bracelet", newUid] },
   });
 
-  const oldBracelet = oldBraceletData as { lastKnownBalanceCop?: number; flagged?: boolean } | undefined;
-  const newBracelet = newBraceletData as { lastKnownBalanceCop?: number; flagged?: boolean } | undefined;
+  const oldBracelet = oldBraceletData as { lastKnownBalance?: number; flagged?: boolean } | undefined;
+  const newBracelet = newBraceletData as { lastKnownBalance?: number; flagged?: boolean } | undefined;
 
   const handleTap = async (forBracelet: "old" | "new") => {
     if (!isNfcSupported()) {
@@ -70,11 +74,11 @@ export default function TransferBalanceScreen() {
 
   const handleTransfer = () => {
     if (!oldUid || !newUid) return;
-    const amount = oldBracelet?.lastKnownBalanceCop ?? 0;
+    const amount = oldBracelet?.lastKnownBalance ?? 0;
 
     showAlert(
       t("bankTransfer.confirmTitle"),
-      `Transfer $${amount.toLocaleString("es-CO")} COP from ${oldUid} → ${newUid}?`,
+      `Transfer ${fmt(amount)} from ${oldUid} → ${newUid}?`,
       [
         { text: t("common.cancel"), variant: "cancel" },
         {
@@ -83,7 +87,7 @@ export default function TransferBalanceScreen() {
           onPress: async () => {
             try {
               const result = await linkAndTransfer.mutateAsync({ oldUid, newUid });
-              setTransferredAmount((result as { transferredAmountCop?: number }).transferredAmountCop ?? amount);
+              setTransferredAmount((result as { transferredAmount?: number }).transferredAmount ?? amount);
               setStep("success");
             } catch (e: unknown) {
               showAlert(t("common.error"), extractErrorMessage(e, t("common.unknownError")));
@@ -144,8 +148,8 @@ export default function TransferBalanceScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.uid, { color: C.text }]}>{oldUid}</Text>
-              {oldBracelet?.lastKnownBalanceCop !== undefined && (
-                <CopAmount amount={oldBracelet.lastKnownBalanceCop} size={14} />
+              {oldBracelet?.lastKnownBalance !== undefined && (
+                <CopAmount amount={oldBracelet.lastKnownBalance} size={14} />
               )}
             </View>
             {!oldBracelet?.flagged && (
@@ -176,9 +180,9 @@ export default function TransferBalanceScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.uid, { color: C.text }]}>{newUid}</Text>
-              {newBracelet?.lastKnownBalanceCop !== undefined && (
+              {newBracelet?.lastKnownBalance !== undefined && (
                 <Text style={[styles.uidMeta, { color: C.textMuted }]}>
-                  Current: ${newBracelet.lastKnownBalanceCop.toLocaleString("es-CO")}
+                  Current: {fmt(newBracelet.lastKnownBalance)}
                 </Text>
               )}
             </View>

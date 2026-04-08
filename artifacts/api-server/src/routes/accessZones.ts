@@ -11,7 +11,7 @@ const createZoneSchema = z.object({
   description: z.string().optional(),
   colorHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "colorHex must be a 6-digit hex color like #FF0000").optional(),
   rank: z.number().int().min(0),
-  upgradePriceCop: z.number().int().min(0).nullable().optional(),
+  upgradePrice: z.number().int().min(0).nullable().optional(),
 });
 
 const updateZoneSchema = z.object({
@@ -19,7 +19,7 @@ const updateZoneSchema = z.object({
   description: z.string().optional(),
   colorHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "colorHex must be a 6-digit hex color like #FF0000").optional(),
   rank: z.number().int().min(0).optional(),
-  upgradePriceCop: z.number().int().min(0).nullable().optional(),
+  upgradePrice: z.number().int().min(0).nullable().optional(),
 });
 
 /**
@@ -122,7 +122,7 @@ router.post(
       return;
     }
 
-    const { name, description, colorHex, rank, upgradePriceCop } = parsed.data;
+    const { name, description, colorHex, rank, upgradePrice } = parsed.data;
 
     const [rankConflict] = await db
       .select({ id: accessZonesTable.id })
@@ -136,7 +136,7 @@ router.post(
 
     const [zone] = await db
       .insert(accessZonesTable)
-      .values({ eventId, name, description, colorHex, rank, upgradePriceCop: upgradePriceCop ?? null })
+      .values({ eventId, name, description, colorHex, rank, upgradePrice: upgradePrice ?? null })
       .returning();
 
     res.status(201).json(zone);
@@ -169,7 +169,7 @@ router.post(
       return;
     }
 
-    const { name, description, colorHex, rank, upgradePriceCop } = parsed.data;
+    const { name, description, colorHex, rank, upgradePrice } = parsed.data;
 
     const [rankConflict] = await db
       .select({ id: accessZonesTable.id })
@@ -183,7 +183,7 @@ router.post(
 
     const [zone] = await db
       .insert(accessZonesTable)
-      .values({ eventId: effectiveEventId, name, description, colorHex, rank, upgradePriceCop: upgradePriceCop ?? null })
+      .values({ eventId: effectiveEventId, name, description, colorHex, rank, upgradePrice: upgradePrice ?? null })
       .returning();
 
     res.status(201).json(zone);
@@ -223,7 +223,7 @@ router.patch(
       return;
     }
 
-    const { name, description, colorHex, rank, upgradePriceCop } = parsed.data;
+    const { name, description, colorHex, rank, upgradePrice } = parsed.data;
 
     if (rank !== undefined && rank !== currentZone.rank) {
       const rankConflict = await db
@@ -242,7 +242,7 @@ router.patch(
     if (description !== undefined) updates.description = description;
     if (colorHex !== undefined) updates.colorHex = colorHex;
     if (rank !== undefined) updates.rank = rank;
-    if (upgradePriceCop !== undefined) updates.upgradePriceCop = upgradePriceCop;
+    if (upgradePrice !== undefined) updates.upgradePrice = upgradePrice;
 
     const [updated] = await db
       .update(accessZonesTable)
@@ -284,7 +284,7 @@ router.patch(
       return;
     }
 
-    const { name, description, colorHex, rank, upgradePriceCop } = parsed.data;
+    const { name, description, colorHex, rank, upgradePrice } = parsed.data;
 
     if (rank !== undefined && rank !== existing.rank) {
       const rankConflict = await db
@@ -303,7 +303,7 @@ router.patch(
     if (description !== undefined) updates.description = description;
     if (colorHex !== undefined) updates.colorHex = colorHex;
     if (rank !== undefined) updates.rank = rank;
-    if (upgradePriceCop !== undefined) updates.upgradePriceCop = upgradePriceCop;
+    if (upgradePrice !== undefined) updates.upgradePrice = upgradePrice;
 
     const [updated] = await db
       .update(accessZonesTable)
@@ -472,7 +472,7 @@ router.post(
  * GET /api/bracelets/:nfcUid/available-upgrades
  * Returns zones with rank strictly greater than the bracelet's current highest-ranked zone.
  * Each upgrade option includes:
- *   - totalUpgradePriceCop: cumulative price of all step prices from current rank+1 to target rank
+ *   - totalUpgradePrice: cumulative price of all step prices from current rank+1 to target rank
  *   - zonesGranted: all zones that will be added (target + any skipped intermediate zones)
  * This supports "jump" upgrades where the attendee pays the sum of all step prices.
  * Also returns currentZones and atMaxLevel for mobile UI.
@@ -527,11 +527,11 @@ router.get(
         const zonesGranted = zonesAboveCurrent.filter(
           (z) => z.rank <= targetZone.rank && !grantedZoneIds.includes(z.id),
         );
-        const totalUpgradePriceCop = zonesGranted.reduce(
-          (sum, z) => sum + (z.upgradePriceCop ?? 0),
+        const totalUpgradePrice = zonesGranted.reduce(
+          (sum, z) => sum + (z.upgradePrice ?? 0),
           0,
         );
-        return { ...targetZone, totalUpgradePriceCop, zonesGranted };
+        return { ...targetZone, totalUpgradePrice, zonesGranted };
       });
 
     const atMaxLevel = grantedZoneIds.length > 0 && maxCurrentRank >= maxPossibleRank && availableUpgrades.length === 0;
@@ -548,7 +548,7 @@ router.get(
  * The server automatically adds ALL intermediate zones between their current max rank
  * and the target rank (e.g. rank 1, rank 2, rank 3 are all added).
  * The price the bank staff should collect is the cumulative sum of each step price
- * (returned by GET /available-upgrades as totalUpgradePriceCop).
+ * (returned by GET /available-upgrades as totalUpgradePrice).
  *
  * Server-side validation:
  *   - targetZoneId must belong to this event

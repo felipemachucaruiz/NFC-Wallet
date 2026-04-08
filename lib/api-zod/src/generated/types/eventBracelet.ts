@@ -18,7 +18,7 @@ export interface EventBracelet {
   /** @nullable */
   email?: string | null;
   /** @nullable */
-  lastKnownBalanceCop: number | null;
+  lastKnownBalance: number | null;
   /** @nullable */
   lastCounter?: number | null;
   flagged: boolean;

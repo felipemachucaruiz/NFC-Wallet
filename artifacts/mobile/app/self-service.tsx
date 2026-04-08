@@ -8,7 +8,7 @@ import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { formatCOP } from "@/utils/format";
+import { formatCurrency } from "@/utils/format";
 import { ATTENDEE_API_BASE_URL } from "@/constants/domain";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/ui/PhoneInput";
 
@@ -36,7 +36,7 @@ const PSE_BANKS = [
 
 interface BraceletInfo {
   uid: string;
-  balanceCop: number;
+  balance: number;
   attendeeName: string | null;
   eventName: string | null;
   eventActive: boolean;
@@ -209,7 +209,7 @@ export default function SelfServiceScreen() {
     try {
       const body: Record<string, unknown> = {
         braceletUid: bracelet.uid,
-        amountCop: effectiveAmount,
+        amount: effectiveAmount,
         paymentMethod: method,
       };
       if (method === "nequi") body.phoneNumber = phone.replace(/\D/g, "");
@@ -409,7 +409,7 @@ export default function SelfServiceScreen() {
                     Saldo
                   </Text>
                   <Text style={[styles.balanceValue, { color: C.primary }]}>
-                    {formatCOP(bracelet.balanceCop)}
+                    {formatCurrency(bracelet.balance, "COP")}
                   </Text>
                 </View>
               </View>
@@ -469,7 +469,7 @@ export default function SelfServiceScreen() {
                         },
                       ]}
                     >
-                      {formatCOP(amt)}
+                      {formatCurrency(amt, "COP")}
                     </Text>
                   </Pressable>
                 ))}
@@ -494,7 +494,7 @@ export default function SelfServiceScreen() {
               />
               {effectiveAmount >= 1000 && (
                 <Text style={[styles.amountPreview, { color: C.primary }]}>
-                  Total: {formatCOP(effectiveAmount)}
+                  Total: {formatCurrency(effectiveAmount, "COP")}
                 </Text>
               )}
             </Card>
@@ -763,7 +763,7 @@ export default function SelfServiceScreen() {
               title={
                 paying
                   ? "Iniciando pago..."
-                  : `Pagar${effectiveAmount >= 1000 ? ` ${formatCOP(effectiveAmount)}` : ""}`
+                  : `Pagar${effectiveAmount >= 1000 ? ` ${formatCurrency(effectiveAmount, "COP")}` : ""}`
               }
               onPress={handlePay}
               disabled={!canPay || paying || !regFieldsValid}
@@ -817,7 +817,7 @@ export default function SelfServiceScreen() {
               ¡Recarga exitosa!
             </Text>
             <Text style={[styles.doneAmount, { color: C.primary }]}>
-              +{formatCOP(effectiveAmount)}
+              +{formatCurrency(effectiveAmount, "COP")}
             </Text>
             <Text style={[styles.processingHint, { color: C.textSecondary }]}>
               Tu saldo se ha acreditado. La próxima vez que toques una terminal,

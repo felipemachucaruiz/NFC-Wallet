@@ -7,6 +7,6 @@
  */
 
 export type TopUpReportBySourceDigital = {
-  totalCop: number;
+  total: number;
   count: number;
 };

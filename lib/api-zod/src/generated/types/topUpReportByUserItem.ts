@@ -12,6 +12,6 @@ export type TopUpReportByUserItem = {
   firstName?: string | null;
   /** @nullable */
   lastName?: string | null;
-  totalCop: number;
+  total: number;
   count: number;
 };

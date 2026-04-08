@@ -19,5 +19,5 @@ export interface AnalyticsHeatmapItem {
    */
   dayNum: number;
   txCount: number;
-  totalCop: number;
+  total: number;
 }

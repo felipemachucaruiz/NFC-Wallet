@@ -11,7 +11,7 @@ export interface Refund {
   id: string;
   braceletUid: string;
   eventId: string;
-  amountCop: number;
+  amount: number;
   refundMethod: RefundMethod;
   /** @nullable */
   notes?: string | null;

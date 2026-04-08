@@ -4,10 +4,12 @@ import {
   useGetAnalyticsSalesByHour,
   useGetAnalyticsTopProducts,
   useGetAnalyticsTopMerchants,
+  useGetEvent,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Users, ShoppingCart, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
 export default function EventDashboard() {
   const { t } = useTranslation();
@@ -20,12 +22,14 @@ export default function EventDashboard() {
   const { data: hourlyData } = useGetAnalyticsSalesByHour(params);
   const { data: productsData } = useGetAnalyticsTopProducts(params);
   const { data: merchantsData } = useGetAnalyticsTopMerchants(params);
+  const { data: eventData } = useGetEvent(eventId || "");
+  const currency = (eventData as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
 
   const topProducts = productsData?.topProducts ?? [];
   const topMerchants = merchantsData?.topMerchants ?? [];
   const salesByHour = hourlyData?.salesByHour ?? [];
 
-  const fmt = (n?: number | null) => (n ?? 0).toLocaleString();
+  const fmt = (n?: number | null) => formatCurrency(n ?? 0, currency);
 
   return (
     <div className="space-y-6">
@@ -42,8 +46,8 @@ export default function EventDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">${fmt(summary?.totalSalesCop)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.totalSalesCop")}</p>
+            <p className="text-3xl font-bold">{fmt(summary?.totalSales)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.totalSales")}</p>
           </CardContent>
         </Card>
 
@@ -66,7 +70,7 @@ export default function EventDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">${fmt(summary?.totalTopUpsCop)}</p>
+            <p className="text-3xl font-bold">{fmt(summary?.totalTopUps)}</p>
             <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.totalLoaded")}</p>
           </CardContent>
         </Card>
@@ -90,7 +94,7 @@ export default function EventDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">${fmt(summary?.pendingBalanceCop)}</p>
+            <p className="text-3xl font-bold">{fmt(summary?.pendingBalance)}</p>
             <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.balanceOnWristbands")}</p>
           </CardContent>
         </Card>
@@ -111,7 +115,7 @@ export default function EventDashboard() {
                       <span className="font-medium">{m.merchantName ?? m.merchantId}</span>
                     </div>
                     <div className="text-right">
-                      <p className="font-mono">${(m.totalSalesCop ?? 0).toLocaleString()}</p>
+                      <p className="font-mono">{fmt(m.totalSales)}</p>
                       <p className="text-xs text-muted-foreground">{m.txCount} {t("eventDashboard.txns")}</p>
                     </div>
                   </div>
@@ -135,7 +139,7 @@ export default function EventDashboard() {
                       <span className="font-medium">{p.productName ?? p.productId}</span>
                     </div>
                     <div className="text-right">
-                      <p className="font-mono">${(p.totalRevenueCop ?? 0).toLocaleString()}</p>
+                      <p className="font-mono">{fmt(p.totalRevenue)}</p>
                       <p className="text-xs text-muted-foreground">{p.totalUnits} {t("eventDashboard.sold")}</p>
                     </div>
                   </div>
@@ -154,10 +158,10 @@ export default function EventDashboard() {
           <CardContent>
             <div className="flex items-end gap-1 h-32">
               {salesByHour.map((row, i) => {
-                const max = Math.max(...salesByHour.map((r) => r.totalCop ?? 0), 1);
-                const pct = ((row.totalCop ?? 0) / max) * 100;
+                const max = Math.max(...salesByHour.map((r) => r.total ?? 0), 1);
+                const pct = ((row.total ?? 0) / max) * 100;
                 return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${row.hour}:00 — $${(row.totalCop ?? 0).toLocaleString()}`}>
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1" title={`${row.hour}:00 — ${fmt(row.total)}`}>
                     <div
                       className="w-full bg-primary/70 rounded-t"
                       style={{ height: `${Math.max(pct, 4)}%` }}

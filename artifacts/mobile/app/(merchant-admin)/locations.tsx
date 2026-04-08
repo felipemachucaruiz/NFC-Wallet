@@ -237,7 +237,7 @@ function LocationSummaryCard({
 }) {
   const { t } = useTranslation();
   const { data: revenueData } = useGetRevenueReport({ merchantId, locationId: location.id });
-  const totals = (revenueData as { totals?: { grossSalesCop?: number; transactionCount?: number } } | undefined)?.totals;
+  const totals = (revenueData as { totals?: { grossSales?: number; transactionCount?: number } } | undefined)?.totals;
 
   return (
     <Pressable onPress={onPress}>
@@ -253,7 +253,7 @@ function LocationSummaryCard({
             </Text>
           </View>
           <View style={{ alignItems: "flex-end" }}>
-            <CopAmount amount={totals?.grossSalesCop} size={16} color={C.primary} />
+            <CopAmount amount={totals?.grossSales} size={16} color={C.primary} />
           </View>
           <Pressable
             onPress={(e) => { e.stopPropagation(); onDeactivate(); }}
@@ -284,11 +284,11 @@ function LocationDetailPanel({
 
   const totals = (revenueData as {
     totals?: {
-      grossSalesCop?: number;
-      cogsCop?: number;
-      grossProfitCop?: number;
-      commissionCop?: number;
-      netCop?: number;
+      grossSales?: number;
+      cogs?: number;
+      grossProfit?: number;
+      commission?: number;
+      net?: number;
       transactionCount?: number;
     };
   } | undefined)?.totals;
@@ -313,10 +313,10 @@ function LocationDetailPanel({
       <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("merchant_admin.salesSummary")}</Text>
       <View style={styles.metricsGrid}>
         {[
-          { label: t("merchant_admin.grossSales"), value: totals?.grossSalesCop, icon: "trending-up" as const, color: C.primary },
-          { label: t("merchant_admin.cogs"), value: totals?.cogsCop, icon: "package" as const, color: C.textSecondary },
-          { label: t("merchant_admin.grossProfit"), value: totals?.grossProfitCop, icon: "dollar-sign" as const, color: C.success },
-          { label: t("merchant_admin.commissionAmount"), value: totals?.commissionCop, icon: "percent" as const, color: C.warning },
+          { label: t("merchant_admin.grossSales"), value: totals?.grossSales, icon: "trending-up" as const, color: C.primary },
+          { label: t("merchant_admin.cogs"), value: totals?.cogs, icon: "package" as const, color: C.textSecondary },
+          { label: t("merchant_admin.grossProfit"), value: totals?.grossProfit, icon: "dollar-sign" as const, color: C.success },
+          { label: t("merchant_admin.commissionAmount"), value: totals?.commission, icon: "percent" as const, color: C.warning },
         ].map((m) => (
           <Card key={m.label} style={{ flex: 1, minWidth: "47%" }}>
             <View style={[styles.metricIcon, { backgroundColor: m.color + "22" }]}>

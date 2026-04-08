@@ -9,11 +9,11 @@
 export interface AnalyticsTopMerchantItem {
   merchantId: string;
   merchantName: string;
-  totalSalesCop: number;
-  totalCommissionCop: number;
-  totalNetCop: number;
-  totalCogsCop: number;
-  grossProfitCop: number;
+  totalSales: number;
+  totalCommission: number;
+  totalNet: number;
+  totalCogs: number;
+  grossProfit: number;
   profitMarginPercent: number;
   txCount: number;
 }

@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { isNfcSupported, writeBracelet, type TagInfo, type TagType } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
+import { formatCurrency } from "@/utils/format";
+import { useEventContext } from "@/contexts/EventContext";
 
 type RefundMethod = "cash" | "nequi" | "bancolombia" | "other";
 
@@ -34,6 +36,8 @@ export default function RefundScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
+  const { currencyCode } = useEventContext();
+  const fmt = (n: number) => formatCurrency(n, currencyCode);
 
   const params = useLocalSearchParams<{
     uid: string;
@@ -77,7 +81,7 @@ export default function RefundScreen() {
   const handleConfirm = async () => {
     showAlert(
       t("bank.confirmRefund"),
-      `${t("bank.refundAmount")}: $${balance.toLocaleString()} COP`,
+      `${t("bank.refundAmount")}: ${fmt(balance)}`,
       [
         { text: t("common.cancel"), variant: "cancel" },
         {
@@ -104,11 +108,11 @@ export default function RefundScreen() {
                   braceletUid: uid,
                   refundMethod,
                   notes: notes.trim() || undefined,
-                  ...(nfcCounter !== undefined ? { newCounter: nfcCounter, newBalanceCop: 0 } : {}),
+                  ...(nfcCounter !== undefined ? { newCounter: nfcCounter, newBalance: 0 } : {}),
                 },
               });
 
-              setRefundedAmount((result as { amountCop?: number }).amountCop ?? balance);
+              setRefundedAmount((result as { amount?: number }).amount ?? balance);
               setStep("success");
             } catch {
               setStep("form");

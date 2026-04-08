@@ -14,5 +14,5 @@ export interface CreateAccessZoneBody {
   /** @minimum 0 */
   rank: number;
   /** @nullable */
-  upgradePriceCop?: number | null;
+  upgradePrice?: number | null;
 }

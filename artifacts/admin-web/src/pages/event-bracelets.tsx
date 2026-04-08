@@ -109,7 +109,7 @@ export default function EventBracelets() {
                 <TableRow key={bracelet.id} data-testid={`row-bracelet-${bracelet.id}`}>
                   <TableCell className="font-mono text-sm">{bracelet.nfcUid}</TableCell>
                   <TableCell>{bracelet.attendeeName ?? <span className="text-muted-foreground italic">{t("wristbands.unnamed")}</span>}</TableCell>
-                  <TableCell className="text-right font-mono">{(bracelet.lastKnownBalanceCop ?? 0).toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{(bracelet.lastKnownBalance ?? 0).toLocaleString()}</TableCell>
                   <TableCell>
                     {bracelet.flagged ? (
                       <Badge variant="destructive" className="text-xs">{t("wristbands.statusFlagged")}</Badge>

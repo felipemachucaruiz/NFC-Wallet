@@ -12,18 +12,9 @@ import type {
   QueryKey,
   UseMutationOptions,
   UseMutationResult,
-  UseQueryOptions as _UseQueryOptions,
+  UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
-
-type UseQueryOptions<
-  TQueryFnData = unknown,
-  TError = unknown,
-  TData = TQueryFnData,
-  TQueryKey extends QueryKey = QueryKey,
-> = Omit<_UseQueryOptions<TQueryFnData, TError, TData, TQueryKey>, "queryKey"> & {
-  queryKey?: TQueryKey;
-};
 
 import type {
   AccessZone,

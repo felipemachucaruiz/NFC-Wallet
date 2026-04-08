@@ -6,7 +6,7 @@ export const braceletTransferLogsTable = pgTable("bracelet_transfer_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   braceletUid: varchar("bracelet_uid", { length: 64 }).notNull(),
   fromUserId: varchar("from_user_id").notNull().references(() => usersTable.id),
-  balanceCop: integer("balance_cop").notNull().default(0),
+  balance: integer("balance").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

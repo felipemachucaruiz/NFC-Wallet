@@ -102,8 +102,8 @@ export default function Payouts() {
                   <TableCell className="font-medium">{merchants.find((m) => m.id === payout.merchantId)?.name ?? payout.merchantId.slice(0, 8)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{events.find((e) => e.id === payout.eventId)?.name ?? payout.eventId.slice(0, 8)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{new Date(payout.periodFrom).toLocaleDateString()} – {new Date(payout.periodTo).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right font-mono">{payout.grossSalesCop.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-mono">{payout.netPayoutCop.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{payout.grossSales.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{payout.netPayout.toLocaleString()}</TableCell>
                   <TableCell className="text-sm capitalize">{payout.paymentMethod}</TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" data-testid={`button-payout-detail-${payout.id}`} onClick={() => { setSelectedPayout(payout); setDetailOpen(true); }}>
@@ -192,7 +192,7 @@ export default function Payouts() {
               txData.transactions.map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between text-sm border-b border-border pb-2">
                   <span className="text-muted-foreground">{new Date(tx.createdAt).toLocaleString()}</span>
-                  <span className="font-mono">{(tx.grossAmountCop ?? 0).toLocaleString()} COP</span>
+                  <span className="font-mono">{(tx.grossAmount ?? 0).toLocaleString()} {events.find((e) => e.id === selectedPayout?.eventId)?.currencyCode ?? "COP"}</span>
                 </div>
               ))
             )}

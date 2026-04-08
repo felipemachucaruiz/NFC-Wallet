@@ -17,7 +17,7 @@ export interface Bracelet {
   phone?: string | null;
   /** @nullable */
   email?: string | null;
-  lastKnownBalanceCop: number;
+  lastKnownBalance: number;
   lastCounter: number;
   flagged: boolean;
   /** @nullable */

@@ -120,9 +120,9 @@ export async function detectHighValueStaff(
   performedByUserId: string,
   eventId: string,
   transactionTime: Date,
-  grossAmountCop: number,
+  grossAmount: number,
 ) {
-  if (grossAmountCop < HIGH_VALUE_THRESHOLD_COP) return null;
+  if (grossAmount < HIGH_VALUE_THRESHOLD_COP) return null;
 
   try {
     const windowStart = new Date(transactionTime.getTime() - HIGH_VALUE_WINDOW_MS);
@@ -134,7 +134,7 @@ export async function detectHighValueStaff(
           eq(transactionLogsTable.performedByUserId, performedByUserId),
           eq(transactionLogsTable.eventId, eventId),
           gte(transactionLogsTable.createdAt, windowStart),
-          sql`${transactionLogsTable.grossAmountCop} >= ${HIGH_VALUE_THRESHOLD_COP}`,
+          sql`${transactionLogsTable.grossAmount} >= ${HIGH_VALUE_THRESHOLD_COP}`,
         ),
       );
 
@@ -156,14 +156,14 @@ export async function detectHighValueStaff(
 export async function detectBalanceIncreaseNoTopUp(
   nfcUid: string,
   eventId: string,
-  previousBalanceCop: number,
-  newBalanceCop: number,
+  previousBalance: number,
+  newBalance: number,
   transactionTime: Date,
 ) {
   try {
-    if (newBalanceCop <= previousBalanceCop) return null;
+    if (newBalance <= previousBalance) return null;
 
-    const balanceDiff = newBalanceCop - previousBalanceCop;
+    const balanceDiff = newBalance - previousBalance;
 
     const lastTxTime = new Date(transactionTime.getTime() - 60 * 1000);
     const recentTopUps = await db
@@ -184,7 +184,7 @@ export async function detectBalanceIncreaseNoTopUp(
       severity: "critical",
       entityType: "bracelet",
       entityId: nfcUid,
-      description: `Bracelet ${nfcUid} balance increased by ${balanceDiff} COP (from ${previousBalanceCop} to ${newBalanceCop}) without a registered top-up.`,
+      description: `Bracelet ${nfcUid} balance increased by ${balanceDiff} COP (from ${previousBalance} to ${newBalance}) without a registered top-up.`,
     });
   } catch {
     return null;
@@ -195,18 +195,18 @@ export async function runFraudDetection(params: {
   nfcUid: string;
   locationId: string;
   eventId: string;
-  grossAmountCop: number;
-  previousBalanceCop: number;
-  newBalanceCop: number;
+  grossAmount: number;
+  previousBalance: number;
+  newBalance: number;
   performedByUserId: string;
   transactionTime: Date;
 }) {
-  const { nfcUid, locationId, eventId, grossAmountCop, previousBalanceCop, newBalanceCop, performedByUserId, transactionTime } = params;
+  const { nfcUid, locationId, eventId, grossAmount, previousBalance, newBalance, performedByUserId, transactionTime } = params;
 
   await Promise.allSettled([
     detectDoubleLocation(nfcUid, locationId, eventId, transactionTime),
-    detectHighValueStaff(performedByUserId, eventId, transactionTime, grossAmountCop),
-    detectBalanceIncreaseNoTopUp(nfcUid, eventId, previousBalanceCop, newBalanceCop, transactionTime),
+    detectHighValueStaff(performedByUserId, eventId, transactionTime, grossAmount),
+    detectBalanceIncreaseNoTopUp(nfcUid, eventId, previousBalance, newBalance, transactionTime),
   ]);
 }
 

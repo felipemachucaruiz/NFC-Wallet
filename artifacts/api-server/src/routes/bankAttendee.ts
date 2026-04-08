@@ -3,6 +3,7 @@ import {
   db,
   braceletsTable,
   attendeeRefundRequestsTable,
+  eventsTable,
 } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
@@ -57,7 +58,7 @@ router.post(
 /**
  * GET /bank/attendee-refund-requests
  * List all attendee refund requests (for Bank staff).
- * Pending requests include liveAmountCop from the bracelet's current balance
+ * Pending requests include liveAmount from the bracelet's current balance
  * so staff always see the current value before approving, not the stale snapshot.
  */
 router.get(
@@ -70,7 +71,7 @@ router.get(
         attendeeUserId: attendeeRefundRequestsTable.attendeeUserId,
         braceletUid: attendeeRefundRequestsTable.braceletUid,
         eventId: attendeeRefundRequestsTable.eventId,
-        amountCop: attendeeRefundRequestsTable.amountCop,
+        amount: attendeeRefundRequestsTable.amount,
         refundMethod: attendeeRefundRequestsTable.refundMethod,
         accountDetails: attendeeRefundRequestsTable.accountDetails,
         notes: attendeeRefundRequestsTable.notes,
@@ -80,7 +81,7 @@ router.get(
         processedAt: attendeeRefundRequestsTable.processedAt,
         createdAt: attendeeRefundRequestsTable.createdAt,
         updatedAt: attendeeRefundRequestsTable.updatedAt,
-        liveAmountCop: braceletsTable.lastKnownBalanceCop,
+        liveAmount: braceletsTable.lastKnownBalance,
       })
       .from(attendeeRefundRequestsTable)
       .leftJoin(braceletsTable, eq(braceletsTable.nfcUid, attendeeRefundRequestsTable.braceletUid))
@@ -130,28 +131,28 @@ router.post(
         // Lock the bracelet row and read live balance — prevents concurrent
         // manual refunds from both zeroing the same balance
         const [bracelet] = await tx
-          .select({ lastKnownBalanceCop: braceletsTable.lastKnownBalanceCop })
+          .select({ lastKnownBalance: braceletsTable.lastKnownBalance })
           .from(braceletsTable)
           .where(eq(braceletsTable.nfcUid, request.braceletUid))
           .for("update");
 
         if (!bracelet) throw Object.assign(new Error("Bracelet not found"), { status: 404 });
 
-        const liveAmountCop = bracelet.lastKnownBalanceCop;
+        const liveAmount = bracelet.lastKnownBalance;
 
         // If approving but the bracelet already has no balance, a concurrent
         // refund already went through — return conflict so this attempt loses
-        if (parsed.data.status === "approved" && liveAmountCop <= 0) {
+        if (parsed.data.status === "approved" && liveAmount <= 0) {
           throw Object.assign(new Error("BALANCE_ALREADY_REFUNDED"), { status: 409 });
         }
 
-        // Only update amountCop on approval — rejection keeps the original
+        // Only update amount on approval — rejection keeps the original
         // snapshot amount for audit clarity; the bracelet balance isn't touched.
         const [result] = await tx
           .update(attendeeRefundRequestsTable)
           .set({
             status: parsed.data.status,
-            ...(parsed.data.status === "approved" ? { amountCop: liveAmountCop } : {}),
+            ...(parsed.data.status === "approved" ? { amount: liveAmount } : {}),
             processedByUserId: userId,
             processedAt: new Date(),
             notes: parsed.data.notes ?? request.notes,
@@ -163,22 +164,25 @@ router.post(
         if (parsed.data.status === "approved") {
           await tx
             .update(braceletsTable)
-            .set({ lastKnownBalanceCop: 0, updatedAt: new Date() })
+            .set({ lastKnownBalance: 0, updatedAt: new Date() })
             .where(eq(braceletsTable.nfcUid, request.braceletUid));
         }
 
         return result;
       });
 
+      const [refundEvent] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, updated.eventId)).limit(1);
       if (updated.status === "approved") {
         void notifyRefundRequestApproved({
           attendeeUserId: updated.attendeeUserId,
-          amountCop: updated.amountCop,
+          amount: updated.amount,
+          currencyCode: refundEvent?.currencyCode,
         });
       } else if (updated.status === "rejected") {
         void notifyRefundRequestRejected({
           attendeeUserId: updated.attendeeUserId,
-          amountCop: updated.amountCop,
+          amount: updated.amount,
+          currencyCode: refundEvent?.currencyCode,
         });
       }
 
@@ -277,17 +281,17 @@ router.post(
 
         if (!newBracelet) throw new Error("New bracelet not found. Register it first.");
 
-        const transferAmount = oldBracelet.lastKnownBalanceCop;
+        const transferAmount = oldBracelet.lastKnownBalance;
 
         await tx
           .update(braceletsTable)
-          .set({ lastKnownBalanceCop: 0, updatedAt: new Date() })
+          .set({ lastKnownBalance: 0, updatedAt: new Date() })
           .where(eq(braceletsTable.nfcUid, oldUid));
 
         await tx
           .update(braceletsTable)
           .set({
-            lastKnownBalanceCop: newBracelet.lastKnownBalanceCop + transferAmount,
+            lastKnownBalance: newBracelet.lastKnownBalance + transferAmount,
             attendeeUserId: oldBracelet.attendeeUserId,
             attendeeName: oldBracelet.attendeeName,
             phone: oldBracelet.phone,
@@ -297,7 +301,7 @@ router.post(
           })
           .where(eq(braceletsTable.nfcUid, newUid));
 
-        return { transferredAmountCop: transferAmount, newUid, oldUid };
+        return { transferredAmount: transferAmount, newUid, oldUid };
       });
 
       res.json(result);
@@ -347,17 +351,17 @@ router.post(
           throw new Error("New bracelet is already linked to a different attendee");
         }
 
-        const transferAmount = oldBracelet.lastKnownBalanceCop;
+        const transferAmount = oldBracelet.lastKnownBalance;
 
         await tx
           .update(braceletsTable)
-          .set({ lastKnownBalanceCop: 0, updatedAt: new Date() })
+          .set({ lastKnownBalance: 0, updatedAt: new Date() })
           .where(eq(braceletsTable.nfcUid, oldUid));
 
         await tx
           .update(braceletsTable)
           .set({
-            lastKnownBalanceCop: newBracelet.lastKnownBalanceCop + transferAmount,
+            lastKnownBalance: newBracelet.lastKnownBalance + transferAmount,
             attendeeUserId: oldBracelet.attendeeUserId,
             attendeeName: oldBracelet.attendeeName,
             phone: oldBracelet.phone,
@@ -370,7 +374,7 @@ router.post(
           .where(eq(braceletsTable.nfcUid, newUid));
 
         return {
-          transferredAmountCop: transferAmount,
+          transferredAmount: transferAmount,
           newUid,
           oldUid,
           attendeeUserId: oldBracelet.attendeeUserId,

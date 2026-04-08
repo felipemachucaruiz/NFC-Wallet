@@ -27,25 +27,25 @@ export default function AdminDashboardScreen() {
   );
 
   const revenue = revenueData as {
-    totalTopUpsCop?: number;
-    totalSalesCop?: number;
-    totalCogsCop?: number;
-    grossProfitCop?: number;
-    totalCommissionsCop?: number;
-    netOwedToMerchantsCop?: number;
-    platformRevenueCop?: number;
+    totalTopUps?: number;
+    totalSales?: number;
+    totalCogs?: number;
+    grossProfit?: number;
+    totalCommissions?: number;
+    netOwedToMerchants?: number;
+    platformRevenue?: number;
     transactionCount?: number;
     topUpCount?: number;
     braceletCount?: number;
   } | undefined;
 
   const kpiCards = [
-    { label: t("admin.totalTopUps"), value: revenue?.totalTopUpsCop, icon: "trending-up" as const, color: C.primary },
-    { label: t("admin.totalSales"), value: revenue?.totalSalesCop, icon: "shopping-bag" as const, color: C.success },
-    { label: t("admin.grossProfit"), value: revenue?.grossProfitCop, icon: "dollar-sign" as const, color: C.success },
-    { label: t("admin.totalCommissions"), value: revenue?.totalCommissionsCop, icon: "percent" as const, color: C.warning },
-    { label: t("admin.platformRevenue"), value: revenue?.platformRevenueCop, icon: "zap" as const, color: C.primary },
-    { label: t("admin.netOwedToMerchants"), value: revenue?.netOwedToMerchantsCop, icon: "credit-card" as const, color: C.textSecondary },
+    { label: t("admin.totalTopUps"), value: revenue?.totalTopUps, icon: "trending-up" as const, color: C.primary },
+    { label: t("admin.totalSales"), value: revenue?.totalSales, icon: "shopping-bag" as const, color: C.success },
+    { label: t("admin.grossProfit"), value: revenue?.grossProfit, icon: "dollar-sign" as const, color: C.success },
+    { label: t("admin.totalCommissions"), value: revenue?.totalCommissions, icon: "percent" as const, color: C.warning },
+    { label: t("admin.platformRevenue"), value: revenue?.platformRevenue, icon: "zap" as const, color: C.primary },
+    { label: t("admin.netOwedToMerchants"), value: revenue?.netOwedToMerchants, icon: "credit-card" as const, color: C.textSecondary },
   ];
 
   return (
@@ -85,7 +85,7 @@ export default function AdminDashboardScreen() {
             <View style={styles.platformRow}>
               <View>
                 <Text style={styles.platformLabel}>{t("admin.platformRevenue")}</Text>
-                <CopAmount amount={revenue?.platformRevenueCop} size={38} color="#0a0a0a" />
+                <CopAmount amount={revenue?.platformRevenue} size={38} color="#0a0a0a" />
               </View>
               <View style={[styles.platformIconBox, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
                 <Feather name="zap" size={28} color="#0a0a0a" />

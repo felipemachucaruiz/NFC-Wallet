@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Eye, Receipt } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { formatCurrency } from "@/lib/currency";
 
 type TxType = "sale" | "topup" | "all";
 
@@ -45,6 +46,8 @@ export default function Transactions() {
   const transactions = showSales ? (salesData?.transactions ?? []) : [];
   const topUps = showTopUps ? (topUpsData?.topUps ?? []) : [];
   const isLoading = (showSales && salesLoading) || (showTopUps && topUpsLoading);
+  const currency = (events.find((e) => e.id === eventId) as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
+  const fmt = (n: number) => formatCurrency(n, currency);
 
   const [search, setSearch] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
@@ -61,7 +64,7 @@ export default function Transactions() {
     kind: "sale" | "topup";
     id: string;
     braceletUid: string;
-    amountCop: number;
+    amount: number;
     createdAt: string;
     sale?: EventTransaction;
     topUp?: EventTopUp;
@@ -74,7 +77,7 @@ export default function Transactions() {
         kind: "sale",
         id: tx.id,
         braceletUid: tx.braceletUid,
-        amountCop: tx.grossAmountCop,
+        amount: tx.grossAmount,
         createdAt: tx.createdAt,
         sale: tx,
       });
@@ -86,7 +89,7 @@ export default function Transactions() {
         kind: "topup",
         id: tu.id,
         braceletUid: tu.braceletUid,
-        amountCop: tu.amountCop,
+        amount: tu.amount,
         createdAt: tu.createdAt,
         topUp: tu,
       });
@@ -194,7 +197,7 @@ export default function Transactions() {
                     ) : "—"}
                   </TableCell>
                   <TableCell className={`text-right font-mono ${row.kind === "topup" ? "text-green-500" : ""}`}>
-                    {row.kind === "topup" ? "+" : "-"}${row.amountCop.toLocaleString()}
+                    {row.kind === "topup" ? "+" : "-"}{fmt(row.amount)}
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={() => {
@@ -228,9 +231,9 @@ export default function Transactions() {
                 <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelBracelet")}</p><p className="font-mono">{selected.braceletUid}</p></div>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelGross")}</p><p className="font-mono font-bold">${selected.grossAmountCop.toLocaleString()}</p></div>
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelCommission")}</p><p className="font-mono">${selected.commissionAmountCop.toLocaleString()}</p></div>
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelNet")}</p><p className="font-mono font-bold">${selected.netAmountCop.toLocaleString()}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelGross")}</p><p className="font-mono font-bold">{fmt(selected.grossAmount)}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelCommission")}</p><p className="font-mono">{fmt(selected.commissionAmount)}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelNet")}</p><p className="font-mono font-bold">{fmt(selected.netAmount)}</p></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelLocation")}</p><p>{selected.locationName ?? selected.locationId.slice(0, 8)}</p></div>
@@ -243,7 +246,7 @@ export default function Transactions() {
                     {selected.items.map((item, i) => (
                       <div key={i} className="flex justify-between text-sm">
                         <span>{item.productName ?? item.productId ?? t("transactions.unknown")} x{item.quantity}</span>
-                        <span className="font-mono">${(item.unitPrice * item.quantity).toLocaleString()}</span>
+                        <span className="font-mono">{fmt(item.unitPrice * item.quantity)}</span>
                       </div>
                     ))}
                   </div>
@@ -265,8 +268,8 @@ export default function Transactions() {
                 <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelBracelet")}</p><p className="font-mono">{selectedTopUp.braceletUid}</p></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.colAmount")}</p><p className="font-mono font-bold text-green-500">+${selectedTopUp.amountCop.toLocaleString()} COP</p></div>
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.topUpNewBalance")}</p><p className="font-mono">${selectedTopUp.newBalanceCop.toLocaleString()} COP</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.colAmount")}</p><p className="font-mono font-bold text-green-500">+{fmt(selectedTopUp.amount)}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.topUpNewBalance")}</p><p className="font-mono">{fmt(selectedTopUp.newBalance)}</p></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.topUpMethod")}</p><p>{paymentMethodLabel(selectedTopUp.paymentMethod)}</p></div>

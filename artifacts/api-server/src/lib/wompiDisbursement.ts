@@ -37,7 +37,7 @@ async function fetchWompiAcceptanceToken(): Promise<string> {
 
 export async function initiateWompiDisbursement(
   refundRequestId: string,
-  amountCop: number,
+  amount: number,
   target: DisbursementTarget,
   customerEmail: string,
 ): Promise<DisbursementOutcome> {
@@ -49,7 +49,7 @@ export async function initiateWompiDisbursement(
 
   try {
     const acceptanceToken = await fetchWompiAcceptanceToken();
-    const amountCentavos = amountCop * 100;
+    const amountCentavos = amount * 100;
 
     let paymentMethodBody: Record<string, unknown>;
 

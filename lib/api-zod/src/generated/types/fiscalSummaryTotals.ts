@@ -7,11 +7,11 @@
  */
 
 export interface FiscalSummaryTotals {
-  totalBrutoCop: number;
-  totalIvaCop: number;
-  totalRetencionFuenteCop: number;
-  totalRetencionICACop: number;
-  totalRetencionesCop: number;
-  totalComisionCop: number;
-  totalNetoCop: number;
+  totalBruto: number;
+  totalIva: number;
+  totalRetencionFuente: number;
+  totalRetencionICA: number;
+  totalRetenciones: number;
+  totalComision: number;
+  totalNeto: number;
 }

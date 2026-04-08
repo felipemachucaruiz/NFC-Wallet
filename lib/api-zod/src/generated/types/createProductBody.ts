@@ -14,9 +14,9 @@ export interface CreateProductBody {
   /** Optional barcode for PDA hardware scanner lookup */
   barcode?: string;
   /** @minimum 0 */
-  priceCop: number;
+  price: number;
   /** @minimum 0 */
-  costCop?: number;
+  cost?: number;
   /**
    * Tasa de IVA en porcentaje
    * @pattern ^\d+(\.\d{1,2})?$

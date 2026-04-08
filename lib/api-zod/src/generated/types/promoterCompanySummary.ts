@@ -11,9 +11,9 @@ export interface PromoterCompanySummary {
   companyId: string;
   companyName: string;
   eventCount: number;
-  totalRevenueCop: number;
-  totalTopupsCop: number;
-  totalUnclaimedCop: number;
+  totalRevenue: number;
+  totalTopups: number;
+  totalUnclaimed: number;
   totalAttendees: number;
   events?: PromoterCompanySummaryEventsItem[];
 }

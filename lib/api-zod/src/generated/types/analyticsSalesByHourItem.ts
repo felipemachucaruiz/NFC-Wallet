@@ -13,6 +13,6 @@ export interface AnalyticsSalesByHourItem {
    */
   hour: number;
   day: string;
-  totalCop: number;
+  total: number;
   txCount: number;
 }

@@ -14,10 +14,10 @@ export interface TransactionLog {
   locationId: string;
   merchantId: string;
   eventId: string;
-  grossAmountCop: number;
-  commissionAmountCop: number;
-  netAmountCop: number;
-  newBalanceCop: number;
+  grossAmount: number;
+  commissionAmount: number;
+  netAmount: number;
+  newBalance: number;
   counter: number;
   /** @nullable */
   performedByUserId?: string | null;

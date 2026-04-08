@@ -3,8 +3,8 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 export interface CartItem {
   productId: string;
   name: string;
-  priceCop: number;
-  costCop: number;
+  price: number;
+  cost: number;
   quantity: number;
   stockAvailable: number;
 }
@@ -58,7 +58,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = useCallback(() => setItems([]), []);
 
-  const total = items.reduce((sum, i) => sum + i.priceCop * i.quantity, 0);
+  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
 
   return (

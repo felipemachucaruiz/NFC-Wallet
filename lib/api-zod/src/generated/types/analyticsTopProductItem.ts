@@ -10,8 +10,8 @@ export interface AnalyticsTopProductItem {
   productId: string | null;
   productName: string;
   totalUnits: number;
-  totalRevenueCop: number;
-  totalCogsCop: number;
-  grossProfitCop: number;
+  totalRevenue: number;
+  totalCogs: number;
+  grossProfit: number;
   profitMarginPercent: number;
 }

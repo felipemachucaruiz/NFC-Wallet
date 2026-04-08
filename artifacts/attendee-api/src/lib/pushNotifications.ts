@@ -68,11 +68,12 @@ async function getTokensForUser(userId: string): Promise<string[]> {
   }
 }
 
-export async function notifyTopUpSuccess(braceletUid: string, amountCop: number, newBalanceCop: number): Promise<void> {
+export async function notifyTopUpSuccess(braceletUid: string, amount: number, newBalance: number, currencyCode: string = "COP"): Promise<void> {
   const tokens = await getTokensForBraceletOwner(braceletUid);
   if (tokens.length === 0) return;
-  const formatted = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amountCop);
-  const balanceFormatted = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(newBalanceCop);
+  const decimals = ["COP", "CLP"].includes(currencyCode) ? 0 : 2;
+  const formatted = new Intl.NumberFormat("es-CO", { style: "currency", currency: currencyCode, maximumFractionDigits: decimals }).format(amount);
+  const balanceFormatted = new Intl.NumberFormat("es-CO", { style: "currency", currency: currencyCode, maximumFractionDigits: decimals }).format(newBalance);
   const messages: PushMessage[] = tokens.map((to) => ({
     to,
     title: "¡Recarga exitosa!",
@@ -83,10 +84,11 @@ export async function notifyTopUpSuccess(braceletUid: string, amountCop: number,
   await sendPushNotifications(messages);
 }
 
-export async function notifyTopUpFailed(userId: string, amountCop: number): Promise<void> {
+export async function notifyTopUpFailed(userId: string, amount: number, currencyCode: string = "COP"): Promise<void> {
   const tokens = await getTokensForUser(userId);
   if (tokens.length === 0) return;
-  const formatted = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amountCop);
+  const decimals = ["COP", "CLP"].includes(currencyCode) ? 0 : 2;
+  const formatted = new Intl.NumberFormat("es-CO", { style: "currency", currency: currencyCode, maximumFractionDigits: decimals }).format(amount);
   const messages: PushMessage[] = tokens.map((to) => ({
     to,
     title: "Recarga fallida",

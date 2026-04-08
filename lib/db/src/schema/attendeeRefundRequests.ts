@@ -26,7 +26,7 @@ export const attendeeRefundRequestsTable = pgTable(
     attendeeUserId: varchar("attendee_user_id").notNull().references(() => usersTable.id),
     braceletUid: varchar("bracelet_uid", { length: 64 }).notNull(),
     eventId: varchar("event_id").notNull(),
-    amountCop: integer("amount_cop").notNull(),
+    amount: integer("amount").notNull(),
     refundMethod: attendeeRefundMethodEnum("refund_method").notNull(),
     accountDetails: text("account_details"),
     notes: text("notes"),
@@ -41,11 +41,6 @@ export const attendeeRefundRequestsTable = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (t) => ({
-    // Ensures only one pending refund request exists per bracelet at any time.
-    // The index is partial (WHERE status='pending') so approved/rejected rows
-    // do not conflict — historical records are preserved for auditing.
-    // This index already exists in production: CREATE UNIQUE INDEX uniq_pending_refund_per_bracelet
-    // ON attendee_refund_requests(bracelet_uid) WHERE status='pending';
     uniqPendingRefundPerBracelet: uniqueIndex("uniq_pending_refund_per_bracelet")
       .on(t.braceletUid)
       .where(sql`${t.status} = 'pending'`),

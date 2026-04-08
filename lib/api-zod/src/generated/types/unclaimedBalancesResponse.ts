@@ -9,5 +9,5 @@ import type { UnclaimedBracelet } from "./unclaimedBracelet";
 
 export interface UnclaimedBalancesResponse {
   bracelets: UnclaimedBracelet[];
-  totalUnclaimedCop: number;
+  totalUnclaimed: number;
 }

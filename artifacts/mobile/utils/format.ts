@@ -1,13 +1,27 @@
+const CURRENCY_CONFIGS: Record<string, { symbol: string; locale: string; decimals: number }> = {
+  COP: { symbol: "$", locale: "es-CO", decimals: 0 },
+  MXN: { symbol: "$", locale: "es-MX", decimals: 2 },
+  CLP: { symbol: "$", locale: "es-CL", decimals: 0 },
+  ARS: { symbol: "$", locale: "es-AR", decimals: 2 },
+  PEN: { symbol: "S/", locale: "es-PE", decimals: 2 },
+  UYU: { symbol: "$U", locale: "es-UY", decimals: 2 },
+  BOB: { symbol: "Bs", locale: "es-BO", decimals: 2 },
+  BRL: { symbol: "R$", locale: "pt-BR", decimals: 2 },
+  USD: { symbol: "$", locale: "en-US", decimals: 2 },
+};
+
+export function formatCurrency(amount: number | undefined | null, currencyCode: string = "COP"): string {
+  if (amount == null) return formatCurrency(0, currencyCode);
+  const config = CURRENCY_CONFIGS[currencyCode] || CURRENCY_CONFIGS.COP;
+  const rounded = config.decimals === 0 ? Math.round(amount) : amount;
+  return config.symbol + rounded.toLocaleString(config.locale, {
+    minimumFractionDigits: config.decimals,
+    maximumFractionDigits: config.decimals,
+  });
+}
+
 export function formatCOP(amount: number | undefined | null): string {
-  if (amount == null) return "$0";
-  const rounded = Math.round(amount);
-  return (
-    "$" +
-    rounded.toLocaleString("es-CO", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    })
-  );
+  return formatCurrency(amount, "COP");
 }
 
 export function formatPercent(value: number | undefined | null): string {

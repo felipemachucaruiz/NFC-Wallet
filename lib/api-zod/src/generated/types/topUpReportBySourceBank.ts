@@ -7,6 +7,6 @@
  */
 
 export type TopUpReportBySourceBank = {
-  totalCop: number;
+  total: number;
   count: number;
 };

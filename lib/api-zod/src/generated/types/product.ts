@@ -17,8 +17,8 @@ export interface Product {
    * @nullable
    */
   barcode?: string | null;
-  priceCop: number;
-  costCop: number;
+  price: number;
+  cost: number;
   /** Porcentaje de IVA aplicable al producto (ej: '19.00') */
   ivaRate: string;
   /** True si el producto está excluido de IVA (canasta básica, etc.) */

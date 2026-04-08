@@ -32,7 +32,7 @@ const NFC_TAG_IMAGE = require("@/assets/images/tapee-nfc-tag.png");
 
 type BraceletItem = {
   uid: string;
-  balanceCop: number;
+  balance: number;
   flagged: boolean;
   flagReason?: string | null;
   pendingRefund?: boolean;
@@ -114,7 +114,7 @@ export default function HomeScreen() {
     b.refundStatus === "disbursement_completed" || (b.event && !b.event.active);
   const activeBracelets = bracelets.filter((b) => !isArchived(b));
   const archivedBracelets = bracelets.filter((b) => isArchived(b));
-  const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balanceCop, 0);
+  const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balance, 0);
   const activeBracelet = activeBracelets.find((b) => b.event?.active) ?? activeBracelets[0] ?? null;
 
   const [manualRefreshing, setManualRefreshing] = useState(false);
@@ -377,7 +377,7 @@ export default function HomeScreen() {
                           </Text>
                         )}
                         <View style={{ marginTop: 4 }}>
-                          <CopAmount amount={b.balanceCop} size={18} />
+                          <CopAmount amount={b.balance} size={18} />
                         </View>
                         {b.flagged && !hasActiveRefund && (
                           <View style={{ marginTop: 6 }}>
@@ -429,7 +429,7 @@ export default function HomeScreen() {
                         style={styles.actionBtn}
                         onPress={() => router.push({
                           pathname: "/unlink-bracelet",
-                          params: { uid: b.uid, balance: String(b.balanceCop) },
+                          params: { uid: b.uid, balance: String(b.balance) },
                         })}
                       >
                         <View style={[styles.actionIcon, { backgroundColor: "#4C1D9520" }]}>
@@ -446,12 +446,12 @@ export default function HomeScreen() {
                         </View>
                         <Text style={[styles.actionText, { color: C.danger }]}>{t("home.blockBracelet")}</Text>
                       </Pressable>
-                      {b.balanceCop > 0 && (
+                      {b.balance > 0 && (
                         <Pressable
                           style={styles.actionBtn}
                           onPress={() => router.push({
                             pathname: "/refund-request",
-                            params: { uid: b.uid, balance: String(b.balanceCop) },
+                            params: { uid: b.uid, balance: String(b.balance) },
                           })}
                         >
                           <View style={[styles.actionIcon, { backgroundColor: C.warningLight }]}>

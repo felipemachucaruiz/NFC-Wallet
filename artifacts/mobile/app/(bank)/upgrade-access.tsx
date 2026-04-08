@@ -35,7 +35,7 @@ type FlowStep = "select" | "confirm" | "writing" | "done" | "error";
 /** An upgrade option returned by the API — extends AccessZone with computed pricing */
 interface UpgradeOption extends AccessZone {
   /** Cumulative price to reach this zone from current level (sum of all step prices) */
-  totalUpgradePriceCop: number;
+  totalUpgradePrice: number;
   /** All zones that will be added when upgrading to this target (including intermediate ones) */
   zonesGranted: AccessZone[];
 }
@@ -108,7 +108,7 @@ export default function UpgradeAccessScreen() {
     }, [])
   );
 
-  // Load available upgrades from server (now includes totalUpgradePriceCop and zonesGranted)
+  // Load available upgrades from server (now includes totalUpgradePrice and zonesGranted)
   useEffect(() => {
     if (!uid || !token) return;
     setLoadingUpgrades(true);
@@ -127,7 +127,7 @@ export default function UpgradeAccessScreen() {
           body.availableUpgrades.map((opt) => ({
             ...opt,
             zonesGranted: opt.zonesGranted ?? [],
-            totalUpgradePriceCop: opt.totalUpgradePriceCop ?? opt.upgradePriceCop ?? 0,
+            totalUpgradePrice: opt.totalUpgradePrice ?? opt.upgradePrice ?? 0,
           })),
         );
         setMaxAccess(body.atMaxLevel);
@@ -346,8 +346,8 @@ export default function UpgradeAccessScreen() {
                   <View key={z.id} style={styles.breakdownRow}>
                     <View style={[styles.zoneDotLg, { backgroundColor: z.colorHex }]} />
                     <Text style={[styles.breakdownZoneName, { color: C.text }]}>{z.name}</Text>
-                    {z.upgradePriceCop != null && z.upgradePriceCop > 0 ? (
-                      <CopAmount amount={z.upgradePriceCop} size={14} />
+                    {z.upgradePrice != null && z.upgradePrice > 0 ? (
+                      <CopAmount amount={z.upgradePrice} size={14} />
                     ) : (
                       <View style={[styles.freeBadge, { backgroundColor: C.successLight, borderColor: C.success }]}>
                         <Text style={[styles.freeBadgeText, { color: C.success }]}>{t("zones.free")}</Text>
@@ -358,7 +358,7 @@ export default function UpgradeAccessScreen() {
                 {/* Total line */}
                 <View style={[styles.totalRow, { borderTopColor: C.border }]}>
                   <Text style={[styles.totalLabel, { color: C.text }]}>{t("zones.totalToPay")}</Text>
-                  <CopAmount amount={selectedOption.totalUpgradePriceCop} size={20} />
+                  <CopAmount amount={selectedOption.totalUpgradePrice} size={20} />
                 </View>
               </View>
             )}
@@ -449,8 +449,8 @@ export default function UpgradeAccessScreen() {
                           )}
                         </View>
                         {/* Show TOTAL cumulative price, not just this zone's price */}
-                        {opt.totalUpgradePriceCop > 0 ? (
-                          <CopAmount amount={opt.totalUpgradePriceCop} size={16} />
+                        {opt.totalUpgradePrice > 0 ? (
+                          <CopAmount amount={opt.totalUpgradePrice} size={16} />
                         ) : (
                           <View style={[styles.freeBadge, { backgroundColor: C.successLight, borderColor: C.success }]}>
                             <Text style={[styles.freeBadgeText, { color: C.success }]}>{t("zones.free")}</Text>

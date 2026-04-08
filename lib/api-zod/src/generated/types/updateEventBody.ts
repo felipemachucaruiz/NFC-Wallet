@@ -6,12 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { InventoryMode } from "./inventoryMode";
+import type { UpdateEventBodyCurrencyCode } from "./updateEventBodyCurrencyCode";
 
 export interface UpdateEventBody {
   /** @minLength 1 */
   name?: string;
   description?: string;
   venueAddress?: string;
+  currencyCode?: UpdateEventBodyCurrencyCode;
   startsAt?: Date;
   endsAt?: Date;
   active?: boolean;

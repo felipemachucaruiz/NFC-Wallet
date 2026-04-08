@@ -193,12 +193,27 @@ export interface PromoterCompanySummary {
   companyId: string;
   companyName: string;
   eventCount: number;
-  totalRevenueCop: number;
-  totalTopupsCop: number;
-  totalUnclaimedCop: number;
+  totalRevenue: number;
+  totalTopups: number;
+  totalUnclaimed: number;
   totalAttendees: number;
   events?: PromoterCompanySummaryEventsItem[];
 }
+
+export type EventCurrencyCode =
+  (typeof EventCurrencyCode)[keyof typeof EventCurrencyCode];
+
+export const EventCurrencyCode = {
+  COP: "COP",
+  MXN: "MXN",
+  CLP: "CLP",
+  ARS: "ARS",
+  PEN: "PEN",
+  UYU: "UYU",
+  BOB: "BOB",
+  BRL: "BRL",
+  USD: "USD",
+} as const;
 
 export interface Event {
   id: string;
@@ -212,25 +227,58 @@ export interface Event {
   /** @nullable */
   endsAt?: string | null;
   active: boolean;
+  currencyCode: EventCurrencyCode;
   inventoryMode?: InventoryMode;
   createdAt: string;
 }
+
+export type CreateEventBodyCurrencyCode =
+  (typeof CreateEventBodyCurrencyCode)[keyof typeof CreateEventBodyCurrencyCode];
+
+export const CreateEventBodyCurrencyCode = {
+  COP: "COP",
+  MXN: "MXN",
+  CLP: "CLP",
+  ARS: "ARS",
+  PEN: "PEN",
+  UYU: "UYU",
+  BOB: "BOB",
+  BRL: "BRL",
+  USD: "USD",
+} as const;
 
 export interface CreateEventBody {
   /** @minLength 1 */
   name: string;
   description?: string;
   venueAddress?: string;
+  currencyCode?: CreateEventBodyCurrencyCode;
   startsAt?: string;
   endsAt?: string;
   inventoryMode?: InventoryMode;
 }
+
+export type UpdateEventBodyCurrencyCode =
+  (typeof UpdateEventBodyCurrencyCode)[keyof typeof UpdateEventBodyCurrencyCode];
+
+export const UpdateEventBodyCurrencyCode = {
+  COP: "COP",
+  MXN: "MXN",
+  CLP: "CLP",
+  ARS: "ARS",
+  PEN: "PEN",
+  UYU: "UYU",
+  BOB: "BOB",
+  BRL: "BRL",
+  USD: "USD",
+} as const;
 
 export interface UpdateEventBody {
   /** @minLength 1 */
   name?: string;
   description?: string;
   venueAddress?: string;
+  currencyCode?: UpdateEventBodyCurrencyCode;
   startsAt?: string;
   endsAt?: string;
   active?: boolean;
@@ -248,7 +296,7 @@ export interface Bracelet {
   phone?: string | null;
   /** @nullable */
   email?: string | null;
-  lastKnownBalanceCop: number;
+  lastKnownBalance: number;
   lastCounter: number;
   flagged: boolean;
   /** @nullable */
@@ -284,7 +332,7 @@ export interface Refund {
   id: string;
   braceletUid: string;
   eventId: string;
-  amountCop: number;
+  amount: number;
   refundMethod: RefundMethod;
   /** @nullable */
   notes?: string | null;
@@ -300,12 +348,12 @@ export interface CreateRefundBody {
   /** Updated counter after NFC write (for bracelet sync) */
   newCounter?: number;
   /** New bracelet balance after refund (typically 0) */
-  newBalanceCop?: number;
+  newBalance?: number;
 }
 
 export interface RefundResult {
   refund: Refund;
-  amountCop: number;
+  amount: number;
 }
 
 export interface UnclaimedBracelet {
@@ -319,7 +367,7 @@ export interface UnclaimedBracelet {
   phone?: string | null;
   /** @nullable */
   email?: string | null;
-  lastKnownBalanceCop: number;
+  lastKnownBalance: number;
   lastCounter: number;
   flagged: boolean;
   /** @nullable */
@@ -330,7 +378,7 @@ export interface UnclaimedBracelet {
 
 export interface UnclaimedBalancesResponse {
   bracelets: UnclaimedBracelet[];
-  totalUnclaimedCop: number;
+  totalUnclaimed: number;
 }
 
 export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod];
@@ -354,13 +402,13 @@ export const TopUpStatus = {
 export interface TopUp {
   id: string;
   braceletUid: string;
-  amountCop: number;
+  amount: number;
   paymentMethod: PaymentMethod;
   performedByUserId?: string;
   /** @nullable */
   wompiTransactionId?: string | null;
   status: TopUpStatus;
-  newBalanceCop: number;
+  newBalance: number;
   newCounter: number;
   createdAt: string;
 }
@@ -369,7 +417,7 @@ export interface CreateTopUpBody {
   /** @minLength 1 */
   nfcUid: string;
   /** @minimum 1 */
-  amountCop: number;
+  amount: number;
   paymentMethod: PaymentMethod;
   wompiTransactionId?: string;
 }
@@ -389,7 +437,7 @@ export type ShiftTopUpSummaryByPaymentMethod = { [key: string]: number };
 
 export interface ShiftTopUpSummary {
   topUps: TopUp[];
-  totalCop: number;
+  total: number;
   byPaymentMethod: ShiftTopUpSummaryByPaymentMethod;
 }
 
@@ -453,9 +501,9 @@ export interface MerchantPayout {
   eventId: string;
   periodFrom: string;
   periodTo: string;
-  grossSalesCop: number;
-  commissionCop: number;
-  netPayoutCop: number;
+  grossSales: number;
+  commission: number;
+  netPayout: number;
   paymentMethod: PayoutPaymentMethod;
   /** @nullable */
   referenceNote?: string | null;
@@ -466,26 +514,26 @@ export interface MerchantPayout {
 
 export interface MerchantEarnings {
   merchantId: string;
-  grossSalesCop: number;
-  cogsCop: number;
-  grossProfitCop: number;
+  grossSales: number;
+  cogs: number;
+  grossProfit: number;
   profitMarginPercent: number;
   /** Alias for profitMarginPercent */
   marginPercent: number;
-  totalCommissionCop: number;
-  netEarnedCop: number;
-  totalPaidOutCop: number;
-  pendingCop: number;
+  totalCommission: number;
+  netEarned: number;
+  totalPaidOut: number;
+  pending: number;
   /** Total IVA recaudado en ventas */
-  totalIvaCop: number;
+  totalIva: number;
   /** Total retención en la fuente aplicada */
-  totalRetencionFuenteCop: number;
+  totalRetencionFuente: number;
   /** Total retención de ICA aplicada */
-  totalRetencionICACop: number;
+  totalRetencionICA: number;
   /** Total retenciones (fuente + ICA) */
-  totalRetencionesCop: number;
+  totalRetenciones: number;
   /** Neto efectivo para el merchant (bruto - comisión - retenciones) */
-  totalNetoCop: number;
+  totalNeto: number;
   payouts?: MerchantPayout[];
 }
 
@@ -526,8 +574,8 @@ export interface Product {
    * @nullable
    */
   barcode?: string | null;
-  priceCop: number;
-  costCop: number;
+  price: number;
+  cost: number;
   /** Porcentaje de IVA aplicable al producto (ej: '19.00') */
   ivaRate: string;
   /** True si el producto está excluido de IVA (canasta básica, etc.) */
@@ -544,9 +592,9 @@ export interface CreateProductBody {
   /** Optional barcode for PDA hardware scanner lookup */
   barcode?: string;
   /** @minimum 0 */
-  priceCop: number;
+  price: number;
   /** @minimum 0 */
-  costCop?: number;
+  cost?: number;
   /**
    * Tasa de IVA en porcentaje
    * @pattern ^\d+(\.\d{1,2})?$
@@ -571,9 +619,9 @@ export interface UpdateProductBody {
    */
   imageUrl?: string | null;
   /** @minimum 0 */
-  priceCop?: number;
+  price?: number;
   /** @minimum 0 */
-  costCop?: number;
+  cost?: number;
   active?: boolean;
   /**
    * Tasa de IVA en porcentaje
@@ -873,10 +921,10 @@ export interface TransactionLog {
   locationId: string;
   merchantId: string;
   eventId: string;
-  grossAmountCop: number;
-  commissionAmountCop: number;
-  netAmountCop: number;
-  newBalanceCop: number;
+  grossAmount: number;
+  commissionAmount: number;
+  netAmount: number;
+  newBalance: number;
   counter: number;
   /** @nullable */
   performedByUserId?: string | null;
@@ -942,7 +990,7 @@ export interface PayoutTransactionsResponse {
 }
 
 export interface RefundMethodBreakdown {
-  totalCop: number;
+  total: number;
   count: number;
 }
 
@@ -951,47 +999,47 @@ export type RefundReportByRefundMethod = {
 };
 
 export interface RefundReport {
-  totalRefundedCop: number;
+  totalRefunded: number;
   count: number;
   byRefundMethod: RefundReportByRefundMethod;
 }
 
 export interface RevenueReportRow {
-  grossSalesCop: number;
-  cogsCop: number;
-  grossProfitCop: number;
+  grossSales: number;
+  cogs: number;
+  grossProfit: number;
   profitMarginPercent: number;
-  commissionCop: number;
-  netCop: number;
+  commission: number;
+  net: number;
   transactionCount: number;
-  totalIvaCop: number;
-  totalRetencionFuenteCop: number;
-  totalRetencionICACop: number;
-  totalRetencionesCop: number;
-  totalNetoCop: number;
+  totalIva: number;
+  totalRetencionFuente: number;
+  totalRetencionICA: number;
+  totalRetenciones: number;
+  totalNeto: number;
 }
 
 export interface FiscalSummaryRow {
   merchantId: string;
   merchantName: string;
   transactionCount: number;
-  totalBrutoCop: number;
-  totalIvaCop: number;
-  totalRetencionFuenteCop: number;
-  totalRetencionICACop: number;
-  totalRetencionesCop: number;
-  totalComisionCop: number;
-  totalNetoCop: number;
+  totalBruto: number;
+  totalIva: number;
+  totalRetencionFuente: number;
+  totalRetencionICA: number;
+  totalRetenciones: number;
+  totalComision: number;
+  totalNeto: number;
 }
 
 export interface FiscalSummaryTotals {
-  totalBrutoCop: number;
-  totalIvaCop: number;
-  totalRetencionFuenteCop: number;
-  totalRetencionICACop: number;
-  totalRetencionesCop: number;
-  totalComisionCop: number;
-  totalNetoCop: number;
+  totalBruto: number;
+  totalIva: number;
+  totalRetencionFuente: number;
+  totalRetencionICA: number;
+  totalRetenciones: number;
+  totalComision: number;
+  totalNeto: number;
 }
 
 export type RevenueReportByMerchantItemByLocationItem = {
@@ -1020,17 +1068,17 @@ export type TopUpReportByUserItem = {
   firstName?: string | null;
   /** @nullable */
   lastName?: string | null;
-  totalCop: number;
+  total: number;
   count: number;
 };
 
 export type TopUpReportBySourceBank = {
-  totalCop: number;
+  total: number;
   count: number;
 };
 
 export type TopUpReportBySourceDigital = {
-  totalCop: number;
+  total: number;
   count: number;
 };
 
@@ -1040,7 +1088,7 @@ export type TopUpReportBySource = {
 };
 
 export interface TopUpReport {
-  totalCop: number;
+  total: number;
   byPaymentMethod: TopUpReportByPaymentMethod;
   byUser: TopUpReportByUserItem[];
   bySource: TopUpReportBySource;
@@ -1101,7 +1149,7 @@ export interface InitiateDigitalTopUpBody {
   /** @minLength 1 */
   braceletUid: string;
   /** @minimum 1000 */
-  amountCop: number;
+  amount: number;
   paymentMethod: InitiateDigitalTopUpBodyPaymentMethod;
   phoneNumber?: string;
   bankCode?: string;
@@ -1130,9 +1178,9 @@ export interface TamperReportBody {
 }
 
 export interface AnalyticsSummary {
-  totalTopUpsCop: number;
-  totalSalesCop: number;
-  pendingBalanceCop: number;
+  totalTopUps: number;
+  totalSales: number;
+  pendingBalance: number;
   transactionCount: number;
   topUpCount: number;
 }
@@ -1144,7 +1192,7 @@ export interface AnalyticsSalesByHourItem {
    */
   hour: number;
   day: string;
-  totalCop: number;
+  total: number;
   txCount: number;
 }
 
@@ -1156,9 +1204,9 @@ export interface AnalyticsTopProductItem {
   productId: string | null;
   productName: string;
   totalUnits: number;
-  totalRevenueCop: number;
-  totalCogsCop: number;
-  grossProfitCop: number;
+  totalRevenue: number;
+  totalCogs: number;
+  grossProfit: number;
   profitMarginPercent: number;
 }
 
@@ -1169,11 +1217,11 @@ export interface AnalyticsTopProducts {
 export interface AnalyticsTopMerchantItem {
   merchantId: string;
   merchantName: string;
-  totalSalesCop: number;
-  totalCommissionCop: number;
-  totalNetCop: number;
-  totalCogsCop: number;
-  grossProfitCop: number;
+  totalSales: number;
+  totalCommission: number;
+  totalNet: number;
+  totalCogs: number;
+  grossProfit: number;
   profitMarginPercent: number;
   txCount: number;
 }
@@ -1212,7 +1260,7 @@ export interface AnalyticsHeatmapItem {
    */
   dayNum: number;
   txCount: number;
-  totalCop: number;
+  total: number;
 }
 
 export interface AnalyticsHeatmap {
@@ -1344,7 +1392,7 @@ export interface EventBracelet {
   /** @nullable */
   email?: string | null;
   /** @nullable */
-  lastKnownBalanceCop: number | null;
+  lastKnownBalance: number | null;
   /** @nullable */
   lastCounter?: number | null;
   flagged: boolean;
@@ -1371,7 +1419,7 @@ export interface TransactionLineItemSummary {
   productName: string | null;
   unitPrice: number;
   quantity: number;
-  ivaAmountCop: number;
+  ivaAmount: number;
 }
 
 export interface EventTransaction {
@@ -1385,10 +1433,10 @@ export interface EventTransaction {
   /** @nullable */
   merchantName?: string | null;
   eventId: string;
-  grossAmountCop: number;
-  commissionAmountCop: number;
-  netAmountCop: number;
-  newBalanceCop: number;
+  grossAmount: number;
+  commissionAmount: number;
+  netAmount: number;
+  newBalance: number;
   counter: number;
   itemCount: number;
   items: TransactionLineItemSummary[];
@@ -1435,7 +1483,7 @@ export interface AccessZone {
   colorHex?: string | null;
   rank: number;
   /** @nullable */
-  upgradePriceCop?: number | null;
+  upgradePrice?: number | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -1448,7 +1496,7 @@ export interface CreateAccessZoneBody {
   /** @minimum 0 */
   rank: number;
   /** @nullable */
-  upgradePriceCop?: number | null;
+  upgradePrice?: number | null;
 }
 
 export interface UpdateAccessZoneBody {
@@ -1459,7 +1507,7 @@ export interface UpdateAccessZoneBody {
   /** @minimum 0 */
   rank?: number;
   /** @nullable */
-  upgradePriceCop?: number | null;
+  upgradePrice?: number | null;
 }
 
 /**

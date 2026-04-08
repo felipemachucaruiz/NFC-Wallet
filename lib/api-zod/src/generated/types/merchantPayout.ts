@@ -13,9 +13,9 @@ export interface MerchantPayout {
   eventId: string;
   periodFrom: Date;
   periodTo: Date;
-  grossSalesCop: number;
-  commissionCop: number;
-  netPayoutCop: number;
+  grossSales: number;
+  commission: number;
+  netPayout: number;
   paymentMethod: PayoutPaymentMethod;
   /** @nullable */
   referenceNote?: string | null;

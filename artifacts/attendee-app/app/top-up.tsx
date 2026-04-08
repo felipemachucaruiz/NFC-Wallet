@@ -53,7 +53,7 @@ export default function TopUpScreen() {
   const [braceletUid, setBraceletUid] = useState(params.braceletUid ?? "");
 
   const { data } = useMyBracelets();
-  type Bracelet = { uid: string; balanceCop: number; flagged: boolean; event?: { name: string } | null };
+  type Bracelet = { uid: string; balance: number; flagged: boolean; event?: { name: string } | null };
   const bracelets = ((data as { bracelets?: Bracelet[] } | undefined)?.bracelets ?? []);
 
   const [nfcAvailable, setNfcAvailable] = useState(false);
@@ -106,7 +106,7 @@ export default function TopUpScreen() {
     if (!canSubmit) return;
     const body: Parameters<typeof initiatePayment>[0] = {
       braceletUid,
-      amountCop: effectiveAmount,
+      amount: effectiveAmount,
       paymentMethod: method,
     };
     if (method === "nequi") body.phoneNumber = phoneNumber.replace(/\D/g, "");

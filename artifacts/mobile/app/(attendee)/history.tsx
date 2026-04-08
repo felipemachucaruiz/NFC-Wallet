@@ -8,22 +8,22 @@ import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Empty } from "@/components/ui/Empty";
 import { Loading } from "@/components/ui/Loading";
-import { formatDateTime } from "@/utils/format";
+import { formatDateTime, formatCurrency } from "@/utils/format";
 import { useMyTransactions, useMyBracelets } from "@/hooks/useAttendeeApi";
 
 type TxItem = {
   id: string;
   type: "purchase" | "top_up";
   braceletUid: string;
-  amountCop: number;
-  newBalanceCop: number;
+  amount: number;
+  newBalance: number;
   merchantName: string | null;
   locationName: string | null;
-  lineItems: Array<{ name: string; quantity: number; unitPriceCop: number }>;
+  lineItems: Array<{ name: string; quantity: number; unitPrice: number }>;
   createdAt: string;
 };
 
-type BraceletSummary = { uid: string; balanceCop: number };
+type BraceletSummary = { uid: string; balance: number };
 
 export default function AttendeeHistoryScreen() {
   const { t } = useTranslation();
@@ -40,7 +40,7 @@ export default function AttendeeHistoryScreen() {
   const { data: braceletData } = useMyBracelets();
 
   const bracelets = (braceletData as { bracelets?: BraceletSummary[] } | undefined)?.bracelets ?? [];
-  const totalBalance = bracelets.reduce((sum, b) => sum + b.balanceCop, 0);
+  const totalBalance = bracelets.reduce((sum, b) => sum + b.balance, 0);
 
   const initialTxData = initialData as { transactions?: TxItem[]; nextCursor?: string | null } | undefined;
   const initialTransactions = initialTxData?.transactions ?? [];
@@ -160,7 +160,7 @@ function TxCard({
             )}
             <Text style={[styles.txDate, { color: C.textMuted }]}>{formatDateTime(tx.createdAt)}</Text>
           </View>
-          <CopAmount amount={tx.amountCop} positive={isTopUp} />
+          <CopAmount amount={tx.amount} positive={isTopUp} />
         </View>
         {expanded && tx.lineItems && tx.lineItems.length > 0 && (
           <View style={[styles.lineItems, { borderTopColor: C.separator }]}>
@@ -170,7 +170,7 @@ function TxCard({
                   {li.quantity}× {li.name}
                 </Text>
                 <Text style={[styles.lineItemPrice, { color: C.textSecondary }]}>
-                  ${(li.unitPriceCop * li.quantity).toLocaleString("es-CO")}
+                  {formatCurrency(li.unitPrice * li.quantity, "COP")}
                 </Text>
               </View>
             ))}
