@@ -20,7 +20,7 @@ COPY lib/api-client-react/ lib/api-client-react/
 COPY artifacts/admin-web/ artifacts/admin-web/
 COPY attached_assets/ attached_assets/
 RUN pnpm --filter @workspace/admin-web run build
-RUN pnpm --filter @workspace/admin-web deploy --prod /app/deploy
+RUN pnpm --filter @workspace/admin-web deploy --prod --legacy /app/deploy
 
 FROM node:20-slim
 WORKDIR /app
