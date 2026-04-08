@@ -110,8 +110,10 @@ export default function HomeScreen() {
 
   const { data, isPending, refetch } = useMyBracelets();
   const bracelets = ((data as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
-  const activeBracelets = bracelets.filter((b) => b.refundStatus !== "disbursement_completed");
-  const archivedBracelets = bracelets.filter((b) => b.refundStatus === "disbursement_completed");
+  const isArchived = (b: BraceletItem) =>
+    b.refundStatus === "disbursement_completed" || (b.event && !b.event.active);
+  const activeBracelets = bracelets.filter((b) => !isArchived(b));
+  const archivedBracelets = bracelets.filter((b) => isArchived(b));
   const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balanceCop, 0);
   const activeBracelet = activeBracelets.find((b) => b.event?.active) ?? activeBracelets[0] ?? null;
 
@@ -475,39 +477,120 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {activeBracelets.length === 0 && archivedBracelets.length > 0 && (
+          <View style={[styles.emptyActiveCard, { backgroundColor: C.card, borderColor: C.border }]}>
+            <Feather name="inbox" size={28} color={C.textMuted} />
+            <Text style={[styles.emptyActiveTitle, { color: C.text }]}>
+              {t("home.noActiveBracelets")}
+            </Text>
+            <Text style={[styles.emptyActiveHint, { color: C.textSecondary }]}>
+              {t("home.checkArchivedForRefunds")}
+            </Text>
+          </View>
+        )}
+
         {archivedBracelets.length > 0 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
               {t("home.archivedBracelets")}
             </Text>
-            {archivedBracelets.map((b) => (
-              <View
-                key={b.uid}
-                style={[styles.archivedCard, { backgroundColor: C.card, borderColor: C.border }]}
-              >
-                <View style={styles.archivedCardInner}>
-                  <View style={[styles.archivedIconWrap, { backgroundColor: "rgba(34,197,94,0.10)" }]}>
-                    <Feather name="check-circle" size={20} color="#22c55e" />
-                  </View>
-                  <View style={{ flex: 1, gap: 3 }}>
-                    {b.event && (
-                      <Text style={[styles.archivedEvent, { color: C.textSecondary }]}>
-                        {b.event.name}
+            {archivedBracelets.map((b) => {
+              const isRefundDone = b.refundStatus === "disbursement_completed";
+              const hasActiveRefund = b.refundStatus && b.refundStatus !== "disbursement_completed" && b.refundStatus !== "rejected";
+              const refundCfg = b.refundStatus ? REFUND_STATUS_MAP[b.refundStatus] : null;
+              return (
+                <View
+                  key={b.uid}
+                  style={[styles.archivedCard, { backgroundColor: C.card, borderColor: C.border }]}
+                >
+                  <View style={styles.archivedCardInner}>
+                    <View style={[styles.archivedIconWrap, {
+                      backgroundColor: isRefundDone ? "rgba(34,197,94,0.10)" : "rgba(107,114,128,0.10)"
+                    }]}>
+                      <Feather
+                        name={isRefundDone ? "check-circle" : "calendar"}
+                        size={20}
+                        color={isRefundDone ? "#22c55e" : "#6b7280"}
+                      />
+                    </View>
+                    <View style={{ flex: 1, gap: 3 }}>
+                      {b.event && (
+                        <Text style={[styles.archivedEvent, { color: C.textSecondary }]}>
+                          {b.event.name}
+                        </Text>
+                      )}
+                      <Text style={[styles.archivedUid, { color: C.textMuted }]}>
+                        UID: {b.uid.replace(/:/g, "")}
                       </Text>
+                      {b.balanceCop > 0 && !isRefundDone && (
+                        <View style={{ marginTop: 2 }}>
+                          <CopAmount amount={b.balanceCop} size={14} />
+                        </View>
+                      )}
+                    </View>
+                    {isRefundDone && (
+                      <View style={[styles.archivedBadge, { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.3)" }]}>
+                        <Feather name="check" size={11} color="#22c55e" />
+                        <Text style={[styles.archivedBadgeText, { color: "#22c55e" }]}>
+                          {t("home.archivedRefundCompleted")}
+                        </Text>
+                      </View>
                     )}
-                    <Text style={[styles.archivedUid, { color: C.textMuted }]}>
-                      UID: {b.uid.replace(/:/g, "")}
-                    </Text>
+                    {!isRefundDone && !hasActiveRefund && (
+                      <View style={[styles.archivedBadge, { backgroundColor: "rgba(107,114,128,0.12)", borderColor: "rgba(107,114,128,0.3)" }]}>
+                        <Feather name="calendar" size={11} color="#6b7280" />
+                        <Text style={[styles.archivedBadgeText, { color: "#6b7280" }]}>
+                          {t("home.eventEnded")}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                  <View style={[styles.archivedBadge, { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.3)" }]}>
-                    <Feather name="check" size={11} color="#22c55e" />
-                    <Text style={[styles.archivedBadgeText, { color: "#22c55e" }]}>
-                      {t("home.archivedRefundCompleted")}
-                    </Text>
-                  </View>
+                  {hasActiveRefund && refundCfg && (
+                    <View style={[
+                      styles.refundStatusCard,
+                      { backgroundColor: refundCfg.bgColor, borderColor: refundCfg.borderColor },
+                    ]}>
+                      <View style={[styles.refundStatusIconWrap, { backgroundColor: refundCfg.bgColor }]}>
+                        <Feather name={refundCfg.icon} size={22} color={refundCfg.color} />
+                      </View>
+                      <View style={{ flex: 1, gap: 4 }}>
+                        <Text style={[styles.refundStatusTitle, { color: refundCfg.color }]}>
+                          {t(refundCfg.titleKey)}
+                        </Text>
+                        <View style={styles.refundStatusBadgeRow}>
+                          <View style={[styles.refundStatusBadge, { backgroundColor: refundCfg.borderColor }]}>
+                            <Text style={[styles.refundStatusBadgeText, { color: refundCfg.color }]}>
+                              {t("home.refundStatusLabel")}: {t(refundCfg.badgeKey)}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.refundStatusHint, { color: C.textSecondary }]}>
+                          {t(refundCfg.hintKey)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                  {!isRefundDone && !hasActiveRefund && b.balanceCop > 0 && (
+                    <View style={[styles.archivedRefundHint, { borderTopColor: C.separator }]}>
+                      <Feather name="info" size={14} color={C.primary} />
+                      <Text style={[styles.archivedRefundHintText, { color: C.textSecondary }]}>
+                        {t("home.archivedRefundAvailable")}
+                      </Text>
+                      <Pressable
+                        onPress={() => router.push({
+                          pathname: "/refund-request",
+                          params: { braceletUid: b.uid, eventName: b.event?.name ?? "" },
+                        })}
+                      >
+                        <Text style={[styles.archivedRefundLink, { color: C.primary }]}>
+                          {t("home.requestRefund")}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -759,4 +842,24 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   archivedBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  archivedRefundHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderTopWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  archivedRefundHintText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+  archivedRefundLink: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  emptyActiveCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  emptyActiveTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  emptyActiveHint: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 19 },
 });
