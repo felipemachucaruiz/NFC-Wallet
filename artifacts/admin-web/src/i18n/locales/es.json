@@ -179,6 +179,7 @@
     "updated": "Evento actualizado",
     "activated": "Evento activado",
     "deactivated": "Evento desactivado",
+    "autoEnded": "Finalizado por fecha",
     "commissionRate": "Tasa de Comisión (%)",
     "commissionRatePlaceholder": "ej. 5.00",
     "promoterCompany": "Empresa Promotora",

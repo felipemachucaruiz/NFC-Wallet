@@ -506,16 +506,28 @@ export default function Events() {
                   <TableCell className="text-sm">{event.startsAt ? new Date(event.startsAt).toLocaleDateString() : "—"}</TableCell>
                   <TableCell className="text-sm">{event.endsAt ? new Date(event.endsAt).toLocaleDateString() : "—"}</TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        data-testid={`toggle-event-active-${event.id}`}
-                        checked={event.active}
-                        onCheckedChange={() => handleToggleActive(event)}
-                      />
-                      <Badge variant={event.active ? "default" : "secondary"} className="text-xs">
-                        {event.active ? t("common.active") : t("common.inactive")}
-                      </Badge>
-                    </div>
+                    {(() => {
+                      const expired = event.endsAt && new Date(event.endsAt) < new Date();
+                      const effectivelyActive = event.active && !expired;
+                      return (
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            data-testid={`toggle-event-active-${event.id}`}
+                            checked={event.active}
+                            onCheckedChange={() => handleToggleActive(event)}
+                          />
+                          {expired && event.active ? (
+                            <Badge variant="outline" className="text-xs border-orange-500/40 text-orange-500">
+                              {t("events.autoEnded")}
+                            </Badge>
+                          ) : (
+                            <Badge variant={effectivelyActive ? "default" : "secondary"} className="text-xs">
+                              {effectivelyActive ? t("common.active") : t("common.inactive")}
+                            </Badge>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" data-testid={`button-edit-event-${event.id}`} onClick={() => openEdit(event)}>
