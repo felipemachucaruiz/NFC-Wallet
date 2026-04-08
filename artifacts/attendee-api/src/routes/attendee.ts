@@ -12,7 +12,7 @@ import {
   braceletTransferLogsTable,
   usersTable,
 } from "@workspace/db";
-import { eq, and, ne, desc, inArray, lte } from "drizzle-orm";
+import { eq, and, ne, desc, inArray, lte, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { notifyBraceletBlocked } from "../lib/pushNotifications";
@@ -37,7 +37,7 @@ router.get(
     const [eventsRows, refundRows] = await Promise.all([
       eventIds.length > 0
         ? db
-            .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active })
+            .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active, endsAt: eventsTable.endsAt })
             .from(eventsTable)
             .where(inArray(eventsTable.id, eventIds))
         : Promise.resolve([]),
@@ -54,7 +54,12 @@ router.get(
         : Promise.resolve([]),
     ]);
 
-    const eventsById = new Map(eventsRows.map((ev) => [ev.id, ev]));
+    const now = new Date();
+    const eventsById = new Map(eventsRows.map((ev) => [ev.id, {
+      id: ev.id,
+      name: ev.name,
+      active: ev.active && (!ev.endsAt || ev.endsAt > now),
+    }]));
 
     const refundStatusByUid = new Map<string, string>();
     for (const row of refundRows) {
@@ -338,7 +343,10 @@ router.get(
         longitude: eventsTable.longitude,
       })
       .from(eventsTable)
-      .where(eq(eventsTable.active, true));
+      .where(and(
+        eq(eventsTable.active, true),
+        sql`(${eventsTable.endsAt} IS NULL OR ${eventsTable.endsAt} > NOW())`,
+      ));
 
     type EventRow = typeof events[0];
     type EventWithDistance = EventRow & { distanceMetres: number | null };
