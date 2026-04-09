@@ -3,7 +3,7 @@ import { db, braceletsTable, eventsTable, wompiPaymentIntentsTable, topUpsTable 
 import { usersTable } from "@workspace/db";
 import { eq, and, isNull, inArray } from "drizzle-orm";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "../lib/bcryptWorker";
 import { notifyTopUpSuccess } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
@@ -427,7 +427,7 @@ router.post(
       return;
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await hashPassword(password, 10);
 
     await db.transaction(async (tx) => {
       const [newUser] = await tx

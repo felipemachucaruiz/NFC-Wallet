@@ -1,4 +1,5 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
+import compression from "compression";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
@@ -12,6 +13,7 @@ const app: Express = express();
 
 // Disable ETags — prevents Replit proxy from caching GET responses and returning stale 304s
 app.set("etag", false);
+app.use(compression());
 
 // Only trust proxy headers when explicitly enabled in production (TRUSTED_PROXY=true).
 // Rate limiting uses raw socket address by default to prevent X-Forwarded-For spoofing.

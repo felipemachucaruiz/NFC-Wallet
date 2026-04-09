@@ -12,6 +12,32 @@ export const ISSUER_URL =
 export const SESSION_COOKIE = "sid";
 export const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 
+const SESSION_CACHE_TTL = 60 * 1000;
+const SESSION_CACHE_MAX = 5000;
+const sessionCache = new Map<string, { data: SessionData; expiresAt: number }>();
+
+function cacheGet(sid: string): SessionData | null {
+  const entry = sessionCache.get(sid);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    sessionCache.delete(sid);
+    return null;
+  }
+  return entry.data;
+}
+
+function cacheSet(sid: string, data: SessionData): void {
+  if (sessionCache.size >= SESSION_CACHE_MAX) {
+    const first = sessionCache.keys().next().value;
+    if (first) sessionCache.delete(first);
+  }
+  sessionCache.set(sid, { data, expiresAt: Date.now() + SESSION_CACHE_TTL });
+}
+
+function cacheDelete(sid: string): void {
+  sessionCache.delete(sid);
+}
+
 export interface SessionData {
   user: AuthUser;
   access_token?: string;
@@ -42,6 +68,9 @@ export async function createSession(data: SessionData): Promise<string> {
 }
 
 export async function getSession(sid: string): Promise<SessionData | null> {
+  const cached = cacheGet(sid);
+  if (cached) return cached;
+
   const [row] = await db
     .select()
     .from(sessionsTable)
@@ -52,9 +81,6 @@ export async function getSession(sid: string): Promise<SessionData | null> {
     return null;
   }
 
-  // Sliding expiry: extend TTL on every access so active users never get
-  // logged out mid-use. Only extend if more than 1 day remains to avoid
-  // a DB write on every single request.
   const oneDay = 24 * 60 * 60 * 1000;
   if (row.expire.getTime() - Date.now() < SESSION_TTL - oneDay) {
     await db
@@ -63,7 +89,9 @@ export async function getSession(sid: string): Promise<SessionData | null> {
       .where(eq(sessionsTable.sid, sid));
   }
 
-  return row.sess as unknown as SessionData;
+  const data = row.sess as unknown as SessionData;
+  cacheSet(sid, data);
+  return data;
 }
 
 export async function updateSession(
@@ -80,6 +108,7 @@ export async function updateSession(
 }
 
 export async function deleteSession(sid: string): Promise<void> {
+  cacheDelete(sid);
   await db.delete(sessionsTable).where(eq(sessionsTable.sid, sid));
 }
 

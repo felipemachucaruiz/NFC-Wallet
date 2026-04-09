@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "../lib/bcryptWorker";
 import { db, usersTable, merchantsTable, accessZonesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
@@ -225,7 +225,7 @@ router.patch(
       }
     }
 
-    const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    const passwordHash = await hashPassword(parsed.data.newPassword, 10);
     const [updated] = await db
       .update(usersTable)
       .set({ passwordHash, updatedAt: new Date() })
@@ -301,7 +301,7 @@ router.post(
       res.status(409).json({ error: "Username already taken" });
       return;
     }
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await hashPassword(password, 10);
     const [newUser] = await db
       .insert(usersTable)
       .values({
@@ -350,7 +350,7 @@ router.patch(
       res.status(404).json({ error: "Staff member not found" });
       return;
     }
-    const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    const passwordHash = await hashPassword(parsed.data.newPassword, 10);
     await db
       .update(usersTable)
       .set({ passwordHash, updatedAt: new Date() })
@@ -700,7 +700,7 @@ router.post(
       }
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await hashPassword(password, 10);
 
     const [newUser] = await db
       .insert(usersTable)

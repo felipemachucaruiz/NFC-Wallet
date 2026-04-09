@@ -1,4 +1,5 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
+import compression from "compression";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
@@ -9,6 +10,7 @@ import { ipAllowlistMiddleware } from "./middlewares/ipAllowlist";
 import { authLimiter } from "./middlewares/rateLimiter";
 
 const app: Express = express();
+app.use(compression());
 
 // Only trust proxy headers when explicitly enabled (TRUSTED_PROXY=true).
 // The IP allowlist middleware uses raw socket address by default to prevent

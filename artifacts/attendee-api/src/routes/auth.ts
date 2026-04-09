@@ -1,6 +1,6 @@
 import * as oidc from "openid-client";
-import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { hashPassword, comparePassword } from "../lib/bcryptWorker";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import {
@@ -186,7 +186,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     return;
   }
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
+  const valid = await comparePassword(password, user.passwordHash);
   if (!valid) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
@@ -285,7 +285,7 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
     if (dup) { res.status(409).json({ error: "Username already taken" }); return; }
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await hashPassword(password, 10);
 
   const [newUser] = await db
     .insert(usersTable)
@@ -422,7 +422,7 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
     return;
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await hashPassword(password, 10);
 
   await db.transaction(async (tx) => {
     await tx

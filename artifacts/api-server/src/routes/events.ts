@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "../lib/bcryptWorker";
 import crypto from "crypto";
 import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable, convertToCOP, getExchangeRatesForDisplay } from "@workspace/db";
 import { eq, sql, and, ilike, or, count, sum, inArray } from "drizzle-orm";
@@ -254,7 +254,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
       res.status(409).json({ error: "Event admin email already registered" });
       return;
     }
-    adminPasswordHash = await bcrypt.hash(eventAdmin.password, 12);
+    adminPasswordHash = await hashPassword(eventAdmin.password, 10);
   }
 
   const hmacSecret = generateHmacSecret();
