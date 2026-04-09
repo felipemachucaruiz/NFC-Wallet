@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, BackHandler, FlatList, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { AppState, BackHandler, FlatList, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListLocations, useGetLocationInventory, getProductByBarcode } from "@workspace/api-client-react";
@@ -235,7 +235,7 @@ export default function MerchantPosScreen() {
         {(["catalog", "cart"] as const).map((tab) => (
           <Pressable
             key={tab}
-            onPress={() => setActiveTab(tab)}
+            onPress={() => { Keyboard.dismiss(); setActiveTab(tab); }}
             style={[styles.tab, activeTab === tab && { borderBottomColor: C.primary, borderBottomWidth: 2 }]}
           >
             <Text style={[styles.tabText, { color: activeTab === tab ? C.primary : C.textSecondary }]}>
@@ -268,6 +268,9 @@ export default function MerchantPosScreen() {
               contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: isWeb ? 34 : insets.bottom + 100 }}
               columnWrapperStyle={{ gap: 10 }}
               scrollEnabled={!!filtered.length}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={() => Keyboard.dismiss()}
               ListEmptyComponent={() => <Empty icon="package" title={t("pos.noProducts")} />}
               renderItem={({ item }) => {
                 const cartItem = cartItems.find((c) => c.productId === item.product.id);
