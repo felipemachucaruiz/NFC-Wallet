@@ -99,6 +99,7 @@ type RawEvent = Event & {
   pulepId?: string | null;
   nfcChipType?: string | null;
   currencyCode?: string | null;
+  refundDeadline?: string | null;
 };
 
 type FormFieldsProps = {

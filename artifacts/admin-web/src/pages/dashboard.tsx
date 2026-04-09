@@ -15,8 +15,8 @@ import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 
-type GeocodedEvent = Event & { lat: number; lng: number };
-type RawEvent = Event & { latitude?: string | null; longitude?: string | null; capacity?: number | null; promoterCompanyName?: string | null };
+type RawEvent = Event & { latitude?: string | null; longitude?: string | null; capacity?: number | null; promoterCompanyName?: string | null; refundDeadline?: string | null };
+type GeocodedEvent = RawEvent & { lat: number; lng: number };
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -131,7 +131,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{fmt(summary?.braceletCount)}</p>
+            <p className="text-3xl font-bold">{fmt((summary as unknown as Record<string, unknown>)?.braceletCount as number | undefined)}</p>
             <p className="text-xs text-muted-foreground mt-1">{t("dashboard.braceletsRegistered")}</p>
           </CardContent>
         </Card>

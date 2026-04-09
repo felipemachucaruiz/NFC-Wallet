@@ -35,7 +35,7 @@ function formatDate(d: string | null) {
 export default function Commissions() {
   const { t } = useTranslation();
   const { data: eventsData, isLoading: eventsLoading } = useListEvents();
-  const events = (eventsData?.events ?? []) as EventRow[];
+  const events = (eventsData?.events ?? []) as unknown as EventRow[];
 
   const summaryQueries = useQueries({
     queries: events.map((ev) => ({

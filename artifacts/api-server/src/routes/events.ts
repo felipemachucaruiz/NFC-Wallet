@@ -339,7 +339,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
   const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude } = parsed.data;
 
   if (refundDeadline !== undefined && refundDeadline !== null) {
-    const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, req.params.id)))[0]?.endsAt;
+    const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, req.params.id as string)))[0]?.endsAt;
     if (resolvedEndsAt) {
       const deadlineDate = new Date(refundDeadline);
       const endsDate = typeof resolvedEndsAt === "string" ? new Date(resolvedEndsAt) : resolvedEndsAt;
