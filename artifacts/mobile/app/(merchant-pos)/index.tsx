@@ -221,6 +221,7 @@ export default function MerchantPosScreen() {
           returnKeyType="done"
           autoFocus
           blurOnSubmit={false}
+          showSoftInputOnFocus={false}
           testID="barcode-scan-input"
         />
         {barcodeToast && (
