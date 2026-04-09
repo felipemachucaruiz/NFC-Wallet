@@ -1,7 +1,24 @@
-import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
-import { fileURLToPath } from "url";
+import { Worker } from "worker_threads";
 
-const __filename = fileURLToPath(import.meta.url);
+const workerCode = `
+const { parentPort, workerData } = require("worker_threads");
+const bcrypt = require("bcryptjs");
+
+async function run() {
+  try {
+    let result;
+    if (workerData.type === "hash") {
+      result = await bcrypt.hash(workerData.data, workerData.saltOrHash);
+    } else {
+      result = await bcrypt.compare(workerData.data, workerData.saltOrHash);
+    }
+    parentPort.postMessage({ result });
+  } catch (err) {
+    parentPort.postMessage({ error: err.message });
+  }
+}
+run();
+`;
 
 interface BcryptTask {
   type: "hash" | "compare";
@@ -9,26 +26,9 @@ interface BcryptTask {
   saltOrHash: string | number;
 }
 
-if (!isMainThread && parentPort) {
-  const task = workerData as BcryptTask;
-  import("bcryptjs").then(async (bcrypt) => {
-    try {
-      let result: string | boolean;
-      if (task.type === "hash") {
-        result = await bcrypt.default.hash(task.data, task.saltOrHash as number);
-      } else {
-        result = await bcrypt.default.compare(task.data, task.saltOrHash as string);
-      }
-      parentPort!.postMessage({ result });
-    } catch (err: any) {
-      parentPort!.postMessage({ error: err.message });
-    }
-  });
-}
-
 function runInWorker(task: BcryptTask): Promise<any> {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(__filename, { workerData: task });
+    const worker = new Worker(workerCode, { eval: true, workerData: task });
     worker.on("message", (msg) => {
       if (msg.error) reject(new Error(msg.error));
       else resolve(msg.result);
