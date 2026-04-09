@@ -848,6 +848,7 @@
     "refundDeadlinePlaceholder": "Selecciona plazo de devolución",
     "refundDeadlineHint": "Última fecha para que los asistentes soliciten devoluciones. Mín. 15 días después del fin del evento.",
     "refundDeadlineMinDays": "El plazo de devolución debe ser al menos 15 días después del fin del evento.",
+    "currency": "Moneda",
     "eventNamePlaceholder": "Ej. Festival Verano 2026",
     "venuePlaceholder": "Ej. Parque Simón Bolívar",
     "contactEmail": "Email de contacto",

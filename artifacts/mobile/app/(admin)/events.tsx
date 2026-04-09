@@ -57,6 +57,18 @@ type PromoterCompany = {
 
 type NfcChipType = "ntag_21x" | "mifare_classic" | "desfire_ev3" | "mifare_ultralight_c";
 
+const CURRENCY_OPTIONS = [
+  { value: "COP", label: "COP — Peso colombiano" },
+  { value: "MXN", label: "MXN — Peso mexicano" },
+  { value: "CLP", label: "CLP — Peso chileno" },
+  { value: "ARS", label: "ARS — Peso argentino" },
+  { value: "PEN", label: "PEN — Sol peruano" },
+  { value: "UYU", label: "UYU — Peso uruguayo" },
+  { value: "BOB", label: "BOB — Boliviano" },
+  { value: "BRL", label: "BRL — Real brasileño" },
+  { value: "USD", label: "USD — US Dollar" },
+];
+
 type EventItem = {
   id: string;
   name: string;
@@ -67,6 +79,7 @@ type EventItem = {
   startsAt: string;
   endsAt: string;
   refundDeadline?: string | null;
+  currencyCode?: string | null;
   platformCommissionRate?: string | number;
   capacity?: number | null;
   promoterCompanyId?: string | null;
@@ -103,6 +116,7 @@ export default function EventsScreen() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [refundDeadline, setRefundDeadline] = useState<Date | null>(null);
+  const [currencyCode, setCurrencyCode] = useState("COP");
   const [platformCommission, setPlatformCommission] = useState("0");
   const [capacity, setCapacity] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
@@ -188,7 +202,7 @@ export default function EventsScreen() {
   const resetForm = () => {
     setEventName(""); setVenue(""); setLatitude(""); setLongitude("");
     setStartDate(null); setEndDate(null); setRefundDeadline(null);
-    setPlatformCommission("0"); setCapacity(""); setSelectedCompanyId(""); setPulepId("");
+    setCurrencyCode("COP"); setPlatformCommission("0"); setCapacity(""); setSelectedCompanyId(""); setPulepId("");
     setAdminEmail(""); setAdminPassword(""); setAdminFirstName("");
     setOrganizerMode("none"); setSelectedClientId(""); setClientSearch("");
     setNfcChipType("ntag_21x");
@@ -202,6 +216,7 @@ export default function EventsScreen() {
     setStartDate(item.startsAt ? new Date(item.startsAt) : null);
     setEndDate(item.endsAt ? new Date(item.endsAt) : null);
     setRefundDeadline(item.refundDeadline ? new Date(item.refundDeadline) : null);
+    setCurrencyCode(item.currencyCode ?? "COP");
     setPlatformCommission(item.platformCommissionRate ? String(item.platformCommissionRate) : "0");
     setCapacity(item.capacity ? String(item.capacity) : "");
     setSelectedCompanyId(item.promoterCompanyId ?? "");
@@ -243,6 +258,7 @@ export default function EventsScreen() {
         startsAt: startDate.toISOString(),
         endsAt: endDate.toISOString(),
         refundDeadline: refundDeadline ? refundDeadline.toISOString() : undefined,
+        currencyCode,
         platformCommissionRate: platformCommission.trim() || "0",
         capacity: capacity.trim() ? parseInt(capacity.trim(), 10) : undefined,
         promoterCompanyId: selectedCompanyId,
@@ -313,6 +329,7 @@ export default function EventsScreen() {
         startsAt: startDate.toISOString(),
         endsAt: endDate.toISOString(),
         refundDeadline: refundDeadline ? refundDeadline.toISOString() : null,
+        currencyCode,
         platformCommissionRate: platformCommission.trim() || "0",
         capacity: capacity.trim() ? parseInt(capacity.trim(), 10) : null,
         promoterCompanyId: selectedCompanyId,
@@ -445,6 +462,7 @@ export default function EventsScreen() {
               startDate={startDate} setStartDate={setStartDate}
               endDate={endDate} setEndDate={setEndDate}
               refundDeadline={refundDeadline} setRefundDeadline={setRefundDeadline}
+              currencyCode={currencyCode} setCurrencyCode={setCurrencyCode}
               platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
               capacity={capacity} setCapacity={setCapacity}
               companies={companies} selectedCompanyId={selectedCompanyId} setSelectedCompanyId={setSelectedCompanyId}
@@ -607,6 +625,7 @@ export default function EventsScreen() {
               startDate={startDate} setStartDate={setStartDate}
               endDate={endDate} setEndDate={setEndDate}
               refundDeadline={refundDeadline} setRefundDeadline={setRefundDeadline}
+              currencyCode={currencyCode} setCurrencyCode={setCurrencyCode}
               platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
               capacity={capacity} setCapacity={setCapacity}
               companies={companies} selectedCompanyId={selectedCompanyId} setSelectedCompanyId={setSelectedCompanyId}
@@ -652,6 +671,7 @@ function EventFormFields({
   startDate, setStartDate,
   endDate, setEndDate,
   refundDeadline, setRefundDeadline,
+  currencyCode, setCurrencyCode,
   platformCommission, setPlatformCommission,
   capacity, setCapacity,
   companies, selectedCompanyId, setSelectedCompanyId,
@@ -668,6 +688,7 @@ function EventFormFields({
   startDate: Date | null; setStartDate: (v: Date | null) => void;
   endDate: Date | null; setEndDate: (v: Date | null) => void;
   refundDeadline: Date | null; setRefundDeadline: (v: Date | null) => void;
+  currencyCode: string; setCurrencyCode: (v: string) => void;
   platformCommission: string; setPlatformCommission: (v: string) => void;
   capacity: string; setCapacity: (v: string) => void;
   companies: PromoterCompany[]; selectedCompanyId: string; setSelectedCompanyId: (v: string) => void;
@@ -750,6 +771,32 @@ function EventFormFields({
       <Text style={[styles.hintText, { color: C.textMuted, marginTop: -8 }]}>
         {t("admin.refundDeadlineHint")}
       </Text>
+
+      <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+        {t("admin.currency")}
+      </Text>
+      {CURRENCY_OPTIONS.map((opt) => {
+        const isSelected = currencyCode === opt.value;
+        return (
+          <Pressable
+            key={opt.value}
+            onPress={() => setCurrencyCode(opt.value)}
+            style={[
+              styles.clientOption,
+              {
+                backgroundColor: isSelected ? C.primary + "18" : C.inputBg,
+                borderColor: isSelected ? C.primary : C.border,
+              },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.clientOptionName, { color: isSelected ? C.primary : C.text }]}>{opt.label}</Text>
+            </View>
+            {isSelected && <Feather name="check-circle" size={18} color={C.primary} />}
+          </Pressable>
+        );
+      })}
+
       <Input
         label={t("eventAdmin.platformCommission")}
         value={platformCommission}
