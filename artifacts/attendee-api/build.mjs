@@ -27,7 +27,6 @@ async function buildAll() {
       "better-sqlite3",
       "sqlite3",
       "canvas",
-      "bcryptjs",
       "bcrypt",
       "argon2",
       "fsevents",
