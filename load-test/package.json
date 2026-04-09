@@ -1,0 +1,16 @@
+{
+  "name": "tapee-load-test",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node run-load-test.js",
+    "test:light": "PROFILE=light node run-load-test.js",
+    "test:medium": "PROFILE=medium node run-load-test.js",
+    "test:heavy": "PROFILE=heavy node run-load-test.js",
+    "test:spike": "PROFILE=spike node run-load-test.js"
+  },
+  "dependencies": {
+    "undici": "^6.19.0"
+  }
+}
