@@ -80,30 +80,42 @@ export async function getExchangeRate(fromCurrency: string, toCurrency: string):
 }
 
 export async function fetchAndCacheRates(baseCurrency: string): Promise<Record<string, number>> {
-  const apiKey = process.env.EXCHANGE_RATE_API_KEY;
-  if (!apiKey) {
-    console.warn("[ExchangeRate] EXCHANGE_RATE_API_KEY not configured, using fallback rates");
+  const appId = process.env.OPEN_EXCHANGE_RATES_APP_ID;
+  if (!appId) {
+    console.warn("[ExchangeRate] OPEN_EXCHANGE_RATES_APP_ID not configured, using fallback rates");
     return {};
   }
 
   try {
-    const response = await fetch(`https://v6.exchangerate-api.com/v6/${apiKey}/latest/${baseCurrency}`);
+    const response = await fetch(`https://openexchangerates.org/api/latest.json?app_id=${appId}`);
     if (!response.ok) {
       console.error(`[ExchangeRate] API error: ${response.status}`);
       return {};
     }
 
-    const data = await response.json() as { result: string; conversion_rates: Record<string, number> };
-    if (data.result !== "success") {
-      console.error("[ExchangeRate] API returned non-success result");
+    const data = await response.json() as { base: string; rates: Record<string, number> };
+    if (!data.rates) {
+      console.error("[ExchangeRate] API returned no rates");
       return {};
     }
 
-    const rates = data.conversion_rates;
+    const usdRates = data.rates;
     const now = new Date();
 
-    for (const [targetCurrency, rate] of Object.entries(rates)) {
-      if (!SUPPORTED_CURRENCIES.includes(targetCurrency as SupportedCurrency)) continue;
+    const convertedRates: Record<string, number> = {};
+    const baseRateInUSD = baseCurrency === "USD" ? 1 : usdRates[baseCurrency];
+    if (!baseRateInUSD) {
+      console.error(`[ExchangeRate] No USD rate found for base currency ${baseCurrency}`);
+      return {};
+    }
+
+    for (const cur of SUPPORTED_CURRENCIES) {
+      if (cur === baseCurrency) continue;
+      const targetRateInUSD = cur === "USD" ? 1 : usdRates[cur];
+      if (!targetRateInUSD) continue;
+
+      const rate = targetRateInUSD / baseRateInUSD;
+      convertedRates[cur] = rate;
 
       const [existing] = await db
         .select({ id: exchangeRatesTable.id })
@@ -111,7 +123,7 @@ export async function fetchAndCacheRates(baseCurrency: string): Promise<Record<s
         .where(
           and(
             eq(exchangeRatesTable.baseCurrency, baseCurrency),
-            eq(exchangeRatesTable.targetCurrency, targetCurrency),
+            eq(exchangeRatesTable.targetCurrency, cur),
           ),
         )
         .limit(1);
@@ -126,14 +138,15 @@ export async function fetchAndCacheRates(baseCurrency: string): Promise<Record<s
           .insert(exchangeRatesTable)
           .values({
             baseCurrency,
-            targetCurrency,
+            targetCurrency: cur,
             rate: String(rate),
             fetchedAt: now,
           });
       }
     }
 
-    return rates;
+    console.log(`[ExchangeRate] Cached ${Object.keys(convertedRates).length} rates for ${baseCurrency} from Open Exchange Rates`);
+    return convertedRates;
   } catch (err) {
     console.error("[ExchangeRate] Failed to fetch rates:", err);
     return {};
