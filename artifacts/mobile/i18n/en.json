@@ -1293,6 +1293,7 @@
     "upgradeAccess": "Upgrade Access",
     "maxAccessLevel": "Maximum Access Level",
     "maxAccessLevelHint": "This wristband already has access to all available zones.",
+    "scanBraceletFirst": "First scan a wristband on the Top Up tab to upgrade its access.",
     "noUpgradesAvailable": "No upgrades available",
     "selectUpgradeZone": "Select zone to upgrade",
     "confirmUpgrade": "Confirm Upgrade",

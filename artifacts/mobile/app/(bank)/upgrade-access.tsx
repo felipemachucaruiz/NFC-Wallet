@@ -203,6 +203,39 @@ export default function UpgradeAccessScreen() {
     }
   };
 
+  if (!uid) {
+    return (
+      <View style={[styles.container, { backgroundColor: C.background }]}>
+        <ScrollView
+          contentContainerStyle={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 32,
+            gap: 16,
+          }}
+        >
+          <View style={[styles.nfcIconWrap, { backgroundColor: C.primaryLight }]}>
+            <Feather name="shield" size={40} color={C.primary} />
+          </View>
+          <Text style={[styles.headerTitle, { color: C.text, textAlign: "center" }]}>
+            {t("zones.upgradeAccess")}
+          </Text>
+          <Text style={{ color: C.textSecondary, textAlign: "center", fontSize: 15, lineHeight: 22 }}>
+            {t("zones.scanBraceletFirst")}
+          </Text>
+          <Button
+            title={t("bank.topUpLabel")}
+            onPress={() => router.replace("/(bank)")}
+            variant="primary"
+            icon="plus-circle"
+            style={{ marginTop: 8 }}
+          />
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <View

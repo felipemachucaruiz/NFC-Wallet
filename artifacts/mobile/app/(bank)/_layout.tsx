@@ -61,6 +61,13 @@ function ClassicTabLayout() {
           tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="upgrade-access"
+        options={{
+          title: t("zones.upgradeAccess"),
+          tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} />,
+        }}
+      />
       <Tabs.Screen name="topup" options={{ href: null }} />
       <Tabs.Screen name="refund" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />

@@ -1282,6 +1282,7 @@
     "upgradeAccess": "Actualizar Acceso",
     "maxAccessLevel": "Nivel de Acceso Máximo",
     "maxAccessLevelHint": "Esta pulsera ya tiene acceso a todas las zonas disponibles.",
+    "scanBraceletFirst": "Primero escanea una pulsera en la pestaña de Recarga para poder actualizar su acceso.",
     "noUpgradesAvailable": "No hay actualizaciones disponibles",
     "selectUpgradeZone": "Seleccionar zona a actualizar",
     "confirmUpgrade": "Confirmar Actualización",
