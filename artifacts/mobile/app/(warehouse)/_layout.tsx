@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { EventProvider, useEventContext } from "@/contexts/EventContext";
+import { EventEndedOverlay } from "@/components/EventEndedOverlay";
 
 function ClassicTabLayout() {
   const { t } = useTranslation();
@@ -73,7 +74,27 @@ export default function WarehouseLayout() {
   }
   return (
     <EventProvider>
-      <ClassicTabLayout />
+      <WarehouseGuard />
     </EventProvider>
   );
+}
+
+function WarehouseGuard() {
+  const { isEventEnded, isLoading: isEventLoading } = useEventContext();
+  const scheme = useColorScheme();
+  const C = scheme === "dark" ? Colors.dark : Colors.light;
+
+  if (isEventLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: C.background }}>
+        <ActivityIndicator color={C.primary} />
+      </View>
+    );
+  }
+
+  if (isEventEnded) {
+    return <EventEndedOverlay />;
+  }
+
+  return <ClassicTabLayout />;
 }
