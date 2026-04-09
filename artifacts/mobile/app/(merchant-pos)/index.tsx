@@ -50,12 +50,14 @@ export default function MerchantPosScreen() {
   );
 
   const barcodeInputRef = useRef<TextInput>(null);
-  const [scannerMode, setScannerMode] = useState(false);
+  const barcodePausedRef = useRef(false);
+  const refocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const REFOCUS_DELAY_MS = 4000;
 
   const [activeTab, setActiveTab] = useState<"catalog" | "cart">("catalog");
   const [search, setSearch] = useState("");
 
-  // Barcode scan state
   const [barcodeInput, setBarcodeInput] = useState("");
   const [barcodeToast, setBarcodeToast] = useState<string | null>(null);
 
@@ -73,12 +75,26 @@ export default function MerchantPosScreen() {
     item.product.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const scheduleRefocus = useCallback(() => {
+    if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current);
+    refocusTimerRef.current = setTimeout(() => {
+      barcodePausedRef.current = false;
+      barcodeInputRef.current?.focus();
+    }, REFOCUS_DELAY_MS);
+  }, []);
+
+  const pauseBarcodeFocus = useCallback(() => {
+    barcodePausedRef.current = true;
+    barcodeInputRef.current?.blur();
+    scheduleRefocus();
+  }, [scheduleRefocus]);
+
   useEffect(() => {
-    if (selectedLocationId && !invLoading && scannerMode) {
-      const t = setTimeout(() => barcodeInputRef.current?.focus(), 200);
+    if (selectedLocationId && !invLoading) {
+      const t = setTimeout(() => barcodeInputRef.current?.focus(), 300);
       return () => clearTimeout(t);
     }
-  }, [selectedLocationId, invLoading, scannerMode]);
+  }, [selectedLocationId, invLoading]);
 
   const showBarcodeToast = (msg: string) => {
     setBarcodeToast(msg);
@@ -86,20 +102,26 @@ export default function MerchantPosScreen() {
   };
 
   const refocusBarcodeInput = () => {
-    if (scannerMode) {
+    if (!barcodePausedRef.current) {
       setTimeout(() => barcodeInputRef.current?.focus(), 100);
     }
   };
 
   useEffect(() => {
-    if (!selectedLocationId || !scannerMode) return;
+    if (!selectedLocationId) return;
     const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
-        refocusBarcodeInput();
+      if (nextState === "active" && !barcodePausedRef.current) {
+        barcodeInputRef.current?.focus();
       }
     });
     return () => subscription.remove();
-  }, [selectedLocationId, scannerMode]);
+  }, [selectedLocationId]);
+
+  useEffect(() => {
+    return () => {
+      if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current);
+    };
+  }, []);
 
   const handleBarcodeScan = async (barcode: string) => {
     const trimmed = barcode.trim();
@@ -185,47 +207,22 @@ export default function MerchantPosScreen() {
         )}
       </View>
 
-      <View style={[styles.barcodeRow, { backgroundColor: scannerMode ? C.primary + "11" : C.inputBg, borderColor: scannerMode ? C.primary : C.border }]}>
-        <Pressable
-          onPress={() => {
-            const next = !scannerMode;
-            setScannerMode(next);
-            if (next) {
-              setTimeout(() => barcodeInputRef.current?.focus(), 150);
-            } else {
-              barcodeInputRef.current?.blur();
-            }
-          }}
-          hitSlop={8}
-        >
-          <Feather name="maximize" size={16} color={scannerMode ? C.primary : C.textMuted} />
-        </Pressable>
-        {scannerMode ? (
-          <TextInput
-            ref={barcodeInputRef}
-            style={[styles.barcodeInput, { color: C.text }]}
-            placeholder={t("pos.barcodeScanBar")}
-            placeholderTextColor={C.textMuted}
-            value={barcodeInput}
-            onChangeText={setBarcodeInput}
-            onSubmitEditing={() => handleBarcodeScan(barcodeInput)}
-            onBlur={refocusBarcodeInput}
-            returnKeyType="done"
-            autoFocus
-            blurOnSubmit={false}
-            testID="barcode-scan-input"
-          />
-        ) : (
-          <Pressable
-            style={{ flex: 1 }}
-            onPress={() => {
-              setScannerMode(true);
-              setTimeout(() => barcodeInputRef.current?.focus(), 150);
-            }}
-          >
-            <Text style={[styles.barcodeInput, { color: C.textMuted }]}>{t("pos.barcodeScanBar")}</Text>
-          </Pressable>
-        )}
+      <View style={[styles.barcodeRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+        <Feather name="maximize" size={16} color={C.textMuted} />
+        <TextInput
+          ref={barcodeInputRef}
+          style={[styles.barcodeInput, { color: C.text }]}
+          placeholder={t("pos.barcodeScanBar")}
+          placeholderTextColor={C.textMuted}
+          value={barcodeInput}
+          onChangeText={setBarcodeInput}
+          onSubmitEditing={() => handleBarcodeScan(barcodeInput)}
+          onBlur={refocusBarcodeInput}
+          returnKeyType="done"
+          autoFocus
+          blurOnSubmit={false}
+          testID="barcode-scan-input"
+        />
         {barcodeToast && (
           <View style={[styles.toastChip, { backgroundColor: C.primary + "22" }]}>
             <Text style={[styles.toastText, { color: C.primary }]}>{barcodeToast}</Text>
@@ -257,7 +254,7 @@ export default function MerchantPosScreen() {
               placeholderTextColor={C.textMuted}
               value={search}
               onChangeText={setSearch}
-              onFocus={() => { if (scannerMode) setScannerMode(false); }}
+              onFocus={() => pauseBarcodeFocus()}
             />
           </View>
           {invLoading ? (
@@ -309,13 +306,16 @@ export default function MerchantPosScreen() {
                       qty === 0 ? (
                         <TouchableOpacity
                           style={[styles.addBtn, { backgroundColor: C.primary }]}
-                          onPress={() => addItem({
-                            productId: item.product.id,
-                            name: item.product.name,
-                            price: item.product.price,
-                            cost: item.product.cost,
-                            stockAvailable: item.quantityOnHand,
-                          })}
+                          onPress={() => {
+                            pauseBarcodeFocus();
+                            addItem({
+                              productId: item.product.id,
+                              name: item.product.name,
+                              price: item.product.price,
+                              cost: item.product.cost,
+                              stockAvailable: item.quantityOnHand,
+                            });
+                          }}
                           testID={`add-product-${item.product.id}`}
                         >
                           <Feather name="plus" size={16} color="#0a0a0a" />
@@ -324,20 +324,26 @@ export default function MerchantPosScreen() {
                         <View style={styles.qtyRow}>
                           <TouchableOpacity
                             style={[styles.qtyBtn, { backgroundColor: C.inputBg }]}
-                            onPress={() => updateQty(item.product.id, qty - 1)}
+                            onPress={() => {
+                              pauseBarcodeFocus();
+                              updateQty(item.product.id, qty - 1);
+                            }}
                           >
                             <Feather name="minus" size={14} color={C.text} />
                           </TouchableOpacity>
                           <Text style={[styles.qtyText, { color: C.text }]}>{qty}</Text>
                           <TouchableOpacity
                             style={[styles.qtyBtn, { backgroundColor: C.primary }]}
-                            onPress={() => addItem({
-                              productId: item.product.id,
-                              name: item.product.name,
-                              price: item.product.price,
-                              cost: item.product.cost,
-                              stockAvailable: item.quantityOnHand,
-                            })}
+                            onPress={() => {
+                              pauseBarcodeFocus();
+                              addItem({
+                                productId: item.product.id,
+                                name: item.product.name,
+                                price: item.product.price,
+                                cost: item.product.cost,
+                                stockAvailable: item.quantityOnHand,
+                              });
+                            }}
                           >
                             <Feather name="plus" size={14} color="#0a0a0a" />
                           </TouchableOpacity>
@@ -363,16 +369,16 @@ export default function MerchantPosScreen() {
                     <CopAmount amount={item.price} size={13} bold={false} color={C.textSecondary} />
                   </View>
                   <View style={styles.qtyRow}>
-                    <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: C.inputBg }]} onPress={() => updateQty(item.productId, item.quantity - 1)}>
+                    <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: C.inputBg }]} onPress={() => { pauseBarcodeFocus(); updateQty(item.productId, item.quantity - 1); }}>
                       <Feather name="minus" size={14} color={C.text} />
                     </TouchableOpacity>
                     <Text style={[styles.qtyText, { color: C.text }]}>{item.quantity}</Text>
-                    <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: C.primary }]} onPress={() => updateQty(item.productId, item.quantity + 1)}>
+                    <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: C.primary }]} onPress={() => { pauseBarcodeFocus(); updateQty(item.productId, item.quantity + 1); }}>
                       <Feather name="plus" size={14} color="#0a0a0a" />
                     </TouchableOpacity>
                   </View>
                   <CopAmount amount={item.price * item.quantity} size={15} />
-                  <TouchableOpacity onPress={() => removeItem(item.productId)}>
+                  <TouchableOpacity onPress={() => { pauseBarcodeFocus(); removeItem(item.productId); }}>
                     <Feather name="trash-2" size={16} color={C.danger} />
                   </TouchableOpacity>
                 </View>
