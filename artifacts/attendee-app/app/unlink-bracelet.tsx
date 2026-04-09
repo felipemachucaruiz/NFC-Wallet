@@ -17,8 +17,8 @@ export default function UnlinkBraceletScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
 
-  const { uid, balance } = useLocalSearchParams<{ uid: string; balance: string }>();
-  const balance = Number(balance ?? "0");
+  const { uid, balance: balanceParam } = useLocalSearchParams<{ uid: string; balance: string }>();
+  const balance = Number(balanceParam ?? "0");
 
   const { mutateAsync: unlinkBracelet, isPending } = useUnlinkBracelet();
   const [done, setDone] = useState(false);

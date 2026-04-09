@@ -1,0 +1,22 @@
+Starting Metro Bundler
+iOS node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__abd38177f532ddff11e5834956475527/node_modules/expo-router/entry.js ▓▓░░░░░░░░░░░░░░ 13.0% ( 57/215)
+iOS node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__abd38177f532ddff11e5834956475527/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 77.9% (1145/1297)
+iOS Bundling failed 6085ms node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__abd38177f532ddff11e5834956475527/node_modules/expo-router/entry.js (1790 modules)
+SyntaxError: /Users/expo/workingdir/build/artifacts/attendee-app/app/unlink-bracelet.tsx: Identifier 'balance' has already been declared. (21:8)
+
+[0m [90m 19 |[39m
+ [90m 20 |[39m   [36mconst[39m { uid[33m,[39m balance } [33m=[39m useLocalSearchParams[33m<[39m{ uid[33m:[39m string[33m;[39m balance[33m:[39m string }[33m>[39m()[33m;[39m
+[31m[1m>[22m[39m[90m 21 |[39m   [36mconst[39m balance [33m=[39m [33mNumber[39m(balance [33m?[39m[33m?[39m [32m"0"[39m)[33m;[39m
+ [90m    |[39m         [31m[1m^[22m[39m
+ [90m 22 |[39m
+ [90m 23 |[39m   [36mconst[39m { mutateAsync[33m:[39m unlinkBracelet[33m,[39m isPending } [33m=[39m useUnlinkBracelet()[33m;[39m
+ [90m 24 |[39m   [36mconst[39m [done[33m,[39m setDone] [33m=[39m useState([36mfalse[39m)[33m;[39m[0m
+SyntaxError: SyntaxError: /Users/expo/workingdir/build/artifacts/attendee-app/app/unlink-bracelet.tsx: Identifier 'balance' has already been declared. (21:8)
+
+[0m [90m 19 |[39m
+ [90m 20 |[39m   [36mconst[39m { uid[33m,[39m balance } [33m=[39m useLocalSearchParams[33m<[39m{ uid[33m:[39m string[33m;[39m balance[33m:[39m string }[33m>[39m()[33m;[39m
+[31m[1m>[22m[39m[90m 21 |[39m   [36mconst[39m balance [33m=[39m [33mNumber[39m(balance [33m?[39m[33m?[39m [32m"0"[39m)[33m;[39m
+ [90m    |[39m         [31m[1m^[22m[39m
+ [90m 22 |[39m
+ [90m 23 |[39m   [36mconst[39m { mutateAsync[33m:[39m unlinkBracelet[33m,[39m isPending } [33m=[39m useUnlinkBracelet()[33m;[39m
+ [90m 24 |[39m   [36mconst[39m [done[33m,[39m setDone] [33m=[39m useState([36mfalse[39m)[33m;[39m[0m
