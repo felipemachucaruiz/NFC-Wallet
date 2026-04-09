@@ -12,6 +12,7 @@ export const eventsTable = pgTable("events", {
   venueAddress: varchar("venue_address", { length: 500 }),
   startsAt: timestamp("starts_at", { withTimezone: true }),
   endsAt: timestamp("ends_at", { withTimezone: true }),
+  refundDeadline: timestamp("refund_deadline", { withTimezone: true }),
   active: boolean("active").notNull().default(true),
   currencyCode: varchar("currency_code", { length: 10 }).notNull().default("COP"),
   platformCommissionRate: numeric("platform_commission_rate", { precision: 5, scale: 2 }).notNull().default("0"),

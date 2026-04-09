@@ -52,6 +52,7 @@ const createEventSchema = z.object({
   currencyCode: z.enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"]).optional().default("COP"),
   startsAt: z.string().optional(),
   endsAt: z.string().optional(),
+  refundDeadline: z.string().optional(),
   platformCommissionRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   capacity: z.number().int().positive().optional(),
   promoterCompanyId: z.string().optional(),
@@ -77,6 +78,7 @@ const updateEventSchema = z.object({
   currencyCode: z.enum(["COP", "MXN", "CLP", "ARS", "PEN", "UYU", "BOB", "BRL", "USD"]).optional(),
   startsAt: z.string().optional(),
   endsAt: z.string().optional(),
+  refundDeadline: z.string().nullable().optional(),
   active: z.boolean().optional(),
   platformCommissionRate: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   capacity: z.number().int().positive().nullable().optional(),
@@ -99,6 +101,7 @@ const SAFE_EVENT_FIELDS = {
   venueAddress: eventsTable.venueAddress,
   startsAt: eventsTable.startsAt,
   endsAt: eventsTable.endsAt,
+  refundDeadline: eventsTable.refundDeadline,
   active: eventsTable.active,
   currencyCode: eventsTable.currencyCode,
   capacity: eventsTable.capacity,
@@ -226,7 +229,17 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, latitude, longitude, eventAdmin } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, latitude, longitude, eventAdmin } = parsed.data;
+
+  if (refundDeadline && endsAt) {
+    const deadlineDate = new Date(refundDeadline);
+    const endsDate = new Date(endsAt);
+    const minDeadline = new Date(endsDate.getTime() + 15 * 24 * 60 * 60 * 1000);
+    if (deadlineDate < minDeadline) {
+      res.status(400).json({ error: "Refund deadline must be at least 15 days after event end date" });
+      return;
+    }
+  }
 
   // Pre-validate event admin email uniqueness BEFORE inserting event (atomicity)
   let normalizedAdminEmail: string | null = null;
@@ -257,6 +270,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
         currencyCode: currencyCode ?? "COP",
         startsAt: startsAt ? new Date(startsAt) : undefined,
         endsAt: endsAt ? new Date(endsAt) : undefined,
+        refundDeadline: refundDeadline ? new Date(refundDeadline) : undefined,
         platformCommissionRate: platformCommissionRate ?? "0",
         capacity: capacity ?? null,
         promoterCompanyId: promoterCompanyId ?? null,
@@ -322,7 +336,20 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude } = parsed.data;
+
+  if (refundDeadline !== undefined && refundDeadline !== null) {
+    const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, req.params.id)))[0]?.endsAt;
+    if (resolvedEndsAt) {
+      const deadlineDate = new Date(refundDeadline);
+      const endsDate = typeof resolvedEndsAt === "string" ? new Date(resolvedEndsAt) : resolvedEndsAt;
+      const minDeadline = new Date(endsDate.getTime() + 15 * 24 * 60 * 60 * 1000);
+      if (deadlineDate < minDeadline) {
+        res.status(400).json({ error: "Refund deadline must be at least 15 days after event end date" });
+        return;
+      }
+    }
+  }
 
   const updateData: Record<string, unknown> = {
     ...(name !== undefined && { name }),
@@ -331,6 +358,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(currencyCode !== undefined && { currencyCode }),
     ...(startsAt !== undefined && { startsAt: new Date(startsAt) }),
     ...(endsAt !== undefined && { endsAt: new Date(endsAt) }),
+    ...(refundDeadline !== undefined && { refundDeadline: refundDeadline !== null ? new Date(refundDeadline) : null }),
     ...(active !== undefined && { active }),
     ...(capacity !== undefined && { capacity }),
     ...(promoterCompanyId !== undefined && { promoterCompanyId }),

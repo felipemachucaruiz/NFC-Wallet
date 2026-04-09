@@ -37,7 +37,7 @@ router.get(
     const [eventsRows, refundRows] = await Promise.all([
       eventIds.length > 0
         ? db
-            .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active, endsAt: eventsTable.endsAt, currencyCode: eventsTable.currencyCode })
+            .select({ id: eventsTable.id, name: eventsTable.name, active: eventsTable.active, endsAt: eventsTable.endsAt, refundDeadline: eventsTable.refundDeadline, currencyCode: eventsTable.currencyCode })
             .from(eventsTable)
             .where(inArray(eventsTable.id, eventIds))
         : Promise.resolve([]),
@@ -59,6 +59,7 @@ router.get(
       id: ev.id,
       name: ev.name,
       active: ev.active && (!ev.endsAt || ev.endsAt > now),
+      refundDeadline: ev.refundDeadline?.toISOString() ?? null,
     }]));
 
     const refundStatusByUid = new Map<string, string>();
@@ -591,6 +592,16 @@ router.post(
 
     if (!bracelet.eventId) {
       res.status(400).json({ error: "Bracelet is not associated with an event" });
+      return;
+    }
+
+    const [event] = await db
+      .select({ refundDeadline: eventsTable.refundDeadline })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, bracelet.eventId));
+
+    if (event?.refundDeadline && new Date() > event.refundDeadline) {
+      res.status(403).json({ error: "REFUND_DEADLINE_PASSED" });
       return;
     }
 

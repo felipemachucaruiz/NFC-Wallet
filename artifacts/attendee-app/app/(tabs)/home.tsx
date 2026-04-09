@@ -38,7 +38,7 @@ type BraceletItem = {
   pendingRefund?: boolean;
   refundStatus?: string | null;
   attendeeName?: string | null;
-  event?: { id: string; name: string; active: boolean } | null;
+  event?: { id: string; name: string; active: boolean; refundDeadline?: string | null } | null;
   updatedAt: string;
 };
 
@@ -446,7 +446,7 @@ export default function HomeScreen() {
                         </View>
                         <Text style={[styles.actionText, { color: C.danger }]}>{t("home.blockBracelet")}</Text>
                       </Pressable>
-                      {b.balance > 0 && (
+                      {b.balance > 0 && !(b.event?.refundDeadline && new Date() > new Date(b.event.refundDeadline)) && (
                         <Pressable
                           style={styles.actionBtn}
                           onPress={() => router.push({
@@ -570,24 +570,49 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   )}
-                  {!isRefundDone && !hasActiveRefund && b.balance > 0 && (
-                    <View style={[styles.archivedRefundHint, { borderTopColor: C.separator }]}>
-                      <Feather name="info" size={14} color={C.primary} />
-                      <Text style={[styles.archivedRefundHintText, { color: C.textSecondary }]}>
-                        {t("home.archivedRefundAvailable")}
-                      </Text>
-                      <Pressable
-                        onPress={() => router.push({
-                          pathname: "/refund-request",
-                          params: { braceletUid: b.uid, eventName: b.event?.name ?? "" },
-                        })}
-                      >
-                        <Text style={[styles.archivedRefundLink, { color: C.primary }]}>
-                          {t("home.requestRefund")}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  )}
+                  {!isRefundDone && !hasActiveRefund && b.balance > 0 && (() => {
+                    const deadline = b.event?.refundDeadline ? new Date(b.event.refundDeadline) : null;
+                    const now = new Date();
+                    const deadlinePassed = deadline ? now > deadline : false;
+                    const daysLeft = deadline ? Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+
+                    if (deadlinePassed) {
+                      return (
+                        <View style={[styles.archivedRefundHint, { borderTopColor: C.separator }]}>
+                          <Feather name="x-circle" size={14} color={C.danger} />
+                          <Text style={[styles.archivedRefundHintText, { color: C.danger }]}>
+                            {t("home.refundDeadlinePassed")}
+                          </Text>
+                        </View>
+                      );
+                    }
+
+                    return (
+                      <View style={[styles.archivedRefundHint, { borderTopColor: C.separator }]}>
+                        <Feather name="info" size={14} color={C.primary} />
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={[styles.archivedRefundHintText, { color: C.textSecondary }]}>
+                            {t("home.archivedRefundAvailable")}
+                          </Text>
+                          {deadline && daysLeft !== null && daysLeft > 0 && (
+                            <Text style={[styles.archivedRefundHintText, { color: daysLeft <= 3 ? C.danger : C.warning, fontSize: 11 }]}>
+                              {t("home.refundDeadlineCountdown", { days: daysLeft, date: deadline.toLocaleDateString() })}
+                            </Text>
+                          )}
+                        </View>
+                        <Pressable
+                          onPress={() => router.push({
+                            pathname: "/refund-request",
+                            params: { braceletUid: b.uid, eventName: b.event?.name ?? "" },
+                          })}
+                        >
+                          <Text style={[styles.archivedRefundLink, { color: C.primary }]}>
+                            {t("home.requestRefund")}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })()}
                 </View>
               );
             })}

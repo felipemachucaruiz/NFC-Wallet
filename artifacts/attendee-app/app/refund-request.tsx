@@ -242,6 +242,8 @@ export default function RefundRequestScreen() {
               const msg = extractErrorMessage(e, "");
               if (msg === "REFUND_REQUEST_ALREADY_PENDING") {
                 showAlert(t("refund.alreadyPendingTitle"), t("refund.alreadyPendingMessage"));
+              } else if (msg === "REFUND_DEADLINE_PASSED") {
+                showAlert(t("refund.deadlinePassedTitle"), t("refund.deadlinePassedMessage"));
               } else {
                 showAlert(t("common.error"), msg || t("common.unknownError"));
               }

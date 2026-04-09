@@ -39,6 +39,7 @@ type EventForm = {
   capacity: string;
   startsAt: string;
   endsAt: string;
+  refundDeadline: string;
   latitude: number | null;
   longitude: number | null;
   commissionRate: string;
@@ -58,6 +59,7 @@ const emptyForm: EventForm = {
   capacity: "",
   startsAt: "",
   endsAt: "",
+  refundDeadline: "",
   latitude: null,
   longitude: null,
   commissionRate: "",
@@ -196,6 +198,12 @@ function FormFields({
           <Label>{t("events.endsAt")}</Label>
           <Input data-testid="input-event-ends" type="datetime-local" value={form.endsAt} onChange={(e) => setForm((f) => ({ ...f, endsAt: e.target.value }))} />
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label>{t("events.refundDeadline")}</Label>
+        <Input type="datetime-local" value={form.refundDeadline} onChange={(e) => setForm((f) => ({ ...f, refundDeadline: e.target.value }))} min={form.endsAt ? (() => { const d = new Date(form.endsAt); d.setDate(d.getDate() + 15); return d.toISOString().slice(0, 16); })() : undefined} />
+        <p className="text-xs text-muted-foreground">{t("events.refundDeadlineHint")}</p>
       </div>
 
       <div className="space-y-1">
@@ -398,6 +406,7 @@ export default function Events() {
       capacity: raw.capacity != null ? String(raw.capacity) : "",
       startsAt: event.startsAt ? event.startsAt.slice(0, 16) : "",
       endsAt: event.endsAt ? event.endsAt.slice(0, 16) : "",
+      refundDeadline: event.refundDeadline ? event.refundDeadline.slice(0, 16) : "",
       latitude: raw.latitude ? parseFloat(raw.latitude) : null,
       longitude: raw.longitude ? parseFloat(raw.longitude) : null,
       commissionRate: raw.platformCommissionRate ?? "",
@@ -425,6 +434,7 @@ export default function Events() {
       venueAddress: form.venueAddress || undefined,
       startsAt: form.startsAt || undefined,
       endsAt: form.endsAt || undefined,
+      refundDeadline: form.refundDeadline || undefined,
       capacity: capNum && capNum > 0 ? capNum : undefined,
       latitude: form.latitude ?? undefined,
       longitude: form.longitude ?? undefined,
@@ -460,6 +470,7 @@ export default function Events() {
       venueAddress: form.venueAddress || undefined,
       startsAt: form.startsAt || undefined,
       endsAt: form.endsAt || undefined,
+      refundDeadline: form.refundDeadline || null,
       capacity: capNum && capNum > 0 ? capNum : null,
       latitude: form.latitude ?? undefined,
       longitude: form.longitude ?? undefined,
