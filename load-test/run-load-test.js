@@ -99,9 +99,10 @@ function percentile(arr, p) {
   return sorted[Math.max(0, idx)];
 }
 
-async function makeRequest(pool, method, path, token, body) {
+async function makeRequest(pool, method, path, token, body, simulatedIp) {
   const headers = { "content-type": "application/json" };
   if (token) headers["authorization"] = `Bearer ${token}`;
+  if (simulatedIp) headers["x-forwarded-for"] = simulatedIp;
 
   const start = performance.now();
   try {
@@ -126,19 +127,27 @@ async function makeRequest(pool, method, path, token, body) {
   }
 }
 
-async function loginAttendee(pool, identifier, password) {
+function generateIp(userId) {
+  const a = 10;
+  const b = (userId >> 16) & 255;
+  const c = (userId >> 8) & 255;
+  const d = userId & 255;
+  return `${a}.${b}.${c}.${d}`;
+}
+
+async function loginAttendee(pool, identifier, password, ip) {
   const res = await makeRequest(pool, "POST", "/api/auth/login", null, {
     identifier,
     password,
-  });
+  }, ip);
   return res.data?.token || null;
 }
 
-async function loginStaff(pool, identifier, password) {
+async function loginStaff(pool, identifier, password, ip) {
   const res = await makeRequest(pool, "POST", "/api/auth/login", null, {
     identifier,
     password,
-  });
+  }, ip);
   return res.data?.token || null;
 }
 
@@ -147,63 +156,50 @@ const ATTENDEE_SCENARIOS = [
   {
     name: "GET /me/bracelets",
     weight: 30,
-    fn: async (pool, token) => {
-      const res = await makeRequest(pool, "GET", "/api/attendee/me/bracelets", token);
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/attendee/me/bracelets", token, null, ip);
       recordResult("GET /me/bracelets", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "GET /me/transactions",
     weight: 20,
-    fn: async (pool, token) => {
-      const res = await makeRequest(
-        pool,
-        "GET",
-        "/api/attendee/me/transactions?limit=20&offset=0",
-        token
-      );
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/attendee/me/transactions?limit=20&offset=0", token, null, ip);
       recordResult("GET /me/transactions", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "GET /events/nearby",
     weight: 15,
-    fn: async (pool, token) => {
-      const res = await makeRequest(
-        pool,
-        "GET",
-        "/api/attendee/events/nearby?lat=4.711&lng=-74.0721",
-        token
-      );
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/attendee/events/nearby?lat=4.711&lng=-74.0721", token, null, ip);
       recordResult("GET /events/nearby", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "GET /auth/user",
     weight: 15,
-    fn: async (pool, token) => {
-      const res = await makeRequest(pool, "GET", "/api/auth/user", token);
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/auth/user", token, null, ip);
       recordResult("GET /auth/user", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "POST /bracelets/link (simulated)",
     weight: 10,
-    fn: async (pool, token) => {
+    fn: async (pool, token, ip) => {
       const fakeUid = randomBytes(7).toString("hex").toUpperCase();
-      const res = await makeRequest(pool, "POST", "/api/attendee/me/bracelets/link", token, {
-        uid: fakeUid,
-        eventId: 999999,
-      });
+      const res = await makeRequest(pool, "POST", "/api/attendee/me/bracelets/link", token, { uid: fakeUid, eventId: 999999 }, ip);
       recordResult("POST /bracelets/link", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "GET /payments/status (simulated)",
     weight: 10,
-    fn: async (pool, token) => {
+    fn: async (pool, token, ip) => {
       const fakeId = randomBytes(8).toString("hex");
-      const res = await makeRequest(pool, "GET", `/api/payments/status/${fakeId}`, token);
+      const res = await makeRequest(pool, "GET", `/api/payments/status/${fakeId}`, token, null, ip);
       recordResult("GET /payments/status", res.statusCode, res.latency, res.error);
     },
   },
@@ -213,63 +209,56 @@ const STAFF_SCENARIOS = [
   {
     name: "GET /events",
     weight: 25,
-    fn: async (pool, token) => {
-      const res = await makeRequest(pool, "GET", "/api/events", token);
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/events", token, null, ip);
       recordResult("STAFF GET /events", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "GET /transactions",
     weight: 20,
-    fn: async (pool, token) => {
-      const res = await makeRequest(
-        pool,
-        "GET",
-        "/api/transactions?limit=20&offset=0",
-        token
-      );
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/transactions?limit=20&offset=0", token, null, ip);
       recordResult("STAFF GET /transactions", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "GET /merchants",
     weight: 15,
-    fn: async (pool, token) => {
-      const res = await makeRequest(pool, "GET", "/api/merchants", token);
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/merchants", token, null, ip);
       recordResult("STAFF GET /merchants", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "GET /reports/revenue",
     weight: 10,
-    fn: async (pool, token) => {
-      const res = await makeRequest(pool, "GET", "/api/reports/revenue", token);
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/reports/revenue", token, null, ip);
       recordResult("STAFF GET /reports/revenue", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "GET /users",
     weight: 10,
-    fn: async (pool, token) => {
-      const res = await makeRequest(pool, "GET", "/api/users", token);
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/users", token, null, ip);
       recordResult("STAFF GET /users", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "GET /fraud-alerts",
     weight: 10,
-    fn: async (pool, token) => {
-      const res = await makeRequest(pool, "GET", "/api/fraud-alerts", token);
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "GET", "/api/fraud-alerts", token, null, ip);
       recordResult("STAFF GET /fraud-alerts", res.statusCode, res.latency, res.error);
     },
   },
   {
     name: "POST /bracelets/sync (simulated)",
     weight: 10,
-    fn: async (pool, token) => {
-      const res = await makeRequest(pool, "POST", "/api/bracelets/sync", token, {
-        transactions: [],
-      });
+    fn: async (pool, token, ip) => {
+      const res = await makeRequest(pool, "POST", "/api/bracelets/sync", token, { transactions: [] }, ip);
       recordResult("STAFF POST /bracelets/sync", res.statusCode, res.latency, res.error);
     },
   },
@@ -289,15 +278,17 @@ async function simulateAttendeeUser(pool, userId, durationMs, rpsPerUser) {
   const identifier = `loadtest_attendee_${userId}`;
   const password = "LoadTest2025!";
 
+  const ip = generateIp(userId);
+
   const regRes = await makeRequest(pool, "POST", "/api/auth/create-account", null, {
     email: `${identifier}@loadtest.tapee.app`,
     username: identifier,
     password,
     fullName: `Load Test User ${userId}`,
-  });
+  }, ip);
   recordResult("POST /auth/create-account", regRes.statusCode, regRes.latency, regRes.error);
 
-  const token = await loginAttendee(pool, identifier, password);
+  const token = await loginAttendee(pool, identifier, password, ip);
   if (!token) {
     recordResult("POST /auth/login", 401, 0, "login_failed");
     return;
@@ -310,7 +301,7 @@ async function simulateAttendeeUser(pool, userId, durationMs, rpsPerUser) {
   while (Date.now() < end) {
     const scenario = pickScenario(ATTENDEE_SCENARIOS);
     try {
-      await scenario.fn(pool, token);
+      await scenario.fn(pool, token, ip);
     } catch (err) {
       recordResult(scenario.name, 0, 0, err.message);
     }
@@ -322,8 +313,9 @@ async function simulateAttendeeUser(pool, userId, durationMs, rpsPerUser) {
 async function simulateStaffUser(pool, userId, durationMs, rpsPerUser) {
   const identifier = process.env.STAFF_USER || "admin";
   const password = process.env.STAFF_PASSWORD || "admin";
+  const ip = generateIp(10000 + userId);
 
-  const token = await loginStaff(pool, identifier, password);
+  const token = await loginStaff(pool, identifier, password, ip);
   if (!token) {
     recordResult("POST /auth/login (staff)", 401, 0, "staff_login_failed");
     return;
@@ -336,7 +328,7 @@ async function simulateStaffUser(pool, userId, durationMs, rpsPerUser) {
   while (Date.now() < end) {
     const scenario = pickScenario(STAFF_SCENARIOS);
     try {
-      await scenario.fn(pool, token);
+      await scenario.fn(pool, token, ip);
     } catch (err) {
       recordResult(scenario.name, 0, 0, err.message);
     }
