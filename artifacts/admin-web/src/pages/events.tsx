@@ -197,7 +197,19 @@ function FormFields({
         </div>
         <div className="space-y-1">
           <Label>{t("events.endsAt")}</Label>
-          <Input data-testid="input-event-ends" type="datetime-local" value={form.endsAt} onChange={(e) => setForm((f) => ({ ...f, endsAt: e.target.value }))} />
+          <Input data-testid="input-event-ends" type="datetime-local" value={form.endsAt} onChange={(e) => {
+            const newEndsAt = e.target.value;
+            setForm((f) => {
+              const updated = { ...f, endsAt: newEndsAt };
+              if (newEndsAt && f.refundDeadline) {
+                const minDeadline = new Date(new Date(newEndsAt).getTime() + 15 * 24 * 60 * 60 * 1000);
+                if (new Date(f.refundDeadline) < minDeadline) {
+                  updated.refundDeadline = minDeadline.toISOString().slice(0, 16);
+                }
+              }
+              return updated;
+            });
+          }} />
         </div>
       </div>
 

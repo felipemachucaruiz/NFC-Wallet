@@ -234,6 +234,11 @@ export default function ChargeScreen() {
         setStep("wrong_event");
         return;
       }
+      if (errMsg.includes("EVENT_ENDED")) {
+        showAlert(t("common.error"), t("pos.eventEnded"));
+        setStep("waiting");
+        return;
+      }
       await enqueue({
         locationId,
         nfcUid: uid,
