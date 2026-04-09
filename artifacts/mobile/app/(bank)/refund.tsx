@@ -11,7 +11,7 @@ import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { isNfcSupported, writeBracelet, type TagInfo, type TagType } from "@/utils/nfc";
+import { isNfcSupported, scanAndWriteBracelet, type TagInfo, type TagType, type NfcChipTypeHint } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { formatCurrency } from "@/utils/format";
 import { useEventContext } from "@/contexts/EventContext";
@@ -94,12 +94,19 @@ export default function RefundScreen() {
               const newCounter = counter + 1;
 
               if (isNfcSupported()) {
-                const newHmac = await computeHmac(0, newCounter, hmacSecret);
-                await writeBracelet(
-                  { uid, balance: 0, counter: newCounter, hmac: newHmac },
-                  tagInfoFromParams ?? undefined,
-                  ultralightCDesKey ? { ultralightCKeyHex: ultralightCDesKey } : undefined
-                );
+                const chipHint: NfcChipTypeHint | undefined =
+                  tagInfoFromParams?.type === "MIFARE_CLASSIC" ? "mifare_classic" : undefined;
+                const newHmac = await computeHmac(0, newCounter, hmacSecret, uid);
+                await scanAndWriteBracelet(async (payload) => {
+                  if (payload.uid !== uid) {
+                    showAlert(t("common.error"), t("bank.wrongBracelet"));
+                    return null;
+                  }
+                  return { uid, balance: 0, counter: newCounter, hmac: newHmac };
+                }, {
+                  expectedChipType: chipHint,
+                  ultralightCKeyHex: ultralightCDesKey || undefined,
+                });
                 nfcCounter = newCounter;
               }
 

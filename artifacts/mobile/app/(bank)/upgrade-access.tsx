@@ -22,8 +22,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useZoneCache, type AccessZone } from "@/contexts/ZoneCacheContext";
 import {
   isNfcSupported,
-  writeBracelet,
+  scanAndWriteBracelet,
   cancelNfc,
+  type NfcChipTypeHint,
 } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { API_BASE_URL } from "@/constants/domain";
@@ -172,22 +173,19 @@ export default function UpgradeAccessScreen() {
         zonesAdded: rawData.zonesAdded ?? [],
       });
 
-      // 2. Write new payload to NFC chip
       if (isNfcSupported() && tagType && signingKey) {
         const newCounter = counter + 1;
         const newHmac = await computeHmac(balance, newCounter, signingKey, uid);
-
-        const resolvedTagInfo: import("@/utils/nfc").TagInfo = {
-          type: tagType || "NTAG213",
-          label: tagLabel || "NTAG213",
-          memoryBytes: tagMemoryBytes || 144,
-        };
+        const chipHint: NfcChipTypeHint | undefined =
+          tagType === "MIFARE_CLASSIC" ? "mifare_classic" : undefined;
 
         try {
-          await writeBracelet(
-            { uid, balance, counter: newCounter, hmac: newHmac },
-            resolvedTagInfo,
-          );
+          await scanAndWriteBracelet(async (payload) => {
+            if (payload.uid !== uid) return null;
+            return { uid, balance, counter: newCounter, hmac: newHmac };
+          }, {
+            expectedChipType: chipHint,
+          });
         } catch (nfcErr: unknown) {
           const msg = extractErrorMessage(nfcErr, "");
           if (!msg.includes("cancel") && msg !== "USER_CANCELLED") {

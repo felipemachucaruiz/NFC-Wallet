@@ -15,8 +15,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { isNfcSupported, writeBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
-import { writeDesfireBracelet, type DesfireTagInfo } from "@/utils/desfire";
+import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type TagInfo, type TagType, type NfcChipTypeHint } from "@/utils/nfc";
+import { scanAndWriteDesfireBracelet } from "@/utils/desfire";
 import { computeHmac } from "@/utils/hmac";
 import { formatCurrency, parseCOPInput } from "@/utils/format";
 import { useEventContext } from "@/contexts/EventContext";
@@ -310,70 +310,88 @@ export default function TopUpScreen() {
     setStep("writing");
     setIsRetrying(false);
 
-    const attemptWrite = async (): Promise<void> => {
+    let aborted = false;
+
+    const doScanAndWrite = async (): Promise<boolean> => {
       try {
-        let newHmac = "";
+        let writtenHmac = "";
+
         if (nfcChipType === "desfire_ev3") {
-          await writeDesfireBracelet(
-            { uid, balance: newBalance, counter: newCounter, hmac: "" },
-            desfireAesKey
-          );
+          await scanAndWriteDesfireBracelet(async (payload) => {
+            if (payload.uid !== uid) {
+              aborted = true;
+              showAlert(t("common.error"), t("bank.wrongBracelet"));
+              return null;
+            }
+            return { uid, balance: newBalance, counter: newCounter, hmac: "" };
+          }, desfireAesKey);
         } else {
-          newHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
-          await writeBracelet(
-            { uid, balance: newBalance, counter: newCounter, hmac: newHmac },
-            tagInfoFromParams ?? undefined,
-            ultralightCDesKey ? { ultralightCKeyHex: ultralightCDesKey } : undefined
-          );
+          const chipHint: NfcChipTypeHint | undefined =
+            tagInfoFromParams?.type === "MIFARE_CLASSIC" ? "mifare_classic" : undefined;
+          await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
+            if (payload.uid !== uid) {
+              aborted = true;
+              showAlert(t("common.error"), t("bank.wrongBracelet"));
+              return null;
+            }
+            setStep("writing");
+            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
+            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
+          }, {
+            expectedChipType: chipHint,
+            ultralightCKeyHex: ultralightCDesKey || undefined,
+          });
         }
+
+        if (aborted) return false;
+
         writingRef.current = false;
         setIsRetrying(false);
         setWriteRetryCount(0);
         writeRetryRef.current = 0;
-        // Write succeeded — enqueue for server sync
         await enqueueTopUp({
           nfcUid: uid,
           amount: amount,
           paymentMethod,
           newBalance,
           newCounter,
-          hmac: newHmac,
+          hmac: writtenHmac,
         });
         submittingRef.current = false;
         void syncToServer(true);
         setStep("success");
-      } catch (e: unknown) {
-        if (cancelledRef.current) return;
-        const msg = extractErrorMessage(e, "NFC write error");
-
-        const attempt = writeRetryRef.current;
-        if (attempt < MAX_WRITE_RETRIES) {
-          writeRetryRef.current = attempt + 1;
-          setWriteRetryCount(attempt + 1);
-          setIsRetrying(true);
-          await new Promise<void>((resolve) => setTimeout(resolve, 500));
-          if (!cancelledRef.current) {
-            await attemptWrite();
-          }
-        } else {
-          console.error("[TopUp] NFC write failed — all retries exhausted", {
-            nfcUid: uid,
-            amount: amount,
-            newBalance,
-            timestamp: new Date().toISOString(),
-            error: msg,
-          });
-          writingRef.current = false;
-          setIsRetrying(false);
-          setWriteRetryCount(0);
-          writeRetryRef.current = 0;
-          setWriteError(msg);
-          setStep("write_failed");
-        }
+        return true;
+      } catch {
+        return false;
       }
     };
 
-    await attemptWrite();
+    let success = await doScanAndWrite();
+
+    while (!success && !aborted && !cancelledRef.current && writeRetryRef.current < MAX_WRITE_RETRIES) {
+      writeRetryRef.current += 1;
+      setWriteRetryCount(writeRetryRef.current);
+      setIsRetrying(true);
+      await new Promise<void>((resolve) => setTimeout(resolve, 500));
+      if (!cancelledRef.current) {
+        success = await doScanAndWrite();
+      }
+    }
+
+    if (!success && !aborted && !cancelledRef.current) {
+      console.error("[TopUp] NFC write failed — all retries exhausted", {
+        nfcUid: uid,
+        amount: amount,
+        newBalance,
+        timestamp: new Date().toISOString(),
+      });
+      writingRef.current = false;
+      setIsRetrying(false);
+      setWriteRetryCount(0);
+      writeRetryRef.current = 0;
+      setWriteError(t("bank.writeError"));
+      setStep("write_failed");
+    }
   };
 
   // ─── Auto-start NFC write when tap_write step is entered ────────────────────
