@@ -66,6 +66,7 @@ type EventItem = {
   active?: boolean;
   startsAt: string;
   endsAt: string;
+  refundDeadline?: string | null;
   platformCommissionRate?: string | number;
   capacity?: number | null;
   promoterCompanyId?: string | null;
@@ -101,6 +102,7 @@ export default function EventsScreen() {
   const [longitude, setLongitude] = useState("");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [refundDeadline, setRefundDeadline] = useState<Date | null>(null);
   const [platformCommission, setPlatformCommission] = useState("0");
   const [capacity, setCapacity] = useState("");
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
@@ -185,7 +187,7 @@ export default function EventsScreen() {
 
   const resetForm = () => {
     setEventName(""); setVenue(""); setLatitude(""); setLongitude("");
-    setStartDate(null); setEndDate(null);
+    setStartDate(null); setEndDate(null); setRefundDeadline(null);
     setPlatformCommission("0"); setCapacity(""); setSelectedCompanyId(""); setPulepId("");
     setAdminEmail(""); setAdminPassword(""); setAdminFirstName("");
     setOrganizerMode("none"); setSelectedClientId(""); setClientSearch("");
@@ -199,6 +201,7 @@ export default function EventsScreen() {
     setLongitude(item.longitude != null ? String(item.longitude) : "");
     setStartDate(item.startsAt ? new Date(item.startsAt) : null);
     setEndDate(item.endsAt ? new Date(item.endsAt) : null);
+    setRefundDeadline(item.refundDeadline ? new Date(item.refundDeadline) : null);
     setPlatformCommission(item.platformCommissionRate ? String(item.platformCommissionRate) : "0");
     setCapacity(item.capacity ? String(item.capacity) : "");
     setSelectedCompanyId(item.promoterCompanyId ?? "");
@@ -239,6 +242,7 @@ export default function EventsScreen() {
         longitude: longitude.trim() ? parseFloat(longitude.trim()) : undefined,
         startsAt: startDate.toISOString(),
         endsAt: endDate.toISOString(),
+        refundDeadline: refundDeadline ? refundDeadline.toISOString() : undefined,
         platformCommissionRate: platformCommission.trim() || "0",
         capacity: capacity.trim() ? parseInt(capacity.trim(), 10) : undefined,
         promoterCompanyId: selectedCompanyId,
@@ -308,6 +312,7 @@ export default function EventsScreen() {
         longitude: longitude.trim() ? parseFloat(longitude.trim()) : null,
         startsAt: startDate.toISOString(),
         endsAt: endDate.toISOString(),
+        refundDeadline: refundDeadline ? refundDeadline.toISOString() : null,
         platformCommissionRate: platformCommission.trim() || "0",
         capacity: capacity.trim() ? parseInt(capacity.trim(), 10) : null,
         promoterCompanyId: selectedCompanyId,
@@ -439,6 +444,7 @@ export default function EventsScreen() {
               onPickLocation={() => setShowMapPicker(true)}
               startDate={startDate} setStartDate={setStartDate}
               endDate={endDate} setEndDate={setEndDate}
+              refundDeadline={refundDeadline} setRefundDeadline={setRefundDeadline}
               platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
               capacity={capacity} setCapacity={setCapacity}
               companies={companies} selectedCompanyId={selectedCompanyId} setSelectedCompanyId={setSelectedCompanyId}
@@ -600,6 +606,7 @@ export default function EventsScreen() {
               onPickLocation={() => setShowMapPicker(true)}
               startDate={startDate} setStartDate={setStartDate}
               endDate={endDate} setEndDate={setEndDate}
+              refundDeadline={refundDeadline} setRefundDeadline={setRefundDeadline}
               platformCommission={platformCommission} setPlatformCommission={setPlatformCommission}
               capacity={capacity} setCapacity={setCapacity}
               companies={companies} selectedCompanyId={selectedCompanyId} setSelectedCompanyId={setSelectedCompanyId}
@@ -644,6 +651,7 @@ function EventFormFields({
   onPickLocation,
   startDate, setStartDate,
   endDate, setEndDate,
+  refundDeadline, setRefundDeadline,
   platformCommission, setPlatformCommission,
   capacity, setCapacity,
   companies, selectedCompanyId, setSelectedCompanyId,
@@ -659,6 +667,7 @@ function EventFormFields({
   onPickLocation: () => void;
   startDate: Date | null; setStartDate: (v: Date | null) => void;
   endDate: Date | null; setEndDate: (v: Date | null) => void;
+  refundDeadline: Date | null; setRefundDeadline: (v: Date | null) => void;
   platformCommission: string; setPlatformCommission: (v: string) => void;
   capacity: string; setCapacity: (v: string) => void;
   companies: PromoterCompany[]; selectedCompanyId: string; setSelectedCompanyId: (v: string) => void;
@@ -721,6 +730,26 @@ function EventFormFields({
         minimumDate={startDate ?? undefined}
         placeholder={t("admin.endDatePlaceholder")}
       />
+      <DatePickerInput
+        label={t("admin.refundDeadline")}
+        value={refundDeadline}
+        onChange={(d) => {
+          if (endDate) {
+            const minDeadline = new Date(endDate);
+            minDeadline.setDate(minDeadline.getDate() + 15);
+            if (d < minDeadline) {
+              showAlert("Error", t("admin.refundDeadlineMinDays"));
+              return;
+            }
+          }
+          setRefundDeadline(d);
+        }}
+        minimumDate={endDate ? (() => { const d = new Date(endDate); d.setDate(d.getDate() + 15); return d; })() : undefined}
+        placeholder={t("admin.refundDeadlinePlaceholder")}
+      />
+      <Text style={[styles.hintText, { color: C.textMuted, marginTop: -8 }]}>
+        {t("admin.refundDeadlineHint")}
+      </Text>
       <Input
         label={t("eventAdmin.platformCommission")}
         value={platformCommission}
