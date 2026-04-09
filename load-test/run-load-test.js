@@ -482,9 +482,9 @@ function printReport() {
 
   console.log("\n" + "=".repeat(80));
 
-  const reportData = {
+  return {
     profile: PROFILE,
-    config: config.label,
+    configLabel: config.label,
     duration: elapsed,
     totalRequests: stats.totalRequests,
     successfulRequests: stats.successfulRequests,
@@ -506,12 +506,6 @@ function printReport() {
       estimatedMonthlyCost: totalMonthlyCost,
     },
   };
-
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const reportFile = `report-${PROFILE}-${timestamp}.json`;
-  const fs = await import("fs");
-  fs.writeFileSync(reportFile, JSON.stringify(reportData, null, 2));
-  console.log(`\n  Full report saved to: load-test/${reportFile}`);
 }
 
 async function main() {
@@ -635,7 +629,14 @@ async function main() {
   stats.endTime = Date.now();
 
   console.log("\n");
-  await printReport();
+  const reportData = await printReport();
+
+  import("fs").then((fs) => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const reportFile = `report-${PROFILE}-${timestamp}.json`;
+    fs.writeFileSync(reportFile, JSON.stringify(reportData, null, 2));
+    console.log(`\n  Full report saved to: load-test/${reportFile}`);
+  });
 
   await attendeePool.close();
   await staffPool.close();
