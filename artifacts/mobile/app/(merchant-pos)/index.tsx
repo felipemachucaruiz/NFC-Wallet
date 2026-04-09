@@ -49,16 +49,8 @@ export default function MerchantPosScreen() {
     }, [selectedLocationId]),
   );
 
-  // Re-focus the barcode input whenever the screen is focused (PDA workflows)
   const barcodeInputRef = useRef<TextInput>(null);
-  useFocusEffect(
-    useCallback(() => {
-      if (selectedLocationId) {
-        const t = setTimeout(() => barcodeInputRef.current?.focus(), 300);
-        return () => clearTimeout(t);
-      }
-    }, [selectedLocationId]),
-  );
+  const [scannerMode, setScannerMode] = useState(false);
 
   const [activeTab, setActiveTab] = useState<"catalog" | "cart">("catalog");
   const [search, setSearch] = useState("");
@@ -81,41 +73,33 @@ export default function MerchantPosScreen() {
     item.product.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Auto-focus barcode input once inventory is loaded
   useEffect(() => {
-    if (selectedLocationId && !invLoading) {
+    if (selectedLocationId && !invLoading && scannerMode) {
       const t = setTimeout(() => barcodeInputRef.current?.focus(), 200);
       return () => clearTimeout(t);
     }
-  }, [selectedLocationId, invLoading]);
+  }, [selectedLocationId, invLoading, scannerMode]);
 
   const showBarcodeToast = (msg: string) => {
     setBarcodeToast(msg);
     setTimeout(() => setBarcodeToast(null), 2500);
   };
 
-  // Track whether another legitimate TextInput (e.g., catalog search) currently
-  // has focus so that the onBlur guard does not fight it.
-  const otherInputFocused = useRef(false);
-
   const refocusBarcodeInput = () => {
-    setTimeout(() => {
-      if (!otherInputFocused.current) {
-        barcodeInputRef.current?.focus();
-      }
-    }, 100);
+    if (scannerMode) {
+      setTimeout(() => barcodeInputRef.current?.focus(), 100);
+    }
   };
 
-  // AppState listener: refocus barcode input when app returns to foreground
   useEffect(() => {
-    if (!selectedLocationId) return;
+    if (!selectedLocationId || !scannerMode) return;
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
         refocusBarcodeInput();
       }
     });
     return () => subscription.remove();
-  }, [selectedLocationId]);
+  }, [selectedLocationId, scannerMode]);
 
   const handleBarcodeScan = async (barcode: string) => {
     const trimmed = barcode.trim();
@@ -201,23 +185,47 @@ export default function MerchantPosScreen() {
         )}
       </View>
 
-      {/* Persistent barcode scan bar — available across catalog AND cart tabs */}
-      <View style={[styles.barcodeRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
-        <Feather name="maximize" size={16} color={C.textMuted} />
-        <TextInput
-          ref={barcodeInputRef}
-          style={[styles.barcodeInput, { color: C.text }]}
-          placeholder={t("pos.barcodeScanBar")}
-          placeholderTextColor={C.textMuted}
-          value={barcodeInput}
-          onChangeText={setBarcodeInput}
-          onSubmitEditing={() => handleBarcodeScan(barcodeInput)}
-          onBlur={refocusBarcodeInput}
-          returnKeyType="done"
-          autoFocus={true}
-          blurOnSubmit={false}
-          testID="barcode-scan-input"
-        />
+      <View style={[styles.barcodeRow, { backgroundColor: scannerMode ? C.primary + "11" : C.inputBg, borderColor: scannerMode ? C.primary : C.border }]}>
+        <Pressable
+          onPress={() => {
+            const next = !scannerMode;
+            setScannerMode(next);
+            if (next) {
+              setTimeout(() => barcodeInputRef.current?.focus(), 150);
+            } else {
+              barcodeInputRef.current?.blur();
+            }
+          }}
+          hitSlop={8}
+        >
+          <Feather name="maximize" size={16} color={scannerMode ? C.primary : C.textMuted} />
+        </Pressable>
+        {scannerMode ? (
+          <TextInput
+            ref={barcodeInputRef}
+            style={[styles.barcodeInput, { color: C.text }]}
+            placeholder={t("pos.barcodeScanBar")}
+            placeholderTextColor={C.textMuted}
+            value={barcodeInput}
+            onChangeText={setBarcodeInput}
+            onSubmitEditing={() => handleBarcodeScan(barcodeInput)}
+            onBlur={refocusBarcodeInput}
+            returnKeyType="done"
+            autoFocus
+            blurOnSubmit={false}
+            testID="barcode-scan-input"
+          />
+        ) : (
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => {
+              setScannerMode(true);
+              setTimeout(() => barcodeInputRef.current?.focus(), 150);
+            }}
+          >
+            <Text style={[styles.barcodeInput, { color: C.textMuted }]}>{t("pos.barcodeScanBar")}</Text>
+          </Pressable>
+        )}
         {barcodeToast && (
           <View style={[styles.toastChip, { backgroundColor: C.primary + "22" }]}>
             <Text style={[styles.toastText, { color: C.primary }]}>{barcodeToast}</Text>
@@ -229,7 +237,7 @@ export default function MerchantPosScreen() {
         {(["catalog", "cart"] as const).map((tab) => (
           <Pressable
             key={tab}
-            onPress={() => { setActiveTab(tab); refocusBarcodeInput(); }}
+            onPress={() => setActiveTab(tab)}
             style={[styles.tab, activeTab === tab && { borderBottomColor: C.primary, borderBottomWidth: 2 }]}
           >
             <Text style={[styles.tabText, { color: activeTab === tab ? C.primary : C.textSecondary }]}>
@@ -249,11 +257,7 @@ export default function MerchantPosScreen() {
               placeholderTextColor={C.textMuted}
               value={search}
               onChangeText={setSearch}
-              onFocus={() => { otherInputFocused.current = true; }}
-              onBlur={() => {
-                otherInputFocused.current = false;
-                refocusBarcodeInput();
-              }}
+              onFocus={() => { if (scannerMode) setScannerMode(false); }}
             />
           </View>
           {invLoading ? (
