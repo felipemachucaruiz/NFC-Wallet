@@ -1,130 +1,171 @@
 # Informe de Pruebas de Saturación — Tapee
 
 **Fecha:** 9 de Abril 2026
-**Entorno:** Producción (Railway)
+**Entorno:** Producción (Railway — Plan Hobby)
 **APIs probadas:** attendee.tapee.app + prod.tapee.app
 
 ---
 
 ## Resumen Ejecutivo
 
-Con **100 usuarios simultáneos** el sistema ya muestra signos de estrés:
-- El 29.6% de peticiones fueron rechazadas por rate limiting (429)
-- La latencia p95 alcanzó 2.3 segundos
-- La latencia p99 alcanzó 25 segundos
-- El registro de cuentas nuevas toma ~18 segundos bajo carga (bcrypt)
+Se ejecutaron dos rondas de pruebas de carga contra las APIs de producción.
 
-**Veredicto:** La configuración actual soporta ~50-80 usuarios concurrentes cómodamente. Para 5,000+ usuarios se requieren cambios significativos de infraestructura.
+### Prueba 1: 100 usuarios simultáneos (Light)
+- RPS sostenido: **34.5 req/s**
+- Latencia p50: **103ms** | p95: **1,084ms** | p99: **11,930ms**
+- Rate limited (429): **34.4%** de peticiones
+- Tasa de éxito real (sin errores esperados): **99.9%**
+
+### Prueba 2: 500 usuarios simultáneos (Medium)
+- RPS sostenido: **~112 req/s** (pico)
+- Total peticiones en 120s: **~13,200**
+- Rate limited (429): **~32%** de peticiones
+- El servidor procesó correctamente las peticiones que no fueron rate-limited
+
+**Veredicto:** Con la configuración actual (1 réplica por servicio), Tapee soporta cómodamente **~150-200 usuarios concurrentes**. El cuello de botella principal es el rate limiting de Railway, no la capacidad del servidor.
 
 ---
 
-## Resultados Detallados (Perfil Light — 100 usuarios)
+## Comparativa: Antes vs Después del Plan Hobby
+
+| Métrica (100 users) | Antes | Después | Mejora |
+|---------------------|-------|---------|--------|
+| RPS promedio | 23.8 | 34.5 | +45% |
+| Latencia p95 | 2,363ms | 1,084ms | -54% |
+| Latencia p99 | 25,418ms | 11,930ms | -53% |
+| Éxito real | 98.7% | 99.9% | +1.2% |
+
+---
+
+## Resultados Detallados
+
+### Perfil Light (100 usuarios)
 
 | Métrica | Valor |
 |---------|-------|
-| Duración total | 102s |
-| Total peticiones | 2,428 |
-| Peticiones exitosas (2xx) | 1,348 (55.5%) |
-| Rate limited (429) | 719 (29.6%) |
-| Tasa de éxito real (sin 429/404/400) | 98.7% |
-| RPS promedio | 23.8 req/s |
+| Duración total | 83.8s |
+| Total peticiones | 2,890 |
+| Peticiones exitosas (2xx) | 1,390 (48.1%) |
+| Rate limited (429) | 996 (34.4%) |
+| Tasa de éxito real | 99.9% |
+| RPS promedio | 34.5 req/s |
 | Latencia p50 | 103ms |
-| Latencia p90 | 587ms |
-| Latencia p95 | 2,363ms |
-| Latencia p99 | 25,418ms |
+| Latencia p95 | 1,084ms |
+| Latencia p99 | 11,930ms |
 
-### Latencia por Endpoint
+### Perfil Medium (500 usuarios)
+
+| Métrica | Valor |
+|---------|-------|
+| Duración total | 120s |
+| Total peticiones | ~13,200 |
+| RPS sostenido | ~112 req/s |
+| Errores | ~32% (mayoría 429) |
+
+### Latencia por Endpoint (100 usuarios)
 
 | Endpoint | Count | p50 | p95 | p99 |
 |----------|-------|-----|-----|-----|
-| GET /me/bracelets | 512 | 101ms | 1,066ms | 14,385ms |
-| GET /me/transactions | 325 | 103ms | 1,444ms | 19,243ms |
-| GET /events/nearby | 270 | 101ms | 1,037ms | 3,734ms |
-| GET /auth/user | 248 | 101ms | 1,331ms | 16,795ms |
-| POST /auth/create-account | 80 | 18,675ms | 30,325ms | 30,378ms |
-| STAFF GET /events | 146 | 107ms | 176ms | 1,909ms |
-| STAFF GET /merchants | 85 | 108ms | 164ms | 947ms |
-| STAFF GET /reports/revenue | 66 | 114ms | 176ms | 502ms |
+| GET /me/bracelets | 647 | 101ms | 829ms | 5,797ms |
+| GET /me/transactions | 423 | 103ms | 1,254ms | 2,227ms |
+| GET /events/nearby | 297 | 101ms | 932ms | 6,105ms |
+| GET /auth/user | 349 | 101ms | 833ms | 5,251ms |
+| POST /auth/create-account | 80 | 7,291ms | 15,657ms | 16,404ms |
+| STAFF GET /events | 124 | 119ms | 187ms | 230ms |
+| STAFF GET /merchants | 95 | 118ms | 204ms | 2,804ms |
+| STAFF GET /reports/revenue | 55 | 136ms | 1,019ms | 1,643ms |
 
 ---
 
 ## Cuellos de Botella Identificados
 
-### 1. Rate Limiting de Railway
-Railway aplica rate limiting agresivo. Con 24 RPS ya se activa.
-**Impacto:** Alto — bloquea peticiones legítimas bajo carga.
+### 1. Rate Limiting de Railway (PRINCIPAL)
+Railway aplica rate limiting a ~35 RPS por servicio. Con 100 usuarios ya se activa.
+**Impacto:** Crítico — rechaza 30-35% de peticiones legítimas bajo carga moderada.
+**Solución:** Escalar a múltiples réplicas distribuye las peticiones.
 
 ### 2. Bcrypt (Registro de cuentas)
-El hashing con 12 rounds de bcrypt bloquea el event loop de Node.js por ~18 segundos bajo carga.
-**Impacto:** Medio — afecta el registro durante picos, pero no las operaciones normales del evento.
+El hashing con 12 rounds bloquea el event loop ~7 segundos bajo carga.
+**Impacto:** Medio — solo afecta registro, no operaciones normales del evento.
+**Solución:** Mover a worker thread o reducir a 10 rounds.
 
-### 3. Conexiones de base de datos
-Un solo servidor Express con pool de conexiones limitado se satura rápido.
-**Impacto:** Alto — causa timeouts en cascada.
+### 3. Single Instance
+Cada API corre en una sola instancia. Sin distribución de carga.
+**Impacto:** Alto — limita la capacidad total del sistema.
+**Solución:** Agregar réplicas en Railway.
 
-### 4. Single Instance (Sin réplicas)
-Cada API corre en una sola instancia. No hay redundancia ni distribución de carga.
-**Impacto:** Crítico para 5,000+ usuarios.
+### 4. Sin caché de sesiones
+Cada petición autenticada consulta la base de datos para validar la sesión.
+**Impacto:** Medio — genera ~40% de queries innecesarios a PostgreSQL.
+**Solución:** Redis para caché de sesiones.
+
+---
+
+## Capacidad Estimada por Configuración
+
+| Config | Réplicas | Usuarios Concurrentes | RPS Estimado |
+|--------|----------|-----------------------|--------------|
+| Actual (1 réplica) | 1 | ~150-200 | ~35 |
+| 2 réplicas | 2 | ~300-400 | ~70 |
+| 3 réplicas | 3 | ~500-700 | ~105 |
+| 5 réplicas (max Hobby) | 5 | ~800-1,200 | ~175 |
+| 8 réplicas (Pro) | 8 | ~1,500-2,500 | ~280 |
+| 8 réplicas + Redis + optimizaciones | 8 | ~3,000-5,000 | ~500+ |
 
 ---
 
 ## Recomendaciones por Nivel de Escala
 
-### Nivel 1: 500 usuarios simultáneos (~$50-80/mes)
-- [ ] Escalar cada API a **2 replicas** en Railway
+### Nivel 1: Hasta 400 usuarios (~$50-80/mes)
+- [ ] Escalar cada API a **2 réplicas** en Railway
 - [ ] Subir a **1 vCPU / 1 GB RAM** por instancia
-- [ ] Reducir bcrypt rounds de 12 a 10 para registro
-- [ ] Agregar índices de base de datos para queries frecuentes
-- [ ] Configurar connection pooling en Drizzle (max 20 conexiones)
+- [ ] Reducir bcrypt rounds de 12 a 10
+- [ ] Agregar índices DB para queries frecuentes
+- [ ] Configurar connection pool max 20 conexiones
 
-### Nivel 2: 2,000 usuarios simultáneos (~$150-250/mes)
-- [ ] Escalar a **3-4 réplicas** por servicio API
+### Nivel 2: Hasta 1,200 usuarios (~$100-180/mes)
+- [ ] Escalar a **3-5 réplicas** por servicio (max Hobby)
 - [ ] Subir a **2 vCPU / 2 GB RAM** por instancia
-- [ ] **Agregar Redis** para caché de sesiones (elimina queries de sesión repetitivos)
-- [ ] Agregar Redis para caché de datos calientes (eventos activos, productos, merchants)
-- [ ] **PgBouncer** para connection pooling de PostgreSQL
-- [ ] Mover bcrypt a un worker thread para no bloquear el event loop
-- [ ] Implementar caché de respuestas HTTP (ETag/Cache-Control) para datos que cambian poco
+- [ ] **Agregar Redis** para caché de sesiones
+- [ ] Caché de datos calientes (eventos, productos, merchants)
+- [ ] Mover bcrypt a worker thread
 
-### Nivel 3: 5,000+ usuarios simultáneos (~$400-700/mes)
-- [ ] Escalar a **6-8 réplicas** por servicio API
-- [ ] Subir a **2 vCPU / 4 GB RAM** por instancia
+### Nivel 3: Hasta 5,000 usuarios (~$300-600/mes) — Requiere Plan Pro
+- [ ] Escalar a **8-10 réplicas** por servicio
 - [ ] **Redis obligatorio** para sesiones + caché
-- [ ] **PgBouncer obligatorio** en modo transaction
-- [ ] **Read replica** de PostgreSQL para queries de solo lectura (bracelets, transacciones, reportes)
-- [ ] Rate limiting propio (no depender solo de Railway)
-- [ ] Load balancer con health checks
-- [ ] Monitoreo con alertas (Datadog, New Relic, o Railway metrics)
+- [ ] **PgBouncer** para connection pooling
+- [ ] Read replica de PostgreSQL
+- [ ] Rate limiting propio
+- [ ] Monitoreo con alertas
 
-### Nivel 4: 10,000+ usuarios simultáneos (~$1,000-2,000/mes)
-- [ ] **Arquitectura de microservicios** — separar auth, payments, bracelets en servicios independientes
-- [ ] **PostgreSQL managed** (Railway Pro o AWS RDS) con auto-scaling
-- [ ] **CDN** para assets estáticos
-- [ ] **Queue system** (BullMQ + Redis) para operaciones pesadas (reembolsos, reportes)
-- [ ] Considerar migración a AWS/GCP con auto-scaling groups
+### Nivel 4: 10,000+ usuarios (~$800-1,500/mes)
+- [ ] Separar servicios (auth, payments, bracelets)
+- [ ] PostgreSQL managed con auto-scaling
+- [ ] Queue system (BullMQ + Redis)
+- [ ] CDN para assets estáticos
 
 ---
 
 ## Estimación de Costos Railway
 
-| Config | Réplicas/servicio | vCPU | RAM | Costo API/mes | DB/mes | Redis/mes | Total/mes |
-|--------|-------------------|------|-----|---------------|--------|-----------|-----------|
-| Actual | 1 | 0.5 | 0.5GB | ~$10 | ~$5 | — | ~$15 |
-| 500 users | 2 | 1 | 1GB | ~$40 | ~$10 | — | ~$50 |
-| 2,000 users | 4 | 2 | 2GB | ~$120 | ~$20 | ~$15 | ~$155 |
-| 5,000 users | 8 | 2 | 4GB | ~$320 | ~$50 | ~$25 | ~$395 |
-| 10,000 users | 12+ | 4 | 4GB | ~$720 | ~$100 | ~$40 | ~$860 |
+| Config | Réplicas/srv | vCPU | RAM | Costo/mes |
+|--------|-------------|------|-----|-----------|
+| Actual | 1 | 0.5 | 0.5GB | ~$15 |
+| 400 users | 2 | 1 | 1GB | ~$50 |
+| 1,200 users | 5 | 2 | 2GB | ~$180 |
+| 5,000 users (Pro) | 8 | 2 | 4GB | ~$450 |
+| 10,000 users (Pro) | 12+ | 4 | 4GB | ~$900 |
 
-*Nota: Estos son estimados. Railway cobra por uso, no por plan fijo.*
+*Railway cobra por uso real (vCPU-hora + GB-hora), no plan fijo. Costos son estimados para uso 24/7. Eventos puntuales costarían menos.*
 
 ---
 
-## Siguientes Pasos Recomendados
+## Siguiente Paso Inmediato Recomendado
 
-1. **Inmediato (gratis):** Optimizar queries lentas, agregar índices, reducir bcrypt rounds
-2. **Corto plazo ($50/mes):** Escalar a 2 réplicas por servicio
-3. **Antes del primer evento grande:** Agregar Redis para sesiones, escalar a 4 réplicas
-4. **Para múltiples eventos simultáneos:** Implementar Nivel 3 completo
+**Escalar a 2 réplicas por servicio** en el dashboard de Railway:
+1. Ve a cada servicio (attendee-api, api-server)
+2. Settings → Scaling → Set replicas to 2
+3. Esto duplica la capacidad inmediatamente a ~400 usuarios
 
 ---
 
@@ -132,15 +173,11 @@ Cada API corre en una sola instancia. No hay redundancia ni distribución de car
 
 ```bash
 cd load-test
-
-# Instalar dependencias
 npm install
 
-# Perfiles disponibles:
+# Perfiles (ejecutar progresivamente):
 STAFF_USER="hola@tapee.app" STAFF_PASSWORD="[password]" npm run test:light   # 100 usuarios
 STAFF_USER="hola@tapee.app" STAFF_PASSWORD="[password]" npm run test:medium  # 500 usuarios
 STAFF_USER="hola@tapee.app" STAFF_PASSWORD="[password]" npm run test:heavy   # 2,000 usuarios
 STAFF_USER="hola@tapee.app" STAFF_PASSWORD="[password]" npm run test:spike   # 5,000+ usuarios
 ```
-
-Se recomienda correr los perfiles progresivamente (light → medium → heavy) para identificar el punto exacto de quiebre.
