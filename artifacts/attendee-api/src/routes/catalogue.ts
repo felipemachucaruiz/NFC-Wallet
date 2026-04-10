@@ -47,6 +47,7 @@ router.get(
         name: eventsTable.name,
         description: eventsTable.description,
         coverImageUrl: eventsTable.coverImageUrl,
+        flyerImageUrl: eventsTable.flyerImageUrl,
         category: eventsTable.category,
         tags: eventsTable.tags,
         minAge: eventsTable.minAge,

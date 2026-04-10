@@ -263,7 +263,7 @@ function EventCard({ event }: { event: ApiEvent }) {
       <div className="group bg-card border border-card-border rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-200 cursor-pointer">
         <div className="relative aspect-square overflow-hidden">
           <img
-            src={resolveImageUrl(event.coverImageUrl)}
+            src={resolveImageUrl(event.flyerImageUrl || event.coverImageUrl)}
             alt={event.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"

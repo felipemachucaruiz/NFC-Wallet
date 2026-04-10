@@ -50,6 +50,7 @@ export interface ApiEvent {
   name: string;
   description: string | null;
   coverImageUrl: string | null;
+  flyerImageUrl: string | null;
   category: string | null;
   tags: string[] | null;
   minAge: number | null;
