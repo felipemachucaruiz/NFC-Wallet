@@ -1,12 +1,20 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import type { User } from "@/data/types";
 
+type AuthModalView = "login" | "register";
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (data: { email: string; password: string; firstName: string; lastName: string; phone: string }) => Promise<boolean>;
   logout: () => void;
+  showAuthModal: boolean;
+  authModalView: AuthModalView;
+  authRedirect: string | null;
+  openAuthModal: (view?: AuthModalView, redirect?: string | null) => void;
+  closeAuthModal: () => void;
+  switchAuthView: (view: AuthModalView) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -22,6 +30,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   });
 
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalView, setAuthModalView] = useState<AuthModalView>("login");
+  const [authRedirect, setAuthRedirect] = useState<string | null>(null);
+
+  const openAuthModal = useCallback((view: AuthModalView = "login", redirect: string | null = null) => {
+    setAuthModalView(view);
+    setAuthRedirect(redirect);
+    setShowAuthModal(true);
+  }, []);
+
+  const closeAuthModal = useCallback(() => {
+    setShowAuthModal(false);
+    setAuthRedirect(null);
+  }, []);
+
+  const switchAuthView = useCallback((view: AuthModalView) => {
+    setAuthModalView(view);
+  }, []);
+
   const login = useCallback(async (email: string, _password: string) => {
     const mockUser: User = {
       id: "user-001",
@@ -32,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     setUser(mockUser);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
+    setShowAuthModal(false);
     return true;
   }, []);
 
@@ -45,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     setUser(mockUser);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
+    setShowAuthModal(false);
     return true;
   }, []);
 
@@ -54,7 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, logout }}>
+    <AuthContext.Provider value={{
+      user, isAuthenticated: !!user, login, register, logout,
+      showAuthModal, authModalView, authRedirect,
+      openAuthModal, closeAuthModal, switchAuthView,
+    }}>
       {children}
     </AuthContext.Provider>
   );

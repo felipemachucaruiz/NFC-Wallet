@@ -9,7 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function Account() {
   const { t } = useTranslation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, openAuthModal } = useAuth();
   const [, navigate] = useLocation();
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState({
@@ -21,7 +21,8 @@ export default function Account() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate("/login");
+      openAuthModal("login", "account");
+      navigate("/");
       return;
     }
     if (user) {

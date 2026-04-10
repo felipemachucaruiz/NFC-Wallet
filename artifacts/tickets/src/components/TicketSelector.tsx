@@ -23,7 +23,7 @@ const SERVICE_FEE_RATE = 0.08;
 export function TicketSelector({ event, ticketType, sectionName, onClose }: TicketSelectorProps) {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, openAuthModal } = useAuth();
   const [step, setStep] = useState<"quantity" | "attendees">("quantity");
   const [quantity, setQuantity] = useState(1);
   const [attendees, setAttendees] = useState<AttendeeData[]>([]);
@@ -96,7 +96,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
 
     if (!isAuthenticated) {
       sessionStorage.setItem("tapee_checkout", JSON.stringify(checkoutData));
-      navigate("/login?redirect=checkout");
+      openAuthModal("login", "checkout");
       onClose();
       return;
     }

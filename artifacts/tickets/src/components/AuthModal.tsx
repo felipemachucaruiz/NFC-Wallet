@@ -1,0 +1,199 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/context/AuthContext";
+
+function LoginForm() {
+  const { t } = useTranslation();
+  const [, navigate] = useLocation();
+  const { login, switchAuthView, authRedirect } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const success = await login(email, password);
+      if (success && authRedirect) {
+        navigate(`/${authRedirect}`);
+      }
+    } catch {
+      setError("Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="text-center mb-2">
+        <h2 className="text-xl font-bold">{t("auth.loginTitle")}</h2>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg">{error}</div>
+      )}
+
+      <div>
+        <Label>{t("auth.email")}</Label>
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label>{t("auth.password")}</Label>
+        <Input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          className="mt-1"
+        />
+      </div>
+      <Button
+        type="submit"
+        className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+        disabled={loading}
+      >
+        {loading ? t("common.loading") : t("auth.login")}
+      </Button>
+      <div className="text-center text-sm">
+        <p className="text-muted-foreground">
+          {t("auth.noAccount")}{" "}
+          <button
+            type="button"
+            onClick={() => switchAuthView("register")}
+            className="text-primary hover:underline"
+          >
+            {t("auth.register")}
+          </button>
+        </p>
+      </div>
+    </form>
+  );
+}
+
+function RegisterForm() {
+  const { t } = useTranslation();
+  const [, navigate] = useLocation();
+  const { register, switchAuthView, authRedirect } = useAuth();
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "", confirmPassword: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (form.password !== form.confirmPassword) {
+      setError(t("auth.passwordMismatch"));
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const success = await register({
+        email: form.email,
+        password: form.password,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        phone: form.phone,
+      });
+      if (success && authRedirect) {
+        navigate(`/${authRedirect}`);
+      }
+    } catch {
+      setError("Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="text-center mb-2">
+        <h2 className="text-xl font-bold">{t("auth.registerTitle")}</h2>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg">{error}</div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>{t("auth.firstName")}</Label>
+          <Input value={form.firstName} onChange={(e) => update("firstName", e.target.value)} required className="mt-1" />
+        </div>
+        <div>
+          <Label>{t("auth.lastName")}</Label>
+          <Input value={form.lastName} onChange={(e) => update("lastName", e.target.value)} required className="mt-1" />
+        </div>
+      </div>
+      <div>
+        <Label>{t("auth.email")}</Label>
+        <Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required className="mt-1" />
+      </div>
+      <div>
+        <Label>{t("auth.phone")}</Label>
+        <Input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} required className="mt-1" />
+      </div>
+      <div>
+        <Label>{t("auth.password")}</Label>
+        <Input type="password" value={form.password} onChange={(e) => update("password", e.target.value)} required minLength={6} className="mt-1" />
+      </div>
+      <div>
+        <Label>{t("auth.confirmPassword")}</Label>
+        <Input type="password" value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} required className="mt-1" />
+      </div>
+      <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
+        {loading ? t("common.loading") : t("auth.register")}
+      </Button>
+      <div className="text-center text-sm">
+        <p className="text-muted-foreground">
+          {t("auth.hasAccount")}{" "}
+          <button
+            type="button"
+            onClick={() => switchAuthView("login")}
+            className="text-primary hover:underline"
+          >
+            {t("auth.login")}
+          </button>
+        </p>
+      </div>
+    </form>
+  );
+}
+
+export function AuthModal() {
+  const { showAuthModal, authModalView, closeAuthModal } = useAuth();
+
+  return (
+    <Dialog open={showAuthModal} onOpenChange={(open) => { if (!open) closeAuthModal(); }}>
+      <DialogContent className="sm:max-w-md bg-card border-border p-6 [&>button]:hidden">
+        <DialogTitle className="sr-only">
+          {authModalView === "login" ? "Login" : "Register"}
+        </DialogTitle>
+        <button
+          onClick={closeAuthModal}
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        {authModalView === "login" ? <LoginForm /> : <RegisterForm />}
+      </DialogContent>
+    </Dialog>
+  );
+}

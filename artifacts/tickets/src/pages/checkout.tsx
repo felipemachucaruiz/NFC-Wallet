@@ -27,7 +27,7 @@ interface CheckoutData {
 export default function Checkout() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, openAuthModal } = useAuth();
   const [data, setData] = useState<CheckoutData | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "nequi" | "pse">("card");
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -35,7 +35,8 @@ export default function Checkout() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate("/login?redirect=checkout");
+      openAuthModal("login", "checkout");
+      navigate("/");
       return;
     }
     const raw = sessionStorage.getItem("tapee_checkout");

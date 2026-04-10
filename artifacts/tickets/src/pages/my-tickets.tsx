@@ -64,12 +64,13 @@ const MOCK_ORDERS: OrderData[] = [
 
 export default function MyTickets() {
   const { t } = useTranslation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, openAuthModal } = useAuth();
   const [, navigate] = useLocation();
   const [showQR, setShowQR] = useState<UserTicket | null>(null);
 
   if (!isAuthenticated) {
-    navigate("/login?redirect=my-tickets");
+    openAuthModal("login", "my-tickets");
+    navigate("/");
     return null;
   }
 

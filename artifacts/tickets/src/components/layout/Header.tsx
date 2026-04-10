@@ -17,7 +17,7 @@ import { LANGUAGE_KEY } from "@/i18n";
 export function Header() {
   const { t, i18n } = useTranslation();
   const [, navigate] = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, openAuthModal } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -115,14 +115,10 @@ export function Header() {
               </DropdownMenu>
             ) : (
               <div className="hidden md:flex items-center gap-2">
-                <Link href="/login">
-                  <Button variant="ghost" size="sm">{t("nav.login")}</Button>
-                </Link>
-                <Link href="/register">
-                  <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                    {t("nav.register")}
-                  </Button>
-                </Link>
+                <Button variant="ghost" size="sm" onClick={() => openAuthModal("login")}>{t("nav.login")}</Button>
+                <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => openAuthModal("register")}>
+                  {t("nav.register")}
+                </Button>
               </div>
             )}
 
@@ -167,12 +163,8 @@ export function Header() {
                 </>
               ) : (
                 <>
-                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.login")}</Button>
-                  </Link>
-                  <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                    <Button size="sm" className="w-full bg-primary text-primary-foreground">{t("nav.register")}</Button>
-                  </Link>
+                  <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => { openAuthModal("login"); setMobileMenuOpen(false); }}>{t("nav.login")}</Button>
+                  <Button size="sm" className="w-full bg-primary text-primary-foreground" onClick={() => { openAuthModal("register"); setMobileMenuOpen(false); }}>{t("nav.register")}</Button>
                 </>
               )}
             </div>

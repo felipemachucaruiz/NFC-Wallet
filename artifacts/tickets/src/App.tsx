@@ -5,10 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { AuthModal } from "@/components/AuthModal";
 import Home from "@/pages/home";
 import EventDetail from "@/pages/event-detail";
-import Login from "@/pages/login";
-import Register from "@/pages/register";
 import Checkout from "@/pages/checkout";
 import PaymentStatus from "@/pages/payment-status";
 import MyTickets from "@/pages/my-tickets";
@@ -25,8 +24,6 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/event/:id" component={EventDetail} />
-          <Route path="/login" component={Login} />
-          <Route path="/register" component={Register} />
           <Route path="/checkout" component={Checkout} />
           <Route path="/payment-status" component={PaymentStatus} />
           <Route path="/my-tickets" component={MyTickets} />
@@ -35,6 +32,7 @@ function Router() {
         </Switch>
       </main>
       <Footer />
+      <AuthModal />
     </div>
   );
 }
