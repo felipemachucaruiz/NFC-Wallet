@@ -236,31 +236,10 @@ router.get("/events/:eventId", requireAuth, async (req: Request, res: Response) 
 
   const [row] = await db
     .select({
-      id: eventsTable.id,
-      name: eventsTable.name,
-      description: eventsTable.description,
-      venueAddress: eventsTable.venueAddress,
-      startsAt: eventsTable.startsAt,
-      endsAt: eventsTable.endsAt,
-      active: eventsTable.active,
-      currencyCode: eventsTable.currencyCode,
-      capacity: eventsTable.capacity,
-      platformCommissionRate: eventsTable.platformCommissionRate,
-      promoterCompanyId: eventsTable.promoterCompanyId,
-      promoterCompanyName: promoterCompaniesTable.companyName,
-      pulepId: eventsTable.pulepId,
-      inventoryMode: eventsTable.inventoryMode,
-      nfcChipType: eventsTable.nfcChipType,
-      allowedNfcTypes: eventsTable.allowedNfcTypes,
-      offlineSyncLimit: eventsTable.offlineSyncLimit,
-      maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
-      latitude: eventsTable.latitude,
-      longitude: eventsTable.longitude,
+      ...SAFE_EVENT_FIELDS,
       hasHmacSecret: eventsTable.hmacSecret,
       hasDesfireKey: eventsTable.desfireAesKey,
       hasUltralightCKey: eventsTable.ultralightCDesKey,
-      createdAt: eventsTable.createdAt,
-      updatedAt: eventsTable.updatedAt,
     })
     .from(eventsTable)
     .leftJoin(promoterCompaniesTable, eq(eventsTable.promoterCompanyId, promoterCompaniesTable.id))
