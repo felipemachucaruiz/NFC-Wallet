@@ -92,13 +92,18 @@ export interface ApiEventDetail {
   ticketTypes: {
     ticketTypeId: string;
     name: string;
-    price: number;
+    basePrice: number;
+    currentPrice: number;
+    currentStageName: string | null;
+    price?: number;
     available: number;
     total: number;
     saleStart: string | null;
     saleEnd: string | null;
     validEventDayIds: string[] | null;
     sectionId: string | null;
+    pricingStages?: { id: string; name: string; price: number; startsAt: string; endsAt: string }[];
+    nextStage?: { name: string; price: number; startsAt: string } | null;
   }[];
 }
 

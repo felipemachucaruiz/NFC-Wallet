@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketsTable, ticketCheckInsTable, ticketOrdersTable, usersTable } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketsTable, ticketCheckInsTable, ticketOrdersTable, ticketPricingStagesTable, usersTable } from "@workspace/db";
 import { eq, and, asc, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { requireTicketingEnabled } from "../middlewares/featureGating";
@@ -463,6 +463,155 @@ router.patch(
     }
 
     res.json(updated);
+  },
+);
+
+const pricingStageSchema = z.object({
+  name: z.string().min(1).max(255),
+  price: z.number().int().min(0),
+  startsAt: z.string().min(1),
+  endsAt: z.string().min(1),
+  displayOrder: z.number().int().optional(),
+}).refine((d) => new Date(d.startsAt) < new Date(d.endsAt), {
+  message: "startsAt must be before endsAt",
+});
+
+router.get(
+  "/events/:eventId/ticket-types/:typeId/pricing-stages",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId, typeId } = req.params as { eventId: string; typeId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [tt] = await db.select({ id: ticketTypesTable.id }).from(ticketTypesTable).where(and(eq(ticketTypesTable.id, typeId), eq(ticketTypesTable.eventId, eventId)));
+    if (!tt) {
+      res.status(404).json({ error: "Ticket type not found" });
+      return;
+    }
+
+    const stages = await db
+      .select()
+      .from(ticketPricingStagesTable)
+      .where(eq(ticketPricingStagesTable.ticketTypeId, typeId))
+      .orderBy(asc(ticketPricingStagesTable.displayOrder), asc(ticketPricingStagesTable.startsAt));
+
+    res.json({ stages });
+  },
+);
+
+router.post(
+  "/events/:eventId/ticket-types/:typeId/pricing-stages",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId, typeId } = req.params as { eventId: string; typeId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [tt] = await db.select({ id: ticketTypesTable.id }).from(ticketTypesTable).where(and(eq(ticketTypesTable.id, typeId), eq(ticketTypesTable.eventId, eventId)));
+    if (!tt) {
+      res.status(404).json({ error: "Ticket type not found" });
+      return;
+    }
+
+    const parsed = pricingStageSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const { name, price, startsAt, endsAt, displayOrder } = parsed.data;
+
+    const [stage] = await db
+      .insert(ticketPricingStagesTable)
+      .values({
+        ticketTypeId: typeId,
+        name,
+        price,
+        startsAt: new Date(startsAt),
+        endsAt: new Date(endsAt),
+        displayOrder: displayOrder ?? 0,
+      })
+      .returning();
+
+    res.status(201).json(stage);
+  },
+);
+
+router.patch(
+  "/events/:eventId/ticket-types/:typeId/pricing-stages/:stageId",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId, typeId, stageId } = req.params as { eventId: string; typeId: string; stageId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [tt] = await db.select({ id: ticketTypesTable.id }).from(ticketTypesTable).where(and(eq(ticketTypesTable.id, typeId), eq(ticketTypesTable.eventId, eventId)));
+    if (!tt) {
+      res.status(404).json({ error: "Ticket type not found" });
+      return;
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const updates: Record<string, unknown> = {};
+    if (body.name !== undefined) updates.name = body.name;
+    if (body.price !== undefined) updates.price = body.price;
+    if (body.startsAt !== undefined) updates.startsAt = new Date(body.startsAt as string);
+    if (body.endsAt !== undefined) updates.endsAt = new Date(body.endsAt as string);
+    if (body.displayOrder !== undefined) updates.displayOrder = body.displayOrder;
+
+    const [updated] = await db
+      .update(ticketPricingStagesTable)
+      .set(updates)
+      .where(and(eq(ticketPricingStagesTable.id, stageId), eq(ticketPricingStagesTable.ticketTypeId, typeId)))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "Pricing stage not found" });
+      return;
+    }
+
+    res.json(updated);
+  },
+);
+
+router.delete(
+  "/events/:eventId/ticket-types/:typeId/pricing-stages/:stageId",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId, typeId, stageId } = req.params as { eventId: string; typeId: string; stageId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [tt] = await db.select({ id: ticketTypesTable.id }).from(ticketTypesTable).where(and(eq(ticketTypesTable.id, typeId), eq(ticketTypesTable.eventId, eventId)));
+    if (!tt) {
+      res.status(404).json({ error: "Ticket type not found" });
+      return;
+    }
+
+    const [deleted] = await db
+      .delete(ticketPricingStagesTable)
+      .where(and(eq(ticketPricingStagesTable.id, stageId), eq(ticketPricingStagesTable.ticketTypeId, typeId)))
+      .returning({ id: ticketPricingStagesTable.id });
+
+    if (!deleted) {
+      res.status(404).json({ error: "Pricing stage not found" });
+      return;
+    }
+
+    res.json({ success: true });
   },
 );
 

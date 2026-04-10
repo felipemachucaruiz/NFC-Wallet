@@ -26,7 +26,9 @@
     "prev": "Anterior",
     "next": "Siguiente",
     "yes": "Sí",
-    "no": "No"
+    "no": "No",
+    "past": "Pasada",
+    "upcoming": "Próxima"
   },
   "nav": {
     "dashboard": "Panel",
@@ -972,7 +974,23 @@
     "totalServiceFee": "Ticket Service total del evento",
     "created": "Tipo de boleta creado",
     "updated": "Tipo de boleta actualizado",
-    "deleted": "Tipo de boleta eliminado"
+    "deleted": "Tipo de boleta eliminado",
+    "pricingStages": "Etapas de Precio",
+    "pricingStagesDesc": "Define etapas de precio (preventa, etapa 1, etc.) con fechas.",
+    "addStage": "Agregar Etapa",
+    "editStage": "Editar Etapa",
+    "stageName": "Nombre de Etapa",
+    "stageNamePlaceholder": "ej. Preventa, Etapa 1, Precio Final",
+    "stagePrice": "Precio de Etapa",
+    "stageStart": "Inicio",
+    "stageEnd": "Fin",
+    "stageCreated": "Etapa de precio creada",
+    "stageUpdated": "Etapa de precio actualizada",
+    "stageDeleted": "Etapa de precio eliminada",
+    "noStages": "Sin etapas de precio. El precio base se usará.",
+    "basePrice": "Precio Base",
+    "currentStage": "Etapa Actual",
+    "deleteStageConfirm": "¿Eliminar esta etapa de precio?"
   },
   "salesConfig": {
     "title": "Configuración de Ventas",

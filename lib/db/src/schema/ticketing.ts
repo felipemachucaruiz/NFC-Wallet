@@ -124,6 +124,19 @@ export const ticketsTable = pgTable("tickets", {
   index("idx_tickets_attendee_user_id").on(table.attendeeUserId),
 ]);
 
+export const ticketPricingStagesTable = pgTable("ticket_pricing_stages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketTypeId: varchar("ticket_type_id").notNull().references(() => ticketTypesTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  price: integer("price").notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_ticket_pricing_stages_ticket_type_id").on(table.ticketTypeId),
+]);
+
 export const ticketCheckInsTable = pgTable("ticket_check_ins", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   ticketId: varchar("ticket_id").notNull().references(() => ticketsTable.id),
@@ -147,5 +160,7 @@ export type TicketOrder = typeof ticketOrdersTable.$inferSelect;
 export type InsertTicketOrder = typeof ticketOrdersTable.$inferInsert;
 export type Ticket = typeof ticketsTable.$inferSelect;
 export type InsertTicket = typeof ticketsTable.$inferInsert;
+export type TicketPricingStage = typeof ticketPricingStagesTable.$inferSelect;
+export type InsertTicketPricingStage = typeof ticketPricingStagesTable.$inferInsert;
 export type TicketCheckIn = typeof ticketCheckInsTable.$inferSelect;
 export type InsertTicketCheckIn = typeof ticketCheckInsTable.$inferInsert;

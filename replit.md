@@ -50,7 +50,7 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - **Role-Based Access Control (RBAC):** Roles include `attendee`, `bank`, `merchant_staff`, `merchant_admin`, `warehouse_admin`, `event_admin`, and `admin`.
 - **API Design:** Express 5 API server with routes under `/api`, defined by OpenAPI 3.1.
 - **Database Schema:** Drizzle ORM for entities like users, events, products, inventory, transactions, and ticketing.
-- **Ticketing System:** Full backend with multi-day support, venue sections, per-ticket service fees (admin-configured), concurrency-safe inventory, QR code check-in, wallet passes, and bilingual email confirmations.
+- **Ticketing System:** Full backend with multi-day support, venue sections, per-ticket service fees (admin-configured), concurrency-safe inventory, QR code check-in, wallet passes, bilingual email confirmations, and **pricing stages** (preventa, etapa 1, etc.) with date-based activation logic. The `ticket_pricing_stages` table stores named pricing stages per ticket type with start/end dates. Active stage resolution happens in the attendee-api catalogue, and the purchase flow locks in the active stage price at checkout time.
 - **API Codegen:** OpenAPI 3.1 with Orval for client and Zod schema generation.
 - **Validation:** Zod v3 integrated with `drizzle-zod`.
 - **Cost of Goods Sold (COGS) Tracking:** `unit_cost_snapshot` on line items and `price_cop`/`cost_cop` on products.

@@ -65,7 +65,8 @@
     "years": "years",
     "organizer": "Organizer",
     "viewFlyer": "View Flyer",
-    "close": "Close"
+    "close": "Close",
+    "nextStage": "Next"
   },
   "venueMap": {
     "title": "Venue Map",

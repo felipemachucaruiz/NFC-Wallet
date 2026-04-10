@@ -1,10 +1,20 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketPricingStagesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable } from "@workspace/db";
 import { eq, and, sql, ilike, gte, lte, asc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+function resolveActiveStage(stages: { price: number; startsAt: Date; endsAt: Date; name: string; displayOrder: number }[]) {
+  const now = new Date();
+  const sorted = [...stages].sort((a, b) => a.displayOrder - b.displayOrder || a.startsAt.getTime() - b.startsAt.getTime());
+  const active = sorted.find((s) => now >= s.startsAt && now <= s.endsAt);
+  const nextStage = active
+    ? sorted.find((s) => s.startsAt > active.endsAt)
+    : sorted.find((s) => s.startsAt > now);
+  return { active, nextStage };
+}
 
 router.get(
   "/public/events",
@@ -66,13 +76,34 @@ router.get(
 
     const eventsWithPricing = await Promise.all(
       events.map(async (event) => {
-        const priceRange = await db
-          .select({
-            minPrice: sql<number>`COALESCE(MIN(${ticketTypesTable.price}), 0)`,
-            maxPrice: sql<number>`COALESCE(MAX(${ticketTypesTable.price}), 0)`,
-          })
+        const activeTypes = await db
+          .select({ id: ticketTypesTable.id, price: ticketTypesTable.price })
           .from(ticketTypesTable)
           .where(and(eq(ticketTypesTable.eventId, event.id), eq(ticketTypesTable.isActive, true)));
+
+        let prices: number[] = [];
+        if (activeTypes.length > 0) {
+          const typeIds = activeTypes.map((t) => t.id);
+          const stages = await db
+            .select()
+            .from(ticketPricingStagesTable)
+            .where(inArray(ticketPricingStagesTable.ticketTypeId, typeIds))
+            .orderBy(asc(ticketPricingStagesTable.displayOrder), asc(ticketPricingStagesTable.startsAt));
+
+          const stgMap = new Map<string, typeof stages>();
+          for (const s of stages) {
+            const arr = stgMap.get(s.ticketTypeId) ?? [];
+            arr.push(s);
+            stgMap.set(s.ticketTypeId, arr);
+          }
+
+          prices = activeTypes.map((tt) => {
+            const ttStages = stgMap.get(tt.id) ?? [];
+            if (ttStages.length === 0) return tt.price;
+            const { active } = resolveActiveStage(ttStages);
+            return active ? active.price : tt.price;
+          });
+        }
 
         const days = await db
           .select({ id: eventDaysTable.id, date: eventDaysTable.date, label: eventDaysTable.label })
@@ -82,8 +113,8 @@ router.get(
 
         return {
           ...event,
-          priceFrom: priceRange[0]?.minPrice ?? 0,
-          priceTo: priceRange[0]?.maxPrice ?? 0,
+          priceFrom: prices.length > 0 ? Math.min(...prices) : 0,
+          priceTo: prices.length > 0 ? Math.max(...prices) : 0,
           eventDays: days,
           dayCount: days.length,
         };
@@ -187,17 +218,53 @@ router.get(
           .where(and(eq(ticketTypesTable.eventId, eventId), eq(ticketTypesTable.isActive, true)))
       : [];
 
-    const availability = ticketTypes.map((tt) => ({
-      ticketTypeId: tt.id,
-      name: tt.name,
-      price: tt.price,
-      available: tt.quantity - tt.soldCount,
-      total: tt.quantity,
-      saleStart: tt.saleStart,
-      saleEnd: tt.saleEnd,
-      validEventDayIds: tt.validEventDayIds,
-      sectionId: tt.sectionId,
-    }));
+    const allStages = ticketTypes.length > 0
+      ? await db
+          .select()
+          .from(ticketPricingStagesTable)
+          .where(inArray(ticketPricingStagesTable.ticketTypeId, ticketTypes.map((t) => t.id)))
+          .orderBy(asc(ticketPricingStagesTable.displayOrder), asc(ticketPricingStagesTable.startsAt))
+      : [];
+
+    const stagesByType = new Map<string, typeof allStages>();
+    for (const s of allStages) {
+      const arr = stagesByType.get(s.ticketTypeId) ?? [];
+      arr.push(s);
+      stagesByType.set(s.ticketTypeId, arr);
+    }
+
+    const availability = ticketTypes.map((tt) => {
+      const stages = stagesByType.get(tt.id) ?? [];
+      const { active, nextStage } = resolveActiveStage(stages);
+      const currentPrice = active ? active.price : tt.price;
+      const currentStageName = active ? active.name : null;
+
+      return {
+        ticketTypeId: tt.id,
+        name: tt.name,
+        basePrice: tt.price,
+        currentPrice,
+        currentStageName,
+        available: tt.quantity - tt.soldCount,
+        total: tt.quantity,
+        saleStart: tt.saleStart,
+        saleEnd: tt.saleEnd,
+        validEventDayIds: tt.validEventDayIds,
+        sectionId: tt.sectionId,
+        pricingStages: stages.map((s) => ({
+          id: s.id,
+          name: s.name,
+          price: s.price,
+          startsAt: s.startsAt,
+          endsAt: s.endsAt,
+        })),
+        nextStage: nextStage ? {
+          name: nextStage.name,
+          price: nextStage.price,
+          startsAt: nextStage.startsAt,
+        } : null,
+      };
+    });
 
     res.json({
       event,
@@ -338,9 +405,25 @@ router.post(
       }
     }
 
+    const purchaseStages = await db
+      .select()
+      .from(ticketPricingStagesTable)
+      .where(inArray(ticketPricingStagesTable.ticketTypeId, ticketTypeIds))
+      .orderBy(asc(ticketPricingStagesTable.displayOrder), asc(ticketPricingStagesTable.startsAt));
+
+    const purchaseStagesByType = new Map<string, typeof purchaseStages>();
+    for (const s of purchaseStages) {
+      const arr = purchaseStagesByType.get(s.ticketTypeId) ?? [];
+      arr.push(s);
+      purchaseStagesByType.set(s.ticketTypeId, arr);
+    }
+
     let totalAmount = 0;
     for (const a of attendees) {
-      totalAmount += ticketTypeMap.get(a.ticketTypeId)!.price;
+      const tt = ticketTypeMap.get(a.ticketTypeId)!;
+      const stages = purchaseStagesByType.get(a.ticketTypeId) ?? [];
+      const { active } = resolveActiveStage(stages);
+      totalAmount += active ? active.price : tt.price;
     }
 
     const result = await db.transaction(async (tx) => {

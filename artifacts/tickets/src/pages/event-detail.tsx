@@ -66,15 +66,22 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
       ? tt.validEventDayIds.map((id) => dayIdToLabel.get(id) || id).join(", ")
       : mappedDays.map((d) => d.label).join(", ");
 
+    const effectivePrice = tt.currentPrice ?? tt.price ?? tt.basePrice ?? 0;
+
     return {
       id: tt.ticketTypeId,
       name: tt.name,
       validDays: validDaysStr,
-      price: tt.price,
+      price: effectivePrice,
+      basePrice: tt.basePrice ?? tt.price ?? effectivePrice,
+      currentStageName: tt.currentStageName ?? null,
+      serviceFee: 0,
       availableCount: tt.available,
       maxPerOrder: 6,
       sectionId: tt.sectionId || undefined,
       status,
+      pricingStages: tt.pricingStages,
+      nextStage: tt.nextStage,
     };
   });
 
@@ -330,8 +337,21 @@ export default function EventDetail() {
                         <span className="font-medium text-sm">{tt.name}</span>
                         <TicketStatusBadge status={tt.status} />
                       </div>
+                      {tt.currentStageName && (
+                        <p className="text-xs text-primary/80 font-medium mb-0.5">{tt.currentStageName}</p>
+                      )}
                       <p className="text-xs text-muted-foreground mb-1">{tt.validDays}</p>
-                      <p className="text-primary font-bold">{formatPrice(tt.price, event.currencyCode)}</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-primary font-bold">{formatPrice(tt.price, event.currencyCode)}</p>
+                        {tt.basePrice !== undefined && tt.basePrice !== tt.price && tt.currentStageName && (
+                          <p className="text-xs text-muted-foreground line-through">{formatPrice(tt.basePrice, event.currencyCode)}</p>
+                        )}
+                      </div>
+                      {tt.nextStage && (
+                        <p className="text-[10px] text-amber-400 mt-1">
+                          {t("event.nextStage", "Próximo")}: {tt.nextStage.name} — {formatPrice(tt.nextStage.price, event.currencyCode)}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

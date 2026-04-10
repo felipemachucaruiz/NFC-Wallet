@@ -26,7 +26,9 @@
     "prev": "Prev",
     "next": "Next",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "past": "Past",
+    "upcoming": "Upcoming"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -972,7 +974,23 @@
     "totalServiceFee": "Total event Ticket Service",
     "created": "Ticket type created",
     "updated": "Ticket type updated",
-    "deleted": "Ticket type deleted"
+    "deleted": "Ticket type deleted",
+    "pricingStages": "Pricing Stages",
+    "pricingStagesDesc": "Define pricing stages (presale, stage 1, etc.) with dates.",
+    "addStage": "Add Stage",
+    "editStage": "Edit Stage",
+    "stageName": "Stage Name",
+    "stageNamePlaceholder": "e.g. Presale, Stage 1, Final Price",
+    "stagePrice": "Stage Price",
+    "stageStart": "Start",
+    "stageEnd": "End",
+    "stageCreated": "Pricing stage created",
+    "stageUpdated": "Pricing stage updated",
+    "stageDeleted": "Pricing stage deleted",
+    "noStages": "No pricing stages. Base price will be used.",
+    "basePrice": "Base Price",
+    "currentStage": "Current Stage",
+    "deleteStageConfirm": "Delete this pricing stage?"
   },
   "salesConfig": {
     "title": "Sales Configuration",

@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Ticket, Loader2 } from "lucide-react";
+import { Plus, Pencil, Ticket, Loader2, Trash2, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
 import {
@@ -21,6 +21,10 @@ import {
   apiFetchVenues,
   apiFetchSections,
   apiFetchEventDays,
+  apiFetchPricingStages,
+  apiCreatePricingStage,
+  apiUpdatePricingStage,
+  apiDeletePricingStage,
 } from "@/lib/api";
 
 type TicketForm = {
@@ -46,6 +50,15 @@ const emptyForm: TicketForm = {
   active: true,
   selectedDays: [],
 };
+
+type StageForm = {
+  name: string;
+  price: string;
+  startsAt: string;
+  endsAt: string;
+};
+
+const emptyStageForm: StageForm = { name: "", price: "", startsAt: "", endsAt: "" };
 
 export default function EventTicketTypes() {
   const { t } = useTranslation();
@@ -98,6 +111,10 @@ export default function EventTicketTypes() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TicketForm>(emptyForm);
 
+  const [stagesDialogOpen, setStagesDialogOpen] = useState(false);
+  const [stagesTypeId, setStagesTypeId] = useState<string>("");
+  const [stagesTypeName, setStagesTypeName] = useState<string>("");
+
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
@@ -118,6 +135,12 @@ export default function EventTicketTypes() {
       selectedDays: tt.validEventDayIds ?? [],
     });
     setDialogOpen(true);
+  };
+
+  const openStages = (tt: (typeof ticketTypes)[0]) => {
+    setStagesTypeId(tt.id);
+    setStagesTypeName(tt.name);
+    setStagesDialogOpen(true);
   };
 
   const handleSave = () => {
@@ -203,7 +226,7 @@ export default function EventTicketTypes() {
                   <TableHead>{t("ticketTypes.colAvailable")}</TableHead>
                   <TableHead>{t("ticketTypes.colSold")}</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
-                  <TableHead className="w-16">{t("common.actions")}</TableHead>
+                  <TableHead className="w-24">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -223,9 +246,14 @@ export default function EventTicketTypes() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(tt)}>
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(tt)} title={t("ticketTypes.editTicketType")}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openStages(tt)} title={t("ticketTypes.pricingStages")}>
+                          <TrendingUp className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -287,7 +315,7 @@ export default function EventTicketTypes() {
             )}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label>{t("ticketTypes.colPrice")} (COP) *</Label>
+                <Label>{t("ticketTypes.basePrice")} (COP) *</Label>
                 <Input
                   data-testid="input-ticket-price"
                   type="number"
@@ -370,6 +398,251 @@ export default function EventTicketTypes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {stagesDialogOpen && (
+        <PricingStagesDialog
+          eventId={resolvedEventId}
+          typeId={stagesTypeId}
+          typeName={stagesTypeName}
+          open={stagesDialogOpen}
+          onOpenChange={setStagesDialogOpen}
+        />
+      )}
     </div>
+  );
+}
+
+function PricingStagesDialog({ eventId, typeId, typeName, open, onOpenChange }: {
+  eventId: string;
+  typeId: string;
+  typeName: string;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: stages = [], isLoading } = useQuery({
+    queryKey: ["pricingStages", eventId, typeId],
+    queryFn: () => apiFetchPricingStages(eventId, typeId),
+    enabled: !!typeId,
+  });
+
+  const invalidateStages = () => queryClient.invalidateQueries({ queryKey: ["pricingStages", eventId, typeId] });
+
+  const createMutation = useMutation({
+    mutationFn: (body: { name: string; price: number; startsAt: string; endsAt: string; displayOrder?: number }) =>
+      apiCreatePricingStage(eventId, typeId, body),
+    onSuccess: () => { toast({ title: t("ticketTypes.stageCreated") }); invalidateStages(); setShowForm(false); },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ stageId, body }: { stageId: string; body: Record<string, unknown> }) =>
+      apiUpdatePricingStage(eventId, typeId, stageId, body),
+    onSuccess: () => { toast({ title: t("ticketTypes.stageUpdated") }); invalidateStages(); setShowForm(false); setEditingStageId(null); },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (stageId: string) => apiDeletePricingStage(eventId, typeId, stageId),
+    onSuccess: () => { toast({ title: t("ticketTypes.stageDeleted") }); invalidateStages(); },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [form, setForm] = useState<StageForm>(emptyStageForm);
+
+  const openAdd = () => {
+    setEditingStageId(null);
+    setForm({ ...emptyStageForm });
+    setShowForm(true);
+  };
+
+  const toLocalDatetime = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const openEditStage = (stage: (typeof stages)[0]) => {
+    setEditingStageId(stage.id);
+    setForm({
+      name: stage.name,
+      price: String(stage.price),
+      startsAt: toLocalDatetime(stage.startsAt),
+      endsAt: toLocalDatetime(stage.endsAt),
+    });
+    setShowForm(true);
+  };
+
+  const handleSaveStage = () => {
+    if (!form.name || !form.price || !form.startsAt || !form.endsAt) {
+      toast({ title: t("common.error"), description: t("ticketTypes.requiredFields"), variant: "destructive" });
+      return;
+    }
+    if (new Date(form.startsAt) >= new Date(form.endsAt)) {
+      toast({ title: t("common.error"), description: t("ticketTypes.stageStart") + " < " + t("ticketTypes.stageEnd"), variant: "destructive" });
+      return;
+    }
+
+    const body = {
+      name: form.name,
+      price: parseInt(form.price, 10),
+      startsAt: new Date(form.startsAt).toISOString(),
+      endsAt: new Date(form.endsAt).toISOString(),
+      displayOrder: editingStageId
+        ? stages.find((s) => s.id === editingStageId)?.displayOrder ?? 0
+        : stages.length,
+    };
+
+    if (editingStageId) {
+      updateMutation.mutate({ stageId: editingStageId, body });
+    } else {
+      createMutation.mutate(body);
+    }
+  };
+
+  const handleDelete = (stageId: string) => {
+    if (confirm(t("ticketTypes.deleteStageConfirm"))) {
+      deleteMutation.mutate(stageId);
+    }
+  };
+
+  const formatPrice = (v: number) => `$${v.toLocaleString("es-CO")}`;
+  const formatDate = (d: string) => new Date(d).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  const now = new Date();
+  const activeStage = stages.find((s) => now >= new Date(s.startsAt) && now <= new Date(s.endsAt));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            {t("ticketTypes.pricingStages")} — {typeName}
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground">{t("ticketTypes.pricingStagesDesc")}</p>
+        </DialogHeader>
+
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : stages.length === 0 && !showForm ? (
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              <TrendingUp className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p>{t("ticketTypes.noStages")}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {stages.map((stage, idx) => {
+                const isActive = activeStage?.id === stage.id;
+                const isPast = now > new Date(stage.endsAt);
+                const isFuture = now < new Date(stage.startsAt);
+
+                return (
+                  <div
+                    key={stage.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      isActive ? "border-primary bg-primary/5" : isPast ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-bold shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{stage.name}</p>
+                          {isActive && <Badge variant="default" className="text-[10px] px-1.5 py-0">{t("ticketTypes.currentStage")}</Badge>}
+                          {isPast && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{t("common.past", "Past")}</Badge>}
+                          {isFuture && <Badge variant="outline" className="text-[10px] px-1.5 py-0">{t("common.upcoming", "Upcoming")}</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(stage.startsAt)} → {formatDate(stage.endsAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-mono text-sm font-semibold">{formatPrice(stage.price)}</span>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditStage(stage)}>
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(stage.id)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {showForm && (
+            <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+              <p className="text-sm font-medium">{editingStageId ? t("ticketTypes.editStage") : t("ticketTypes.addStage")}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("ticketTypes.stageName")} *</Label>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    placeholder={t("ticketTypes.stageNamePlaceholder")}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("ticketTypes.stagePrice")} (COP) *</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={form.price}
+                    onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("ticketTypes.stageStart")} *</Label>
+                  <Input
+                    type="datetime-local"
+                    value={form.startsAt}
+                    onChange={(e) => setForm((f) => ({ ...f, startsAt: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("ticketTypes.stageEnd")} *</Label>
+                  <Input
+                    type="datetime-local"
+                    value={form.endsAt}
+                    onChange={(e) => setForm((f) => ({ ...f, endsAt: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={() => { setShowForm(false); setEditingStageId(null); }}>{t("common.cancel")}</Button>
+                <Button size="sm" onClick={handleSaveStage} disabled={createMutation.isPending || updateMutation.isPending}>
+                  {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+                  {t("common.save")}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex justify-between sm:justify-between">
+          {!showForm && (
+            <Button variant="outline" size="sm" onClick={openAdd}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> {t("ticketTypes.addStage")}
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.close", "Cerrar")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

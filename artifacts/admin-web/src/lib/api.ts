@@ -177,6 +177,34 @@ export async function apiFetchCheckinStats(eventId: string) {
   return data as { days: Array<{ dayId: string; dayLabel: string; date: string; totalCheckins: number; totalTickets: number }>; totalTickets: number };
 }
 
+export async function apiFetchPricingStages(eventId: string, typeId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types/${typeId}/pricing-stages`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch pricing stages");
+  return data.stages as Array<{ id: string; ticketTypeId: string; name: string; price: number; startsAt: string; endsAt: string; displayOrder: number; createdAt: string }>;
+}
+
+export async function apiCreatePricingStage(eventId: string, typeId: string, body: { name: string; price: number; startsAt: string; endsAt: string; displayOrder?: number }) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types/${typeId}/pricing-stages`), { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to create pricing stage");
+  return data;
+}
+
+export async function apiUpdatePricingStage(eventId: string, typeId: string, stageId: string, body: Record<string, unknown>) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types/${typeId}/pricing-stages/${stageId}`), { method: "PATCH", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update pricing stage");
+  return data;
+}
+
+export async function apiDeletePricingStage(eventId: string, typeId: string, stageId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types/${typeId}/pricing-stages/${stageId}`), { method: "DELETE", headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to delete pricing stage");
+  return data;
+}
+
 export async function apiUpdateEvent(eventId: string, body: Record<string, unknown>) {
   const res = await fetch(apiUrl(`/api/events/${eventId}`), { method: "PATCH", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json();

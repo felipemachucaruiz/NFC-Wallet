@@ -5,16 +5,28 @@ export interface EventDay {
   doorTime: string;
 }
 
+export interface PricingStage {
+  id: string;
+  name: string;
+  price: number;
+  startsAt: string;
+  endsAt: string;
+}
+
 export interface TicketType {
   id: string;
   name: string;
   validDays: string;
   price: number;
+  basePrice?: number;
+  currentStageName?: string | null;
   serviceFee: number;
   availableCount: number;
   maxPerOrder: number;
   sectionId?: string;
   status: "available" | "limited" | "sold_out";
+  pricingStages?: PricingStage[];
+  nextStage?: { name: string; price: number; startsAt: string } | null;
 }
 
 export interface VenueSection {
