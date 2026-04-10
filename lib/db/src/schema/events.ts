@@ -32,7 +32,7 @@ export const eventsTable = pgTable("events", {
   longitude: decimal("longitude", { precision: 10, scale: 7 }),
   ticketingEnabled: boolean("ticketing_enabled").notNull().default(false),
   nfcBraceletsEnabled: boolean("nfc_bracelets_enabled").notNull().default(true),
-  saleChannels: varchar("sale_channels", { length: 20 }).notNull().default("both"),
+  salesChannel: varchar("sales_channel", { length: 20 }).notNull().default("both"),
   saleStartsAt: timestamp("sale_starts_at", { withTimezone: true }),
   saleEndsAt: timestamp("sale_ends_at", { withTimezone: true }),
   timezone: varchar("timezone", { length: 100 }).notNull().default("UTC"),
@@ -42,9 +42,6 @@ export const eventsTable = pgTable("events", {
   category: varchar("category", { length: 100 }),
   tags: jsonb("tags").$type<string[]>().default(sql`'[]'::jsonb`),
   minAge: integer("min_age"),
-  ticketingEnabled: boolean("ticketing_enabled").notNull().default(false),
-  nfcBraceletsEnabled: boolean("nfc_bracelets_enabled").notNull().default(true),
-  salesChannel: varchar("sales_channel", { length: 20 }).notNull().default("both"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

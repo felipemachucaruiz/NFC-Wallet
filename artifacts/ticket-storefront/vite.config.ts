@@ -62,6 +62,13 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: {
+      "/attendee-api": {
+        target: "http://localhost:3001",
+        rewrite: (p) => p.replace(/^\/attendee-api/, ""),
+        changeOrigin: true,
+      },
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],
