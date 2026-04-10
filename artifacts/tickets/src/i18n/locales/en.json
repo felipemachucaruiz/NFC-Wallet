@@ -197,5 +197,24 @@
     "pageNotFoundDesc": "The page you're looking for doesn't exist.",
     "noResults": "No results found",
     "searchCountry": "Search country..."
+  },
+  "guestList": {
+    "notFound": "Guest List Not Found",
+    "confirmed": "You're on the list!",
+    "confirmedSubtitle": "Your free ticket has been confirmed.",
+    "qrInstructions": "Present this QR code at the event entrance.",
+    "emailSent": "A confirmation email with your QR code has been sent.",
+    "spotsRemaining": "{{count}} spots remaining",
+    "listClosed": "This guest list is closed.",
+    "listFull": "This guest list is full.",
+    "listExpired": "This guest list has expired.",
+    "nameLabel": "Full Name",
+    "namePlaceholder": "Your full name",
+    "emailLabel": "Email",
+    "emailPlaceholder": "your@email.com",
+    "phoneLabel": "Phone (optional)",
+    "phonePlaceholder": "+1 234 567 8900",
+    "signUp": "Sign Up - Free Entry",
+    "freeEntry": "No payment required. You'll receive a free ticket with QR code."
   }
 }

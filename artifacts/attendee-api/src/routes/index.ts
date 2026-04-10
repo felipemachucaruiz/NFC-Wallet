@@ -7,6 +7,7 @@ import paymentsRouter from "./payments";
 import attestationRouter from "./attestation";
 import catalogueRouter from "./catalogue";
 import ticketsRouter from "./tickets";
+import guestListsRouter from "./guestLists";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(paymentsRouter);
 router.use(attestationRouter);
 router.use(catalogueRouter);
 router.use(ticketsRouter);
+router.use(guestListsRouter);
 
 export default router;

@@ -109,6 +109,14 @@ export interface ApiEventDetail {
     pricingStages?: { id: string; name: string; price: number; startsAt: string; endsAt: string }[];
     nextStage?: { name: string; price: number; startsAt: string } | null;
   }[];
+  guestLists?: {
+    id: string;
+    name: string;
+    slug: string;
+    maxGuests: number;
+    currentCount: number;
+    expiresAt: string | null;
+  }[];
 }
 
 export async function fetchEvents(params?: {

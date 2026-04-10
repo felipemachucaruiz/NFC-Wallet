@@ -197,5 +197,24 @@
     "pageNotFoundDesc": "La página que buscas no existe.",
     "noResults": "No se encontraron resultados",
     "searchCountry": "Buscar país..."
+  },
+  "guestList": {
+    "notFound": "Lista de Invitados No Encontrada",
+    "confirmed": "¡Estás en la lista!",
+    "confirmedSubtitle": "Tu entrada gratuita ha sido confirmada.",
+    "qrInstructions": "Presenta este código QR en la entrada del evento.",
+    "emailSent": "Se ha enviado un correo de confirmación con tu código QR.",
+    "spotsRemaining": "{{count}} cupos disponibles",
+    "listClosed": "Esta lista de invitados está cerrada.",
+    "listFull": "Esta lista de invitados está llena.",
+    "listExpired": "Esta lista de invitados ha expirado.",
+    "nameLabel": "Nombre Completo",
+    "namePlaceholder": "Tu nombre completo",
+    "emailLabel": "Correo Electrónico",
+    "emailPlaceholder": "tu@correo.com",
+    "phoneLabel": "Teléfono (opcional)",
+    "phonePlaceholder": "+57 300 123 4567",
+    "signUp": "Registrarse - Entrada Gratis",
+    "freeEntry": "No se requiere pago. Recibirás una entrada gratuita con código QR."
   }
 }

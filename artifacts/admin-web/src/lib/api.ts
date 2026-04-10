@@ -226,6 +226,64 @@ export async function apiUpdateEvent(eventId: string, body: Record<string, unkno
   return data;
 }
 
+export interface GuestListData {
+  id: string;
+  eventId: string;
+  name: string;
+  slug: string;
+  maxGuests: number;
+  currentCount: number;
+  isPublic: boolean;
+  status: string;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GuestListEntryData {
+  id: string;
+  guestListId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  ticketId: string | null;
+  orderId: string | null;
+  createdAt: string;
+}
+
+export async function apiFetchGuestLists(eventId: string): Promise<GuestListData[]> {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/guest-lists`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch guest lists");
+  return data.guestLists as GuestListData[];
+}
+
+export async function apiCreateGuestList(eventId: string, body: { name: string; maxGuests: number; isPublic?: boolean; expiresAt?: string | null }) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/guest-lists`), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to create guest list");
+  return data.guestList as GuestListData;
+}
+
+export async function apiUpdateGuestList(eventId: string, listId: string, body: Record<string, unknown>) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/guest-lists/${listId}`), { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update guest list");
+  return data.guestList as GuestListData;
+}
+
+export async function apiDeleteGuestList(eventId: string, listId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/guest-lists/${listId}`), { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to delete guest list"); }
+}
+
+export async function apiFetchGuestListEntries(eventId: string, listId: string): Promise<GuestListEntryData[]> {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/guest-lists/${listId}/entries`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch guest list entries");
+  return data.entries as GuestListEntryData[];
+}
+
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")

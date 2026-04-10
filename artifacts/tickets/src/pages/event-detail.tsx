@@ -385,6 +385,26 @@ export default function EventDetail() {
                   </Button>
                 )}
               </div>
+
+              {detail?.guestLists && detail.guestLists.length > 0 && (
+                <div className="bg-card rounded-xl border border-border p-5 mt-6">
+                  <h2 className="text-lg font-semibold mb-4">{t("event.guestLists", "Guest Lists")}</h2>
+                  <div className="space-y-3">
+                    {detail.guestLists.map((gl) => (
+                      <a
+                        key={gl.id}
+                        href={`${import.meta.env.BASE_URL}guest-list/${gl.slug}`}
+                        className="block p-3 rounded-lg border border-border hover:border-primary/50 transition-colors"
+                      >
+                        <span className="font-medium text-sm">{gl.name}</span>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {gl.maxGuests - gl.currentCount} {t("event.spotsRemaining", "spots remaining")}
+                        </p>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

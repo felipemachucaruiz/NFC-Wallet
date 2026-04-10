@@ -52,6 +52,7 @@ import EventSalesConfig from "@/pages/event-sales-config";
 import EventSalesDashboard from "@/pages/event-sales-dashboard";
 import EventOrders from "@/pages/event-orders";
 import EventCheckins from "@/pages/event-checkins";
+import EventGuestLists from "@/pages/event-guest-lists";
 
 const queryClient = new QueryClient();
 
@@ -230,6 +231,9 @@ function Router() {
       </Route>
       <Route path="/event-checkins">
         <ModuleGatedRoute component={EventCheckins} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
+      </Route>
+      <Route path="/event-guest-lists">
+        <ModuleGatedRoute component={EventGuestLists} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
 
       <Route component={NotFound} />

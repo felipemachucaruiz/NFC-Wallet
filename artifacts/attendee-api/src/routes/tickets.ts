@@ -498,10 +498,12 @@ router.get(
           .from(eventsTable)
           .where(eq(eventsTable.id, ticket.eventId));
 
-        const [ticketType] = await db
-          .select({ name: ticketTypesTable.name, validEventDayIds: ticketTypesTable.validEventDayIds })
-          .from(ticketTypesTable)
-          .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+        const [ticketType] = ticket.ticketTypeId
+          ? await db
+              .select({ name: ticketTypesTable.name, validEventDayIds: ticketTypesTable.validEventDayIds })
+              .from(ticketTypesTable)
+              .where(eq(ticketTypesTable.id, ticket.ticketTypeId))
+          : [undefined];
 
         return {
           ...ticket,
@@ -554,10 +556,12 @@ router.get(
       .from(eventsTable)
       .where(eq(eventsTable.id, ticket.eventId));
 
-    const [ticketType] = await db
-      .select({ name: ticketTypesTable.name, sectionId: ticketTypesTable.sectionId, validEventDayIds: ticketTypesTable.validEventDayIds })
-      .from(ticketTypesTable)
-      .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+    const [ticketType] = ticket.ticketTypeId
+      ? await db
+          .select({ name: ticketTypesTable.name, sectionId: ticketTypesTable.sectionId, validEventDayIds: ticketTypesTable.validEventDayIds })
+          .from(ticketTypesTable)
+          .where(eq(ticketTypesTable.id, ticket.ticketTypeId))
+      : [undefined];
 
     let sectionName = "General";
     if (ticketType?.sectionId) {
@@ -631,10 +635,12 @@ router.get(
       .from(eventsTable)
       .where(eq(eventsTable.id, ticket.eventId));
 
-    const [ticketType] = await db
-      .select({ name: ticketTypesTable.name, sectionId: ticketTypesTable.sectionId, validEventDayIds: ticketTypesTable.validEventDayIds })
-      .from(ticketTypesTable)
-      .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+    const [ticketType] = ticket.ticketTypeId
+      ? await db
+          .select({ name: ticketTypesTable.name, sectionId: ticketTypesTable.sectionId, validEventDayIds: ticketTypesTable.validEventDayIds })
+          .from(ticketTypesTable)
+          .where(eq(ticketTypesTable.id, ticket.ticketTypeId))
+      : [undefined];
 
     let sectionName = "General";
     if (ticketType?.sectionId) {
@@ -710,7 +716,9 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
     await db.update(ticketsTable).set({ qrCodeToken, updatedAt: new Date() }).where(eq(ticketsTable.id, ticket.id));
 
     if (event) {
-      const [ticketType] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+      const [ticketType] = ticket.ticketTypeId
+        ? await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId))
+        : [undefined];
       const validDayIds = (ticketType?.validEventDayIds as string[]) ?? [];
       let validDays: string[] = [];
       if (validDayIds.length > 0) {

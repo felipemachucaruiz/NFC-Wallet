@@ -109,10 +109,12 @@ router.post(
       return;
     }
 
-    const [ticketType] = await db
-      .select({ validEventDayIds: ticketTypesTable.validEventDayIds })
-      .from(ticketTypesTable)
-      .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+    const [ticketType] = ticket.ticketTypeId
+      ? await db
+          .select({ validEventDayIds: ticketTypesTable.validEventDayIds })
+          .from(ticketTypesTable)
+          .where(eq(ticketTypesTable.id, ticket.ticketTypeId))
+      : [undefined];
 
     const today = new Date().toISOString().split("T")[0];
 
@@ -217,10 +219,12 @@ router.post(
       return;
     }
 
-    const [ticketType] = await db
-      .select()
-      .from(ticketTypesTable)
-      .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+    const [ticketType] = ticket.ticketTypeId
+      ? await db
+          .select()
+          .from(ticketTypesTable)
+          .where(eq(ticketTypesTable.id, ticket.ticketTypeId))
+      : [undefined];
 
     const checkIns = await db
       .select()

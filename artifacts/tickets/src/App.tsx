@@ -13,6 +13,7 @@ import PaymentStatus from "@/pages/payment-status";
 import MyTickets from "@/pages/my-tickets";
 import Account from "@/pages/account";
 import NotFound from "@/pages/not-found";
+import GuestListPage from "@/pages/guest-list";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ function Router() {
           <Route path="/payment-status" component={PaymentStatus} />
           <Route path="/my-tickets" component={MyTickets} />
           <Route path="/account" component={Account} />
+          <Route path="/guest-list/:slug" component={GuestListPage} />
           <Route component={NotFound} />
         </Switch>
       </main>

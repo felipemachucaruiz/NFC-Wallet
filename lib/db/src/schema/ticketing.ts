@@ -126,7 +126,7 @@ export const ticketOrdersTable = pgTable("ticket_orders", {
 export const ticketsTable = pgTable("tickets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orderId: varchar("order_id").notNull().references(() => ticketOrdersTable.id),
-  ticketTypeId: varchar("ticket_type_id").notNull().references(() => ticketTypesTable.id),
+  ticketTypeId: varchar("ticket_type_id").references(() => ticketTypesTable.id),
   eventId: varchar("event_id").notNull().references(() => eventsTable.id),
   unitId: varchar("unit_id").references(() => ticketTypeUnitsTable.id),
   attendeeName: varchar("attendee_name", { length: 255 }).notNull(),
@@ -168,6 +168,41 @@ export const ticketCheckInsTable = pgTable("ticket_check_ins", {
   index("idx_ticket_check_ins_ticket_id").on(table.ticketId),
 ]);
 
+export const guestListStatusEnum = pgEnum("guest_list_status", ["active", "closed"]);
+
+export const guestListsTable = pgTable("guest_lists", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id").notNull().references(() => eventsTable.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  maxGuests: integer("max_guests").notNull(),
+  currentCount: integer("current_count").notNull().default(0),
+  isPublic: boolean("is_public").notNull().default(false),
+  status: guestListStatusEnum("status").notNull().default("active"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+  index("idx_guest_lists_event_id").on(table.eventId),
+  index("idx_guest_lists_slug").on(table.slug),
+  check("guest_lists_count_non_negative", sql`${table.currentCount} >= 0`),
+]);
+
+export const guestListEntriesTable = pgTable("guest_list_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  guestListId: varchar("guest_list_id").notNull().references(() => guestListsTable.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  phone: varchar("phone", { length: 30 }),
+  ticketId: varchar("ticket_id").references(() => ticketsTable.id),
+  orderId: varchar("order_id").references(() => ticketOrdersTable.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_guest_list_entries_guest_list_id").on(table.guestListId),
+  index("idx_guest_list_entries_email").on(table.email),
+  unique("guest_list_entries_list_email_unique").on(table.guestListId, table.email),
+]);
+
 export type EventDay = typeof eventDaysTable.$inferSelect;
 export type InsertEventDay = typeof eventDaysTable.$inferInsert;
 export type Venue = typeof venuesTable.$inferSelect;
@@ -186,3 +221,7 @@ export type TicketPricingStage = typeof ticketPricingStagesTable.$inferSelect;
 export type InsertTicketPricingStage = typeof ticketPricingStagesTable.$inferInsert;
 export type TicketCheckIn = typeof ticketCheckInsTable.$inferSelect;
 export type InsertTicketCheckIn = typeof ticketCheckInsTable.$inferInsert;
+export type GuestList = typeof guestListsTable.$inferSelect;
+export type InsertGuestList = typeof guestListsTable.$inferInsert;
+export type GuestListEntry = typeof guestListEntriesTable.$inferSelect;
+export type InsertGuestListEntry = typeof guestListEntriesTable.$inferInsert;

@@ -27,6 +27,7 @@ import accessZonesRouter from "./accessZones";
 import ticketingRouter from "./ticketing";
 import ticketCheckinRouter from "./ticketCheckin";
 import gateTicketRouter from "./gateTicket";
+import guestListsRouter from "./guestLists";
 
 const router: IRouter = Router();
 
@@ -58,5 +59,6 @@ router.use(accessZonesRouter);
 router.use(ticketingRouter);
 router.use(ticketCheckinRouter);
 router.use(gateTicketRouter);
+router.use(guestListsRouter);
 
 export default router;

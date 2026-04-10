@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketPricingStagesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketPricingStagesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable, guestListsTable } from "@workspace/db";
 import { eq, and, sql, ilike, gte, lte, asc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { logger } from "../lib/logger";
@@ -295,12 +295,38 @@ router.get(
       };
     });
 
+    const publicGuestLists = await db
+      .select({
+        id: guestListsTable.id,
+        name: guestListsTable.name,
+        slug: guestListsTable.slug,
+        maxGuests: guestListsTable.maxGuests,
+        currentCount: guestListsTable.currentCount,
+        expiresAt: guestListsTable.expiresAt,
+      })
+      .from(guestListsTable)
+      .where(
+        and(
+          eq(guestListsTable.eventId, eventId),
+          eq(guestListsTable.isPublic, true),
+          eq(guestListsTable.status, "active"),
+        ),
+      )
+      .orderBy(asc(guestListsTable.name));
+
+    const activeGuestLists = publicGuestLists.filter((gl) => {
+      if (gl.expiresAt && new Date(gl.expiresAt) < new Date()) return false;
+      if (gl.currentCount >= gl.maxGuests) return false;
+      return true;
+    });
+
     res.json({
       event,
       eventDays: days,
       venues,
       sections,
       ticketTypes: availability,
+      guestLists: activeGuestLists,
     });
   },
 );
