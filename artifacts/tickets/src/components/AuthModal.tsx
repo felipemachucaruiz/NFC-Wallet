@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { X } from "lucide-react";
+import { X, ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,7 +54,16 @@ function LoginForm() {
         />
       </div>
       <div>
-        <Label>{t("auth.password")}</Label>
+        <div className="flex items-center justify-between">
+          <Label>{t("auth.password")}</Label>
+          <button
+            type="button"
+            onClick={() => switchAuthView("forgot")}
+            className="text-xs text-primary hover:underline"
+          >
+            {t("auth.forgotPassword")}
+          </button>
+        </div>
         <Input
           type="password"
           value={password}
@@ -81,6 +90,84 @@ function LoginForm() {
             {t("auth.register")}
           </button>
         </p>
+      </div>
+    </form>
+  );
+}
+
+function ForgotPasswordForm() {
+  const { t } = useTranslation();
+  const { switchAuthView } = useAuth();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    await new Promise((r) => setTimeout(r, 1000));
+    setLoading(false);
+    setSent(true);
+  };
+
+  if (sent) {
+    return (
+      <div className="space-y-4 text-center py-4">
+        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+          <Mail className="w-7 h-7 text-primary" />
+        </div>
+        <h2 className="text-xl font-bold">{t("auth.resetSentTitle")}</h2>
+        <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+          {t("auth.resetSentDesc")}
+        </p>
+        <Button
+          variant="ghost"
+          className="text-primary hover:text-primary/90"
+          onClick={() => switchAuthView("login")}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          {t("auth.backToLogin")}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="text-center mb-2">
+        <h2 className="text-xl font-bold">{t("auth.forgotPasswordTitle")}</h2>
+        <p className="text-sm text-muted-foreground mt-2">
+          {t("auth.forgotPasswordDesc")}
+        </p>
+      </div>
+
+      <div>
+        <Label>{t("auth.email")}</Label>
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="mt-1"
+          autoFocus
+        />
+      </div>
+      <Button
+        type="submit"
+        className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+        disabled={loading}
+      >
+        {loading ? t("common.loading") : t("auth.sendResetLink")}
+      </Button>
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={() => switchAuthView("login")}
+          className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+        >
+          <ArrowLeft className="w-3 h-3" />
+          {t("auth.backToLogin")}
+        </button>
       </div>
     </form>
   );
@@ -177,14 +264,24 @@ function RegisterForm() {
   );
 }
 
+function ModalContent({ view }: { view: "login" | "register" | "forgot" }) {
+  switch (view) {
+    case "login": return <LoginForm />;
+    case "register": return <RegisterForm />;
+    case "forgot": return <ForgotPasswordForm />;
+  }
+}
+
 export function AuthModal() {
   const { showAuthModal, authModalView, closeAuthModal } = useAuth();
+
+  const titleMap = { login: "Login", register: "Register", forgot: "Forgot Password" };
 
   return (
     <Dialog open={showAuthModal} onOpenChange={(open) => { if (!open) closeAuthModal(); }}>
       <DialogContent className="sm:max-w-md bg-card border-border p-6 [&>button]:hidden">
         <DialogTitle className="sr-only">
-          {authModalView === "login" ? "Login" : "Register"}
+          {titleMap[authModalView]}
         </DialogTitle>
         <button
           onClick={closeAuthModal}
@@ -192,7 +289,7 @@ export function AuthModal() {
         >
           <X className="h-4 w-4" />
         </button>
-        {authModalView === "login" ? <LoginForm /> : <RegisterForm />}
+        <ModalContent view={authModalView} />
       </DialogContent>
     </Dialog>
   );

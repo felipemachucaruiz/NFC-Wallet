@@ -110,6 +110,12 @@
     "noAccount": "Don't have an account?",
     "hasAccount": "Already have an account?",
     "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset password",
+    "forgotPasswordDesc": "Enter your email address and we'll send you a link to reset your password.",
+    "sendResetLink": "Send reset link",
+    "resetSentTitle": "Email sent",
+    "resetSentDesc": "If an account exists with that email, you'll receive a password reset link.",
+    "backToLogin": "Back to login",
     "loginRequired": "You must log in to purchase tickets",
     "passwordMismatch": "Passwords do not match"
   },

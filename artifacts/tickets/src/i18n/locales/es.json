@@ -110,6 +110,12 @@
     "noAccount": "¿No tienes cuenta?",
     "hasAccount": "¿Ya tienes cuenta?",
     "forgotPassword": "¿Olvidaste tu contraseña?",
+    "forgotPasswordTitle": "Recuperar contraseña",
+    "forgotPasswordDesc": "Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.",
+    "sendResetLink": "Enviar enlace",
+    "resetSentTitle": "Correo enviado",
+    "resetSentDesc": "Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu contraseña.",
+    "backToLogin": "Volver a iniciar sesión",
     "loginRequired": "Debes iniciar sesión para comprar boletas",
     "passwordMismatch": "Las contraseñas no coinciden"
   },

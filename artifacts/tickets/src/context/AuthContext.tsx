@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import type { User } from "@/data/types";
 
-type AuthModalView = "login" | "register";
+type AuthModalView = "login" | "register" | "forgot";
 
 interface AuthContextType {
   user: User | null;
