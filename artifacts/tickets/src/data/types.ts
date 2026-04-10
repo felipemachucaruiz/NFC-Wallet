@@ -55,6 +55,7 @@ export interface EventData {
   description: string;
   coverImage: string;
   flyerImage: string;
+  floorplanImage: string;
   category: string;
   venueName: string;
   venueAddress: string;

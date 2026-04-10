@@ -131,6 +131,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     description: event.longDescription || event.description || "",
     coverImage: resolveImageUrl(event.coverImageUrl),
     flyerImage: resolveImageUrl(event.flyerImageUrl),
+    floorplanImage: venue?.floorplanImageUrl ? resolveImageUrl(venue.floorplanImageUrl) : "",
     category: event.category || "",
     venueName: venue?.name || "",
     venueAddress: venue?.address || event.venueAddress || "",
@@ -320,7 +321,7 @@ export default function EventDetail() {
               </div>
             )}
 
-            {event.sections.length > 0 && event.sections.some((s) => s.svgPath) && (
+            {(event.sections.length > 0 || event.floorplanImage) && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">{t("venueMap.title")}</h2>
                 <VenueMap event={event} onSelectTicket={handleTicketSelect} />
