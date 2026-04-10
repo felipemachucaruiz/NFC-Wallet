@@ -1,4 +1,6 @@
-const API_BASE = "/attendee-api/api";
+const API_BASE = import.meta.env.PROD
+  ? "https://attendee.tapee.app/attendee-api/api"
+  : "/tickets/prod-api";
 
 let authToken: string | null = localStorage.getItem("tapee_auth_token");
 
