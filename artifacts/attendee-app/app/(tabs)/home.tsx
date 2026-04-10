@@ -111,7 +111,7 @@ export default function HomeScreen() {
   const { data, isPending, refetch } = useMyBracelets();
   const bracelets = ((data as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
   const isArchived = (b: BraceletItem) =>
-    b.refundStatus === "disbursement_completed" || (b.event && !b.event.active);
+    b.pendingRefund || b.refundStatus === "disbursement_completed" || (b.event && !b.event.active);
   const activeBracelets = bracelets.filter((b) => !isArchived(b));
   const archivedBracelets = bracelets.filter((b) => isArchived(b));
   const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balance, 0);
