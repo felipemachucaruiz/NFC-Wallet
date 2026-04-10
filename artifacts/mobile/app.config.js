@@ -19,7 +19,7 @@ module.exports = {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.tapee.staff",
-      buildNumber: "6",
+      buildNumber: "7",
       infoPlist: {
         NSPhotoLibraryUsageDescription: "Used to select product photos.",
         NFCReaderUsageDescription: "Used to read NFC wristbands for cashless payments.",
