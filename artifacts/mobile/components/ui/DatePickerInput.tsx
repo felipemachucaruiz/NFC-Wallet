@@ -11,17 +11,28 @@ import {
   TouchableOpacity,
 } from "react-native";
 import Colors from "@/constants/colors";
+import { useTranslation } from "react-i18next";
 
 const MONTHS_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
+const MONTHS_EN = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 const MONTHS_SHORT_ES = [
   "ene", "feb", "mar", "abr", "may", "jun",
   "jul", "ago", "sep", "oct", "nov", "dic",
 ];
+const MONTHS_SHORT_EN = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 const DAYS_ES = ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sá"];
+const DAYS_EN = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const DAYS_LONG_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const DAYS_LONG_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() &&
@@ -29,19 +40,28 @@ function sameDay(a: Date, b: Date) {
     a.getDate() === b.getDate();
 }
 
-function formatDisplay(date: Date | null): string {
+function formatDisplay(date: Date | null, lang: string): string {
   if (!date) return "";
   const day = date.getDate();
-  const month = MONTHS_SHORT_ES[date.getMonth()];
+  const monthsShort = lang === "es" ? MONTHS_SHORT_ES : MONTHS_SHORT_EN;
+  const month = monthsShort[date.getMonth()];
   const year = date.getFullYear();
-  return `${day} de ${month} de ${year}`;
+  if (lang === "es") {
+    return `${day} de ${month} de ${year}`;
+  }
+  return `${month} ${day}, ${year}`;
 }
 
-function formatDisplayShort(date: Date): string {
-  const dayName = DAYS_LONG_ES[date.getDay()].slice(0, 3);
+function formatDisplayShort(date: Date, lang: string): string {
+  const daysLong = lang === "es" ? DAYS_LONG_ES : DAYS_LONG_EN;
+  const monthsShort = lang === "es" ? MONTHS_SHORT_ES : MONTHS_SHORT_EN;
+  const dayName = daysLong[date.getDay()].slice(0, 3);
   const day = date.getDate();
-  const month = MONTHS_SHORT_ES[date.getMonth()];
-  return `${dayName}, ${day} de ${month}`;
+  const month = monthsShort[date.getMonth()];
+  if (lang === "es") {
+    return `${dayName}, ${day} de ${month}`;
+  }
+  return `${dayName}, ${month} ${day}`;
 }
 
 function toInputValue(date: Date | null): string {
@@ -86,11 +106,17 @@ export function DatePickerInput({
   onChange,
   minimumDate,
   maximumDate,
-  placeholder = "Seleccionar fecha",
+  placeholder,
 }: DatePickerInputProps) {
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const [showPicker, setShowPicker] = useState(false);
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language === "es" ? "es" : "en";
+
+  const months = lang === "es" ? MONTHS_ES : MONTHS_EN;
+  const days = lang === "es" ? DAYS_ES : DAYS_EN;
+  const resolvedPlaceholder = placeholder || t("common.selectDate");
 
   const initialDate = value ?? new Date();
   const [viewYear, setViewYear] = useState(initialDate.getFullYear());
@@ -172,7 +198,7 @@ export function DatePickerInput({
       >
         <Feather name="calendar" size={16} color={value ? C.primary : C.textMuted} style={{ marginRight: 8 }} />
         <Text style={[styles.valueText, { color: value ? C.text : C.textMuted }]}>
-          {value ? formatDisplay(value) : placeholder}
+          {value ? formatDisplay(value, lang) : resolvedPlaceholder}
         </Text>
         <Feather name="chevron-down" size={14} color={C.textMuted} />
       </Pressable>
@@ -185,7 +211,7 @@ export function DatePickerInput({
 
           <View style={[styles.headerBar, { backgroundColor: scheme === "dark" ? "#0a0a0a" : "#1A56DB" }]}>
             <Text style={styles.headerYear}>{tempDate.getFullYear()}</Text>
-            <Text style={styles.headerDate}>{formatDisplayShort(tempDate)}</Text>
+            <Text style={styles.headerDate}>{formatDisplayShort(tempDate, lang)}</Text>
           </View>
 
           <View style={[styles.monthNav, { borderBottomColor: C.separator }]}>
@@ -194,7 +220,9 @@ export function DatePickerInput({
             </TouchableOpacity>
 
             <Text style={[styles.monthLabel, { color: C.text }]}>
-              {MONTHS_ES[viewMonth]} de {viewYear}
+              {lang === "es"
+                ? `${months[viewMonth]} de ${viewYear}`
+                : `${months[viewMonth]} ${viewYear}`}
             </Text>
 
             <TouchableOpacity onPress={nextMonth} style={styles.navBtn} hitSlop={12}>
@@ -203,7 +231,7 @@ export function DatePickerInput({
           </View>
 
           <View style={styles.dayNamesRow}>
-            {DAYS_ES.map((d) => (
+            {days.map((d) => (
               <Text key={d} style={[styles.dayName, { color: C.textMuted }]}>{d}</Text>
             ))}
           </View>
@@ -256,7 +284,7 @@ export function DatePickerInput({
 
           <View style={[styles.actions, { borderTopColor: C.separator }]}>
             <Pressable onPress={() => setShowPicker(false)} style={styles.actionBtn}>
-              <Text style={[styles.actionText, { color: C.textSecondary }]}>Cancelar</Text>
+              <Text style={[styles.actionText, { color: C.textSecondary }]}>{t("common.cancel")}</Text>
             </Pressable>
             <Pressable
               onPress={() => {
@@ -266,7 +294,7 @@ export function DatePickerInput({
               style={styles.actionBtn}
             >
               <Text style={[styles.actionText, { color: C.primary, fontFamily: "Inter_700Bold" }]}>
-                Aceptar
+                {t("common.accept")}
               </Text>
             </Pressable>
           </View>
