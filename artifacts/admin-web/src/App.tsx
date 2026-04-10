@@ -6,7 +6,11 @@ import { Layout } from "@/components/layout";
 import { useGetCurrentAuthUser, useGetEvent, setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { AUTH_TOKEN_KEY } from "@/pages/login";
 
-setBaseUrl(`${import.meta.env.BASE_URL}_srv`);
+setBaseUrl(
+  import.meta.env.PROD
+    ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app")
+    : `${import.meta.env.BASE_URL}_srv`,
+);
 setAuthTokenGetter(() => localStorage.getItem(AUTH_TOKEN_KEY));
 
 import NotFound from "@/pages/not-found";
