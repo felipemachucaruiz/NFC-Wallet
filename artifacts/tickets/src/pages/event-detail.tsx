@@ -13,7 +13,7 @@ import { VenueMap } from "@/components/VenueMap";
 import { TicketSelector } from "@/components/TicketSelector";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { fetchEventDetail, type ApiEventDetail } from "@/lib/api";
+import { fetchEventDetail, resolveImageUrl, type ApiEventDetail } from "@/lib/api";
 
 function DarkMapEmbed({ lat, lng }: { lat: number; lng: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,8 +118,8 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     id: event.id,
     name: event.name,
     description: event.longDescription || event.description || "",
-    coverImage: event.coverImageUrl || "",
-    flyerImage: event.flyerImageUrl || "",
+    coverImage: resolveImageUrl(event.coverImageUrl),
+    flyerImage: resolveImageUrl(event.flyerImageUrl),
     category: event.category || "",
     venueName: venue?.name || "",
     venueAddress: venue?.address || event.venueAddress || "",

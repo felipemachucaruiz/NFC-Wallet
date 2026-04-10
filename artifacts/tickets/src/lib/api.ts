@@ -1,6 +1,15 @@
+const PROD_ORIGIN = "https://attendee.tapee.app";
 const API_BASE = import.meta.env.PROD
-  ? "https://attendee.tapee.app/attendee-api/api"
+  ? `${PROD_ORIGIN}/attendee-api/api`
   : "/tickets/prod-api";
+
+const STORAGE_ORIGIN = "https://prod.tapee.app";
+
+export function resolveImageUrl(path: string | null | undefined): string {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${STORAGE_ORIGIN}${path}`;
+}
 
 let authToken: string | null = localStorage.getItem("tapee_auth_token");
 

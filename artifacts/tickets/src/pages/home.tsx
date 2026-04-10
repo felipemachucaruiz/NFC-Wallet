@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fetchEvents, type ApiEvent } from "@/lib/api";
+import { fetchEvents, resolveImageUrl, type ApiEvent } from "@/lib/api";
 import { formatPrice, formatDateRange } from "@/lib/format";
 
 const ITEMS_PER_PAGE = 6;
@@ -112,7 +112,7 @@ export default function Home() {
               style={{ opacity: i === heroIndex && heroFade ? 1 : 0, zIndex: i === heroIndex ? 1 : 0 }}
             >
               <img
-                src={evt.coverImageUrl || ""}
+                src={resolveImageUrl(evt.coverImageUrl)}
                 alt={evt.name}
                 className="w-full h-full object-cover"
                 loading={i === 0 ? "eager" : "lazy"}
@@ -263,7 +263,7 @@ function EventCard({ event }: { event: ApiEvent }) {
       <div className="group bg-card border border-card-border rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-200 cursor-pointer">
         <div className="relative aspect-square overflow-hidden">
           <img
-            src={event.coverImageUrl || ""}
+            src={resolveImageUrl(event.coverImageUrl)}
             alt={event.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
