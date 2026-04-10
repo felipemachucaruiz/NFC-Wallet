@@ -168,6 +168,7 @@ export default function EventDetail() {
   const [showDescription, setShowDescription] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [selectedSectionName, setSelectedSectionName] = useState("");
+  const [preSelectedUnitId, setPreSelectedUnitId] = useState<string | null>(null);
 
   const { data: detail, isLoading, error: fetchError } = useQuery({
     queryKey: ["event-detail", params?.id],
@@ -209,8 +210,16 @@ export default function EventDetail() {
   const salesNotStarted = event.salesStartAt && new Date(event.salesStartAt) > new Date();
 
   const handleTicketSelect = (ticket: TicketType, sectionName: string) => {
+    setPreSelectedUnitId(null);
     setSelectedTicket(ticket);
     setSelectedSectionName(sectionName);
+  };
+
+  const handleUnitSelect = (ticket: TicketType, unit: { id: string; unitLabel: string }) => {
+    const section = event.sections.find((s) => s.ticketTypes.some((tt) => tt.id === ticket.id));
+    setPreSelectedUnitId(unit.id);
+    setSelectedTicket(ticket);
+    setSelectedSectionName(section?.name || ticket.name);
   };
 
   return (
@@ -380,7 +389,7 @@ export default function EventDetail() {
             {(event.sections.length > 0 || event.floorplanImage) && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">{t("venueMap.title")}</h2>
-                <VenueMap event={event} onSelectTicket={handleTicketSelect} />
+                <VenueMap event={event} onSelectTicket={handleTicketSelect} onSelectUnit={handleUnitSelect} selectedUnitId={preSelectedUnitId} />
               </div>
             )}
 
@@ -519,7 +528,8 @@ export default function EventDetail() {
           event={event}
           ticketType={selectedTicket}
           sectionName={selectedSectionName}
-          onClose={() => setSelectedTicket(null)}
+          onClose={() => { setSelectedTicket(null); setPreSelectedUnitId(null); }}
+          preSelectedUnitId={preSelectedUnitId}
         />
       )}
     </div>

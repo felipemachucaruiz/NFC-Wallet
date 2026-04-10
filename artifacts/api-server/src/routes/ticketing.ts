@@ -884,11 +884,22 @@ router.patch(
       return;
     }
 
-    for (const pos of positions) {
-      await db.update(ticketTypeUnitsTable).set({
-        mapX: pos.mapX != null ? String(pos.mapX) : null,
-        mapY: pos.mapY != null ? String(pos.mapY) : null,
-      }).where(and(eq(ticketTypeUnitsTable.id, pos.unitId), eq(ticketTypeUnitsTable.ticketTypeId, typeId)));
+    const providedIds = new Set(positions.map((p) => p.unitId));
+    const allUnits = await db.select({ id: ticketTypeUnitsTable.id }).from(ticketTypeUnitsTable).where(eq(ticketTypeUnitsTable.ticketTypeId, typeId));
+
+    for (const unit of allUnits) {
+      const pos = positions.find((p) => p.unitId === unit.id);
+      if (pos) {
+        await db.update(ticketTypeUnitsTable).set({
+          mapX: pos.mapX != null ? String(pos.mapX) : null,
+          mapY: pos.mapY != null ? String(pos.mapY) : null,
+        }).where(eq(ticketTypeUnitsTable.id, unit.id));
+      } else if (!providedIds.has(unit.id)) {
+        await db.update(ticketTypeUnitsTable).set({
+          mapX: null,
+          mapY: null,
+        }).where(eq(ticketTypeUnitsTable.id, unit.id));
+      }
     }
 
     res.json({ ok: true });

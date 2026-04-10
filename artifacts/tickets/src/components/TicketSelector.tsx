@@ -18,16 +18,17 @@ interface TicketSelectorProps {
   ticketType: TicketType;
   sectionName: string;
   onClose: () => void;
+  preSelectedUnitId?: string | null;
 }
 
-export function TicketSelector({ event, ticketType, sectionName, onClose }: TicketSelectorProps) {
+export function TicketSelector({ event, ticketType, sectionName, onClose, preSelectedUnitId }: TicketSelectorProps) {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const { user, isAuthenticated, openAuthModal } = useAuth();
   const isNumbered = ticketType.isNumberedUnits && ticketType.units && ticketType.units.length > 0;
   const [step, setStep] = useState<"quantity" | "unit" | "attendees">(isNumbered ? "unit" : "quantity");
   const [quantity, setQuantity] = useState(isNumbered ? (ticketType.ticketsPerUnit || 1) : 1);
-  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(preSelectedUnitId ?? null);
   const [attendees, setAttendees] = useState<AttendeeData[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 

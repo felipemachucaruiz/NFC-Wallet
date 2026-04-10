@@ -479,6 +479,10 @@ async function runStartupMigrations(): Promise<void> {
           ALTER TABLE transaction_logs DROP COLUMN tip_amount_cop;
         END IF;
       END $$;
+
+      -- ── ticket_type_units: map position columns ───────────────────────────
+      ALTER TABLE ticket_type_units ADD COLUMN IF NOT EXISTS map_x NUMERIC(6,2);
+      ALTER TABLE ticket_type_units ADD COLUMN IF NOT EXISTS map_y NUMERIC(6,2);
     `);
 
     logger.info("Startup migrations complete.");
