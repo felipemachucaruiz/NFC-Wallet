@@ -88,7 +88,9 @@
       "soldOut": "Agotado",
       "na": "No disponible",
       "vipTable": "Mesa VIP"
-    }
+    },
+    "tapHint": "Toca un número de mesa para seleccionarla. Pellizca o usa +/- para zoom.",
+    "tapToSelect": "Toca de nuevo para seleccionar"
   },
   "ticketSelection": {
     "title": "Seleccionar boletas",

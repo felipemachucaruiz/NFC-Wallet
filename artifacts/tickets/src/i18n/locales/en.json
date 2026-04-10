@@ -88,7 +88,9 @@
       "soldOut": "Sold Out",
       "na": "Not Available",
       "vipTable": "VIP Table"
-    }
+    },
+    "tapHint": "Tap a table number to select it. Pinch or use +/- to zoom.",
+    "tapToSelect": "Tap again to select"
   },
   "ticketSelection": {
     "title": "Select Tickets",
