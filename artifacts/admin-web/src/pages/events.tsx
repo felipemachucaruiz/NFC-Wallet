@@ -135,6 +135,7 @@ type FormFieldsProps = {
 
 function ImageUploadField({
   label,
+  hint,
   currentUrl,
   eventId,
   imageType,
@@ -144,6 +145,7 @@ function ImageUploadField({
   onUploaded,
 }: {
   label: string;
+  hint?: string;
   currentUrl: string;
   eventId?: string;
   imageType: "cover" | "flyer";
@@ -205,7 +207,12 @@ function ImageUploadField({
 
   return (
     <div className="space-y-1">
-      <Label>{label}</Label>
+      <div className="flex items-center gap-1.5">
+        <Label>{label}</Label>
+        {hint && (
+          <span className="text-[10px] text-muted-foreground">({hint})</span>
+        )}
+      </div>
       <div className="relative">
         <label className={cn(
           "flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 transition-colors",
@@ -307,6 +314,7 @@ function FormFields({
       <div className="grid grid-cols-2 gap-3">
         <ImageUploadField
           label={t("events.coverImage")}
+          hint={t("events.coverImageHint")}
           currentUrl={form.coverImageUrl}
           eventId={eventId}
           imageType="cover"
@@ -317,6 +325,7 @@ function FormFields({
         />
         <ImageUploadField
           label={t("events.flyerImage")}
+          hint={t("events.flyerImageHint")}
           currentUrl={form.flyerImageUrl}
           eventId={eventId}
           imageType="flyer"

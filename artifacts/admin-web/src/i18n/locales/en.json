@@ -242,7 +242,9 @@
     "nfcBraceletsModuleDesc": "Enable cashless payments with NFC wristbands.",
     "atLeastOneModule": "At least one module must be enabled.",
     "coverImage": "Cover Image",
+    "coverImageHint": "1920×1080px recommended",
     "flyerImage": "Flyer Image",
+    "flyerImageHint": "1080×1920px recommended",
     "clickToUpload": "Click to upload",
     "imageUploaded": "Image uploaded"
   },

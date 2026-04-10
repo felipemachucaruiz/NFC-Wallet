@@ -242,7 +242,9 @@
     "nfcBraceletsModuleDesc": "Habilita pagos cashless con manillas NFC.",
     "atLeastOneModule": "Al menos un módulo debe estar habilitado.",
     "coverImage": "Imagen de Portada",
+    "coverImageHint": "1920×1080px recomendado",
     "flyerImage": "Imagen del Flyer",
+    "flyerImageHint": "1080×1920px recomendado",
     "clickToUpload": "Clic para subir",
     "imageUploaded": "Imagen subida"
   },
