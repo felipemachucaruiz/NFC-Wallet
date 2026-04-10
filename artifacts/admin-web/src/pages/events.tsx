@@ -50,6 +50,7 @@ type EventForm = {
   pulepId: string;
   nfcChipType: string;
   currencyCode: string;
+  minAge: string;
   ticketingEnabled: boolean;
   nfcBraceletsEnabled: boolean;
   coverImageUrl: string;
@@ -74,6 +75,7 @@ const emptyForm: EventForm = {
   pulepId: "",
   nfcChipType: "ntag_21x",
   currencyCode: "COP",
+  minAge: "",
   ticketingEnabled: false,
   nfcBraceletsEnabled: true,
   coverImageUrl: "",
@@ -353,7 +355,7 @@ function FormFields({
         onConfirm={(addr, lat, lng) => setForm((f) => ({ ...f, venueAddress: addr, latitude: lat ?? null, longitude: lng ?? null }))}
         onClose={() => setMapPickerOpen(false)}
       />
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1">
           <Label>{t("events.capacity")}</Label>
           <Input
@@ -363,6 +365,18 @@ function FormFields({
             value={form.capacity}
             onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
             placeholder={t("events.capacityPlaceholder")}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label>{t("events.minAge")}</Label>
+          <Input
+            data-testid="input-event-min-age"
+            type="number"
+            min="0"
+            max="99"
+            value={form.minAge}
+            onChange={(e) => setForm((f) => ({ ...f, minAge: e.target.value }))}
+            placeholder={t("events.minAgePlaceholder")}
           />
         </div>
         <div className="space-y-1">
@@ -624,6 +638,7 @@ export default function Events() {
       pulepId: raw.pulepId ?? "",
       nfcChipType: raw.nfcChipType ?? "ntag_21x",
       currencyCode: raw.currencyCode ?? "COP",
+      minAge: raw.minAge != null ? String(raw.minAge) : "",
       ticketingEnabled: raw.ticketingEnabled ?? false,
       nfcBraceletsEnabled: raw.nfcBraceletsEnabled ?? true,
       coverImageUrl: raw.coverImageUrl ?? "",
@@ -645,6 +660,7 @@ export default function Events() {
       return;
     }
     const capNum = form.capacity ? parseInt(form.capacity, 10) : undefined;
+    const minAgeNum = form.minAge ? parseInt(form.minAge, 10) : undefined;
     const hasAdmin = form.eventAdmin.email && form.eventAdmin.password;
     const payload: any = {
       name: form.name,
@@ -654,6 +670,7 @@ export default function Events() {
       endsAt: form.endsAt || undefined,
       refundDeadline: form.refundDeadline || undefined,
       capacity: capNum && capNum > 0 ? capNum : undefined,
+      minAge: minAgeNum != null && minAgeNum >= 0 ? minAgeNum : undefined,
       latitude: form.latitude ?? undefined,
       longitude: form.longitude ?? undefined,
       platformCommissionRate: form.commissionRate || undefined,
@@ -700,6 +717,7 @@ export default function Events() {
       return;
     }
     const capNum = form.capacity ? parseInt(form.capacity, 10) : undefined;
+    const minAgeNum = form.minAge ? parseInt(form.minAge, 10) : null;
     const payload: any = {
       name: form.name,
       description: form.description || undefined,
@@ -708,6 +726,7 @@ export default function Events() {
       endsAt: form.endsAt || undefined,
       refundDeadline: form.refundDeadline || null,
       capacity: capNum && capNum > 0 ? capNum : null,
+      minAge: minAgeNum != null && minAgeNum >= 0 ? minAgeNum : null,
       latitude: form.latitude ?? undefined,
       longitude: form.longitude ?? undefined,
       platformCommissionRate: form.commissionRate || undefined,

@@ -201,6 +201,8 @@
     "venueAddress": "Venue Address",
     "capacity": "Capacity",
     "capacityPlaceholder": "Number of people",
+    "minAge": "Min. Age",
+    "minAgePlaceholder": "e.g. 18",
     "startsAt": "Starts At",
     "endsAt": "Ends At",
     "refundDeadline": "Refund Deadline",

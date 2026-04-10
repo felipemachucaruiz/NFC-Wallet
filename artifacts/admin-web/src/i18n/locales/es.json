@@ -201,6 +201,8 @@
     "venueAddress": "Dirección del Venue",
     "capacity": "Aforo",
     "capacityPlaceholder": "Cantidad de personas",
+    "minAge": "Edad Mínima",
+    "minAgePlaceholder": "ej. 18",
     "startsAt": "Inicio",
     "endsAt": "Fin",
     "refundDeadline": "Plazo de Devolución",
