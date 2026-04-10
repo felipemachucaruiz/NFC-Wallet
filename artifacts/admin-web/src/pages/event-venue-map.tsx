@@ -15,6 +15,13 @@ import { apiFetchVenues, apiFetchSections, apiCreateSection, apiUpdateSection, a
 
 const DEFAULT_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
+function safe(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  try { return JSON.stringify(v); } catch { return "[object]"; }
+}
+
 function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("/api/")) return `${import.meta.env.BASE_URL}_srv${url}`;
@@ -57,7 +64,7 @@ export default function EventVenueMap() {
         queryClient.invalidateQueries({ queryKey: ["venues", resolvedEventId] });
       })
       .catch((err) => {
-        toast({ title: t("common.error"), description: String(err.message || err), variant: "destructive" });
+        toast({ title: t("common.error"), description: safe(err.message || err), variant: "destructive" });
         autoCreateAttempted.current = false;
       });
   }, [venuesLoading, venues.length, resolvedEventId, event, queryClient, toast, t]);
@@ -219,7 +226,7 @@ export default function EventVenueMap() {
     setDraggingUnitId(null);
   }, []);
 
-  const existingTypes = [...new Set(sections.map((s: any) => s.sectionType).filter(Boolean))] as string[];
+  const existingTypes = [...new Set(sections.map((s: any) => safe(s.sectionType)).filter(Boolean))];
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -424,7 +431,7 @@ export default function EventVenueMap() {
                         zIndex: 5,
                       }}
                     >
-                      <span className="text-xs font-semibold text-white drop-shadow-md truncate px-1">{String(section.name ?? "")}</span>
+                      <span className="text-xs font-semibold text-white drop-shadow-md truncate px-1">{safe(section.name)}</span>
                     </div>
                   );
                 })}
@@ -463,7 +470,7 @@ export default function EventVenueMap() {
                         className={`rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-bold text-white border-2 shadow-lg ${isActive ? "ring-2 ring-white ring-offset-1 ring-offset-background" : ""}`}
                         style={{ backgroundColor: statusColor, borderColor: "rgba(0,0,0,0.3)" }}
                       >
-                        {String(unit.unitNumber ?? "")}
+                        {safe(unit.unitNumber)}
                       </div>
                       <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent" style={{ borderTopColor: statusColor }} />
                     </div>
@@ -495,10 +502,10 @@ export default function EventVenueMap() {
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: section.colorHex || "#3b82f6" }} />
                         <div className="min-w-0">
-                          <p className="font-medium truncate">{String(section.name ?? "")}</p>
+                          <p className="font-medium truncate">{safe(section.name)}</p>
                           <div className="flex items-center gap-2">
-                            {section.sectionType && <span className="text-xs text-primary">{String(section.sectionType)}</span>}
-                            <p className="text-xs text-muted-foreground">{t("venueMap.capacityLabel")}: {section.capacity != null ? String(section.capacity) : "—"}</p>
+                            {section.sectionType && <span className="text-xs text-primary">{safe(section.sectionType)}</span>}
+                            <p className="text-xs text-muted-foreground">{t("venueMap.capacityLabel")}: {safe(section.capacity) || "—"}</p>
                           </div>
                         </div>
                       </div>
@@ -509,7 +516,7 @@ export default function EventVenueMap() {
                           className="h-7 w-7"
                           onClick={() => {
                             setEditingSection(section);
-                            setEditForm({ name: section.name, color: section.colorHex || "#3b82f6", capacity: String(section.capacity ?? ""), sectionType: section.sectionType || "" });
+                            setEditForm({ name: safe(section.name), color: safe(section.colorHex) || "#3b82f6", capacity: safe(section.capacity), sectionType: safe(section.sectionType) });
                             setEditDialogOpen(true);
                           }}
                         >
@@ -555,7 +562,7 @@ export default function EventVenueMap() {
                     </SelectTrigger>
                     <SelectContent>
                       {numberedTicketTypes.map((tt) => (
-                        <SelectItem key={tt.id} value={tt.id}>{String(tt.name ?? "")}</SelectItem>
+                        <SelectItem key={tt.id} value={tt.id}>{safe(tt.name)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -599,7 +606,7 @@ export default function EventVenueMap() {
 
                     {unitPlaceMode && placingUnitId && (
                       <p className="text-xs text-primary">
-                        {t("venueMap.clickToPlace", "Click on the map to place:")} <strong>{String(units.find((u) => u.id === placingUnitId)?.unitLabel ?? "")}</strong>
+                        {t("venueMap.clickToPlace", "Click on the map to place:")} <strong>{safe(units.find((u) => u.id === placingUnitId)?.unitLabel)}</strong>
                       </p>
                     )}
 
@@ -620,10 +627,10 @@ export default function EventVenueMap() {
                                   : "border-muted-foreground/30 bg-muted/50 text-muted-foreground"
                             }`}
                             onClick={() => { if (unitPlaceMode) setPlacingUnitId(unit.id); }}
-                            title={String(unit.unitLabel ?? "")}
+                            title={safe(unit.unitLabel)}
                           >
                             <span className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${statusColor}`} />
-                            {String(unit.unitNumber ?? "")}
+                            {safe(unit.unitNumber)}
                             {hasPosition && !isSelected && (
                               <button
                                 className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full flex items-center justify-center"
