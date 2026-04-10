@@ -185,8 +185,7 @@ export default function Bracelets() {
         )}
       </div>
 
-      {
-        <div className="border border-border rounded-lg bg-card">
+      <div className="border border-border rounded-lg bg-card">
           {isAllEvents ? (
             <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{t("wristbands.allEvents", "Todos los eventos")}</span>
@@ -319,7 +318,6 @@ export default function Bracelets() {
             </div>
           )}
         </div>
-      )}
 
       <AlertDialog open={freezeOpen} onOpenChange={setFreezeOpen}>
         <AlertDialogContent>

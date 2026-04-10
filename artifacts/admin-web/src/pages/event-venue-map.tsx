@@ -424,7 +424,7 @@ export default function EventVenueMap() {
                         zIndex: 5,
                       }}
                     >
-                      <span className="text-xs font-semibold text-white drop-shadow-md truncate px-1">{section.name}</span>
+                      <span className="text-xs font-semibold text-white drop-shadow-md truncate px-1">{String(section.name ?? "")}</span>
                     </div>
                   );
                 })}
@@ -463,7 +463,7 @@ export default function EventVenueMap() {
                         className={`rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-bold text-white border-2 shadow-lg ${isActive ? "ring-2 ring-white ring-offset-1 ring-offset-background" : ""}`}
                         style={{ backgroundColor: statusColor, borderColor: "rgba(0,0,0,0.3)" }}
                       >
-                        {unit.unitNumber}
+                        {String(unit.unitNumber ?? "")}
                       </div>
                       <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent" style={{ borderTopColor: statusColor }} />
                     </div>
@@ -495,10 +495,10 @@ export default function EventVenueMap() {
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: section.colorHex || "#3b82f6" }} />
                         <div className="min-w-0">
-                          <p className="font-medium truncate">{section.name}</p>
+                          <p className="font-medium truncate">{String(section.name ?? "")}</p>
                           <div className="flex items-center gap-2">
-                            {section.sectionType && <span className="text-xs text-primary">{section.sectionType}</span>}
-                            <p className="text-xs text-muted-foreground">{t("venueMap.capacityLabel")}: {section.capacity ?? "—"}</p>
+                            {section.sectionType && <span className="text-xs text-primary">{String(section.sectionType)}</span>}
+                            <p className="text-xs text-muted-foreground">{t("venueMap.capacityLabel")}: {section.capacity != null ? String(section.capacity) : "—"}</p>
                           </div>
                         </div>
                       </div>
@@ -555,7 +555,7 @@ export default function EventVenueMap() {
                     </SelectTrigger>
                     <SelectContent>
                       {numberedTicketTypes.map((tt) => (
-                        <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>
+                        <SelectItem key={tt.id} value={tt.id}>{String(tt.name ?? "")}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -599,7 +599,7 @@ export default function EventVenueMap() {
 
                     {unitPlaceMode && placingUnitId && (
                       <p className="text-xs text-primary">
-                        {t("venueMap.clickToPlace", "Click on the map to place:")} <strong>{units.find((u) => u.id === placingUnitId)?.unitLabel}</strong>
+                        {t("venueMap.clickToPlace", "Click on the map to place:")} <strong>{String(units.find((u) => u.id === placingUnitId)?.unitLabel ?? "")}</strong>
                       </p>
                     )}
 
@@ -620,10 +620,10 @@ export default function EventVenueMap() {
                                   : "border-muted-foreground/30 bg-muted/50 text-muted-foreground"
                             }`}
                             onClick={() => { if (unitPlaceMode) setPlacingUnitId(unit.id); }}
-                            title={unit.unitLabel}
+                            title={String(unit.unitLabel ?? "")}
                           >
                             <span className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${statusColor}`} />
-                            {unit.unitNumber}
+                            {String(unit.unitNumber ?? "")}
                             {hasPosition && !isSelected && (
                               <button
                                 className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full flex items-center justify-center"
