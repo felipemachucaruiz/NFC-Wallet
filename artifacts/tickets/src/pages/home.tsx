@@ -121,49 +121,60 @@ export default function Home() {
             </div>
           ))}
           <div
-            className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-end pb-10 transition-opacity duration-500 ease-in-out"
+            className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-end pb-10 transition-opacity duration-500 ease-in-out"
             style={{ opacity: heroFade ? 1 : 0 }}
           >
-            <Badge variant="outline" className="w-fit mb-3 border-primary text-primary">
-              {t("home.featured")}
-            </Badge>
-            <h1 className="text-3xl md:text-5xl font-bold mb-2 max-w-2xl">{currentHero.name}</h1>
-            <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-4">
-              {currentHero.startsAt && (
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" />
-                  {formatDateRange(currentHero.startsAt, currentHero.endsAt || currentHero.startsAt, currentHero.dayCount > 1)}
-                </span>
-              )}
-              {currentHero.venueAddress && (
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4" />
-                  {currentHero.venueAddress}
-                </span>
+            <div className="flex-1 min-w-0">
+              <Badge variant="outline" className="w-fit mb-3 border-primary text-primary">
+                {t("home.featured")}
+              </Badge>
+              <h1 className="text-3xl md:text-5xl font-bold mb-2 max-w-2xl">{currentHero.name}</h1>
+              <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-4">
+                {currentHero.startsAt && (
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4" />
+                    {formatDateRange(currentHero.startsAt, currentHero.endsAt || currentHero.startsAt, currentHero.dayCount > 1)}
+                  </span>
+                )}
+                {currentHero.venueAddress && (
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4" />
+                    {currentHero.venueAddress}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <Link href={`/event/${currentHero.id}`}>
+                  <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
+                    {t("home.hero.cta")}
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+                {currentHero.priceFrom > 0 && (
+                  <span className="text-lg font-semibold">
+                    {t("home.from")} {formatPrice(currentHero.priceFrom)}
+                  </span>
+                )}
+              </div>
+              {heroCount > 1 && (
+                <div className="flex items-center gap-2 mt-5">
+                  {heroEvents.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleDotClick(i)}
+                      className={`rounded-full transition-all duration-300 ${i === heroIndex ? "w-8 h-2.5 bg-primary" : "w-2.5 h-2.5 bg-white/40 hover:bg-white/60"}`}
+                    />
+                  ))}
+                </div>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              <Link href={`/event/${currentHero.id}`}>
-                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
-                  {t("home.hero.cta")}
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </Link>
-              {currentHero.priceFrom > 0 && (
-                <span className="text-lg font-semibold">
-                  {t("home.from")} {formatPrice(currentHero.priceFrom)}
-                </span>
-              )}
-            </div>
-            {heroCount > 1 && (
-              <div className="flex items-center gap-2 mt-5">
-                {heroEvents.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleDotClick(i)}
-                    className={`rounded-full transition-all duration-300 ${i === heroIndex ? "w-8 h-2.5 bg-primary" : "w-2.5 h-2.5 bg-white/40 hover:bg-white/60"}`}
-                  />
-                ))}
+            {resolveImageUrl(currentHero.flyerImageUrl) && (
+              <div className="hidden md:block flex-shrink-0 ml-8">
+                <img
+                  src={resolveImageUrl(currentHero.flyerImageUrl)}
+                  alt={`${currentHero.name} flyer`}
+                  className="h-[340px] w-auto rounded-xl shadow-2xl shadow-black/50 object-contain border border-white/10"
+                />
               </div>
             )}
           </div>
