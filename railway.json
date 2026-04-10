@@ -1,1 +1,0 @@
-{"build":{"builder":"NIXPACKS"},"deploy":{"startCommand":"cd artifacts/admin-web && npx serve dist/public -s -l tcp://0.0.0.0:$PORT"}}
