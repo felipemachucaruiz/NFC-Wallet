@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketPricingStagesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable, guestListsTable } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketPricingStagesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable, guestListsTable, promoterCompaniesTable } from "@workspace/db";
 import { eq, and, sql, ilike, gte, lte, asc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { logger } from "../lib/logger";
@@ -167,6 +167,8 @@ router.get(
           salesChannel: eventsTable.salesChannel,
           ticketingEnabled: eventsTable.ticketingEnabled,
           currencyCode: eventsTable.currencyCode,
+          promoterCompanyId: eventsTable.promoterCompanyId,
+          pulepId: eventsTable.pulepId,
         })
         .from(eventsTable)
         .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
@@ -179,6 +181,15 @@ router.get(
       if (!event.ticketingEnabled) {
         res.status(404).json({ error: "Ticketing is not enabled for this event" });
         return;
+      }
+
+      let promoterCompany: { companyName: string; nit: string | null } | null = null;
+      if (event.promoterCompanyId) {
+        const [pc] = await db
+          .select({ companyName: promoterCompaniesTable.companyName, nit: promoterCompaniesTable.nit })
+          .from(promoterCompaniesTable)
+          .where(eq(promoterCompaniesTable.id, event.promoterCompanyId));
+        promoterCompany = pc || null;
       }
 
       const days = await db
@@ -364,12 +375,13 @@ router.get(
       });
 
       res.json({
-        event,
+        event: { ...event, pulepId: event.pulepId || null },
         eventDays: days,
         venues,
         sections,
         ticketTypes: availability,
         guestLists: activeGuestLists,
+        promoterCompany,
       });
     } catch (err) {
       logger.error({ err, eventId }, "Failed to fetch event detail");

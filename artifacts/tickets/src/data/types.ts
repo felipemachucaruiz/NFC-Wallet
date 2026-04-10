@@ -61,6 +61,9 @@ export interface EventData {
   venueName: string;
   venueAddress: string;
   city: string;
+  promoterCompanyName: string;
+  promoterNit: string;
+  pulepId: string;
   startsAt: string;
   endsAt: string;
   timezone: string;

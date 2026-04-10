@@ -94,6 +94,7 @@ export interface ApiEventDetail {
     salesChannel: string | null;
     ticketingEnabled: boolean;
     currencyCode: string;
+    pulepId?: string | null;
   };
   eventDays: { id: string; date: string; label: string | null; doorsOpenAt: string | null; doorsCloseAt: string | null }[];
   venues: { id: string; name: string; address: string | null; city: string | null; floorplanImageUrl?: string | null }[];
@@ -126,6 +127,7 @@ export interface ApiEventDetail {
     currentCount: number;
     expiresAt: string | null;
   }[];
+  promoterCompany?: { companyName: string; nit: string | null } | null;
 }
 
 export async function fetchEvents(params?: {

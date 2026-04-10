@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useRoute, useLocation } from "wouter";
-import { Calendar, MapPin, Clock, Shield, User as UserIcon, ChevronDown, ChevronUp, ExternalLink, X, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Clock, Shield, User as UserIcon, ChevronDown, ChevronUp, ExternalLink, X, Loader2, Briefcase, DoorOpen, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -138,6 +138,9 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     venueName: venue?.name || "",
     venueAddress: venue?.address || event.venueAddress || "",
     city: venue?.city || "",
+    promoterCompanyName: detail.promoterCompany?.companyName || "",
+    promoterNit: detail.promoterCompany?.nit || "",
+    pulepId: event.pulepId || "",
     startsAt: event.startsAt || "",
     endsAt: event.endsAt || "",
     timezone: "America/Bogota",
@@ -238,15 +241,81 @@ export default function EventDetail() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="bg-card rounded-xl border border-border p-4 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            <EventInfoItem
+              icon={<MapPin className="w-5 h-5 text-primary" />}
+              label={t("event.venue", "Lugar")}
+              value={event.venueName || event.venueAddress || "—"}
+            />
+            <EventInfoItem
+              icon={<Calendar className="w-5 h-5 text-primary" />}
+              label={t("event.date", "Fecha")}
+              value={event.days.length > 0
+                ? event.days.map((d) => new Date(d.date).toLocaleDateString(i18n.language === "es" ? "es-CO" : "en-US", { day: "numeric", month: "short" })).join(", ")
+                : formatFullDate(event.startsAt, i18n.language)}
+            />
+            <EventInfoItem
+              icon={<Clock className="w-5 h-5 text-primary" />}
+              label={t("event.time", "Hora")}
+              value={event.startsAt ? new Date(event.startsAt).toLocaleTimeString(i18n.language === "es" ? "es-CO" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : "—"}
+            />
+            <EventInfoItem
+              icon={<DoorOpen className="w-5 h-5 text-primary" />}
+              label={t("event.doorOpening", "Apertura de Puertas")}
+              value={event.days[0]?.doorTime || "—"}
+            />
+            {event.minAge ? (
+              <EventInfoItem
+                icon={<Shield className="w-5 h-5 text-primary" />}
+                label={t("event.minAge", "Edad Mínima")}
+                value={`${event.minAge} ${t("event.years", "años")}`}
+              />
+            ) : (
+              <EventInfoItem
+                icon={<Shield className="w-5 h-5 text-primary" />}
+                label={t("event.minAge", "Edad Mínima")}
+                value={t("event.allAges", "Todas las edades")}
+              />
+            )}
+          </div>
+        </div>
+
+        {(event.promoterCompanyName || event.promoterNit || event.pulepId) && (
+          <div className="bg-card rounded-xl border border-border p-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {event.promoterCompanyName && (
+                <EventInfoItem
+                  icon={<Briefcase className="w-5 h-5 text-primary" />}
+                  label={t("event.promoter", "Responsable")}
+                  value={event.promoterCompanyName}
+                />
+              )}
+              {event.promoterNit && (
+                <EventInfoItem
+                  icon={<Info className="w-5 h-5 text-primary" />}
+                  label="Nit"
+                  value={event.promoterNit}
+                />
+              )}
+              {event.pulepId && (
+                <EventInfoItem
+                  icon={<Info className="w-5 h-5 text-primary" />}
+                  label="Pulep"
+                  value={event.pulepId}
+                />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <div className="flex flex-col sm:flex-row gap-6">
-              <div className="flex-1 space-y-3">
-                <InfoRow icon={<Clock className="w-4 h-4" />} label={t("event.doorTime")} value={event.days[0]?.doorTime || "N/A"} />
-                {event.minAge && (
-                  <InfoRow icon={<Shield className="w-4 h-4" />} label={t("event.minAge")} value={`${event.minAge} ${t("event.years")}`} />
-                )}
+              <div className="flex-1">
                 {event.organizer && (
                   <InfoRow icon={<UserIcon className="w-4 h-4" />} label={t("event.organizer")} value={event.organizer} />
                 )}
@@ -455,6 +524,18 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
       <div>
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className="text-sm font-medium">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function EventInfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="shrink-0">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-sm font-semibold truncate">{value}</p>
       </div>
     </div>
   );
