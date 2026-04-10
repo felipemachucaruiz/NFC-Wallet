@@ -946,7 +946,11 @@
     "sectionUpdated": "Sección actualizada",
     "sectionDeleted": "Sección eliminada",
     "imageUploaded": "Imagen del venue subida",
-    "changeImage": "Cambiar Plano"
+    "changeImage": "Cambiar Plano",
+    "deleteSection": "Eliminar Sección",
+    "deleteConfirm": "¿Estás seguro de que deseas eliminar esta sección? Esta acción no se puede deshacer. Las secciones con tipos de boleta vinculados no se pueden eliminar.",
+    "sectionTypeLabel": "Tipo de Sección",
+    "sectionTypePlaceholder": "ej. General, Mesa VIP, Palco..."
   },
   "ticketTypes": {
     "title": "Tipos de Boleta",
