@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useRoute, useLocation } from "wouter";
 import { Calendar, MapPin, Clock, Shield, User as UserIcon, ChevronDown, ChevronUp, ExternalLink, X } from "lucide-react";
@@ -10,56 +10,36 @@ import { getEventById, formatPrice, formatFullDate } from "@/data/mockEvents";
 import type { EventData, TicketType } from "@/data/types";
 import { VenueMap } from "@/components/VenueMap";
 import { TicketSelector } from "@/components/TicketSelector";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-
-const GOOGLE_MAPS_API_KEY = "AIzaSyCyI7QJ3J5_Peqnr4bqFXAIqaeac1DuT_c";
-
-const TAPEE_MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { elementType: "geometry", stylers: [{ color: "#0a0a0a" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#0a0a0a" }] },
-  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
-  { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#4b5563" }] },
-  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#7dd3fc" }] },
-  { featureType: "poi", elementType: "geometry", stylers: [{ color: "#111111" }] },
-  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#4b5563" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#0d1a0d" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1e1e2e" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#111111" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#4b5563" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#252538" }] },
-  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#00f1ff", weight: 0.4 }] },
-  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#111111" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#040d12" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#00f1ff", lightness: -60 }] },
-];
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 function DarkMapEmbed({ lat, lng }: { lat: number; lng: number }) {
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY });
-  const onLoad = useCallback((map: google.maps.Map) => {
-    map.setCenter({ lat, lng });
-    map.setZoom(15);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, {
+      center: [lat, lng],
+      zoom: 15,
+      zoomControl: true,
+      attributionControl: false,
+    });
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      maxZoom: 19,
+    }).addTo(map);
+    const icon = L.divIcon({
+      className: "",
+      html: `<div style="width:14px;height:14px;border-radius:50%;background:#00f1ff;border:2px solid #0891b2;box-shadow:0 0 8px rgba(0,241,255,0.5)"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+    L.marker([lat, lng], { icon }).addTo(map);
+    mapRef.current = map;
+    return () => { map.remove(); mapRef.current = null; };
   }, [lat, lng]);
 
-  if (!isLoaded) return <div className="h-[250px] bg-[#0a0a0a] animate-pulse" />;
-  return (
-    <GoogleMap
-      mapContainerStyle={{ width: "100%", height: "250px" }}
-      center={{ lat, lng }}
-      zoom={15}
-      onLoad={onLoad}
-      options={{
-        streetViewControl: false,
-        mapTypeControl: false,
-        fullscreenControl: false,
-        zoomControl: true,
-        styles: TAPEE_MAP_STYLES,
-      }}
-    >
-      <Marker position={{ lat, lng }} />
-    </GoogleMap>
-  );
+  return <div ref={containerRef} style={{ width: "100%", height: "250px", backgroundColor: "#0a0a0a" }} />;
 }
 
 export default function EventDetail() {
