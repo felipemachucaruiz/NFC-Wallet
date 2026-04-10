@@ -37,6 +37,9 @@ type TicketForm = {
   saleEnd: string;
   active: boolean;
   selectedDays: string[];
+  isNumberedUnits: boolean;
+  unitLabel: string;
+  ticketsPerUnit: string;
 };
 
 const emptyForm: TicketForm = {
@@ -49,6 +52,9 @@ const emptyForm: TicketForm = {
   saleEnd: "",
   active: true,
   selectedDays: [],
+  isNumberedUnits: false,
+  unitLabel: "",
+  ticketsPerUnit: "",
 };
 
 type StageForm = {
@@ -133,6 +139,9 @@ export default function EventTicketTypes() {
       saleEnd: tt.saleEnd ? tt.saleEnd.slice(0, 16) : "",
       active: tt.isActive,
       selectedDays: tt.validEventDayIds ?? [],
+      isNumberedUnits: tt.isNumberedUnits ?? false,
+      unitLabel: tt.unitLabel ?? "",
+      ticketsPerUnit: tt.ticketsPerUnit ? String(tt.ticketsPerUnit) : "",
     });
     setDialogOpen(true);
   };
@@ -159,6 +168,9 @@ export default function EventTicketTypes() {
       saleEnd: form.saleEnd ? new Date(form.saleEnd).toISOString() : undefined,
       isActive: form.active,
       validEventDayIds: form.selectedDays,
+      isNumberedUnits: form.isNumberedUnits,
+      unitLabel: form.isNumberedUnits ? (form.unitLabel || undefined) : undefined,
+      ticketsPerUnit: form.isNumberedUnits ? (parseInt(form.ticketsPerUnit, 10) || 1) : undefined,
     };
 
     if (editingId) {
@@ -232,7 +244,16 @@ export default function EventTicketTypes() {
               <TableBody>
                 {ticketTypes.map((tt) => (
                   <TableRow key={tt.id}>
-                    <TableCell className="font-medium">{tt.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {tt.name}
+                        {tt.isNumberedUnits && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {tt.unitLabel || t("ticketTypes.numberedUnits", "Palcos")}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {sections.find((s) => s.id === tt.sectionId)?.name || "—"}
                     </TableCell>
@@ -363,6 +384,41 @@ export default function EventTicketTypes() {
                   onChange={(e) => setForm((f) => ({ ...f, saleEnd: e.target.value }))}
                 />
               </div>
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>{t("ticketTypes.numberedUnits", "Numbered Units (Palcos)")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("ticketTypes.numberedUnitsDesc", "Enable to sell numbered units like VIP tables or palcos")}</p>
+                </div>
+                <Switch
+                  checked={form.isNumberedUnits}
+                  onCheckedChange={(v) => setForm((f) => ({ ...f, isNumberedUnits: v }))}
+                />
+              </div>
+              {form.isNumberedUnits && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>{t("ticketTypes.unitLabel", "Unit Label")}</Label>
+                    <Input
+                      value={form.unitLabel}
+                      onChange={(e) => setForm((f) => ({ ...f, unitLabel: e.target.value }))}
+                      placeholder={t("ticketTypes.unitLabelPlaceholder", "e.g. Palco, Mesa, Box")}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>{t("ticketTypes.ticketsPerUnit", "Tickets per Unit")}</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={form.ticketsPerUnit}
+                      onChange={(e) => setForm((f) => ({ ...f, ticketsPerUnit: e.target.value }))}
+                      placeholder="1"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {days.length > 0 && (

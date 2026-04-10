@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketsTable, ticketCheckInsTable, ticketOrdersTable, ticketPricingStagesTable, usersTable } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketsTable, ticketCheckInsTable, ticketOrdersTable, ticketPricingStagesTable, usersTable } from "@workspace/db";
 import { eq, and, asc, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { requireTicketingEnabled } from "../middlewares/featureGating";
@@ -458,6 +458,9 @@ const createTicketTypeSchema = z.object({
   saleEnd: z.string().optional(),
   isActive: z.boolean().optional(),
   validEventDayIds: z.array(z.string()).optional(),
+  isNumberedUnits: z.boolean().optional(),
+  unitLabel: z.string().max(100).optional(),
+  ticketsPerUnit: z.number().int().min(1).optional(),
 });
 
 router.get(
@@ -497,7 +500,12 @@ router.post(
       return;
     }
 
-    const { sectionId, name, description, price, serviceFee, quantity, saleStart, saleEnd, isActive, validEventDayIds } = parsed.data;
+    const { sectionId, name, description, price, serviceFee, quantity, saleStart, saleEnd, isActive, validEventDayIds, isNumberedUnits, unitLabel, ticketsPerUnit } = parsed.data;
+
+    if (isNumberedUnits && (!unitLabel || !ticketsPerUnit)) {
+      res.status(400).json({ error: "unitLabel and ticketsPerUnit are required for numbered units" });
+      return;
+    }
 
     const [ticketType] = await db
       .insert(ticketTypesTable)
@@ -513,8 +521,20 @@ router.post(
         saleEnd: saleEnd ? new Date(saleEnd) : null,
         isActive: isActive ?? true,
         validEventDayIds: validEventDayIds ?? [],
+        isNumberedUnits: isNumberedUnits ?? false,
+        unitLabel: isNumberedUnits ? unitLabel! : null,
+        ticketsPerUnit: isNumberedUnits ? ticketsPerUnit! : null,
       })
       .returning();
+
+    if (isNumberedUnits && quantity > 0) {
+      const unitRows = Array.from({ length: quantity }, (_, i) => ({
+        ticketTypeId: ticketType.id,
+        unitNumber: i + 1,
+        unitLabel: `${unitLabel} ${i + 1}`,
+      }));
+      await db.insert(ticketTypeUnitsTable).values(unitRows);
+    }
 
     res.status(201).json(ticketType);
   },
@@ -543,6 +563,9 @@ router.patch(
     if (body.isActive !== undefined) updates.isActive = body.isActive;
     if (body.validEventDayIds !== undefined) updates.validEventDayIds = body.validEventDayIds;
     if (body.sectionId !== undefined) updates.sectionId = body.sectionId;
+    if (body.isNumberedUnits !== undefined) updates.isNumberedUnits = body.isNumberedUnits;
+    if (body.unitLabel !== undefined) updates.unitLabel = body.unitLabel;
+    if (body.ticketsPerUnit !== undefined) updates.ticketsPerUnit = body.ticketsPerUnit;
 
     const [updated] = await db
       .update(ticketTypesTable)
@@ -553,6 +576,27 @@ router.patch(
     if (!updated) {
       res.status(404).json({ error: "Ticket type not found" });
       return;
+    }
+
+    if (updated.isNumberedUnits && body.quantity !== undefined) {
+      const existingUnits = await db
+        .select()
+        .from(ticketTypeUnitsTable)
+        .where(eq(ticketTypeUnitsTable.ticketTypeId, typeId))
+        .orderBy(asc(ticketTypeUnitsTable.unitNumber));
+
+      const newQuantity = updated.quantity;
+      const currentMax = existingUnits.length;
+
+      if (newQuantity > currentMax) {
+        const label = updated.unitLabel || "Unit";
+        const newUnits = Array.from({ length: newQuantity - currentMax }, (_, i) => ({
+          ticketTypeId: typeId,
+          unitNumber: currentMax + i + 1,
+          unitLabel: `${label} ${currentMax + i + 1}`,
+        }));
+        await db.insert(ticketTypeUnitsTable).values(newUnits);
+      }
     }
 
     res.json(updated);
@@ -705,6 +749,33 @@ router.delete(
     }
 
     res.json({ success: true });
+  },
+);
+
+router.get(
+  "/events/:eventId/ticket-types/:typeId/units",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId, typeId } = req.params as { eventId: string; typeId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [tt] = await db.select({ id: ticketTypesTable.id }).from(ticketTypesTable).where(and(eq(ticketTypesTable.id, typeId), eq(ticketTypesTable.eventId, eventId)));
+    if (!tt) {
+      res.status(404).json({ error: "Ticket type not found" });
+      return;
+    }
+
+    const units = await db
+      .select()
+      .from(ticketTypeUnitsTable)
+      .where(eq(ticketTypeUnitsTable.ticketTypeId, typeId))
+      .orderBy(asc(ticketTypeUnitsTable.unitNumber));
+
+    res.json({ units });
   },
 );
 

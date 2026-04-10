@@ -96,7 +96,9 @@
     "phone": "Teléfono",
     "required": "Campo requerido",
     "invalidEmail": "Correo inválido",
-    "orderSummary": "Resumen de la orden"
+    "orderSummary": "Resumen de la orden",
+    "selectUnit": "Selecciona tu {{label}}",
+    "unitIncludes": "Incluye {{count}} boleta(s) por unidad"
   },
   "auth": {
     "loginTitle": "Iniciar sesión",

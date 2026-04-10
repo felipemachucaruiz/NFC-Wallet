@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { Minus, Plus, X, ChevronRight } from "lucide-react";
+import { Minus, Plus, X, ChevronRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/context/AuthContext";
@@ -22,14 +23,16 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const { user, isAuthenticated, openAuthModal } = useAuth();
-  const [step, setStep] = useState<"quantity" | "attendees">("quantity");
-  const [quantity, setQuantity] = useState(1);
+  const isNumbered = ticketType.isNumberedUnits && ticketType.units && ticketType.units.length > 0;
+  const [step, setStep] = useState<"quantity" | "unit" | "attendees">(isNumbered ? "unit" : "quantity");
+  const [quantity, setQuantity] = useState(isNumbered ? (ticketType.ticketsPerUnit || 1) : 1);
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [attendees, setAttendees] = useState<AttendeeData[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const maxQty = Math.min(ticketType.maxPerOrder, ticketType.availableCount);
-  const subtotal = ticketType.price * quantity;
-  const serviceFee = ticketType.serviceFee * quantity;
+  const subtotal = ticketType.price * (isNumbered ? 1 : quantity);
+  const serviceFee = ticketType.serviceFee * (isNumbered ? 1 : quantity);
   const total = subtotal + serviceFee;
 
   const handleQuantityChange = (newQty: number) => {
@@ -38,7 +41,8 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
   };
 
   const handleContinueToAttendees = () => {
-    const initial: AttendeeData[] = Array.from({ length: quantity }, (_, i) => {
+    const count = isNumbered ? (ticketType.ticketsPerUnit || 1) : quantity;
+    const initial: AttendeeData[] = Array.from({ length: count }, (_, i) => {
       if (i === 0 && user) {
         return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone };
       }
@@ -46,6 +50,15 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
     });
     setAttendees(initial);
     setStep("attendees");
+  };
+
+  const handleUnitSelect = (unitId: string) => {
+    setSelectedUnitId(unitId);
+  };
+
+  const handleUnitContinue = () => {
+    if (!selectedUnitId) return;
+    handleContinueToAttendees();
   };
 
   const updateAttendee = (index: number, field: keyof AttendeeData, value: string) => {
@@ -76,7 +89,11 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
   const handleProceedToCheckout = () => {
     if (!validateAttendees()) return;
 
-    const checkoutData = {
+    const selectedUnit = isNumbered && selectedUnitId
+      ? ticketType.units?.find((u) => u.id === selectedUnitId)
+      : null;
+
+    const checkoutData: Record<string, unknown> = {
       eventId: event.id,
       eventName: event.name,
       ticketTypeId: ticketType.id,
@@ -84,13 +101,18 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
       sectionName,
       validDays: ticketType.validDays,
       price: ticketType.price,
-      quantity,
+      quantity: isNumbered ? (ticketType.ticketsPerUnit || 1) : quantity,
       attendees,
       subtotal,
       serviceFee,
       total,
       currencyCode: event.currencyCode,
     };
+
+    if (isNumbered && selectedUnitId) {
+      checkoutData.unitSelections = [{ ticketTypeId: ticketType.id, unitId: selectedUnitId }];
+      checkoutData.selectedUnitLabel = selectedUnit ? `${selectedUnit.unitLabel} ${selectedUnit.unitNumber}` : "";
+    }
 
     if (!isAuthenticated) {
       sessionStorage.setItem("tapee_checkout", JSON.stringify(checkoutData));
@@ -117,7 +139,70 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
             <p className="text-primary font-bold mt-1">{formatPrice(ticketType.price, event.currencyCode)}</p>
           </div>
 
-          {step === "quantity" ? (
+          {step === "unit" && isNumbered ? (
+            <div className="space-y-6">
+              <div>
+                <Label className="mb-2 block">
+                  {t("ticketSelection.selectUnit", { label: ticketType.unitLabel || "Unit" })}
+                </Label>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {t("ticketSelection.unitIncludes", { count: ticketType.ticketsPerUnit || 1 })}
+                </p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {ticketType.units!.map((unit) => {
+                    const isAvailable = unit.status === "available";
+                    const isSelected = selectedUnitId === unit.id;
+                    return (
+                      <button
+                        key={unit.id}
+                        disabled={!isAvailable}
+                        onClick={() => handleUnitSelect(unit.id)}
+                        className={`relative p-3 rounded-lg border text-center transition-all ${
+                          !isAvailable
+                            ? "border-border bg-muted/30 opacity-40 cursor-not-allowed"
+                            : isSelected
+                            ? "border-primary bg-primary/10 ring-2 ring-primary"
+                            : "border-border hover:border-primary/50 cursor-pointer"
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                            <Check className="w-3 h-3 text-primary-foreground" />
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground">{unit.unitLabel}</p>
+                        <p className="text-lg font-bold">{unit.unitNumber}</p>
+                        {!isAvailable && (
+                          <Badge variant="secondary" className="text-[9px] px-1 py-0 mt-1">
+                            {t("event.soldOut")}
+                          </Badge>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between font-bold text-base">
+                  <span>{t("ticketSelection.total")}</span>
+                  <span className="text-primary">{formatPrice(total, event.currencyCode)}</span>
+                </div>
+              </div>
+
+              <Button
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
+                size="lg"
+                onClick={handleUnitContinue}
+                disabled={!selectedUnitId}
+              >
+                {t("ticketSelection.continue")}
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : step === "quantity" ? (
             <div className="space-y-6">
               <div>
                 <Label className="mb-2 block">{t("ticketSelection.quantity")}</Label>
@@ -231,7 +316,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
               </div>
 
               <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep("quantity")} className="flex-1">
+                <Button variant="outline" onClick={() => setStep(isNumbered ? "unit" : "quantity")} className="flex-1">
                   {t("common.back")}
                 </Button>
                 <Button

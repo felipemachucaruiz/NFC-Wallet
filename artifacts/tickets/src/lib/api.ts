@@ -102,6 +102,10 @@ export interface ApiEventDetail {
     saleEnd: string | null;
     validEventDayIds: string[] | null;
     sectionId: string | null;
+    isNumberedUnits?: boolean;
+    unitLabel?: string;
+    ticketsPerUnit?: number;
+    units?: { id: string; unitNumber: number; unitLabel: string; status: string }[];
     pricingStages?: { id: string; name: string; price: number; startsAt: string; endsAt: string }[];
     nextStage?: { name: string; price: number; startsAt: string } | null;
   }[];
@@ -166,6 +170,7 @@ export async function logoutApi(): Promise<void> {
 export interface PurchaseRequest {
   eventId: string;
   attendees: { name: string; email: string; phone?: string; ticketTypeId: string }[];
+  unitSelections?: { ticketTypeId: string; unitId: string }[];
   paymentMethod: "nequi" | "pse";
   phoneNumber?: string;
   bankCode?: string;

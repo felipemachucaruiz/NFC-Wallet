@@ -26,6 +26,8 @@ interface CheckoutData {
   serviceFee: number;
   total: number;
   currencyCode: string;
+  unitSelections?: { ticketTypeId: string; unitId: string }[];
+  selectedUnitLabel?: string;
 }
 
 const PSE_BANKS = [
@@ -101,6 +103,7 @@ export default function Checkout() {
           phone: a.phone || undefined,
           ticketTypeId: data.ticketTypeId,
         })),
+        unitSelections: data.unitSelections,
         paymentMethod,
       };
 
@@ -160,6 +163,9 @@ export default function Checkout() {
                       <span>{formatPrice(data.price, data.currencyCode)}</span>
                     </div>
                     <p className="text-muted-foreground">{data.ticketTypeName} — {data.sectionName}</p>
+                    {data.selectedUnitLabel && (
+                      <p className="text-muted-foreground font-medium">{data.selectedUnitLabel}</p>
+                    )}
                     <p className="text-muted-foreground">{t("checkout.validDays")}: {data.validDays}</p>
                     <p className="text-muted-foreground">{t("checkout.attendee")}: {attendee.name} ({attendee.email})</p>
                   </div>

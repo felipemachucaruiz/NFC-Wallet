@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable } from "@workspace/db";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -48,7 +48,11 @@ const attendeeDataSchema = z.object({
 
 const createOrderSchema = z.object({
   eventId: z.string().min(1),
-  attendees: z.array(attendeeDataSchema).min(1).max(20),
+  attendees: z.array(attendeeDataSchema).min(1).max(50),
+  unitSelections: z.array(z.object({
+    ticketTypeId: z.string().min(1),
+    unitId: z.string().min(1),
+  })).optional(),
   paymentMethod: z.enum(["card", "nequi", "pse"]),
   cardToken: z.string().optional(),
   phoneNumber: z.string().optional(),
@@ -78,7 +82,7 @@ router.post(
       return;
     }
 
-    const { eventId, attendees, paymentMethod, cardToken, phoneNumber, bankCode, userLegalIdType, userLegalId, installments } = parsed.data;
+    const { eventId, attendees, unitSelections, paymentMethod, cardToken, phoneNumber, bankCode, userLegalIdType, userLegalId, installments } = parsed.data;
 
     if (paymentMethod === "card" && !cardToken) {
       res.status(400).json({ error: "cardToken is required for card payments" });
@@ -149,6 +153,25 @@ router.post(
       }
     }
 
+    const unitSelMap = new Map<string, string>();
+    if (unitSelections) {
+      for (const us of unitSelections) {
+        const tt = ticketTypeMap.get(us.ticketTypeId);
+        if (!tt || !tt.isNumberedUnits) {
+          res.status(400).json({ error: `Unit selection invalid for ticket type ${us.ticketTypeId}` });
+          return;
+        }
+        unitSelMap.set(us.ticketTypeId, us.unitId);
+      }
+    }
+
+    for (const tt of ticketTypes) {
+      if (tt.isNumberedUnits && !unitSelMap.has(tt.id)) {
+        res.status(400).json({ error: `Unit selection required for ${tt.name}` });
+        return;
+      }
+    }
+
     const quantityByType = new Map<string, number>();
     for (const a of attendees) {
       quantityByType.set(a.ticketTypeId, (quantityByType.get(a.ticketTypeId) || 0) + 1);
@@ -156,16 +179,22 @@ router.post(
 
     for (const [typeId, qty] of quantityByType) {
       const tt = ticketTypeMap.get(typeId)!;
-      if (tt.quantity - tt.soldCount < qty) {
-        res.status(409).json({ error: `Not enough tickets available for ${tt.name}. Available: ${tt.quantity - tt.soldCount}` });
-        return;
+      if (!tt.isNumberedUnits) {
+        if (tt.quantity - tt.soldCount < qty) {
+          res.status(409).json({ error: `Not enough tickets available for ${tt.name}. Available: ${tt.quantity - tt.soldCount}` });
+          return;
+        }
       }
     }
 
     let totalAmount = 0;
     for (const a of attendees) {
       const tt = ticketTypeMap.get(a.ticketTypeId)!;
-      totalAmount += tt.price;
+      if (tt.isNumberedUnits) {
+        totalAmount += tt.price / (tt.ticketsPerUnit || 1);
+      } else {
+        totalAmount += tt.price;
+      }
     }
 
     const [userRecord] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
@@ -174,20 +203,47 @@ router.post(
 
     const result = await db.transaction(async (tx) => {
       for (const [typeId, qty] of quantityByType) {
-        const updated = await tx
-          .update(ticketTypesTable)
-          .set({
-            soldCount: sql`${ticketTypesTable.soldCount} + ${qty}`,
-            updatedAt: new Date(),
-          })
-          .where(and(
-            eq(ticketTypesTable.id, typeId),
-            sql`${ticketTypesTable.quantity} - ${ticketTypesTable.soldCount} >= ${qty}`,
-          ))
-          .returning({ id: ticketTypesTable.id });
+        const tt = ticketTypeMap.get(typeId)!;
 
-        if (updated.length === 0) {
-          throw new Error(`SOLD_OUT:${ticketTypeMap.get(typeId)!.name}`);
+        if (tt.isNumberedUnits) {
+          const unitId = unitSelMap.get(typeId)!;
+          const [lockedUnit] = await tx
+            .update(ticketTypeUnitsTable)
+            .set({ status: "sold" })
+            .where(and(
+              eq(ticketTypeUnitsTable.id, unitId),
+              eq(ticketTypeUnitsTable.ticketTypeId, typeId),
+              eq(ticketTypeUnitsTable.status, "available"),
+            ))
+            .returning({ id: ticketTypeUnitsTable.id });
+
+          if (!lockedUnit) {
+            throw new Error(`UNIT_TAKEN:${tt.name}`);
+          }
+
+          await tx
+            .update(ticketTypesTable)
+            .set({
+              soldCount: sql`${ticketTypesTable.soldCount} + 1`,
+              updatedAt: new Date(),
+            })
+            .where(eq(ticketTypesTable.id, typeId));
+        } else {
+          const updated = await tx
+            .update(ticketTypesTable)
+            .set({
+              soldCount: sql`${ticketTypesTable.soldCount} + ${qty}`,
+              updatedAt: new Date(),
+            })
+            .where(and(
+              eq(ticketTypesTable.id, typeId),
+              sql`${ticketTypesTable.quantity} - ${ticketTypesTable.soldCount} >= ${qty}`,
+            ))
+            .returning({ id: ticketTypesTable.id });
+
+          if (updated.length === 0) {
+            throw new Error(`SOLD_OUT:${tt.name}`);
+          }
         }
       }
 
@@ -206,10 +262,17 @@ router.post(
         })
         .returning();
 
+      for (const [typeId, unitId] of unitSelMap) {
+        await tx
+          .update(ticketTypeUnitsTable)
+          .set({ orderId: order.id })
+          .where(eq(ticketTypeUnitsTable.id, unitId));
+      }
+
       return order;
     }).catch((err) => {
-      if (err.message?.startsWith("SOLD_OUT:")) {
-        const name = err.message.replace("SOLD_OUT:", "");
+      if (err.message?.startsWith("SOLD_OUT:") || err.message?.startsWith("UNIT_TAKEN:")) {
+        const name = err.message.replace(/^(SOLD_OUT|UNIT_TAKEN):/, "");
         res.status(409).json({ error: `Tickets for ${name} are sold out` });
         return null;
       }
@@ -285,16 +348,7 @@ router.post(
       const wompiData = await wompiRes.json() as { data?: { id: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: unknown };
       if (!wompiRes.ok || !wompiData.data) {
         logger.error({ wompiData }, "Wompi ticket payment error");
-        await db
-          .update(ticketOrdersTable)
-          .set({ paymentStatus: "cancelled", updatedAt: new Date() })
-          .where(eq(ticketOrdersTable.id, order.id));
-        for (const [typeId, qty] of quantityByType) {
-          await db
-            .update(ticketTypesTable)
-            .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - ${qty}, 0)`, updatedAt: new Date() })
-            .where(eq(ticketTypesTable.id, typeId));
-        }
+        await rollbackOrderInventory(order.id, quantityByType, ticketTypeMap, unitSelMap);
         res.status(502).json({ error: "Failed to initiate payment. Try again." });
         return;
       }
@@ -303,16 +357,7 @@ router.post(
       redirectUrl = wompiData.data.payment_method?.extra?.async_payment_url;
     } catch (err) {
       logger.error({ err }, "Wompi API error");
-      await db
-        .update(ticketOrdersTable)
-        .set({ paymentStatus: "cancelled", updatedAt: new Date() })
-        .where(eq(ticketOrdersTable.id, order.id));
-      for (const [typeId, qty] of quantityByType) {
-        await db
-          .update(ticketTypesTable)
-          .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - ${qty}, 0)`, updatedAt: new Date() })
-          .where(eq(ticketTypesTable.id, typeId));
-      }
+      await rollbackOrderInventory(order.id, quantityByType, ticketTypeMap, unitSelMap);
       res.status(502).json({ error: "Payment gateway unavailable. Try again later." });
       return;
     }
@@ -348,6 +393,7 @@ router.post(
           orderId: order.id,
           ticketTypeId: attendee.ticketTypeId,
           eventId,
+          unitId: unitSelMap.get(attendee.ticketTypeId) ?? null,
           attendeeName: attendee.name,
           attendeeEmail: normalizedEmail,
           attendeePhone: attendee.phone ?? null,
@@ -711,6 +757,54 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
   }
 }
 
+async function releaseUnitsForOrder(orderId: string) {
+  const units = await db
+    .select({ id: ticketTypeUnitsTable.id })
+    .from(ticketTypeUnitsTable)
+    .where(eq(ticketTypeUnitsTable.orderId, orderId));
+
+  for (const u of units) {
+    await db
+      .update(ticketTypeUnitsTable)
+      .set({ status: "available", orderId: null })
+      .where(eq(ticketTypeUnitsTable.id, u.id));
+  }
+}
+
+async function rollbackOrderInventory(
+  orderId: string,
+  quantityByType: Map<string, number>,
+  ticketTypeMap: Map<string, { id: string; isNumberedUnits: boolean | null; name: string }>,
+  unitSelMap: Map<string, string>,
+) {
+  await db
+    .update(ticketOrdersTable)
+    .set({ paymentStatus: "cancelled", updatedAt: new Date() })
+    .where(eq(ticketOrdersTable.id, orderId));
+
+  for (const [typeId, qty] of quantityByType) {
+    const tt = ticketTypeMap.get(typeId);
+    if (tt?.isNumberedUnits) {
+      await db
+        .update(ticketTypesTable)
+        .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - 1, 0)`, updatedAt: new Date() })
+        .where(eq(ticketTypesTable.id, typeId));
+    } else {
+      await db
+        .update(ticketTypesTable)
+        .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - ${qty}, 0)`, updatedAt: new Date() })
+        .where(eq(ticketTypesTable.id, typeId));
+    }
+  }
+
+  for (const [, unitId] of unitSelMap) {
+    await db
+      .update(ticketTypeUnitsTable)
+      .set({ status: "available", orderId: null })
+      .where(eq(ticketTypeUnitsTable.id, unitId));
+  }
+}
+
 async function cancelTicketOrder(orderId: string) {
   const [order] = await db
     .select()
@@ -739,17 +833,33 @@ async function cancelTicketOrder(orderId: string) {
     .from(ticketsTable)
     .where(eq(ticketsTable.orderId, orderId));
 
+  const ticketTypeIds = [...new Set(tickets.map((t) => t.ticketTypeId))];
+  const ttRows = ticketTypeIds.length > 0
+    ? await db.select().from(ticketTypesTable).where(inArray(ticketTypesTable.id, ticketTypeIds))
+    : [];
+  const ttMap = new Map(ttRows.map((tt) => [tt.id, tt]));
+
   const quantityByType = new Map<string, number>();
   for (const t of tickets) {
     quantityByType.set(t.ticketTypeId, (quantityByType.get(t.ticketTypeId) || 0) + 1);
   }
 
   for (const [typeId, qty] of quantityByType) {
-    await db
-      .update(ticketTypesTable)
-      .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - ${qty}, 0)`, updatedAt: new Date() })
-      .where(eq(ticketTypesTable.id, typeId));
+    const tt = ttMap.get(typeId);
+    if (tt?.isNumberedUnits) {
+      await db
+        .update(ticketTypesTable)
+        .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - 1, 0)`, updatedAt: new Date() })
+        .where(eq(ticketTypesTable.id, typeId));
+    } else {
+      await db
+        .update(ticketTypesTable)
+        .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - ${qty}, 0)`, updatedAt: new Date() })
+        .where(eq(ticketTypesTable.id, typeId));
+    }
   }
+
+  await releaseUnitsForOrder(orderId);
 }
 
 router.post(

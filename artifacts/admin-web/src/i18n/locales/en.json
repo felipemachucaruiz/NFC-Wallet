@@ -991,7 +991,12 @@
     "noStages": "No pricing stages. Base price will be used.",
     "basePrice": "Base Price",
     "currentStage": "Current Stage",
-    "deleteStageConfirm": "Delete this pricing stage?"
+    "deleteStageConfirm": "Delete this pricing stage?",
+    "numberedUnits": "Numbered Units (Palcos)",
+    "numberedUnitsDesc": "Enable to sell numbered units like VIP tables or palcos",
+    "unitLabel": "Unit Label",
+    "unitLabelPlaceholder": "e.g. Palco, Mesa, Box",
+    "ticketsPerUnit": "Tickets per Unit"
   },
   "salesConfig": {
     "title": "Sales Configuration",

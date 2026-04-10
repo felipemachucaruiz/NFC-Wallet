@@ -991,7 +991,12 @@
     "noStages": "Sin etapas de precio. El precio base se usará.",
     "basePrice": "Precio Base",
     "currentStage": "Etapa Actual",
-    "deleteStageConfirm": "¿Eliminar esta etapa de precio?"
+    "deleteStageConfirm": "¿Eliminar esta etapa de precio?",
+    "numberedUnits": "Unidades Numeradas (Palcos)",
+    "numberedUnitsDesc": "Habilitar para vender unidades numeradas como palcos o mesas VIP",
+    "unitLabel": "Etiqueta de Unidad",
+    "unitLabelPlaceholder": "ej. Palco, Mesa, Box",
+    "ticketsPerUnit": "Boletas por Unidad"
   },
   "salesConfig": {
     "title": "Configuración de Ventas",

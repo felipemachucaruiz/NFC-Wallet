@@ -13,6 +13,13 @@ export interface PricingStage {
   endsAt: string;
 }
 
+export interface TicketTypeUnit {
+  id: string;
+  unitNumber: number;
+  unitLabel: string;
+  status: "available" | "reserved" | "sold";
+}
+
 export interface TicketType {
   id: string;
   name: string;
@@ -27,6 +34,10 @@ export interface TicketType {
   status: "available" | "limited" | "sold_out";
   pricingStages?: PricingStage[];
   nextStage?: { name: string; price: number; startsAt: string } | null;
+  isNumberedUnits?: boolean;
+  unitLabel?: string;
+  ticketsPerUnit?: number;
+  units?: TicketTypeUnit[];
 }
 
 export interface VenueSection {

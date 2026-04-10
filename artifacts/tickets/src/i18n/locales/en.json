@@ -96,7 +96,9 @@
     "phone": "Phone",
     "required": "Required",
     "invalidEmail": "Invalid email",
-    "orderSummary": "Order Summary"
+    "orderSummary": "Order Summary",
+    "selectUnit": "Select your {{label}}",
+    "unitIncludes": "Includes {{count}} ticket(s) per unit"
   },
   "auth": {
     "loginTitle": "Log In",

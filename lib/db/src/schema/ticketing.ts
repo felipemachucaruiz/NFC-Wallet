@@ -63,6 +63,8 @@ export const venueSectionsTable = pgTable("venue_sections", {
   check("venue_sections_sold_non_negative", sql`${table.soldTickets} >= 0`),
 ]);
 
+export const unitStatusEnum = pgEnum("unit_status", ["available", "reserved", "sold"]);
+
 export const ticketTypesTable = pgTable("ticket_types", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   eventId: varchar("event_id").notNull().references(() => eventsTable.id),
@@ -76,12 +78,28 @@ export const ticketTypesTable = pgTable("ticket_types", {
   saleStart: timestamp("sale_start", { withTimezone: true }),
   saleEnd: timestamp("sale_end", { withTimezone: true }),
   isActive: boolean("is_active").notNull().default(true),
+  isNumberedUnits: boolean("is_numbered_units").notNull().default(false),
+  unitLabel: varchar("unit_label", { length: 100 }),
+  ticketsPerUnit: integer("tickets_per_unit"),
   validEventDayIds: jsonb("valid_event_day_ids").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
   index("idx_ticket_types_event_id").on(table.eventId),
   check("ticket_types_sold_non_negative", sql`${table.soldCount} >= 0`),
+]);
+
+export const ticketTypeUnitsTable = pgTable("ticket_type_units", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketTypeId: varchar("ticket_type_id").notNull().references(() => ticketTypesTable.id, { onDelete: "cascade" }),
+  unitNumber: integer("unit_number").notNull(),
+  unitLabel: varchar("unit_label", { length: 255 }).notNull(),
+  status: unitStatusEnum("status").notNull().default("available"),
+  orderId: varchar("order_id").references(() => ticketOrdersTable.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_ticket_type_units_ticket_type_id").on(table.ticketTypeId),
+  unique("ticket_type_units_type_number_unique").on(table.ticketTypeId, table.unitNumber),
 ]);
 
 export const ticketOrdersTable = pgTable("ticket_orders", {
@@ -110,6 +128,7 @@ export const ticketsTable = pgTable("tickets", {
   orderId: varchar("order_id").notNull().references(() => ticketOrdersTable.id),
   ticketTypeId: varchar("ticket_type_id").notNull().references(() => ticketTypesTable.id),
   eventId: varchar("event_id").notNull().references(() => eventsTable.id),
+  unitId: varchar("unit_id").references(() => ticketTypeUnitsTable.id),
   attendeeName: varchar("attendee_name", { length: 255 }).notNull(),
   attendeeEmail: varchar("attendee_email", { length: 320 }).notNull(),
   attendeePhone: varchar("attendee_phone", { length: 30 }),
@@ -157,6 +176,8 @@ export type VenueSection = typeof venueSectionsTable.$inferSelect;
 export type InsertVenueSection = typeof venueSectionsTable.$inferInsert;
 export type TicketType = typeof ticketTypesTable.$inferSelect;
 export type InsertTicketType = typeof ticketTypesTable.$inferInsert;
+export type TicketTypeUnit = typeof ticketTypeUnitsTable.$inferSelect;
+export type InsertTicketTypeUnit = typeof ticketTypeUnitsTable.$inferInsert;
 export type TicketOrder = typeof ticketOrdersTable.$inferSelect;
 export type InsertTicketOrder = typeof ticketOrdersTable.$inferInsert;
 export type Ticket = typeof ticketsTable.$inferSelect;

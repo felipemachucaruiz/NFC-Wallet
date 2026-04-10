@@ -77,11 +77,15 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
       currentStageName: tt.currentStageName ?? null,
       serviceFee: 0,
       availableCount: tt.available,
-      maxPerOrder: 6,
+      maxPerOrder: tt.isNumberedUnits ? 1 : 6,
       sectionId: tt.sectionId || undefined,
       status,
       pricingStages: tt.pricingStages,
       nextStage: tt.nextStage,
+      isNumberedUnits: tt.isNumberedUnits,
+      unitLabel: tt.unitLabel,
+      ticketsPerUnit: tt.ticketsPerUnit,
+      units: tt.units as any,
     };
   });
 
