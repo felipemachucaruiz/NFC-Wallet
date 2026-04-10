@@ -189,6 +189,8 @@ router.get(
         return;
       }
 
+      const eventId = event.id;
+
       let promoterCompany: { companyName: string; nit: string | null } | null = null;
       if (event.promoterCompanyId) {
         const [pc] = await db
