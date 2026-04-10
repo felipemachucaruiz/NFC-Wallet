@@ -10,6 +10,7 @@ import {
   productsTable,
   braceletsTable,
   eventsTable,
+  ticketOrdersTable,
 } from "@workspace/db";
 import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
@@ -112,6 +113,17 @@ router.get(
       topUpCount = topUpAgg?.topUpCount ?? 0;
     }
 
+    const ticketConditions = [eq(ticketOrdersTable.paymentStatus, "confirmed")];
+    if (eventIds !== null) ticketConditions.push(inArray(ticketOrdersTable.eventId, eventIds));
+
+    const [ticketAgg] = await db
+      .select({
+        ticketSales: sql<number>`COALESCE(SUM(${ticketOrdersTable.totalAmount}), 0)`.mapWith(Number),
+        ticketOrderCount: sql<number>`COUNT(*)`.mapWith(Number),
+      })
+      .from(ticketOrdersTable)
+      .where(and(...ticketConditions));
+
     res.json({
       totalTopUps,
       totalSales: txAgg?.totalSales ?? 0,
@@ -119,6 +131,8 @@ router.get(
       transactionCount: txAgg?.transactionCount ?? 0,
       topUpCount,
       braceletCount: braceletAgg?.braceletCount ?? 0,
+      ticketSales: ticketAgg?.ticketSales ?? 0,
+      ticketOrderCount: ticketAgg?.ticketOrderCount ?? 0,
     });
   },
 );

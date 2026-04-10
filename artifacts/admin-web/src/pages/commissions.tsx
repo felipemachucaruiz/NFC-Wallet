@@ -3,7 +3,7 @@ import { useListEvents, customFetch } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Percent, TrendingUp, DollarSign, Calendar } from "lucide-react";
+import { Percent, TrendingUp, DollarSign, Calendar, Ticket, CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 
@@ -21,6 +21,8 @@ type SummaryResult = {
   totalSales: number;
   totalTopUps: number;
   transactionCount: number;
+  ticketSales: number;
+  ticketOrderCount: number;
 };
 
 function fmt(n: number, cur: string = "COP") {
@@ -49,14 +51,20 @@ export default function Commissions() {
   const rows = events.map((ev, i) => {
     const rate = parseFloat(ev.platformCommissionRate ?? "0") || 0;
     const summary = summaryQueries[i]?.data;
-    const sales = summary?.totalSales ?? 0;
-    const commission = (sales * rate) / 100;
+    const nfcSales = summary?.totalSales ?? 0;
+    const ticketSales = summary?.ticketSales ?? 0;
+    const nfcCommission = (nfcSales * rate) / 100;
+    const ticketCommission = (ticketSales * rate) / 100;
+    const totalCommission = nfcCommission + ticketCommission;
     const loading = summaryQueries[i]?.isLoading ?? true;
-    return { ev, rate, sales, commission, loading };
+    return { ev, rate, nfcSales, ticketSales, nfcCommission, ticketCommission, totalCommission, loading };
   });
 
-  const totalSales = rows.reduce((s, r) => s + r.sales, 0);
-  const totalCommission = rows.reduce((s, r) => s + r.commission, 0);
+  const totalNfcSales = rows.reduce((s, r) => s + r.nfcSales, 0);
+  const totalTicketSales = rows.reduce((s, r) => s + r.ticketSales, 0);
+  const totalNfcCommission = rows.reduce((s, r) => s + r.nfcCommission, 0);
+  const totalTicketCommission = rows.reduce((s, r) => s + r.ticketCommission, 0);
+  const grandTotalCommission = totalNfcCommission + totalTicketCommission;
   const allLoading = eventsLoading || summaryQueries.some((q) => q.isLoading);
 
   return (
@@ -66,7 +74,7 @@ export default function Commissions() {
         <p className="text-muted-foreground mt-1">{t("commissions.subtitle")}</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -82,12 +90,28 @@ export default function Commissions() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" /> {t("commissions.totalSales")}
+              <CreditCard className="w-4 h-4" /> {t("commissions.nfcSales", "Ventas NFC")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-2xl font-bold font-mono ${allLoading ? "opacity-40" : ""}`}>{fmt(totalSales)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t("commissions.grossSales")}</p>
+            <p className={`text-2xl font-bold font-mono ${allLoading ? "opacity-40" : ""}`}>{fmt(totalNfcSales)}</p>
+            <p className={`text-sm font-mono text-primary ${allLoading ? "opacity-40" : ""}`}>
+              {t("commissions.commission", "Comisión")}: {fmt(totalNfcCommission)}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Ticket className="w-4 h-4" /> {t("commissions.ticketSales", "Ventas Boletería")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className={`text-2xl font-bold font-mono ${allLoading ? "opacity-40" : ""}`}>{fmt(totalTicketSales)}</p>
+            <p className={`text-sm font-mono text-primary ${allLoading ? "opacity-40" : ""}`}>
+              {t("commissions.commission", "Comisión")}: {fmt(totalTicketCommission)}
+            </p>
           </CardContent>
         </Card>
 
@@ -98,13 +122,13 @@ export default function Commissions() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-2xl font-bold font-mono text-primary ${allLoading ? "opacity-40" : ""}`}>{fmt(totalCommission)}</p>
+            <p className={`text-2xl font-bold font-mono text-primary ${allLoading ? "opacity-40" : ""}`}>{fmt(grandTotalCommission)}</p>
             <p className="text-xs text-muted-foreground mt-1">{t("commissions.tapeeEarnings")}</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="border border-border rounded-lg bg-card">
+      <div className="border border-border rounded-lg bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -115,22 +139,25 @@ export default function Commissions() {
                   <Percent className="w-3 h-3" /> {t("commissions.colRate")}
                 </span>
               </TableHead>
-              <TableHead className="text-right">{t("commissions.colSales")}</TableHead>
-              <TableHead className="text-right">{t("commissions.colCommission")}</TableHead>
+              <TableHead className="text-right">{t("commissions.colNfcSales", "NFC")}</TableHead>
+              <TableHead className="text-right">{t("commissions.colTicketSales", "Boletería")}</TableHead>
+              <TableHead className="text-right">{t("commissions.colNfcCommission", "Com. NFC")}</TableHead>
+              <TableHead className="text-right">{t("commissions.colTicketCommission", "Com. Boletería")}</TableHead>
+              <TableHead className="text-right">{t("commissions.colTotalCommission", "Total Comisión")}</TableHead>
               <TableHead>{t("commissions.colStatus")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {eventsLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("common.loading")}</TableCell>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{t("common.loading")}</TableCell>
               </TableRow>
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("commissions.noEvents")}</TableCell>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">{t("commissions.noEvents")}</TableCell>
               </TableRow>
             ) : (
-              rows.map(({ ev, rate, sales, commission, loading }) => (
+              rows.map(({ ev, rate, nfcSales, ticketSales, nfcCommission, ticketCommission, totalCommission, loading }) => (
                 <TableRow key={ev.id}>
                   <TableCell className="font-medium">{ev.name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
@@ -142,10 +169,19 @@ export default function Commissions() {
                     </Badge>
                   </TableCell>
                   <TableCell className={`text-right font-mono tabular-nums ${loading ? "opacity-40" : ""}`}>
-                    {fmt(sales, ev.currencyCode)}
+                    {fmt(nfcSales, ev.currencyCode)}
+                  </TableCell>
+                  <TableCell className={`text-right font-mono tabular-nums ${loading ? "opacity-40" : ""}`}>
+                    {fmt(ticketSales, ev.currencyCode)}
+                  </TableCell>
+                  <TableCell className={`text-right font-mono tabular-nums text-primary/70 ${loading ? "opacity-40" : ""}`}>
+                    {fmt(nfcCommission, ev.currencyCode)}
+                  </TableCell>
+                  <TableCell className={`text-right font-mono tabular-nums text-primary/70 ${loading ? "opacity-40" : ""}`}>
+                    {fmt(ticketCommission, ev.currencyCode)}
                   </TableCell>
                   <TableCell className={`text-right font-mono tabular-nums font-semibold text-primary ${loading ? "opacity-40" : ""}`}>
-                    {fmt(commission, ev.currencyCode)}
+                    {fmt(totalCommission, ev.currencyCode)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={ev.active ? "default" : "secondary"} className="text-xs">
@@ -159,8 +195,11 @@ export default function Commissions() {
             {rows.length > 0 && (
               <TableRow className="border-t-2 border-border bg-muted/30 font-semibold">
                 <TableCell colSpan={3} className="text-sm text-muted-foreground">{t("commissions.total")}</TableCell>
-                <TableCell className={`text-right font-mono tabular-nums ${allLoading ? "opacity-40" : ""}`}>{fmt(totalSales)}</TableCell>
-                <TableCell className={`text-right font-mono tabular-nums text-primary ${allLoading ? "opacity-40" : ""}`}>{fmt(totalCommission)}</TableCell>
+                <TableCell className={`text-right font-mono tabular-nums ${allLoading ? "opacity-40" : ""}`}>{fmt(totalNfcSales)}</TableCell>
+                <TableCell className={`text-right font-mono tabular-nums ${allLoading ? "opacity-40" : ""}`}>{fmt(totalTicketSales)}</TableCell>
+                <TableCell className={`text-right font-mono tabular-nums text-primary/70 ${allLoading ? "opacity-40" : ""}`}>{fmt(totalNfcCommission)}</TableCell>
+                <TableCell className={`text-right font-mono tabular-nums text-primary/70 ${allLoading ? "opacity-40" : ""}`}>{fmt(totalTicketCommission)}</TableCell>
+                <TableCell className={`text-right font-mono tabular-nums text-primary ${allLoading ? "opacity-40" : ""}`}>{fmt(grandTotalCommission)}</TableCell>
                 <TableCell />
               </TableRow>
             )}
