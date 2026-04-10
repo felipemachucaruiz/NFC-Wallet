@@ -1,6 +1,6 @@
 # Overview
 
-This project develops a contactless, cashless event payment system for the Colombian market. It enables attendees to use NFC bracelets for payments, facilitates merchant transactions, and supports bank staff for top-ups. Key features include commission tracking, merchant payouts, comprehensive inventory management with automated restocking, and a full audit trail for all transactions. The system aims to modernize event payments in Colombia, providing a secure, efficient, and user-friendly experience, and ultimately become the leading contactless payment solution for events across the country.
+This project delivers a contactless, cashless event payment system specifically for the Colombian market. It enables event attendees to use NFC bracelets for payments, facilitates merchants in charging for products, and allows bank staff to manage top-ups. Key features include commission tracking, merchant payouts, comprehensive warehouse and inventory management with automated restock capabilities, and a full audit trail for all transactions. The system aims to modernize event payments in Colombia, providing a secure, efficient, and user-friendly experience, and ultimately become the leading contactless payment solution for events across the country.
 
 # User Preferences
 
@@ -30,16 +30,16 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - `artifacts/mobile`: Expo React Native staff mobile app.
 - `artifacts/attendee-app`: Expo React Native attendee mobile app.
 - `artifacts/admin-web`: React + Vite web admin portal for `admin` and `event_admin` roles, including ticketing management (Venue Map Editor, Sales Config, Orders, Check-in Dashboard). Features module toggles (`ticketingEnabled`, `nfcBraceletsEnabled`) for dynamic navigation and route access.
-- `artifacts/ticket-storefront`: React + Vite public ticketing storefront with event listing, ticket selection, Wompi checkout (Nequi/PSE), and order status polling. Bilingual (Spanish UI).
+- `artifacts/tickets`: React + Vite public ticket-selling app ("Tapee Tickets"), wired to the Attendee API backend for real event listing, ticket purchasing (Nequi/PSE via Wompi), auth, and digital tickets with QR codes. Bilingual (ES/EN). Consolidates the former `ticket-storefront` which was removed.
 
 **UI/UX Decisions:**
-- **Tickets Storefront:** Public-facing web app with a dark theme, pill-shaped rounded buttons (`rounded-full`), i18n (ES/EN), event discovery, interactive SVG venue maps, ticket selection with per-ticket service fees, Wompi checkout, and "My Tickets" section with QR codes.
+- **Tickets Storefront:** Public-facing web app with a dark Tapee theme, i18n (ES/EN), event discovery, interactive SVG venue maps, Wompi checkout, and digital tickets with QR codes.
 - **Attendee App:** Features a "Tapee Black" dark theme with cyan accents, NFC read-only functions, push notifications, and i18n (ES/EN). Includes a full ticket purchase flow with event catalogue, detail, venue maps, attendee forms, and Wompi checkout.
 - **Mobile Apps (Staff and Attendee):** Built with Expo React Native, supporting OTA updates.
 - **Web Admin:** Dark theme with Tapee cyan accents, sidebar navigation, and role-based routing.
 
 **Technical Implementations:**
-- **NFC Security:** HMAC-SHA256 for securing NFC bracelet payloads.
+- **NFC Security:** HMAC-SHA256 for securing NFC bracelet payloads to prevent rollback attacks.
 - **QR Ticket + NFC Gate Registration:** Atomic database transactions for validating QR tickets, showing attendee profiles, and linking NFC bracelets. Supports multi-day passes.
 - **Monetary Values:** Multi-currency support for Latin America with configurable event currencies (e.g., COP, MXN). Exchange rates cached via exchangerate-api.com.
 - **Authentication:** Email and password authentication with bcrypt and server-side database-stored sessions.
@@ -54,6 +54,8 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - **API Codegen:** OpenAPI 3.1 with Orval for client and Zod schema generation.
 - **Validation:** Zod v3 integrated with `drizzle-zod`.
 - **Cost of Goods Sold (COGS) Tracking:** `unit_cost_snapshot` on line items and `price_cop`/`cost_cop` on products.
+- **Deployment Strategy:** Critical separation of `master` (API services) and `main` (Web Admin) branches for Railway deployments. Pushing to the wrong branch causes production downtime.
+- **Mobile App Updates:** OTA updates use fingerprint-based `runtimeVersion` for consistency, requiring users to update to the latest APK for new OTAs.
 
 # External Dependencies
 

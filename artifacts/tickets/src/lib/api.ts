@@ -1,22 +1,40 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "/attendee-api/api";
+const API_BASE = "/attendee-api/api";
+
+let authToken: string | null = localStorage.getItem("tapee_auth_token");
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+  if (token) {
+    localStorage.setItem("tapee_auth_token", token);
+  } else {
+    localStorage.removeItem("tapee_auth_token");
+  }
+}
+
+export function getAuthToken(): string | null {
+  return authToken;
+}
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options?.headers as Record<string, string>),
+  };
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+  const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error || body.message || `API error ${res.status}`);
   }
-  return res.json();
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text);
 }
 
-export interface PublicEvent {
+export interface ApiEvent {
   id: string;
   name: string;
   description: string | null;
@@ -36,7 +54,7 @@ export interface PublicEvent {
   dayCount: number;
 }
 
-export interface EventDetail {
+export interface ApiEventDetail {
   event: {
     id: string;
     name: string;
@@ -77,7 +95,7 @@ export async function fetchEvents(params?: {
   category?: string;
   city?: string;
   page?: number;
-}): Promise<{ events: PublicEvent[]; page: number; limit: number }> {
+}): Promise<{ events: ApiEvent[]; page: number; limit: number }> {
   const qs = new URLSearchParams();
   if (params?.search) qs.set("search", params.search);
   if (params?.category) qs.set("category", params.category);
@@ -87,49 +105,55 @@ export async function fetchEvents(params?: {
   return apiFetch(`/public/events${query ? `?${query}` : ""}`);
 }
 
-export async function fetchEventDetail(eventId: string): Promise<EventDetail> {
+export async function fetchEventDetail(eventId: string): Promise<ApiEventDetail> {
   return apiFetch(`/public/events/${eventId}`);
 }
 
-export function formatCOP(amount: number): string {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency: "COP",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+export interface ApiUser {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl: string | null;
+  role: string;
 }
 
-export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return new Intl.DateTimeFormat("es-CO", {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
+export async function loginApi(identifier: string, password: string): Promise<{ token: string }> {
+  return apiFetch("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ identifier, password }),
+  });
 }
 
-export function formatTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  return new Intl.DateTimeFormat("es-CO", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+export async function createAccountApi(data: {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}): Promise<{ id: string; email: string }> {
+  return apiFetch("/auth/create-account", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchCurrentUser(): Promise<{ user: ApiUser | null }> {
+  return apiFetch("/auth/user");
+}
+
+export async function logoutApi(): Promise<void> {
+  await apiFetch("/auth/logout", { method: "POST" });
 }
 
 export interface PurchaseRequest {
-  buyerName: string;
-  buyerEmail: string;
+  eventId: string;
   attendees: { name: string; email: string; phone?: string; ticketTypeId: string }[];
-  paymentMethod: "card" | "nequi" | "pse";
-  cardToken?: string;
+  paymentMethod: "nequi" | "pse";
   phoneNumber?: string;
   bankCode?: string;
   userLegalIdType?: "CC" | "CE" | "NIT" | "PP" | "TI";
   userLegalId?: string;
-  installments?: number;
-  redirectUrl?: string;
 }
 
 export interface PurchaseResponse {
@@ -142,8 +166,8 @@ export interface PurchaseResponse {
   status: string;
 }
 
-export async function purchaseTickets(eventId: string, data: PurchaseRequest): Promise<PurchaseResponse> {
-  return apiFetch(`/public/events/${eventId}/purchase`, {
+export async function purchaseTickets(data: PurchaseRequest): Promise<PurchaseResponse> {
+  return apiFetch("/tickets/purchase", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -152,10 +176,28 @@ export async function purchaseTickets(eventId: string, data: PurchaseRequest): P
 export interface OrderStatus {
   orderId: string;
   status: string;
-  ticketCount: number;
-  totalAmount: number;
 }
 
 export async function fetchOrderStatus(orderId: string): Promise<OrderStatus> {
-  return apiFetch(`/public/orders/${orderId}/status`);
+  return apiFetch(`/tickets/orders/${orderId}/status`);
+}
+
+export interface ApiTicket {
+  id: string;
+  eventId: string;
+  attendeeName: string;
+  status: string;
+  ticketTypeId: string;
+  qrCodeToken: string | null;
+  orderId: string;
+  createdAt: string;
+  eventName: string | null;
+  eventStartsAt: string | null;
+  eventCoverImage: string | null;
+  ticketTypeName: string | null;
+  validEventDayIds: string[];
+}
+
+export async function fetchMyTickets(): Promise<{ tickets: ApiTicket[] }> {
+  return apiFetch("/tickets/my-tickets");
 }

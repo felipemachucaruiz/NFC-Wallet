@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/context/AuthContext";
-import { formatPrice } from "@/data/mockEvents";
+import { formatPrice } from "@/lib/format";
 import type { EventData, TicketType, AttendeeData } from "@/data/types";
 
 interface TicketSelectorProps {

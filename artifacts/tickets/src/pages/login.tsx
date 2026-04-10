@@ -28,12 +28,14 @@ export default function Login() {
       if (success) {
         if (redirect === "checkout") {
           navigate("/checkout");
+        } else if (redirect === "my-tickets") {
+          navigate("/my-tickets");
         } else {
           navigate("/");
         }
       }
-    } catch {
-      setError("Login failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("auth.loginFailed") || "Login failed");
     } finally {
       setLoading(false);
     }

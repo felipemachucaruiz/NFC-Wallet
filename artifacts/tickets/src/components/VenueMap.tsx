@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatPrice } from "@/data/mockEvents";
+import { formatPrice } from "@/lib/format";
 import type { EventData, TicketType, VenueSection } from "@/data/types";
 
 interface VenueMapProps {

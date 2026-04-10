@@ -1,11 +1,13 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import type { User } from "@/data/types";
+import { loginApi, createAccountApi, fetchCurrentUser, logoutApi, setAuthToken, getAuthToken } from "@/lib/api";
 
 type AuthModalView = "login" | "register" | "forgot";
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (data: { email: string; password: string; firstName: string; lastName: string; phone: string }) => Promise<boolean>;
   logout: () => void;
@@ -19,16 +21,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const STORAGE_KEY = "tapee_tickets_user";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try { return JSON.parse(stored); } catch { return null; }
-    }
-    return null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(!!getAuthToken());
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalView, setAuthModalView] = useState<AuthModalView>("login");
@@ -49,42 +44,88 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthModalView(view);
   }, []);
 
-  const login = useCallback(async (email: string, _password: string) => {
-    const mockUser: User = {
-      id: "user-001",
-      email,
-      firstName: email.split("@")[0],
-      lastName: "",
-      phone: "+57 300 123 4567",
-    };
-    setUser(mockUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-    setShowAuthModal(false);
-    return true;
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    fetchCurrentUser()
+      .then((res) => {
+        if (res.user) {
+          setUser({
+            id: res.user.id,
+            email: res.user.email || "",
+            firstName: res.user.firstName || "",
+            lastName: res.user.lastName || "",
+            phone: "",
+          });
+        } else {
+          setAuthToken(null);
+        }
+      })
+      .catch(() => {
+        setAuthToken(null);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const res = await loginApi(email, password);
+    setAuthToken(res.token);
+
+    const userRes = await fetchCurrentUser();
+    if (userRes.user) {
+      setUser({
+        id: userRes.user.id,
+        email: userRes.user.email || "",
+        firstName: userRes.user.firstName || "",
+        lastName: userRes.user.lastName || "",
+        phone: "",
+      });
+      setShowAuthModal(false);
+      return true;
+    }
+    return false;
   }, []);
 
   const register = useCallback(async (data: { email: string; password: string; firstName: string; lastName: string; phone: string }) => {
-    const mockUser: User = {
-      id: "user-" + Date.now(),
+    await createAccountApi({
       email: data.email,
+      password: data.password,
       firstName: data.firstName,
       lastName: data.lastName,
       phone: data.phone,
-    };
-    setUser(mockUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-    setShowAuthModal(false);
-    return true;
+    });
+
+    const loginRes = await loginApi(data.email, data.password);
+    setAuthToken(loginRes.token);
+
+    const userRes = await fetchCurrentUser();
+    if (userRes.user) {
+      setUser({
+        id: userRes.user.id,
+        email: userRes.user.email || "",
+        firstName: userRes.user.firstName || "",
+        lastName: userRes.user.lastName || "",
+        phone: data.phone,
+      });
+      setShowAuthModal(false);
+      return true;
+    }
+    return false;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await logoutApi();
+    } catch {
+    }
+    setAuthToken(null);
     setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
   }, []);
 
   return (
     <AuthContext.Provider value={{
-      user, isAuthenticated: !!user, login, register, logout,
+      user, isAuthenticated: !!user, loading, login, register, logout,
       showAuthModal, authModalView, authRedirect,
       openAuthModal, closeAuthModal, switchAuthView,
     }}>

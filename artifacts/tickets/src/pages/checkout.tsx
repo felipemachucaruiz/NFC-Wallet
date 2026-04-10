@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, Link } from "wouter";
-import { CreditCard, Smartphone, Building2, Check, AlertCircle } from "lucide-react";
+import { Smartphone, Building2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
-import { formatPrice } from "@/data/mockEvents";
+import { formatPrice } from "@/lib/format";
+import { purchaseTickets } from "@/lib/api";
 
 interface CheckoutData {
   eventId: string;
@@ -24,14 +28,38 @@ interface CheckoutData {
   currencyCode: string;
 }
 
+const PSE_BANKS = [
+  { code: "1007", name: "Bancolombia" },
+  { code: "1009", name: "Citibank" },
+  { code: "1013", name: "BBVA" },
+  { code: "1019", name: "Scotiabank" },
+  { code: "1023", name: "Banco de Occidente" },
+  { code: "1032", name: "Banco Caja Social" },
+  { code: "1040", name: "Banco Agrario" },
+  { code: "1051", name: "Davivienda" },
+  { code: "1052", name: "AV Villas" },
+  { code: "1062", name: "Banco Falabella" },
+  { code: "1063", name: "Banco Finandina" },
+  { code: "1065", name: "Banco Santander" },
+  { code: "1066", name: "Banco Cooperativo" },
+  { code: "1507", name: "Nequi" },
+  { code: "1151", name: "Rappipay" },
+];
+
 export default function Checkout() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
-  const { isAuthenticated, openAuthModal } = useAuth();
+  const { isAuthenticated, user, openAuthModal } = useAuth();
   const [data, setData] = useState<CheckoutData | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "nequi" | "pse">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"nequi" | "pse">("nequi");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
+
+  const [nequiPhone, setNequiPhone] = useState("");
+  const [pseBank, setPseBank] = useState("");
+  const [pseLegalId, setPseLegalId] = useState("");
+  const [pseLegalIdType, setPseLegalIdType] = useState<"CC" | "CE" | "NIT" | "PP" | "TI">("CC");
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -53,15 +81,56 @@ export default function Checkout() {
 
   if (!data) return null;
 
-  const handlePayNow = () => {
-    if (!termsAccepted) return;
+  const isPaymentValid = () => {
+    if (paymentMethod === "nequi") return /^\d{10}$/.test(nequiPhone.replace(/\s/g, ""));
+    if (paymentMethod === "pse") return pseBank.length > 0 && pseLegalId.length > 0;
+    return false;
+  };
+
+  const handlePayNow = async () => {
+    if (!termsAccepted || !isPaymentValid()) return;
     setProcessing(true);
-    sessionStorage.setItem("tapee_payment_status", "processing");
-    navigate("/payment-status");
+    setError("");
+
+    try {
+      const purchaseData: Parameters<typeof purchaseTickets>[0] = {
+        eventId: data.eventId,
+        attendees: data.attendees.map((a) => ({
+          name: a.name,
+          email: a.email,
+          phone: a.phone || undefined,
+          ticketTypeId: data.ticketTypeId,
+        })),
+        paymentMethod,
+      };
+
+      if (paymentMethod === "nequi") {
+        purchaseData.phoneNumber = nequiPhone.replace(/\s/g, "");
+      } else if (paymentMethod === "pse") {
+        purchaseData.bankCode = pseBank;
+        purchaseData.userLegalId = pseLegalId;
+        purchaseData.userLegalIdType = pseLegalIdType;
+      }
+
+      const result = await purchaseTickets(purchaseData);
+
+      sessionStorage.removeItem("tapee_checkout");
+      sessionStorage.setItem("tapee_order_id", result.orderId);
+      sessionStorage.setItem("tapee_order_status", result.status);
+
+      if (result.redirectUrl) {
+        window.location.href = result.redirectUrl;
+        return;
+      }
+
+      navigate("/payment-status");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al procesar la compra");
+      setProcessing(false);
+    }
   };
 
   const methods = [
-    { id: "card" as const, icon: CreditCard, label: t("checkout.creditCard") },
     { id: "nequi" as const, icon: Smartphone, label: t("checkout.nequi") },
     { id: "pse" as const, icon: Building2, label: t("checkout.pse") },
   ];
@@ -70,6 +139,13 @@ export default function Checkout() {
     <div className="min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold mb-6">{t("checkout.title")}</h1>
+
+        {error && (
+          <div className="p-4 bg-destructive/10 text-destructive text-sm rounded-lg mb-6 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           <div className="lg:col-span-3 space-y-6">
@@ -93,7 +169,7 @@ export default function Checkout() {
 
             <div className="bg-card rounded-xl border border-border p-5">
               <h2 className="font-semibold mb-4">{t("checkout.paymentMethod")}</h2>
-              <div className="space-y-2">
+              <div className="space-y-2 mb-4">
                 {methods.map((m) => (
                   <button
                     key={m.id}
@@ -101,6 +177,7 @@ export default function Checkout() {
                       paymentMethod === m.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                     }`}
                     onClick={() => setPaymentMethod(m.id)}
+                    disabled={processing}
                   >
                     <m.icon className="w-5 h-5" />
                     <span className="text-sm font-medium">{m.label}</span>
@@ -108,6 +185,67 @@ export default function Checkout() {
                   </button>
                 ))}
               </div>
+
+              {paymentMethod === "nequi" && (
+                <div className="space-y-2">
+                  <Label>Número Nequi</Label>
+                  <Input
+                    type="tel"
+                    value={nequiPhone}
+                    onChange={(e) => setNequiPhone(e.target.value)}
+                    placeholder="3001234567"
+                    maxLength={10}
+                    disabled={processing}
+                  />
+                  <p className="text-xs text-muted-foreground">Ingresa tu número de teléfono Nequi (10 dígitos)</p>
+                </div>
+              )}
+
+              {paymentMethod === "pse" && (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Banco</Label>
+                    <Select value={pseBank} onValueChange={setPseBank} disabled={processing}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Selecciona un banco" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PSE_BANKS.map((bank) => (
+                          <SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Tipo de documento</Label>
+                      <Select value={pseLegalIdType} onValueChange={(v) => setPseLegalIdType(v as typeof pseLegalIdType)} disabled={processing}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
+                          <SelectItem value="CE">Cédula de Extranjería</SelectItem>
+                          <SelectItem value="NIT">NIT</SelectItem>
+                          <SelectItem value="PP">Pasaporte</SelectItem>
+                          <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Número de documento</Label>
+                      <Input
+                        type="text"
+                        value={pseLegalId}
+                        onChange={(e) => setPseLegalId(e.target.value)}
+                        placeholder="1234567890"
+                        className="mt-1"
+                        disabled={processing}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -134,6 +272,7 @@ export default function Checkout() {
                   id="terms"
                   checked={termsAccepted}
                   onCheckedChange={(checked) => setTermsAccepted(!!checked)}
+                  disabled={processing}
                 />
                 <label htmlFor="terms" className="text-xs text-muted-foreground cursor-pointer leading-tight">
                   {t("checkout.terms")}
@@ -143,7 +282,7 @@ export default function Checkout() {
               <Button
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                 size="lg"
-                disabled={!termsAccepted || processing}
+                disabled={!termsAccepted || processing || !isPaymentValid()}
                 onClick={handlePayNow}
               >
                 {processing ? t("checkout.processing") : t("checkout.payNow")}

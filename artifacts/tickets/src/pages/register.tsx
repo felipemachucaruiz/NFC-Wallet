@@ -37,8 +37,8 @@ export default function Register() {
       if (success) {
         navigate(redirect === "checkout" ? "/checkout" : "/");
       }
-    } catch {
-      setError("Registration failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }

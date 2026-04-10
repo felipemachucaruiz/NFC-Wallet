@@ -1,17 +1,19 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useRoute, useLocation } from "wouter";
-import { Calendar, MapPin, Clock, Shield, User as UserIcon, ChevronDown, ChevronUp, ExternalLink, X } from "lucide-react";
+import { Calendar, MapPin, Clock, Shield, User as UserIcon, ChevronDown, ChevronUp, ExternalLink, X, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { getEventById, formatPrice, formatFullDate } from "@/data/mockEvents";
+import { formatPrice, formatFullDate } from "@/lib/format";
 import type { EventData, TicketType } from "@/data/types";
 import { VenueMap } from "@/components/VenueMap";
 import { TicketSelector } from "@/components/TicketSelector";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { fetchEventDetail, type ApiEventDetail } from "@/lib/api";
 
 function DarkMapEmbed({ lat, lng }: { lat: number; lng: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,6 +44,105 @@ function DarkMapEmbed({ lat, lng }: { lat: number; lng: number }) {
   return <div ref={containerRef} style={{ width: "100%", height: "250px", backgroundColor: "#0a0a0a", position: "relative", zIndex: 0 }} />;
 }
 
+function mapApiToEventData(detail: ApiEventDetail): EventData {
+  const { event, eventDays, venues, sections, ticketTypes } = detail;
+  const venue = venues[0];
+
+  const mappedDays = eventDays.map((d, i) => ({
+    dayNumber: i + 1,
+    label: d.label || `Day ${i + 1}`,
+    date: d.date,
+    doorTime: d.doorsOpenAt ? new Date(d.doorsOpenAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "N/A",
+  }));
+
+  const dayIdToLabel = new Map(eventDays.map((d) => [d.id, d.label || d.date]));
+
+  const mappedTicketTypes: TicketType[] = ticketTypes.map((tt) => {
+    let status: "available" | "limited" | "sold_out" = "available";
+    if (tt.available <= 0) status = "sold_out";
+    else if (tt.available < tt.total * 0.1) status = "limited";
+
+    const validDaysStr = tt.validEventDayIds
+      ? tt.validEventDayIds.map((id) => dayIdToLabel.get(id) || id).join(", ")
+      : mappedDays.map((d) => d.label).join(", ");
+
+    return {
+      id: tt.ticketTypeId,
+      name: tt.name,
+      validDays: validDaysStr,
+      price: tt.price,
+      availableCount: tt.available,
+      maxPerOrder: 6,
+      sectionId: tt.sectionId || undefined,
+      status,
+    };
+  });
+
+  const mappedSections = sections.map((sec) => {
+    const sectionTickets = mappedTicketTypes.filter((tt) => tt.sectionId === sec.id);
+    let sectionStatus: "available" | "limited" | "sold_out" | "na" = "na";
+    if (sectionTickets.length > 0) {
+      if (sectionTickets.every((t) => t.status === "sold_out")) sectionStatus = "sold_out";
+      else if (sectionTickets.some((t) => t.status === "limited")) sectionStatus = "limited";
+      else sectionStatus = "available";
+    }
+
+    return {
+      id: sec.id,
+      name: sec.name,
+      svgPath: "",
+      color: sec.colorHex || "#22c55e",
+      status: sectionStatus,
+      ticketTypes: sectionTickets,
+    };
+  });
+
+  const unsectionedTickets = mappedTicketTypes.filter((tt) => !tt.sectionId);
+  if (unsectionedTickets.length > 0 && sections.length === 0) {
+    mappedSections.push({
+      id: "sec-default",
+      name: "General",
+      svgPath: "",
+      color: "#22c55e",
+      status: unsectionedTickets.every((t) => t.status === "sold_out") ? "sold_out" : "available",
+      ticketTypes: unsectionedTickets,
+    });
+  }
+
+  const allSoldOut = mappedTicketTypes.length > 0 && mappedTicketTypes.every((t) => t.status === "sold_out");
+  const anyLimited = mappedTicketTypes.some((t) => t.status === "limited");
+
+  const priceFrom = mappedTicketTypes.length > 0 ? Math.min(...mappedTicketTypes.map((t) => t.price)) : 0;
+
+  return {
+    id: event.id,
+    name: event.name,
+    description: event.longDescription || event.description || "",
+    coverImage: event.coverImageUrl || "",
+    flyerImage: event.flyerImageUrl || "",
+    category: event.category || "",
+    venueName: venue?.name || "",
+    venueAddress: venue?.address || event.venueAddress || "",
+    city: venue?.city || "",
+    startsAt: event.startsAt || "",
+    endsAt: event.endsAt || "",
+    timezone: "America/Bogota",
+    minAge: event.minAge,
+    organizer: "",
+    latitude: event.latitude ? parseFloat(event.latitude) : 0,
+    longitude: event.longitude ? parseFloat(event.longitude) : 0,
+    priceFrom,
+    currencyCode: event.currencyCode || "COP",
+    isMultiDay: eventDays.length > 1,
+    days: mappedDays,
+    ticketTypes: mappedTicketTypes,
+    sections: mappedSections,
+    salesStartAt: null,
+    status: allSoldOut ? "sold_out" : anyLimited ? "limited" : "available",
+    active: true,
+  };
+}
+
 export default function EventDetail() {
   const { t, i18n } = useTranslation();
   const [, params] = useRoute("/event/:id");
@@ -51,9 +152,24 @@ export default function EventDetail() {
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [selectedSectionName, setSelectedSectionName] = useState("");
 
-  const event = useMemo(() => params?.id ? getEventById(params.id) : undefined, [params?.id]);
+  const { data: detail, isLoading, error: fetchError } = useQuery({
+    queryKey: ["event-detail", params?.id],
+    queryFn: () => fetchEventDetail(params!.id),
+    enabled: !!params?.id,
+    staleTime: 30_000,
+  });
 
-  if (!event) {
+  const event = useMemo(() => detail ? mapApiToEventData(detail) : undefined, [detail]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!event || fetchError) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">{t("common.eventNotFound")}</p>
@@ -83,13 +199,15 @@ export default function EventDetail() {
           <Badge variant="secondary" className="mb-2">{t(`home.filters.${event.category}`)}</Badge>
           <h1 className="text-3xl md:text-4xl font-bold mb-2">{event.name}</h1>
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4" />
-              {formatFullDate(event.startsAt)}
-            </span>
+            {event.startsAt && (
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" />
+                {formatFullDate(event.startsAt)}
+              </span>
+            )}
             <span className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4" />
-              {event.venueName}, {event.city}
+              {event.venueName ? `${event.venueName}, ` : ""}{event.city || event.venueAddress}
             </span>
           </div>
         </div>
@@ -104,7 +222,9 @@ export default function EventDetail() {
                 {event.minAge && (
                   <InfoRow icon={<Shield className="w-4 h-4" />} label={t("event.minAge")} value={`${event.minAge} ${t("event.years")}`} />
                 )}
-                <InfoRow icon={<UserIcon className="w-4 h-4" />} label={t("event.organizer")} value={event.organizer} />
+                {event.organizer && (
+                  <InfoRow icon={<UserIcon className="w-4 h-4" />} label={t("event.organizer")} value={event.organizer} />
+                )}
               </div>
               {event.flyerImage && (
                 <div
@@ -154,32 +274,36 @@ export default function EventDetail() {
               )}
             </div>
 
-            <div>
-              <h2 className="text-xl font-semibold mb-4">{t("event.location")}</h2>
-              <div className="bg-card rounded-lg border border-border overflow-hidden">
-                <div className="p-4">
-                  <p className="font-medium">{event.venueName}</p>
-                  <p className="text-sm text-muted-foreground">{event.venueAddress}</p>
-                </div>
-                <DarkMapEmbed lat={event.latitude!} lng={event.longitude!} />
-                <div className="p-3">
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
-                  >
-                    {t("event.getDirections")}
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+            {event.latitude !== 0 && event.longitude !== 0 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">{t("event.location")}</h2>
+                <div className="bg-card rounded-lg border border-border overflow-hidden">
+                  <div className="p-4">
+                    {event.venueName && <p className="font-medium">{event.venueName}</p>}
+                    <p className="text-sm text-muted-foreground">{event.venueAddress}</p>
+                  </div>
+                  <DarkMapEmbed lat={event.latitude} lng={event.longitude} />
+                  <div className="p-3">
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      {t("event.getDirections")}
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div>
-              <h2 className="text-xl font-semibold mb-4">{t("venueMap.title")}</h2>
-              <VenueMap event={event} onSelectTicket={handleTicketSelect} />
-            </div>
+            {event.sections.length > 0 && event.sections.some((s) => s.svgPath) && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">{t("venueMap.title")}</h2>
+                <VenueMap event={event} onSelectTicket={handleTicketSelect} />
+              </div>
+            )}
           </div>
 
           <div className="lg:col-span-1">
