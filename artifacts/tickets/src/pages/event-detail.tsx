@@ -248,7 +248,9 @@ export default function EventDetail() {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto flex items-end justify-between gap-6">
           <div className="flex-1 min-w-0">
-            <Badge variant="secondary" className="mb-2">{t(`home.filters.${event.category}`)}</Badge>
+            {event.category && (
+              <Badge variant="secondary" className="mb-2">{t(`home.filters.${event.category}`, event.category)}</Badge>
+            )}
             <h1 className="text-3xl md:text-4xl font-bold mb-2">{event.name}</h1>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               {event.startsAt && (

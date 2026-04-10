@@ -282,7 +282,7 @@ function EventCard({ event }: { event: ApiEvent }) {
           <div className="absolute bottom-3 left-3">
             {event.category && (
               <Badge variant="secondary" className="bg-background/80 backdrop-blur-sm text-xs">
-                {t(`home.filters.${event.category}` as any) || event.category}
+                {t(`home.filters.${event.category}`, event.category)}
               </Badge>
             )}
           </div>
