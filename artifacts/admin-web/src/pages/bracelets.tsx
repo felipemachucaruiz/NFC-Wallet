@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useListEvents,
   useListEventBracelets,
@@ -7,6 +7,7 @@ import {
   useDeleteAdminBracelet,
   getListEventBraceletsQueryKey,
   useFlagBracelet,
+  customFetch,
 } from "@workspace/api-client-react";
 import type { EventBracelet } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -27,26 +28,40 @@ export default function Bracelets() {
   const { data: eventsData, isLoading: eventsLoading } = useListEvents();
   const events = eventsData?.events ?? [];
 
-  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [selectedEventId, setSelectedEventId] = useState<string>("__all__");
   const [flaggedFilter, setFlaggedFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [freezeOpen, setFreezeOpen] = useState(false);
   const [selected, setSelected] = useState<EventBracelet | null>(null);
 
+  const isAllEvents = selectedEventId === "__all__";
   const queryParams = { search: search || undefined };
-  const { data, isLoading: braceletsLoading } = useListEventBracelets(
+
+  const { data: allBraceletsData, isLoading: allBraceletsLoading } = useQuery({
+    queryKey: ["admin-bracelets-all", search],
+    queryFn: async () => {
+      const qs = new URLSearchParams();
+      qs.set("limit", "100");
+      if (search) qs.set("search", search);
+      return customFetch<{ bracelets: EventBracelet[]; total: number }>(`/api/admin/bracelets?${qs}`);
+    },
+    enabled: isAllEvents,
+  });
+
+  const { data: eventBraceletsData, isLoading: eventBraceletsLoading } = useListEventBracelets(
     selectedEventId,
     queryParams,
     {
       query: {
-        enabled: !!selectedEventId,
+        enabled: !isAllEvents && !!selectedEventId,
         queryKey: getListEventBraceletsQueryKey(selectedEventId, queryParams),
       },
     }
   );
 
-  const bracelets = data?.bracelets ?? [];
+  const braceletsLoading = isAllEvents ? allBraceletsLoading : eventBraceletsLoading;
+  const bracelets = isAllEvents ? (allBraceletsData?.bracelets ?? []) : (eventBraceletsData?.bracelets ?? []);
   const filteredBracelets =
     flaggedFilter === "flagged"
       ? bracelets.filter((b) => b.flagged)
@@ -58,8 +73,13 @@ export default function Bracelets() {
   const flagB = useFlagBracelet();
   const deleteB = useDeleteAdminBracelet();
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: getListEventBraceletsQueryKey(selectedEventId) });
+  const invalidate = () => {
+    if (isAllEvents) {
+      queryClient.invalidateQueries({ queryKey: ["admin-bracelets-all"] });
+    } else {
+      queryClient.invalidateQueries({ queryKey: getListEventBraceletsQueryKey(selectedEventId) });
+    }
+  };
 
   const handleUnflag = (bracelet: EventBracelet) => {
     unflag.mutate(
@@ -120,6 +140,9 @@ export default function Bracelets() {
             <SelectValue placeholder={eventsLoading ? t("common.loading") : t("eventsMap.selectAnEvent")} />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="__all__">
+              <span className="font-medium">{t("wristbands.allEvents", "Todos los eventos")}</span>
+            </SelectItem>
             {events.map((event) => (
               <SelectItem key={event.id} value={event.id}>
                 <span className="flex items-center gap-2">
@@ -162,19 +185,16 @@ export default function Bracelets() {
         )}
       </div>
 
-      {!selectedEventId ? (
-        <div className="border border-border rounded-lg bg-card flex flex-col items-center justify-center py-20 text-center gap-3">
-          <Ticket className="w-10 h-10 text-muted-foreground/40" />
-          <div>
-            <p className="font-medium text-foreground">{t("eventsMap.selectAnEvent")}</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t("eventsMap.chooseEvent")}
-            </p>
-          </div>
-        </div>
-      ) : (
+      {
         <div className="border border-border rounded-lg bg-card">
-          {selectedEvent && (
+          {isAllEvents ? (
+            <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{t("wristbands.allEvents", "Todos los eventos")}</span>
+              <Badge variant="outline" className="text-xs">
+                {events.length} {t("nav.events", "eventos")}
+              </Badge>
+            </div>
+          ) : selectedEvent ? (
             <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{selectedEvent.name}</span>
               <Badge variant={selectedEvent.active ? "default" : "secondary"} className="text-xs">
@@ -184,12 +204,13 @@ export default function Bracelets() {
                 <span className="truncate max-w-xs">{selectedEvent.venueAddress}</span>
               )}
             </div>
-          )}
+          ) : null}
 
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("wristbands.colNfcUid")}</TableHead>
+                {isAllEvents && <TableHead>{t("nav.events", "Evento")}</TableHead>}
                 <TableHead>{t("wristbands.colOwner")}</TableHead>
                 <TableHead>{t("wristbands.colBalance")}</TableHead>
                 <TableHead>{t("wristbands.colStatus")}</TableHead>
@@ -200,13 +221,13 @@ export default function Bracelets() {
             <TableBody>
               {braceletsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={isAllEvents ? 7 : 6} className="text-center py-8">
                     {t("common.loading")}
                   </TableCell>
                 </TableRow>
               ) : filteredBracelets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAllEvents ? 7 : 6} className="text-center py-8 text-muted-foreground">
                     {t("wristbands.noBracelets")}
                   </TableCell>
                 </TableRow>
@@ -214,6 +235,11 @@ export default function Bracelets() {
                 filteredBracelets.map((bracelet) => (
                   <TableRow key={bracelet.id} data-testid={`row-bracelet-${bracelet.id}`}>
                     <TableCell className="font-mono text-sm">{bracelet.nfcUid}</TableCell>
+                    {isAllEvents && (
+                      <TableCell className="text-sm text-muted-foreground">
+                        {(bracelet as any).eventName ?? events.find((e) => e.id === bracelet.eventId)?.name ?? "—"}
+                      </TableCell>
+                    )}
                     <TableCell className="text-sm">
                       <div>
                         {bracelet.attendeeName && (
@@ -284,9 +310,12 @@ export default function Bracelets() {
             </TableBody>
           </Table>
 
-          {data && (
+          {(isAllEvents ? allBraceletsData : eventBraceletsData) && (
             <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border">
-              {t("wristbands.showingOf", { showing: filteredBracelets.length, total: data.total })}
+              {t("wristbands.showingOf", {
+                showing: filteredBracelets.length,
+                total: isAllEvents ? (allBraceletsData?.total ?? 0) : ((eventBraceletsData as any)?.total ?? filteredBracelets.length),
+              })}
             </div>
           )}
         </div>
