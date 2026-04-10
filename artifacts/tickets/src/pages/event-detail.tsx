@@ -169,6 +169,7 @@ export default function EventDetail() {
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [selectedSectionName, setSelectedSectionName] = useState("");
   const [preSelectedUnitId, setPreSelectedUnitId] = useState<string | null>(null);
+  const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
 
   const { data: detail, isLoading, error: fetchError } = useQuery({
     queryKey: ["event-detail", params?.id],
@@ -221,6 +222,19 @@ export default function EventDetail() {
     setSelectedTicket(ticket);
     setSelectedSectionName(section?.name || ticket.name);
   };
+
+  const handleSectionClick = useCallback((sectionId: string) => {
+    setHighlightedSectionId(sectionId);
+    const section = event.sections.find((s) => s.id === sectionId);
+    if (section && section.ticketTypes.length > 0) {
+      const firstTicket = section.ticketTypes[0];
+      const el = document.getElementById(`ticket-card-${firstTicket.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+    setTimeout(() => setHighlightedSectionId(null), 3000);
+  }, [event]);
 
   return (
     <div className="min-h-screen">
@@ -389,7 +403,7 @@ export default function EventDetail() {
             {(event.sections.length > 0 || event.floorplanImage) && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">{t("venueMap.title")}</h2>
-                <VenueMap event={event} onSelectTicket={handleTicketSelect} onSelectUnit={handleUnitSelect} selectedUnitId={preSelectedUnitId} />
+                <VenueMap event={event} onSelectTicket={handleTicketSelect} onSelectUnit={handleUnitSelect} onSectionClick={handleSectionClick} selectedUnitId={preSelectedUnitId} />
               </div>
             )}
 
@@ -423,18 +437,23 @@ export default function EventDetail() {
               <div className="bg-card rounded-xl border border-border p-5">
                 <h2 className="text-lg font-semibold mb-4">{t("event.pricing")}</h2>
                 <div className="space-y-3">
-                  {event.ticketTypes.map((tt) => (
+                  {event.ticketTypes.map((tt) => {
+                    const ttSection = event.sections.find((s) => s.ticketTypes.some((t) => t.id === tt.id));
+                    const isHighlighted = highlightedSectionId != null && ttSection?.id === highlightedSectionId;
+                    return (
                     <div
                       key={tt.id}
-                      className={`p-3 rounded-lg border transition-colors ${
+                      id={`ticket-card-${tt.id}`}
+                      className={`p-3 rounded-lg border transition-all duration-300 ${
                         tt.status === "sold_out"
                           ? "border-border opacity-50"
-                          : "border-border hover:border-primary/50 cursor-pointer"
+                          : isHighlighted
+                            ? "border-primary bg-primary/10 ring-1 ring-primary shadow-lg shadow-primary/20 cursor-pointer"
+                            : "border-border hover:border-primary/50 cursor-pointer"
                       }`}
                       onClick={() => {
                         if (tt.status !== "sold_out") {
-                          const section = event.sections.find((s) => s.ticketTypes.some((t) => t.id === tt.id));
-                          handleTicketSelect(tt, section?.name || "");
+                          handleTicketSelect(tt, ttSection?.name || "");
                         }
                       }}
                     >
@@ -458,7 +477,8 @@ export default function EventDetail() {
                         </p>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <Separator className="my-4" />
                 {isSoldOut ? (
