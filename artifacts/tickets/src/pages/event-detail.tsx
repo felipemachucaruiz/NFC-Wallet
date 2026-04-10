@@ -136,7 +136,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     floorplanImage: venue?.floorplanImageUrl ? resolveImageUrl(venue.floorplanImageUrl) : "",
     category: event.category || "",
     venueName: venue?.name || "",
-    venueAddress: venue?.address || event.venueAddress || "",
+    venueAddress: event.venueAddress || venue?.address || "",
     city: venue?.city || "",
     promoterCompanyName: detail.promoterCompany?.companyName || "",
     promoterNit: detail.promoterCompany?.nit || "",

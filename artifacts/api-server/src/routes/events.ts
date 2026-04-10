@@ -3,7 +3,7 @@ import { hashPassword } from "../lib/bcryptWorker";
 import crypto, { randomUUID } from "crypto";
 import multer from "multer";
 import { Storage } from "@google-cloud/storage";
-import { db, eventsTable, eventDaysTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable, convertToCOP, getExchangeRatesForDisplay } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable, venuesTable, convertToCOP, getExchangeRatesForDisplay } from "@workspace/db";
 import { eq, sql, and, ilike, or, count, sum, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { uploadObject, isBucketConfigured } from "../lib/objectStorage";
@@ -454,6 +454,19 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
   if (!event) {
     res.status(404).json({ error: "Event not found" });
     return;
+  }
+
+  if (venueAddress !== undefined || latitude !== undefined || longitude !== undefined) {
+    const venueUpdate: Record<string, unknown> = {};
+    if (venueAddress !== undefined) venueUpdate.address = venueAddress;
+    if (latitude !== undefined) venueUpdate.latitude = latitude !== null ? String(latitude) : null;
+    if (longitude !== undefined) venueUpdate.longitude = longitude !== null ? String(longitude) : null;
+    if (Object.keys(venueUpdate).length > 0) {
+      await db
+        .update(venuesTable)
+        .set(venueUpdate)
+        .where(eq(venuesTable.eventId, eventId));
+    }
   }
 
   if (ticketingEnabled === true) {
