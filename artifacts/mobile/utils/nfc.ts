@@ -877,6 +877,7 @@ export async function scanAndWriteBracelet(
 
   // ── iOS: single NDEF session covers both read and write ──────────────────
   if (Platform.OS === "ios") {
+    await NfcManager.cancelTechnologyRequest().catch(() => {});
     try {
       await NfcManager.requestTechnology(NfcTech.Ndef);
       const tag = await NfcManager.getTag();
@@ -914,6 +915,7 @@ export async function scanAndWriteBracelet(
   // ── Android: request all tech types once, then read + write in same session.
   // Prioritize the expected chip technology first for better foreground dispatch.
   const preferMifareWrite = opts?.expectedChipType === "mifare_classic";
+  await NfcManager.cancelTechnologyRequest().catch(() => {});
   try {
     await NfcManager.requestTechnology(
       preferMifareWrite

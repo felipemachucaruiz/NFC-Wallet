@@ -361,7 +361,9 @@ export default function TopUpScreen() {
         void syncToServer(true);
         setStep("success");
         return true;
-      } catch {
+      } catch (e: unknown) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        console.error("[TopUp] scanAndWrite error:", errMsg);
         return false;
       }
     };

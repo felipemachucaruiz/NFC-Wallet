@@ -355,6 +355,7 @@ export async function scanAndWriteDesfireBracelet(
 
   const tagInfo: DesfireTagInfo = { type: "DESFIRE_EV3", label: "DESFire EV3", memoryBytes: 8192 };
 
+  await NfcManager.cancelTechnologyRequest().catch(() => {});
   try {
     await NfcManager.requestTechnology([NfcTech.IsoDep]);
     const tag = await NfcManager.getTag();
