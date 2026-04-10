@@ -6,6 +6,43 @@ import { Layout } from "@/components/layout";
 import { useGetCurrentAuthUser, useGetEvent, setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { AUTH_TOKEN_KEY } from "@/pages/login";
 import { EventProvider, useEventContext } from "@/contexts/event-context";
+import React from "react";
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("ErrorBoundary caught:", error, info.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-8">
+          <div className="max-w-md text-center space-y-4">
+            <h1 className="text-2xl font-bold text-destructive">Something went wrong</h1>
+            <p className="text-muted-foreground text-sm">{this.state.error?.message}</p>
+            <pre className="text-xs text-left bg-muted p-3 rounded overflow-auto max-h-40">{this.state.error?.stack}</pre>
+            <button
+              className="px-4 py-2 bg-primary text-primary-foreground rounded"
+              onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 setBaseUrl(
   import.meta.env.PROD
@@ -247,16 +284,18 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <EventProvider>
-            <Router />
-          </EventProvider>
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <EventProvider>
+              <Router />
+            </EventProvider>
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
