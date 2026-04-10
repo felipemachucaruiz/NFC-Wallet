@@ -961,6 +961,9 @@
     "singleDay": "Single Day",
     "customDays": "Custom Days",
     "requiredFields": "Name, price, and quantity are required.",
+    "colServiceFee": "Ticket Service",
+    "serviceFeesSummary": "Ticket Service summary per event",
+    "totalServiceFee": "Total event Ticket Service",
     "created": "Ticket type created",
     "updated": "Ticket type updated",
     "deleted": "Ticket type deleted"

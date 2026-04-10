@@ -42,12 +42,12 @@ export const mockEvents: EventData[] = [
       { dayNumber: 3, label: "Día 3 - Domingo", date: "2026-11-17", doorTime: "1:00 PM" },
     ],
     ticketTypes: [
-      { id: "tt-001", name: "Abono 3 días - General", validDays: "Viernes, Sábado, Domingo", price: 650000, availableCount: 1200, maxPerOrder: 4, status: "available" },
-      { id: "tt-002", name: "Abono 3 días - VIP", validDays: "Viernes, Sábado, Domingo", price: 1200000, availableCount: 80, maxPerOrder: 4, status: "limited" },
-      { id: "tt-003", name: "Solo Viernes - General", validDays: "Viernes", price: 250000, availableCount: 500, maxPerOrder: 6, status: "available" },
-      { id: "tt-004", name: "Solo Sábado - General", validDays: "Sábado", price: 280000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
-      { id: "tt-005", name: "Solo Domingo - General", validDays: "Domingo", price: 250000, availableCount: 300, maxPerOrder: 6, status: "available" },
-      { id: "tt-006", name: "Solo Viernes - VIP", validDays: "Viernes", price: 450000, availableCount: 45, maxPerOrder: 4, status: "limited" },
+      { id: "tt-001", name: "Abono 3 días - General", validDays: "Viernes, Sábado, Domingo", price: 650000, serviceFee: 52000, availableCount: 1200, maxPerOrder: 4, status: "available" },
+      { id: "tt-002", name: "Abono 3 días - VIP", validDays: "Viernes, Sábado, Domingo", price: 1200000, serviceFee: 96000, availableCount: 80, maxPerOrder: 4, status: "limited" },
+      { id: "tt-003", name: "Solo Viernes - General", validDays: "Viernes", price: 250000, serviceFee: 20000, availableCount: 500, maxPerOrder: 6, status: "available" },
+      { id: "tt-004", name: "Solo Sábado - General", validDays: "Sábado", price: 280000, serviceFee: 22400, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
+      { id: "tt-005", name: "Solo Domingo - General", validDays: "Domingo", price: 250000, serviceFee: 20000, availableCount: 300, maxPerOrder: 6, status: "available" },
+      { id: "tt-006", name: "Solo Viernes - VIP", validDays: "Viernes", price: 450000, serviceFee: 36000, availableCount: 45, maxPerOrder: 4, status: "limited" },
     ],
     sections: [
       {
@@ -57,10 +57,10 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-001", name: "Abono 3 días - General", validDays: "Viernes, Sábado, Domingo", price: 650000, availableCount: 1200, maxPerOrder: 4, status: "available" },
-          { id: "tt-003", name: "Solo Viernes - General", validDays: "Viernes", price: 250000, availableCount: 500, maxPerOrder: 6, status: "available" },
-          { id: "tt-004", name: "Solo Sábado - General", validDays: "Sábado", price: 280000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
-          { id: "tt-005", name: "Solo Domingo - General", validDays: "Domingo", price: 250000, availableCount: 300, maxPerOrder: 6, status: "available" },
+          { id: "tt-001", name: "Abono 3 días - General", validDays: "Viernes, Sábado, Domingo", price: 650000, serviceFee: 52000, availableCount: 1200, maxPerOrder: 4, status: "available" },
+          { id: "tt-003", name: "Solo Viernes - General", validDays: "Viernes", price: 250000, serviceFee: 20000, availableCount: 500, maxPerOrder: 6, status: "available" },
+          { id: "tt-004", name: "Solo Sábado - General", validDays: "Sábado", price: 280000, serviceFee: 22400, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
+          { id: "tt-005", name: "Solo Domingo - General", validDays: "Domingo", price: 250000, serviceFee: 20000, availableCount: 300, maxPerOrder: 6, status: "available" },
         ],
       },
       {
@@ -70,8 +70,8 @@ export const mockEvents: EventData[] = [
         color: "#eab308",
         status: "limited",
         ticketTypes: [
-          { id: "tt-002", name: "Abono 3 días - VIP", validDays: "Viernes, Sábado, Domingo", price: 1200000, availableCount: 80, maxPerOrder: 4, status: "limited" },
-          { id: "tt-006", name: "Solo Viernes - VIP", validDays: "Viernes", price: 450000, availableCount: 45, maxPerOrder: 4, status: "limited" },
+          { id: "tt-002", name: "Abono 3 días - VIP", validDays: "Viernes, Sábado, Domingo", price: 1200000, serviceFee: 96000, availableCount: 80, maxPerOrder: 4, status: "limited" },
+          { id: "tt-006", name: "Solo Viernes - VIP", validDays: "Viernes", price: 450000, serviceFee: 36000, availableCount: 45, maxPerOrder: 4, status: "limited" },
         ],
       },
     ],
@@ -105,10 +105,10 @@ export const mockEvents: EventData[] = [
       { dayNumber: 1, label: "Viernes 5 de Diciembre", date: "2026-12-05", doorTime: "5:00 PM" },
     ],
     ticketTypes: [
-      { id: "tt-010", name: "General", validDays: "5 Dic", price: 180000, availableCount: 5000, maxPerOrder: 6, status: "available" },
-      { id: "tt-011", name: "Preferencial", validDays: "5 Dic", price: 350000, availableCount: 1500, maxPerOrder: 4, status: "available" },
-      { id: "tt-012", name: "VIP", validDays: "5 Dic", price: 600000, availableCount: 200, maxPerOrder: 4, status: "limited" },
-      { id: "tt-013", name: "Platinum", validDays: "5 Dic", price: 1500000, availableCount: 0, maxPerOrder: 2, status: "sold_out" },
+      { id: "tt-010", name: "General", validDays: "5 Dic", price: 180000, serviceFee: 14400, availableCount: 5000, maxPerOrder: 6, status: "available" },
+      { id: "tt-011", name: "Preferencial", validDays: "5 Dic", price: 350000, serviceFee: 28000, availableCount: 1500, maxPerOrder: 4, status: "available" },
+      { id: "tt-012", name: "VIP", validDays: "5 Dic", price: 600000, serviceFee: 48000, availableCount: 200, maxPerOrder: 4, status: "limited" },
+      { id: "tt-013", name: "Platinum", validDays: "5 Dic", price: 1500000, serviceFee: 120000, availableCount: 0, maxPerOrder: 2, status: "sold_out" },
     ],
     sections: [
       {
@@ -118,7 +118,7 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-010", name: "General", validDays: "5 Dic", price: 180000, availableCount: 5000, maxPerOrder: 6, status: "available" },
+          { id: "tt-010", name: "General", validDays: "5 Dic", price: 180000, serviceFee: 14400, availableCount: 5000, maxPerOrder: 6, status: "available" },
         ],
       },
       {
@@ -128,7 +128,7 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-011", name: "Preferencial", validDays: "5 Dic", price: 350000, availableCount: 1500, maxPerOrder: 4, status: "available" },
+          { id: "tt-011", name: "Preferencial", validDays: "5 Dic", price: 350000, serviceFee: 28000, availableCount: 1500, maxPerOrder: 4, status: "available" },
         ],
       },
       {
@@ -138,7 +138,7 @@ export const mockEvents: EventData[] = [
         color: "#eab308",
         status: "limited",
         ticketTypes: [
-          { id: "tt-012", name: "VIP", validDays: "5 Dic", price: 600000, availableCount: 200, maxPerOrder: 4, status: "limited" },
+          { id: "tt-012", name: "VIP", validDays: "5 Dic", price: 600000, serviceFee: 48000, availableCount: 200, maxPerOrder: 4, status: "limited" },
         ],
       },
       {
@@ -148,7 +148,7 @@ export const mockEvents: EventData[] = [
         color: "#ef4444",
         status: "sold_out",
         ticketTypes: [
-          { id: "tt-013", name: "Platinum", validDays: "5 Dic", price: 1500000, availableCount: 0, maxPerOrder: 2, status: "sold_out" },
+          { id: "tt-013", name: "Platinum", validDays: "5 Dic", price: 1500000, serviceFee: 120000, availableCount: 0, maxPerOrder: 2, status: "sold_out" },
         ],
       },
     ],
@@ -181,10 +181,10 @@ export const mockEvents: EventData[] = [
       { dayNumber: 1, label: "Sábado 12 de Octubre", date: "2026-10-12", doorTime: "4:00 PM" },
     ],
     ticketTypes: [
-      { id: "tt-020", name: "Norte", validDays: "12 Oct", price: 80000, availableCount: 8000, maxPerOrder: 4, status: "available" },
-      { id: "tt-021", name: "Sur", validDays: "12 Oct", price: 80000, availableCount: 7500, maxPerOrder: 4, status: "available" },
-      { id: "tt-022", name: "Oriental", validDays: "12 Oct", price: 150000, availableCount: 3000, maxPerOrder: 4, status: "available" },
-      { id: "tt-023", name: "Occidental Preferencial", validDays: "12 Oct", price: 300000, availableCount: 100, maxPerOrder: 2, status: "limited" },
+      { id: "tt-020", name: "Norte", validDays: "12 Oct", price: 80000, serviceFee: 6400, availableCount: 8000, maxPerOrder: 4, status: "available" },
+      { id: "tt-021", name: "Sur", validDays: "12 Oct", price: 80000, serviceFee: 6400, availableCount: 7500, maxPerOrder: 4, status: "available" },
+      { id: "tt-022", name: "Oriental", validDays: "12 Oct", price: 150000, serviceFee: 12000, availableCount: 3000, maxPerOrder: 4, status: "available" },
+      { id: "tt-023", name: "Occidental Preferencial", validDays: "12 Oct", price: 300000, serviceFee: 24000, availableCount: 100, maxPerOrder: 2, status: "limited" },
     ],
     sections: [
       {
@@ -194,7 +194,7 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-020", name: "Norte", validDays: "12 Oct", price: 80000, availableCount: 8000, maxPerOrder: 4, status: "available" },
+          { id: "tt-020", name: "Norte", validDays: "12 Oct", price: 80000, serviceFee: 6400, availableCount: 8000, maxPerOrder: 4, status: "available" },
         ],
       },
       {
@@ -204,7 +204,7 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-021", name: "Sur", validDays: "12 Oct", price: 80000, availableCount: 7500, maxPerOrder: 4, status: "available" },
+          { id: "tt-021", name: "Sur", validDays: "12 Oct", price: 80000, serviceFee: 6400, availableCount: 7500, maxPerOrder: 4, status: "available" },
         ],
       },
       {
@@ -214,7 +214,7 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-022", name: "Oriental", validDays: "12 Oct", price: 150000, availableCount: 3000, maxPerOrder: 4, status: "available" },
+          { id: "tt-022", name: "Oriental", validDays: "12 Oct", price: 150000, serviceFee: 12000, availableCount: 3000, maxPerOrder: 4, status: "available" },
         ],
       },
       {
@@ -224,7 +224,7 @@ export const mockEvents: EventData[] = [
         color: "#eab308",
         status: "limited",
         ticketTypes: [
-          { id: "tt-023", name: "Occidental Preferencial", validDays: "12 Oct", price: 300000, availableCount: 100, maxPerOrder: 2, status: "limited" },
+          { id: "tt-023", name: "Occidental Preferencial", validDays: "12 Oct", price: 300000, serviceFee: 24000, availableCount: 100, maxPerOrder: 2, status: "limited" },
         ],
       },
     ],
@@ -257,9 +257,9 @@ export const mockEvents: EventData[] = [
       { dayNumber: 1, label: "Sábado 20 de Septiembre", date: "2026-09-20", doorTime: "7:00 PM" },
     ],
     ticketTypes: [
-      { id: "tt-030", name: "Balcón", validDays: "20 Sep", price: 120000, availableCount: 400, maxPerOrder: 6, status: "available" },
-      { id: "tt-031", name: "Platea", validDays: "20 Sep", price: 220000, availableCount: 200, maxPerOrder: 6, status: "available" },
-      { id: "tt-032", name: "Palco VIP", validDays: "20 Sep", price: 450000, availableCount: 30, maxPerOrder: 4, status: "limited" },
+      { id: "tt-030", name: "Balcón", validDays: "20 Sep", price: 120000, serviceFee: 9600, availableCount: 400, maxPerOrder: 6, status: "available" },
+      { id: "tt-031", name: "Platea", validDays: "20 Sep", price: 220000, serviceFee: 17600, availableCount: 200, maxPerOrder: 6, status: "available" },
+      { id: "tt-032", name: "Palco VIP", validDays: "20 Sep", price: 450000, serviceFee: 36000, availableCount: 30, maxPerOrder: 4, status: "limited" },
     ],
     sections: [
       {
@@ -269,7 +269,7 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-030", name: "Balcón", validDays: "20 Sep", price: 120000, availableCount: 400, maxPerOrder: 6, status: "available" },
+          { id: "tt-030", name: "Balcón", validDays: "20 Sep", price: 120000, serviceFee: 9600, availableCount: 400, maxPerOrder: 6, status: "available" },
         ],
       },
       {
@@ -279,7 +279,7 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-031", name: "Platea", validDays: "20 Sep", price: 220000, availableCount: 200, maxPerOrder: 6, status: "available" },
+          { id: "tt-031", name: "Platea", validDays: "20 Sep", price: 220000, serviceFee: 17600, availableCount: 200, maxPerOrder: 6, status: "available" },
         ],
       },
       {
@@ -289,7 +289,7 @@ export const mockEvents: EventData[] = [
         color: "#eab308",
         status: "limited",
         ticketTypes: [
-          { id: "tt-032", name: "Palco VIP", validDays: "20 Sep", price: 450000, availableCount: 30, maxPerOrder: 4, status: "limited" },
+          { id: "tt-032", name: "Palco VIP", validDays: "20 Sep", price: 450000, serviceFee: 36000, availableCount: 30, maxPerOrder: 4, status: "limited" },
         ],
       },
     ],
@@ -323,10 +323,10 @@ export const mockEvents: EventData[] = [
       { dayNumber: 2, label: "Día 2 - Sábado", date: "2027-01-16", doorTime: "2:00 PM" },
     ],
     ticketTypes: [
-      { id: "tt-040", name: "Abono 2 días - General", validDays: "Viernes, Sábado", price: 380000, availableCount: 3000, maxPerOrder: 4, status: "available" },
-      { id: "tt-041", name: "Abono 2 días - VIP", validDays: "Viernes, Sábado", price: 750000, availableCount: 500, maxPerOrder: 4, status: "available" },
-      { id: "tt-042", name: "Solo Viernes - General", validDays: "Viernes", price: 200000, availableCount: 1500, maxPerOrder: 6, status: "available" },
-      { id: "tt-043", name: "Solo Sábado - General", validDays: "Sábado", price: 220000, availableCount: 1200, maxPerOrder: 6, status: "available" },
+      { id: "tt-040", name: "Abono 2 días - General", validDays: "Viernes, Sábado", price: 380000, serviceFee: 30400, availableCount: 3000, maxPerOrder: 4, status: "available" },
+      { id: "tt-041", name: "Abono 2 días - VIP", validDays: "Viernes, Sábado", price: 750000, serviceFee: 60000, availableCount: 500, maxPerOrder: 4, status: "available" },
+      { id: "tt-042", name: "Solo Viernes - General", validDays: "Viernes", price: 200000, serviceFee: 16000, availableCount: 1500, maxPerOrder: 6, status: "available" },
+      { id: "tt-043", name: "Solo Sábado - General", validDays: "Sábado", price: 220000, serviceFee: 17600, availableCount: 1200, maxPerOrder: 6, status: "available" },
     ],
     sections: [
       {
@@ -336,9 +336,9 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-040", name: "Abono 2 días - General", validDays: "Viernes, Sábado", price: 380000, availableCount: 3000, maxPerOrder: 4, status: "available" },
-          { id: "tt-042", name: "Solo Viernes - General", validDays: "Viernes", price: 200000, availableCount: 1500, maxPerOrder: 6, status: "available" },
-          { id: "tt-043", name: "Solo Sábado - General", validDays: "Sábado", price: 220000, availableCount: 1200, maxPerOrder: 6, status: "available" },
+          { id: "tt-040", name: "Abono 2 días - General", validDays: "Viernes, Sábado", price: 380000, serviceFee: 30400, availableCount: 3000, maxPerOrder: 4, status: "available" },
+          { id: "tt-042", name: "Solo Viernes - General", validDays: "Viernes", price: 200000, serviceFee: 16000, availableCount: 1500, maxPerOrder: 6, status: "available" },
+          { id: "tt-043", name: "Solo Sábado - General", validDays: "Sábado", price: 220000, serviceFee: 17600, availableCount: 1200, maxPerOrder: 6, status: "available" },
         ],
       },
       {
@@ -348,7 +348,7 @@ export const mockEvents: EventData[] = [
         color: "#22c55e",
         status: "available",
         ticketTypes: [
-          { id: "tt-041", name: "Abono 2 días - VIP", validDays: "Viernes, Sábado", price: 750000, availableCount: 500, maxPerOrder: 4, status: "available" },
+          { id: "tt-041", name: "Abono 2 días - VIP", validDays: "Viernes, Sábado", price: 750000, serviceFee: 60000, availableCount: 500, maxPerOrder: 4, status: "available" },
         ],
       },
     ],
@@ -381,10 +381,10 @@ export const mockEvents: EventData[] = [
       { dayNumber: 1, label: "Sábado 25 de Octubre", date: "2026-10-25", doorTime: "5:00 PM" },
     ],
     ticketTypes: [
-      { id: "tt-050", name: "General Norte", validDays: "25 Oct", price: 150000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
-      { id: "tt-051", name: "General Sur", validDays: "25 Oct", price: 150000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
-      { id: "tt-052", name: "Oriental", validDays: "25 Oct", price: 280000, availableCount: 0, maxPerOrder: 4, status: "sold_out" },
-      { id: "tt-053", name: "Occidental VIP", validDays: "25 Oct", price: 550000, availableCount: 0, maxPerOrder: 2, status: "sold_out" },
+      { id: "tt-050", name: "General Norte", validDays: "25 Oct", price: 150000, serviceFee: 12000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
+      { id: "tt-051", name: "General Sur", validDays: "25 Oct", price: 150000, serviceFee: 12000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
+      { id: "tt-052", name: "Oriental", validDays: "25 Oct", price: 280000, serviceFee: 22400, availableCount: 0, maxPerOrder: 4, status: "sold_out" },
+      { id: "tt-053", name: "Occidental VIP", validDays: "25 Oct", price: 550000, serviceFee: 44000, availableCount: 0, maxPerOrder: 2, status: "sold_out" },
     ],
     sections: [
       {
@@ -394,7 +394,7 @@ export const mockEvents: EventData[] = [
         color: "#ef4444",
         status: "sold_out",
         ticketTypes: [
-          { id: "tt-050", name: "General Norte", validDays: "25 Oct", price: 150000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
+          { id: "tt-050", name: "General Norte", validDays: "25 Oct", price: 150000, serviceFee: 12000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
         ],
       },
       {
@@ -404,7 +404,7 @@ export const mockEvents: EventData[] = [
         color: "#ef4444",
         status: "sold_out",
         ticketTypes: [
-          { id: "tt-051", name: "General Sur", validDays: "25 Oct", price: 150000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
+          { id: "tt-051", name: "General Sur", validDays: "25 Oct", price: 150000, serviceFee: 12000, availableCount: 0, maxPerOrder: 6, status: "sold_out" },
         ],
       },
       {
@@ -414,7 +414,7 @@ export const mockEvents: EventData[] = [
         color: "#ef4444",
         status: "sold_out",
         ticketTypes: [
-          { id: "tt-052", name: "Oriental", validDays: "25 Oct", price: 280000, availableCount: 0, maxPerOrder: 4, status: "sold_out" },
+          { id: "tt-052", name: "Oriental", validDays: "25 Oct", price: 280000, serviceFee: 22400, availableCount: 0, maxPerOrder: 4, status: "sold_out" },
         ],
       },
       {
@@ -424,7 +424,7 @@ export const mockEvents: EventData[] = [
         color: "#ef4444",
         status: "sold_out",
         ticketTypes: [
-          { id: "tt-053", name: "Occidental VIP", validDays: "25 Oct", price: 550000, availableCount: 0, maxPerOrder: 2, status: "sold_out" },
+          { id: "tt-053", name: "Occidental VIP", validDays: "25 Oct", price: 550000, serviceFee: 44000, availableCount: 0, maxPerOrder: 2, status: "sold_out" },
         ],
       },
     ],

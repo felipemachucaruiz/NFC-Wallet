@@ -33,7 +33,7 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - `artifacts/ticket-storefront`: React + Vite public ticketing storefront with event listing, ticket selection, Wompi checkout (Nequi/PSE), and order status polling. Bilingual (Spanish UI).
 
 **UI/UX Decisions:**
-- **Tickets Storefront:** Public-facing web app with a dark theme, i18n (ES/EN), event discovery, interactive SVG venue maps, ticket selection, Wompi checkout, and "My Tickets" section with QR codes.
+- **Tickets Storefront:** Public-facing web app with a dark theme, pill-shaped rounded buttons (`rounded-full`), i18n (ES/EN), event discovery, interactive SVG venue maps, ticket selection with per-ticket service fees, Wompi checkout, and "My Tickets" section with QR codes.
 - **Attendee App:** Features a "Tapee Black" dark theme with cyan accents, NFC read-only functions, push notifications, and i18n (ES/EN). Includes a full ticket purchase flow with event catalogue, detail, venue maps, attendee forms, and Wompi checkout.
 - **Mobile Apps (Staff and Attendee):** Built with Expo React Native, supporting OTA updates.
 - **Web Admin:** Dark theme with Tapee cyan accents, sidebar navigation, and role-based routing.
@@ -50,7 +50,7 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - **Role-Based Access Control (RBAC):** Roles include `attendee`, `bank`, `merchant_staff`, `merchant_admin`, `warehouse_admin`, `event_admin`, and `admin`.
 - **API Design:** Express 5 API server with routes under `/api`, defined by OpenAPI 3.1.
 - **Database Schema:** Drizzle ORM for entities like users, events, products, inventory, transactions, and ticketing.
-- **Ticketing System:** Full backend with multi-day support, venue sections, concurrency-safe inventory, QR code check-in, wallet passes, and bilingual email confirmations.
+- **Ticketing System:** Full backend with multi-day support, venue sections, per-ticket service fees (admin-configured), concurrency-safe inventory, QR code check-in, wallet passes, and bilingual email confirmations.
 - **API Codegen:** OpenAPI 3.1 with Orval for client and Zod schema generation.
 - **Validation:** Zod v3 integrated with `drizzle-zod`.
 - **Cost of Goods Sold (COGS) Tracking:** `unit_cost_snapshot` on line items and `price_cop`/`cost_cop` on products.

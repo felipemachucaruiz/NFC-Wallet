@@ -961,6 +961,9 @@
     "singleDay": "Día Único",
     "customDays": "Días Personalizados",
     "requiredFields": "Nombre, precio y cantidad son obligatorios.",
+    "colServiceFee": "Ticket Service",
+    "serviceFeesSummary": "Resumen de Ticket Service por evento",
+    "totalServiceFee": "Ticket Service total del evento",
     "created": "Tipo de boleta creado",
     "updated": "Tipo de boleta actualizado",
     "deleted": "Tipo de boleta eliminado"

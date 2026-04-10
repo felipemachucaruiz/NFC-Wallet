@@ -10,6 +10,7 @@ export interface TicketType {
   name: string;
   validDays: string;
   price: number;
+  serviceFee: number;
   availableCount: number;
   maxPerOrder: number;
   sectionId?: string;

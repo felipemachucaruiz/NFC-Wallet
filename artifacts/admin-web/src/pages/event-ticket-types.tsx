@@ -19,6 +19,7 @@ type TicketType = {
   sectionId: string;
   sectionName: string;
   price: number;
+  serviceFee: number;
   quantity: number;
   sold: number;
   saleStart: string;
@@ -32,6 +33,7 @@ type TicketForm = {
   name: string;
   sectionId: string;
   price: string;
+  serviceFee: string;
   quantity: string;
   saleStart: string;
   saleEnd: string;
@@ -44,6 +46,7 @@ const emptyForm: TicketForm = {
   name: "",
   sectionId: "",
   price: "",
+  serviceFee: "",
   quantity: "",
   saleStart: "",
   saleEnd: "",
@@ -86,6 +89,7 @@ export default function EventTicketTypes() {
       name: ticket.name,
       sectionId: ticket.sectionId,
       price: String(ticket.price),
+      serviceFee: String(ticket.serviceFee),
       quantity: String(ticket.quantity),
       saleStart: ticket.saleStart,
       saleEnd: ticket.saleEnd,
@@ -114,6 +118,7 @@ export default function EventTicketTypes() {
                 sectionId: form.sectionId,
                 sectionName: section?.name ?? "",
                 price: parseFloat(form.price),
+                serviceFee: parseFloat(form.serviceFee) || 0,
                 quantity: parseInt(form.quantity),
                 saleStart: form.saleStart,
                 saleEnd: form.saleEnd,
@@ -132,6 +137,7 @@ export default function EventTicketTypes() {
         sectionId: form.sectionId,
         sectionName: section?.name ?? "",
         price: parseFloat(form.price),
+        serviceFee: parseFloat(form.serviceFee) || 0,
         quantity: parseInt(form.quantity),
         sold: 0,
         saleStart: form.saleStart,
@@ -186,6 +192,7 @@ export default function EventTicketTypes() {
                   <TableHead>{t("ticketTypes.colName")}</TableHead>
                   <TableHead>{t("ticketTypes.colSection")}</TableHead>
                   <TableHead>{t("ticketTypes.colPrice")}</TableHead>
+                  <TableHead>{t("ticketTypes.colServiceFee")}</TableHead>
                   <TableHead>{t("ticketTypes.colAvailable")}</TableHead>
                   <TableHead>{t("ticketTypes.colSold")}</TableHead>
                   <TableHead>{t("ticketTypes.colDays")}</TableHead>
@@ -199,6 +206,7 @@ export default function EventTicketTypes() {
                     <TableCell className="font-medium">{ticket.name}</TableCell>
                     <TableCell>{ticket.sectionName || "—"}</TableCell>
                     <TableCell className="font-mono">${ticket.price.toLocaleString()}</TableCell>
+                    <TableCell className="font-mono">${ticket.serviceFee.toLocaleString()}</TableCell>
                     <TableCell>{ticket.quantity.toLocaleString()}</TableCell>
                     <TableCell>{ticket.sold.toLocaleString()}</TableCell>
                     <TableCell>
@@ -233,6 +241,28 @@ export default function EventTicketTypes() {
         </CardContent>
       </Card>
 
+      {tickets.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{t("ticketTypes.serviceFeesSummary")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {tickets.map((ticket) => (
+                <div key={ticket.id} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{ticket.name} ({ticket.quantity.toLocaleString()} × ${ticket.serviceFee.toLocaleString()})</span>
+                  <span className="font-mono">${(ticket.quantity * ticket.serviceFee).toLocaleString()}</span>
+                </div>
+              ))}
+              <div className="border-t pt-2 flex items-center justify-between font-semibold">
+                <span>{t("ticketTypes.totalServiceFee")}</span>
+                <span className="font-mono text-primary">${tickets.reduce((sum, tt) => sum + tt.quantity * tt.serviceFee, 0).toLocaleString()}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -259,7 +289,7 @@ export default function EventTicketTypes() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label>{t("ticketTypes.colPrice")} *</Label>
                 <Input
@@ -268,6 +298,17 @@ export default function EventTicketTypes() {
                   min="0"
                   value={form.price}
                   onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>{t("ticketTypes.colServiceFee")}</Label>
+                <Input
+                  data-testid="input-ticket-service-fee"
+                  type="number"
+                  min="0"
+                  value={form.serviceFee}
+                  onChange={(e) => setForm((f) => ({ ...f, serviceFee: e.target.value }))}
+                  placeholder="0"
                 />
               </div>
               <div className="space-y-1">

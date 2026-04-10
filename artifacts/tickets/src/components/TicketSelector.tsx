@@ -18,8 +18,6 @@ interface TicketSelectorProps {
   onClose: () => void;
 }
 
-const SERVICE_FEE_RATE = 0.08;
-
 export function TicketSelector({ event, ticketType, sectionName, onClose }: TicketSelectorProps) {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
@@ -31,7 +29,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
 
   const maxQty = Math.min(ticketType.maxPerOrder, ticketType.availableCount);
   const subtotal = ticketType.price * quantity;
-  const serviceFee = Math.round(subtotal * SERVICE_FEE_RATE);
+  const serviceFee = ticketType.serviceFee * quantity;
   const total = subtotal + serviceFee;
 
   const handleQuantityChange = (newQty: number) => {
