@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 import { useGetCurrentAuthUser, useGetEvent, setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { AUTH_TOKEN_KEY } from "@/pages/login";
+import { EventProvider, useEventContext } from "@/contexts/event-context";
 
 setBaseUrl(
   import.meta.env.PROD
@@ -79,11 +80,11 @@ function ProtectedRoute({ component: Component, allowedRoles }: { component: Rea
 
 function ModuleGatedRoute({ component: Component, allowedRoles, requiredModule }: { component: React.ElementType, allowedRoles: string[], requiredModule: "ticketing" | "nfc" }) {
   const { data: user, isLoading } = useGetCurrentAuthUser();
-  const eventId = user?.user?.eventId ?? "";
-  const { data: eventData, isLoading: eventLoading } = useGetEvent(eventId || "");
-  const event = eventData as Record<string, unknown> | undefined;
+  const { eventId: ctxEventId } = useEventContext();
+  const eventId = user?.user?.role === "admin" ? ctxEventId : (user?.user?.eventId ?? "");
+  const { data: eventData, isLoading: eventLoading } = useGetEvent(eventId || "skip");
 
-  if (isLoading || eventLoading) {
+  if (isLoading || (eventId && eventLoading)) {
     return <div className="min-h-screen flex items-center justify-center bg-background text-foreground">Loading...</div>;
   }
 
@@ -95,12 +96,17 @@ function ModuleGatedRoute({ component: Component, allowedRoles, requiredModule }
     return <Redirect to={user.user.role === "admin" ? "/dashboard" : "/event-dashboard"} />;
   }
 
+  if (user.user.role === "admin" && !eventId) {
+    return <Redirect to="/events" />;
+  }
+
+  const event = eventData as Record<string, unknown> | undefined;
   const moduleEnabled = requiredModule === "ticketing"
     ? event?.ticketingEnabled === true
     : event?.nfcBraceletsEnabled !== false;
 
   if (event && !moduleEnabled) {
-    return <Redirect to="/event-dashboard" />;
+    return <Redirect to={user.user.role === "admin" ? "/events" : "/event-dashboard"} />;
   }
 
   return (
@@ -206,28 +212,28 @@ function Router() {
 
       {/* Ticketing Routes (module-gated) */}
       <Route path="/event-days">
-        <ModuleGatedRoute component={EventDays} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+        <ModuleGatedRoute component={EventDays} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
       <Route path="/event-venue-map">
-        <ModuleGatedRoute component={EventVenueMap} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+        <ModuleGatedRoute component={EventVenueMap} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
       <Route path="/event-venue-location">
-        <ModuleGatedRoute component={EventVenueLocation} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+        <ModuleGatedRoute component={EventVenueLocation} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
       <Route path="/event-ticket-types">
-        <ModuleGatedRoute component={EventTicketTypes} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+        <ModuleGatedRoute component={EventTicketTypes} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
       <Route path="/event-sales-config">
-        <ModuleGatedRoute component={EventSalesConfig} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+        <ModuleGatedRoute component={EventSalesConfig} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
       <Route path="/event-sales-dashboard">
-        <ModuleGatedRoute component={EventSalesDashboard} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+        <ModuleGatedRoute component={EventSalesDashboard} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
       <Route path="/event-orders">
-        <ModuleGatedRoute component={EventOrders} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+        <ModuleGatedRoute component={EventOrders} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
       <Route path="/event-checkins">
-        <ModuleGatedRoute component={EventCheckins} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+        <ModuleGatedRoute component={EventCheckins} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
 
       <Route component={NotFound} />
@@ -240,7 +246,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <EventProvider>
+            <Router />
+          </EventProvider>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

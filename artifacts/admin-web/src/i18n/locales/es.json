@@ -61,7 +61,9 @@
     "salesConfig": "Config. Ventas",
     "salesDashboard": "Panel de Ventas",
     "orders": "Órdenes",
-    "checkins": "Check-ins"
+    "checkins": "Check-ins",
+    "backToEvents": "Volver a Eventos",
+    "manageTicketing": "Gestionar Boletería"
   },
   "login": {
     "title": "Portal Admin",
@@ -1017,6 +1019,7 @@
     "confirmed": "Confirmado",
     "pending": "Pendiente",
     "cancelled": "Cancelado",
+    "expired": "Expirado",
     "refunded": "Reembolsado",
     "noOrders": "No se encontraron órdenes.",
     "colOrderId": "ID Orden",

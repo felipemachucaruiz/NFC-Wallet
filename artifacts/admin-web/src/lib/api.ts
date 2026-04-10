@@ -81,6 +81,95 @@ export async function apiUploadEventImage(
   return data as { imageUrl: string };
 }
 
+const AUTH_TOKEN_KEY = "tapee_admin_token";
+
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+}
+
+export async function apiFetchEventDays(eventId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/days`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch event days");
+  return data.days as Array<{ id: string; eventId: string; date: string; label: string | null; doorsOpenAt: string | null; doorsCloseAt: string | null; displayOrder: number; createdAt: string }>;
+}
+
+export async function apiCreateEventDay(eventId: string, body: { date: string; label?: string; doorsOpenAt?: string; doorsCloseAt?: string; displayOrder?: number }) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/days`), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to create event day");
+  return data;
+}
+
+export async function apiUpdateEventDay(eventId: string, dayId: string, body: Record<string, unknown>) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/days/${dayId}`), { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update event day");
+  return data;
+}
+
+export async function apiDeleteEventDay(eventId: string, dayId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/days/${dayId}`), { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to delete event day"); }
+}
+
+export async function apiFetchVenues(eventId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/venues`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch venues");
+  return data.venues as Array<{ id: string; eventId: string; name: string; address: string | null; city: string | null; latitude: string | null; longitude: string | null }>;
+}
+
+export async function apiCreateVenue(eventId: string, body: { name: string; address?: string; city?: string }) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/venues`), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to create venue");
+  return data;
+}
+
+export async function apiFetchSections(eventId: string, venueId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/venues/${venueId}/sections`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch sections");
+  return data.sections as Array<{ id: string; venueId: string; name: string; capacity: number | null; totalTickets: number; soldTickets: number; colorHex: string | null; displayOrder: number }>;
+}
+
+export async function apiCreateSection(eventId: string, venueId: string, body: { name: string; capacity?: number }) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/venues/${venueId}/sections`), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to create section");
+  return data;
+}
+
+export async function apiFetchTicketTypes(eventId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch ticket types");
+  return data.ticketTypes as Array<{ id: string; eventId: string; sectionId: string | null; name: string; description: string | null; price: number; serviceFee: number; quantity: number; soldCount: number; saleStart: string | null; saleEnd: string | null; isActive: boolean; validEventDayIds: string[] }>;
+}
+
+export async function apiCreateTicketType(eventId: string, body: { name: string; price: number; serviceFee?: number; quantity: number; sectionId?: string; saleStart?: string; saleEnd?: string; validEventDayIds?: string[] }) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types`), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to create ticket type");
+  return data;
+}
+
+export async function apiUpdateTicketType(eventId: string, typeId: string, body: Record<string, unknown>) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types/${typeId}`), { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update ticket type");
+  return data;
+}
+
+export async function apiFetchTicketOrders(eventId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-orders`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch orders");
+  return data.orders as Array<{ id: string; buyerEmail: string; buyerName: string | null; totalAmount: number; ticketCount: number; paymentStatus: string; createdAt: string }>;
+}
+
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")

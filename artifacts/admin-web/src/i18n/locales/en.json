@@ -61,7 +61,9 @@
     "salesConfig": "Sales Config",
     "salesDashboard": "Sales Dashboard",
     "orders": "Orders",
-    "checkins": "Check-ins"
+    "checkins": "Check-ins",
+    "backToEvents": "Back to Events",
+    "manageTicketing": "Manage Ticketing"
   },
   "login": {
     "title": "Admin Portal",
@@ -1017,6 +1019,7 @@
     "confirmed": "Confirmed",
     "pending": "Pending",
     "cancelled": "Cancelled",
+    "expired": "Expired",
     "refunded": "Refunded",
     "noOrders": "No orders found.",
     "colOrderId": "Order ID",

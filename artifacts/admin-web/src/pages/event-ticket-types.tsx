@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetCurrentAuthUser } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,24 +11,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Ticket } from "lucide-react";
+import { Plus, Pencil, Ticket, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-
-type TicketType = {
-  id: string;
-  name: string;
-  sectionId: string;
-  sectionName: string;
-  price: number;
-  serviceFee: number;
-  quantity: number;
-  sold: number;
-  saleStart: string;
-  saleEnd: string;
-  active: boolean;
-  dayMode: "single" | "full_pass" | "custom";
-  selectedDays: string[];
-};
+import { useEventContext } from "@/contexts/event-context";
+import {
+  apiFetchTicketTypes,
+  apiCreateTicketType,
+  apiUpdateTicketType,
+  apiFetchVenues,
+  apiFetchSections,
+  apiFetchEventDays,
+} from "@/lib/api";
 
 type TicketForm = {
   name: string;
@@ -38,7 +32,6 @@ type TicketForm = {
   saleStart: string;
   saleEnd: string;
   active: boolean;
-  dayMode: "single" | "full_pass" | "custom";
   selectedDays: string[];
 };
 
@@ -51,51 +44,78 @@ const emptyForm: TicketForm = {
   saleStart: "",
   saleEnd: "",
   active: true,
-  dayMode: "full_pass",
   selectedDays: [],
 };
-
-const MOCK_SECTIONS = [
-  { id: "sec-1", name: "VIP" },
-  { id: "sec-2", name: "General" },
-  { id: "sec-3", name: "Palco" },
-];
-
-const MOCK_DAYS = [
-  { id: "day-1", label: "Day 1 - Friday" },
-  { id: "day-2", label: "Day 2 - Saturday" },
-  { id: "day-3", label: "Day 3 - Sunday" },
-];
 
 export default function EventTicketTypes() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: auth } = useGetCurrentAuthUser();
+  const { eventId } = useEventContext();
+  const resolvedEventId = auth?.user?.role === "admin" ? eventId : (auth?.user?.eventId ?? "");
 
-  const [tickets, setTickets] = useState<TicketType[]>([]);
+  const { data: ticketTypes = [], isLoading, isError, error: fetchError } = useQuery({
+    queryKey: ["ticketTypes", resolvedEventId],
+    queryFn: () => apiFetchTicketTypes(resolvedEventId),
+    enabled: !!resolvedEventId,
+  });
+
+  const { data: days = [] } = useQuery({
+    queryKey: ["eventDays", resolvedEventId],
+    queryFn: () => apiFetchEventDays(resolvedEventId),
+    enabled: !!resolvedEventId,
+  });
+
+  const { data: venues = [] } = useQuery({
+    queryKey: ["venues", resolvedEventId],
+    queryFn: () => apiFetchVenues(resolvedEventId),
+    enabled: !!resolvedEventId,
+  });
+
+  const firstVenueId = venues[0]?.id ?? "";
+  const { data: sections = [] } = useQuery({
+    queryKey: ["sections", resolvedEventId, firstVenueId],
+    queryFn: () => apiFetchSections(resolvedEventId, firstVenueId),
+    enabled: !!resolvedEventId && !!firstVenueId,
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["ticketTypes", resolvedEventId] });
+
+  const createMutation = useMutation({
+    mutationFn: (body: Parameters<typeof apiCreateTicketType>[1]) => apiCreateTicketType(resolvedEventId, body),
+    onSuccess: () => { toast({ title: t("ticketTypes.created") }); invalidate(); setDialogOpen(false); },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ typeId, body }: { typeId: string; body: Record<string, unknown> }) => apiUpdateTicketType(resolvedEventId, typeId, body),
+    onSuccess: () => { toast({ title: t("ticketTypes.updated") }); invalidate(); setDialogOpen(false); },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
+
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingTicket, setEditingTicket] = useState<TicketType | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TicketForm>(emptyForm);
 
   const openCreate = () => {
-    setEditingTicket(null);
+    setEditingId(null);
     setForm(emptyForm);
     setDialogOpen(true);
   };
 
-  const openEdit = (ticket: TicketType) => {
-    setEditingTicket(ticket);
+  const openEdit = (tt: (typeof ticketTypes)[0]) => {
+    setEditingId(tt.id);
     setForm({
-      name: ticket.name,
-      sectionId: ticket.sectionId,
-      price: String(ticket.price),
-      serviceFee: String(ticket.serviceFee),
-      quantity: String(ticket.quantity),
-      saleStart: ticket.saleStart,
-      saleEnd: ticket.saleEnd,
-      active: ticket.active,
-      dayMode: ticket.dayMode,
-      selectedDays: ticket.selectedDays,
+      name: tt.name,
+      sectionId: tt.sectionId ?? "",
+      price: String(tt.price),
+      serviceFee: String(tt.serviceFee),
+      quantity: String(tt.quantity),
+      saleStart: tt.saleStart ? tt.saleStart.slice(0, 16) : "",
+      saleEnd: tt.saleEnd ? tt.saleEnd.slice(0, 16) : "",
+      active: tt.isActive,
+      selectedDays: tt.validEventDayIds ?? [],
     });
     setDialogOpen(true);
   };
@@ -106,55 +126,23 @@ export default function EventTicketTypes() {
       return;
     }
 
-    const section = MOCK_SECTIONS.find((s) => s.id === form.sectionId);
+    const body: Record<string, unknown> = {
+      name: form.name,
+      price: parseInt(form.price, 10),
+      serviceFee: parseInt(form.serviceFee, 10) || 0,
+      quantity: parseInt(form.quantity, 10),
+      sectionId: form.sectionId || undefined,
+      saleStart: form.saleStart ? new Date(form.saleStart).toISOString() : undefined,
+      saleEnd: form.saleEnd ? new Date(form.saleEnd).toISOString() : undefined,
+      isActive: form.active,
+      validEventDayIds: form.selectedDays,
+    };
 
-    if (editingTicket) {
-      setTickets((prev) =>
-        prev.map((tt) =>
-          tt.id === editingTicket.id
-            ? {
-                ...tt,
-                name: form.name,
-                sectionId: form.sectionId,
-                sectionName: section?.name ?? "",
-                price: parseFloat(form.price),
-                serviceFee: parseFloat(form.serviceFee) || 0,
-                quantity: parseInt(form.quantity),
-                saleStart: form.saleStart,
-                saleEnd: form.saleEnd,
-                active: form.active,
-                dayMode: form.dayMode,
-                selectedDays: form.selectedDays,
-              }
-            : tt
-        )
-      );
-      toast({ title: t("ticketTypes.updated") });
+    if (editingId) {
+      updateMutation.mutate({ typeId: editingId, body });
     } else {
-      const newTicket: TicketType = {
-        id: `ticket-${Date.now()}`,
-        name: form.name,
-        sectionId: form.sectionId,
-        sectionName: section?.name ?? "",
-        price: parseFloat(form.price),
-        serviceFee: parseFloat(form.serviceFee) || 0,
-        quantity: parseInt(form.quantity),
-        sold: 0,
-        saleStart: form.saleStart,
-        saleEnd: form.saleEnd,
-        active: form.active,
-        dayMode: form.dayMode,
-        selectedDays: form.selectedDays,
-      };
-      setTickets((prev) => [...prev, newTicket]);
-      toast({ title: t("ticketTypes.created") });
+      createMutation.mutate(body as Parameters<typeof apiCreateTicketType>[1]);
     }
-    setDialogOpen(false);
-  };
-
-  const handleDelete = (id: string) => {
-    setTickets((prev) => prev.filter((tt) => tt.id !== id));
-    toast({ title: t("ticketTypes.deleted") });
   };
 
   const toggleDaySelection = (dayId: string) => {
@@ -165,6 +153,25 @@ export default function EventTicketTypes() {
         : [...f.selectedDays, dayId],
     }));
   };
+
+  const formatPrice = (v: number) => `$${v.toLocaleString("es-CO")}`;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-20 text-destructive">
+        <p className="font-semibold">{t("common.error")}</p>
+        <p className="text-sm text-muted-foreground mt-1">{(fetchError as Error)?.message || t("common.unknownError")}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -180,7 +187,7 @@ export default function EventTicketTypes() {
 
       <Card>
         <CardContent className="pt-6">
-          {tickets.length === 0 ? (
+          {ticketTypes.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Ticket className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p>{t("ticketTypes.noTicketTypes")}</p>
@@ -195,43 +202,30 @@ export default function EventTicketTypes() {
                   <TableHead>{t("ticketTypes.colServiceFee")}</TableHead>
                   <TableHead>{t("ticketTypes.colAvailable")}</TableHead>
                   <TableHead>{t("ticketTypes.colSold")}</TableHead>
-                  <TableHead>{t("ticketTypes.colDays")}</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
-                  <TableHead className="w-24">{t("common.actions")}</TableHead>
+                  <TableHead className="w-16">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tickets.map((ticket) => (
-                  <TableRow key={ticket.id} data-testid={`row-ticket-${ticket.id}`}>
-                    <TableCell className="font-medium">{ticket.name}</TableCell>
-                    <TableCell>{ticket.sectionName || "—"}</TableCell>
-                    <TableCell className="font-mono">${ticket.price.toLocaleString()}</TableCell>
-                    <TableCell className="font-mono">${ticket.serviceFee.toLocaleString()}</TableCell>
-                    <TableCell>{ticket.quantity.toLocaleString()}</TableCell>
-                    <TableCell>{ticket.sold.toLocaleString()}</TableCell>
+                {ticketTypes.map((tt) => (
+                  <TableRow key={tt.id}>
+                    <TableCell className="font-medium">{tt.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {ticket.dayMode === "full_pass"
-                          ? t("ticketTypes.fullPass")
-                          : ticket.dayMode === "single"
-                          ? t("ticketTypes.singleDay")
-                          : t("ticketTypes.customDays")}
+                      {sections.find((s) => s.id === tt.sectionId)?.name || "—"}
+                    </TableCell>
+                    <TableCell className="font-mono">{formatPrice(tt.price)}</TableCell>
+                    <TableCell className="font-mono">{formatPrice(tt.serviceFee)}</TableCell>
+                    <TableCell>{tt.quantity.toLocaleString()}</TableCell>
+                    <TableCell>{tt.soldCount.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={tt.isActive ? "default" : "secondary"}>
+                        {tt.isActive ? t("common.active") : t("common.inactive")}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={ticket.active ? "default" : "secondary"}>
-                        {ticket.active ? t("common.active") : t("common.inactive")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(ticket)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(ticket.id)}>
-                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                        </Button>
-                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(tt)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -241,22 +235,22 @@ export default function EventTicketTypes() {
         </CardContent>
       </Card>
 
-      {tickets.length > 0 && (
+      {ticketTypes.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{t("ticketTypes.serviceFeesSummary")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {tickets.map((ticket) => (
-                <div key={ticket.id} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{ticket.name} ({ticket.quantity.toLocaleString()} × ${ticket.serviceFee.toLocaleString()})</span>
-                  <span className="font-mono">${(ticket.quantity * ticket.serviceFee).toLocaleString()}</span>
+              {ticketTypes.map((tt) => (
+                <div key={tt.id} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{tt.name} ({tt.quantity.toLocaleString()} × {formatPrice(tt.serviceFee)})</span>
+                  <span className="font-mono">{formatPrice(tt.quantity * tt.serviceFee)}</span>
                 </div>
               ))}
               <div className="border-t pt-2 flex items-center justify-between font-semibold">
                 <span>{t("ticketTypes.totalServiceFee")}</span>
-                <span className="font-mono text-primary">${tickets.reduce((sum, tt) => sum + tt.quantity * tt.serviceFee, 0).toLocaleString()}</span>
+                <span className="font-mono text-primary">{formatPrice(ticketTypes.reduce((sum, tt) => sum + tt.quantity * tt.serviceFee, 0))}</span>
               </div>
             </div>
           </CardContent>
@@ -266,7 +260,7 @@ export default function EventTicketTypes() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingTicket ? t("ticketTypes.editTicketType") : t("ticketTypes.addTicketType")}</DialogTitle>
+            <DialogTitle>{editingId ? t("ticketTypes.editTicketType") : t("ticketTypes.addTicketType")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             <div className="space-y-1">
@@ -278,20 +272,22 @@ export default function EventTicketTypes() {
                 placeholder={t("ticketTypes.ticketNamePlaceholder")}
               />
             </div>
-            <div className="space-y-1">
-              <Label>{t("ticketTypes.colSection")}</Label>
-              <Select value={form.sectionId} onValueChange={(v) => setForm((f) => ({ ...f, sectionId: v }))}>
-                <SelectTrigger><SelectValue placeholder={t("ticketTypes.selectSection")} /></SelectTrigger>
-                <SelectContent>
-                  {MOCK_SECTIONS.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {sections.length > 0 && (
+              <div className="space-y-1">
+                <Label>{t("ticketTypes.colSection")}</Label>
+                <Select value={form.sectionId} onValueChange={(v) => setForm((f) => ({ ...f, sectionId: v }))}>
+                  <SelectTrigger><SelectValue placeholder={t("ticketTypes.selectSection")} /></SelectTrigger>
+                  <SelectContent>
+                    {sections.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label>{t("ticketTypes.colPrice")} *</Label>
+                <Label>{t("ticketTypes.colPrice")} (COP) *</Label>
                 <Input
                   data-testid="input-ticket-price"
                   type="number"
@@ -341,19 +337,11 @@ export default function EventTicketTypes() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>{t("ticketTypes.validDays")}</Label>
-              <Select value={form.dayMode} onValueChange={(v) => setForm((f) => ({ ...f, dayMode: v as TicketForm["dayMode"] }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full_pass">{t("ticketTypes.fullPass")}</SelectItem>
-                  <SelectItem value="single">{t("ticketTypes.singleDay")}</SelectItem>
-                  <SelectItem value="custom">{t("ticketTypes.customDays")}</SelectItem>
-                </SelectContent>
-              </Select>
-              {form.dayMode === "custom" && (
+            {days.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t("ticketTypes.validDays")}</Label>
                 <div className="space-y-1 pl-1">
-                  {MOCK_DAYS.map((day) => (
+                  {days.map((day) => (
                     <label key={day.id} className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
                         type="checkbox"
@@ -361,12 +349,12 @@ export default function EventTicketTypes() {
                         onChange={() => toggleDaySelection(day.id)}
                         className="rounded"
                       />
-                      {day.label}
+                      {day.label || day.date}
                     </label>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <Label>{t("common.status")}</Label>
@@ -375,7 +363,10 @@ export default function EventTicketTypes() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handleSave}>{t("common.save")}</Button>
+            <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
+              {(createMutation.isPending || updateMutation.isPending) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {t("common.save")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

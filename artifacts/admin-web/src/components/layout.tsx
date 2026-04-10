@@ -29,21 +29,26 @@ import {
   BarChart3,
   ClipboardList,
   UserCheck,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { LANGUAGE_KEY } from "@/i18n";
+import { useEventContext } from "@/contexts/event-context";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
   const { data: user, isLoading } = useGetCurrentAuthUser();
   const [, setLocation] = useLocation();
 
-  const eventId = user?.user?.eventId ?? "";
-  const { data: eventData } = useGetEvent(eventId || "");
+  const { eventId: ctxEventId, setEventId } = useEventContext();
+  const role = user?.user?.role;
+  const eventId = role === "admin" ? ctxEventId : (user?.user?.eventId ?? "");
+  const { data: eventData } = useGetEvent(eventId || "skip");
   const eventRecord = eventData as Record<string, unknown> | undefined;
   const ticketingEnabled = eventRecord?.ticketingEnabled === true;
   const nfcBraceletsEnabled = eventRecord?.nfcBraceletsEnabled !== false;
+  const managingEvent = role === "admin" && eventId;
 
   const handleLogout = async () => {
     try { await customFetch("/api/auth/logout", { method: "POST" }); } catch { }
@@ -67,7 +72,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  const role = user.user.role;
   const isGlobalAdmin = role === "admin";
   const isEventAdmin = role === "event_admin";
 
@@ -82,7 +86,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {isGlobalAdmin && (
+          {isGlobalAdmin && !managingEvent && (
             <>
               <NavItem href="/dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
               <NavItem href="/events" icon={Calendar} label={t("nav.events")} />
@@ -96,6 +100,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/commissions" icon={BadgePercent} label={t("nav.commissions")} />
               <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
               <NavItem href="/reports" icon={FileText} label={t("nav.reports")} />
+            </>
+          )}
+
+          {isGlobalAdmin && managingEvent && (
+            <>
+              <button
+                onClick={() => { setEventId(""); setLocation("/events"); }}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-sidebar-accent/50 w-full text-left mb-1"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                {t("nav.backToEvents")}
+              </button>
+              <p className="text-xs px-3 py-1 text-sidebar-foreground/60 truncate mb-2">
+                {(eventRecord?.name as string) || "..."}
+              </p>
+
+              {ticketingEnabled && (
+                <>
+                  <NavSectionLabel label={t("nav.ticketingSection")} />
+                  <NavItem href="/event-days" icon={CalendarDays} label={t("nav.eventDays")} />
+                  <NavItem href="/event-venue-location" icon={MapPin} label={t("nav.venueLocation")} />
+                  <NavItem href="/event-venue-map" icon={Map} label={t("nav.venueMap")} />
+                  <NavItem href="/event-ticket-types" icon={Ticket} label={t("nav.ticketTypes")} />
+                  <NavItem href="/event-sales-config" icon={ShoppingCart} label={t("nav.salesConfig")} />
+                  <NavItem href="/event-sales-dashboard" icon={BarChart3} label={t("nav.salesDashboard")} />
+                  <NavItem href="/event-orders" icon={ClipboardList} label={t("nav.orders")} />
+                  <NavItem href="/event-checkins" icon={UserCheck} label={t("nav.checkins")} />
+                </>
+              )}
             </>
           )}
 

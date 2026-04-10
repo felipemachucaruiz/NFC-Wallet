@@ -20,11 +20,13 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, MapPin, ChevronDown, ChevronsUpDown, Check, Building2, Upload } from "lucide-react";
+import { Plus, Search, Pencil, MapPin, ChevronDown, ChevronsUpDown, Check, Building2, Upload, Ticket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
 import { LocationMapPicker } from "@/components/LocationMapPicker";
 import { apiUploadEventImage } from "@/lib/api";
+import { useEventContext } from "@/contexts/event-context";
 
 type EventAdminForm = {
   email: string;
@@ -538,10 +540,17 @@ export default function Events() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const { setEventId } = useEventContext();
   const { data, isLoading } = useListEvents();
   const events = (data?.events ?? []) as RawEvent[];
   const { data: promoterData } = useListPromoterCompanies();
   const promoterCompanies = promoterData?.companies ?? [];
+
+  const handleManageTicketing = (event: RawEvent) => {
+    setEventId(event.id);
+    setLocation("/event-ticket-types");
+  };
 
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -776,9 +785,16 @@ export default function Events() {
                     })()}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" data-testid={`button-edit-event-${event.id}`} onClick={() => openEdit(event)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {event.ticketingEnabled && (
+                        <Button variant="ghost" size="icon" title={t("nav.manageTicketing")} onClick={() => handleManageTicketing(event)}>
+                          <Ticket className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" data-testid={`button-edit-event-${event.id}`} onClick={() => openEdit(event)}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

@@ -359,6 +359,7 @@ const createTicketTypeSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   price: z.number().int().min(0),
+  serviceFee: z.number().int().min(0).optional(),
   quantity: z.number().int().min(1),
   saleStart: z.string().optional(),
   saleEnd: z.string().optional(),
@@ -403,7 +404,7 @@ router.post(
       return;
     }
 
-    const { sectionId, name, description, price, quantity, saleStart, saleEnd, isActive, validEventDayIds } = parsed.data;
+    const { sectionId, name, description, price, serviceFee, quantity, saleStart, saleEnd, isActive, validEventDayIds } = parsed.data;
 
     const [ticketType] = await db
       .insert(ticketTypesTable)
@@ -413,6 +414,7 @@ router.post(
         name,
         description: description ?? null,
         price,
+        serviceFee: serviceFee ?? 0,
         quantity,
         saleStart: saleStart ? new Date(saleStart) : null,
         saleEnd: saleEnd ? new Date(saleEnd) : null,
@@ -441,6 +443,7 @@ router.patch(
     if (body.name !== undefined) updates.name = body.name;
     if (body.description !== undefined) updates.description = body.description;
     if (body.price !== undefined) updates.price = body.price;
+    if (body.serviceFee !== undefined) updates.serviceFee = body.serviceFee;
     if (body.quantity !== undefined) updates.quantity = body.quantity;
     if (body.saleStart !== undefined) updates.saleStart = body.saleStart ? new Date(body.saleStart as string) : null;
     if (body.saleEnd !== undefined) updates.saleEnd = body.saleEnd ? new Date(body.saleEnd as string) : null;
