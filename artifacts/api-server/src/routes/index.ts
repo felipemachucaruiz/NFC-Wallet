@@ -26,6 +26,7 @@ import bankAttendeeRouter from "./bankAttendee";
 import accessZonesRouter from "./accessZones";
 import ticketingRouter from "./ticketing";
 import ticketCheckinRouter from "./ticketCheckin";
+import gateTicketRouter from "./gateTicket";
 
 const router: IRouter = Router();
 
@@ -56,5 +57,6 @@ router.use(bankAttendeeRouter);
 router.use(accessZonesRouter);
 router.use(ticketingRouter);
 router.use(ticketCheckinRouter);
+router.use(gateTicketRouter);
 
 export default router;

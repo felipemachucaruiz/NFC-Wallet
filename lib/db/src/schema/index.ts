@@ -12,3 +12,4 @@ export * from "./payments";
 export * from "./accessZones";
 export * from "./braceletTransfers";
 export * from "./ticketing";
+export * from "./ticketCheckins";
