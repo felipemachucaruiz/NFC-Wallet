@@ -40,16 +40,6 @@ module.exports = {
     web: {
       favicon: "./assets/images/icon.png",
     },
-    updates: {
-      url: "https://u.expo.dev/47da8b6a-72b7-4bc9-af31-c34ee51a0441",
-      enabled: true,
-      fallbackToCacheTimeout: 0,
-      checkAutomatically: "ON_LOAD",
-      requestHeaders: {
-        "expo-channel-name": "production",
-      },
-    },
-    runtimeVersion: { policy: "fingerprint" },
     plugins: [
       [
         "expo-router",
@@ -60,7 +50,6 @@ module.exports = {
       "expo-font",
       "expo-web-browser",
       ["react-native-nfc-manager", { includeNdefEntitlement: false }],
-      "expo-updates",
       [
         "expo-notifications",
         {

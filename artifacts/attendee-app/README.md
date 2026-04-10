@@ -37,7 +37,6 @@ The attendee app is the consumer-facing product. It is intentionally lightweight
 | API Client | `@workspace/api-client-react` (OpenAPI-generated, attendee API) |
 | NFC | `react-native-nfc-manager` (read-only for balance check) |
 | Auth Storage | `expo-secure-store` |
-| OTA Updates | `expo-updates` |
 | Push Notifications | Expo Notifications (dynamic import) |
 | i18n | `i18next` + `react-i18next` (ES/EN) |
 | Theme | Tapee Black — dark `#0a0a0a` background, cyan `#00f1ff` accents |
@@ -49,7 +48,7 @@ The attendee app is the consumer-facing product. It is intentionally lightweight
 ```
 artifacts/attendee-app/
 ├── app/                        # Expo Router file-based routes
-│   ├── _layout.tsx             # Root layout — providers, splash, OTA check
+│   ├── _layout.tsx             # Root layout — providers, splash
 │   ├── index.tsx               # Entry / redirect
 │   ├── login.tsx
 │   ├── forgot-password.tsx
@@ -65,7 +64,6 @@ artifacts/attendee-app/
 │   └── (tabs)/                 # Bottom tab navigator (balance, history, settings)
 ├── components/
 │   ├── AnimatedSplash.tsx
-│   ├── UpdateBanner.tsx
 │   ├── ErrorBoundary.tsx
 │   └── CustomAlert.tsx
 ├── contexts/
@@ -92,26 +90,7 @@ Attendees can add funds to their bracelet balance via:
 The app polls the `payment-status` screen until Wompi confirms the transaction, then credits the bracelet automatically.
 
 ### Bilingual (ES / EN)
-All UI text is managed through `i18next`. Language is detected dynamically at runtime using a safe dynamic import of `expo-localization` (OTA-safe). Attendees can override via Settings.
-
-### OTA Updates
-Non-breaking updates are delivered silently via `expo-updates`. The `UpdateBanner` component surfaces a "Restart to update" prompt only when an update is ready to apply.
-
----
-
-## OTA Safety
-
-> **Important for contributors**
-
-This app uses `runtimeVersion: { policy: "appVersion" }` — any OTA published against the same app version reaches all installed devices. A static import of a native module not in the binary permanently crashes the JS runtime before any error boundary can render.
-
-**Rules:**
-- `expo-localization` → dynamic `await import()` in try-catch ✅
-- `react-native-nfc-manager` → IIFE try-require with fallback ✅
-- `react-native-keyboard-controller` → IIFE try-require with fallback ✅
-- Any new native package added after the last EAS build → must use safe pattern
-
-See `replit.md` → *OTA Update Safety Rules* for the full checklist and recovery steps.
+All UI text is managed through `i18next`. Language is detected dynamically at runtime using a safe dynamic import of `expo-localization`. Attendees can override via Settings.
 
 ---
 
@@ -154,8 +133,6 @@ eas build --platform ios --profile production --non-interactive
 # EAS Build (Android)
 eas build --platform android --profile production --non-interactive
 
-# Publish OTA update
-eas update --channel production --message "your update message"
 ```
 
 ---

@@ -11,8 +11,6 @@ This project delivers a contactless, cashless event payment system specifically 
 - Do not make changes to the folder `lib/api-client-react`.
 - Do not make changes to the folder `lib/api-zod`.
 - Do not make changes to the folder `scripts`.
-- Do not make changes to the file `artifacts/attendee-app/ota-update.sh`.
-- Do not make changes to the file `artifacts/mobile/ota-update.sh`.
 - The user prefers to be communicated with using clear and simple language.
 - The user prefers a functional programming paradigm where applicable.
 - The user wants the agent to focus on completing one task at a time and getting confirmation before moving to the next.
@@ -35,7 +33,7 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 **UI/UX Decisions:**
 - **Tickets Storefront:** Public-facing web app with a dark Tapee theme, i18n (ES/EN), event discovery, interactive SVG venue maps, Wompi checkout, and digital tickets with QR codes.
 - **Attendee App:** Features a "Tapee Black" dark theme with cyan accents, NFC read-only functions, push notifications, and i18n (ES/EN). Includes a full ticket purchase flow with event catalogue, detail, venue maps, attendee forms, and Wompi checkout.
-- **Mobile Apps (Staff and Attendee):** Built with Expo React Native, supporting OTA updates.
+- **Mobile Apps (Staff and Attendee):** Built with Expo React Native, distributed via APK builds.
 - **Web Admin:** Dark theme with Tapee cyan accents, sidebar navigation, and role-based routing.
 
 **Technical Implementations:**
@@ -55,7 +53,7 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - **Validation:** Zod v3 integrated with `drizzle-zod`.
 - **Cost of Goods Sold (COGS) Tracking:** `unit_cost_snapshot` on line items and `price_cop`/`cost_cop` on products.
 - **Deployment Strategy:** Critical separation of `master` (API services) and `main` (Web Admin) branches for Railway deployments. Pushing to the wrong branch causes production downtime.
-- **Mobile App Updates:** OTA updates use fingerprint-based `runtimeVersion` for consistency, requiring users to update to the latest APK for new OTAs.
+- **Mobile App Updates:** Distributed via APK builds only (OTA updates removed).
 
 # External Dependencies
 

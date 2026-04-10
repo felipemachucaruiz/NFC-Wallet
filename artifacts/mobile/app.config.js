@@ -53,10 +53,6 @@ module.exports = {
     web: {
       favicon: "./assets/images/icon.png",
     },
-    updates: {
-      enabled: false,
-    },
-    runtimeVersion: "1.0.0",
     plugins: [
       [
         "expo-router",
@@ -68,7 +64,6 @@ module.exports = {
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       ["react-native-nfc-manager", { includeNdefEntitlement: false }],
-      "expo-updates",
       [
         "expo-notifications",
         {

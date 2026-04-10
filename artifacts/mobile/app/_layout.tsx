@@ -26,7 +26,6 @@ import { CartProvider } from "@/contexts/CartContext";
 import { OfflineQueueProvider } from "@/contexts/OfflineQueueContext";
 import { ZoneCacheProvider } from "@/contexts/ZoneCacheContext";
 import { BannedBraceletsProvider } from "@/contexts/BannedBraceletsContext";
-import { UpdateBanner } from "@/components/UpdateBanner";
 import { AlertProvider, useAlert } from "@/components/CustomAlert";
 import { initI18n } from "@/i18n";
 import { initNfc } from "@/utils/nfc";
@@ -36,8 +35,7 @@ import i18n from "@/i18n";
 import { useTranslation } from "react-i18next";
 
 // Safe import: if react-native-keyboard-controller is not in the native binary
-// (e.g. OTA applied to an older build) the app will still start without keyboard
-// handling rather than crashing permanently at module-load time.
+// the app will still start without keyboard handling rather than crashing.
 const KeyboardProvider: React.ComponentType<{ children: React.ReactNode }> = (() => {
   try {
     return require("react-native-keyboard-controller").KeyboardProvider;
@@ -209,7 +207,6 @@ export default function RootLayout() {
                       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
                         <KeyboardProvider>
                           <AlertProvider>
-                            <UpdateBanner />
                             <CrashLogReporter />
                             <RootLayoutNav />
                             {!splashDone && (

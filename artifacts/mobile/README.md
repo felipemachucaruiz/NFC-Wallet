@@ -32,7 +32,6 @@ The staff app covers every operational role at a Tapee-powered event:
 | Auth Storage | `expo-secure-store` |
 | Fonts | `@expo-google-fonts/inter` |
 | Security | HMAC-SHA256 bracelet payload verification |
-| OTA Updates | `expo-updates` |
 | Push Notifications | Expo Notifications (dynamic import) |
 | i18n | `i18next` + `react-i18next` (ES/EN) |
 | Image Picker | `expo-image-picker` |
@@ -44,7 +43,7 @@ The staff app covers every operational role at a Tapee-powered event:
 ```
 artifacts/mobile/
 ├── app/                    # Expo Router file-based routes
-│   ├── _layout.tsx         # Root layout — providers, splash, OTA check
+│   ├── _layout.tsx         # Root layout — providers, splash
 │   ├── login.tsx
 │   ├── (bank)/             # Bank staff screens (top-up, link, unlink bracelets)
 │   ├── (merchant-pos)/     # POS screens (cart, charge, receipt)
@@ -58,7 +57,6 @@ artifacts/mobile/
 │   ├── PasscodeScreen.tsx
 │   ├── FraudAlertsScreen.tsx
 │   ├── OfflineBanner.tsx
-│   ├── UpdateBanner.tsx
 │   └── ui/                 # Shared UI primitives
 ├── contexts/
 │   ├── AuthContext.tsx
@@ -94,24 +92,6 @@ A configurable passcode screen (via `PasscodeContext`) prevents unauthorized acc
 
 ### Fraud Alerts
 The `FraudAlertsScreen` surfaces suspicious transaction patterns detected by the backend, with staff able to mark alerts as reviewed.
-
-### OTA Updates
-The app checks for OTA updates on launch via `expo-updates`. A non-blocking `UpdateBanner` notifies staff of available updates without interrupting the active session.
-
----
-
-## OTA Safety
-
-> **Important for contributors**
-
-This app uses `runtimeVersion: { policy: "appVersion" }`, meaning **any OTA published against the same version is applied to all devices**. Statically importing a native module that wasn't in the native binary at build time will permanently crash the JS runtime before any error boundary renders.
-
-**Safe patterns are required for:**
-- Any `expo-*` or `react-native-*` module added after the last EAS build
-- Dynamic values: use `await import(...)` inside a try-catch
-- JSX providers: use IIFE `try { require(...) } catch { return fallback }`
-
-See `replit.md` → *OTA Update Safety Rules* for the full checklist.
 
 ---
 
@@ -149,8 +129,6 @@ eas build --platform ios --profile production --non-interactive
 # EAS Build (Android)
 eas build --platform android --profile production --non-interactive
 
-# Publish OTA update (after running eas build at least once)
-eas update --channel production --message "your update message"
 ```
 
 ---
