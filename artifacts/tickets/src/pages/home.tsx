@@ -176,11 +176,11 @@ function EventCard({ event }: { event: typeof mockEvents[0] }) {
   const statusBadge = () => {
     switch (event.status) {
       case "available":
-        return <Badge className="bg-emerald-600/20 text-emerald-400 border-emerald-600/30">{t("home.available")}</Badge>;
+        return <Badge className="bg-black/70 text-emerald-400 border-emerald-600/50 backdrop-blur-sm">{t("home.available")}</Badge>;
       case "limited":
-        return <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">{t("home.limited")}</Badge>;
+        return <Badge className="bg-black/70 text-amber-400 border-amber-600/50 backdrop-blur-sm">{t("home.limited")}</Badge>;
       case "sold_out":
-        return <Badge className="bg-red-600/20 text-red-400 border-red-600/30">{t("home.soldOut")}</Badge>;
+        return <Badge className="bg-black/70 text-red-400 border-red-600/50 backdrop-blur-sm">{t("home.soldOut")}</Badge>;
     }
   };
 
