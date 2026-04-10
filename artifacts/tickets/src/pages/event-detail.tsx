@@ -180,6 +180,19 @@ export default function EventDetail() {
 
   const event = useMemo(() => detail ? mapApiToEventData(detail) : undefined, [detail]);
 
+  const handleSectionClick = useCallback((sectionId: string) => {
+    setHighlightedSectionId(sectionId);
+    if (!event) return;
+    const section = event.sections.find((s) => s.id === sectionId);
+    if (section && section.ticketTypes.length > 0) {
+      const el = document.getElementById(`section-group-${sectionId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+    setTimeout(() => setHighlightedSectionId(null), 3000);
+  }, [event]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -222,19 +235,6 @@ export default function EventDetail() {
     setSelectedTicket(ticket);
     setSelectedSectionName(section?.name || ticket.name);
   };
-
-  const handleSectionClick = useCallback((sectionId: string) => {
-    setHighlightedSectionId(sectionId);
-    const section = event.sections.find((s) => s.id === sectionId);
-    if (section && section.ticketTypes.length > 0) {
-      const firstTicket = section.ticketTypes[0];
-      const el = document.getElementById(`ticket-card-${firstTicket.id}`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
-    setTimeout(() => setHighlightedSectionId(null), 3000);
-  }, [event]);
 
   return (
     <div className="min-h-screen">
