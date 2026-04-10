@@ -34,7 +34,9 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
 
   const maxQty = Math.min(ticketType.maxPerOrder, ticketType.availableCount);
   const subtotal = ticketType.price * (isNumbered ? 1 : quantity);
-  const serviceFee = ticketType.serviceFee * (isNumbered ? 1 : quantity);
+  const serviceFee = ticketType.serviceFeeType === "percentage"
+    ? Math.round(subtotal * ticketType.serviceFee / 100)
+    : ticketType.serviceFee * (isNumbered ? 1 : quantity);
   const total = subtotal + serviceFee;
 
   const handleQuantityChange = (newQty: number) => {

@@ -30,6 +30,7 @@ export interface TicketType {
   basePrice?: number;
   currentStageName?: string | null;
   serviceFee: number;
+  serviceFeeType: "fixed" | "percentage";
   availableCount: number;
   maxPerOrder: number;
   sectionId?: string;

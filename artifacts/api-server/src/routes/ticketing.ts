@@ -501,6 +501,7 @@ const createTicketTypeSchema = z.object({
   description: z.string().optional(),
   price: z.number().int().min(0),
   serviceFee: z.number().int().min(0).optional(),
+  serviceFeeType: z.enum(["fixed", "percentage"]).optional(),
   quantity: z.number().int().min(1),
   saleStart: z.string().optional(),
   saleEnd: z.string().optional(),
@@ -548,7 +549,7 @@ router.post(
       return;
     }
 
-    const { sectionId, name, description, price, serviceFee, quantity, saleStart, saleEnd, isActive, validEventDayIds, isNumberedUnits, unitLabel, ticketsPerUnit } = parsed.data;
+    const { sectionId, name, description, price, serviceFee, serviceFeeType, quantity, saleStart, saleEnd, isActive, validEventDayIds, isNumberedUnits, unitLabel, ticketsPerUnit } = parsed.data;
 
     if (isNumberedUnits && (!unitLabel || !ticketsPerUnit)) {
       res.status(400).json({ error: "unitLabel and ticketsPerUnit are required for numbered units" });
@@ -564,6 +565,7 @@ router.post(
         description: description ?? null,
         price,
         serviceFee: serviceFee ?? 0,
+        serviceFeeType: serviceFeeType ?? "fixed",
         quantity,
         saleStart: saleStart ? new Date(saleStart) : null,
         saleEnd: saleEnd ? new Date(saleEnd) : null,
@@ -605,6 +607,7 @@ router.patch(
     if (body.description !== undefined) updates.description = body.description;
     if (body.price !== undefined) updates.price = body.price;
     if (body.serviceFee !== undefined) updates.serviceFee = body.serviceFee;
+    if (body.serviceFeeType !== undefined) updates.serviceFeeType = body.serviceFeeType;
     if (body.quantity !== undefined) updates.quantity = body.quantity;
     if (body.saleStart !== undefined) updates.saleStart = body.saleStart ? new Date(body.saleStart as string) : null;
     if (body.saleEnd !== undefined) updates.saleEnd = body.saleEnd ? new Date(body.saleEnd as string) : null;

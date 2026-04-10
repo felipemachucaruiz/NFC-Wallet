@@ -33,6 +33,7 @@ type TicketForm = {
   sectionId: string;
   price: string;
   serviceFee: string;
+  serviceFeeType: "fixed" | "percentage";
   quantity: string;
   saleStart: string;
   saleEnd: string;
@@ -48,6 +49,7 @@ const emptyForm: TicketForm = {
   sectionId: "",
   price: "",
   serviceFee: "",
+  serviceFeeType: "fixed",
   quantity: "",
   saleStart: "",
   saleEnd: "",
@@ -135,6 +137,7 @@ export default function EventTicketTypes() {
       sectionId: tt.sectionId ?? "",
       price: String(tt.price),
       serviceFee: String(tt.serviceFee),
+      serviceFeeType: (tt.serviceFeeType as "fixed" | "percentage") ?? "fixed",
       quantity: String(tt.quantity),
       saleStart: tt.saleStart ? tt.saleStart.slice(0, 16) : "",
       saleEnd: tt.saleEnd ? tt.saleEnd.slice(0, 16) : "",
@@ -163,6 +166,7 @@ export default function EventTicketTypes() {
       name: form.name,
       price: parseInt(form.price, 10),
       serviceFee: parseInt(form.serviceFee, 10) || 0,
+      serviceFeeType: form.serviceFeeType,
       quantity: parseInt(form.quantity, 10),
       sectionId: form.sectionId || undefined,
       saleStart: form.saleStart ? new Date(form.saleStart).toISOString() : undefined,
@@ -259,7 +263,11 @@ export default function EventTicketTypes() {
                       {sections.find((s) => s.id === tt.sectionId)?.name || "—"}
                     </TableCell>
                     <TableCell className="font-mono">{formatPrice(tt.price)}</TableCell>
-                    <TableCell className="font-mono">{formatPrice(tt.serviceFee)}</TableCell>
+                    <TableCell className="font-mono">
+                      {tt.serviceFeeType === "percentage"
+                        ? `${tt.serviceFee}%`
+                        : formatPrice(tt.serviceFee)}
+                    </TableCell>
                     <TableCell>{tt.quantity.toLocaleString()}</TableCell>
                     <TableCell>{tt.soldCount.toLocaleString()}</TableCell>
                     <TableCell>
@@ -292,15 +300,30 @@ export default function EventTicketTypes() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {ticketTypes.map((tt) => (
-                <div key={tt.id} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{tt.name} ({tt.quantity.toLocaleString()} × {formatPrice(tt.serviceFee)})</span>
-                  <span className="font-mono">{formatPrice(tt.quantity * tt.serviceFee)}</span>
-                </div>
-              ))}
+              {ticketTypes.map((tt) => {
+                const feePerTicket = tt.serviceFeeType === "percentage"
+                  ? Math.round(tt.price * tt.serviceFee / 100)
+                  : tt.serviceFee;
+                const feeLabel = tt.serviceFeeType === "percentage"
+                  ? `${tt.serviceFee}% = ${formatPrice(feePerTicket)}`
+                  : formatPrice(tt.serviceFee);
+                return (
+                  <div key={tt.id} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{tt.name} ({tt.quantity.toLocaleString()} × {feeLabel})</span>
+                    <span className="font-mono">{formatPrice(tt.quantity * feePerTicket)}</span>
+                  </div>
+                );
+              })}
               <div className="border-t pt-2 flex items-center justify-between font-semibold">
                 <span>{t("ticketTypes.totalServiceFee")}</span>
-                <span className="font-mono text-primary">{formatPrice(ticketTypes.reduce((sum, tt) => sum + tt.quantity * tt.serviceFee, 0))}</span>
+                <span className="font-mono text-primary">
+                  {formatPrice(ticketTypes.reduce((sum, tt) => {
+                    const feePerTicket = tt.serviceFeeType === "percentage"
+                      ? Math.round(tt.price * tt.serviceFee / 100)
+                      : tt.serviceFee;
+                    return sum + tt.quantity * feePerTicket;
+                  }, 0))}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -348,14 +371,26 @@ export default function EventTicketTypes() {
               </div>
               <div className="space-y-1">
                 <Label>{t("ticketTypes.colServiceFee")}</Label>
-                <Input
-                  data-testid="input-ticket-service-fee"
-                  type="number"
-                  min="0"
-                  value={form.serviceFee}
-                  onChange={(e) => setForm((f) => ({ ...f, serviceFee: e.target.value }))}
-                  placeholder="0"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    data-testid="input-ticket-service-fee"
+                    type="number"
+                    min="0"
+                    value={form.serviceFee}
+                    onChange={(e) => setForm((f) => ({ ...f, serviceFee: e.target.value }))}
+                    placeholder="0"
+                    className="flex-1"
+                  />
+                  <Select value={form.serviceFeeType} onValueChange={(v) => setForm((f) => ({ ...f, serviceFeeType: v as "fixed" | "percentage" }))}>
+                    <SelectTrigger className="w-24" data-testid="select-service-fee-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">COP</SelectItem>
+                      <SelectItem value="percentage">%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="space-y-1">
                 <Label>{t("ticketTypes.quantity")} *</Label>

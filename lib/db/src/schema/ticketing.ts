@@ -74,6 +74,7 @@ export const ticketTypesTable = pgTable("ticket_types", {
   description: text("description"),
   price: integer("price").notNull(),
   serviceFee: integer("service_fee").notNull().default(0),
+  serviceFeeType: varchar("service_fee_type", { length: 20 }).notNull().default("fixed"),
   quantity: integer("quantity").notNull(),
   soldCount: integer("sold_count").notNull().default(0),
   saleStart: timestamp("sale_start", { withTimezone: true }),
