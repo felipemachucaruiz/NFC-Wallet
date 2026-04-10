@@ -20,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, MapPin, ChevronDown, ChevronsUpDown, Check, Building2, Upload, Ticket } from "lucide-react";
+import { Plus, Search, Pencil, MapPin, ChevronDown, ChevronsUpDown, Check, Building2, Upload, Ticket, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
@@ -154,6 +154,7 @@ function ImageUploadField({
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [removed, setRemoved] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -161,6 +162,7 @@ function ImageUploadField({
 
     const preview = URL.createObjectURL(file);
     setPreviewUrl(preview);
+    setRemoved(false);
 
     if (isCreate) {
       onPendingFileChange?.(file);
@@ -181,32 +183,54 @@ function ImageUploadField({
     }
   };
 
-  const displayUrl = previewUrl || currentUrl;
+  const handleRemove = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPreviewUrl(null);
+    setRemoved(true);
+    onUploaded?.("");
+    if (isCreate) {
+      onPendingFileChange?.(null);
+    }
+  };
+
+  const displayUrl = removed ? null : (previewUrl || currentUrl);
   const isCover = imageType === "cover";
 
   return (
     <div className="space-y-1">
       <Label>{label}</Label>
-      <label className={cn(
-        "flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 transition-colors",
-        isCover ? "h-24" : "h-24 w-24",
-        uploading && "opacity-60 pointer-events-none"
-      )}>
-        {displayUrl ? (
-          <img
-            src={displayUrl}
-            alt={label}
-            className={cn("rounded-md object-cover", isCover ? "h-full w-full" : "h-full w-full")}
-            onError={(e) => (e.currentTarget.style.display = "none")}
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-1 text-muted-foreground text-xs p-2">
-            <Upload className="w-5 h-5" />
-            <span>{uploading ? t("events.uploading") : t("events.clickToUpload")}</span>
-          </div>
+      <div className="relative">
+        <label className={cn(
+          "flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 transition-colors",
+          isCover ? "h-24" : "h-24 w-24",
+          uploading && "opacity-60 pointer-events-none"
+        )}>
+          {displayUrl ? (
+            <img
+              src={displayUrl}
+              alt={label}
+              className={cn("rounded-md object-cover", isCover ? "h-full w-full" : "h-full w-full")}
+              onError={(e) => (e.currentTarget.style.display = "none")}
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-1 text-muted-foreground text-xs p-2">
+              <Upload className="w-5 h-5" />
+              <span>{uploading ? t("events.uploading") : t("events.clickToUpload")}</span>
+            </div>
+          )}
+          <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} disabled={uploading} />
+        </label>
+        {displayUrl && (
+          <button
+            type="button"
+            onClick={handleRemove}
+            className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-destructive/80 transition-colors"
+          >
+            <X className="w-3 h-3" />
+          </button>
         )}
-        <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} disabled={uploading} />
-      </label>
+      </div>
       {pendingFile && isCreate && (
         <p className="text-xs text-muted-foreground">{pendingFile.name}</p>
       )}
@@ -688,6 +712,8 @@ export default function Events() {
       currencyCode: form.currencyCode || undefined,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
+      coverImageUrl: form.coverImageUrl || null,
+      flyerImageUrl: form.flyerImageUrl || null,
     };
     updateEvent.mutate(
       { eventId: selectedEvent.id, data: payload },
