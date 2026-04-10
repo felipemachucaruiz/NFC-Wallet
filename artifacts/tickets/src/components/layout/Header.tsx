@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
-import { Search, Menu, X, Globe, User, Ticket, LogOut } from "lucide-react";
+import { Menu, X, Globe, User, Ticket, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +11,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/AuthContext";
+import { SearchAutocomplete } from "@/components/SearchAutocomplete";
 import { LANGUAGE_KEY } from "@/i18n";
 
 export function Header() {
@@ -19,18 +19,10 @@ export function Header() {
   const [, navigate] = useLocation();
   const { user, isAuthenticated, logout, openAuthModal } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const switchLanguage = (lang: string) => {
     i18n.changeLanguage(lang);
     localStorage.setItem(LANGUAGE_KEY, lang);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
   };
 
   return (
@@ -58,18 +50,7 @@ export function Header() {
             </nav>
           </div>
 
-          <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-6">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder={t("nav.search")}
-                className="pl-10 bg-card border-border"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </form>
+          <SearchAutocomplete className="hidden md:flex flex-1 max-w-md mx-6" />
 
           <div className="flex items-center gap-2">
             <DropdownMenu>
@@ -135,16 +116,7 @@ export function Header() {
 
         {mobileMenuOpen && (
           <div className="md:hidden pb-4 border-t border-border pt-4 space-y-3">
-            <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder={t("nav.search")}
-                className="pl-10 bg-card"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </form>
+            <SearchAutocomplete onNavigate={() => setMobileMenuOpen(false)} />
             <div className="flex flex-col gap-1">
               <Link href="/" onClick={() => setMobileMenuOpen(false)}>
                 <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.home")}</Button>
