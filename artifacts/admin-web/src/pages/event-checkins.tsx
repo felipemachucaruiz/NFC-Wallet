@@ -4,7 +4,7 @@ import { useGetCurrentAuthUser } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserCheck, CalendarDays, BarChart3, Loader2 } from "lucide-react";
+import { UserCheck, CalendarDays, BarChart3, Loader2, MapPin, ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
 import { apiFetchCheckinStats } from "@/lib/api";
@@ -24,6 +24,7 @@ export default function EventCheckins() {
   });
 
   const days = data?.days ?? [];
+  const sections = data?.sections ?? [];
   const filteredDays = selectedDay === "all" ? days : days.filter((d) => d.dayId === selectedDay);
 
   const totalCheckins = filteredDays.reduce((s, d) => s + d.totalCheckins, 0);
@@ -140,6 +141,85 @@ export default function EventCheckins() {
           );
         })
       )}
+
+      {sections.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <MapPin className="w-5 h-5" />
+            {t("checkins.byLocation")}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sections.map((sec) => (
+              <SectionCheckinCard key={sec.sectionId} section={sec} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+type SectionData = NonNullable<Awaited<ReturnType<typeof apiFetchCheckinStats>>["sections"]>[number];
+
+function SectionCheckinCard({ section }: { section: SectionData }) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const rate = section.totalTickets > 0 ? Math.round((section.totalCheckins / section.totalTickets) * 100) : 0;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: section.color }} />
+            <CardTitle className="text-base truncate">{section.sectionName}</CardTitle>
+          </div>
+          <Badge variant={rate >= 80 ? "default" : rate > 0 ? "secondary" : "outline"}>
+            {section.totalCheckins}/{section.totalTickets} ({rate}%)
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0 space-y-3">
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${rate}%`, backgroundColor: section.color }}
+          />
+        </div>
+
+        {section.hasNumberedUnits && section.units.length > 0 && (
+          <div>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              {section.units.length} {section.units[0]?.unitLabel?.split(" ")[0] || "units"}
+            </button>
+            {expanded && (
+              <div className="mt-2 space-y-1.5">
+                {section.units.map((unit) => {
+                  const unitRate = unit.ticketsPerUnit > 0 ? Math.round((unit.totalCheckins / unit.ticketsPerUnit) * 100) : 0;
+                  return (
+                    <div key={unit.unitId} className="flex items-center gap-3 px-2 py-1.5 rounded-md bg-muted/30">
+                      <span className="text-sm font-medium min-w-[100px] truncate">{unit.unitLabel}</span>
+                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${unitRate}%`, backgroundColor: section.color }}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {unit.totalCheckins}/{unit.ticketsPerUnit}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -1118,7 +1118,11 @@
     "colCheckins": "Check-ins",
     "colCapacity": "Capacity",
     "colRate": "Rate",
-    "colProgress": "Progress"
+    "colProgress": "Progress",
+    "byLocation": "By Location",
+    "noSections": "No venue sections configured.",
+    "checkedIn": "checked in",
+    "tickets": "tickets"
   },
   "venueLocation": {
     "title": "Venue Location",

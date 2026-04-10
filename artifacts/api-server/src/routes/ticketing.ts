@@ -967,31 +967,123 @@ router.get(
       return;
     }
 
-    const days = await db
-      .select()
-      .from(eventDaysTable)
-      .where(eq(eventDaysTable.eventId, eventId))
-      .orderBy(asc(eventDaysTable.displayOrder), asc(eventDaysTable.date));
+    const [days, checkIns, ticketsByDay, sections, sectionCheckins, ticketTypes, unitCheckins, ticketsBySectionRaw] = await Promise.all([
+      db.select()
+        .from(eventDaysTable)
+        .where(eq(eventDaysTable.eventId, eventId))
+        .orderBy(asc(eventDaysTable.displayOrder), asc(eventDaysTable.date)),
 
-    const checkIns = await db
-      .select({
-        eventDayId: ticketCheckInsTable.eventDayId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(ticketCheckInsTable)
-      .innerJoin(ticketsTable, eq(ticketCheckInsTable.ticketId, ticketsTable.id))
-      .where(eq(ticketsTable.eventId, eventId))
-      .groupBy(ticketCheckInsTable.eventDayId);
+      db.select({
+          eventDayId: ticketCheckInsTable.eventDayId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(ticketCheckInsTable)
+        .innerJoin(ticketsTable, eq(ticketCheckInsTable.ticketId, ticketsTable.id))
+        .where(eq(ticketsTable.eventId, eventId))
+        .groupBy(ticketCheckInsTable.eventDayId),
 
-    const ticketsByDay = await db
-      .select({
-        count: sql<number>`count(*)::int`,
-      })
-      .from(ticketsTable)
-      .where(and(eq(ticketsTable.eventId, eventId), sql`${ticketsTable.status} != 'cancelled'`));
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(ticketsTable)
+        .where(and(eq(ticketsTable.eventId, eventId), sql`${ticketsTable.status} != 'cancelled'`)),
+
+      db.select()
+        .from(venueSectionsTable)
+        .innerJoin(venuesTable, eq(venueSectionsTable.venueId, venuesTable.id))
+        .where(eq(venuesTable.eventId, eventId))
+        .orderBy(asc(venueSectionsTable.displayOrder)),
+
+      db.select({
+          sectionId: ticketTypesTable.sectionId,
+          eventDayId: ticketCheckInsTable.eventDayId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(ticketCheckInsTable)
+        .innerJoin(ticketsTable, eq(ticketCheckInsTable.ticketId, ticketsTable.id))
+        .innerJoin(ticketTypesTable, eq(ticketsTable.ticketTypeId, ticketTypesTable.id))
+        .where(and(eq(ticketsTable.eventId, eventId), sql`${ticketTypesTable.sectionId} is not null`))
+        .groupBy(ticketTypesTable.sectionId, ticketCheckInsTable.eventDayId),
+
+      db.select()
+        .from(ticketTypesTable)
+        .where(eq(ticketTypesTable.eventId, eventId)),
+
+      db.select({
+          unitId: ticketsTable.unitId,
+          eventDayId: ticketCheckInsTable.eventDayId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(ticketCheckInsTable)
+        .innerJoin(ticketsTable, eq(ticketCheckInsTable.ticketId, ticketsTable.id))
+        .where(and(eq(ticketsTable.eventId, eventId), sql`${ticketsTable.unitId} is not null`))
+        .groupBy(ticketsTable.unitId, ticketCheckInsTable.eventDayId),
+
+      db.select({
+          sectionId: ticketTypesTable.sectionId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(ticketsTable)
+        .innerJoin(ticketTypesTable, eq(ticketsTable.ticketTypeId, ticketTypesTable.id))
+        .where(and(eq(ticketsTable.eventId, eventId), sql`${ticketsTable.status} != 'cancelled'`, sql`${ticketTypesTable.sectionId} is not null`))
+        .groupBy(ticketTypesTable.sectionId),
+    ]);
 
     const totalTickets = ticketsByDay[0]?.count ?? 0;
     const checkinMap = Object.fromEntries(checkIns.map((c) => [c.eventDayId, c.count]));
+
+    const numberedTypes = ticketTypes.filter((tt) => tt.isNumberedUnits);
+    let units: { id: string; ticketTypeId: string; unitNumber: number; unitLabel: string | null; status: string | null }[] = [];
+    if (numberedTypes.length > 0) {
+      const typeIds = numberedTypes.map((tt) => tt.id);
+      units = await db.select({
+        id: ticketTypeUnitsTable.id,
+        ticketTypeId: ticketTypeUnitsTable.ticketTypeId,
+        unitNumber: ticketTypeUnitsTable.unitNumber,
+        unitLabel: ticketTypeUnitsTable.unitLabel,
+        status: ticketTypeUnitsTable.status,
+      })
+        .from(ticketTypeUnitsTable)
+        .where(sql`${ticketTypeUnitsTable.ticketTypeId} in ${typeIds}`)
+        .orderBy(asc(ticketTypeUnitsTable.unitNumber));
+    }
+
+    const ticketsBySectionMap = Object.fromEntries(ticketsBySectionRaw.map((r) => [r.sectionId, r.count]));
+
+    const sectionStats = sections.map((s) => {
+      const sec = s.venue_sections;
+      const sectionTicketTypes = ticketTypes.filter((tt) => tt.sectionId === sec.id);
+      const hasNumberedUnits = sectionTicketTypes.some((tt) => tt.isNumberedUnits);
+      const sectionUnits = units.filter((u) => sectionTicketTypes.some((tt) => tt.id === u.ticketTypeId));
+
+      const unitStats = sectionUnits.map((u) => {
+        const unitCheckinsAll = unitCheckins
+          .filter((uc) => uc.unitId === u.id)
+          .reduce((sum, uc) => sum + uc.count, 0);
+        const tt = numberedTypes.find((t) => t.id === u.ticketTypeId);
+        return {
+          unitId: u.id,
+          unitNumber: u.unitNumber,
+          unitLabel: u.unitLabel || `${tt?.unitLabel || "Unit"} ${u.unitNumber}`,
+          ticketsPerUnit: tt?.ticketsPerUnit ?? 1,
+          totalCheckins: unitCheckinsAll,
+          status: u.status,
+        };
+      });
+
+      const totalSectionCheckins = sectionCheckins
+        .filter((sc) => sc.sectionId === sec.id)
+        .reduce((sum, sc) => sum + sc.count, 0);
+
+      return {
+        sectionId: sec.id,
+        sectionName: sec.name,
+        color: sec.colorHex || "#22c55e",
+        sectionType: sec.sectionType || "",
+        totalTickets: ticketsBySectionMap[sec.id] ?? 0,
+        totalCheckins: totalSectionCheckins,
+        hasNumberedUnits,
+        units: hasNumberedUnits ? unitStats : [],
+      };
+    });
 
     const dayStats = days.map((day) => ({
       dayId: day.id,
@@ -1001,7 +1093,7 @@ router.get(
       totalTickets,
     }));
 
-    res.json({ days: dayStats, totalTickets });
+    res.json({ days: dayStats, totalTickets, sections: sectionStats });
   },
 );
 

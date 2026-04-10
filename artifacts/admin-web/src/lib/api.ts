@@ -216,7 +216,27 @@ export async function apiFetchCheckinStats(eventId: string) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/checkin-stats`), { headers: authHeaders() });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to fetch checkin stats");
-  return data as { days: Array<{ dayId: string; dayLabel: string; date: string; totalCheckins: number; totalTickets: number }>; totalTickets: number };
+  return data as {
+    days: Array<{ dayId: string; dayLabel: string; date: string; totalCheckins: number; totalTickets: number }>;
+    totalTickets: number;
+    sections?: Array<{
+      sectionId: string;
+      sectionName: string;
+      color: string;
+      sectionType: string;
+      totalTickets: number;
+      totalCheckins: number;
+      hasNumberedUnits: boolean;
+      units: Array<{
+        unitId: string;
+        unitNumber: number;
+        unitLabel: string;
+        ticketsPerUnit: number;
+        totalCheckins: number;
+        status: string | null;
+      }>;
+    }>;
+  };
 }
 
 export async function apiFetchPricingStages(eventId: string, typeId: string) {
