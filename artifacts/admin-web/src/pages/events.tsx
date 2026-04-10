@@ -194,8 +194,12 @@ function ImageUploadField({
     }
   };
 
-  const displayUrl = removed ? null : (previewUrl || currentUrl);
+  const rawDisplayUrl = removed ? null : (previewUrl || currentUrl || null);
+  const displayUrl = rawDisplayUrl && rawDisplayUrl.length > 1 ? rawDisplayUrl : null;
+  const resolvedSrc = displayUrl?.startsWith("http") ? displayUrl : displayUrl ? `${import.meta.env.PROD ? "https://prod.tapee.app" : ""}${displayUrl}` : "";
   const isCover = imageType === "cover";
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div className="space-y-1">
@@ -206,12 +210,13 @@ function ImageUploadField({
           isCover ? "h-24" : "h-24 w-24",
           uploading && "opacity-60 pointer-events-none"
         )}>
-          {displayUrl ? (
+          {resolvedSrc && !imgError ? (
             <img
-              src={displayUrl}
+              src={resolvedSrc}
               alt={label}
               className={cn("rounded-md object-cover", isCover ? "h-full w-full" : "h-full w-full")}
-              onError={(e) => (e.currentTarget.style.display = "none")}
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgError(true)}
             />
           ) : (
             <div className="flex flex-col items-center gap-1 text-muted-foreground text-xs p-2">
@@ -221,7 +226,7 @@ function ImageUploadField({
           )}
           <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} disabled={uploading} />
         </label>
-        {displayUrl && (
+        {resolvedSrc && imgLoaded && !imgError && (
           <button
             type="button"
             onClick={handleRemove}
