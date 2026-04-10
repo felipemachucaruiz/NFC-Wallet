@@ -95,8 +95,8 @@ export default function EventDays() {
     createMutation.mutate({
       label: form.label,
       date: form.date,
-      doorsOpenAt: form.doorsOpenAt ? `${form.date}T${form.doorsOpenAt}:00` : undefined,
-      doorsCloseAt: form.doorsCloseAt ? `${form.date}T${form.doorsCloseAt}:00` : undefined,
+      doorsOpenAt: form.doorsOpenAt ? `${form.date}T${form.doorsOpenAt}:00Z` : undefined,
+      doorsCloseAt: form.doorsCloseAt ? `${form.date}T${form.doorsCloseAt}:00Z` : undefined,
     });
   };
 
@@ -110,8 +110,8 @@ export default function EventDays() {
       body: {
         label: editForm.label,
         date: editForm.date,
-        doorsOpenAt: editForm.doorsOpenAt ? `${editForm.date}T${editForm.doorsOpenAt}:00` : null,
-        doorsCloseAt: editForm.doorsCloseAt ? `${editForm.date}T${editForm.doorsCloseAt}:00` : null,
+        doorsOpenAt: editForm.doorsOpenAt ? `${editForm.date}T${editForm.doorsOpenAt}:00Z` : null,
+        doorsCloseAt: editForm.doorsCloseAt ? `${editForm.date}T${editForm.doorsCloseAt}:00Z` : null,
       },
     });
   };
@@ -334,22 +334,16 @@ export default function EventDays() {
 
 function extractTime(dateStr: string): string {
   if (!dateStr) return "";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr.includes("T") ? dateStr.split("T")[1]?.substring(0, 5) || "" : "";
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  } catch {
-    return "";
-  }
+  const match = dateStr.match(/T(\d{2}:\d{2})/);
+  if (match) return match[1];
+  if (/^\d{2}:\d{2}/.test(dateStr)) return dateStr.substring(0, 5);
+  return "";
 }
 
 function formatTime(dateStr: string): string {
   if (!dateStr) return "—";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  } catch {
-    return dateStr;
-  }
+  const match = dateStr.match(/T(\d{2}:\d{2})/);
+  if (match) return match[1];
+  if (/^\d{2}:\d{2}/.test(dateStr)) return dateStr.substring(0, 5);
+  return dateStr;
 }
