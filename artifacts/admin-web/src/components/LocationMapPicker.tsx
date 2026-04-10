@@ -149,12 +149,14 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
     }
 
     placesServiceRef.current.getDetails(
-      { placeId: suggestion.placeId, fields: ["formatted_address", "geometry"] },
+      { placeId: suggestion.placeId, fields: ["name", "formatted_address", "geometry"] },
       (place, status) => {
         setSelectingPlace(false);
         if (status !== google.maps.places.PlacesServiceStatus.OK || !place?.geometry?.location) return;
         const pos = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
-        const addr = place.formatted_address ?? suggestion.text;
+        const raw = place.formatted_address ?? suggestion.text;
+        const name = place.name ?? "";
+        const addr = name && !raw.startsWith(name) ? `${name}, ${raw}` : raw;
         setMarker(pos);
         setAddress(addr);
         setSearchValue(addr);
