@@ -1,0 +1,606 @@
+
+Runtime version mismatch:
+- Runtime version calculated on local machine: 47adc84c903327bbfde2438aa6ba5fa847d97cad
+- Runtime version calculated on EAS: bc18af5f55df0af544ea0e5d049fd919d4913ca9
+
+This may be due to one or more factors:
+- Differing result of conditional app config (app.config.js) evaluation for runtime version resolution.
+- Differing fingerprint when using fingerprint runtime version policy. If applicable, see fingerprint diff below.
+
+This would cause any updates published on the local machine to not be compatible with this build.
+
+Difference between local and EAS fingerprints:
+[
+ {
+  "op": "added",
+  "addedSource": {
+   "type": "dir",
+   "filePath": "android",
+   "reasons": [
+    "bareNativeDir"
+   ],
+   "hash": null
+  }
+ },
+ {
+  "op": "changed",
+  "beforeSource": {
+   "type": "contents",
+   "id": "rncoreAutolinkingConfig:android",
+   "contents": {
+    "@react-native-community/datetimepicker": {
+     "root": "../../node_modules/.pnpm/@react-native-community+datetimepicker@8.4.4_expo@54.0.33_react-native@0.81.5_@babel+co_2c041e9fff17daecb6f29e9df5ecc77e/node_modules/@react-native-community/datetimepicker",
+     "name": "@react-native-community/datetimepicker",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/@react-native-community+datetimepicker@8.4.4_expo@54.0.33_react-native@0.81.5_@babel+co_2c041e9fff17daecb6f29e9df5ecc77e/node_modules/@react-native-community/datetimepicker/android",
+       "packageImportPath": "import com.reactcommunity.rndatetimepicker.RNDateTimePickerPackage;",
+       "packageInstance": "new RNDateTimePickerPackage()",
+       "buildTypes": [],
+       "libraryName": "RNDateTimePickerCGen",
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/@react-native-community+datetimepicker@8.4.4_expo@54.0.33_react-native@0.81.5_@babel+co_2c041e9fff17daecb6f29e9df5ecc77e/node_modules/@react-native-community/datetimepicker/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-maps": {
+     "root": "../../node_modules/.pnpm/react-native-maps@1.20.1_react-native-web@0.21.2_react-dom@19.1.0_react@19.1.0__react@1_6c876ebbe06da1b6e7e4e676fe5d5b87/node_modules/react-native-maps",
+     "name": "react-native-maps",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-maps@1.20.1_react-native-web@0.21.2_react-dom@19.1.0_react@19.1.0__react@1_6c876ebbe06da1b6e7e4e676fe5d5b87/node_modules/react-native-maps/android",
+       "packageImportPath": "import com.rnmaps.maps.MapsPackage;",
+       "packageInstance": "new MapsPackage()",
+       "buildTypes": [],
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-maps@1.20.1_react-native-web@0.21.2_react-dom@19.1.0_react@19.1.0__react@1_6c876ebbe06da1b6e7e4e676fe5d5b87/node_modules/react-native-maps/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-nfc-manager": {
+     "root": "../../node_modules/.pnpm/react-native-nfc-manager@3.17.2_@expo+config-plugins@54.0.4/node_modules/react-native-nfc-manager",
+     "name": "react-native-nfc-manager",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-nfc-manager@3.17.2_@expo+config-plugins@54.0.4/node_modules/react-native-nfc-manager/android",
+       "packageImportPath": "import community.revteltech.nfc.NfcManagerPackage;",
+       "packageInstance": "new NfcManagerPackage()",
+       "buildTypes": [],
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-nfc-manager@3.17.2_@expo+config-plugins@54.0.4/node_modules/react-native-nfc-manager/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "@react-native-async-storage/async-storage": {
+     "root": "../../node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0__088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage",
+     "name": "@react-native-async-storage/async-storage",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0__088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage/android",
+       "packageImportPath": "import com.reactnativecommunity.asyncstorage.AsyncStoragePackage;",
+       "packageInstance": "new AsyncStoragePackage()",
+       "buildTypes": [],
+       "libraryName": "rnasyncstorage",
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0__088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "expo": {
+     "root": "../../node_modules/.pnpm/expo@54.0.33_@babel+core@7.29.0_@expo+metro-runtime@6.1.2_expo-router@6.0.23_graphql@16_95d1def69744c4d211b3662c1beb133e/node_modules/expo",
+     "name": "expo",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/expo@54.0.33_@babel+core@7.29.0_@expo+metro-runtime@6.1.2_expo-router@6.0.23_graphql@16_95d1def69744c4d211b3662c1beb133e/node_modules/expo/android",
+       "packageImportPath": "import expo.modules.ExpoModulesPackage;",
+       "packageInstance": "new ExpoModulesPackage()",
+       "buildTypes": [],
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/expo@54.0.33_@babel+core@7.29.0_@expo+metro-runtime@6.1.2_expo-router@6.0.23_graphql@16_95d1def69744c4d211b3662c1beb133e/node_modules/expo/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-gesture-handler": {
+     "root": "../../node_modules/.pnpm/react-native-gesture-handler@2.28.0_react-native@0.81.5_@babel+core@7.29.0_@types+react_18db092138149f473db19e5f912d822a/node_modules/react-native-gesture-handler",
+     "name": "react-native-gesture-handler",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-gesture-handler@2.28.0_react-native@0.81.5_@babel+core@7.29.0_@types+react_18db092138149f473db19e5f912d822a/node_modules/react-native-gesture-handler/android",
+       "packageImportPath": "import com.swmansion.gesturehandler.RNGestureHandlerPackage;",
+       "packageInstance": "new RNGestureHandlerPackage()",
+       "buildTypes": [],
+       "libraryName": "rngesturehandler_codegen",
+       "componentDescriptors": [
+        "RNGestureHandlerButtonComponentDescriptor",
+        "RNGestureHandlerRootViewComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-gesture-handler@2.28.0_react-native@0.81.5_@babel+core@7.29.0_@types+react_18db092138149f473db19e5f912d822a/node_modules/react-native-gesture-handler/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-keyboard-controller": {
+     "root": "../../node_modules/.pnpm/react-native-keyboard-controller@1.18.5_react-native-reanimated@4.1.7_react-native-work_fcfe858f08c40f4fabb70307ed883ead/node_modules/react-native-keyboard-controller",
+     "name": "react-native-keyboard-controller",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-keyboard-controller@1.18.5_react-native-reanimated@4.1.7_react-native-work_fcfe858f08c40f4fabb70307ed883ead/node_modules/react-native-keyboard-controller/android",
+       "packageImportPath": "import com.reactnativekeyboardcontroller.KeyboardControllerPackage;",
+       "packageInstance": "new KeyboardControllerPackage()",
+       "buildTypes": [],
+       "libraryName": "reactnativekeyboardcontroller",
+       "componentDescriptors": [
+        "KeyboardControllerViewComponentDescriptor",
+        "KeyboardGestureAreaComponentDescriptor",
+        "OverKeyboardViewComponentDescriptor",
+        "KeyboardBackgroundViewComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-keyboard-controller@1.18.5_react-native-reanimated@4.1.7_react-native-work_fcfe858f08c40f4fabb70307ed883ead/node_modules/react-native-keyboard-controller/android/src/main/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-reanimated": {
+     "root": "../../node_modules/.pnpm/react-native-reanimated@4.1.7_react-native-worklets@0.5.1_@babel+core@7.29.0_react-nati_515d6df303eb2cb6b0aef8cdac663c06/node_modules/react-native-reanimated",
+     "name": "react-native-reanimated",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-reanimated@4.1.7_react-native-worklets@0.5.1_@babel+core@7.29.0_react-nati_515d6df303eb2cb6b0aef8cdac663c06/node_modules/react-native-reanimated/android",
+       "packageImportPath": "import com.swmansion.reanimated.ReanimatedPackage;",
+       "packageInstance": "new ReanimatedPackage()",
+       "buildTypes": [],
+       "libraryName": "rnreanimated",
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-reanimated@4.1.7_react-native-worklets@0.5.1_@babel+core@7.29.0_react-nati_515d6df303eb2cb6b0aef8cdac663c06/node_modules/react-native-reanimated/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-safe-area-context": {
+     "root": "../../node_modules/.pnpm/react-native-safe-area-context@5.6.2_react-native@0.81.5_@babel+core@7.29.0_@types+reac_db7e84308fa9a28cdc0cc9a7b78f5e93/node_modules/react-native-safe-area-context",
+     "name": "react-native-safe-area-context",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-safe-area-context@5.6.2_react-native@0.81.5_@babel+core@7.29.0_@types+reac_db7e84308fa9a28cdc0cc9a7b78f5e93/node_modules/react-native-safe-area-context/android",
+       "packageImportPath": "import com.th3rdwave.safeareacontext.SafeAreaContextPackage;",
+       "packageInstance": "new SafeAreaContextPackage()",
+       "buildTypes": [],
+       "libraryName": "safeareacontext",
+       "componentDescriptors": [
+        "RNCSafeAreaProviderComponentDescriptor",
+        "RNCSafeAreaViewComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-safe-area-context@5.6.2_react-native@0.81.5_@babel+core@7.29.0_@types+reac_db7e84308fa9a28cdc0cc9a7b78f5e93/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-screens": {
+     "root": "../../node_modules/.pnpm/react-native-screens@4.16.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-screens",
+     "name": "react-native-screens",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-screens@4.16.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-screens/android",
+       "packageImportPath": "import com.swmansion.rnscreens.RNScreensPackage;",
+       "packageInstance": "new RNScreensPackage()",
+       "buildTypes": [],
+       "libraryName": "rnscreens",
+       "componentDescriptors": [
+        "RNSFullWindowOverlayComponentDescriptor",
+        "RNSScreenContainerComponentDescriptor",
+        "RNSScreenNavigationContainerComponentDescriptor",
+        "RNSScreenStackHeaderConfigComponentDescriptor",
+        "RNSScreenStackHeaderSubviewComponentDescriptor",
+        "RNSScreenStackComponentDescriptor",
+        "RNSSearchBarComponentDescriptor",
+        "RNSScreenComponentDescriptor",
+        "RNSScreenFooterComponentDescriptor",
+        "RNSScreenContentWrapperComponentDescriptor",
+        "RNSModalScreenComponentDescriptor",
+        "RNSBottomTabsComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-screens@4.16.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-svg": {
+     "root": "../../node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg",
+     "name": "react-native-svg",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg/android",
+       "packageImportPath": "import com.horcrux.svg.SvgPackage;",
+       "packageInstance": "new SvgPackage()",
+       "buildTypes": [],
+       "libraryName": "rnsvg",
+       "componentDescriptors": [
+        "RNSVGCircleComponentDescriptor",
+        "RNSVGClipPathComponentDescriptor",
+        "RNSVGDefsComponentDescriptor",
+        "RNSVGFeBlendComponentDescriptor",
+        "RNSVGFeColorMatrixComponentDescriptor",
+        "RNSVGFeCompositeComponentDescriptor",
+        "RNSVGFeFloodComponentDescriptor",
+        "RNSVGFeGaussianBlurComponentDescriptor",
+        "RNSVGFeMergeComponentDescriptor",
+        "RNSVGFeOffsetComponentDescriptor",
+        "RNSVGFilterComponentDescriptor",
+        "RNSVGEllipseComponentDescriptor",
+        "RNSVGForeignObjectComponentDescriptor",
+        "RNSVGGroupComponentDescriptor",
+        "RNSVGImageComponentDescriptor",
+        "RNSVGLinearGradientComponentDescriptor",
+        "RNSVGLineComponentDescriptor",
+        "RNSVGMarkerComponentDescriptor",
+        "RNSVGMaskComponentDescriptor",
+        "RNSVGPathComponentDescriptor",
+        "RNSVGPatternComponentDescriptor",
+        "RNSVGRadialGradientComponentDescriptor",
+        "RNSVGRectComponentDescriptor",
+        "RNSVGSvgViewAndroidComponentDescriptor",
+        "RNSVGSymbolComponentDescriptor",
+        "RNSVGTextComponentDescriptor",
+        "RNSVGTextPathComponentDescriptor",
+        "RNSVGTSpanComponentDescriptor",
+        "RNSVGUseComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg/android/src/main/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-worklets": {
+     "root": "../../node_modules/.pnpm/react-native-worklets@0.5.1_@babel+core@7.29.0_react-native@0.81.5_@babel+core@7.29.0_@_e33ee53926cb739c160046f5657a922f/node_modules/react-native-worklets",
+     "name": "react-native-worklets",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-worklets@0.5.1_@babel+core@7.29.0_react-native@0.81.5_@babel+core@7.29.0_@_e33ee53926cb739c160046f5657a922f/node_modules/react-native-worklets/android",
+       "packageImportPath": "import com.swmansion.worklets.WorkletsPackage;",
+       "packageInstance": "new WorkletsPackage()",
+       "buildTypes": [],
+       "libraryName": "rnworklets",
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-worklets@0.5.1_@babel+core@7.29.0_react-native@0.81.5_@babel+core@7.29.0_@_e33ee53926cb739c160046f5657a922f/node_modules/react-native-worklets/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    }
+   },
+   "reasons": [
+    "rncoreAutolinkingAndroid"
+   ],
+   "hash": "481965472923b4c7b3829869a460ecc6f8666776"
+  },
+  "afterSource": {
+   "type": "contents",
+   "id": "rncoreAutolinkingConfig:android",
+   "contents": {
+    "@react-native-community/datetimepicker": {
+     "root": "../../node_modules/.pnpm/@react-native-community+datetimepicker@8.4.4_expo@54.0.33_react-native@0.81.5_@babel+co_2c041e9fff17daecb6f29e9df5ecc77e/node_modules/@react-native-community/datetimepicker",
+     "name": "@react-native-community/datetimepicker",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/@react-native-community+datetimepicker@8.4.4_expo@54.0.33_react-native@0.81.5_@babel+co_2c041e9fff17daecb6f29e9df5ecc77e/node_modules/@react-native-community/datetimepicker/android",
+       "packageImportPath": "import com.reactcommunity.rndatetimepicker.RNDateTimePickerPackage;",
+       "packageInstance": "new RNDateTimePickerPackage()",
+       "buildTypes": [],
+       "libraryName": "RNDateTimePickerCGen",
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/@react-native-community+datetimepicker@8.4.4_expo@54.0.33_react-native@0.81.5_@babel+co_2c041e9fff17daecb6f29e9df5ecc77e/node_modules/@react-native-community/datetimepicker/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-maps": {
+     "root": "../../node_modules/.pnpm/react-native-maps@1.20.1_react-native-web@0.21.2_react-dom@19.1.0_react@19.1.0__react@1_6c876ebbe06da1b6e7e4e676fe5d5b87/node_modules/react-native-maps",
+     "name": "react-native-maps",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-maps@1.20.1_react-native-web@0.21.2_react-dom@19.1.0_react@19.1.0__react@1_6c876ebbe06da1b6e7e4e676fe5d5b87/node_modules/react-native-maps/android",
+       "packageImportPath": "import com.rnmaps.maps.MapsPackage;",
+       "packageInstance": "new MapsPackage()",
+       "buildTypes": [],
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-maps@1.20.1_react-native-web@0.21.2_react-dom@19.1.0_react@19.1.0__react@1_6c876ebbe06da1b6e7e4e676fe5d5b87/node_modules/react-native-maps/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-nfc-manager": {
+     "root": "../../node_modules/.pnpm/react-native-nfc-manager@3.17.2_@expo+config-plugins@54.0.4/node_modules/react-native-nfc-manager",
+     "name": "react-native-nfc-manager",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-nfc-manager@3.17.2_@expo+config-plugins@54.0.4/node_modules/react-native-nfc-manager/android",
+       "packageImportPath": "import community.revteltech.nfc.NfcManagerPackage;",
+       "packageInstance": "new NfcManagerPackage()",
+       "buildTypes": [],
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-nfc-manager@3.17.2_@expo+config-plugins@54.0.4/node_modules/react-native-nfc-manager/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "expo": {
+     "root": "../../node_modules/.pnpm/expo@54.0.33_@babel+core@7.29.0_@expo+metro-runtime@6.1.2_expo-router@6.0.23_graphql@16_95d1def69744c4d211b3662c1beb133e/node_modules/expo",
+     "name": "expo",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/expo@54.0.33_@babel+core@7.29.0_@expo+metro-runtime@6.1.2_expo-router@6.0.23_graphql@16_95d1def69744c4d211b3662c1beb133e/node_modules/expo/android",
+       "packageImportPath": "import expo.modules.ExpoModulesPackage;",
+       "packageInstance": "new ExpoModulesPackage()",
+       "buildTypes": [],
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/expo@54.0.33_@babel+core@7.29.0_@expo+metro-runtime@6.1.2_expo-router@6.0.23_graphql@16_95d1def69744c4d211b3662c1beb133e/node_modules/expo/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "@react-native-async-storage/async-storage": {
+     "root": "../../node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0__088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage",
+     "name": "@react-native-async-storage/async-storage",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0__088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage/android",
+       "packageImportPath": "import com.reactnativecommunity.asyncstorage.AsyncStoragePackage;",
+       "packageInstance": "new AsyncStoragePackage()",
+       "buildTypes": [],
+       "libraryName": "rnasyncstorage",
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0__088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-gesture-handler": {
+     "root": "../../node_modules/.pnpm/react-native-gesture-handler@2.28.0_react-native@0.81.5_@babel+core@7.29.0_@types+react_18db092138149f473db19e5f912d822a/node_modules/react-native-gesture-handler",
+     "name": "react-native-gesture-handler",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-gesture-handler@2.28.0_react-native@0.81.5_@babel+core@7.29.0_@types+react_18db092138149f473db19e5f912d822a/node_modules/react-native-gesture-handler/android",
+       "packageImportPath": "import com.swmansion.gesturehandler.RNGestureHandlerPackage;",
+       "packageInstance": "new RNGestureHandlerPackage()",
+       "buildTypes": [],
+       "libraryName": "rngesturehandler_codegen",
+       "componentDescriptors": [
+        "RNGestureHandlerButtonComponentDescriptor",
+        "RNGestureHandlerRootViewComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-gesture-handler@2.28.0_react-native@0.81.5_@babel+core@7.29.0_@types+react_18db092138149f473db19e5f912d822a/node_modules/react-native-gesture-handler/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-keyboard-controller": {
+     "root": "../../node_modules/.pnpm/react-native-keyboard-controller@1.18.5_react-native-reanimated@4.1.7_react-native-work_fcfe858f08c40f4fabb70307ed883ead/node_modules/react-native-keyboard-controller",
+     "name": "react-native-keyboard-controller",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-keyboard-controller@1.18.5_react-native-reanimated@4.1.7_react-native-work_fcfe858f08c40f4fabb70307ed883ead/node_modules/react-native-keyboard-controller/android",
+       "packageImportPath": "import com.reactnativekeyboardcontroller.KeyboardControllerPackage;",
+       "packageInstance": "new KeyboardControllerPackage()",
+       "buildTypes": [],
+       "libraryName": "reactnativekeyboardcontroller",
+       "componentDescriptors": [
+        "KeyboardControllerViewComponentDescriptor",
+        "KeyboardGestureAreaComponentDescriptor",
+        "OverKeyboardViewComponentDescriptor",
+        "KeyboardBackgroundViewComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-keyboard-controller@1.18.5_react-native-reanimated@4.1.7_react-native-work_fcfe858f08c40f4fabb70307ed883ead/node_modules/react-native-keyboard-controller/android/src/main/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-reanimated": {
+     "root": "../../node_modules/.pnpm/react-native-reanimated@4.1.7_react-native-worklets@0.5.1_@babel+core@7.29.0_react-nati_515d6df303eb2cb6b0aef8cdac663c06/node_modules/react-native-reanimated",
+     "name": "react-native-reanimated",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-reanimated@4.1.7_react-native-worklets@0.5.1_@babel+core@7.29.0_react-nati_515d6df303eb2cb6b0aef8cdac663c06/node_modules/react-native-reanimated/android",
+       "packageImportPath": "import com.swmansion.reanimated.ReanimatedPackage;",
+       "packageInstance": "new ReanimatedPackage()",
+       "buildTypes": [],
+       "libraryName": "rnreanimated",
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-reanimated@4.1.7_react-native-worklets@0.5.1_@babel+core@7.29.0_react-nati_515d6df303eb2cb6b0aef8cdac663c06/node_modules/react-native-reanimated/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-safe-area-context": {
+     "root": "../../node_modules/.pnpm/react-native-safe-area-context@5.6.2_react-native@0.81.5_@babel+core@7.29.0_@types+reac_db7e84308fa9a28cdc0cc9a7b78f5e93/node_modules/react-native-safe-area-context",
+     "name": "react-native-safe-area-context",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-safe-area-context@5.6.2_react-native@0.81.5_@babel+core@7.29.0_@types+reac_db7e84308fa9a28cdc0cc9a7b78f5e93/node_modules/react-native-safe-area-context/android",
+       "packageImportPath": "import com.th3rdwave.safeareacontext.SafeAreaContextPackage;",
+       "packageInstance": "new SafeAreaContextPackage()",
+       "buildTypes": [],
+       "libraryName": "safeareacontext",
+       "componentDescriptors": [
+        "RNCSafeAreaProviderComponentDescriptor",
+        "RNCSafeAreaViewComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-safe-area-context@5.6.2_react-native@0.81.5_@babel+core@7.29.0_@types+reac_db7e84308fa9a28cdc0cc9a7b78f5e93/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-screens": {
+     "root": "../../node_modules/.pnpm/react-native-screens@4.16.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-screens",
+     "name": "react-native-screens",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-screens@4.16.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-screens/android",
+       "packageImportPath": "import com.swmansion.rnscreens.RNScreensPackage;",
+       "packageInstance": "new RNScreensPackage()",
+       "buildTypes": [],
+       "libraryName": "rnscreens",
+       "componentDescriptors": [
+        "RNSFullWindowOverlayComponentDescriptor",
+        "RNSScreenContainerComponentDescriptor",
+        "RNSScreenNavigationContainerComponentDescriptor",
+        "RNSScreenStackHeaderConfigComponentDescriptor",
+        "RNSScreenStackHeaderSubviewComponentDescriptor",
+        "RNSScreenStackComponentDescriptor",
+        "RNSSearchBarComponentDescriptor",
+        "RNSScreenComponentDescriptor",
+        "RNSScreenFooterComponentDescriptor",
+        "RNSScreenContentWrapperComponentDescriptor",
+        "RNSModalScreenComponentDescriptor",
+        "RNSBottomTabsComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-screens@4.16.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-svg": {
+     "root": "../../node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg",
+     "name": "react-native-svg",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg/android",
+       "packageImportPath": "import com.horcrux.svg.SvgPackage;",
+       "packageInstance": "new SvgPackage()",
+       "buildTypes": [],
+       "libraryName": "rnsvg",
+       "componentDescriptors": [
+        "RNSVGCircleComponentDescriptor",
+        "RNSVGClipPathComponentDescriptor",
+        "RNSVGDefsComponentDescriptor",
+        "RNSVGFeBlendComponentDescriptor",
+        "RNSVGFeColorMatrixComponentDescriptor",
+        "RNSVGFeCompositeComponentDescriptor",
+        "RNSVGFeFloodComponentDescriptor",
+        "RNSVGFeGaussianBlurComponentDescriptor",
+        "RNSVGFeMergeComponentDescriptor",
+        "RNSVGFeOffsetComponentDescriptor",
+        "RNSVGFilterComponentDescriptor",
+        "RNSVGEllipseComponentDescriptor",
+        "RNSVGForeignObjectComponentDescriptor",
+        "RNSVGGroupComponentDescriptor",
+        "RNSVGImageComponentDescriptor",
+        "RNSVGLinearGradientComponentDescriptor",
+        "RNSVGLineComponentDescriptor",
+        "RNSVGMarkerComponentDescriptor",
+        "RNSVGMaskComponentDescriptor",
+        "RNSVGPathComponentDescriptor",
+        "RNSVGPatternComponentDescriptor",
+        "RNSVGRadialGradientComponentDescriptor",
+        "RNSVGRectComponentDescriptor",
+        "RNSVGSvgViewAndroidComponentDescriptor",
+        "RNSVGSymbolComponentDescriptor",
+        "RNSVGTextComponentDescriptor",
+        "RNSVGTextPathComponentDescriptor",
+        "RNSVGTSpanComponentDescriptor",
+        "RNSVGUseComponentDescriptor"
+       ],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg/android/src/main/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    },
+    "react-native-worklets": {
+     "root": "../../node_modules/.pnpm/react-native-worklets@0.5.1_@babel+core@7.29.0_react-native@0.81.5_@babel+core@7.29.0_@_e33ee53926cb739c160046f5657a922f/node_modules/react-native-worklets",
+     "name": "react-native-worklets",
+     "platforms": {
+      "android": {
+       "sourceDir": "../../node_modules/.pnpm/react-native-worklets@0.5.1_@babel+core@7.29.0_react-native@0.81.5_@babel+core@7.29.0_@_e33ee53926cb739c160046f5657a922f/node_modules/react-native-worklets/android",
+       "packageImportPath": "import com.swmansion.worklets.WorkletsPackage;",
+       "packageInstance": "new WorkletsPackage()",
+       "buildTypes": [],
+       "libraryName": "rnworklets",
+       "componentDescriptors": [],
+       "cmakeListsPath": "../../node_modules/.pnpm/react-native-worklets@0.5.1_@babel+core@7.29.0_react-native@0.81.5_@babel+core@7.29.0_@_e33ee53926cb739c160046f5657a922f/node_modules/react-native-worklets/android/build/generated/source/codegen/jni/CMakeLists.txt",
+       "cxxModuleCMakeListsModuleName": null,
+       "cxxModuleCMakeListsPath": null,
+       "cxxModuleHeaderName": null,
+       "isPureCxxDependency": false
+      }
+     }
+    }
+   },
+   "reasons": [
+    "rncoreAutolinkingAndroid"
+   ],
+   "hash": "4dbed388f06a234a1bdaa506cdb68de5d3c063bf"
+  }
+ }
+]
