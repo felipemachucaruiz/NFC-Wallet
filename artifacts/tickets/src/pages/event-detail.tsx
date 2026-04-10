@@ -442,6 +442,7 @@ export default function EventDetail() {
                   event={event}
                   highlightedSectionId={highlightedSectionId}
                   onTicketSelect={handleTicketSelect}
+                  onSelectionChange={setSelectedTicket}
                 />
                 <Separator className="my-4" />
                 {isSoldOut ? (
@@ -458,14 +459,16 @@ export default function EventDetail() {
                     size="lg"
                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={() => {
-                      const firstAvailable = event.ticketTypes.find((tt) => tt.status !== "sold_out");
-                      if (firstAvailable) {
-                        const section = event.sections.find((s) => s.ticketTypes.some((t) => t.id === firstAvailable.id));
-                        handleTicketSelect(firstAvailable, section?.name || "");
+                      const ticketToUse = selectedTicket || event.ticketTypes.find((tt) => tt.status !== "sold_out");
+                      if (ticketToUse) {
+                        const section = event.sections.find((s) => s.ticketTypes.some((t) => t.id === ticketToUse.id));
+                        handleTicketSelect(ticketToUse, section?.name || "");
                       }
                     }}
                   >
-                    {t("event.buyTickets")}
+                    {selectedTicket
+                      ? `${t("event.buyTickets")} — ${formatPrice(selectedTicket.price, event.currencyCode)}`
+                      : t("event.buyTickets")}
                   </Button>
                 )}
               </div>
@@ -523,10 +526,12 @@ function SectionTicketGroups({
   event,
   highlightedSectionId,
   onTicketSelect,
+  onSelectionChange,
 }: {
   event: EventData;
   highlightedSectionId: string | null;
   onTicketSelect: (ticket: TicketType, sectionName: string) => void;
+  onSelectionChange?: (ticket: TicketType | null) => void;
 }) {
   const { t } = useTranslation();
   const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
@@ -583,10 +588,7 @@ function SectionTicketGroups({
 
   const handleRadioSelect = (ticket: TicketType, sectionName: string) => {
     setSelectedTicketId(ticket.id);
-  };
-
-  const handleBuy = (ticket: TicketType, sectionName: string) => {
-    onTicketSelect(ticket, sectionName);
+    onSelectionChange?.(ticket);
   };
 
   return (
@@ -597,7 +599,6 @@ function SectionTicketGroups({
         const hasSingleTicket = group.tickets.length === 1;
         const allSoldOut = group.tickets.every((tt) => tt.status === "sold_out");
         const lowestPrice = Math.min(...group.tickets.map((tt) => tt.price));
-        const selectedInGroup = group.tickets.find((tt) => tt.id === selectedTicketId);
 
         return (
           <div
@@ -705,15 +706,6 @@ function SectionTicketGroups({
                       );
                     })}
 
-                    {selectedInGroup && selectedInGroup.status !== "sold_out" && (
-                      <Button
-                        size="sm"
-                        className="w-full mt-2 bg-primary text-primary-foreground hover:bg-primary/90"
-                        onClick={() => handleBuy(selectedInGroup, group.sectionName)}
-                      >
-                        {t("event.buyTickets")} — {formatPrice(selectedInGroup.price, event.currencyCode)}
-                      </Button>
-                    )}
                   </div>
                 )}
               </>
