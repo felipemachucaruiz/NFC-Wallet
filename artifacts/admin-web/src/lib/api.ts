@@ -1,5 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace(/\/+$/, "")
+const API_BASE = import.meta.env.PROD
+  ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app").replace(/\/+$/, "")
   : `${import.meta.env.BASE_URL}_srv`;
 const ATTENDEE_API_URL = (import.meta.env.VITE_ATTENDEE_API_URL || "https://attendee.tapee.app").replace(/\/+$/, "");
 
