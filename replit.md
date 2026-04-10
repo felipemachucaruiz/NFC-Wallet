@@ -20,6 +20,7 @@ The business vision is to modernize event payments in Colombia, offering a secur
 - The user wants the agent to focus on completing one task at a time and getting confirmation before moving to the next.
 - I want to follow a Test-Driven Development (TDD) approach where applicable.
 - Do not make changes to the `lib/db` folder without explicit approval.
+- EAS CLI commands (build, update) need `timeout 90` wrapper and 120000ms tool timeout — they always time out on the first attempt with shorter timeouts.
 
 # System Architecture
 
