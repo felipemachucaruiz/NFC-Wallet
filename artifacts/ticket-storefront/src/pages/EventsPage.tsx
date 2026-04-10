@@ -80,12 +80,15 @@ export default function EventsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-gradient-to-r from-gray-900 to-gray-800 text-white">
-        <div className="max-w-6xl mx-auto px-4 py-16 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">
-            Tapee <span className="text-cyan-400">Eventos</span>
-          </h1>
-          <p className="text-gray-300 text-lg mb-8">
+      <header className="bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white">
+        <div className="max-w-6xl mx-auto px-4 py-12 text-center">
+          <img
+            src={`${import.meta.env.BASE_URL}tapee-logo.png`}
+            alt="Tapee"
+            className="h-10 mx-auto mb-4"
+          />
+          <p className="text-cyan-400 text-lg font-semibold tracking-wide mb-1">Eventos</p>
+          <p className="text-gray-400 text-sm mb-8">
             Descubre y compra entradas para los mejores eventos
           </p>
           <div className="max-w-md mx-auto">
