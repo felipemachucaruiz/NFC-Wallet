@@ -19,7 +19,7 @@ module.exports = {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.tapee.staff",
-      buildNumber: "1",
+      buildNumber: "2",
       infoPlist: {
         NSPhotoLibraryUsageDescription: "Used to select product photos.",
         NFCReaderUsageDescription: "Used to read NFC wristbands for cashless payments.",
@@ -54,13 +54,7 @@ module.exports = {
       favicon: "./assets/images/icon.png",
     },
     updates: {
-      url: "https://u.expo.dev/26d76893-d65f-457a-b2eb-7fa177110638",
-      enabled: true,
-      fallbackToCacheTimeout: 0,
-      checkAutomatically: "ON_LOAD",
-      requestHeaders: {
-        "expo-channel-name": "production",
-      },
+      enabled: false,
     },
     runtimeVersion: "1.0.0",
     plugins: [
