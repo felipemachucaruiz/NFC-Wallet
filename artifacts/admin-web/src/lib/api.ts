@@ -156,6 +156,20 @@ export async function apiCreateSection(eventId: string, venueId: string, body: {
   return data;
 }
 
+export async function apiUpdateSection(eventId: string, venueId: string, sectionId: string, body: { name?: string; capacity?: number; totalTickets?: number; colorHex?: string; svgPathData?: string }) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/venues/${venueId}/sections/${sectionId}`), { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update section");
+  return data;
+}
+
+export async function apiDeleteSection(eventId: string, venueId: string, sectionId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/venues/${venueId}/sections/${sectionId}`), { method: "DELETE", headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to delete section");
+  return data;
+}
+
 export async function apiFetchTicketTypes(eventId: string) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types`), { headers: authHeaders() });
   const data = await res.json();

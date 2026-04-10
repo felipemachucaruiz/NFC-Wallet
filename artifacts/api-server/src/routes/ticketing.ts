@@ -447,6 +447,51 @@ router.patch(
   },
 );
 
+router.delete(
+  "/events/:eventId/venues/:venueId/sections/:sectionId",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId, venueId, sectionId } = req.params as { eventId: string; venueId: string; sectionId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [venue] = await db
+      .select({ id: venuesTable.id })
+      .from(venuesTable)
+      .where(and(eq(venuesTable.id, venueId), eq(venuesTable.eventId, eventId)));
+    if (!venue) {
+      res.status(404).json({ error: "Venue not found for this event" });
+      return;
+    }
+
+    const linkedTickets = await db
+      .select({ id: ticketTypesTable.id })
+      .from(ticketTypesTable)
+      .where(and(eq(ticketTypesTable.eventId, eventId), eq(ticketTypesTable.sectionId, sectionId)))
+      .limit(1);
+
+    if (linkedTickets.length > 0) {
+      res.status(409).json({ error: "Cannot delete section with linked ticket types. Remove or reassign ticket types first." });
+      return;
+    }
+
+    const [deleted] = await db
+      .delete(venueSectionsTable)
+      .where(and(eq(venueSectionsTable.id, sectionId), eq(venueSectionsTable.venueId, venueId)))
+      .returning();
+
+    if (!deleted) {
+      res.status(404).json({ error: "Section not found" });
+      return;
+    }
+
+    res.json({ success: true });
+  },
+);
+
 const createTicketTypeSchema = z.object({
   sectionId: z.string().optional(),
   name: z.string().min(1).max(255),

@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Pencil, Trash2, Map, Square, Loader2, ImageIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
-import { apiFetchVenues, apiFetchSections, apiCreateSection, apiCreateVenue, apiUploadVenueFloorplan } from "@/lib/api";
+import { apiFetchVenues, apiFetchSections, apiCreateSection, apiUpdateSection, apiDeleteSection, apiCreateVenue, apiUploadVenueFloorplan } from "@/lib/api";
 
 const DEFAULT_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
@@ -82,6 +82,29 @@ export default function EventVenueMap() {
     onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ sectionId, body }: { sectionId: string; body: { name?: string; capacity?: number; totalTickets?: number; colorHex?: string } }) =>
+      apiUpdateSection(resolvedEventId, firstVenueId, sectionId, body),
+    onSuccess: () => {
+      toast({ title: t("venueMap.sectionUpdated", "Section updated") });
+      queryClient.invalidateQueries({ queryKey: ["sections", resolvedEventId, firstVenueId] });
+      setEditDialogOpen(false);
+      setEditingSection(null);
+    },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (sectionId: string) =>
+      apiDeleteSection(resolvedEventId, firstVenueId, sectionId),
+    onSuccess: () => {
+      toast({ title: t("venueMap.sectionDeleted", "Section deleted") });
+      queryClient.invalidateQueries({ queryKey: ["sections", resolvedEventId, firstVenueId] });
+      setDeleteConfirmId(null);
+    },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
+
   const uploadMutation = useMutation({
     mutationFn: (file: File) => apiUploadVenueFloorplan(resolvedEventId, firstVenueId, file),
     onSuccess: () => {
@@ -93,6 +116,11 @@ export default function EventVenueMap() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: "", color: "#3b82f6", capacity: "" });
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingSection, setEditingSection] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ name: "", color: "#3b82f6", capacity: "" });
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
@@ -324,7 +352,7 @@ export default function EventVenueMap() {
                 <p className="text-center text-muted-foreground py-4 text-sm">{t("venueMap.noSections")}</p>
               ) : (
                 <div className="space-y-2">
-                  {sections.map((section) => (
+                  {sections.map((section: any) => (
                     <div
                       key={section.id}
                       className="flex items-center justify-between p-2 rounded-md border text-sm"
@@ -335,6 +363,28 @@ export default function EventVenueMap() {
                           <p className="font-medium truncate">{section.name}</p>
                           <p className="text-xs text-muted-foreground">{t("venueMap.capacityLabel")}: {section.capacity ?? "—"}</p>
                         </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            setEditingSection(section);
+                            setEditForm({ name: section.name, color: section.colorHex || "#3b82f6", capacity: String(section.capacity ?? "") });
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteConfirmId(section.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -371,12 +421,107 @@ export default function EventVenueMap() {
                 placeholder={t("venueMap.capacityPlaceholder")}
               />
             </div>
+            <div className="space-y-1">
+              <Label>{t("venueMap.sectionColor", "Color")}</Label>
+              <div className="flex gap-2 flex-wrap">
+                {DEFAULT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`w-7 h-7 rounded-full border-2 transition-all ${form.color === c ? "border-white scale-110" : "border-transparent"}`}
+                    style={{ backgroundColor: c }}
+                    onClick={() => setForm((f) => ({ ...f, color: c }))}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSaveSection} disabled={createMutation.isPending}>
               {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={(open) => { setEditDialogOpen(open); if (!open) setEditingSection(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("venueMap.editSection", "Edit Section")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>{t("venueMap.sectionName")} *</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder={t("venueMap.sectionNamePlaceholder")}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>{t("venueMap.sectionCapacity")}</Label>
+              <Input
+                type="number"
+                min="0"
+                value={editForm.capacity}
+                onChange={(e) => setEditForm((f) => ({ ...f, capacity: e.target.value }))}
+                placeholder={t("venueMap.capacityPlaceholder")}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>{t("venueMap.sectionColor", "Color")}</Label>
+              <div className="flex gap-2 flex-wrap">
+                {DEFAULT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`w-7 h-7 rounded-full border-2 transition-all ${editForm.color === c ? "border-white scale-110" : "border-transparent"}`}
+                    style={{ backgroundColor: c }}
+                    onClick={() => setEditForm((f) => ({ ...f, color: c }))}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditDialogOpen(false); setEditingSection(null); }}>{t("common.cancel")}</Button>
+            <Button
+              onClick={() => {
+                if (!editingSection || !editForm.name) return;
+                const cap = parseInt(editForm.capacity) || 0;
+                updateMutation.mutate({
+                  sectionId: editingSection.id,
+                  body: { name: editForm.name, capacity: cap || undefined, totalTickets: cap, colorHex: editForm.color },
+                });
+              }}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("venueMap.deleteSection", "Delete Section")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t("venueMap.deleteConfirm", "Are you sure you want to delete this section? This action cannot be undone. Sections with linked ticket types cannot be deleted.")}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>{t("common.cancel")}</Button>
+            <Button
+              variant="destructive"
+              onClick={() => { if (deleteConfirmId) deleteMutation.mutate(deleteConfirmId); }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {t("common.delete", "Delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
