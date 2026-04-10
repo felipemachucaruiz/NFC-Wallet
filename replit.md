@@ -16,7 +16,11 @@ This project delivers a contactless, cashless event payment system specifically 
 - The user wants the agent to focus on completing one task at a time and getting confirmation before moving to the next.
 - I want to follow a Test-Driven Development (TDD) approach where applicable.
 - Do not make changes to the `lib/db` folder without explicit approval.
-- EAS CLI commands (build, update) need `timeout 90` wrapper and 120000ms tool timeout — they always time out on the first attempt with shorter timeouts.
+- EAS CLI commands (build, update) need `timeout 90` wrapper (first try) or `timeout 120` and 120000ms tool timeout.
+- **CRITICAL — EAS Build Profiles:** ALWAYS use `production-apk` profile for both mobile apps. NEVER use `preview` or `development` profiles — they produce APKs that crash on launch. The correct command is: `eas build --platform android --profile production-apk --non-interactive --no-wait`
+- **CRITICAL — Build Numbers:** Staff app (`artifacts/mobile`) buildNumber is currently `"7"`. Attendee app (`artifacts/attendee-app`) buildNumber is currently `"9"`. Increment before each new build.
+- **CRITICAL — No expo-updates:** Both mobile apps had `expo-updates` removed entirely. Do NOT re-add it. No `runtimeVersion`, no `UpdateBanner`, no OTA updates.
+- **CRITICAL — No SSL Pinning:** No `<pin-set>` blocks in NSC config. `withNetworkSecurityConfig.js` was deleted from both apps. Do NOT re-add.
 
 # System Architecture
 
