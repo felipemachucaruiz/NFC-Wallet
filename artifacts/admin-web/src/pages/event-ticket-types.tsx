@@ -358,7 +358,7 @@ export default function EventTicketTypes() {
                 </Select>
               </div>
             )}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>{t("ticketTypes.basePrice")} (COP) *</Label>
                 <Input
@@ -370,29 +370,6 @@ export default function EventTicketTypes() {
                 />
               </div>
               <div className="space-y-1">
-                <Label>{t("ticketTypes.colServiceFee")}</Label>
-                <div className="flex gap-2">
-                  <Input
-                    data-testid="input-ticket-service-fee"
-                    type="number"
-                    min="0"
-                    value={form.serviceFee}
-                    onChange={(e) => setForm((f) => ({ ...f, serviceFee: e.target.value }))}
-                    placeholder="0"
-                    className="flex-1"
-                  />
-                  <Select value={form.serviceFeeType} onValueChange={(v) => setForm((f) => ({ ...f, serviceFeeType: v as "fixed" | "percentage" }))}>
-                    <SelectTrigger className="w-24" data-testid="select-service-fee-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fixed">COP</SelectItem>
-                      <SelectItem value="percentage">%</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-1">
                 <Label>{t("ticketTypes.quantity")} *</Label>
                 <Input
                   data-testid="input-ticket-quantity"
@@ -401,6 +378,29 @@ export default function EventTicketTypes() {
                   value={form.quantity}
                   onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
                 />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>{t("ticketTypes.colServiceFee")}</Label>
+              <div className="flex gap-2">
+                <Input
+                  data-testid="input-ticket-service-fee"
+                  type="number"
+                  min="0"
+                  value={form.serviceFee}
+                  onChange={(e) => setForm((f) => ({ ...f, serviceFee: e.target.value }))}
+                  placeholder="0"
+                  className="flex-1"
+                />
+                <Select value={form.serviceFeeType} onValueChange={(v) => setForm((f) => ({ ...f, serviceFeeType: v as "fixed" | "percentage" }))}>
+                  <SelectTrigger className="w-28" data-testid="select-service-fee-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">COP ($)</SelectItem>
+                    <SelectItem value="percentage">%</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
