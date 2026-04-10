@@ -218,17 +218,13 @@ export default function EventDetailScreen() {
           {event.latitude != null && event.longitude != null && (
             <Card style={{ padding: 0, overflow: "hidden" }}>
               <Pressable onPress={openMaps}>
-                <Image
-                  source={{
-                    uri: `https://maps.googleapis.com/maps/api/staticmap?center=${event.latitude},${event.longitude}&zoom=15&size=600x200&markers=color:red%7C${event.latitude},${event.longitude}&key=`,
-                  }}
-                  style={styles.mapImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.mapFallback}>
+                <View style={[styles.mapFallback, { backgroundColor: "#0a0a0a" }]}>
                   <Feather name="map" size={24} color={C.primary} />
                   <Text style={[styles.mapText, { color: C.primary }]}>
                     {t("events.openMaps")}
+                  </Text>
+                  <Text style={[styles.mapCoords, { color: C.textMuted }]}>
+                    {event.latitude?.toFixed(4)}, {event.longitude?.toFixed(4)}
                   </Text>
                 </View>
               </Pressable>
@@ -423,6 +419,10 @@ const styles = StyleSheet.create({
   mapText: {
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
+  },
+  mapCoords: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
   },
   pricingRow: {
     flexDirection: "row",

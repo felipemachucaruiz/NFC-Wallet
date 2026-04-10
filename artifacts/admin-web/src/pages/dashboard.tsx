@@ -10,7 +10,7 @@ import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-map
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ShieldAlert, DollarSign, Building, TrendingUp, MapPin, Nfc } from "lucide-react";
-import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER } from "@/lib/maps";
+import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER, TAPEE_MAP_STYLES } from "@/lib/maps";
 import { format } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
@@ -190,14 +190,7 @@ export default function Dashboard() {
                 options={{
                   streetViewControl: false,
                   mapTypeControl: false,
-                  styles: [
-                    { elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
-                    { elementType: "labels.text.fill", stylers: [{ color: "#8a8ab0" }] },
-                    { elementType: "labels.text.stroke", stylers: [{ color: "#1a1a2e" }] },
-                    { featureType: "road", elementType: "geometry", stylers: [{ color: "#2d2d44" }] },
-                    { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d1117" }] },
-                    { featureType: "administrative.country", elementType: "geometry.stroke", stylers: [{ color: "#444466" }] },
-                  ],
+                  styles: TAPEE_MAP_STYLES,
                 }}
               >
                 {geocoded.map((event) => (

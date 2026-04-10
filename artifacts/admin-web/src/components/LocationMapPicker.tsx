@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MapPin, Loader2 } from "lucide-react";
-import { GOOGLE_MAPS_API_KEY, DEFAULT_CENTER } from "@/lib/maps";
+import { GOOGLE_MAPS_API_KEY, DEFAULT_CENTER, TAPEE_MAP_STYLES } from "@/lib/maps";
 import { useTranslation } from "react-i18next";
 
 type PlaceSuggestion = {
@@ -14,13 +14,6 @@ type PlaceSuggestion = {
 
 const MAP_LIBRARIES: ("places")[] = ["places"];
 
-const MAP_STYLES = [
-  { elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8a8ab0" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#1a1a2e" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#2d2d44" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0d1117" }] },
-];
 
 type Props = {
   open: boolean;
@@ -239,7 +232,7 @@ export function LocationMapPicker({ open, initialAddress, onConfirm, onClose }: 
                 streetViewControl: false,
                 mapTypeControl: false,
                 fullscreenControl: false,
-                styles: MAP_STYLES,
+                styles: TAPEE_MAP_STYLES,
               }}
             >
               {marker && <Marker position={marker} />}
