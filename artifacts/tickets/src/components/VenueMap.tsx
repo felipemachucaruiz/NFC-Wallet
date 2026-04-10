@@ -63,11 +63,11 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, selectedUnitId }
 
       <div className="bg-card rounded-xl border border-border p-4">
         {event.floorplanImage ? (
-          <div className="relative w-full">
+          <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden">
             <img
               src={event.floorplanImage}
               alt={t("venueMap.title")}
-              className="w-full rounded-lg object-contain"
+              className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none"
             />
             {hasSvgPaths && event.sections.map((section) => {
               if (!section.svgPath) return null;
