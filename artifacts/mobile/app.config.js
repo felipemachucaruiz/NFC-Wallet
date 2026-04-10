@@ -87,17 +87,7 @@ module.exports = {
       ],
       "./plugins/withNetworkSecurityConfig",
       "./plugins/withGoogleMapsManifest",
-      "expo-updates",
     ],
-    updates: {
-      url: "https://u.expo.dev/26d76893-d65f-457a-b2eb-7fa177110638",
-      enabled: true,
-      checkAutomatically: "ON_LOAD",
-      fallbackToCacheTimeout: 0,
-    },
-    runtimeVersion: {
-      policy: "fingerprint",
-    },
     experiments: {
       typedRoutes: true,
     },
