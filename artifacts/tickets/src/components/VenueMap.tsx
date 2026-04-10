@@ -64,8 +64,8 @@ export function VenueMap({ event, onSelectTicket }: VenueMapProps) {
                   onClick={() => setSelectedSection(isSelected ? null : section)}
                 >
                   <span
-                    className="text-xs sm:text-sm font-bold text-white truncate px-1 pointer-events-none"
-                    style={{ textShadow: "0 0 4px rgba(0,0,0,0.9)" }}
+                    className="text-sm sm:text-base md:text-lg font-extrabold text-white truncate px-2 pointer-events-none"
+                    style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)" }}
                   >
                     {section.name}
                   </span>
@@ -107,8 +107,8 @@ export function VenueMap({ event, onSelectTicket }: VenueMapProps) {
                   onClick={() => setSelectedSection(isSelected ? null : section)}
                 >
                   <span
-                    className="text-xs sm:text-sm font-bold text-white truncate px-1 pointer-events-none"
-                    style={{ textShadow: "0 0 4px rgba(0,0,0,0.9)" }}
+                    className="text-sm sm:text-base md:text-lg font-extrabold text-white truncate px-2 pointer-events-none"
+                    style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)" }}
                   >
                     {section.name}
                   </span>
