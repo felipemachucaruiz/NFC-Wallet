@@ -5,6 +5,7 @@ import { X, ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneField } from "@/components/ui/phone-input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 
@@ -235,7 +236,7 @@ function RegisterForm() {
       </div>
       <div>
         <Label>{t("auth.phone")}</Label>
-        <Input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} required className="mt-1" />
+        <PhoneField value={form.phone} onChange={(v) => update("phone", v)} required className="mt-1" />
       </div>
       <div>
         <Label>{t("auth.password")}</Label>
