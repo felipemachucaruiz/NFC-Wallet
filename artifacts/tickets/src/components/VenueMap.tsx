@@ -26,7 +26,57 @@ export function VenueMap({ event, onSelectTicket }: VenueMapProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-card rounded-xl border border-border p-4">
-          {event.floorplanImage ? (
+          {event.floorplanImage && hasSvgPaths ? (
+            <div className="relative w-full">
+              <img
+                src={event.floorplanImage}
+                alt={t("venueMap.title")}
+                className="w-full rounded-lg object-contain"
+              />
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                className="absolute inset-0 w-full h-full rounded-lg"
+                style={{ pointerEvents: "none" }}
+              >
+                {event.sections.map((section) => {
+                  if (!section.svgPath) return null;
+                  const isSelected = selectedSection?.id === section.id;
+                  return (
+                    <g key={section.id} style={{ pointerEvents: "all" }}>
+                      <path
+                        d={section.svgPath}
+                        fill={getSectionColor(section.color, section.status, isSelected)}
+                        stroke={isSelected ? "hsl(184, 100%, 50%)" : "rgba(255,255,255,0.6)"}
+                        strokeWidth={isSelected ? 0.8 : 0.4}
+                        className="cursor-pointer transition-all duration-150"
+                        onClick={() => setSelectedSection(isSelected ? null : section)}
+                      />
+                      {(() => {
+                        const center = getPathCenter(section.svgPath);
+                        return (
+                          <text
+                            x={center.x}
+                            y={center.y}
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fill="white"
+                            fontSize="3"
+                            fontWeight="700"
+                            fontFamily="sans-serif"
+                            className="pointer-events-none"
+                            style={{ textShadow: "0 0 3px rgba(0,0,0,0.8)" }}
+                          >
+                            {section.name}
+                          </text>
+                        );
+                      })()}
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          ) : event.floorplanImage ? (
             <img
               src={event.floorplanImage}
               alt={t("venueMap.title")}
@@ -34,31 +84,33 @@ export function VenueMap({ event, onSelectTicket }: VenueMapProps) {
             />
           ) : hasSvgPaths ? (
             <svg
-              viewBox="0 0 400 400"
+              viewBox="0 0 100 100"
               className="w-full aspect-square"
               role="img"
               aria-label={t("venueMap.title")}
             >
-              <rect x="150" y="170" width="100" height="60" rx="4" fill="hsl(0, 0%, 15%)" stroke="hsl(0, 0%, 20%)" strokeWidth="1" />
-              <text x="200" y="205" textAnchor="middle" fill="hsl(0, 0%, 50%)" fontSize="10" fontFamily="sans-serif">STAGE</text>
+              <rect x="35" y="42" width="30" height="16" rx="2" fill="hsl(0, 0%, 15%)" stroke="hsl(0, 0%, 20%)" strokeWidth="0.5" />
+              <text x="50" y="51" textAnchor="middle" dominantBaseline="central" fill="hsl(0, 0%, 50%)" fontSize="4" fontFamily="sans-serif">STAGE</text>
               {event.sections.map((section) => {
+                if (!section.svgPath) return null;
                 const isSelected = selectedSection?.id === section.id;
                 return (
                   <g key={section.id}>
                     <path
                       d={section.svgPath}
-                      fill={getSectionColor(section.status, isSelected)}
+                      fill={getSectionColor(section.color, section.status, isSelected)}
                       stroke={isSelected ? "hsl(184, 100%, 50%)" : "rgba(255,255,255,0.3)"}
-                      strokeWidth={isSelected ? 2.5 : 1.5}
+                      strokeWidth={isSelected ? 0.8 : 0.4}
                       className="cursor-pointer transition-all duration-150"
-                      onClick={() => setSelectedSection(section)}
+                      onClick={() => setSelectedSection(isSelected ? null : section)}
                     />
                     <text
                       x={getPathCenter(section.svgPath).x}
                       y={getPathCenter(section.svgPath).y}
                       textAnchor="middle"
+                      dominantBaseline="central"
                       fill="white"
-                      fontSize="11"
+                      fontSize="3"
                       fontWeight="600"
                       fontFamily="sans-serif"
                       className="pointer-events-none"
@@ -155,14 +207,13 @@ function SectionStatusBadge({ status }: { status: string }) {
   }
 }
 
-function getSectionColor(status: string, isSelected: boolean): string {
-  const opacity = isSelected ? 0.8 : 0.5;
-  switch (status) {
-    case "available": return `rgba(34, 197, 94, ${opacity})`;
-    case "limited": return `rgba(234, 179, 8, ${opacity})`;
-    case "sold_out": return `rgba(239, 68, 68, ${opacity})`;
-    default: return `rgba(107, 114, 128, ${opacity})`;
-  }
+function getSectionColor(sectionColor: string, status: string, isSelected: boolean): string {
+  const opacity = isSelected ? 0.7 : 0.4;
+  const hex = sectionColor || "#22c55e";
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
 function getPathCenter(path: string): { x: number; y: number } {

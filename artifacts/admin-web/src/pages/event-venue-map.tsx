@@ -72,7 +72,7 @@ export default function EventVenueMap() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: { name: string; capacity?: number; totalTickets: number }) =>
+    mutationFn: (body: { name: string; capacity?: number; totalTickets: number; colorHex?: string; svgPathData?: string }) =>
       apiCreateSection(resolvedEventId, firstVenueId, body),
     onSuccess: () => {
       toast({ title: t("venueMap.sectionCreated") });
@@ -151,10 +151,22 @@ export default function EventVenueMap() {
       return;
     }
     const cap = parseInt(form.capacity) || 0;
+
+    let svgPathData: string | undefined;
+    if (drawStart && drawCurrent) {
+      const x = Math.min(drawStart.x, drawCurrent.x);
+      const y = Math.min(drawStart.y, drawCurrent.y);
+      const w = Math.abs(drawCurrent.x - drawStart.x);
+      const h = Math.abs(drawCurrent.y - drawStart.y);
+      svgPathData = `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
+    }
+
     createMutation.mutate({
       name: form.name,
       capacity: cap || undefined,
       totalTickets: cap,
+      colorHex: form.color,
+      svgPathData,
     });
   };
 
@@ -259,6 +271,29 @@ export default function EventVenueMap() {
                   </div>
                 )}
 
+                {sections.map((section: any) => {
+                  if (!section.svgPathData) return null;
+                  const rect = parseSvgRect(section.svgPathData);
+                  if (!rect) return null;
+                  return (
+                    <div
+                      key={section.id}
+                      className="absolute border-2 rounded-sm flex items-center justify-center pointer-events-none"
+                      style={{
+                        left: `${rect.x}%`,
+                        top: `${rect.y}%`,
+                        width: `${rect.w}%`,
+                        height: `${rect.h}%`,
+                        borderColor: section.colorHex || "#3b82f6",
+                        backgroundColor: `${section.colorHex || "#3b82f6"}33`,
+                        zIndex: 5,
+                      }}
+                    >
+                      <span className="text-xs font-semibold text-white drop-shadow-md truncate px-1">{section.name}</span>
+                    </div>
+                  );
+                })}
+
                 {drawRect && (
                   <div
                     className="absolute border-2 border-primary bg-primary/20 rounded-sm pointer-events-none"
@@ -348,4 +383,14 @@ export default function EventVenueMap() {
       </Dialog>
     </div>
   );
+}
+
+function parseSvgRect(pathData: string): { x: number; y: number; w: number; h: number } | null {
+  const nums = pathData.match(/[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return null;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
 }

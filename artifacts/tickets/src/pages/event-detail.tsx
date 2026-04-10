@@ -101,7 +101,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     return {
       id: sec.id,
       name: sec.name,
-      svgPath: "",
+      svgPath: sec.svgPathData || "",
       color: sec.colorHex || "#22c55e",
       status: sectionStatus,
       ticketTypes: sectionTickets,

@@ -149,7 +149,7 @@ export async function apiUploadVenueFloorplan(eventId: string, venueId: string, 
   return data as { floorplanImageUrl: string };
 }
 
-export async function apiCreateSection(eventId: string, venueId: string, body: { name: string; capacity?: number }) {
+export async function apiCreateSection(eventId: string, venueId: string, body: { name: string; capacity?: number; totalTickets?: number; colorHex?: string; svgPathData?: string }) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/venues/${venueId}/sections`), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to create section");
