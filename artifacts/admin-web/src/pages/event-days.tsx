@@ -28,7 +28,7 @@ export default function EventDays() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: { label: string; date: string; doorOpenTime?: string; doorCloseTime?: string }) =>
+    mutationFn: (body: { label: string; date: string; doorsOpenAt?: string; doorsCloseAt?: string }) =>
       apiCreateEventDay(resolvedEventId, body),
     onSuccess: () => {
       toast({ title: t("eventDays.created") });
