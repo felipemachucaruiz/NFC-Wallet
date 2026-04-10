@@ -35,6 +35,7 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 - `artifacts/ticket-storefront` — React + Vite public ticketing storefront at `/ticket-storefront/`; designed for independent Railway deployment with configurable API URL (`VITE_API_BASE_URL`). Features: event listing with search, event detail with ticket selection, checkout with Nequi/PSE payments via Wompi, order status polling. Bilingual (Spanish UI).
 
 **UI/UX Decisions:**
+- **Tickets Storefront (`artifacts/tickets`):** Public-facing ticketing web app at `/tickets/` (port 22881). React + Vite with dark Tapee theme, i18n (ES/EN default). Features: event discovery with search/filter, event detail with interactive SVG venue maps, ticket selection with per-attendee forms, mock auth (localStorage), Wompi checkout (card/Nequi/PSE), payment status animations, My Tickets with QR codes and wallet buttons, account profile. All data is mock (no backend). Uses wouter routing, TanStack Query, shadcn/ui.
 - **Attendee App:** Features a "Tapee Black" dark theme with cyan accents on a #0a0a0a background for a modern and sleek user experience. Supports NFC read-only functions, push notifications, and i18n (ES/EN).
 - **Mobile Apps (Staff and Attendee):** Built with Expo React Native, supporting OTA updates and ensuring a consistent cross-platform experience.
 - **Web Admin:** Dark theme with Tapee cyan (`#00f1ff`) accents, sidebar navigation, role-based routing for `admin` vs `event_admin`.

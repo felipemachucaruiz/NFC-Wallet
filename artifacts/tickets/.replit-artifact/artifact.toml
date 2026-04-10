@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/tickets/"
+title = "Tapee Tickets"
+version = "1.0.0"
+id = "artifacts/tickets"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/tickets/" ]
+localPort = 22881
+
+[services.development]
+run = "pnpm --filter @workspace/tickets run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tickets", "run", "build" ]
+publicDir = "artifacts/tickets/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22881"
+BASE_PATH = "/tickets/"
