@@ -79,6 +79,9 @@ export default function EventVenueMap() {
       toast({ title: t("venueMap.sectionCreated") });
       queryClient.invalidateQueries({ queryKey: ["sections", resolvedEventId, firstVenueId] });
       setDialogOpen(false);
+      setDrawStart(null);
+      setDrawCurrent(null);
+      drawnRectRef.current = null;
     },
     onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
   });
@@ -127,6 +130,8 @@ export default function EventVenueMap() {
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
   const [drawMode, setDrawMode] = useState(false);
+  const drawnRectRef = useRef<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(null);
+  const isDrawingRef = useRef(false);
 
   const [unitPlaceMode, setUnitPlaceMode] = useState(false);
   const [selectedTicketTypeId, setSelectedTicketTypeId] = useState<string>("");
@@ -236,31 +241,40 @@ export default function EventVenueMap() {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
+    isDrawingRef.current = true;
+    drawnRectRef.current = null;
     setIsDrawing(true);
     setDrawStart({ x, y });
     setDrawCurrent({ x, y });
   }, [drawMode]);
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDrawing || !canvasRef.current) return;
+    if (!isDrawingRef.current || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setDrawCurrent({ x, y });
-  }, [isDrawing]);
+  }, []);
 
   const handleCanvasMouseUp = useCallback(() => {
-    if (!isDrawing || !drawStart || !drawCurrent) return;
+    if (!isDrawingRef.current || !drawStart || !drawCurrent) return;
+    isDrawingRef.current = false;
     setIsDrawing(false);
+
     const width = Math.abs(drawCurrent.x - drawStart.x);
     const height = Math.abs(drawCurrent.y - drawStart.y);
 
-    if (width < 2 || height < 2) return;
+    if (width < 2 || height < 2) {
+      setDrawStart(null);
+      setDrawCurrent(null);
+      return;
+    }
 
+    drawnRectRef.current = { start: { ...drawStart }, end: { ...drawCurrent } };
     setForm({ name: "", color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length], capacity: "", sectionType: "" });
     setDialogOpen(true);
     setDrawMode(false);
-  }, [isDrawing, drawStart, drawCurrent, sections.length]);
+  }, [drawStart, drawCurrent, sections.length]);
 
   const handleSaveSection = () => {
     if (!form.name) {
@@ -270,11 +284,12 @@ export default function EventVenueMap() {
     const cap = parseInt(form.capacity) || 0;
 
     let svgPathData: string | undefined;
-    if (drawStart && drawCurrent) {
-      const x = Math.min(drawStart.x, drawCurrent.x);
-      const y = Math.min(drawStart.y, drawCurrent.y);
-      const w = Math.abs(drawCurrent.x - drawStart.x);
-      const h = Math.abs(drawCurrent.y - drawStart.y);
+    const saved = drawnRectRef.current;
+    if (saved) {
+      const x = Math.min(saved.start.x, saved.end.x);
+      const y = Math.min(saved.start.y, saved.end.y);
+      const w = Math.abs(saved.end.x - saved.start.x);
+      const h = Math.abs(saved.end.y - saved.start.y);
       svgPathData = `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
     }
 
@@ -369,7 +384,7 @@ export default function EventVenueMap() {
                 onMouseDown={(e) => { if (unitPlaceMode && placingUnitId && !draggingUnitId) { handleMapClickForUnit(e); } else { handleCanvasMouseDown(e); } }}
                 onMouseMove={(e) => { if (draggingUnitId) { handleMapMouseMoveForDrag(e); } else { handleCanvasMouseMove(e); } }}
                 onMouseUp={(e) => { if (draggingUnitId) { handleMapMouseUpForDrag(); } else { handleCanvasMouseUp(); } }}
-                onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); setDrawStart(null); setDrawCurrent(null); } if (draggingUnitId) setDraggingUnitId(null); }}
+                onMouseLeave={() => { if (isDrawingRef.current) { isDrawingRef.current = false; setIsDrawing(false); setDrawStart(null); setDrawCurrent(null); } if (draggingUnitId) setDraggingUnitId(null); }}
               >
                 {bgImage ? (
                   <img
@@ -648,7 +663,14 @@ export default function EventVenueMap() {
         </div>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        setDialogOpen(open);
+        if (!open) {
+          setDrawStart(null);
+          setDrawCurrent(null);
+          drawnRectRef.current = null;
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("venueMap.newSection")}</DialogTitle>
