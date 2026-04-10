@@ -219,6 +219,7 @@ router.get(
               totalTickets: venueSectionsTable.totalTickets,
               soldTickets: venueSectionsTable.soldTickets,
               colorHex: venueSectionsTable.colorHex,
+              sectionType: venueSectionsTable.sectionType,
               svgPathData: venueSectionsTable.svgPathData,
               displayOrder: venueSectionsTable.displayOrder,
             })

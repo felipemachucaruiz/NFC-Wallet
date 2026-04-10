@@ -101,6 +101,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     return {
       id: sec.id,
       name: sec.name,
+      sectionType: sec.sectionType || "",
       svgPath: sec.svgPathData || "",
       color: sec.colorHex || "#22c55e",
       status: sectionStatus,
@@ -113,6 +114,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     mappedSections.push({
       id: "sec-default",
       name: "General",
+      sectionType: "",
       svgPath: "",
       color: "#22c55e",
       status: unsectionedTickets.every((t) => t.status === "sold_out") ? "sold_out" : "available",

@@ -43,6 +43,7 @@ export interface TicketType {
 export interface VenueSection {
   id: string;
   name: string;
+  sectionType: string;
   svgPath: string;
   color: string;
   status: "available" | "limited" | "sold_out" | "na";

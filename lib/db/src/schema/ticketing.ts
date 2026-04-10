@@ -54,6 +54,7 @@ export const venueSectionsTable = pgTable("venue_sections", {
   totalTickets: integer("total_tickets").notNull().default(0),
   soldTickets: integer("sold_tickets").notNull().default(0),
   colorHex: varchar("color_hex", { length: 9 }).default("#6366F1"),
+  sectionType: varchar("section_type", { length: 100 }),
   svgPathData: text("svg_path_data"),
   displayOrder: integer("display_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -324,6 +324,7 @@ const createSectionSchema = z.object({
   capacity: z.number().int().positive().optional(),
   totalTickets: z.number().int().min(0),
   colorHex: z.string().regex(/^#[0-9A-Fa-f]{6,8}$/).optional(),
+  sectionType: z.string().max(100).optional(),
   svgPathData: z.string().optional(),
   displayOrder: z.number().int().min(0).optional(),
 });
@@ -384,7 +385,7 @@ router.post(
       return;
     }
 
-    const { name, capacity, totalTickets, colorHex, svgPathData, displayOrder } = parsed.data;
+    const { name, capacity, totalTickets, colorHex, sectionType, svgPathData, displayOrder } = parsed.data;
 
     const [section] = await db
       .insert(venueSectionsTable)
@@ -394,6 +395,7 @@ router.post(
         capacity: capacity ?? null,
         totalTickets,
         colorHex: colorHex ?? "#6366F1",
+        sectionType: sectionType ?? null,
         svgPathData: svgPathData ?? null,
         displayOrder: displayOrder ?? 0,
       })
@@ -429,6 +431,7 @@ router.patch(
     if (body.capacity !== undefined) updates.capacity = body.capacity;
     if (body.totalTickets !== undefined) updates.totalTickets = body.totalTickets;
     if (body.colorHex !== undefined) updates.colorHex = body.colorHex;
+    if (body.sectionType !== undefined) updates.sectionType = body.sectionType;
     if (body.svgPathData !== undefined) updates.svgPathData = body.svgPathData;
     if (body.displayOrder !== undefined) updates.displayOrder = body.displayOrder;
 

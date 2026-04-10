@@ -83,7 +83,7 @@ export default function EventVenueMap() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ sectionId, body }: { sectionId: string; body: { name?: string; capacity?: number; totalTickets?: number; colorHex?: string } }) =>
+    mutationFn: ({ sectionId, body }: { sectionId: string; body: { name?: string; capacity?: number; totalTickets?: number; colorHex?: string; sectionType?: string } }) =>
       apiUpdateSection(resolvedEventId, firstVenueId, sectionId, body),
     onSuccess: () => {
       toast({ title: t("venueMap.sectionUpdated", "Section updated") });
@@ -115,17 +115,19 @@ export default function EventVenueMap() {
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", color: "#3b82f6", capacity: "" });
+  const [form, setForm] = useState({ name: "", color: "#3b82f6", capacity: "", sectionType: "" });
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ name: "", color: "#3b82f6", capacity: "" });
+  const [editForm, setEditForm] = useState({ name: "", color: "#3b82f6", capacity: "", sectionType: "" });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
   const [drawMode, setDrawMode] = useState(false);
+
+  const existingTypes = [...new Set(sections.map((s: any) => s.sectionType).filter(Boolean))] as string[];
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -168,7 +170,7 @@ export default function EventVenueMap() {
 
     if (width < 2 || height < 2) return;
 
-    setForm({ name: "", color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length], capacity: "" });
+    setForm({ name: "", color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length], capacity: "", sectionType: "" });
     setDialogOpen(true);
     setDrawMode(false);
   }, [isDrawing, drawStart, drawCurrent, sections.length]);
@@ -194,6 +196,7 @@ export default function EventVenueMap() {
       capacity: cap || undefined,
       totalTickets: cap,
       colorHex: form.color,
+      sectionType: form.sectionType || undefined,
       svgPathData,
     });
   };
@@ -361,7 +364,10 @@ export default function EventVenueMap() {
                         <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: section.colorHex || "#3b82f6" }} />
                         <div className="min-w-0">
                           <p className="font-medium truncate">{section.name}</p>
-                          <p className="text-xs text-muted-foreground">{t("venueMap.capacityLabel")}: {section.capacity ?? "—"}</p>
+                          <div className="flex items-center gap-2">
+                            {section.sectionType && <span className="text-xs text-primary">{section.sectionType}</span>}
+                            <p className="text-xs text-muted-foreground">{t("venueMap.capacityLabel")}: {section.capacity ?? "—"}</p>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
@@ -371,7 +377,7 @@ export default function EventVenueMap() {
                           className="h-7 w-7"
                           onClick={() => {
                             setEditingSection(section);
-                            setEditForm({ name: section.name, color: section.colorHex || "#3b82f6", capacity: String(section.capacity ?? "") });
+                            setEditForm({ name: section.name, color: section.colorHex || "#3b82f6", capacity: String(section.capacity ?? ""), sectionType: section.sectionType || "" });
                             setEditDialogOpen(true);
                           }}
                         >
@@ -420,6 +426,18 @@ export default function EventVenueMap() {
                 onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
                 placeholder={t("venueMap.capacityPlaceholder")}
               />
+            </div>
+            <div className="space-y-1">
+              <Label>{t("venueMap.sectionTypeLabel", "Section Type")}</Label>
+              <Input
+                value={form.sectionType}
+                onChange={(e) => setForm((f) => ({ ...f, sectionType: e.target.value }))}
+                placeholder={t("venueMap.sectionTypePlaceholder", "e.g. General, VIP Table, Palco...")}
+                list="section-type-suggestions"
+              />
+              <datalist id="section-type-suggestions">
+                {existingTypes.map((type) => <option key={type} value={type} />)}
+              </datalist>
             </div>
             <div className="space-y-1">
               <Label>{t("venueMap.sectionColor", "Color")}</Label>
@@ -471,6 +489,18 @@ export default function EventVenueMap() {
               />
             </div>
             <div className="space-y-1">
+              <Label>{t("venueMap.sectionTypeLabel", "Section Type")}</Label>
+              <Input
+                value={editForm.sectionType}
+                onChange={(e) => setEditForm((f) => ({ ...f, sectionType: e.target.value }))}
+                placeholder={t("venueMap.sectionTypePlaceholder", "e.g. General, VIP Table, Palco...")}
+                list="edit-section-type-suggestions"
+              />
+              <datalist id="edit-section-type-suggestions">
+                {existingTypes.map((type) => <option key={type} value={type} />)}
+              </datalist>
+            </div>
+            <div className="space-y-1">
               <Label>{t("venueMap.sectionColor", "Color")}</Label>
               <div className="flex gap-2 flex-wrap">
                 {DEFAULT_COLORS.map((c) => (
@@ -493,7 +523,7 @@ export default function EventVenueMap() {
                 const cap = parseInt(editForm.capacity) || 0;
                 updateMutation.mutate({
                   sectionId: editingSection.id,
-                  body: { name: editForm.name, capacity: cap || undefined, totalTickets: cap, colorHex: editForm.color },
+                  body: { name: editForm.name, capacity: cap || undefined, totalTickets: cap, colorHex: editForm.color, sectionType: editForm.sectionType || undefined },
                 });
               }}
               disabled={updateMutation.isPending}

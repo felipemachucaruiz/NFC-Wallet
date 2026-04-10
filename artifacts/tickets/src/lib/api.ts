@@ -97,7 +97,7 @@ export interface ApiEventDetail {
   };
   eventDays: { id: string; date: string; label: string | null; doorsOpenAt: string | null; doorsCloseAt: string | null }[];
   venues: { id: string; name: string; address: string | null; city: string | null; floorplanImageUrl?: string | null }[];
-  sections: { id: string; name: string; capacity: number | null; colorHex: string; svgPathData?: string | null }[];
+  sections: { id: string; name: string; capacity: number | null; colorHex: string; sectionType?: string | null; svgPathData?: string | null }[];
   ticketTypes: {
     ticketTypeId: string;
     name: string;

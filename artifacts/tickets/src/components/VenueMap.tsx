@@ -142,7 +142,10 @@ export function VenueMap({ event, onSelectTicket }: VenueMapProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: section.color }} />
-                    <span className="font-medium text-sm">{section.name}</span>
+                    <div>
+                      <span className="font-medium text-sm">{section.name}</span>
+                      {section.sectionType && <span className="block text-xs text-muted-foreground">{section.sectionType}</span>}
+                    </div>
                   </div>
                   <SectionStatusBadge status={section.status} />
                 </div>
