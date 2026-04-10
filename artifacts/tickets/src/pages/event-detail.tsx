@@ -215,29 +215,44 @@ export default function EventDetail() {
 
   return (
     <div className="min-h-screen">
-      <div className="relative h-[300px] md:h-[400px] overflow-hidden">
+      <div className="relative h-[300px] md:h-[420px] overflow-hidden">
         <img
           src={event.coverImage}
           alt={event.name}
           className="w-full h-full object-cover"
           loading="eager"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-          <Badge variant="secondary" className="mb-2">{t(`home.filters.${event.category}`)}</Badge>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">{event.name}</h1>
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            {event.startsAt && (
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto flex items-end justify-between gap-6">
+          <div className="flex-1 min-w-0">
+            <Badge variant="secondary" className="mb-2">{t(`home.filters.${event.category}`)}</Badge>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">{event.name}</h1>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+              {event.startsAt && (
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4" />
+                  {formatFullDate(event.startsAt)}
+                </span>
+              )}
               <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" />
-                {formatFullDate(event.startsAt)}
+                <MapPin className="w-4 h-4" />
+                {event.venueName ? `${event.venueName}, ` : ""}{event.city || event.venueAddress}
               </span>
-            )}
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4" />
-              {event.venueName ? `${event.venueName}, ` : ""}{event.city || event.venueAddress}
-            </span>
+            </div>
           </div>
+          {event.flyerImage && (
+            <div
+              className="hidden md:block flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => setShowFlyer(true)}
+            >
+              <img
+                src={event.flyerImage}
+                alt="Flyer"
+                className="h-[280px] lg:h-[340px] w-auto rounded-xl shadow-2xl shadow-black/50 object-contain border border-white/10"
+                loading="eager"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -314,22 +329,32 @@ export default function EventDetail() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
-            <div className="flex flex-col sm:flex-row gap-6">
-              <div className="flex-1">
-                {event.organizer && (
-                  <InfoRow icon={<UserIcon className="w-4 h-4" />} label={t("event.organizer")} value={event.organizer} />
+            {event.flyerImage && (
+              <div
+                className="md:hidden w-full rounded-lg overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setShowFlyer(true)}
+              >
+                <img src={event.flyerImage} alt="Flyer" className="w-full max-h-64 object-contain" loading="lazy" />
+              </div>
+            )}
+
+            {event.description && (
+              <div>
+                <button
+                  className="flex items-center gap-2 text-xl font-semibold mb-3 hover:text-primary transition-colors"
+                  onClick={() => setShowDescription(!showDescription)}
+                >
+                  {t("event.description")}
+                  {showDescription ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </button>
+                {showDescription && (
+                  <div
+                    className="prose prose-invert max-w-none text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: event.description }}
+                  />
                 )}
               </div>
-              {event.flyerImage && (
-                <div
-                  className="w-32 h-48 sm:w-40 sm:h-56 rounded-lg overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity shrink-0"
-                  onClick={() => setShowFlyer(true)}
-                >
-                  <img src={event.flyerImage} alt="Flyer" className="w-full h-full object-cover" loading="lazy" />
-                  <p className="text-xs text-center text-muted-foreground mt-1">{t("event.viewFlyer")}</p>
-                </div>
-              )}
-            </div>
+            )}
 
             {event.isMultiDay && event.days.length > 1 && (
               <div>
@@ -351,22 +376,6 @@ export default function EventDetail() {
                 </div>
               </div>
             )}
-
-            <div>
-              <button
-                className="flex items-center gap-2 text-xl font-semibold mb-4 hover:text-primary transition-colors"
-                onClick={() => setShowDescription(!showDescription)}
-              >
-                {t("event.description")}
-                {showDescription ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </button>
-              {showDescription && (
-                <div
-                  className="prose prose-invert max-w-none text-muted-foreground"
-                  dangerouslySetInnerHTML={{ __html: event.description }}
-                />
-              )}
-            </div>
 
             {event.latitude !== 0 && event.longitude !== 0 && (
               <div>
