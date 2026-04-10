@@ -377,13 +377,20 @@ export default function EventDetail() {
               </div>
             )}
 
+            {(event.sections.length > 0 || event.floorplanImage) && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">{t("venueMap.title")}</h2>
+                <VenueMap event={event} onSelectTicket={handleTicketSelect} />
+              </div>
+            )}
+
             {event.latitude !== 0 && event.longitude !== 0 && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">{t("event.location")}</h2>
                 <div className="bg-card rounded-lg border border-border overflow-hidden">
                   <div className="p-4">
                     {event.venueName && <p className="font-medium">{event.venueName}</p>}
-                    <p className="text-sm text-muted-foreground">{event.venueAddress}</p>
+                    {event.venueAddress && <p className="text-sm text-muted-foreground">{event.venueAddress}</p>}
                   </div>
                   <DarkMapEmbed lat={event.latitude} lng={event.longitude} />
                   <div className="p-3">
@@ -398,13 +405,6 @@ export default function EventDetail() {
                     </a>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {(event.sections.length > 0 || event.floorplanImage) && (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">{t("venueMap.title")}</h2>
-                <VenueMap event={event} onSelectTicket={handleTicketSelect} />
               </div>
             )}
           </div>
