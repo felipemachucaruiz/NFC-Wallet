@@ -72,7 +72,7 @@ export default function EventVenueMap() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: { name: string; capacity?: number }) =>
+    mutationFn: (body: { name: string; capacity?: number; totalTickets: number }) =>
       apiCreateSection(resolvedEventId, firstVenueId, body),
     onSuccess: () => {
       toast({ title: t("venueMap.sectionCreated") });
@@ -150,9 +150,11 @@ export default function EventVenueMap() {
       toast({ title: t("common.error"), description: t("venueMap.nameRequired"), variant: "destructive" });
       return;
     }
+    const cap = parseInt(form.capacity) || 0;
     createMutation.mutate({
       name: form.name,
-      capacity: parseInt(form.capacity) || undefined,
+      capacity: cap || undefined,
+      totalTickets: cap,
     });
   };
 
