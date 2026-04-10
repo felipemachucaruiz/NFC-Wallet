@@ -66,7 +66,21 @@
     "checkins": "Check-ins",
     "guestLists": "Guest Lists",
     "backToEvents": "Back to Events",
-    "manageTicketing": "Manage Ticketing"
+    "manageTicketing": "Manage Ticketing",
+    "ticketing": "Ticketing"
+  },
+  "ticketingHub": {
+    "title": "Ticketing",
+    "subtitle": "Manage ticketing for your events. Select an event to configure.",
+    "totalEvents": "Events with Ticketing",
+    "activeEvents": "Active Events",
+    "upcomingEvents": "Upcoming Events",
+    "searchPlaceholder": "Search event...",
+    "noResults": "No events found.",
+    "noTicketingEvents": "No events with ticketing enabled.",
+    "upcoming": "Upcoming",
+    "past": "Ended",
+    "manage": "Manage"
   },
   "login": {
     "title": "Admin Portal",

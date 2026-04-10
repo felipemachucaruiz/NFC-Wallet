@@ -30,6 +30,7 @@ import Products from "@/pages/products";
 import Transactions from "@/pages/transactions";
 import Inventory from "@/pages/inventory";
 import Commissions from "@/pages/commissions";
+import Ticketing from "@/pages/ticketing";
 
 import EventDashboard from "@/pages/event-dashboard";
 import EventUsers from "@/pages/event-users";
@@ -164,6 +165,9 @@ function Router() {
       </Route>
       <Route path="/commissions">
         <ProtectedRoute component={Commissions} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/ticketing">
+        <ProtectedRoute component={Ticketing} allowedRoles={["admin"]} />
       </Route>
 
       {/* Event Admin Routes */}

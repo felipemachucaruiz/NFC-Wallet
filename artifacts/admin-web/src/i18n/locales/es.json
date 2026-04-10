@@ -66,7 +66,21 @@
     "checkins": "Check-ins",
     "guestLists": "Listas de Invitados",
     "backToEvents": "Volver a Eventos",
-    "manageTicketing": "Gestionar Boletería"
+    "manageTicketing": "Gestionar Boletería",
+    "ticketing": "Boletería"
+  },
+  "ticketingHub": {
+    "title": "Boletería",
+    "subtitle": "Gestiona la boletería de tus eventos. Selecciona un evento para configurar.",
+    "totalEvents": "Eventos con Boletería",
+    "activeEvents": "Eventos Activos",
+    "upcomingEvents": "Próximos Eventos",
+    "searchPlaceholder": "Buscar evento...",
+    "noResults": "No se encontraron eventos.",
+    "noTicketingEvents": "No hay eventos con boletería habilitada.",
+    "upcoming": "Próximo",
+    "past": "Finalizado",
+    "manage": "Gestionar"
   },
   "login": {
     "title": "Portal Admin",

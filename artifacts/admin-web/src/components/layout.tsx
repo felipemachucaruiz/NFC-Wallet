@@ -18,6 +18,7 @@ import {
   Receipt,
   Package,
   MapPinned,
+  TicketCheck,
   RefreshCcw,
   FileBarChart,
   Languages,
@@ -91,6 +92,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <>
               <NavItem href="/dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
               <NavItem href="/events" icon={Calendar} label={t("nav.events")} />
+              <NavItem href="/ticketing" icon={TicketCheck} label={t("nav.ticketing", "Boletería")} />
               <NavItem href="/bracelets" icon={Ticket} label={t("nav.wristbands")} />
               <NavItem href="/promoters" icon={Building} label={t("nav.promoters")} />
               <NavItem href="/users" icon={Users} label={t("nav.users")} />
