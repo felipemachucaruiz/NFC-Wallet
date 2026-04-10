@@ -60,7 +60,17 @@ module.exports = {
         },
       ],
       "./plugins/withNetworkSecurityConfig",
+      "expo-updates",
     ],
+    updates: {
+      url: "https://u.expo.dev/47da8b6a-72b7-4bc9-af31-c34ee51a0441",
+      enabled: true,
+      checkAutomatically: "ON_LOAD",
+      fallbackToCacheTimeout: 0,
+    },
+    runtimeVersion: {
+      policy: "fingerprint",
+    },
     experiments: {
       typedRoutes: true,
     },

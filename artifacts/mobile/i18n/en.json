@@ -1047,8 +1047,10 @@
   },
   "update": {
     "downloading": "Downloading update…",
+    "reloading": "Applying update, restarting…",
     "ready": "Update ready!",
-    "restart": "Restart now"
+    "restart": "Restart now",
+    "tapToUpdate": "Update ready — tap to restart"
   },
   "syncIssues": {
     "title": "Sync Issues",

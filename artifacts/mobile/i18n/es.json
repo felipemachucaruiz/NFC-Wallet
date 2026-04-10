@@ -1036,8 +1036,10 @@
   },
   "update": {
     "downloading": "Descargando actualización…",
+    "reloading": "Aplicando actualización…",
     "ready": "¡Actualización lista!",
-    "restart": "Reiniciar ahora"
+    "restart": "Reiniciar ahora",
+    "tapToUpdate": "Actualización lista — toca para reiniciar"
   },
   "syncIssues": {
     "title": "Errores de sincronización",

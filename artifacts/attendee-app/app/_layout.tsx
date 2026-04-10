@@ -22,6 +22,7 @@ import { initI18n } from "@/i18n";
 import { initNfc } from "@/utils/nfc";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
+import { UpdateBanner } from "@/components/UpdateBanner";
 
 // Safe import: if react-native-keyboard-controller is not in the native binary
 // the app will still start without keyboard handling rather than crashing.
@@ -210,6 +211,7 @@ export default function RootLayout() {
                 <KeyboardProvider>
                   <AlertProvider>
                     <AppInner />
+                    <UpdateBanner />
                     {!splashDone && (
                       <AnimatedSplash onFinished={() => setSplashDone(true)} />
                     )}

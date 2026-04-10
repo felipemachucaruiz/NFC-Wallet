@@ -33,6 +33,7 @@ import { pinnedFetch } from "@/utils/pinnedFetch";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
 import { useTranslation } from "react-i18next";
+import { UpdateBanner } from "@/components/UpdateBanner";
 
 // Safe import: if react-native-keyboard-controller is not in the native binary
 // the app will still start without keyboard handling rather than crashing.
@@ -209,6 +210,7 @@ export default function RootLayout() {
                           <AlertProvider>
                             <CrashLogReporter />
                             <RootLayoutNav />
+                            <UpdateBanner />
                             {!splashDone && (
                               <AnimatedSplash onFinished={() => setSplashDone(true)} />
                             )}
