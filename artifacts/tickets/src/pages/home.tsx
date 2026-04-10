@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearch } from "wouter";
 import { Calendar, MapPin, Search, X, ChevronRight, Loader2 } from "lucide-react";
@@ -60,9 +60,36 @@ export default function Home() {
   }, [events, cityFilter]);
 
   const visibleEvents = filteredEvents.slice(0, visibleCount);
-  const featured = events.find((e) => e.priceFrom > 0) || events[0];
+  const heroEvents = events.filter((e) => e.coverImageUrl);
 
   const hasFilters = searchQuery || categoryFilter !== "all" || cityFilter !== "all";
+
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [heroFade, setHeroFade] = useState(true);
+  const heroTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const heroCount = heroEvents.length;
+
+  const goToSlide = useCallback((idx: number) => {
+    setHeroFade(false);
+    setTimeout(() => {
+      setHeroIndex(idx);
+      setHeroFade(true);
+    }, 500);
+  }, []);
+
+  useEffect(() => {
+    if (heroCount <= 1) return;
+    heroTimerRef.current = setInterval(() => {
+      goToSlide((heroIndex + 1) % heroCount);
+    }, 6000);
+    return () => { if (heroTimerRef.current) clearInterval(heroTimerRef.current); };
+  }, [heroIndex, heroCount, goToSlide]);
+
+  const handleDotClick = (idx: number) => {
+    if (heroTimerRef.current) clearInterval(heroTimerRef.current);
+    goToSlide(idx);
+  };
 
   if (isLoading) {
     return (
@@ -72,51 +99,73 @@ export default function Home() {
     );
   }
 
+  const currentHero = heroEvents[heroIndex] || events[0];
+
   return (
     <div className="min-h-screen">
-      {featured && (
+      {currentHero && (
         <section className="relative h-[420px] md:h-[500px] overflow-hidden">
-          <div className="absolute inset-0">
-            <img
-              src={featured.coverImageUrl || ""}
-              alt={featured.name}
-              className="w-full h-full object-cover"
-              loading="eager"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30" />
-          </div>
-          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-end pb-10">
+          {heroEvents.map((evt, i) => (
+            <div
+              key={evt.id}
+              className="absolute inset-0 transition-opacity duration-700 ease-in-out"
+              style={{ opacity: i === heroIndex && heroFade ? 1 : 0, zIndex: i === heroIndex ? 1 : 0 }}
+            >
+              <img
+                src={evt.coverImageUrl || ""}
+                alt={evt.name}
+                className="w-full h-full object-cover"
+                loading={i === 0 ? "eager" : "lazy"}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30" />
+            </div>
+          ))}
+          <div
+            className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-end pb-10 transition-opacity duration-500 ease-in-out"
+            style={{ opacity: heroFade ? 1 : 0 }}
+          >
             <Badge variant="outline" className="w-fit mb-3 border-primary text-primary">
               {t("home.featured")}
             </Badge>
-            <h1 className="text-3xl md:text-5xl font-bold mb-2 max-w-2xl">{featured.name}</h1>
+            <h1 className="text-3xl md:text-5xl font-bold mb-2 max-w-2xl">{currentHero.name}</h1>
             <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-4">
-              {featured.startsAt && (
+              {currentHero.startsAt && (
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4" />
-                  {formatDateRange(featured.startsAt, featured.endsAt || featured.startsAt, featured.dayCount > 1)}
+                  {formatDateRange(currentHero.startsAt, currentHero.endsAt || currentHero.startsAt, currentHero.dayCount > 1)}
                 </span>
               )}
-              {featured.venueAddress && (
+              {currentHero.venueAddress && (
                 <span className="flex items-center gap-1.5">
                   <MapPin className="w-4 h-4" />
-                  {featured.venueAddress}
+                  {currentHero.venueAddress}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-3">
-              <Link href={`/event/${featured.id}`}>
+              <Link href={`/event/${currentHero.id}`}>
                 <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
                   {t("home.hero.cta")}
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </Link>
-              {featured.priceFrom > 0 && (
+              {currentHero.priceFrom > 0 && (
                 <span className="text-lg font-semibold">
-                  {t("home.from")} {formatPrice(featured.priceFrom)}
+                  {t("home.from")} {formatPrice(currentHero.priceFrom)}
                 </span>
               )}
             </div>
+            {heroCount > 1 && (
+              <div className="flex items-center gap-2 mt-5">
+                {heroEvents.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleDotClick(i)}
+                    className={`rounded-full transition-all duration-300 ${i === heroIndex ? "w-8 h-2.5 bg-primary" : "w-2.5 h-2.5 bg-white/40 hover:bg-white/60"}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </section>
       )}
