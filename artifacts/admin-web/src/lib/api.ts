@@ -170,11 +170,25 @@ export async function apiDeleteSection(eventId: string, venueId: string, section
   return data;
 }
 
+export async function apiFetchTicketTypeUnits(eventId: string, typeId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types/${typeId}/units`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch units");
+  return data.units as Array<{ id: string; ticketTypeId: string; unitNumber: number; unitLabel: string; status: string; mapX: string | null; mapY: string | null }>;
+}
+
+export async function apiUpdateUnitPositions(eventId: string, typeId: string, positions: { unitId: string; mapX: number | null; mapY: number | null }[]) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types/${typeId}/units/positions`), { method: "PATCH", headers: authHeaders(), body: JSON.stringify({ positions }) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update unit positions");
+  return data;
+}
+
 export async function apiFetchTicketTypes(eventId: string) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types`), { headers: authHeaders() });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to fetch ticket types");
-  return data.ticketTypes as Array<{ id: string; eventId: string; sectionId: string | null; name: string; description: string | null; price: number; serviceFee: number; quantity: number; soldCount: number; saleStart: string | null; saleEnd: string | null; isActive: boolean; validEventDayIds: string[] }>;
+  return data.ticketTypes as Array<{ id: string; eventId: string; sectionId: string | null; name: string; description: string | null; price: number; serviceFee: number; quantity: number; soldCount: number; saleStart: string | null; saleEnd: string | null; isActive: boolean; validEventDayIds: string[]; isNumberedUnits?: boolean; unitLabel?: string; ticketsPerUnit?: number }>;
 }
 
 export async function apiCreateTicketType(eventId: string, body: { name: string; price: number; serviceFee?: number; quantity: number; sectionId?: string; saleStart?: string; saleEnd?: string; validEventDayIds?: string[] }) {

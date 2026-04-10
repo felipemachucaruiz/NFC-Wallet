@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Pencil, Trash2, Map, Square, Loader2, ImageIcon } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload, Pencil, Trash2, Map, Square, Loader2, ImageIcon, MapPin, Save, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
-import { apiFetchVenues, apiFetchSections, apiCreateSection, apiUpdateSection, apiDeleteSection, apiCreateVenue, apiUploadVenueFloorplan } from "@/lib/api";
+import { apiFetchVenues, apiFetchSections, apiCreateSection, apiUpdateSection, apiDeleteSection, apiCreateVenue, apiUploadVenueFloorplan, apiFetchTicketTypes, apiFetchTicketTypeUnits, apiUpdateUnitPositions } from "@/lib/api";
 
 const DEFAULT_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
@@ -126,6 +127,92 @@ export default function EventVenueMap() {
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
   const [drawMode, setDrawMode] = useState(false);
+
+  const [unitPlaceMode, setUnitPlaceMode] = useState(false);
+  const [selectedTicketTypeId, setSelectedTicketTypeId] = useState<string>("");
+  const [placingUnitId, setPlacingUnitId] = useState<string | null>(null);
+  const [unitPositions, setUnitPositions] = useState<Record<string, { mapX: number; mapY: number }>>({});
+  const [unitPositionsDirty, setUnitPositionsDirty] = useState(false);
+  const [draggingUnitId, setDraggingUnitId] = useState<string | null>(null);
+
+  const { data: ticketTypes = [] } = useQuery({
+    queryKey: ["ticketTypes", resolvedEventId],
+    queryFn: () => apiFetchTicketTypes(resolvedEventId),
+    enabled: !!resolvedEventId,
+  });
+
+  const numberedTicketTypes = ticketTypes.filter((tt) => tt.isNumberedUnits);
+
+  const { data: units = [], isLoading: unitsLoading } = useQuery({
+    queryKey: ["ticketTypeUnits", resolvedEventId, selectedTicketTypeId],
+    queryFn: () => apiFetchTicketTypeUnits(resolvedEventId, selectedTicketTypeId),
+    enabled: !!resolvedEventId && !!selectedTicketTypeId,
+  });
+
+  useEffect(() => {
+    if (units.length > 0) {
+      const positions: Record<string, { mapX: number; mapY: number }> = {};
+      for (const u of units) {
+        if (u.mapX != null && u.mapY != null) {
+          positions[u.id] = { mapX: parseFloat(u.mapX), mapY: parseFloat(u.mapY) };
+        }
+      }
+      setUnitPositions(positions);
+      setUnitPositionsDirty(false);
+    } else {
+      setUnitPositions({});
+      setUnitPositionsDirty(false);
+    }
+  }, [units]);
+
+  const savePositionsMutation = useMutation({
+    mutationFn: () => {
+      const positions = Object.entries(unitPositions).map(([unitId, pos]) => ({
+        unitId,
+        mapX: pos.mapX,
+        mapY: pos.mapY,
+      }));
+      return apiUpdateUnitPositions(resolvedEventId, selectedTicketTypeId, positions);
+    },
+    onSuccess: () => {
+      toast({ title: t("venueMap.unitPositionsSaved", "Unit positions saved") });
+      queryClient.invalidateQueries({ queryKey: ["ticketTypeUnits", resolvedEventId, selectedTicketTypeId] });
+      setUnitPositionsDirty(false);
+    },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
+
+  const handleMapClickForUnit = useCallback((e: React.MouseEvent) => {
+    if (!unitPlaceMode || !placingUnitId || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setUnitPositions((prev) => ({ ...prev, [placingUnitId]: { mapX: Math.round(x * 100) / 100, mapY: Math.round(y * 100) / 100 } }));
+    setUnitPositionsDirty(true);
+    const currentIdx = units.findIndex((u) => u.id === placingUnitId);
+    const nextUnplaced = units.find((u, i) => i > currentIdx && !unitPositions[u.id] && u.id !== placingUnitId);
+    setPlacingUnitId(nextUnplaced?.id ?? null);
+  }, [unitPlaceMode, placingUnitId, units, unitPositions]);
+
+  const handleUnitDragStart = useCallback((unitId: string, e: React.MouseEvent) => {
+    if (!unitPlaceMode) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setDraggingUnitId(unitId);
+  }, [unitPlaceMode]);
+
+  const handleMapMouseMoveForDrag = useCallback((e: React.MouseEvent) => {
+    if (!draggingUnitId || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setUnitPositions((prev) => ({ ...prev, [draggingUnitId]: { mapX: Math.round(x * 100) / 100, mapY: Math.round(y * 100) / 100 } }));
+    setUnitPositionsDirty(true);
+  }, [draggingUnitId]);
+
+  const handleMapMouseUpForDrag = useCallback(() => {
+    setDraggingUnitId(null);
+  }, []);
 
   const existingTypes = [...new Set(sections.map((s: any) => s.sectionType).filter(Boolean))] as string[];
 
@@ -253,13 +340,15 @@ export default function EventVenueMap() {
             {bgImage ? t("venueMap.changeImage", "Change Floorplan") : t("venueMap.uploadImage")}
           </Button>
           {bgImage && (
-            <Button
-              variant={drawMode ? "default" : "outline"}
-              onClick={() => setDrawMode(!drawMode)}
-              data-testid="button-draw-mode"
-            >
-              <Square className="w-4 h-4 mr-2" /> {t("venueMap.drawSection")}
-            </Button>
+            <>
+              <Button
+                variant={drawMode ? "default" : "outline"}
+                onClick={() => { setDrawMode(!drawMode); if (!drawMode) setUnitPlaceMode(false); }}
+                data-testid="button-draw-mode"
+              >
+                <Square className="w-4 h-4 mr-2" /> {t("venueMap.drawSection")}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -276,11 +365,11 @@ export default function EventVenueMap() {
             <CardContent>
               <div
                 ref={canvasRef}
-                className={`relative w-full aspect-[16/10] bg-muted/50 rounded-lg border-2 border-dashed overflow-hidden ${drawMode ? "cursor-crosshair" : ""}`}
-                onMouseDown={handleCanvasMouseDown}
-                onMouseMove={handleCanvasMouseMove}
-                onMouseUp={handleCanvasMouseUp}
-                onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); setDrawStart(null); setDrawCurrent(null); } }}
+                className={`relative w-full aspect-[16/10] bg-muted/50 rounded-lg border-2 border-dashed overflow-hidden ${drawMode ? "cursor-crosshair" : ""} ${unitPlaceMode && placingUnitId ? "cursor-crosshair" : ""}`}
+                onMouseDown={(e) => { if (unitPlaceMode && placingUnitId && !draggingUnitId) { handleMapClickForUnit(e); } else { handleCanvasMouseDown(e); } }}
+                onMouseMove={(e) => { if (draggingUnitId) { handleMapMouseMoveForDrag(e); } else { handleCanvasMouseMove(e); } }}
+                onMouseUp={(e) => { if (draggingUnitId) { handleMapMouseUpForDrag(); } else { handleCanvasMouseUp(); } }}
+                onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); setDrawStart(null); setDrawCurrent(null); } if (draggingUnitId) setDraggingUnitId(null); }}
               >
                 {bgImage ? (
                   <img
@@ -337,6 +426,34 @@ export default function EventVenueMap() {
                     }}
                   />
                 )}
+
+                {unitPlaceMode && units.map((unit) => {
+                  const pos = unitPositions[unit.id];
+                  if (!pos) return null;
+                  const isActive = placingUnitId === unit.id;
+                  const statusColor = unit.status === "available" ? "#22c55e" : unit.status === "reserved" ? "#f59e0b" : "#ef4444";
+                  return (
+                    <div
+                      key={unit.id}
+                      className={`absolute flex flex-col items-center cursor-grab active:cursor-grabbing select-none ${isActive ? "z-30" : "z-20"}`}
+                      style={{
+                        left: `${pos.mapX}%`,
+                        top: `${pos.mapY}%`,
+                        transform: "translate(-50%, -100%)",
+                      }}
+                      onMouseDown={(e) => handleUnitDragStart(unit.id, e)}
+                      onClick={(e) => { e.stopPropagation(); if (unitPlaceMode) setPlacingUnitId(unit.id); }}
+                    >
+                      <div
+                        className={`rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-bold text-white border-2 shadow-lg ${isActive ? "ring-2 ring-white ring-offset-1 ring-offset-background" : ""}`}
+                        style={{ backgroundColor: statusColor, borderColor: "rgba(0,0,0,0.3)" }}
+                      >
+                        {unit.unitNumber}
+                      </div>
+                      <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent" style={{ borderTopColor: statusColor }} />
+                    </div>
+                  );
+                })}
               </div>
               {drawMode && (
                 <p className="text-xs text-primary mt-2">{t("venueMap.drawHint")}</p>
@@ -398,6 +515,136 @@ export default function EventVenueMap() {
               )}
             </CardContent>
           </Card>
+
+          {numberedTicketTypes.length > 0 && (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  {t("venueMap.placeUnitsTitle", "Place Units on Map")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("venueMap.selectTicketType", "Ticket Type")}</Label>
+                  <Select
+                    value={selectedTicketTypeId}
+                    onValueChange={(val) => {
+                      setSelectedTicketTypeId(val);
+                      setPlacingUnitId(null);
+                      setUnitPlaceMode(false);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder={t("venueMap.selectTicketTypePlaceholder", "Select a numbered ticket type...")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {numberedTicketTypes.map((tt) => (
+                        <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedTicketTypeId && !unitsLoading && units.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={unitPlaceMode ? "default" : "outline"}
+                        className="text-xs h-7"
+                        onClick={() => {
+                          const entering = !unitPlaceMode;
+                          setUnitPlaceMode(entering);
+                          setDrawMode(false);
+                          if (entering) {
+                            const firstUnplaced = units.find((u) => !unitPositions[u.id]);
+                            setPlacingUnitId(firstUnplaced?.id ?? units[0]?.id ?? null);
+                          } else {
+                            setPlacingUnitId(null);
+                          }
+                        }}
+                      >
+                        <MapPin className="w-3 h-3 mr-1" />
+                        {unitPlaceMode ? t("venueMap.exitPlaceMode", "Exit Place Mode") : t("venueMap.enterPlaceMode", "Place Mode")}
+                      </Button>
+                      {unitPositionsDirty && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="text-xs h-7"
+                          onClick={() => savePositionsMutation.mutate()}
+                          disabled={savePositionsMutation.isPending}
+                        >
+                          {savePositionsMutation.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
+                          {t("common.save")}
+                        </Button>
+                      )}
+                    </div>
+
+                    {unitPlaceMode && placingUnitId && (
+                      <p className="text-xs text-primary">
+                        {t("venueMap.clickToPlace", "Click on the map to place:")} <strong>{units.find((u) => u.id === placingUnitId)?.unitLabel}</strong>
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-4 gap-1 max-h-40 overflow-y-auto">
+                      {units.map((unit) => {
+                        const hasPosition = !!unitPositions[unit.id];
+                        const isSelected = placingUnitId === unit.id;
+                        const statusColor = unit.status === "available" ? "bg-green-500" : unit.status === "reserved" ? "bg-yellow-500" : "bg-red-500";
+                        return (
+                          <button
+                            key={unit.id}
+                            type="button"
+                            className={`relative text-[10px] font-medium px-1 py-1 rounded border text-center transition-all ${
+                              isSelected
+                                ? "border-primary bg-primary/20 text-primary"
+                                : hasPosition
+                                  ? "border-green-500/50 bg-green-500/10 text-green-400"
+                                  : "border-muted-foreground/30 bg-muted/50 text-muted-foreground"
+                            }`}
+                            onClick={() => { if (unitPlaceMode) setPlacingUnitId(unit.id); }}
+                            title={unit.unitLabel}
+                          >
+                            <span className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${statusColor}`} />
+                            {unit.unitNumber}
+                            {hasPosition && !isSelected && (
+                              <button
+                                className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full flex items-center justify-center"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setUnitPositions((prev) => {
+                                    const next = { ...prev };
+                                    delete next[unit.id];
+                                    return next;
+                                  });
+                                  setUnitPositionsDirty(true);
+                                }}
+                              >
+                                <X className="w-2 h-2 text-white" />
+                              </button>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> {t("venueMap.placed", "Placed")}</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted-foreground/50" /> {t("venueMap.unplaced", "Not placed")}</span>
+                    </div>
+                  </>
+                )}
+
+                {selectedTicketTypeId && unitsLoading && (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

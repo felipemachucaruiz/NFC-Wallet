@@ -84,7 +84,8 @@
       "available": "Available",
       "limited": "Limited",
       "soldOut": "Sold Out",
-      "na": "Not Available"
+      "na": "Not Available",
+      "vipTable": "VIP Table"
     }
   },
   "ticketSelection": {

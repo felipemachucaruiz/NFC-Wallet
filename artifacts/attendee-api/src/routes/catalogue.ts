@@ -293,6 +293,8 @@ router.get(
               unitNumber: ticketTypeUnitsTable.unitNumber,
               unitLabel: ticketTypeUnitsTable.unitLabel,
               status: ticketTypeUnitsTable.status,
+              mapX: ticketTypeUnitsTable.mapX,
+              mapY: ticketTypeUnitsTable.mapY,
             })
             .from(ticketTypeUnitsTable)
             .where(inArray(ticketTypeUnitsTable.ticketTypeId, numberedTypeIds))
@@ -333,6 +335,8 @@ router.get(
             unitNumber: u.unitNumber,
             unitLabel: u.unitLabel,
             status: u.status,
+            mapX: u.mapX ? parseFloat(u.mapX) : null,
+            mapY: u.mapY ? parseFloat(u.mapY) : null,
           })),
           pricingStages: stages.map((s) => ({
             id: s.id,

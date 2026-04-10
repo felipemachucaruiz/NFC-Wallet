@@ -84,7 +84,8 @@
       "available": "Disponible",
       "limited": "Limitado",
       "soldOut": "Agotado",
-      "na": "No disponible"
+      "na": "No disponible",
+      "vipTable": "Mesa VIP"
     }
   },
   "ticketSelection": {

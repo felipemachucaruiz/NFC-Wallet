@@ -827,6 +827,74 @@ router.get(
   },
 );
 
+router.patch(
+  "/events/:eventId/ticket-types/:typeId/units/:unitId/position",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId, typeId, unitId } = req.params as { eventId: string; typeId: string; unitId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const { mapX, mapY } = req.body as { mapX: number | null; mapY: number | null };
+
+    const [tt] = await db.select({ id: ticketTypesTable.id }).from(ticketTypesTable).where(and(eq(ticketTypesTable.id, typeId), eq(ticketTypesTable.eventId, eventId)));
+    if (!tt) {
+      res.status(404).json({ error: "Ticket type not found" });
+      return;
+    }
+
+    const [unit] = await db.select({ id: ticketTypeUnitsTable.id }).from(ticketTypeUnitsTable).where(and(eq(ticketTypeUnitsTable.id, unitId), eq(ticketTypeUnitsTable.ticketTypeId, typeId)));
+    if (!unit) {
+      res.status(404).json({ error: "Unit not found" });
+      return;
+    }
+
+    await db.update(ticketTypeUnitsTable).set({
+      mapX: mapX != null ? String(mapX) : null,
+      mapY: mapY != null ? String(mapY) : null,
+    }).where(eq(ticketTypeUnitsTable.id, unitId));
+
+    res.json({ ok: true });
+  },
+);
+
+router.patch(
+  "/events/:eventId/ticket-types/:typeId/units/positions",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId, typeId } = req.params as { eventId: string; typeId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const { positions } = req.body as { positions: { unitId: string; mapX: number | null; mapY: number | null }[] };
+    if (!Array.isArray(positions)) {
+      res.status(400).json({ error: "positions array required" });
+      return;
+    }
+
+    const [tt] = await db.select({ id: ticketTypesTable.id }).from(ticketTypesTable).where(and(eq(ticketTypesTable.id, typeId), eq(ticketTypesTable.eventId, eventId)));
+    if (!tt) {
+      res.status(404).json({ error: "Ticket type not found" });
+      return;
+    }
+
+    for (const pos of positions) {
+      await db.update(ticketTypeUnitsTable).set({
+        mapX: pos.mapX != null ? String(pos.mapX) : null,
+        mapY: pos.mapY != null ? String(pos.mapY) : null,
+      }).where(and(eq(ticketTypeUnitsTable.id, pos.unitId), eq(ticketTypeUnitsTable.ticketTypeId, typeId)));
+    }
+
+    res.json({ ok: true });
+  },
+);
+
 router.get(
   "/events/:eventId/ticket-orders",
   requireRole("admin", "event_admin"),

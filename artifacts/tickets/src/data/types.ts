@@ -18,6 +18,8 @@ export interface TicketTypeUnit {
   unitNumber: number;
   unitLabel: string;
   status: "available" | "reserved" | "sold";
+  mapX: number | null;
+  mapY: number | null;
 }
 
 export interface TicketType {

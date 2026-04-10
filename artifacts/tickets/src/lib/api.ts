@@ -115,7 +115,7 @@ export interface ApiEventDetail {
     isNumberedUnits?: boolean;
     unitLabel?: string;
     ticketsPerUnit?: number;
-    units?: { id: string; unitNumber: number; unitLabel: string; status: string }[];
+    units?: { id: string; unitNumber: number; unitLabel: string; status: string; mapX?: number | null; mapY?: number | null }[];
     pricingStages?: { id: string; name: string; price: number; startsAt: string; endsAt: string }[];
     nextStage?: { name: string; price: number; startsAt: string } | null;
   }[];

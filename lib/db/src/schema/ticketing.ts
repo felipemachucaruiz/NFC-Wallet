@@ -97,6 +97,8 @@ export const ticketTypeUnitsTable = pgTable("ticket_type_units", {
   unitLabel: varchar("unit_label", { length: 255 }).notNull(),
   status: unitStatusEnum("status").notNull().default("available"),
   orderId: varchar("order_id").references(() => ticketOrdersTable.id),
+  mapX: numeric("map_x", { precision: 6, scale: 2 }),
+  mapY: numeric("map_y", { precision: 6, scale: 2 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("idx_ticket_type_units_ticket_type_id").on(table.ticketTypeId),

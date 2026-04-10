@@ -950,7 +950,16 @@
     "deleteSection": "Eliminar Sección",
     "deleteConfirm": "¿Estás seguro de que deseas eliminar esta sección? Esta acción no se puede deshacer. Las secciones con tipos de boleta vinculados no se pueden eliminar.",
     "sectionTypeLabel": "Tipo de Sección",
-    "sectionTypePlaceholder": "ej. General, Mesa VIP, Palco..."
+    "sectionTypePlaceholder": "ej. General, Mesa VIP, Palco...",
+    "placeUnitsTitle": "Ubicar Unidades en Mapa",
+    "selectTicketType": "Tipo de Boleta",
+    "selectTicketTypePlaceholder": "Selecciona un tipo de boleta numerado...",
+    "enterPlaceMode": "Modo Ubicar",
+    "exitPlaceMode": "Salir del Modo",
+    "clickToPlace": "Haz clic en el mapa para ubicar:",
+    "unitPositionsSaved": "Posiciones guardadas",
+    "placed": "Ubicado",
+    "unplaced": "Sin ubicar"
   },
   "ticketTypes": {
     "title": "Tipos de Boleta",
