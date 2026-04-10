@@ -9,6 +9,34 @@ import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { uploadObject, isBucketConfigured } from "../lib/objectStorage";
 import { z } from "zod";
 
+function generateSlug(name: string, startsAt?: string | Date | null): string {
+  let base = name
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (startsAt) {
+    const year = new Date(startsAt).getFullYear();
+    if (!base.includes(String(year))) {
+      base = `${base}-${year}`;
+    }
+  }
+  return base || "event";
+}
+
+async function ensureUniqueSlug(slug: string, excludeId?: string): Promise<string> {
+  let candidate = slug;
+  let suffix = 0;
+  while (true) {
+    const conditions = [eq(eventsTable.slug, candidate)];
+    if (excludeId) conditions.push(sql`${eventsTable.id} != ${excludeId}`);
+    const [existing] = await db.select({ id: eventsTable.id }).from(eventsTable).where(and(...conditions));
+    if (!existing) return candidate;
+    suffix++;
+    candidate = `${slug}-${suffix}`;
+  }
+}
+
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 const objectStorageClient = new Storage({
   credentials: {
@@ -292,6 +320,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
   }
 
   const hmacSecret = generateHmacSecret();
+  const slug = await ensureUniqueSlug(generateSlug(name, startsAt));
 
   // Use a transaction to create event + admin atomically
   const result = await db.transaction(async (tx) => {
@@ -299,6 +328,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
       .insert(eventsTable)
       .values({
         name,
+        slug,
         description,
         venueAddress,
         currencyCode: currencyCode ?? "COP",
@@ -408,8 +438,18 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     }
   }
 
+  let slugUpdate: string | undefined;
+  if (name !== undefined || startsAt !== undefined) {
+    const resolvedName = name ?? (await db.select({ name: eventsTable.name }).from(eventsTable).where(eq(eventsTable.id, eventId)))[0]?.name;
+    const resolvedStartsAt = startsAt ?? (await db.select({ startsAt: eventsTable.startsAt }).from(eventsTable).where(eq(eventsTable.id, eventId)))[0]?.startsAt;
+    if (resolvedName) {
+      slugUpdate = await ensureUniqueSlug(generateSlug(resolvedName, resolvedStartsAt), eventId);
+    }
+  }
+
   const updateData: Record<string, unknown> = {
     ...(name !== undefined && { name }),
+    ...(slugUpdate !== undefined && { slug: slugUpdate }),
     ...(description !== undefined && { description }),
     ...(venueAddress !== undefined && { venueAddress }),
     ...(currencyCode !== undefined && { currencyCode }),
@@ -1511,5 +1551,21 @@ router.post(
     }
   },
 );
+
+router.post("/events/backfill-slugs", requireRole("admin"), async (_req: Request, res: Response) => {
+  const events = await db
+    .select({ id: eventsTable.id, name: eventsTable.name, startsAt: eventsTable.startsAt, slug: eventsTable.slug })
+    .from(eventsTable)
+    .where(sql`${eventsTable.slug} IS NULL`);
+
+  const results: { id: string; name: string; slug: string }[] = [];
+  for (const event of events) {
+    const slug = await ensureUniqueSlug(generateSlug(event.name, event.startsAt));
+    await db.update(eventsTable).set({ slug }).where(eq(eventsTable.id, event.id));
+    results.push({ id: event.id, name: event.name, slug });
+  }
+
+  res.json({ updated: results.length, events: results });
+});
 
 export default router;

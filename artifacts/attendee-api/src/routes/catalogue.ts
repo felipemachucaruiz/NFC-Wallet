@@ -55,6 +55,7 @@ router.get(
       .select({
         id: eventsTable.id,
         name: eventsTable.name,
+        slug: eventsTable.slug,
         description: eventsTable.description,
         coverImageUrl: eventsTable.coverImageUrl,
         flyerImageUrl: eventsTable.flyerImageUrl,
@@ -143,15 +144,20 @@ router.get(
 );
 
 router.get(
-  "/public/events/:eventId",
+  "/public/events/:eventIdOrSlug",
   async (req: Request, res: Response) => {
-    const { eventId } = req.params as { eventId: string };
+    const { eventIdOrSlug } = req.params as { eventIdOrSlug: string };
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventIdOrSlug);
+    const lookupCondition = isUuid
+      ? eq(eventsTable.id, eventIdOrSlug)
+      : eq(eventsTable.slug, eventIdOrSlug);
 
     try {
       const [event] = await db
         .select({
           id: eventsTable.id,
           name: eventsTable.name,
+          slug: eventsTable.slug,
           description: eventsTable.description,
           longDescription: eventsTable.longDescription,
           coverImageUrl: eventsTable.coverImageUrl,
@@ -171,7 +177,7 @@ router.get(
           pulepId: eventsTable.pulepId,
         })
         .from(eventsTable)
-        .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
+        .where(and(lookupCondition, eq(eventsTable.active, true)));
 
       if (!event) {
         res.status(404).json({ error: "Event not found" });

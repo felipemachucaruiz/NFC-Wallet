@@ -8,6 +8,7 @@ export const nfcChipTypeEnum = pgEnum("nfc_chip_type", ["ntag_21x", "mifare_clas
 export const eventsTable = pgTable("events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 300 }),
   description: text("description"),
   venueAddress: varchar("venue_address", { length: 500 }),
   startsAt: timestamp("starts_at", { withTimezone: true }),
@@ -46,6 +47,7 @@ export const eventsTable = pgTable("events", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
   index("idx_events_promoter_company_id").on(table.promoterCompanyId),
+  index("idx_events_slug").on(table.slug),
 ]);
 
 export const exchangeRatesTable = pgTable("exchange_rates", {

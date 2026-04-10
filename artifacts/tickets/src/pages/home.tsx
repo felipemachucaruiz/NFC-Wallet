@@ -144,7 +144,7 @@ export default function Home() {
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <Link href={`/event/${currentHero.id}`}>
+                <Link href={`/event/${currentHero.slug || currentHero.id}`}>
                   <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
                     {t("home.hero.cta")}
                     <ChevronRight className="w-4 h-4" />
@@ -270,7 +270,7 @@ function EventCard({ event }: { event: ApiEvent }) {
   const { t } = useTranslation();
 
   return (
-    <Link href={`/event/${event.id}`}>
+    <Link href={`/event/${event.slug || event.id}`}>
       <div className="group bg-card border border-card-border rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-200 cursor-pointer">
         <div className="relative aspect-square overflow-hidden">
           <img

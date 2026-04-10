@@ -57,6 +57,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 export interface ApiEvent {
   id: string;
   name: string;
+  slug: string | null;
   description: string | null;
   coverImageUrl: string | null;
   flyerImageUrl: string | null;
@@ -79,6 +80,7 @@ export interface ApiEventDetail {
   event: {
     id: string;
     name: string;
+    slug: string | null;
     description: string | null;
     longDescription: string | null;
     coverImageUrl: string | null;
