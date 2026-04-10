@@ -46,7 +46,7 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       "/tickets/prod-api": {
-        target: "https://attendee.tapee.app",
+        target: "http://localhost:3001",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/tickets\/prod-api/, "/attendee-api/api"),
       },
