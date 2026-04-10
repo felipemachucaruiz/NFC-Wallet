@@ -15,6 +15,7 @@ COPY artifacts/attendee-api/package.json artifacts/attendee-api/package.json
 COPY artifacts/attendee-app/package.json artifacts/attendee-app/package.json
 COPY artifacts/mobile/package.json artifacts/mobile/package.json
 COPY artifacts/mockup-sandbox/package.json artifacts/mockup-sandbox/package.json
+COPY artifacts/tickets/package.json artifacts/tickets/package.json
 RUN pnpm install --frozen-lockfile
 COPY lib/api-client-react/ lib/api-client-react/
 COPY artifacts/admin-web/ artifacts/admin-web/
