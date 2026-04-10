@@ -238,7 +238,13 @@ export default function EventVenueMap() {
                 onMouseLeave={() => { if (isDrawing) { setIsDrawing(false); setDrawStart(null); setDrawCurrent(null); } }}
               >
                 {bgImage ? (
-                  <img src={bgImage} alt="Venue" className="absolute inset-0 w-full h-full object-contain" />
+                  <img
+                    src={bgImage}
+                    alt="Venue"
+                    className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none"
+                    style={{ zIndex: 0 }}
+                    draggable={false}
+                  />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
@@ -259,6 +265,7 @@ export default function EventVenueMap() {
                       top: `${drawRect.y}%`,
                       width: `${drawRect.width}%`,
                       height: `${drawRect.height}%`,
+                      zIndex: 10,
                     }}
                   />
                 )}
