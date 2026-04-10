@@ -147,187 +147,233 @@ router.get(
   async (req: Request, res: Response) => {
     const { eventId } = req.params as { eventId: string };
 
-    const [event] = await db
-      .select({
-        id: eventsTable.id,
-        name: eventsTable.name,
-        description: eventsTable.description,
-        longDescription: eventsTable.longDescription,
-        coverImageUrl: eventsTable.coverImageUrl,
-        flyerImageUrl: eventsTable.flyerImageUrl,
-        category: eventsTable.category,
-        tags: eventsTable.tags,
-        minAge: eventsTable.minAge,
-        venueAddress: eventsTable.venueAddress,
-        startsAt: eventsTable.startsAt,
-        endsAt: eventsTable.endsAt,
-        latitude: eventsTable.latitude,
-        longitude: eventsTable.longitude,
-        salesChannel: eventsTable.salesChannel,
-        ticketingEnabled: eventsTable.ticketingEnabled,
-        currencyCode: eventsTable.currencyCode,
-      })
-      .from(eventsTable)
-      .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
+    try {
+      const [event] = await db
+        .select({
+          id: eventsTable.id,
+          name: eventsTable.name,
+          description: eventsTable.description,
+          longDescription: eventsTable.longDescription,
+          coverImageUrl: eventsTable.coverImageUrl,
+          flyerImageUrl: eventsTable.flyerImageUrl,
+          category: eventsTable.category,
+          tags: eventsTable.tags,
+          minAge: eventsTable.minAge,
+          venueAddress: eventsTable.venueAddress,
+          startsAt: eventsTable.startsAt,
+          endsAt: eventsTable.endsAt,
+          latitude: eventsTable.latitude,
+          longitude: eventsTable.longitude,
+          salesChannel: eventsTable.salesChannel,
+          ticketingEnabled: eventsTable.ticketingEnabled,
+          currencyCode: eventsTable.currencyCode,
+        })
+        .from(eventsTable)
+        .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
 
-    if (!event) {
-      res.status(404).json({ error: "Event not found" });
-      return;
+      if (!event) {
+        res.status(404).json({ error: "Event not found" });
+        return;
+      }
+
+      if (!event.ticketingEnabled) {
+        res.status(404).json({ error: "Ticketing is not enabled for this event" });
+        return;
+      }
+
+      const days = await db
+        .select({
+          id: eventDaysTable.id,
+          eventId: eventDaysTable.eventId,
+          date: eventDaysTable.date,
+          label: eventDaysTable.label,
+          doorsOpenAt: eventDaysTable.doorsOpenAt,
+          doorsCloseAt: eventDaysTable.doorsCloseAt,
+          displayOrder: eventDaysTable.displayOrder,
+        })
+        .from(eventDaysTable)
+        .where(eq(eventDaysTable.eventId, eventId))
+        .orderBy(asc(eventDaysTable.displayOrder), asc(eventDaysTable.date));
+
+      const venues = await db
+        .select({
+          id: venuesTable.id,
+          eventId: venuesTable.eventId,
+          name: venuesTable.name,
+          address: venuesTable.address,
+          city: venuesTable.city,
+          latitude: venuesTable.latitude,
+          longitude: venuesTable.longitude,
+          floorplanImageUrl: venuesTable.floorplanImageUrl,
+        })
+        .from(venuesTable)
+        .where(eq(venuesTable.eventId, eventId));
+
+      const sections = venues.length > 0
+        ? await db
+            .select({
+              id: venueSectionsTable.id,
+              venueId: venueSectionsTable.venueId,
+              name: venueSectionsTable.name,
+              capacity: venueSectionsTable.capacity,
+              totalTickets: venueSectionsTable.totalTickets,
+              soldTickets: venueSectionsTable.soldTickets,
+              colorHex: venueSectionsTable.colorHex,
+              svgPathData: venueSectionsTable.svgPathData,
+              displayOrder: venueSectionsTable.displayOrder,
+            })
+            .from(venueSectionsTable)
+            .where(eq(venueSectionsTable.venueId, venues[0].id))
+            .orderBy(asc(venueSectionsTable.displayOrder))
+        : [];
+
+      const ticketTypes = event.ticketingEnabled
+        ? await db
+            .select({
+              id: ticketTypesTable.id,
+              name: ticketTypesTable.name,
+              description: ticketTypesTable.description,
+              price: ticketTypesTable.price,
+              quantity: ticketTypesTable.quantity,
+              soldCount: ticketTypesTable.soldCount,
+              saleStart: ticketTypesTable.saleStart,
+              saleEnd: ticketTypesTable.saleEnd,
+              isActive: ticketTypesTable.isActive,
+              validEventDayIds: ticketTypesTable.validEventDayIds,
+              sectionId: ticketTypesTable.sectionId,
+              isNumberedUnits: ticketTypesTable.isNumberedUnits,
+              unitLabel: ticketTypesTable.unitLabel,
+              ticketsPerUnit: ticketTypesTable.ticketsPerUnit,
+            })
+            .from(ticketTypesTable)
+            .where(and(eq(ticketTypesTable.eventId, eventId), eq(ticketTypesTable.isActive, true)))
+        : [];
+
+      const allStages = ticketTypes.length > 0
+        ? await db
+            .select({
+              id: ticketPricingStagesTable.id,
+              ticketTypeId: ticketPricingStagesTable.ticketTypeId,
+              name: ticketPricingStagesTable.name,
+              price: ticketPricingStagesTable.price,
+              startsAt: ticketPricingStagesTable.startsAt,
+              endsAt: ticketPricingStagesTable.endsAt,
+              displayOrder: ticketPricingStagesTable.displayOrder,
+            })
+            .from(ticketPricingStagesTable)
+            .where(inArray(ticketPricingStagesTable.ticketTypeId, ticketTypes.map((t) => t.id)))
+            .orderBy(asc(ticketPricingStagesTable.displayOrder), asc(ticketPricingStagesTable.startsAt))
+        : [];
+
+      const stagesByType = new Map<string, typeof allStages>();
+      for (const s of allStages) {
+        const arr = stagesByType.get(s.ticketTypeId) ?? [];
+        arr.push(s);
+        stagesByType.set(s.ticketTypeId, arr);
+      }
+
+      const numberedTypeIds = ticketTypes.filter((tt) => tt.isNumberedUnits).map((tt) => tt.id);
+      const allUnits = numberedTypeIds.length > 0
+        ? await db
+            .select({
+              id: ticketTypeUnitsTable.id,
+              ticketTypeId: ticketTypeUnitsTable.ticketTypeId,
+              unitNumber: ticketTypeUnitsTable.unitNumber,
+              unitLabel: ticketTypeUnitsTable.unitLabel,
+              status: ticketTypeUnitsTable.status,
+            })
+            .from(ticketTypeUnitsTable)
+            .where(inArray(ticketTypeUnitsTable.ticketTypeId, numberedTypeIds))
+            .orderBy(asc(ticketTypeUnitsTable.unitNumber))
+        : [];
+      const unitsByType = new Map<string, typeof allUnits>();
+      for (const u of allUnits) {
+        const arr = unitsByType.get(u.ticketTypeId) ?? [];
+        arr.push(u);
+        unitsByType.set(u.ticketTypeId, arr);
+      }
+
+      const availability = ticketTypes.map((tt) => {
+        const stages = stagesByType.get(tt.id) ?? [];
+        const { active, nextStage } = resolveActiveStage(stages);
+        const currentPrice = active ? active.price : tt.price;
+        const currentStageName = active ? active.name : null;
+
+        const units = tt.isNumberedUnits ? (unitsByType.get(tt.id) ?? []) : [];
+
+        return {
+          ticketTypeId: tt.id,
+          name: tt.name,
+          basePrice: tt.price,
+          currentPrice,
+          currentStageName,
+          available: tt.quantity - tt.soldCount,
+          total: tt.quantity,
+          saleStart: tt.saleStart,
+          saleEnd: tt.saleEnd,
+          validEventDayIds: tt.validEventDayIds,
+          sectionId: tt.sectionId,
+          isNumberedUnits: tt.isNumberedUnits,
+          unitLabel: tt.unitLabel,
+          ticketsPerUnit: tt.ticketsPerUnit,
+          units: units.map((u) => ({
+            id: u.id,
+            unitNumber: u.unitNumber,
+            unitLabel: u.unitLabel,
+            status: u.status,
+          })),
+          pricingStages: stages.map((s) => ({
+            id: s.id,
+            name: s.name,
+            price: s.price,
+            startsAt: s.startsAt,
+            endsAt: s.endsAt,
+          })),
+          nextStage: nextStage ? {
+            name: nextStage.name,
+            price: nextStage.price,
+            startsAt: nextStage.startsAt,
+          } : null,
+        };
+      });
+
+      const publicGuestLists = await db
+        .select({
+          id: guestListsTable.id,
+          name: guestListsTable.name,
+          slug: guestListsTable.slug,
+          maxGuests: guestListsTable.maxGuests,
+          currentCount: guestListsTable.currentCount,
+          expiresAt: guestListsTable.expiresAt,
+        })
+        .from(guestListsTable)
+        .where(
+          and(
+            eq(guestListsTable.eventId, eventId),
+            eq(guestListsTable.isPublic, true),
+            eq(guestListsTable.status, "active"),
+          ),
+        )
+        .orderBy(asc(guestListsTable.name));
+
+      const activeGuestLists = publicGuestLists.filter((gl) => {
+        if (gl.expiresAt && new Date(gl.expiresAt) < new Date()) return false;
+        if (gl.currentCount >= gl.maxGuests) return false;
+        return true;
+      });
+
+      res.json({
+        event,
+        eventDays: days,
+        venues,
+        sections,
+        ticketTypes: availability,
+        guestLists: activeGuestLists,
+      });
+    } catch (err) {
+      logger.error({ err, eventId }, "Failed to fetch event detail");
+      res.status(500).json({ error: "Internal server error" });
     }
-
-    if (!event.ticketingEnabled) {
-      res.status(404).json({ error: "Ticketing is not enabled for this event" });
-      return;
-    }
-
-    const days = await db
-      .select()
-      .from(eventDaysTable)
-      .where(eq(eventDaysTable.eventId, eventId))
-      .orderBy(asc(eventDaysTable.displayOrder), asc(eventDaysTable.date));
-
-    const venues = await db
-      .select()
-      .from(venuesTable)
-      .where(eq(venuesTable.eventId, eventId));
-
-    const sections = venues.length > 0
-      ? await db
-          .select()
-          .from(venueSectionsTable)
-          .where(eq(venueSectionsTable.venueId, venues[0].id))
-          .orderBy(asc(venueSectionsTable.displayOrder))
-      : [];
-
-    const ticketTypes = event.ticketingEnabled
-      ? await db
-          .select({
-            id: ticketTypesTable.id,
-            name: ticketTypesTable.name,
-            description: ticketTypesTable.description,
-            price: ticketTypesTable.price,
-            quantity: ticketTypesTable.quantity,
-            soldCount: ticketTypesTable.soldCount,
-            saleStart: ticketTypesTable.saleStart,
-            saleEnd: ticketTypesTable.saleEnd,
-            isActive: ticketTypesTable.isActive,
-            validEventDayIds: ticketTypesTable.validEventDayIds,
-            sectionId: ticketTypesTable.sectionId,
-            isNumberedUnits: ticketTypesTable.isNumberedUnits,
-            unitLabel: ticketTypesTable.unitLabel,
-            ticketsPerUnit: ticketTypesTable.ticketsPerUnit,
-          })
-          .from(ticketTypesTable)
-          .where(and(eq(ticketTypesTable.eventId, eventId), eq(ticketTypesTable.isActive, true)))
-      : [];
-
-    const allStages = ticketTypes.length > 0
-      ? await db
-          .select()
-          .from(ticketPricingStagesTable)
-          .where(inArray(ticketPricingStagesTable.ticketTypeId, ticketTypes.map((t) => t.id)))
-          .orderBy(asc(ticketPricingStagesTable.displayOrder), asc(ticketPricingStagesTable.startsAt))
-      : [];
-
-    const stagesByType = new Map<string, typeof allStages>();
-    for (const s of allStages) {
-      const arr = stagesByType.get(s.ticketTypeId) ?? [];
-      arr.push(s);
-      stagesByType.set(s.ticketTypeId, arr);
-    }
-
-    const numberedTypeIds = ticketTypes.filter((tt) => tt.isNumberedUnits).map((tt) => tt.id);
-    const allUnits = numberedTypeIds.length > 0
-      ? await db
-          .select()
-          .from(ticketTypeUnitsTable)
-          .where(inArray(ticketTypeUnitsTable.ticketTypeId, numberedTypeIds))
-          .orderBy(asc(ticketTypeUnitsTable.unitNumber))
-      : [];
-    const unitsByType = new Map<string, typeof allUnits>();
-    for (const u of allUnits) {
-      const arr = unitsByType.get(u.ticketTypeId) ?? [];
-      arr.push(u);
-      unitsByType.set(u.ticketTypeId, arr);
-    }
-
-    const availability = ticketTypes.map((tt) => {
-      const stages = stagesByType.get(tt.id) ?? [];
-      const { active, nextStage } = resolveActiveStage(stages);
-      const currentPrice = active ? active.price : tt.price;
-      const currentStageName = active ? active.name : null;
-
-      const units = tt.isNumberedUnits ? (unitsByType.get(tt.id) ?? []) : [];
-
-      return {
-        ticketTypeId: tt.id,
-        name: tt.name,
-        basePrice: tt.price,
-        currentPrice,
-        currentStageName,
-        available: tt.quantity - tt.soldCount,
-        total: tt.quantity,
-        saleStart: tt.saleStart,
-        saleEnd: tt.saleEnd,
-        validEventDayIds: tt.validEventDayIds,
-        sectionId: tt.sectionId,
-        isNumberedUnits: tt.isNumberedUnits,
-        unitLabel: tt.unitLabel,
-        ticketsPerUnit: tt.ticketsPerUnit,
-        units: units.map((u) => ({
-          id: u.id,
-          unitNumber: u.unitNumber,
-          unitLabel: u.unitLabel,
-          status: u.status,
-        })),
-        pricingStages: stages.map((s) => ({
-          id: s.id,
-          name: s.name,
-          price: s.price,
-          startsAt: s.startsAt,
-          endsAt: s.endsAt,
-        })),
-        nextStage: nextStage ? {
-          name: nextStage.name,
-          price: nextStage.price,
-          startsAt: nextStage.startsAt,
-        } : null,
-      };
-    });
-
-    const publicGuestLists = await db
-      .select({
-        id: guestListsTable.id,
-        name: guestListsTable.name,
-        slug: guestListsTable.slug,
-        maxGuests: guestListsTable.maxGuests,
-        currentCount: guestListsTable.currentCount,
-        expiresAt: guestListsTable.expiresAt,
-      })
-      .from(guestListsTable)
-      .where(
-        and(
-          eq(guestListsTable.eventId, eventId),
-          eq(guestListsTable.isPublic, true),
-          eq(guestListsTable.status, "active"),
-        ),
-      )
-      .orderBy(asc(guestListsTable.name));
-
-    const activeGuestLists = publicGuestLists.filter((gl) => {
-      if (gl.expiresAt && new Date(gl.expiresAt) < new Date()) return false;
-      if (gl.currentCount >= gl.maxGuests) return false;
-      return true;
-    });
-
-    res.json({
-      event,
-      eventDays: days,
-      venues,
-      sections,
-      ticketTypes: availability,
-      guestLists: activeGuestLists,
-    });
   },
 );
 

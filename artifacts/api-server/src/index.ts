@@ -180,6 +180,216 @@ async function runStartupMigrations(): Promise<void> {
           CHECK (quantity_on_hand >= 0);
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+      -- ── events: ticketing columns ─────────────────────────────────────────
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS ticketing_enabled boolean NOT NULL DEFAULT false;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS nfc_bracelets_enabled boolean NOT NULL DEFAULT true;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS sales_channel varchar(20) NOT NULL DEFAULT 'both';
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_starts_at timestamptz;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_ends_at timestamptz;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS cover_image_url varchar(1000);
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS flyer_image_url varchar(1000);
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS long_description text;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS category varchar(100);
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS tags jsonb DEFAULT '[]'::jsonb;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS min_age integer;
+
+      -- ── Ticketing enum types (idempotent) ────────────────────────────────
+      DO $$ BEGIN
+        CREATE TYPE sales_channel AS ENUM ('online', 'door', 'both');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE TYPE ticket_order_status AS ENUM ('pending', 'confirmed', 'cancelled', 'expired', 'refunded');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE TYPE ticket_status AS ENUM ('valid', 'used', 'cancelled', 'transferred', 'expired');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE TYPE unit_status AS ENUM ('available', 'reserved', 'sold');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE TYPE guest_list_status AS ENUM ('active', 'closed');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      -- ── event_days table ─────────────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS event_days (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id      varchar NOT NULL REFERENCES events(id),
+        date          date NOT NULL,
+        label         varchar(255),
+        doors_open_at timestamptz,
+        doors_close_at timestamptz,
+        display_order integer NOT NULL DEFAULT 0,
+        created_at    timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_event_days_event_id ON event_days (event_id);
+
+      -- ── venues table ─────────────────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS venues (
+        id                  varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id            varchar NOT NULL REFERENCES events(id),
+        name                varchar(255) NOT NULL,
+        address             varchar(500),
+        city                varchar(255),
+        latitude            numeric(10,7),
+        longitude           numeric(10,7),
+        floorplan_image_url text,
+        created_at          timestamptz NOT NULL DEFAULT now(),
+        updated_at          timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_venues_event_id ON venues (event_id);
+
+      -- ── venue_sections table ─────────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS venue_sections (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        venue_id      varchar NOT NULL REFERENCES venues(id),
+        name          varchar(255) NOT NULL,
+        capacity      integer,
+        total_tickets integer NOT NULL DEFAULT 0,
+        sold_tickets  integer NOT NULL DEFAULT 0,
+        color_hex     varchar(9) DEFAULT '#6366F1',
+        svg_path_data text,
+        display_order integer NOT NULL DEFAULT 0,
+        created_at    timestamptz NOT NULL DEFAULT now(),
+        updated_at    timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_venue_sections_venue_id ON venue_sections (venue_id);
+      DO $$ BEGIN
+        ALTER TABLE venue_sections ADD CONSTRAINT venue_sections_sold_non_negative CHECK (sold_tickets >= 0);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      -- ── ticket_types table ───────────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS ticket_types (
+        id                varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id          varchar NOT NULL REFERENCES events(id),
+        section_id        varchar REFERENCES venue_sections(id),
+        name              varchar(255) NOT NULL,
+        description       text,
+        price             integer NOT NULL,
+        service_fee       integer NOT NULL DEFAULT 0,
+        quantity          integer NOT NULL,
+        sold_count        integer NOT NULL DEFAULT 0,
+        sale_start        timestamptz,
+        sale_end          timestamptz,
+        is_active         boolean NOT NULL DEFAULT true,
+        is_numbered_units boolean NOT NULL DEFAULT false,
+        unit_label        varchar(100),
+        tickets_per_unit  integer,
+        valid_event_day_ids jsonb NOT NULL DEFAULT '[]'::jsonb,
+        created_at        timestamptz NOT NULL DEFAULT now(),
+        updated_at        timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_ticket_types_event_id ON ticket_types (event_id);
+      DO $$ BEGIN
+        ALTER TABLE ticket_types ADD CONSTRAINT ticket_types_sold_non_negative CHECK (sold_count >= 0);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      -- ── ticket_orders table ──────────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS ticket_orders (
+        id                    varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id              varchar NOT NULL REFERENCES events(id),
+        buyer_user_id         varchar REFERENCES users(id),
+        buyer_email           varchar(320) NOT NULL,
+        buyer_name            varchar(255),
+        total_amount          integer NOT NULL,
+        ticket_count          integer NOT NULL,
+        payment_status        ticket_order_status NOT NULL DEFAULT 'pending',
+        payment_method        varchar(50),
+        wompi_transaction_id  varchar,
+        wompi_reference       varchar,
+        expires_at            timestamptz,
+        created_at            timestamptz NOT NULL DEFAULT now(),
+        updated_at            timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_ticket_orders_event_id ON ticket_orders (event_id);
+      CREATE INDEX IF NOT EXISTS idx_ticket_orders_buyer_user_id ON ticket_orders (buyer_user_id);
+      CREATE INDEX IF NOT EXISTS idx_ticket_orders_wompi_transaction_id ON ticket_orders (wompi_transaction_id);
+
+      -- ── ticket_type_units table ──────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS ticket_type_units (
+        id             varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        ticket_type_id varchar NOT NULL REFERENCES ticket_types(id) ON DELETE CASCADE,
+        unit_number    integer NOT NULL,
+        unit_label     varchar(255) NOT NULL,
+        status         unit_status NOT NULL DEFAULT 'available',
+        order_id       varchar REFERENCES ticket_orders(id),
+        created_at     timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (ticket_type_id, unit_number)
+      );
+      CREATE INDEX IF NOT EXISTS idx_ticket_type_units_ticket_type_id ON ticket_type_units (ticket_type_id);
+
+      -- ── tickets table ────────────────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS tickets (
+        id              varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        order_id        varchar NOT NULL REFERENCES ticket_orders(id),
+        ticket_type_id  varchar REFERENCES ticket_types(id),
+        event_id        varchar NOT NULL REFERENCES events(id),
+        unit_id         varchar REFERENCES ticket_type_units(id),
+        attendee_name   varchar(255) NOT NULL,
+        attendee_email  varchar(320) NOT NULL,
+        attendee_phone  varchar(30),
+        attendee_user_id varchar REFERENCES users(id),
+        qr_code_token   varchar(512) UNIQUE,
+        status          ticket_status NOT NULL DEFAULT 'valid',
+        created_at      timestamptz NOT NULL DEFAULT now(),
+        updated_at      timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_tickets_order_id ON tickets (order_id);
+      CREATE INDEX IF NOT EXISTS idx_tickets_event_id ON tickets (event_id);
+      CREATE INDEX IF NOT EXISTS idx_tickets_attendee_email ON tickets (attendee_email);
+      CREATE INDEX IF NOT EXISTS idx_tickets_attendee_user_id ON tickets (attendee_user_id);
+
+      -- ── ticket_pricing_stages table ──────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS ticket_pricing_stages (
+        id             varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        ticket_type_id varchar NOT NULL REFERENCES ticket_types(id) ON DELETE CASCADE,
+        name           varchar(255) NOT NULL,
+        price          integer NOT NULL,
+        starts_at      timestamptz NOT NULL,
+        ends_at        timestamptz NOT NULL,
+        display_order  integer NOT NULL DEFAULT 0,
+        created_at     timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_ticket_pricing_stages_ticket_type_id ON ticket_pricing_stages (ticket_type_id);
+
+      -- ── guest_lists table ────────────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS guest_lists (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id      varchar NOT NULL REFERENCES events(id),
+        name          varchar(255) NOT NULL,
+        slug          varchar(100) NOT NULL UNIQUE,
+        max_guests    integer NOT NULL,
+        current_count integer NOT NULL DEFAULT 0,
+        is_public     boolean NOT NULL DEFAULT false,
+        status        guest_list_status NOT NULL DEFAULT 'active',
+        expires_at    timestamptz,
+        created_at    timestamptz NOT NULL DEFAULT now(),
+        updated_at    timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_guest_lists_event_id ON guest_lists (event_id);
+      CREATE INDEX IF NOT EXISTS idx_guest_lists_slug ON guest_lists (slug);
+      DO $$ BEGIN
+        ALTER TABLE guest_lists ADD CONSTRAINT guest_lists_count_non_negative CHECK (current_count >= 0);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      -- ── guest_list_entries table ─────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS guest_list_entries (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        guest_list_id varchar NOT NULL REFERENCES guest_lists(id),
+        name          varchar(255) NOT NULL,
+        email         varchar(320) NOT NULL,
+        phone         varchar(30),
+        ticket_id     varchar REFERENCES tickets(id),
+        order_id      varchar REFERENCES ticket_orders(id),
+        created_at    timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (guest_list_id, email)
+      );
+      CREATE INDEX IF NOT EXISTS idx_guest_list_entries_guest_list_id ON guest_list_entries (guest_list_id);
+      CREATE INDEX IF NOT EXISTS idx_guest_list_entries_email ON guest_list_entries (email);
+
       -- (no additional seeding required)
     `);
 

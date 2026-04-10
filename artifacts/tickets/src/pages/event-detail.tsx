@@ -13,7 +13,7 @@ import { VenueMap } from "@/components/VenueMap";
 import { TicketSelector } from "@/components/TicketSelector";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { fetchEventDetail, resolveImageUrl, type ApiEventDetail } from "@/lib/api";
+import { fetchEventDetail, resolveImageUrl, ApiError, type ApiEventDetail } from "@/lib/api";
 
 function DarkMapEmbed({ lat, lng }: { lat: number; lng: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -181,9 +181,20 @@ export default function EventDetail() {
   }
 
   if (!event || fetchError) {
+    const is404 = !fetchError || (fetchError instanceof ApiError && fetchError.status === 404);
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">{t("common.eventNotFound")}</p>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-3">
+        <p className="text-muted-foreground">
+          {is404 ? t("common.eventNotFound") : t("common.somethingWentWrong", "Something went wrong. Please try again later.")}
+        </p>
+        {!is404 && (
+          <button
+            className="text-primary underline text-sm"
+            onClick={() => window.location.reload()}
+          >
+            {t("common.retry", "Retry")}
+          </button>
+        )}
       </div>
     );
   }

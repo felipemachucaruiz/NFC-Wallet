@@ -5,6 +5,15 @@ const API_BASE = import.meta.env.PROD
 
 const STORAGE_ORIGIN = "https://prod.tapee.app";
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 export function resolveImageUrl(path: string | null | undefined): string {
   if (!path) return "";
   if (path.startsWith("http")) return path;
@@ -38,7 +47,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error || body.message || `API error ${res.status}`);
+    throw new ApiError(body.error || body.message || `API error ${res.status}`, res.status);
   }
   const text = await res.text();
   if (!text) return undefined as T;
