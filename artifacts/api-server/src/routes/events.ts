@@ -745,6 +745,159 @@ router.get(
 );
 
 router.get(
+  "/all-transactions",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const page = Math.max(1, parseInt(req.query.page as string ?? "1", 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string ?? "50", 10) || 50));
+    const search = req.query.search as string | undefined;
+    const offset = (page - 1) * limit;
+
+    const conditions: any[] = [];
+    if (search) {
+      conditions.push(
+        or(
+          ilike(transactionLogsTable.braceletUid, `%${search}%`),
+          ilike(merchantsTable.name, `%${search}%`),
+        )!
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countQuery = db
+      .select({ total: count() })
+      .from(transactionLogsTable);
+    if (search) {
+      countQuery.leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id));
+    }
+    if (whereClause) countQuery.where(whereClause);
+    const [totalRow] = await countQuery;
+
+    const txQuery = db
+      .select({
+        id: transactionLogsTable.id,
+        idempotencyKey: transactionLogsTable.idempotencyKey,
+        braceletUid: transactionLogsTable.braceletUid,
+        locationId: transactionLogsTable.locationId,
+        merchantId: transactionLogsTable.merchantId,
+        eventId: transactionLogsTable.eventId,
+        grossAmount: transactionLogsTable.grossAmount,
+        tipAmount: transactionLogsTable.tipAmount,
+        commissionAmount: transactionLogsTable.commissionAmount,
+        netAmount: transactionLogsTable.netAmount,
+        newBalance: transactionLogsTable.newBalance,
+        counter: transactionLogsTable.counter,
+        performedByUserId: transactionLogsTable.performedByUserId,
+        offlineCreatedAt: transactionLogsTable.offlineCreatedAt,
+        syncedAt: transactionLogsTable.syncedAt,
+        createdAt: transactionLogsTable.createdAt,
+        merchantName: merchantsTable.name,
+        locationName: locationsTable.name,
+        eventName: eventsTable.name,
+      })
+      .from(transactionLogsTable)
+      .leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id))
+      .leftJoin(locationsTable, eq(transactionLogsTable.locationId, locationsTable.id))
+      .leftJoin(eventsTable, eq(transactionLogsTable.eventId, eventsTable.id));
+    if (whereClause) txQuery.where(whereClause);
+    const txRows = await txQuery
+      .orderBy(sql`${transactionLogsTable.createdAt} DESC`)
+      .limit(limit)
+      .offset(offset);
+
+    const txIds = txRows.map((r) => r.id);
+    const lineItemsMap = new Map<string, { id: string; productId: string | null; productName: string | null; unitPrice: number; quantity: number; ivaAmount: number }[]>();
+    if (txIds.length > 0) {
+      const lineItems = await db
+        .select({
+          id: transactionLineItemsTable.id,
+          transactionLogId: transactionLineItemsTable.transactionLogId,
+          productId: transactionLineItemsTable.productId,
+          productName: transactionLineItemsTable.productNameSnapshot,
+          unitPrice: transactionLineItemsTable.unitPriceSnapshot,
+          quantity: transactionLineItemsTable.quantity,
+          ivaAmount: transactionLineItemsTable.ivaAmount,
+        })
+        .from(transactionLineItemsTable)
+        .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map(id => sql`${id}`), sql`, `)}]::text[])`);
+      for (const li of lineItems) {
+        if (!lineItemsMap.has(li.transactionLogId)) {
+          lineItemsMap.set(li.transactionLogId, []);
+        }
+        lineItemsMap.get(li.transactionLogId)!.push({
+          id: li.id,
+          productId: li.productId,
+          productName: li.productName,
+          unitPrice: li.unitPrice,
+          quantity: li.quantity,
+          ivaAmount: li.ivaAmount,
+        });
+      }
+    }
+
+    const transactions = txRows.map((tx) => ({
+      ...tx,
+      lineItems: lineItemsMap.get(tx.id) ?? [],
+    }));
+
+    res.json({ transactions, total: totalRow?.total ?? 0, page, limit });
+  }
+);
+
+router.get(
+  "/all-top-ups",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const page = Math.max(1, parseInt(req.query.page as string ?? "1", 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string ?? "50", 10) || 50));
+    const search = req.query.search as string | undefined;
+    const offset = (page - 1) * limit;
+
+    const conditions: any[] = [];
+    if (search) {
+      conditions.push(ilike(topUpsTable.braceletUid, `%${search}%`));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countQuery = db
+      .select({ total: count() })
+      .from(topUpsTable);
+    if (whereClause) countQuery.where(whereClause);
+    const [totalRow] = await countQuery;
+
+    const rows = await db
+      .select({
+        id: topUpsTable.id,
+        braceletUid: topUpsTable.braceletUid,
+        amount: topUpsTable.amount,
+        paymentMethod: topUpsTable.paymentMethod,
+        status: topUpsTable.status,
+        newBalance: topUpsTable.newBalance,
+        performedByUserId: topUpsTable.performedByUserId,
+        createdAt: topUpsTable.createdAt,
+        offlineCreatedAt: topUpsTable.offlineCreatedAt,
+        performedByName: usersTable.firstName,
+        eventName: eventsTable.name,
+      })
+      .from(topUpsTable)
+      .innerJoin(braceletsTable, eq(topUpsTable.braceletUid, braceletsTable.nfcUid))
+      .leftJoin(eventsTable, eq(braceletsTable.eventId, eventsTable.id))
+      .leftJoin(usersTable, eq(topUpsTable.performedByUserId, usersTable.id));
+    if (whereClause) {
+      rows.where(whereClause);
+    }
+    const result = await rows
+      .orderBy(sql`${topUpsTable.createdAt} DESC`)
+      .limit(limit)
+      .offset(offset);
+
+    res.json({ topUps: result, total: totalRow?.total ?? 0, page, limit });
+  }
+);
+
+router.get(
   "/events/:eventId/transactions",
   requireRole("admin", "event_admin"),
   async (req: Request, res: Response) => {

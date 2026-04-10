@@ -336,7 +336,9 @@
     "topUpPerformedBy": "Realizado por",
     "methodCash": "Efectivo",
     "methodCard": "Tarjeta",
-    "methodOther": "Otro"
+    "methodOther": "Otro",
+    "allEvents": "Todos los Eventos",
+    "colEvent": "Evento"
   },
   "wristbands": {
     "title": "Brazaletes",

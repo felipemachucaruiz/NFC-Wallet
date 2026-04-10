@@ -336,7 +336,9 @@
     "topUpPerformedBy": "Performed by",
     "methodCash": "Cash",
     "methodCard": "Card",
-    "methodOther": "Other"
+    "methodOther": "Other",
+    "allEvents": "All Events",
+    "colEvent": "Event"
   },
   "wristbands": {
     "title": "Wristbands",

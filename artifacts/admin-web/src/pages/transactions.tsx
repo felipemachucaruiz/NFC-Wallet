@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   useListEvents,
   useListEventTransactions,
@@ -17,6 +18,34 @@ import { Search, Eye, Receipt } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 
+const API_BASE = import.meta.env.PROD
+  ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app").replace(/\/+$/, "")
+  : `${import.meta.env.BASE_URL}_srv`;
+
+function getToken() {
+  return localStorage.getItem("token") ?? "";
+}
+
+async function fetchAllTransactions(params: { page: number; limit: number; search?: string }) {
+  const qs = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
+  if (params.search) qs.set("search", params.search);
+  const res = await fetch(`${API_BASE}/api/all-transactions?${qs}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error("Failed to fetch transactions");
+  return res.json();
+}
+
+async function fetchAllTopUps(params: { page: number; limit: number; search?: string }) {
+  const qs = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
+  if (params.search) qs.set("search", params.search);
+  const res = await fetch(`${API_BASE}/api/all-top-ups?${qs}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) throw new Error("Failed to fetch top-ups");
+  return res.json();
+}
+
 type TxType = "sale" | "topup" | "all";
 
 export default function Transactions() {
@@ -26,27 +55,49 @@ export default function Transactions() {
   const { data: merchantsData } = useListMerchants();
   const merchants = merchantsData?.merchants ?? [];
 
-  const [eventId, setEventId] = useState("");
+  const [eventId, setEventId] = useState("__all__");
   const [page, setPage] = useState(1);
   const [searchParam, setSearchParam] = useState("");
   const [txType, setTxType] = useState<TxType>("all");
 
+  const isAllEvents = eventId === "__all__";
   const txParams = { page, limit: 50, search: searchParam || undefined };
   const showSales = txType === "sale" || txType === "all";
   const showTopUps = txType === "topup" || txType === "all";
 
   const { data: salesData, isLoading: salesLoading } = useListEventTransactions(
     eventId, txParams,
-    { query: { enabled: !!eventId && showSales, queryKey: getListEventTransactionsQueryKey(eventId, txParams) } }
+    { query: { enabled: !isAllEvents && !!eventId && showSales, queryKey: getListEventTransactionsQueryKey(eventId, txParams) } }
   );
   const { data: topUpsData, isLoading: topUpsLoading } = useListEventTopUps(
-    eventId, txParams
+    eventId, txParams,
+    { query: { enabled: !isAllEvents && !!eventId && showTopUps } }
   );
 
-  const transactions = showSales ? (salesData?.transactions ?? []) : [];
-  const topUps = showTopUps ? (topUpsData?.topUps ?? []) : [];
-  const isLoading = (showSales && salesLoading) || (showTopUps && topUpsLoading);
-  const currency = (events.find((e) => e.id === eventId) as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
+  const { data: allSalesData, isLoading: allSalesLoading } = useQuery({
+    queryKey: ["all-transactions", page, searchParam],
+    queryFn: () => fetchAllTransactions({ page, limit: 50, search: searchParam || undefined }),
+    enabled: isAllEvents && showSales,
+  });
+  const { data: allTopUpsData, isLoading: allTopUpsLoading } = useQuery({
+    queryKey: ["all-top-ups", page, searchParam],
+    queryFn: () => fetchAllTopUps({ page, limit: 50, search: searchParam || undefined }),
+    enabled: isAllEvents && showTopUps,
+  });
+
+  const transactions = showSales
+    ? (isAllEvents ? (allSalesData?.transactions ?? []) : (salesData?.transactions ?? []))
+    : [];
+  const topUps = showTopUps
+    ? (isAllEvents ? (allTopUpsData?.topUps ?? []) : (topUpsData?.topUps ?? []))
+    : [];
+  const isLoading = isAllEvents
+    ? (showSales && allSalesLoading) || (showTopUps && allTopUpsLoading)
+    : (showSales && salesLoading) || (showTopUps && topUpsLoading);
+
+  const currency = isAllEvents
+    ? "COP"
+    : (events.find((e) => e.id === eventId) as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
   const fmt = (n: number) => formatCurrency(n, currency);
 
   const [search, setSearch] = useState("");
@@ -66,6 +117,7 @@ export default function Transactions() {
     braceletUid: string;
     amount: number;
     createdAt: string;
+    eventName?: string;
     sale?: EventTransaction;
     topUp?: EventTopUp;
   };
@@ -79,6 +131,7 @@ export default function Transactions() {
         braceletUid: tx.braceletUid,
         amount: tx.grossAmount,
         createdAt: tx.createdAt,
+        eventName: (tx as any).eventName,
         sale: tx,
       });
     }
@@ -91,6 +144,7 @@ export default function Transactions() {
         braceletUid: tu.braceletUid,
         amount: tu.amount,
         createdAt: tu.createdAt,
+        eventName: (tu as any).eventName,
         topUp: tu,
       });
     }
@@ -98,10 +152,10 @@ export default function Transactions() {
   unified.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const totalRecords = txType === "sale"
-    ? (salesData?.total ?? 0)
+    ? (isAllEvents ? (allSalesData?.total ?? 0) : (salesData?.total ?? 0))
     : txType === "topup"
-    ? (topUpsData?.total ?? 0)
-    : (salesData?.total ?? 0) + (topUpsData?.total ?? 0);
+    ? (isAllEvents ? (allTopUpsData?.total ?? 0) : (topUpsData?.total ?? 0))
+    : (isAllEvents ? (allSalesData?.total ?? 0) + (allTopUpsData?.total ?? 0) : (salesData?.total ?? 0) + (topUpsData?.total ?? 0));
 
   const paymentMethodLabel = (method: string) => {
     const map: Record<string, string> = {
@@ -116,6 +170,8 @@ export default function Transactions() {
     return map[method] ?? method;
   };
 
+  const hasData = isAllEvents || !!eventId;
+
   return (
     <div className="space-y-6">
       <div>
@@ -126,10 +182,10 @@ export default function Transactions() {
       </div>
 
       <div className="flex gap-3 flex-wrap">
-        <Select value={eventId || "none"} onValueChange={(v) => { setEventId(v === "none" ? "" : v); setPage(1); }}>
-          <SelectTrigger className="w-56"><SelectValue placeholder={t("transactions.selectEventPlaceholder")} /></SelectTrigger>
+        <Select value={eventId || "__all__"} onValueChange={(v) => { setEventId(v); setPage(1); }}>
+          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">{t("transactions.selectEventPlaceholder")}</SelectItem>
+            <SelectItem value="__all__">{t("transactions.allEvents")}</SelectItem>
             {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -163,6 +219,7 @@ export default function Transactions() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("transactions.colType")}</TableHead>
+              {isAllEvents && <TableHead>{t("transactions.colEvent")}</TableHead>}
               <TableHead>{t("transactions.colTime")}</TableHead>
               <TableHead>{t("transactions.colBracelet")}</TableHead>
               <TableHead>{t("transactions.colDetail")}</TableHead>
@@ -171,12 +228,10 @@ export default function Transactions() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!eventId ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("transactions.selectEventPrompt")}</TableCell></TableRow>
-            ) : isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
+            {isLoading ? (
+              <TableRow><TableCell colSpan={isAllEvents ? 7 : 6} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
             ) : unified.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("transactions.noTransactions")}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={isAllEvents ? 7 : 6} className="text-center py-8 text-muted-foreground">{t("transactions.noTransactions")}</TableCell></TableRow>
             ) : (
               unified.map((row) => (
                 <TableRow key={`${row.kind}-${row.id}`}>
@@ -187,6 +242,9 @@ export default function Transactions() {
                       <Badge variant="default" className="text-xs bg-green-600">{t("transactions.typeTopUp")}</Badge>
                     )}
                   </TableCell>
+                  {isAllEvents && (
+                    <TableCell className="text-sm max-w-[150px] truncate">{row.eventName ?? "—"}</TableCell>
+                  )}
                   <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{new Date(row.createdAt).toLocaleString()}</TableCell>
                   <TableCell className="font-mono text-xs">{row.braceletUid}</TableCell>
                   <TableCell className="text-sm">
@@ -210,7 +268,7 @@ export default function Transactions() {
             )}
           </TableBody>
         </Table>
-        {eventId && (
+        {hasData && (
           <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border flex justify-between items-center">
             <span>{t("transactions.pageInfo", { page, showing: unified.length, total: totalRecords })}</span>
             <div className="flex gap-2">
