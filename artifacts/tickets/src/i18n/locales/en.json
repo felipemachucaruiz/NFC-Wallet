@@ -117,7 +117,9 @@
     "resetSentDesc": "If an account exists with that email, you'll receive a password reset link.",
     "backToLogin": "Back to login",
     "loginRequired": "You must log in to purchase tickets",
-    "passwordMismatch": "Passwords do not match"
+    "passwordMismatch": "Passwords do not match",
+    "loginFailed": "Login failed",
+    "registerFailed": "Registration failed"
   },
   "checkout": {
     "title": "Checkout",
@@ -185,6 +187,11 @@
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",
-    "close": "Close"
+    "close": "Close",
+    "eventNotFound": "Event not found",
+    "pageNotFound": "Page not found",
+    "pageNotFoundDesc": "The page you're looking for doesn't exist.",
+    "noResults": "No results found",
+    "searchCountry": "Search country..."
   }
 }

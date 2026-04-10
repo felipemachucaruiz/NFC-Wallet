@@ -43,7 +43,7 @@ function DarkMapEmbed({ lat, lng }: { lat: number; lng: number }) {
 }
 
 export default function EventDetail() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [, params] = useRoute("/event/:id");
   const [, navigate] = useLocation();
   const [showFlyer, setShowFlyer] = useState(false);
@@ -56,7 +56,7 @@ export default function EventDetail() {
   if (!event) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Event not found</p>
+        <p className="text-muted-foreground">{t("common.eventNotFound")}</p>
       </div>
     );
   }
@@ -80,7 +80,7 @@ export default function EventDetail() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-          <Badge variant="secondary" className="mb-2">{event.category}</Badge>
+          <Badge variant="secondary" className="mb-2">{t(`home.filters.${event.category}`)}</Badge>
           <h1 className="text-3xl md:text-4xl font-bold mb-2">{event.name}</h1>
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -129,7 +129,7 @@ export default function EventDetail() {
                       <div>
                         <p className="font-medium">{day.label}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(day.date).toLocaleDateString("es-CO", { day: "numeric", month: "long" })} — {t("event.doorTime")}: {day.doorTime}
+                          {new Date(day.date).toLocaleDateString(i18n.language === "es" ? "es-CO" : "en-US", { day: "numeric", month: "long" })} — {t("event.doorTime")}: {day.doorTime}
                         </p>
                       </div>
                     </div>

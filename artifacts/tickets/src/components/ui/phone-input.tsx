@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, Check, Search } from "lucide-react";
 
 const COUNTRY_CODES = [
@@ -34,6 +35,7 @@ interface PhoneFieldProps {
 }
 
 export function PhoneField({ value, onChange, className, required, placeholder = "300 123 4567" }: PhoneFieldProps) {
+  const { t } = useTranslation();
   const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRY_CODES[0]);
   const [showPicker, setShowPicker] = useState(false);
   const [search, setSearch] = useState("");
@@ -114,7 +116,7 @@ export function PhoneField({ value, onChange, className, required, placeholder =
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar país..."
+                placeholder={t("common.searchCountry")}
                 className="w-full h-8 pl-8 pr-3 text-sm bg-muted/50 border border-border rounded-md text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
@@ -139,7 +141,7 @@ export function PhoneField({ value, onChange, className, required, placeholder =
             ))}
             {filtered.length === 0 && (
               <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-                No se encontraron resultados
+                {t("common.noResults")}
               </div>
             )}
           </div>

@@ -28,7 +28,7 @@ function LoginForm() {
         navigate(`/${authRedirect}`);
       }
     } catch {
-      setError("Login failed");
+      setError(t("auth.loginFailed"));
     } finally {
       setLoading(false);
     }
@@ -202,7 +202,7 @@ function RegisterForm() {
         navigate(`/${authRedirect}`);
       }
     } catch {
-      setError("Registration failed");
+      setError(t("auth.registerFailed"));
     } finally {
       setLoading(false);
     }
@@ -276,7 +276,8 @@ function ModalContent({ view }: { view: "login" | "register" | "forgot" }) {
 export function AuthModal() {
   const { showAuthModal, authModalView, closeAuthModal } = useAuth();
 
-  const titleMap = { login: "Login", register: "Register", forgot: "Forgot Password" };
+  const { t } = useTranslation();
+  const titleMap = { login: t("auth.loginTitle"), register: t("auth.registerTitle"), forgot: t("auth.forgotPasswordTitle") };
 
   return (
     <Dialog open={showAuthModal} onOpenChange={(open) => { if (!open) closeAuthModal(); }}>
