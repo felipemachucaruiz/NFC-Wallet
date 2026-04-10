@@ -30,9 +30,9 @@ function DarkMapEmbed({ lat, lng }: { lat: number; lng: number }) {
     }).addTo(map);
     const icon = L.divIcon({
       className: "",
-      html: `<div style="width:14px;height:14px;border-radius:50%;background:#00f1ff;border:2px solid #0891b2;box-shadow:0 0 8px rgba(0,241,255,0.5)"></div>`,
-      iconSize: [14, 14],
-      iconAnchor: [7, 7],
+      html: `<div style="width:22px;height:22px;border-radius:50%;background:#00f1ff;border:3px solid #0891b2;box-shadow:0 0 16px rgba(0,241,255,0.6),0 0 32px rgba(0,241,255,0.25)"></div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
     });
     L.marker([lat, lng], { icon }).addTo(map);
     mapRef.current = map;
