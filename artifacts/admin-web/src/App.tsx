@@ -28,8 +28,8 @@ class ErrorBoundary extends React.Component<
         <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-8">
           <div className="max-w-md text-center space-y-4">
             <h1 className="text-2xl font-bold text-destructive">Something went wrong</h1>
-            <p className="text-muted-foreground text-sm">{this.state.error?.message}</p>
-            <pre className="text-xs text-left bg-muted p-3 rounded overflow-auto max-h-40">{this.state.error?.stack}</pre>
+            <p className="text-muted-foreground text-sm">{String(this.state.error?.message ?? "")}</p>
+            <pre className="text-xs text-left bg-muted p-3 rounded overflow-auto max-h-40">{String(this.state.error?.stack ?? "")}</pre>
             <button
               className="px-4 py-2 bg-primary text-primary-foreground rounded"
               onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
