@@ -47,6 +47,8 @@ type EventForm = {
   pulepId: string;
   nfcChipType: string;
   currencyCode: string;
+  ticketingEnabled: boolean;
+  nfcBraceletsEnabled: boolean;
   eventAdmin: EventAdminForm;
 };
 
@@ -67,6 +69,8 @@ const emptyForm: EventForm = {
   pulepId: "",
   nfcChipType: "ntag_21x",
   currencyCode: "COP",
+  ticketingEnabled: false,
+  nfcBraceletsEnabled: true,
   eventAdmin: { ...emptyAdmin },
 };
 
@@ -100,6 +104,8 @@ type RawEvent = Event & {
   nfcChipType?: string | null;
   currencyCode?: string | null;
   refundDeadline?: string | null;
+  ticketingEnabled?: boolean;
+  nfcBraceletsEnabled?: boolean;
 };
 
 type FormFieldsProps = {
@@ -126,12 +132,44 @@ function FormFields({
   const { t } = useTranslation();
   const [promoterOpen, setPromoterOpen] = useState(false);
   const selectedCompany = promoterCompanies.find((pc) => pc.id === form.promoterCompanyId);
+  const atLeastOneModule = form.ticketingEnabled || form.nfcBraceletsEnabled;
   return (
     <div className="space-y-4">
       <div className="space-y-1">
         <Label>{t("events.eventName")}</Label>
         <Input data-testid="input-event-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
       </div>
+
+      <div className="border rounded-md p-3 space-y-3">
+        <Label className="text-sm font-semibold">{t("events.modulesSection")}</Label>
+        <p className="text-xs text-muted-foreground">{t("events.modulesHint")}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">{t("events.ticketingModule")}</p>
+            <p className="text-xs text-muted-foreground">{t("events.ticketingModuleDesc")}</p>
+          </div>
+          <Switch
+            data-testid="toggle-ticketing"
+            checked={form.ticketingEnabled}
+            onCheckedChange={(v) => setForm((f) => ({ ...f, ticketingEnabled: v }))}
+          />
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium">{t("events.nfcBraceletsModule")}</p>
+            <p className="text-xs text-muted-foreground">{t("events.nfcBraceletsModuleDesc")}</p>
+          </div>
+          <Switch
+            data-testid="toggle-nfc-bracelets"
+            checked={form.nfcBraceletsEnabled}
+            onCheckedChange={(v) => setForm((f) => ({ ...f, nfcBraceletsEnabled: v }))}
+          />
+        </div>
+        {!atLeastOneModule && (
+          <p className="text-xs text-destructive">{t("events.atLeastOneModule")}</p>
+        )}
+      </div>
+
       <div className="space-y-1">
         <Label>{t("events.description")}</Label>
         <Input data-testid="input-event-description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
@@ -427,6 +465,8 @@ export default function Events() {
       pulepId: raw.pulepId ?? "",
       nfcChipType: raw.nfcChipType ?? "ntag_21x",
       currencyCode: raw.currencyCode ?? "COP",
+      ticketingEnabled: raw.ticketingEnabled ?? false,
+      nfcBraceletsEnabled: raw.nfcBraceletsEnabled ?? true,
       eventAdmin: { ...emptyAdmin },
     });
     setEditOpen(true);
@@ -435,6 +475,10 @@ export default function Events() {
   const adminPartiallyFilled = !!(form.eventAdmin.email || form.eventAdmin.password || form.eventAdmin.firstName || form.eventAdmin.lastName) && !(form.eventAdmin.email && form.eventAdmin.password);
 
   const handleCreate = () => {
+    if (!form.ticketingEnabled && !form.nfcBraceletsEnabled) {
+      toast({ title: t("common.error"), description: t("events.atLeastOneModule"), variant: "destructive" });
+      return;
+    }
     if (adminPartiallyFilled) {
       toast({ title: t("common.error"), description: t("events.adminIncomplete"), variant: "destructive" });
       return;
@@ -456,6 +500,8 @@ export default function Events() {
       pulepId: form.pulepId || undefined,
       nfcChipType: form.nfcChipType || undefined,
       currencyCode: form.currencyCode || "COP",
+      ticketingEnabled: form.ticketingEnabled,
+      nfcBraceletsEnabled: form.nfcBraceletsEnabled,
       ...(hasAdmin ? {
         eventAdmin: {
           email: form.eventAdmin.email,
@@ -476,6 +522,10 @@ export default function Events() {
 
   const handleUpdate = () => {
     if (!selectedEvent) return;
+    if (!form.ticketingEnabled && !form.nfcBraceletsEnabled) {
+      toast({ title: t("common.error"), description: t("events.atLeastOneModule"), variant: "destructive" });
+      return;
+    }
     const capNum = form.capacity ? parseInt(form.capacity, 10) : undefined;
     const payload: any = {
       name: form.name,
@@ -492,6 +542,8 @@ export default function Events() {
       pulepId: form.pulepId || null,
       nfcChipType: form.nfcChipType || undefined,
       currencyCode: form.currencyCode || undefined,
+      ticketingEnabled: form.ticketingEnabled,
+      nfcBraceletsEnabled: form.nfcBraceletsEnabled,
     };
     updateEvent.mutate(
       { eventId: selectedEvent.id, data: payload },

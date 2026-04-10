@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
-import { useGetCurrentAuthUser, setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
+import { useGetCurrentAuthUser, useGetEvent, setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { AUTH_TOKEN_KEY } from "@/pages/login";
 
 setBaseUrl(`${import.meta.env.BASE_URL}_srv`);
@@ -40,6 +40,14 @@ import EventInventory from "@/pages/event-inventory";
 import EventRefundRequests from "@/pages/event-refund-requests";
 import EventSettlement from "@/pages/event-settlement";
 import EventSettings from "@/pages/event-settings";
+import EventDays from "@/pages/event-days";
+import EventVenueMap from "@/pages/event-venue-map";
+import EventVenueLocation from "@/pages/event-venue-location";
+import EventTicketTypes from "@/pages/event-ticket-types";
+import EventSalesConfig from "@/pages/event-sales-config";
+import EventSalesDashboard from "@/pages/event-sales-dashboard";
+import EventOrders from "@/pages/event-orders";
+import EventCheckins from "@/pages/event-checkins";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +64,39 @@ function ProtectedRoute({ component: Component, allowedRoles }: { component: Rea
 
   if (!allowedRoles.includes(user.user.role)) {
     return <Redirect to={user.user.role === "admin" ? "/dashboard" : "/event-dashboard"} />;
+  }
+
+  return (
+    <Layout>
+      <Component />
+    </Layout>
+  );
+}
+
+function ModuleGatedRoute({ component: Component, allowedRoles, requiredModule }: { component: React.ElementType, allowedRoles: string[], requiredModule: "ticketing" | "nfc" }) {
+  const { data: user, isLoading } = useGetCurrentAuthUser();
+  const eventId = user?.user?.eventId ?? "";
+  const { data: eventData, isLoading: eventLoading } = useGetEvent(eventId || "");
+  const event = eventData as Record<string, unknown> | undefined;
+
+  if (isLoading || eventLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-background text-foreground">Loading...</div>;
+  }
+
+  if (!user?.user) {
+    return <Redirect to="/login" />;
+  }
+
+  if (!allowedRoles.includes(user.user.role)) {
+    return <Redirect to={user.user.role === "admin" ? "/dashboard" : "/event-dashboard"} />;
+  }
+
+  const moduleEnabled = requiredModule === "ticketing"
+    ? event?.ticketingEnabled === true
+    : event?.nfcBraceletsEnabled !== false;
+
+  if (event && !moduleEnabled) {
+    return <Redirect to="/event-dashboard" />;
   }
 
   return (
@@ -157,6 +198,32 @@ function Router() {
       </Route>
       <Route path="/event-settings">
         <ProtectedRoute component={EventSettings} allowedRoles={["event_admin"]} />
+      </Route>
+
+      {/* Ticketing Routes (module-gated) */}
+      <Route path="/event-days">
+        <ModuleGatedRoute component={EventDays} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+      </Route>
+      <Route path="/event-venue-map">
+        <ModuleGatedRoute component={EventVenueMap} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+      </Route>
+      <Route path="/event-venue-location">
+        <ModuleGatedRoute component={EventVenueLocation} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+      </Route>
+      <Route path="/event-ticket-types">
+        <ModuleGatedRoute component={EventTicketTypes} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+      </Route>
+      <Route path="/event-sales-config">
+        <ModuleGatedRoute component={EventSalesConfig} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+      </Route>
+      <Route path="/event-sales-dashboard">
+        <ModuleGatedRoute component={EventSalesDashboard} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+      </Route>
+      <Route path="/event-orders">
+        <ModuleGatedRoute component={EventOrders} allowedRoles={["event_admin"]} requiredModule="ticketing" />
+      </Route>
+      <Route path="/event-checkins">
+        <ModuleGatedRoute component={EventCheckins} allowedRoles={["event_admin"]} requiredModule="ticketing" />
       </Route>
 
       <Route component={NotFound} />

@@ -31,7 +31,7 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 - `artifacts/attendee-api` — Separate Express 5 API server for attendee-facing endpoints at `/api` (attendee app)
 - `artifacts/mobile` — Expo React Native staff mobile app
 - `artifacts/attendee-app` — Expo React Native attendee mobile app
-- `artifacts/admin-web` — React + Vite web admin portal at `/admin-web/`; serves `admin` and `event_admin` users with login (2FA), forgot/reset password, dashboard, events, users, merchants, bracelets, access zones, payouts, reports
+- `artifacts/admin-web` — React + Vite web admin portal at `/admin-web/`; serves `admin` and `event_admin` users with login (2FA), forgot/reset password, dashboard, events, users, merchants, bracelets, access zones, payouts, reports. Includes **ticketing management** module: Event Days, Venue Map Editor (canvas-based section drawing), Venue Location, Ticket Types, Sales Config, Sales Dashboard, Orders, and Check-in Dashboard. Events have module toggles (`ticketingEnabled`, `nfcBraceletsEnabled`) that gate sidebar navigation and route access via `ModuleGatedRoute`.
 - `artifacts/ticket-storefront` — React + Vite public ticketing storefront at `/ticket-storefront/`; designed for independent Railway deployment with configurable API URL (`VITE_API_BASE_URL`). Features: event listing with search, event detail with ticket selection, checkout with Nequi/PSE payments via Wompi, order status polling. Bilingual (Spanish UI).
 
 **UI/UX Decisions:**

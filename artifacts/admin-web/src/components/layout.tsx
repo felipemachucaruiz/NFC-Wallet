@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useGetCurrentAuthUser, customFetch, setAuthTokenGetter } from "@workspace/api-client-react";
+import { useGetCurrentAuthUser, useGetEvent, customFetch, setAuthTokenGetter } from "@workspace/api-client-react";
 import { AUTH_TOKEN_KEY } from "@/pages/login";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,12 @@ import {
   Languages,
   Settings,
   BadgePercent,
+  CalendarDays,
+  Map,
+  ShoppingCart,
+  BarChart3,
+  ClipboardList,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -32,6 +38,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
   const { data: user, isLoading } = useGetCurrentAuthUser();
   const [, setLocation] = useLocation();
+
+  const eventId = user?.user?.eventId ?? "";
+  const { data: eventData } = useGetEvent(eventId || "");
+  const eventRecord = eventData as Record<string, unknown> | undefined;
+  const ticketingEnabled = eventRecord?.ticketingEnabled === true;
+  const nfcBraceletsEnabled = eventRecord?.nfcBraceletsEnabled !== false;
 
   const handleLogout = async () => {
     try { await customFetch("/api/auth/logout", { method: "POST" }); } catch { }
@@ -91,15 +103,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <>
               <NavItem href="/event-dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
               <NavItem href="/event-users" icon={Users} label={t("nav.staffUsers")} />
-              <NavItem href="/event-merchants" icon={Store} label={t("nav.merchants")} />
-              <NavItem href="/event-products" icon={ShoppingBag} label={t("nav.products")} />
-              <NavItem href="/event-locations" icon={MapPinned} label={t("nav.locations")} />
-              <NavItem href="/event-bracelets" icon={Ticket} label={t("nav.wristbands")} />
-              <NavItem href="/event-access-zones" icon={MapPin} label={t("nav.accessZones")} />
-              <NavItem href="/event-transactions" icon={Receipt} label={t("nav.transactions")} />
-              <NavItem href="/event-inventory" icon={Package} label={t("nav.inventory")} />
-              <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
-              <NavItem href="/event-payouts" icon={CreditCard} label={t("nav.payouts")} />
+
+              {ticketingEnabled && (
+                <>
+                  <NavSectionLabel label={t("nav.ticketingSection")} />
+                  <NavItem href="/event-days" icon={CalendarDays} label={t("nav.eventDays")} />
+                  <NavItem href="/event-venue-location" icon={MapPin} label={t("nav.venueLocation")} />
+                  <NavItem href="/event-venue-map" icon={Map} label={t("nav.venueMap")} />
+                  <NavItem href="/event-ticket-types" icon={Ticket} label={t("nav.ticketTypes")} />
+                  <NavItem href="/event-sales-config" icon={ShoppingCart} label={t("nav.salesConfig")} />
+                  <NavItem href="/event-sales-dashboard" icon={BarChart3} label={t("nav.salesDashboard")} />
+                  <NavItem href="/event-orders" icon={ClipboardList} label={t("nav.orders")} />
+                  <NavItem href="/event-checkins" icon={UserCheck} label={t("nav.checkins")} />
+                </>
+              )}
+
+              {nfcBraceletsEnabled && (
+                <>
+                  <NavSectionLabel label={t("nav.cashlessSection")} />
+                  <NavItem href="/event-merchants" icon={Store} label={t("nav.merchants")} />
+                  <NavItem href="/event-products" icon={ShoppingBag} label={t("nav.products")} />
+                  <NavItem href="/event-locations" icon={MapPinned} label={t("nav.locations")} />
+                  <NavItem href="/event-bracelets" icon={Ticket} label={t("nav.wristbands")} />
+                  <NavItem href="/event-access-zones" icon={MapPin} label={t("nav.accessZones")} />
+                  <NavItem href="/event-transactions" icon={Receipt} label={t("nav.transactions")} />
+                  <NavItem href="/event-inventory" icon={Package} label={t("nav.inventory")} />
+                  <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
+                  <NavItem href="/event-payouts" icon={CreditCard} label={t("nav.payouts")} />
+                </>
+              )}
+
               <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />
               <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
               <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
@@ -147,6 +180,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
     </div>
+  );
+}
+
+function NavSectionLabel({ label }: { label: string }) {
+  return (
+    <p className="text-xs uppercase tracking-wider text-sidebar-foreground/50 font-semibold pt-3 pb-1 px-3">
+      {label}
+    </p>
   );
 }
 
