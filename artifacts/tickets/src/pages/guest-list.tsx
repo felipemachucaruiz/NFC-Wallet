@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneField } from "@/components/ui/phone-input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar, MapPin, Users, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import QRCode from "qrcode";
@@ -219,12 +220,9 @@ export default function GuestListPage() {
                 </div>
                 <div>
                   <Label className="text-gray-300">{t("guestList.phoneLabel")}</Label>
-                  <Input
-                    type="tel"
+                  <PhoneField
                     value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    placeholder={t("guestList.phonePlaceholder")}
-                    className="bg-gray-800 border-gray-700 text-white"
+                    onChange={setFormPhone}
                   />
                 </div>
 

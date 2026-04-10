@@ -2,29 +2,45 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Check, Search } from "lucide-react";
 
+const FLAG_CDN = "https://flagcdn.com/w40";
+
 const COUNTRY_CODES = [
-  { code: "+57", flag: "🇨🇴", name: "Colombia" },
-  { code: "+1", flag: "🇺🇸", name: "Estados Unidos" },
-  { code: "+52", flag: "🇲🇽", name: "México" },
-  { code: "+54", flag: "🇦🇷", name: "Argentina" },
-  { code: "+55", flag: "🇧🇷", name: "Brasil" },
-  { code: "+56", flag: "🇨🇱", name: "Chile" },
-  { code: "+51", flag: "🇵🇪", name: "Perú" },
-  { code: "+58", flag: "🇻🇪", name: "Venezuela" },
-  { code: "+593", flag: "🇪🇨", name: "Ecuador" },
-  { code: "+595", flag: "🇵🇾", name: "Paraguay" },
-  { code: "+598", flag: "🇺🇾", name: "Uruguay" },
-  { code: "+591", flag: "🇧🇴", name: "Bolivia" },
-  { code: "+34", flag: "🇪🇸", name: "España" },
-  { code: "+44", flag: "🇬🇧", name: "Reino Unido" },
-  { code: "+49", flag: "🇩🇪", name: "Alemania" },
-  { code: "+33", flag: "🇫🇷", name: "Francia" },
-  { code: "+39", flag: "🇮🇹", name: "Italia" },
-  { code: "+81", flag: "🇯🇵", name: "Japón" },
-  { code: "+86", flag: "🇨🇳", name: "China" },
+  { code: "+57", iso: "co", name: "Colombia" },
+  { code: "+1", iso: "us", name: "Estados Unidos" },
+  { code: "+52", iso: "mx", name: "México" },
+  { code: "+54", iso: "ar", name: "Argentina" },
+  { code: "+55", iso: "br", name: "Brasil" },
+  { code: "+56", iso: "cl", name: "Chile" },
+  { code: "+51", iso: "pe", name: "Perú" },
+  { code: "+58", iso: "ve", name: "Venezuela" },
+  { code: "+593", iso: "ec", name: "Ecuador" },
+  { code: "+595", iso: "py", name: "Paraguay" },
+  { code: "+598", iso: "uy", name: "Uruguay" },
+  { code: "+591", iso: "bo", name: "Bolivia" },
+  { code: "+34", iso: "es", name: "España" },
+  { code: "+44", iso: "gb", name: "Reino Unido" },
+  { code: "+49", iso: "de", name: "Alemania" },
+  { code: "+33", iso: "fr", name: "Francia" },
+  { code: "+39", iso: "it", name: "Italia" },
+  { code: "+81", iso: "jp", name: "Japón" },
+  { code: "+86", iso: "cn", name: "China" },
 ];
 
 type Country = (typeof COUNTRY_CODES)[number];
+
+function FlagImg({ iso, size = 20 }: { iso: string; size?: number }) {
+  return (
+    <img
+      src={`${FLAG_CDN}/${iso}.png`}
+      alt={iso.toUpperCase()}
+      width={size}
+      height={Math.round(size * 0.75)}
+      className="inline-block rounded-sm object-cover"
+      style={{ width: size, height: Math.round(size * 0.75) }}
+      loading="lazy"
+    />
+  );
+}
 
 interface PhoneFieldProps {
   value: string;
@@ -90,7 +106,7 @@ export function PhoneField({ value, onChange, className, required, placeholder =
           onClick={() => setShowPicker(!showPicker)}
           className="flex items-center gap-1.5 px-3 h-9 border-r border-border hover:bg-muted/50 transition-colors shrink-0"
         >
-          <span className="text-lg leading-none">{selectedCountry.flag}</span>
+          <FlagImg iso={selectedCountry.iso} size={20} />
           <span className="text-sm font-semibold text-foreground">{selectedCountry.code}</span>
           <ChevronDown className="w-3 h-3 text-muted-foreground" />
         </button>
@@ -131,7 +147,7 @@ export function PhoneField({ value, onChange, className, required, placeholder =
                   country.code === selectedCountry.code ? "bg-primary/10" : ""
                 }`}
               >
-                <span className="text-xl leading-none">{country.flag}</span>
+                <FlagImg iso={country.iso} size={24} />
                 <span className="flex-1 text-sm text-foreground">{country.name}</span>
                 <span className="text-sm font-semibold text-muted-foreground">{country.code}</span>
                 {country.code === selectedCountry.code && (

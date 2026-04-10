@@ -5,6 +5,7 @@ import { Minus, Plus, X, ChevronRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneField } from "@/components/ui/phone-input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -292,11 +293,10 @@ export function TicketSelector({ event, ticketType, sectionName, onClose }: Tick
                     </div>
                     <div>
                       <Label className="text-xs">{t("ticketSelection.phone")}</Label>
-                      <Input
-                        type="tel"
+                      <PhoneField
                         value={attendee.phone}
-                        onChange={(e) => updateAttendee(index, "phone", e.target.value)}
-                        className={errors[`${index}-phone`] ? "border-destructive" : ""}
+                        onChange={(v) => updateAttendee(index, "phone", v)}
+                        className={errors[`${index}-phone`] ? "[&_div]:border-destructive" : ""}
                       />
                       {errors[`${index}-phone`] && (
                         <p className="text-xs text-destructive mt-1">{errors[`${index}-phone`]}</p>
