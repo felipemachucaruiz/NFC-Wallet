@@ -21,6 +21,15 @@ import { clearSigningKeyCache } from "@/utils/signingKeyCache";
 import { clearInMemoryCachedHmacSecret } from "@/contexts/OfflineQueueContext";
 
 const TOKEN_KEY = "tapee_auth_token";
+const AUTH_FETCH_TIMEOUT_MS = 10_000;
+
+function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AUTH_FETCH_TIMEOUT_MS);
+  return fetch(input, { ...init, signal: controller.signal }).finally(() =>
+    clearTimeout(timer),
+  );
+}
 
 export type UserRole =
   | "attendee"
@@ -115,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUser = useCallback(async (t: string): Promise<AuthUser | null | "network_error"> => {
     const tryFetch = async (baseUrl: string): Promise<AuthUser | null | "network_error"> => {
       try {
-        const res = await fetch(`${baseUrl}/api/auth/user`, {
+        const res = await fetchWithTimeout(`${baseUrl}/api/auth/user`, {
           headers: { Authorization: `Bearer ${t}` },
         });
         if (res.status === 401 || res.status === 403) return null;
@@ -141,8 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On startup: try to restore session with up to RETRY_COUNT retries
   // so a brief API server restart doesn't force the user to log in again.
-  const RETRY_COUNT = 4;
-  const RETRY_DELAY_MS = 2000;
+  const RETRY_COUNT = 2;
+  const RETRY_DELAY_MS = 1500;
 
   useEffect(() => {
     let mounted = true;
@@ -189,14 +198,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       //   network exception → attendee-api unreachable, always try api-server
       let res: Response | null = null;
       try {
-        res = await fetch(`${ATTENDEE_API_BASE_URL}/api/auth/login`, {
+        res = await fetchWithTimeout(`${ATTENDEE_API_BASE_URL}/api/auth/login`, {
           method: "POST", headers, body,
         });
       } catch {
         // Attendee API unreachable — fall through to staff API
       }
       if (!res || res.status < 200 || res.status > 299) {
-        res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        res = await fetchWithTimeout(`${API_BASE_URL}/api/auth/login`, {
           method: "POST", headers, body,
         });
       }
@@ -229,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verify2fa = useCallback(async (partialToken: string, code: string, rememberMe = true): Promise<string | null> => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/2fa/verify`, {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/auth/2fa/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ partial_token: partialToken, code }),
@@ -261,7 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (t) {
         // Route logout to the same service that issued the token
         const logoutBase = getAuthBase(user?.role ?? undefined);
-        await fetch(`${logoutBase}/api/auth/logout`, {
+        await fetchWithTimeout(`${logoutBase}/api/auth/logout`, {
           method: "POST",
           headers: { Authorization: `Bearer ${t}` },
         });
