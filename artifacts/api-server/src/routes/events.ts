@@ -125,8 +125,8 @@ const updateEventSchema = z.object({
   ultralightCDesKey: z.string().regex(/^[0-9a-fA-F]{32}$/, "ultralightCDesKey must be 32 hex characters (16 bytes)").optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
-  coverImageUrl: z.string().url().nullable().optional(),
-  flyerImageUrl: z.string().url().nullable().optional(),
+  coverImageUrl: z.string().nullable().optional(),
+  flyerImageUrl: z.string().nullable().optional(),
   longDescription: z.string().nullable().optional(),
   category: z.string().max(100).nullable().optional(),
   tags: z.array(z.string()).optional(),
@@ -413,7 +413,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
   const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel } = parsed.data;
 
   if (refundDeadline !== undefined && refundDeadline !== null) {
-    const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, req.params.id as string)))[0]?.endsAt;
+    const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, eventId)))[0]?.endsAt;
     if (resolvedEndsAt) {
       const deadlineDate = new Date(refundDeadline);
       const endsDate = typeof resolvedEndsAt === "string" ? new Date(resolvedEndsAt) : resolvedEndsAt;
