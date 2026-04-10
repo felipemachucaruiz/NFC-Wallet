@@ -87,6 +87,10 @@ export function usePushNotifications(isAuthenticated: boolean, userId?: string |
       const data = content.data as Record<string, unknown> | null;
       if (data?.navigate === "history") {
         router.push("/(tabs)/history");
+      } else if (data?.navigate === "my-tickets") {
+        router.push("/my-tickets");
+      } else if (data?.navigate === "ticket-detail" && data?.ticketId) {
+        router.push({ pathname: "/ticket-detail", params: { ticketId: data.ticketId as string } });
       }
     });
 

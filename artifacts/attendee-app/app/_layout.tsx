@@ -66,6 +66,14 @@ function RootLayoutNav() {
       <Stack.Screen name="select-event" />
       <Stack.Screen name="unlink-bracelet" />
       <Stack.Screen name="payment-status/[id]" />
+      <Stack.Screen name="event-detail" />
+      <Stack.Screen name="venue-map" />
+      <Stack.Screen name="ticket-quantity" />
+      <Stack.Screen name="attendee-form" />
+      <Stack.Screen name="ticket-checkout" />
+      <Stack.Screen name="ticket-payment-status/[id]" />
+      <Stack.Screen name="my-tickets" />
+      <Stack.Screen name="ticket-detail" />
     </Stack>
   );
 }

@@ -16,3 +16,6 @@ export const API_DOMAIN: string =
 
 // In production: https://attendee.tapee.app
 export const API_BASE_URL: string = `https://${API_DOMAIN}`;
+
+export const WOMPI_PUBLIC_KEY: string =
+  process.env.EXPO_PUBLIC_WOMPI_PUBLIC_KEY ?? "";

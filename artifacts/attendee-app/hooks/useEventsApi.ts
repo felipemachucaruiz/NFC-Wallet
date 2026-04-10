@@ -1,0 +1,213 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { API_BASE_URL, WOMPI_PUBLIC_KEY } from "@/constants/domain";
+import { useAuth } from "@/contexts/AuthContext";
+import { pinnedFetch } from "@/utils/pinnedFetch";
+import type {
+  EventListItem,
+  EventDetail,
+  TicketPurchaseResult,
+  MyTicket,
+  PaymentMethod,
+  AttendeeInfo,
+} from "@/types/events";
+
+function useAuthHeaders(): Record<string, string> {
+  const { token } = useAuth();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function useApiFetch() {
+  const { handleUnauthorized } = useAuth();
+
+  return async function apiFetch<T>(
+    url: string,
+    headers: Record<string, string>,
+    options?: RequestInit,
+  ): Promise<T> {
+    const res = await pinnedFetch(url, {
+      ...options,
+      headers: { ...headers, "Content-Type": "application/json", ...options?.headers },
+      cache: "no-store",
+    });
+
+    if (res.status === 401) {
+      const newToken = await handleUnauthorized();
+      if (newToken) {
+        const retryRes = await pinnedFetch(url, {
+          ...options,
+          headers: {
+            ...headers,
+            "Content-Type": "application/json",
+            ...options?.headers,
+            Authorization: `Bearer ${newToken}`,
+          },
+          cache: "no-store",
+        });
+        if (!retryRes.ok) {
+          const body = await retryRes.json().catch(() => ({}));
+          const msg = (body as { error?: string }).error || retryRes.statusText || `HTTP ${retryRes.status}`;
+          throw new Error(msg);
+        }
+        return retryRes.json() as Promise<T>;
+      }
+      throw new Error("Sesión expirada");
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const msg = (body as { error?: string }).error || res.statusText || `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return res.json() as Promise<T>;
+  };
+}
+
+export function useEventCatalogue(filters?: {
+  search?: string;
+  category?: string;
+  city?: string;
+  dateFilter?: string;
+}) {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  const params = new URLSearchParams();
+  if (filters?.search) params.set("search", filters.search);
+  if (filters?.category) params.set("category", filters.category);
+  if (filters?.city) params.set("city", filters.city);
+  if (filters?.dateFilter) params.set("dateFilter", filters.dateFilter);
+  const qs = params.toString();
+  const url = `${API_BASE_URL}/api/attendee/events${qs ? `?${qs}` : ""}`;
+
+  return useQuery({
+    queryKey: ["events", "catalogue", filters],
+    queryFn: () => apiFetch<{ events: EventListItem[] }>(url, headers),
+    enabled: !!headers.Authorization,
+    staleTime: 60_000,
+  });
+}
+
+export function useEventDetail(eventId: string) {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useQuery({
+    queryKey: ["events", "detail", eventId],
+    queryFn: () => apiFetch<EventDetail>(`${API_BASE_URL}/api/attendee/events/${eventId}`, headers),
+    enabled: !!eventId && !!headers.Authorization,
+    staleTime: 60_000,
+  });
+}
+
+export function usePurchaseTickets() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      eventId: string;
+      tickets: Array<{
+        ticketTypeId: string;
+        attendee: AttendeeInfo;
+      }>;
+      paymentMethod: PaymentMethod;
+      phoneNumber?: string;
+      bankCode?: string;
+      userLegalIdType?: string;
+      userLegalId?: string;
+      cardToken?: string;
+    }) =>
+      apiFetch<TicketPurchaseResult>(
+        `${API_BASE_URL}/api/attendee/tickets/purchase`,
+        headers,
+        { method: "POST", body: JSON.stringify(data) },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["tickets", "my"] });
+    },
+  });
+}
+
+export function useTicketPaymentStatus(intentId: string) {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useQuery({
+    queryKey: ["ticket-payment", "status", intentId],
+    queryFn: () =>
+      apiFetch<{ status: string; tickets?: Array<{ qrCode: string; attendeeEmail: string }> }>(
+        `${API_BASE_URL}/api/attendee/tickets/payment/${intentId}/status`,
+        headers,
+      ),
+    enabled: !!intentId && !!headers.Authorization,
+    refetchInterval: false,
+  });
+}
+
+export function useMyTickets() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useQuery({
+    queryKey: ["tickets", "my"],
+    queryFn: () => apiFetch<{ tickets: MyTicket[] }>(`${API_BASE_URL}/api/attendee/me/tickets`, headers),
+    enabled: !!headers.Authorization,
+    staleTime: 30_000,
+  });
+}
+
+export function useTicketDetail(ticketId: string) {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useQuery({
+    queryKey: ["tickets", "detail", ticketId],
+    queryFn: () => apiFetch<MyTicket>(`${API_BASE_URL}/api/attendee/me/tickets/${ticketId}`, headers),
+    enabled: !!ticketId && !!headers.Authorization,
+    staleTime: 30_000,
+  });
+}
+
+export function useTokenizeCard() {
+  return useMutation({
+    mutationFn: async (data: {
+      number: string;
+      cvc: string;
+      expMonth: string;
+      expYear: string;
+      cardHolder: string;
+    }) => {
+      const res = await fetch("https://production.wompi.co/v1/tokens/cards", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WOMPI_PUBLIC_KEY}`,
+        },
+        body: JSON.stringify({
+          number: data.number,
+          cvc: data.cvc,
+          exp_month: data.expMonth,
+          exp_year: data.expYear,
+          card_holder: data.cardHolder,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: { messages?: Record<string, string[]> } }).error?.messages
+          ? "Datos de tarjeta inválidos"
+          : `Error ${res.status}`);
+      }
+      const body = await res.json() as { data: { id: string } };
+      return body.data.id;
+    },
+  });
+}
+
+export function useAddToWallet() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useMutation({
+    mutationFn: (data: { ticketId: string; platform: "apple" | "google" }) =>
+      apiFetch<{ passUrl: string }>(
+        `${API_BASE_URL}/api/attendee/tickets/${data.ticketId}/wallet`,
+        headers,
+        { method: "POST", body: JSON.stringify({ platform: data.platform }) },
+      ),
+  });
+}

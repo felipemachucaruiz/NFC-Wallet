@@ -61,6 +61,16 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
+        name="events"
+        options={{
+          title: t("events.tab"),
+          tabBarIcon: ({ color }) =>
+            isIOS && SymbolView
+              ? <SymbolView name="ticket.fill" tintColor={color} size={22} />
+              : <Feather name="calendar" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="home"
         options={{
           title: t("home.tab"),
