@@ -921,7 +921,9 @@
     "requiredFields": "La etiqueta y fecha son obligatorias.",
     "created": "Día agregado",
     "updated": "Día actualizado",
-    "deleted": "Día eliminado"
+    "deleted": "Día eliminado",
+    "deleteDay": "Eliminar Día",
+    "deleteConfirm": "¿Estás seguro de que deseas eliminar este día del evento? Los tipos de boleta vinculados a este día pueden verse afectados."
   },
   "venueMap": {
     "title": "Editor de Mapa del Venue",

@@ -921,7 +921,9 @@
     "requiredFields": "Label and date are required.",
     "created": "Day added",
     "updated": "Day updated",
-    "deleted": "Day removed"
+    "deleted": "Day removed",
+    "deleteDay": "Delete Day",
+    "deleteConfirm": "Are you sure you want to delete this event day? Ticket types linked to this day may be affected."
   },
   "venueMap": {
     "title": "Venue Map Editor",
