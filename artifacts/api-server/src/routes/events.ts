@@ -134,6 +134,8 @@ const updateEventSchema = z.object({
   ticketingEnabled: z.boolean().optional(),
   nfcBraceletsEnabled: z.boolean().optional(),
   salesChannel: z.enum(["online", "door", "both"]).optional(),
+  saleStartsAt: z.string().nullable().optional(),
+  saleEndsAt: z.string().nullable().optional(),
 });
 
 const SAFE_EVENT_FIELDS = {
@@ -167,6 +169,8 @@ const SAFE_EVENT_FIELDS = {
   ticketingEnabled: eventsTable.ticketingEnabled,
   nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled,
   salesChannel: eventsTable.salesChannel,
+  saleStartsAt: eventsTable.saleStartsAt,
+  saleEndsAt: eventsTable.saleEndsAt,
   createdAt: eventsTable.createdAt,
   updatedAt: eventsTable.updatedAt,
 };
@@ -389,7 +393,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt } = parsed.data;
 
   if (refundDeadline !== undefined && refundDeadline !== null) {
     const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, eventId)))[0]?.endsAt;
@@ -433,6 +437,8 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(ticketingEnabled !== undefined && { ticketingEnabled }),
     ...(nfcBraceletsEnabled !== undefined && { nfcBraceletsEnabled }),
     ...(salesChannel !== undefined && { salesChannel }),
+    ...(saleStartsAt !== undefined && { saleStartsAt: saleStartsAt !== null ? new Date(saleStartsAt) : null }),
+    ...(saleEndsAt !== undefined && { saleEndsAt: saleEndsAt !== null ? new Date(saleEndsAt) : null }),
     updatedAt: new Date(),
   };
 

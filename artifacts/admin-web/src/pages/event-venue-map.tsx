@@ -1,39 +1,53 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetCurrentAuthUser } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Upload, Pencil, Trash2, Map, Square } from "lucide-react";
+import { Upload, Pencil, Trash2, Map, Square, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-
-type VenueSection = {
-  id: string;
-  name: string;
-  color: string;
-  capacity: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  path?: string;
-};
+import { useEventContext } from "@/contexts/event-context";
+import { apiFetchVenues, apiFetchSections, apiCreateSection } from "@/lib/api";
 
 const DEFAULT_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
 
 export default function EventVenueMap() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId: ctxEventId } = useEventContext();
+  const resolvedEventId = auth?.user?.role === "admin" ? ctxEventId : (auth?.user?.eventId ?? "");
+
+  const { data: venues = [], isLoading: venuesLoading } = useQuery({
+    queryKey: ["venues", resolvedEventId],
+    queryFn: () => apiFetchVenues(resolvedEventId),
+    enabled: !!resolvedEventId,
+  });
+
+  const firstVenueId = venues[0]?.id ?? "";
+  const { data: sections = [], isLoading: sectionsLoading } = useQuery({
+    queryKey: ["sections", resolvedEventId, firstVenueId],
+    queryFn: () => apiFetchSections(resolvedEventId, firstVenueId),
+    enabled: !!resolvedEventId && !!firstVenueId,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (body: { name: string; capacity?: number }) =>
+      apiCreateSection(resolvedEventId, firstVenueId, body),
+    onSuccess: () => {
+      toast({ title: t("venueMap.sectionCreated") });
+      queryClient.invalidateQueries({ queryKey: ["sections", resolvedEventId, firstVenueId] });
+      setDialogOpen(false);
+    },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
 
   const [bgImage, setBgImage] = useState<string | null>(null);
-  const [sections, setSections] = useState<VenueSection[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSection, setEditingSection] = useState<VenueSection | null>(null);
   const [form, setForm] = useState({ name: "", color: "#3b82f6", capacity: "" });
 
   const [isDrawing, setIsDrawing] = useState(false);
@@ -76,21 +90,12 @@ export default function EventVenueMap() {
   const handleCanvasMouseUp = useCallback(() => {
     if (!isDrawing || !drawStart || !drawCurrent) return;
     setIsDrawing(false);
-    const x = Math.min(drawStart.x, drawCurrent.x);
-    const y = Math.min(drawStart.y, drawCurrent.y);
     const width = Math.abs(drawCurrent.x - drawStart.x);
     const height = Math.abs(drawCurrent.y - drawStart.y);
 
     if (width < 2 || height < 2) return;
 
     setForm({ name: "", color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length], capacity: "" });
-    setEditingSection({
-      id: `section-${Date.now()}`,
-      name: "",
-      color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length],
-      capacity: 0,
-      x, y, width, height,
-    });
     setDialogOpen(true);
     setDrawMode(false);
   }, [isDrawing, drawStart, drawCurrent, sections.length]);
@@ -100,39 +105,10 @@ export default function EventVenueMap() {
       toast({ title: t("common.error"), description: t("venueMap.nameRequired"), variant: "destructive" });
       return;
     }
-
-    if (editingSection && !editingSection.name) {
-      const newSection: VenueSection = {
-        ...editingSection,
-        name: form.name,
-        color: form.color,
-        capacity: parseInt(form.capacity) || 0,
-      };
-      setSections((prev) => [...prev, newSection]);
-      toast({ title: t("venueMap.sectionCreated") });
-    } else if (editingSection) {
-      setSections((prev) =>
-        prev.map((s) =>
-          s.id === editingSection.id
-            ? { ...s, name: form.name, color: form.color, capacity: parseInt(form.capacity) || 0 }
-            : s
-        )
-      );
-      toast({ title: t("venueMap.sectionUpdated") });
-    }
-    setDialogOpen(false);
-    setEditingSection(null);
-  };
-
-  const openEditSection = (section: VenueSection) => {
-    setEditingSection(section);
-    setForm({ name: section.name, color: section.color, capacity: String(section.capacity || "") });
-    setDialogOpen(true);
-  };
-
-  const deleteSection = (id: string) => {
-    setSections((prev) => prev.filter((s) => s.id !== id));
-    toast({ title: t("venueMap.sectionDeleted") });
+    createMutation.mutate({
+      name: form.name,
+      capacity: parseInt(form.capacity) || undefined,
+    });
   };
 
   const drawRect = drawStart && drawCurrent && isDrawing ? {
@@ -141,6 +117,33 @@ export default function EventVenueMap() {
     width: Math.abs(drawCurrent.x - drawStart.x),
     height: Math.abs(drawCurrent.y - drawStart.y),
   } : null;
+
+  const isLoading = venuesLoading || sectionsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!firstVenueId) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t("venueMap.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("venueMap.subtitle")}</p>
+        </div>
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Map className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>{t("venueMap.createVenueFirst", "Please create a venue in the Venue Location page first.")}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -195,27 +198,6 @@ export default function EventVenueMap() {
                   </div>
                 )}
 
-                {sections.map((section) => (
-                  <div
-                    key={section.id}
-                    className="absolute border-2 rounded-sm flex items-center justify-center cursor-pointer transition-opacity hover:opacity-80"
-                    style={{
-                      left: `${section.x}%`,
-                      top: `${section.y}%`,
-                      width: `${section.width}%`,
-                      height: `${section.height}%`,
-                      borderColor: section.color,
-                      backgroundColor: `${section.color}33`,
-                    }}
-                    onClick={(e) => { e.stopPropagation(); if (!drawMode) openEditSection(section); }}
-                    title={`${section.name} (${section.capacity})`}
-                  >
-                    <span className="text-xs font-bold text-white bg-black/50 px-1 rounded truncate max-w-full">
-                      {section.name}
-                    </span>
-                  </div>
-                ))}
-
                 {drawRect && (
                   <div
                     className="absolute border-2 border-primary bg-primary/20 rounded-sm pointer-events-none"
@@ -251,19 +233,11 @@ export default function EventVenueMap() {
                       className="flex items-center justify-between p-2 rounded-md border text-sm"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: section.color }} />
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: section.colorHex || "#3b82f6" }} />
                         <div className="min-w-0">
                           <p className="font-medium truncate">{section.name}</p>
-                          <p className="text-xs text-muted-foreground">{t("venueMap.capacityLabel")}: {section.capacity}</p>
+                          <p className="text-xs text-muted-foreground">{t("venueMap.capacityLabel")}: {section.capacity ?? "—"}</p>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditSection(section)}>
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteSection(section.id)}>
-                          <Trash2 className="w-3 h-3 text-destructive" />
-                        </Button>
                       </div>
                     </div>
                   ))}
@@ -277,9 +251,7 @@ export default function EventVenueMap() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editingSection?.name ? t("venueMap.editSection") : t("venueMap.newSection")}
-            </DialogTitle>
+            <DialogTitle>{t("venueMap.newSection")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1">
@@ -290,28 +262,6 @@ export default function EventVenueMap() {
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder={t("venueMap.sectionNamePlaceholder")}
               />
-            </div>
-            <div className="space-y-1">
-              <Label>{t("venueMap.sectionColor")}</Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={form.color}
-                  onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-                  className="w-10 h-10 rounded border cursor-pointer"
-                />
-                <div className="flex gap-1 flex-wrap">
-                  {DEFAULT_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      className={`w-6 h-6 rounded-full border-2 ${form.color === c ? "border-foreground" : "border-transparent"}`}
-                      style={{ backgroundColor: c }}
-                      onClick={() => setForm((f) => ({ ...f, color: c }))}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
             <div className="space-y-1">
               <Label>{t("venueMap.sectionCapacity")}</Label>
@@ -327,7 +277,10 @@ export default function EventVenueMap() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handleSaveSection}>{t("common.save")}</Button>
+            <Button onClick={handleSaveSection} disabled={createMutation.isPending}>
+              {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {t("common.save")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

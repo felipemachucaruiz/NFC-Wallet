@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { Search, Calendar, MapPin } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
-import { mockEvents, formatDateRange } from "@/data/mockEvents";
+import { fetchEvents, resolveImageUrl, type ApiEvent } from "@/lib/api";
+import { formatDateRange } from "@/lib/format";
 
 interface SearchAutocompleteProps {
   className?: string;
@@ -19,22 +21,21 @@ export function SearchAutocomplete({ className, onNavigate }: SearchAutocomplete
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const results = useMemo(() => {
-    if (query.trim().length < 2) return [];
-    const q = query.toLowerCase();
-    return mockEvents
-      .filter((e) => e.active && (
-        e.name.toLowerCase().includes(q) ||
-        e.city.toLowerCase().includes(q) ||
-        e.venueName.toLowerCase().includes(q)
-      ))
-      .slice(0, 5);
-  }, [query]);
+  const debouncedQuery = useDebounce(query.trim(), 300);
+
+  const { data } = useQuery({
+    queryKey: ["searchAutocomplete", debouncedQuery],
+    queryFn: () => fetchEvents({ search: debouncedQuery }),
+    enabled: debouncedQuery.length >= 2,
+    staleTime: 30000,
+  });
+
+  const results = data?.events?.slice(0, 5) ?? [];
 
   useEffect(() => {
     setOpen(results.length > 0 && query.trim().length >= 2);
     setActiveIndex(-1);
-  }, [results, query]);
+  }, [results.length, query]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -106,7 +107,7 @@ export function SearchAutocomplete({ className, onNavigate }: SearchAutocomplete
 
       {open && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-2xl overflow-hidden z-50">
-          {results.map((event, i) => (
+          {results.map((event: ApiEvent, i: number) => (
             <button
               key={event.id}
               type="button"
@@ -117,21 +118,25 @@ export function SearchAutocomplete({ className, onNavigate }: SearchAutocomplete
               onClick={() => goToEvent(event.id)}
             >
               <img
-                src={event.coverImage}
+                src={resolveImageUrl(event.coverImageUrl)}
                 alt=""
                 className="w-12 h-12 rounded-lg object-cover shrink-0"
               />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{event.name}</p>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {formatDateRange(event.startsAt, event.endsAt, event.isMultiDay)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {event.city}
-                  </span>
+                  {event.startsAt && event.endsAt && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {formatDateRange(event.startsAt, event.endsAt, (event.dayCount ?? 1) > 1)}
+                    </span>
+                  )}
+                  {event.venueAddress && (
+                    <span className="flex items-center gap-1 truncate">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      {event.venueAddress}
+                    </span>
+                  )}
                 </div>
               </div>
             </button>
@@ -151,4 +156,13 @@ export function SearchAutocomplete({ className, onNavigate }: SearchAutocomplete
       )}
     </div>
   );
+}
+
+function useDebounce(value: string, delay: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
 }

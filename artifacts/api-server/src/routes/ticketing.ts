@@ -516,6 +516,55 @@ router.get(
   },
 );
 
+router.get(
+  "/events/:eventId/checkin-stats",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId } = req.params as { eventId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const days = await db
+      .select()
+      .from(eventDaysTable)
+      .where(eq(eventDaysTable.eventId, eventId))
+      .orderBy(asc(eventDaysTable.displayOrder), asc(eventDaysTable.date));
+
+    const checkIns = await db
+      .select({
+        eventDayId: ticketCheckInsTable.eventDayId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(ticketCheckInsTable)
+      .innerJoin(ticketsTable, eq(ticketCheckInsTable.ticketId, ticketsTable.id))
+      .where(eq(ticketsTable.eventId, eventId))
+      .groupBy(ticketCheckInsTable.eventDayId);
+
+    const ticketsByDay = await db
+      .select({
+        count: sql<number>`count(*)::int`,
+      })
+      .from(ticketsTable)
+      .where(and(eq(ticketsTable.eventId, eventId), sql`${ticketsTable.status} != 'cancelled'`));
+
+    const totalTickets = ticketsByDay[0]?.count ?? 0;
+    const checkinMap = Object.fromEntries(checkIns.map((c) => [c.eventDayId, c.count]));
+
+    const dayStats = days.map((day) => ({
+      dayId: day.id,
+      dayLabel: day.label || day.date,
+      date: day.date,
+      totalCheckins: checkinMap[day.id] ?? 0,
+      totalTickets,
+    }));
+
+    res.json({ days: dayStats, totalTickets });
+  },
+);
+
 export { verifyTicketQrToken };
 
 export default router;

@@ -170,6 +170,20 @@ export async function apiFetchTicketOrders(eventId: string) {
   return data.orders as Array<{ id: string; buyerEmail: string; buyerName: string | null; totalAmount: number; ticketCount: number; paymentStatus: string; createdAt: string }>;
 }
 
+export async function apiFetchCheckinStats(eventId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/checkin-stats`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch checkin stats");
+  return data as { days: Array<{ dayId: string; dayLabel: string; date: string; totalCheckins: number; totalTickets: number }>; totalTickets: number };
+}
+
+export async function apiUpdateEvent(eventId: string, body: Record<string, unknown>) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}`), { method: "PATCH", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update event");
+  return data;
+}
+
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")

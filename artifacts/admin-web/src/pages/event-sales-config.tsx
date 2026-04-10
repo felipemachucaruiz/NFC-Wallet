@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetCurrentAuthUser, useGetEvent } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,32 +7,75 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Globe, DoorOpen, ShoppingCart } from "lucide-react";
+import { Settings, Globe, DoorOpen, ShoppingCart, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEventContext } from "@/contexts/event-context";
+import { apiUpdateEvent } from "@/lib/api";
 
 export default function EventSalesConfig() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId: ctxEventId } = useEventContext();
+  const resolvedEventId = auth?.user?.role === "admin" ? ctxEventId : (auth?.user?.eventId ?? "");
+
+  const { data: eventData, isLoading } = useGetEvent(resolvedEventId, { enabled: !!resolvedEventId });
+  const event = (eventData as { event?: Record<string, unknown> })?.event;
 
   const [onlineSales, setOnlineSales] = useState(true);
   const [doorSales, setDoorSales] = useState(true);
   const [saleStartsAt, setSaleStartsAt] = useState("");
   const [saleEndsAt, setSaleEndsAt] = useState("");
-  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!event) return;
+    const channel = (event.salesChannel as string) ?? "both";
+    setOnlineSales(channel === "online" || channel === "both");
+    setDoorSales(channel === "door" || channel === "both");
+    if (event.saleStartsAt) {
+      const d = new Date(event.saleStartsAt as string);
+      setSaleStartsAt(d.toISOString().slice(0, 16));
+    }
+    if (event.saleEndsAt) {
+      const d = new Date(event.saleEndsAt as string);
+      setSaleEndsAt(d.toISOString().slice(0, 16));
+    }
+  }, [event]);
+
+  const mutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) => apiUpdateEvent(resolvedEventId, body),
+    onSuccess: () => {
+      toast({ title: t("salesConfig.saved") });
+      queryClient.invalidateQueries({ queryKey: ["getEvent"] });
+    },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
 
   const handleSave = () => {
     if (!onlineSales && !doorSales) {
       toast({ title: t("common.error"), description: t("salesConfig.atLeastOneChannel"), variant: "destructive" });
       return;
     }
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      toast({ title: t("salesConfig.saved") });
-    }, 500);
+
+    let salesChannel: "online" | "door" | "both" = "both";
+    if (onlineSales && !doorSales) salesChannel = "online";
+    else if (!onlineSales && doorSales) salesChannel = "door";
+
+    mutation.mutate({
+      salesChannel,
+      saleStartsAt: saleStartsAt ? new Date(saleStartsAt).toISOString() : null,
+      saleEndsAt: saleEndsAt ? new Date(saleEndsAt).toISOString() : null,
+    });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -116,8 +160,9 @@ export default function EventSalesConfig() {
           </CardContent>
         </Card>
 
-        <Button onClick={handleSave} disabled={saving} className="w-fit">
-          {saving ? t("common.saving") : t("common.save")}
+        <Button onClick={handleSave} disabled={mutation.isPending} className="w-fit">
+          {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+          {mutation.isPending ? t("common.saving") : t("common.save")}
         </Button>
       </div>
     </div>
