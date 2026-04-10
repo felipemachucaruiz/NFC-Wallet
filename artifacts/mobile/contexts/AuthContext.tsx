@@ -21,7 +21,7 @@ import { clearSigningKeyCache } from "@/utils/signingKeyCache";
 import { clearInMemoryCachedHmacSecret } from "@/contexts/OfflineQueueContext";
 
 const TOKEN_KEY = "tapee_auth_token";
-const AUTH_FETCH_TIMEOUT_MS = 10_000;
+const AUTH_FETCH_TIMEOUT_MS = 6_000;
 
 function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const controller = new AbortController();
@@ -150,8 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // On startup: try to restore session with up to RETRY_COUNT retries
   // so a brief API server restart doesn't force the user to log in again.
-  const RETRY_COUNT = 2;
-  const RETRY_DELAY_MS = 1500;
+  const RETRY_COUNT = 1;
+  const RETRY_DELAY_MS = 1000;
 
   useEffect(() => {
     let mounted = true;

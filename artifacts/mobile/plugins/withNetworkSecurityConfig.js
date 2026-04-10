@@ -24,10 +24,6 @@ const NSC_XML = `<?xml version="1.0" encoding="utf-8"?>
   <domain-config cleartextTrafficPermitted="false">
     <domain includeSubdomains="false">prod.tapee.app</domain>
     <domain includeSubdomains="false">attendee.tapee.app</domain>
-    <pin-set expiration="2027-03-12">
-      <pin digest="SHA-256">kZwN96eHtZftBWrOZUsd6cA4es80n3NzSk/XtYz2EqQ=</pin>
-      <pin digest="SHA-256">AlSQhgtJirc8ahLyekmtX+Iw+v46yPYRLJt9Cq1GlB0=</pin>
-    </pin-set>
   </domain-config>
 </network-security-config>
 `;
