@@ -15,12 +15,11 @@ interface DateTimePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
-  min?: string;
   "data-testid"?: string;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const MINUTES = [0, 15, 30, 45];
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -37,26 +36,30 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
   const dateObj = datePart ? parse(datePart, "yyyy-MM-dd", new Date()) : undefined;
   const validDate = dateObj && isValid(dateObj) ? dateObj : undefined;
 
-  const [selectedHour, setSelectedHour] = React.useState<number | null>(
-    timePart ? parseInt(timePart.split(":")[0], 10) : null
+  const [selectedHour, setSelectedHour] = React.useState<number>(
+    timePart ? parseInt(timePart.split(":")[0], 10) : 12
+  );
+  const [selectedMinute, setSelectedMinute] = React.useState<number>(
+    timePart ? parseInt(timePart.split(":")[1], 10) : 0
   );
 
   React.useEffect(() => {
     if (timePart) {
       setSelectedHour(parseInt(timePart.split(":")[0], 10));
+      setSelectedMinute(parseInt(timePart.split(":")[1], 10));
     }
   }, [timePart]);
 
-  const updateValue = (newDate?: string, newTime?: string) => {
-    const d = newDate ?? datePart;
-    const t = newTime ?? (timePart || "12:00");
+  const buildTime = (h: number, m: number) => `${pad(h)}:${pad(m)}`;
+
+  const emitValue = (d: string, t: string) => {
     if (d) {
       onChange(`${d}T${t}`);
     }
   };
 
   const displayText = validDate
-    ? `${format(validDate, "PPP", { locale })} ${timePart || "12:00"}`
+    ? `${format(validDate, "PPP", { locale })} ${timePart || buildTime(selectedHour, selectedMinute)}`
     : null;
 
   return (
@@ -83,7 +86,7 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
               selected={validDate}
               onSelect={(day) => {
                 if (day) {
-                  updateValue(format(day, "yyyy-MM-dd"));
+                  emitValue(format(day, "yyyy-MM-dd"), buildTime(selectedHour, selectedMinute));
                 }
               }}
               defaultMonth={validDate}
@@ -103,8 +106,8 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
                       type="button"
                       onClick={() => {
                         setSelectedHour(h);
-                        const m = timePart ? parseInt(timePart.split(":")[1], 10) : 0;
-                        updateValue(undefined, `${pad(h)}:${pad(m)}`);
+                        const newTime = buildTime(h, selectedMinute);
+                        emitValue(datePart, newTime);
                       }}
                       className={cn(
                         "w-full rounded-md px-1.5 py-1 text-xs text-center transition-colors",
@@ -120,28 +123,26 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
               </ScrollArea>
               <ScrollArea className="h-56 w-12 border-l">
                 <div className="p-0.5">
-                  {selectedHour !== null ? (
-                    MINUTES.map((m) => (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => {
-                          updateValue(undefined, `${pad(selectedHour)}:${pad(m)}`);
-                          if (datePart) setOpen(false);
-                        }}
-                        className={cn(
-                          "w-full rounded-md px-1.5 py-1 text-xs text-center transition-colors",
-                          timePart === `${pad(selectedHour)}:${pad(m)}`
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-accent"
-                        )}
-                      >
-                        {pad(m)}
-                      </button>
-                    ))
-                  ) : (
-                    <p className="text-[10px] text-muted-foreground p-1 text-center">min</p>
-                  )}
+                  {MINUTES.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setSelectedMinute(m);
+                        const newTime = buildTime(selectedHour, m);
+                        emitValue(datePart, newTime);
+                        if (datePart) setOpen(false);
+                      }}
+                      className={cn(
+                        "w-full rounded-md px-1.5 py-1 text-xs text-center transition-colors",
+                        selectedMinute === m && selectedHour !== null
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent"
+                      )}
+                    >
+                      {pad(m)}
+                    </button>
+                  ))}
                 </div>
               </ScrollArea>
             </div>
