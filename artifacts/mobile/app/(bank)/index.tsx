@@ -108,7 +108,6 @@ export default function BankLookupScreen() {
   const scanningRef = useRef(false);
   const cancelledRef = useRef(false);
 
-  // Auto-start NFC scan when screen comes into focus (e.g. opening or returning from topup/refund)
   useFocusEffect(
     useCallback(() => {
       setBracelet(null);
@@ -117,46 +116,6 @@ export default function BankLookupScreen() {
       scanningRef.current = false;
       cancelledRef.current = false;
       getPendingNfcWrites().then(setPendingNfcWrites).catch(() => {});
-
-      if (isNfcSupported()) {
-        setIsTapping(true);
-        scanningRef.current = true;
-        const chipType = configuredChipTypeRef.current;
-        const scanPromise = chipType === "desfire_ev3"
-          ? readDesfireBracelet(desfireAesKeyRef.current).then((payload) => ({
-              payload,
-              tagInfo: { type: "DESFIRE_EV3" as TagType, label: "MIFARE DESFire EV3", memoryBytes: 0 } satisfies TagInfo,
-            }))
-          : scanBracelet({ expectedChipType: (configuredAllowedTypesRef.current.includes("mifare_classic") && configuredAllowedTypesRef.current.length === 1 ? "mifare_classic" : "ntag_21x") as NfcChipTypeHint });
-        scanPromise
-          .then((result) => {
-            if (cancelledRef.current) return;
-            if (!isChipAllowed(result.tagInfo.type, configuredAllowedTypesRef.current)) {
-              const allowedLabels = configuredAllowedTypesRef.current
-                .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : ct === "desfire_ev3" ? "DESFire EV3" : "NTAG 21x"))
-                .join(", ");
-              showAlert(
-                t("common.error"),
-                t("eventAdmin.nfcChipMismatch", { expected: allowedLabels, detected: result.tagInfo.label }),
-              );
-              return;
-            }
-            setBracelet(result.payload);
-            setTagInfo(result.tagInfo as TagInfo);
-            setFetchUid(result.payload.uid);
-          })
-          .catch((e: unknown) => {
-            if (cancelledRef.current) return;
-            const msg = extractErrorMessage(e, "");
-            if (!msg.includes("cancelled") && !msg.includes("cancel") && !msg.includes("Cancel")) {
-              // Silently fail — user can tap the button manually
-            }
-          })
-          .finally(() => {
-            if (!cancelledRef.current) setIsTapping(false);
-            scanningRef.current = false;
-          });
-      }
 
       return () => {
         cancelledRef.current = true;
