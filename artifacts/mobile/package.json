@@ -82,7 +82,7 @@
     "expo-notifications": "^0.32.16",
     "expo-secure-store": "^15.0.8",
     "expo-sqlite": "~16.0.10",
-    "expo-updates": "^55.0.20",
+    "expo-updates": "^0.26.19",
     "expo-video": "~3.0.16",
     "i18next": "^25.10.9",
     "react-i18next": "^16.6.5",
