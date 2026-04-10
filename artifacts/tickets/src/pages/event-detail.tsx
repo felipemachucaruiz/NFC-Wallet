@@ -438,50 +438,11 @@ export default function EventDetail() {
             <div className="sticky top-20 space-y-6">
               <div className="bg-card rounded-xl border border-border p-5">
                 <h2 className="text-lg font-semibold mb-4">{t("event.pricing")}</h2>
-                <div className="space-y-3">
-                  {event.ticketTypes.map((tt) => {
-                    const ttSection = event.sections.find((s) => s.ticketTypes.some((t) => t.id === tt.id));
-                    const isHighlighted = highlightedSectionId != null && ttSection?.id === highlightedSectionId;
-                    return (
-                    <div
-                      key={tt.id}
-                      id={`ticket-card-${tt.id}`}
-                      className={`p-3 rounded-lg border transition-all duration-300 ${
-                        tt.status === "sold_out"
-                          ? "border-border opacity-50"
-                          : isHighlighted
-                            ? "border-primary bg-primary/10 ring-1 ring-primary shadow-lg shadow-primary/20 cursor-pointer"
-                            : "border-border hover:border-primary/50 cursor-pointer"
-                      }`}
-                      onClick={() => {
-                        if (tt.status !== "sold_out") {
-                          handleTicketSelect(tt, ttSection?.name || "");
-                        }
-                      }}
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="font-medium text-sm">{tt.name}</span>
-                        <TicketStatusBadge status={tt.status} />
-                      </div>
-                      {tt.currentStageName && (
-                        <p className="text-xs text-primary/80 font-medium mb-0.5">{tt.currentStageName}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground mb-1">{tt.validDays}</p>
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-primary font-bold">{formatPrice(tt.price, event.currencyCode)}</p>
-                        {tt.basePrice !== undefined && tt.basePrice !== tt.price && tt.currentStageName && (
-                          <p className="text-xs text-muted-foreground line-through">{formatPrice(tt.basePrice, event.currencyCode)}</p>
-                        )}
-                      </div>
-                      {tt.nextStage && (
-                        <p className="text-[10px] text-amber-400 mt-1">
-                          {t("event.nextStage", "Próximo")}: {tt.nextStage.name} — {formatPrice(tt.nextStage.price, event.currencyCode)}
-                        </p>
-                      )}
-                    </div>
-                    );
-                  })}
-                </div>
+                <SectionTicketGroups
+                  event={event}
+                  highlightedSectionId={highlightedSectionId}
+                  onTicketSelect={handleTicketSelect}
+                />
                 <Separator className="my-4" />
                 {isSoldOut ? (
                   <Button disabled className="w-full" size="lg">
@@ -553,6 +514,256 @@ export default function EventDetail() {
           onClose={() => { setSelectedTicket(null); setPreSelectedUnitId(null); }}
           preSelectedUnitId={preSelectedUnitId}
         />
+      )}
+    </div>
+  );
+}
+
+function SectionTicketGroups({
+  event,
+  highlightedSectionId,
+  onTicketSelect,
+}: {
+  event: EventData;
+  highlightedSectionId: string | null;
+  onTicketSelect: (ticket: TicketType, sectionName: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (highlightedSectionId) {
+      setExpandedSectionId(highlightedSectionId);
+      const el = document.getElementById(`section-group-${highlightedSectionId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightedSectionId]);
+
+  const sectionGroups = useMemo(() => {
+    const groups: { sectionId: string; sectionName: string; color: string; tickets: TicketType[] }[] = [];
+    const seen = new Set<string>();
+
+    for (const sec of event.sections) {
+      if (sec.ticketTypes.length === 0) continue;
+      seen.add(sec.id);
+      groups.push({
+        sectionId: sec.id,
+        sectionName: sec.name,
+        color: sec.color,
+        tickets: sec.ticketTypes,
+      });
+    }
+
+    const unsectioned = event.ticketTypes.filter((tt) => !tt.sectionId || !seen.has(tt.sectionId));
+    if (unsectioned.length > 0 && groups.length === 0) {
+      groups.push({
+        sectionId: "__unsectioned__",
+        sectionName: t("event.generalSection", "General"),
+        color: "#22c55e",
+        tickets: unsectioned,
+      });
+    } else if (unsectioned.length > 0) {
+      for (const tt of unsectioned) {
+        groups.push({
+          sectionId: `__single_${tt.id}`,
+          sectionName: tt.name,
+          color: "#22c55e",
+          tickets: [tt],
+        });
+      }
+    }
+
+    return groups;
+  }, [event, t]);
+
+  const handleToggle = (sectionId: string) => {
+    setExpandedSectionId((prev) => prev === sectionId ? null : sectionId);
+  };
+
+  const handleRadioSelect = (ticket: TicketType, sectionName: string) => {
+    setSelectedTicketId(ticket.id);
+  };
+
+  const handleBuy = (ticket: TicketType, sectionName: string) => {
+    onTicketSelect(ticket, sectionName);
+  };
+
+  return (
+    <div className="space-y-2">
+      {sectionGroups.map((group) => {
+        const isExpanded = expandedSectionId === group.sectionId;
+        const isHighlighted = highlightedSectionId === group.sectionId;
+        const hasSingleTicket = group.tickets.length === 1;
+        const allSoldOut = group.tickets.every((tt) => tt.status === "sold_out");
+        const lowestPrice = Math.min(...group.tickets.map((tt) => tt.price));
+        const selectedInGroup = group.tickets.find((tt) => tt.id === selectedTicketId);
+
+        return (
+          <div
+            key={group.sectionId}
+            id={`section-group-${group.sectionId}`}
+            className={`rounded-lg border transition-all duration-300 overflow-hidden ${
+              allSoldOut
+                ? "border-border opacity-50"
+                : isHighlighted
+                  ? "border-primary ring-1 ring-primary shadow-lg shadow-primary/20"
+                  : isExpanded
+                    ? "border-primary/60"
+                    : "border-border hover:border-primary/40"
+            }`}
+          >
+            {hasSingleTicket ? (
+              <SingleTicketCard
+                ticket={group.tickets[0]}
+                sectionName={group.sectionName}
+                sectionColor={group.color}
+                currencyCode={event.currencyCode}
+                onSelect={() => {
+                  if (group.tickets[0].status !== "sold_out") {
+                    onTicketSelect(group.tickets[0], group.sectionName);
+                  }
+                }}
+              />
+            ) : (
+              <>
+                <button
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/30 transition-colors"
+                  onClick={() => handleToggle(group.sectionId)}
+                >
+                  <div
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: group.color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-sm">{group.sectionName}</span>
+                    {!isExpanded && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {t("event.fromPrice", { price: formatPrice(lowestPrice, event.currencyCode) })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!isExpanded && (
+                      <TicketStatusBadge status={allSoldOut ? "sold_out" : group.tickets.some((tt) => tt.status === "limited") ? "limited" : "available"} />
+                    )}
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                  </div>
+                </button>
+
+                {isExpanded && (
+                  <div className="px-3 pb-3 space-y-1.5">
+                    {group.tickets.map((tt) => {
+                      const isSelected = selectedTicketId === tt.id;
+                      return (
+                        <div key={tt.id} id={`ticket-card-${tt.id}`}>
+                          <label
+                            className={`flex items-start gap-3 p-2.5 rounded-md cursor-pointer transition-colors ${
+                              tt.status === "sold_out"
+                                ? "opacity-40 cursor-not-allowed"
+                                : isSelected
+                                  ? "bg-primary/10 border border-primary/40"
+                                  : "hover:bg-muted/40 border border-transparent"
+                            }`}
+                            onClick={(e) => {
+                              if (tt.status === "sold_out") { e.preventDefault(); return; }
+                              handleRadioSelect(tt, group.sectionName);
+                            }}
+                          >
+                            <div className="pt-0.5">
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                isSelected ? "border-primary" : "border-muted-foreground/40"
+                              }`}>
+                                {isSelected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start">
+                                <div className="min-w-0">
+                                  <span className="text-sm font-medium block">{tt.name}</span>
+                                  {tt.currentStageName && (
+                                    <span className="text-[11px] text-primary/80 font-medium">{tt.currentStageName}</span>
+                                  )}
+                                  <span className="text-[11px] text-muted-foreground block">{tt.validDays}</span>
+                                </div>
+                                <div className="text-right shrink-0 ml-2">
+                                  <span className="text-primary font-bold text-sm">{formatPrice(tt.price, event.currencyCode)}</span>
+                                  {tt.basePrice !== undefined && tt.basePrice !== tt.price && tt.currentStageName && (
+                                    <span className="text-[10px] text-muted-foreground line-through block">{formatPrice(tt.basePrice, event.currencyCode)}</span>
+                                  )}
+                                </div>
+                              </div>
+                              {tt.nextStage && (
+                                <p className="text-[10px] text-amber-400 mt-0.5">
+                                  {t("event.nextStage", "Próximo")}: {tt.nextStage.name} — {formatPrice(tt.nextStage.price, event.currencyCode)}
+                                </p>
+                              )}
+                            </div>
+                            <TicketStatusBadge status={tt.status} />
+                          </label>
+                        </div>
+                      );
+                    })}
+
+                    {selectedInGroup && selectedInGroup.status !== "sold_out" && (
+                      <Button
+                        size="sm"
+                        className="w-full mt-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                        onClick={() => handleBuy(selectedInGroup, group.sectionName)}
+                      >
+                        {t("event.buyTickets")} — {formatPrice(selectedInGroup.price, event.currencyCode)}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SingleTicketCard({
+  ticket,
+  sectionName,
+  sectionColor,
+  currencyCode,
+  onSelect,
+}: {
+  ticket: TicketType;
+  sectionName: string;
+  sectionColor: string;
+  currencyCode: string;
+  onSelect: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div
+      id={`ticket-card-${ticket.id}`}
+      className={`p-3 cursor-pointer hover:bg-muted/30 transition-colors ${ticket.status === "sold_out" ? "opacity-50 cursor-not-allowed" : ""}`}
+      onClick={onSelect}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sectionColor }} />
+        <span className="font-medium text-sm flex-1">{sectionName}</span>
+        <TicketStatusBadge status={ticket.status} />
+      </div>
+      {ticket.currentStageName && (
+        <p className="text-xs text-primary/80 font-medium mb-0.5 ml-[18px]">{ticket.currentStageName}</p>
+      )}
+      <p className="text-xs text-muted-foreground mb-1 ml-[18px]">{ticket.validDays}</p>
+      <div className="flex items-baseline gap-2 ml-[18px]">
+        <p className="text-primary font-bold">{formatPrice(ticket.price, currencyCode)}</p>
+        {ticket.basePrice !== undefined && ticket.basePrice !== ticket.price && ticket.currentStageName && (
+          <p className="text-xs text-muted-foreground line-through">{formatPrice(ticket.basePrice, currencyCode)}</p>
+        )}
+      </div>
+      {ticket.nextStage && (
+        <p className="text-[10px] text-amber-400 mt-1 ml-[18px]">
+          {t("event.nextStage", "Próximo")}: {ticket.nextStage.name} — {formatPrice(ticket.nextStage.price, currencyCode)}
+        </p>
       )}
     </div>
   );

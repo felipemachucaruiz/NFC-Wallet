@@ -72,7 +72,9 @@
     "time": "Hora",
     "viewFlyer": "Ver flyer",
     "close": "Cerrar",
-    "nextStage": "Próximo"
+    "nextStage": "Próximo",
+    "generalSection": "General",
+    "fromPrice": "desde {{price}}"
   },
   "venueMap": {
     "title": "Mapa del venue",

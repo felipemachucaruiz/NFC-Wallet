@@ -72,7 +72,9 @@
     "time": "Time",
     "viewFlyer": "View Flyer",
     "close": "Close",
-    "nextStage": "Next"
+    "nextStage": "Next",
+    "generalSection": "General",
+    "fromPrice": "from {{price}}"
   },
   "venueMap": {
     "title": "Venue Map",
