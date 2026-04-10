@@ -148,18 +148,18 @@ JavaScript changes do not require a new APK — push them over the air in ~60 se
 ```bash
 # Staff app
 cd artifacts/mobile
-EAS_SKIP_AUTO_FINGERPRINT=1 EXPO_TOKEN=$EXPO_TOKEN EXPO_PUBLIC_DOMAIN=$YOUR_DOMAIN \
+EXPO_TOKEN=$EXPO_TOKEN EXPO_PUBLIC_DOMAIN=$YOUR_DOMAIN \
   npx eas update --channel preview --message "Description" --non-interactive
 
 # Attendee app
 cd artifacts/attendee-app
-EAS_SKIP_AUTO_FINGERPRINT=1 EXPO_TOKEN=$EXPO_TOKEN \
+EXPO_TOKEN=$EXPO_TOKEN \
   EXPO_PUBLIC_DOMAIN=$YOUR_DOMAIN \
   EXPO_PUBLIC_ATTENDEE_DOMAIN="$YOUR_DOMAIN/attendee-api" \
   npx eas update --channel preview --message "Description" --non-interactive
 ```
 
-A new native EAS build is required when adding native modules, changing `app.json` permissions, or upgrading the Expo SDK.
+A new native EAS build is required when adding native modules, changing `app.config.js` permissions, or upgrading the Expo SDK. OTAs use fingerprint-based `runtimeVersion` — only binaries with matching native fingerprints will receive updates.
 
 ---
 

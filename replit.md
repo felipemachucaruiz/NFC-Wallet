@@ -78,11 +78,11 @@ A **Railway API key** is available in environment secrets for programmatic acces
 
 **Health check paths:** APIs use `/api/healthz` (NOT `/api/health`). Web Admin uses `/health`.
 
-## Mobile App Updates — APK BUILDS ONLY (NO OTA)
+## Mobile App Updates — OTAs Fixed (Fingerprint-Based)
 
-**⚠️ DO NOT publish OTA updates from Replit.** OTA bundles compiled locally (Node v24, Replit Linux) are incompatible with APKs built on EAS Build servers. Any OTA published from Replit crashes the app immediately on startup. Recovery requires uninstalling and reinstalling the APK.
+OTA updates now use **fingerprint-based `runtimeVersion`** instead of a static `"1.0.0"`. This ensures OTAs are only delivered to binaries with matching native module fingerprints, preventing crashes from native module mismatches. After building new APKs with the fingerprint config, OTAs can be safely published via `eas update`.
 
-**All code changes must go through new APK builds.** This is slower (~15-20 min) but reliable.
+**Important:** Existing binaries still have static `runtimeVersion: "1.0.0"` — they won't receive fingerprint-tagged OTAs. Users must update to the latest APK first.
 
 ## Mobile App APK Builds
 
@@ -121,19 +121,15 @@ Download links appear on expo.dev when builds finish.
 - **API Definition & Codegen:** OpenAPI 3.1 specification and Orval.
 - **Offline Queuing:** `expo-sqlite` in the staff mobile application.
 
-# OTA Updates — DISABLED (DO NOT USE)
+# OTA Updates — Fingerprint-Protected
 
-OTA updates from Replit are **permanently disabled**. The local build environment (Node v24, Replit Linux) produces JS bundles incompatible with APKs built on EAS Build servers (Node 18/20). This causes immediate app crashes on startup that require uninstalling and reinstalling the APK to recover.
+OTA updates now use **fingerprint-based runtime versioning** (`runtimeVersion: { policy: "fingerprint" }`). This computes a hash of the native configuration at build time. OTAs are only delivered to binaries whose fingerprint matches, preventing the native module mismatch crashes that occurred with the old static `runtimeVersion: "1.0.0"`.
 
-**All mobile app changes must go through new APK builds** using `eas build`. A "roll back to embedded" directive has been published on the `production` channel for both apps, instructing devices to ignore any cached OTAs and use the APK's built-in bundle.
-
-## Recovery from a crashed device
-
-If a user's app crashes on startup due to a previously received OTA:
-1. Uninstall the app completely
-2. Install the latest APK
-3. Open the app, wait 10 seconds (downloads the "roll back to embedded" directive)
-4. Close and reopen — should stay on the embedded bundle
+**Key points:**
+- Stale `app.json` files were removed; `app.config.js` is the single source of truth
+- `EAS_SKIP_AUTO_FINGERPRINT=1` was removed from all build/update scripts
+- After building new APKs, OTAs can be safely published via `eas update`
+- Existing binaries with `runtimeVersion: "1.0.0"` won't receive new fingerprint-tagged OTAs — users must update to the latest APK
 
 # Admin Web Portal (artifacts/admin-web)
 
