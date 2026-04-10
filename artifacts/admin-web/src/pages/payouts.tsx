@@ -13,6 +13,7 @@ import type { MerchantPayout } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -142,16 +143,16 @@ export default function Payouts() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>{t("payouts.periodFrom")}</Label>
-                <Input data-testid="input-period-from" type="date" value={form.periodFrom} onChange={(e) => setForm((f) => ({ ...f, periodFrom: e.target.value }))} />
+                <DatePicker data-testid="input-period-from" value={form.periodFrom} onChange={(v) => setForm((f) => ({ ...f, periodFrom: v }))} />
               </div>
               <div className="space-y-1">
                 <Label>{t("payouts.periodTo")}</Label>
-                <Input data-testid="input-period-to" type="date" value={form.periodTo} onChange={(e) => setForm((f) => ({ ...f, periodTo: e.target.value }))} />
+                <DatePicker data-testid="input-period-to" value={form.periodTo} onChange={(v) => setForm((f) => ({ ...f, periodTo: v }))} />
               </div>
             </div>
             <div className="space-y-1">
               <Label>{t("payouts.paidAt")}</Label>
-              <Input data-testid="input-paid-at" type="date" value={form.paidAt} onChange={(e) => setForm((f) => ({ ...f, paidAt: e.target.value }))} />
+              <DatePicker data-testid="input-paid-at" value={form.paidAt} onChange={(v) => setForm((f) => ({ ...f, paidAt: v }))} />
             </div>
             <div className="space-y-1">
               <Label>{t("payouts.paymentMethod")}</Label>

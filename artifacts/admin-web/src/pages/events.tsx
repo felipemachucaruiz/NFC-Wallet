@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -405,12 +406,11 @@ function FormFields({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>{t("events.startsAt")}</Label>
-          <Input data-testid="input-event-starts" type="datetime-local" value={form.startsAt} onChange={(e) => setForm((f) => ({ ...f, startsAt: e.target.value }))} />
+          <DateTimePicker data-testid="input-event-starts" value={form.startsAt} onChange={(v) => setForm((f) => ({ ...f, startsAt: v }))} />
         </div>
         <div className="space-y-1">
           <Label>{t("events.endsAt")}</Label>
-          <Input data-testid="input-event-ends" type="datetime-local" value={form.endsAt} onChange={(e) => {
-            const newEndsAt = e.target.value;
+          <DateTimePicker data-testid="input-event-ends" value={form.endsAt} onChange={(newEndsAt) => {
             setForm((f) => {
               const updated = { ...f, endsAt: newEndsAt };
               if (newEndsAt && f.refundDeadline) {
@@ -427,7 +427,7 @@ function FormFields({
 
       <div className="space-y-1">
         <Label>{t("events.refundDeadline")}</Label>
-        <Input type="datetime-local" value={form.refundDeadline} onChange={(e) => setForm((f) => ({ ...f, refundDeadline: e.target.value }))} min={form.endsAt ? (() => { const d = new Date(form.endsAt); d.setDate(d.getDate() + 15); return d.toISOString().slice(0, 16); })() : undefined} />
+        <DateTimePicker value={form.refundDeadline} onChange={(v) => setForm((f) => ({ ...f, refundDeadline: v }))} />
         <p className="text-xs text-muted-foreground">{t("events.refundDeadlineHint")}</p>
       </div>
 

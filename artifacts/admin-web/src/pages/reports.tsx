@@ -9,7 +9,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { DollarSign, TrendingUp, CreditCard, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
@@ -57,11 +57,11 @@ export default function Reports() {
         </div>
         <div className="space-y-1">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("reports.startDate")}</Label>
-          <Input data-testid="input-report-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
+          <DatePicker data-testid="input-report-start" value={startDate} onChange={setStartDate} className="w-48" />
         </div>
         <div className="space-y-1">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("reports.endDate")}</Label>
-          <Input data-testid="input-report-end" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
+          <DatePicker data-testid="input-report-end" value={endDate} onChange={setEndDate} className="w-48" />
         </div>
       </div>
 

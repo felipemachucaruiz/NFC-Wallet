@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
+import { TimePicker } from "@/components/ui/time-picker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
@@ -220,28 +222,25 @@ export default function EventDays() {
             </div>
             <div className="space-y-1">
               <Label>{t("eventDays.colDate")} *</Label>
-              <Input
+              <DatePicker
                 data-testid="input-day-date"
-                type="date"
                 value={form.date}
-                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                onChange={(v) => setForm((f) => ({ ...f, date: v }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>{t("eventDays.colDoorOpen")}</Label>
-                <Input
-                  type="time"
+                <TimePicker
                   value={form.doorsOpenAt}
-                  onChange={(e) => setForm((f) => ({ ...f, doorsOpenAt: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, doorsOpenAt: v }))}
                 />
               </div>
               <div className="space-y-1">
                 <Label>{t("eventDays.colDoorClose")}</Label>
-                <Input
-                  type="time"
+                <TimePicker
                   value={form.doorsCloseAt}
-                  onChange={(e) => setForm((f) => ({ ...f, doorsCloseAt: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, doorsCloseAt: v }))}
                 />
               </div>
             </div>
@@ -272,27 +271,24 @@ export default function EventDays() {
             </div>
             <div className="space-y-1">
               <Label>{t("eventDays.colDate")} *</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={editForm.date}
-                onChange={(e) => setEditForm((f) => ({ ...f, date: e.target.value }))}
+                onChange={(v) => setEditForm((f) => ({ ...f, date: v }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>{t("eventDays.colDoorOpen")}</Label>
-                <Input
-                  type="time"
+                <TimePicker
                   value={editForm.doorsOpenAt}
-                  onChange={(e) => setEditForm((f) => ({ ...f, doorsOpenAt: e.target.value }))}
+                  onChange={(v) => setEditForm((f) => ({ ...f, doorsOpenAt: v }))}
                 />
               </div>
               <div className="space-y-1">
                 <Label>{t("eventDays.colDoorClose")}</Label>
-                <Input
-                  type="time"
+                <TimePicker
                   value={editForm.doorsCloseAt}
-                  onChange={(e) => setEditForm((f) => ({ ...f, doorsCloseAt: e.target.value }))}
+                  onChange={(v) => setEditForm((f) => ({ ...f, doorsCloseAt: v }))}
                 />
               </div>
             </div>

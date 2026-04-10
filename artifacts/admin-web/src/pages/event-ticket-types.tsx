@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -370,18 +371,16 @@ export default function EventTicketTypes() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>{t("ticketTypes.saleStart")}</Label>
-                <Input
-                  type="datetime-local"
+                <DateTimePicker
                   value={form.saleStart}
-                  onChange={(e) => setForm((f) => ({ ...f, saleStart: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, saleStart: v }))}
                 />
               </div>
               <div className="space-y-1">
                 <Label>{t("ticketTypes.saleEnd")}</Label>
-                <Input
-                  type="datetime-local"
+                <DateTimePicker
                   value={form.saleEnd}
-                  onChange={(e) => setForm((f) => ({ ...f, saleEnd: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, saleEnd: v }))}
                 />
               </div>
             </div>
@@ -664,18 +663,16 @@ function PricingStagesDialog({ eventId, typeId, typeName, open, onOpenChange }: 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">{t("ticketTypes.stageStart")} *</Label>
-                  <Input
-                    type="datetime-local"
+                  <DateTimePicker
                     value={form.startsAt}
-                    onChange={(e) => setForm((f) => ({ ...f, startsAt: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, startsAt: v }))}
                   />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">{t("ticketTypes.stageEnd")} *</Label>
-                  <Input
-                    type="datetime-local"
+                  <DateTimePicker
                     value={form.endsAt}
-                    onChange={(e) => setForm((f) => ({ ...f, endsAt: e.target.value }))}
+                    onChange={(v) => setForm((f) => ({ ...f, endsAt: v }))}
                   />
                 </div>
               </div>

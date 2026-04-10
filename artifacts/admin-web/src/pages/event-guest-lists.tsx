@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -320,10 +321,9 @@ export default function EventGuestLists() {
             </div>
             <div>
               <Label>{t("guestLists.expiresAtLabel")}</Label>
-              <Input
-                type="datetime-local"
+              <DateTimePicker
                 value={formExpiresAt}
-                onChange={(e) => setFormExpiresAt(e.target.value)}
+                onChange={setFormExpiresAt}
               />
             </div>
           </div>

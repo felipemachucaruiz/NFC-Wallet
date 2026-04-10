@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Settings, Globe, DoorOpen, ShoppingCart, Loader2 } from "lucide-react";
@@ -142,18 +143,16 @@ export default function EventSalesConfig() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>{t("salesConfig.saleStart")}</Label>
-                <Input
-                  type="datetime-local"
+                <DateTimePicker
                   value={saleStartsAt}
-                  onChange={(e) => setSaleStartsAt(e.target.value)}
+                  onChange={setSaleStartsAt}
                 />
               </div>
               <div className="space-y-1">
                 <Label>{t("salesConfig.saleEnd")}</Label>
-                <Input
-                  type="datetime-local"
+                <DateTimePicker
                   value={saleEndsAt}
-                  onChange={(e) => setSaleEndsAt(e.target.value)}
+                  onChange={setSaleEndsAt}
                 />
               </div>
             </div>
