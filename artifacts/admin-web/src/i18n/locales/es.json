@@ -219,7 +219,11 @@
     "ticketingModuleDesc": "Habilita venta de boletas, mapas del venue y gestión de check-in.",
     "nfcBraceletsModule": "Manillas NFC",
     "nfcBraceletsModuleDesc": "Habilita pagos cashless con manillas NFC.",
-    "atLeastOneModule": "Al menos un módulo debe estar habilitado."
+    "atLeastOneModule": "Al menos un módulo debe estar habilitado.",
+    "coverImageUrl": "URL Imagen de Portada",
+    "coverImageUrlPlaceholder": "https://ejemplo.com/portada.jpg (16:9 landscape)",
+    "flyerImageUrl": "URL Imagen del Flyer",
+    "flyerImageUrlPlaceholder": "https://ejemplo.com/flyer.jpg (1:1 cuadrada)"
   },
   "products": {
     "title": "Productos",

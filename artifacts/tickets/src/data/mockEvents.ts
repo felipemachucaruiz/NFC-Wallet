@@ -21,7 +21,7 @@ export const mockEvents: EventData[] = [
 <h3>Términos y Condiciones</h3>
 <p>Al adquirir tu boleta aceptas los términos y condiciones del evento. Las boletas son nominativas e intransferibles. No se realizan devoluciones excepto en caso de cancelación del evento.</p>`,
     coverImage: "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=1200&h=600&fit=crop",
-    flyerImage: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=1200&fit=crop",
+    flyerImage: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&h=800&fit=crop",
     category: "festivals",
     venueName: "Parque Simón Bolívar",
     venueAddress: "Calle 63 # 59A-06, Bogotá",
@@ -86,7 +86,7 @@ export const mockEvents: EventData[] = [
 <p>El conejo malo llega a Barranquilla con su gira mundial. Una noche inolvidable llena de reggaetón, trap y la mejor energía.</p>
 <p>Producción de nivel mundial con pantallas LED gigantes, efectos especiales y un show de más de 2 horas.</p>`,
     coverImage: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200&h=600&fit=crop",
-    flyerImage: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=800&h=1200&fit=crop",
+    flyerImage: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=800&h=800&fit=crop",
     category: "concerts",
     venueName: "Estadio Metropolitano",
     venueAddress: "Cra. 21 #Calle 34, Barranquilla",
@@ -162,7 +162,7 @@ export const mockEvents: EventData[] = [
     description: `<h2>Eliminatorias Sudamericanas 2026</h2>
 <p>La selección Colombia se enfrenta a Argentina en un partido crucial de las eliminatorias al Mundial 2026. ¡Vive la emoción del fútbol en el Metropolitano!</p>`,
     coverImage: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1200&h=600&fit=crop",
-    flyerImage: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800&h=1200&fit=crop",
+    flyerImage: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=800&h=800&fit=crop",
     category: "sports",
     venueName: "Estadio Metropolitano Roberto Meléndez",
     venueAddress: "Cra. 21 #Calle 34, Barranquilla",
@@ -238,7 +238,7 @@ export const mockEvents: EventData[] = [
     description: `<h2>El Fantasma de la Ópera</h2>
 <p>El musical más exitoso de todos los tiempos llega por primera vez a Medellín. Una producción espectacular con un elenco internacional.</p>`,
     coverImage: "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=1200&h=600&fit=crop",
-    flyerImage: "https://images.unsplash.com/photo-1503095396549-807759245b35?w=800&h=1200&fit=crop",
+    flyerImage: "https://images.unsplash.com/photo-1503095396549-807759245b35?w=800&h=800&fit=crop",
     category: "theater",
     venueName: "Teatro Metropolitano de Medellín",
     venueAddress: "Calle 41 #57-30, Medellín",
@@ -303,7 +303,7 @@ export const mockEvents: EventData[] = [
     description: `<h2>Creamfields Colombia 2026</h2>
 <p>El festival de música electrónica más importante del mundo aterriza en Cali. Dos días de la mejor música electrónica con artistas de talla mundial.</p>`,
     coverImage: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1200&h=600&fit=crop",
-    flyerImage: "https://images.unsplash.com/photo-1571266028243-e4733b0f0bb0?w=800&h=1200&fit=crop",
+    flyerImage: "https://images.unsplash.com/photo-1571266028243-e4733b0f0bb0?w=800&h=800&fit=crop",
     category: "festivals",
     venueName: "Centro de Eventos Valle del Pacífico",
     venueAddress: "Km 1 Vía Cali-Palmira, Cali",
@@ -362,7 +362,7 @@ export const mockEvents: EventData[] = [
     description: `<h2>Shakira en Bogotá</h2>
 <p>La artista colombiana más exitosa de todos los tiempos regresa a su tierra con un espectáculo inolvidable.</p>`,
     coverImage: "https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?w=1200&h=600&fit=crop",
-    flyerImage: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&h=1200&fit=crop",
+    flyerImage: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800&h=800&fit=crop",
     category: "concerts",
     venueName: "Estadio El Campín",
     venueAddress: "Carrera 30 #57-60, Bogotá",

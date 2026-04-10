@@ -187,9 +187,9 @@ function EventCard({ event }: { event: typeof mockEvents[0] }) {
   return (
     <Link href={`/event/${event.id}`}>
       <div className="group bg-card border border-card-border rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-200 cursor-pointer">
-        <div className="relative aspect-[16/9] overflow-hidden">
+        <div className="relative aspect-square overflow-hidden">
           <img
-            src={event.coverImage}
+            src={event.flyerImage || event.coverImage}
             alt={event.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"

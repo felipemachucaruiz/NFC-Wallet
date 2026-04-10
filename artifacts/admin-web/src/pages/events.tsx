@@ -49,6 +49,8 @@ type EventForm = {
   currencyCode: string;
   ticketingEnabled: boolean;
   nfcBraceletsEnabled: boolean;
+  coverImageUrl: string;
+  flyerImageUrl: string;
   eventAdmin: EventAdminForm;
 };
 
@@ -71,6 +73,8 @@ const emptyForm: EventForm = {
   currencyCode: "COP",
   ticketingEnabled: false,
   nfcBraceletsEnabled: true,
+  coverImageUrl: "",
+  flyerImageUrl: "",
   eventAdmin: { ...emptyAdmin },
 };
 
@@ -106,6 +110,8 @@ type RawEvent = Event & {
   refundDeadline?: string | null;
   ticketingEnabled?: boolean;
   nfcBraceletsEnabled?: boolean;
+  coverImageUrl?: string | null;
+  flyerImageUrl?: string | null;
 };
 
 type FormFieldsProps = {
@@ -174,6 +180,32 @@ function FormFields({
         <Label>{t("events.description")}</Label>
         <Input data-testid="input-event-description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
       </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label>{t("events.coverImageUrl")}</Label>
+          <Input
+            value={form.coverImageUrl}
+            onChange={(e) => setForm((f) => ({ ...f, coverImageUrl: e.target.value }))}
+            placeholder={t("events.coverImageUrlPlaceholder")}
+          />
+          {form.coverImageUrl && (
+            <img src={form.coverImageUrl} alt="Cover preview" className="mt-1 rounded-md h-20 w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
+          )}
+        </div>
+        <div className="space-y-1">
+          <Label>{t("events.flyerImageUrl")}</Label>
+          <Input
+            value={form.flyerImageUrl}
+            onChange={(e) => setForm((f) => ({ ...f, flyerImageUrl: e.target.value }))}
+            placeholder={t("events.flyerImageUrlPlaceholder")}
+          />
+          {form.flyerImageUrl && (
+            <img src={form.flyerImageUrl} alt="Flyer preview" className="mt-1 rounded-md h-20 w-20 object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
+          )}
+        </div>
+      </div>
+
       <div className="space-y-1">
         <Label>{t("events.venueAddress")}</Label>
         <div className="flex gap-2">
@@ -467,6 +499,8 @@ export default function Events() {
       currencyCode: raw.currencyCode ?? "COP",
       ticketingEnabled: raw.ticketingEnabled ?? false,
       nfcBraceletsEnabled: raw.nfcBraceletsEnabled ?? true,
+      coverImageUrl: raw.coverImageUrl ?? "",
+      flyerImageUrl: raw.flyerImageUrl ?? "",
       eventAdmin: { ...emptyAdmin },
     });
     setEditOpen(true);
@@ -502,6 +536,8 @@ export default function Events() {
       currencyCode: form.currencyCode || "COP",
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
+      coverImageUrl: form.coverImageUrl || undefined,
+      flyerImageUrl: form.flyerImageUrl || undefined,
       ...(hasAdmin ? {
         eventAdmin: {
           email: form.eventAdmin.email,
@@ -544,6 +580,8 @@ export default function Events() {
       currencyCode: form.currencyCode || undefined,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
+      coverImageUrl: form.coverImageUrl || null,
+      flyerImageUrl: form.flyerImageUrl || null,
     };
     updateEvent.mutate(
       { eventId: selectedEvent.id, data: payload },
