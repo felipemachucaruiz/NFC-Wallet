@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable, accessZonesTable } from "@workspace/db";
 import { eq, desc, ilike, or, and, sql, asc } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
+import { requireNfcBraceletsEnabled } from "../middlewares/featureGating";
 import { z } from "zod";
 import { notifyBraceletUnblocked } from "../lib/pushNotifications";
 
@@ -116,6 +117,14 @@ router.post(
         return;
       }
       eventId = req.user!.eventId;
+    }
+
+    if (eventId) {
+      const [ev] = await db.select({ nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled }).from(eventsTable).where(eq(eventsTable.id, eventId));
+      if (ev && !ev.nfcBraceletsEnabled) {
+        res.status(404).json({ error: "NFC_BRACELETS_DISABLED" });
+        return;
+      }
     }
 
     const existing = await db

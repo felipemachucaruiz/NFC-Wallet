@@ -57,9 +57,13 @@ router.get(
     let eventActive = false;
     if (bracelet.eventId) {
       const [event] = await db
-        .select({ name: eventsTable.name, active: eventsTable.active })
+        .select({ name: eventsTable.name, active: eventsTable.active, nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled })
         .from(eventsTable)
         .where(eq(eventsTable.id, bracelet.eventId));
+      if (event && !event.nfcBraceletsEnabled) {
+        res.status(404).json({ error: "NFC_BRACELETS_DISABLED", message: "NFC bracelets are not enabled for this event" });
+        return;
+      }
       eventName = event?.name ?? null;
       eventActive = event?.active ?? false;
     }
@@ -149,6 +153,17 @@ router.post(
     if (bracelet.flagged) {
       res.status(403).json({ error: "Esta pulsera ha sido bloqueada. Contacta al organizador del evento." });
       return;
+    }
+
+    if (bracelet.eventId) {
+      const [event] = await db
+        .select({ nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, bracelet.eventId));
+      if (event && !event.nfcBraceletsEnabled) {
+        res.status(404).json({ error: "NFC_BRACELETS_DISABLED", message: "NFC bracelets are not enabled for this event" });
+        return;
+      }
     }
 
     const [activeIntent] = await db
@@ -323,15 +338,18 @@ export async function processSelfServicePayment(intentId: string, wompiTransacti
     if (claimed.length === 0) return;
     const intent = claimed[0];
 
+    if (!intent.braceletUid) return;
+    const braceletUid = intent.braceletUid;
+
     let [bracelet] = await tx
       .select()
       .from(braceletsTable)
-      .where(eq(braceletsTable.nfcUid, intent.braceletUid));
+      .where(eq(braceletsTable.nfcUid, braceletUid));
 
     if (!bracelet) {
       const [created] = await tx
         .insert(braceletsTable)
-        .values({ nfcUid: intent.braceletUid, lastKnownBalance: 0, lastCounter: 0 })
+        .values({ nfcUid: braceletUid, lastKnownBalance: 0, lastCounter: 0 })
         .returning();
       bracelet = created;
     }
@@ -339,12 +357,13 @@ export async function processSelfServicePayment(intentId: string, wompiTransacti
     const newBalance = bracelet.lastKnownBalance + intent.amount;
     const newCounter = bracelet.lastCounter + 1;
 
+    const topUpPaymentMethod = intent.paymentMethod === "card" ? "card_external" as const : intent.paymentMethod;
     const [topUp] = await tx
       .insert(topUpsTable)
       .values({
-        braceletUid: intent.braceletUid,
+        braceletUid,
         amount: intent.amount,
-        paymentMethod: intent.paymentMethod,
+        paymentMethod: topUpPaymentMethod,
         performedByUserId: intent.performedByUserId ?? "self-service",
         wompiTransactionId,
         status: "completed",
@@ -362,14 +381,14 @@ export async function processSelfServicePayment(intentId: string, wompiTransacti
         pendingBalance: newBalance,
         updatedAt: new Date(),
       })
-      .where(eq(braceletsTable.nfcUid, intent.braceletUid));
+      .where(eq(braceletsTable.nfcUid, braceletUid));
 
     await tx
       .update(wompiPaymentIntentsTable)
       .set({ status: "success", topUpId: topUp.id, updatedAt: new Date() })
       .where(eq(wompiPaymentIntentsTable.id, intentId));
 
-    notifyBraceletUid = intent.braceletUid;
+    notifyBraceletUid = braceletUid;
     notifyAmount = intent.amount;
     notifyNewBalance = newBalance;
   });

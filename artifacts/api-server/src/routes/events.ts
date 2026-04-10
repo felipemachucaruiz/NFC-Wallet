@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { hashPassword } from "../lib/bcryptWorker";
 import crypto from "crypto";
-import { db, eventsTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable, convertToCOP, getExchangeRatesForDisplay } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable, convertToCOP, getExchangeRatesForDisplay } from "@workspace/db";
 import { eq, sql, and, ilike, or, count, sum, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -63,6 +63,15 @@ const createEventSchema = z.object({
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
+  coverImageUrl: z.string().url().optional(),
+  flyerImageUrl: z.string().url().optional(),
+  longDescription: z.string().optional(),
+  category: z.string().max(100).optional(),
+  tags: z.array(z.string()).optional(),
+  minAge: z.number().int().min(0).nullable().optional(),
+  ticketingEnabled: z.boolean().optional(),
+  nfcBraceletsEnabled: z.boolean().optional(),
+  salesChannel: z.enum(["online", "door", "both"]).optional(),
   eventAdmin: z.object({
     email: z.string().email(),
     password: z.string().min(6),
@@ -92,6 +101,15 @@ const updateEventSchema = z.object({
   ultralightCDesKey: z.string().regex(/^[0-9a-fA-F]{32}$/, "ultralightCDesKey must be 32 hex characters (16 bytes)").optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
+  coverImageUrl: z.string().url().nullable().optional(),
+  flyerImageUrl: z.string().url().nullable().optional(),
+  longDescription: z.string().nullable().optional(),
+  category: z.string().max(100).nullable().optional(),
+  tags: z.array(z.string()).optional(),
+  minAge: z.number().int().min(0).nullable().optional(),
+  ticketingEnabled: z.boolean().optional(),
+  nfcBraceletsEnabled: z.boolean().optional(),
+  salesChannel: z.enum(["online", "door", "both"]).optional(),
 });
 
 const SAFE_EVENT_FIELDS = {
@@ -116,6 +134,15 @@ const SAFE_EVENT_FIELDS = {
   maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
   latitude: eventsTable.latitude,
   longitude: eventsTable.longitude,
+  coverImageUrl: eventsTable.coverImageUrl,
+  flyerImageUrl: eventsTable.flyerImageUrl,
+  longDescription: eventsTable.longDescription,
+  category: eventsTable.category,
+  tags: eventsTable.tags,
+  minAge: eventsTable.minAge,
+  ticketingEnabled: eventsTable.ticketingEnabled,
+  nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled,
+  salesChannel: eventsTable.salesChannel,
   createdAt: eventsTable.createdAt,
   updatedAt: eventsTable.updatedAt,
 };
@@ -229,7 +256,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, latitude, longitude, eventAdmin } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, eventAdmin } = parsed.data;
 
   if (refundDeadline && endsAt) {
     const deadlineDate = new Date(refundDeadline);
@@ -282,6 +309,15 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
         maxOfflineSpendPerBracelet: maxOfflineSpendPerBracelet ?? 200000,
         ...(latitude !== undefined && latitude !== null && { latitude: String(latitude) }),
         ...(longitude !== undefined && longitude !== null && { longitude: String(longitude) }),
+        ...(coverImageUrl !== undefined && { coverImageUrl }),
+        ...(flyerImageUrl !== undefined && { flyerImageUrl }),
+        ...(longDescription !== undefined && { longDescription }),
+        ...(category !== undefined && { category }),
+        ...(tags !== undefined && { tags }),
+        ...(minAge !== undefined && { minAge }),
+        ...(ticketingEnabled !== undefined && { ticketingEnabled }),
+        ...(nfcBraceletsEnabled !== undefined && { nfcBraceletsEnabled }),
+        ...(salesChannel !== undefined && { salesChannel }),
       })
       .returning();
 
@@ -299,6 +335,20 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
         })
         .returning();
       createdAdmin = { id: adminUser.id, email: adminUser.email, role: adminUser.role };
+    }
+
+    if (event.ticketingEnabled) {
+      const eventDate = event.startsAt
+        ? event.startsAt.toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0];
+      await tx
+        .insert(eventDaysTable)
+        .values({
+          eventId: event.id,
+          date: eventDate,
+          label: "Day 1",
+          displayOrder: 0,
+        });
     }
 
     return { event, createdAdmin };
@@ -336,7 +386,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel } = parsed.data;
 
   if (refundDeadline !== undefined && refundDeadline !== null) {
     const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, req.params.id as string)))[0]?.endsAt;
@@ -371,6 +421,15 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(ultralightCDesKey !== undefined && { ultralightCDesKey }),
     ...(latitude !== undefined && { latitude: latitude !== null ? String(latitude) : null }),
     ...(longitude !== undefined && { longitude: longitude !== null ? String(longitude) : null }),
+    ...(coverImageUrl !== undefined && { coverImageUrl }),
+    ...(flyerImageUrl !== undefined && { flyerImageUrl }),
+    ...(longDescription !== undefined && { longDescription }),
+    ...(category !== undefined && { category }),
+    ...(tags !== undefined && { tags }),
+    ...(minAge !== undefined && { minAge }),
+    ...(ticketingEnabled !== undefined && { ticketingEnabled }),
+    ...(nfcBraceletsEnabled !== undefined && { nfcBraceletsEnabled }),
+    ...(salesChannel !== undefined && { salesChannel }),
     updatedAt: new Date(),
   };
 
@@ -386,6 +445,25 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
   if (!event) {
     res.status(404).json({ error: "Event not found" });
     return;
+  }
+
+  if (ticketingEnabled === true) {
+    const existingDays = await db
+      .select({ id: eventDaysTable.id })
+      .from(eventDaysTable)
+      .where(eq(eventDaysTable.eventId, eventId))
+      .limit(1);
+    if (existingDays.length === 0) {
+      const eventDate = event.startsAt
+        ? event.startsAt.toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0];
+      await db.insert(eventDaysTable).values({
+        eventId,
+        date: eventDate,
+        label: "Day 1",
+        displayOrder: 0,
+      });
+    }
   }
 
   const { hmacSecret: _secret, ...eventWithoutSecret } = event;

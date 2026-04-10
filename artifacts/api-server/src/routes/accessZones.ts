@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, accessZonesTable, accessUpgradesTable, braceletsTable, usersTable } from "@workspace/db";
+import { db, accessZonesTable, accessUpgradesTable, braceletsTable, usersTable, eventsTable } from "@workspace/db";
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -437,6 +437,14 @@ router.post(
       return;
     }
 
+    if (bracelet.eventId) {
+      const [ev] = await db.select({ nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled }).from(eventsTable).where(eq(eventsTable.id, bracelet.eventId));
+      if (ev && !ev.nfcBraceletsEnabled) {
+        res.status(404).json({ error: "NFC_BRACELETS_DISABLED" });
+        return;
+      }
+    }
+
     if (bracelet.flagged) {
       res.json({ granted: false, allowed: false, reason: "flagged", attendeeName: bracelet.attendeeName ?? null, zones: [], grantedZones: [] });
       return;
@@ -501,6 +509,12 @@ router.get(
 
     if (!bracelet.eventId) {
       res.json({ currentZones: [], availableUpgrades: [], atMaxLevel: false });
+      return;
+    }
+
+    const [evForUpgrade] = await db.select({ nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled }).from(eventsTable).where(eq(eventsTable.id, bracelet.eventId));
+    if (evForUpgrade && !evForUpgrade.nfcBraceletsEnabled) {
+      res.status(404).json({ error: "NFC_BRACELETS_DISABLED" });
       return;
     }
 
@@ -591,6 +605,12 @@ router.post(
 
     if (!bracelet.eventId) {
       res.status(422).json({ error: "Bracelet is not assigned to an event" });
+      return;
+    }
+
+    const [evForAccess] = await db.select({ nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled }).from(eventsTable).where(eq(eventsTable.id, bracelet.eventId));
+    if (evForAccess && !evForAccess.nfcBraceletsEnabled) {
+      res.status(404).json({ error: "NFC_BRACELETS_DISABLED" });
       return;
     }
 

@@ -1,10 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
-import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable, eventsTable } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable, eventsTable, ticketOrdersTable, ticketTypesTable, ticketsTable } from "@workspace/db";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { processSelfServicePayment } from "./selfService";
+import { processTicketOrderPayment, cancelTicketOrder } from "./tickets";
 import { notifyTopUpSuccess, notifyTopUpFailed } from "../lib/pushNotifications";
 import { paymentStatusLimiter } from "../middlewares/rateLimiter";
 
@@ -28,11 +29,13 @@ async function fetchWompiAcceptanceToken(): Promise<string> {
 const initiatePaymentSchema = z.object({
   braceletUid: z.string().min(1),
   amount: z.number().int().min(1000),
-  paymentMethod: z.enum(["nequi", "pse"]),
+  paymentMethod: z.enum(["nequi", "pse", "card"]),
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
   userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
   userLegalId: z.string().max(20).optional(),
+  cardToken: z.string().optional(),
+  installments: z.number().int().min(1).max(36).optional(),
 });
 
 router.post(
@@ -54,7 +57,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { braceletUid, amount, paymentMethod, phoneNumber, bankCode, userLegalIdType, userLegalId } = parsed.data;
+    const { braceletUid, amount, paymentMethod, phoneNumber, bankCode, userLegalIdType, userLegalId, cardToken, installments } = parsed.data;
 
     if (paymentMethod === "nequi" && !phoneNumber) {
       res.status(400).json({ error: "phoneNumber is required for Nequi payments" });
@@ -66,6 +69,10 @@ router.post(
     }
     if (paymentMethod === "pse" && !userLegalId) {
       res.status(400).json({ error: "userLegalId is required for PSE payments" });
+      return;
+    }
+    if (paymentMethod === "card" && !cardToken) {
+      res.status(400).json({ error: "cardToken is required for card payments" });
       return;
     }
 
@@ -82,6 +89,17 @@ router.post(
     if (req.user.role === "attendee" && bracelet.attendeeUserId !== req.user.id) {
       res.status(403).json({ error: "You can only top up your own bracelet" });
       return;
+    }
+
+    if (bracelet.eventId) {
+      const [event] = await db
+        .select({ nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, bracelet.eventId));
+      if (event && !event.nfcBraceletsEnabled) {
+        res.status(404).json({ error: "NFC_BRACELETS_DISABLED", message: "NFC bracelets are not enabled for this event" });
+        return;
+      }
     }
 
     const [activeIntent] = await db
@@ -116,8 +134,10 @@ router.post(
       // For non-COP events, amount is collected in COP and credited to bracelet in event currency.
       const amountCentavos = amount * 100;
 
+      let wompiBody: Record<string, unknown>;
+
       if (paymentMethod === "nequi") {
-        const wompiBody = {
+        wompiBody = {
           amount_in_cents: amountCentavos,
           currency: "COP",
           customer_email: customerEmail,
@@ -128,25 +148,21 @@ router.post(
           reference,
           acceptance_token: acceptanceToken,
         };
-
-        const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
+      } else if (paymentMethod === "card") {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "CARD",
+            token: cardToken,
+            installments: installments ?? 1,
           },
-          body: JSON.stringify(wompiBody),
-        });
-
-        const wompiData = await wompiRes.json() as { data?: { id: string }; error?: { type: string; messages: Record<string, string[]> } };
-        if (!wompiRes.ok || !wompiData.data) {
-          console.error("Wompi Nequi error:", wompiData);
-          res.status(502).json({ error: "Failed to initiate Nequi payment. Check phone number and try again." });
-          return;
-        }
-        wompiTransactionId = wompiData.data.id;
+          reference,
+          acceptance_token: acceptanceToken,
+        };
       } else {
-        const wompiBody = {
+        wompiBody = {
           amount_in_cents: amountCentavos,
           currency: "COP",
           customer_email: customerEmail,
@@ -162,23 +178,25 @@ router.post(
           acceptance_token: acceptanceToken,
           redirect_url: `${process.env.APP_URL ?? "https://example.com"}/payment-return`,
         };
+      }
 
-        const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
-          },
-          body: JSON.stringify(wompiBody),
-        });
+      const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
+        },
+        body: JSON.stringify(wompiBody),
+      });
 
-        const wompiData = await wompiRes.json() as { data?: { id: string; payment_method_type?: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: unknown };
-        if (!wompiRes.ok || !wompiData.data) {
-          console.error("Wompi PSE error:", wompiData);
-          res.status(502).json({ error: "Failed to initiate PSE payment. Try again." });
-          return;
-        }
-        wompiTransactionId = wompiData.data.id;
+      const wompiData = await wompiRes.json() as { data?: { id: string; payment_method_type?: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: unknown };
+      if (!wompiRes.ok || !wompiData.data) {
+        console.error(`Wompi ${paymentMethod} error:`, wompiData);
+        res.status(502).json({ error: `Failed to initiate ${paymentMethod} payment. Try again.` });
+        return;
+      }
+      wompiTransactionId = wompiData.data.id;
+      if (paymentMethod === "pse") {
         redirectUrl = wompiData.data.payment_method?.extra?.async_payment_url;
       }
     } catch (err) {
@@ -257,7 +275,7 @@ router.get(
               .set({ status: "failed", updatedAt: new Date() })
               .where(eq(wompiPaymentIntentsTable.id, id));
             if (intent.performedByUserId) {
-              const [fb] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1);
+              const [fb] = intent.braceletUid ? await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1) : [undefined];
               let fcc = "COP";
               if (fb?.eventId) { const [fe] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb.eventId)).limit(1); if (fe) fcc = fe.currencyCode; }
               void notifyTopUpFailed(intent.performedByUserId, intent.amount, fcc).catch(() => {});
@@ -300,15 +318,18 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
     if (claimed.length === 0) return;
     const intent = claimed[0];
 
+    if (!intent.braceletUid) return;
+    const braceletUid = intent.braceletUid;
+
     let [bracelet] = await tx
       .select()
       .from(braceletsTable)
-      .where(eq(braceletsTable.nfcUid, intent.braceletUid));
+      .where(eq(braceletsTable.nfcUid, braceletUid));
 
     if (!bracelet) {
       const [created] = await tx
         .insert(braceletsTable)
-        .values({ nfcUid: intent.braceletUid, lastKnownBalance: 0, lastCounter: 0 })
+        .values({ nfcUid: braceletUid, lastKnownBalance: 0, lastCounter: 0 })
         .returning();
       bracelet = created;
     }
@@ -316,12 +337,13 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
     const newBalance = bracelet.lastKnownBalance + intent.amount;
     const newCounter = bracelet.lastCounter + 1;
 
+    const topUpPaymentMethod = intent.paymentMethod === "card" ? "card_external" as const : intent.paymentMethod;
     const [topUp] = await tx
       .insert(topUpsTable)
       .values({
-        braceletUid: intent.braceletUid,
+        braceletUid,
         amount: intent.amount,
-        paymentMethod: intent.paymentMethod,
+        paymentMethod: topUpPaymentMethod,
         performedByUserId: intent.performedByUserId ?? "self-service",
         wompiTransactionId,
         status: "completed",
@@ -333,14 +355,14 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
     await tx
       .update(braceletsTable)
       .set({ lastKnownBalance: newBalance, lastCounter: newCounter, updatedAt: new Date() })
-      .where(eq(braceletsTable.nfcUid, intent.braceletUid));
+      .where(eq(braceletsTable.nfcUid, braceletUid));
 
     await tx
       .update(wompiPaymentIntentsTable)
       .set({ status: "success", topUpId: topUp.id, updatedAt: new Date() })
       .where(eq(wompiPaymentIntentsTable.id, intentId));
 
-    notifyBraceletUid = intent.braceletUid;
+    notifyBraceletUid = braceletUid;
     notifyAmount = intent.amount;
     notifyNewBalance = newBalance;
   });
@@ -439,7 +461,9 @@ router.post(
         }
 
         if (intent.status === "pending") {
-          if (intent.selfService) {
+          if (intent.purposeType === "ticket" && intent.ticketOrderId) {
+            await processTicketOrderPayment(intent.ticketOrderId, txData.id);
+          } else if (intent.selfService) {
             await processSelfServicePayment(intent.id, txData.id);
           } else {
             await processSuccessfulPayment(intent.id, txData.id);
@@ -452,15 +476,19 @@ router.post(
           .where(eq(wompiPaymentIntentsTable.wompiTransactionId, txData.id));
 
         if (intent && intent.status === "pending") {
-          await db
-            .update(wompiPaymentIntentsTable)
-            .set({ status: "failed", updatedAt: new Date() })
-            .where(eq(wompiPaymentIntentsTable.id, intent.id));
-          if (intent.performedByUserId) {
-            const [fb2] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1);
-            let fcc2 = "COP";
-            if (fb2?.eventId) { const [fe2] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb2.eventId)).limit(1); if (fe2) fcc2 = fe2.currencyCode; }
-            void notifyTopUpFailed(intent.performedByUserId, intent.amount, fcc2).catch(() => {});
+          if (intent.purposeType === "ticket" && intent.ticketOrderId) {
+            await cancelTicketOrder(intent.ticketOrderId);
+          } else {
+            await db
+              .update(wompiPaymentIntentsTable)
+              .set({ status: "failed", updatedAt: new Date() })
+              .where(eq(wompiPaymentIntentsTable.id, intent.id));
+            if (intent.performedByUserId && intent.braceletUid) {
+              const [fb2] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1);
+              let fcc2 = "COP";
+              if (fb2?.eventId) { const [fe2] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb2.eventId)).limit(1); if (fe2) fcc2 = fe2.currencyCode; }
+              void notifyTopUpFailed(intent.performedByUserId, intent.amount, fcc2).catch(() => {});
+            }
           }
         }
       }

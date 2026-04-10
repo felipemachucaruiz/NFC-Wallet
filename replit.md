@@ -32,6 +32,7 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 - `artifacts/mobile` — Expo React Native staff mobile app
 - `artifacts/attendee-app` — Expo React Native attendee mobile app
 - `artifacts/admin-web` — React + Vite web admin portal at `/admin-web/`; serves `admin` and `event_admin` users with login (2FA), forgot/reset password, dashboard, events, users, merchants, bracelets, access zones, payouts, reports
+- `artifacts/ticket-storefront` — React + Vite public ticketing storefront at `/ticket-storefront/`; designed for independent Railway deployment with configurable API URL (`VITE_API_BASE_URL`). Features: event listing with search, event detail with ticket selection, checkout with Nequi/PSE payments via Wompi, order status polling. Bilingual (Spanish UI).
 
 **UI/UX Decisions:**
 - **Attendee App:** Features a "Tapee Black" dark theme with cyan accents on a #0a0a0a background for a modern and sleek user experience. Supports NFC read-only functions, push notifications, and i18n (ES/EN).
@@ -48,7 +49,8 @@ The project is built as a pnpm monorepo using TypeScript (v5.9). It leverages No
 - **NFC Chip Type Configuration:** Allows per-event configuration for `ntag_21x` or `mifare_classic` chip types, with informational alerts if there's a mismatch.
 - **Role-Based Access Control (RBAC):** Defined roles include `attendee`, `bank`, `merchant_staff`, `merchant_admin`, `warehouse_admin`, `event_admin`, and `admin`.
 - **API Design:** The API server (Express 5) serves all routes under the `/api` prefix, defined by OpenAPI 3.1 specification.
-- **Database Schema:** Drizzle ORM defines schemas for various entities including users, events, merchants, products, inventory, transactions, and payment intents.
+- **Database Schema:** Drizzle ORM defines schemas for various entities including users, events, merchants, products, inventory, transactions, payment intents, and ticketing (event_days, venues, venue_sections, ticket_types, ticket_orders, tickets, ticket_check_ins).
+- **Ticketing System:** Full ticket sales backend with multi-day event support, venue sections, concurrency-safe inventory, QR code check-in, Apple/Google Wallet passes, and bilingual email confirmations. Events have feature flags (`ticketing_enabled`, `nfc_bracelets_enabled`) for modular feature gating. Ticket purchase flow: create order → Wompi payment (card/nequi/pse) → webhook confirms → generate QR codes → send emails.
 - **API Codegen:** OpenAPI 3.1 specification is used with Orval for generating API clients and Zod schemas.
 - **Validation:** Zod v3 is used for robust schema validation, integrated with `drizzle-zod`.
 - **Cost of Goods Sold (COGS) Tracking:** `unit_cost_snapshot` is stored on transaction line items, and products include both `price_cop` and `cost_cop` for accurate COGS calculation.
@@ -107,8 +109,14 @@ Download links appear on expo.dev when builds finish.
 - **API Framework:** Express 5
 - **Validation:** Zod v3
 - **Mobile Development:** Expo (React Native)
-- **Payment Gateway:** Wompi (for Nequi/PSE digital top-ups)
+- **Payment Gateway:** Wompi (for Nequi/PSE/card payments — top-ups and ticket purchases)
   - Requires `WOMPI_BASE_URL`, `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_EVENTS_SECRET`, and `APP_URL` environment variables.
+- **Email Service:** Brevo (for ticket confirmation and invitation emails)
+  - Requires `BREVO_API_KEY` environment variable.
+- **Wallet Passes:**
+  - Apple Wallet: Requires `APPLE_PASS_TYPE_ID`, `APPLE_TEAM_ID`, `APPLE_PASS_CERTIFICATE`, `APPLE_PASS_KEY`, `APPLE_WWDR_CERT`, `APPLE_PASS_KEY_PASSPHRASE`.
+  - Google Wallet: Requires `GOOGLE_WALLET_ISSUER_ID`.
+- **QR Code Signing:** Requires `TICKET_QR_SECRET` for HMAC-signed QR tokens.
 - **NFC Hardware:** NTAG213/215, Mifare Classic compatible NFC chips
 - **OAuth/OIDC:** `openid-client` (for legacy OIDC routes)
 - **Hashing:** bcrypt (for password management)

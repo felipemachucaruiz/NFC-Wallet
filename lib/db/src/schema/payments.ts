@@ -5,6 +5,7 @@ import { usersTable } from "./auth";
 export const wompiPaymentMethodEnum = pgEnum("wompi_payment_method", [
   "nequi",
   "pse",
+  "card",
 ]);
 
 export const wompiPaymentStatusEnum = pgEnum("wompi_payment_status", [
@@ -17,7 +18,7 @@ export const wompiPaymentStatusEnum = pgEnum("wompi_payment_status", [
 
 export const wompiPaymentIntentsTable = pgTable("wompi_payment_intents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  braceletUid: varchar("bracelet_uid", { length: 64 }).notNull(),
+  braceletUid: varchar("bracelet_uid", { length: 64 }),
   amount: integer("amount").notNull(),
   paymentMethod: wompiPaymentMethodEnum("payment_method").notNull(),
   phoneNumber: varchar("phone_number", { length: 20 }),
@@ -27,6 +28,8 @@ export const wompiPaymentIntentsTable = pgTable("wompi_payment_intents", {
   redirectUrl: text("redirect_url"),
   status: wompiPaymentStatusEnum("status").notNull().default("pending"),
   topUpId: varchar("top_up_id"),
+  ticketOrderId: varchar("ticket_order_id"),
+  purposeType: varchar("purpose_type", { length: 20 }).notNull().default("topup"),
   performedByUserId: varchar("performed_by_user_id").references(() => usersTable.id),
   selfService: boolean("self_service").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

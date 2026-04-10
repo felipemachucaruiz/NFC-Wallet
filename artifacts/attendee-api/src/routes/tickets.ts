@@ -1,0 +1,803 @@
+import { Router, type IRouter, type Request, type Response } from "express";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable } from "@workspace/db";
+import { eq, and, sql, inArray } from "drizzle-orm";
+import { requireRole } from "../middlewares/requireRole";
+import { z } from "zod";
+import { generateTicketQrToken } from "../lib/ticketQr";
+import { sendTicketConfirmationEmail, sendTicketInvitationEmail } from "../lib/ticketEmails";
+import { generateGoogleWalletSaveLink } from "../lib/walletPasses";
+import { logger } from "../lib/logger";
+
+const router: IRouter = Router();
+
+const WOMPI_BASE_URL = process.env.WOMPI_BASE_URL || "https://sandbox.wompi.co/v1";
+const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY || "";
+const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY || "";
+
+const SUPPORTED_LOCALES = ["es", "en"] as const;
+
+function parseAcceptLocale(header?: string): string | undefined {
+  if (!header) return undefined;
+  const parts = header.split(",").map((p) => {
+    const [lang, qPart] = p.trim().split(";");
+    const q = qPart ? parseFloat(qPart.replace(/q=/, "")) : 1;
+    return { lang: lang.trim().toLowerCase(), q: isNaN(q) ? 0 : q };
+  });
+  parts.sort((a, b) => b.q - a.q);
+  for (const { lang } of parts) {
+    const base = lang.split("-")[0];
+    if (SUPPORTED_LOCALES.includes(base as typeof SUPPORTED_LOCALES[number])) return base;
+  }
+  return undefined;
+}
+
+async function fetchWompiAcceptanceToken(): Promise<string> {
+  if (!WOMPI_PUBLIC_KEY) throw new Error("WOMPI_PUBLIC_KEY not configured");
+  const res = await fetch(`${WOMPI_BASE_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
+  if (!res.ok) throw new Error("Failed to fetch Wompi acceptance token");
+  const data = await res.json() as { data: { presigned_acceptance: { acceptance_token: string } } };
+  return data.data.presigned_acceptance.acceptance_token;
+}
+
+const attendeeDataSchema = z.object({
+  name: z.string().min(1).max(255),
+  email: z.string().email(),
+  phone: z.string().max(30).optional(),
+  ticketTypeId: z.string().min(1),
+});
+
+const createOrderSchema = z.object({
+  eventId: z.string().min(1),
+  attendees: z.array(attendeeDataSchema).min(1).max(20),
+  paymentMethod: z.enum(["card", "nequi", "pse"]),
+  cardToken: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  bankCode: z.string().optional(),
+  userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
+  userLegalId: z.string().max(20).optional(),
+  installments: z.number().int().min(1).max(36).optional(),
+});
+
+router.post(
+  "/tickets/purchase",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
+      res.status(503).json({ error: "Payment gateway not configured" });
+      return;
+    }
+
+    const parsed = createOrderSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const { eventId, attendees, paymentMethod, cardToken, phoneNumber, bankCode, userLegalIdType, userLegalId, installments } = parsed.data;
+
+    if (paymentMethod === "card" && !cardToken) {
+      res.status(400).json({ error: "cardToken is required for card payments" });
+      return;
+    }
+    if (paymentMethod === "nequi" && !phoneNumber) {
+      res.status(400).json({ error: "phoneNumber is required for Nequi payments" });
+      return;
+    }
+    if (paymentMethod === "pse" && (!bankCode || !userLegalId)) {
+      res.status(400).json({ error: "bankCode and userLegalId are required for PSE payments" });
+      return;
+    }
+
+    const [event] = await db
+      .select({
+        id: eventsTable.id,
+        ticketingEnabled: eventsTable.ticketingEnabled,
+        salesChannel: eventsTable.salesChannel,
+        currencyCode: eventsTable.currencyCode,
+        name: eventsTable.name,
+      })
+      .from(eventsTable)
+      .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
+
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    if (!event.ticketingEnabled) {
+      res.status(404).json({ error: "Ticketing is not enabled for this event" });
+      return;
+    }
+
+    if (event.salesChannel === "door") {
+      res.status(400).json({ error: "Online ticket sales are not available for this event" });
+      return;
+    }
+
+    const ticketTypeIds = [...new Set(attendees.map((a) => a.ticketTypeId))];
+    const ticketTypes = await db
+      .select()
+      .from(ticketTypesTable)
+      .where(and(
+        inArray(ticketTypesTable.id, ticketTypeIds),
+        eq(ticketTypesTable.eventId, eventId),
+        eq(ticketTypesTable.isActive, true),
+      ));
+
+    const ticketTypeMap = new Map(ticketTypes.map((tt) => [tt.id, tt]));
+
+    for (const attendee of attendees) {
+      const tt = ticketTypeMap.get(attendee.ticketTypeId);
+      if (!tt) {
+        res.status(400).json({ error: `Ticket type ${attendee.ticketTypeId} not found or inactive` });
+        return;
+      }
+
+      const now = new Date();
+      if (tt.saleStart && now < tt.saleStart) {
+        res.status(400).json({ error: `Sales for ${tt.name} haven't started yet` });
+        return;
+      }
+      if (tt.saleEnd && now > tt.saleEnd) {
+        res.status(400).json({ error: `Sales for ${tt.name} have ended` });
+        return;
+      }
+    }
+
+    const quantityByType = new Map<string, number>();
+    for (const a of attendees) {
+      quantityByType.set(a.ticketTypeId, (quantityByType.get(a.ticketTypeId) || 0) + 1);
+    }
+
+    for (const [typeId, qty] of quantityByType) {
+      const tt = ticketTypeMap.get(typeId)!;
+      if (tt.quantity - tt.soldCount < qty) {
+        res.status(409).json({ error: `Not enough tickets available for ${tt.name}. Available: ${tt.quantity - tt.soldCount}` });
+        return;
+      }
+    }
+
+    let totalAmount = 0;
+    for (const a of attendees) {
+      const tt = ticketTypeMap.get(a.ticketTypeId)!;
+      totalAmount += tt.price;
+    }
+
+    const [userRecord] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+    const customerEmail = userRecord?.email || `attendee_${req.user.id}@evento.local`;
+    const buyerName = userRecord ? `${userRecord.firstName || ""} ${userRecord.lastName || ""}`.trim() : "Attendee";
+
+    const result = await db.transaction(async (tx) => {
+      for (const [typeId, qty] of quantityByType) {
+        const updated = await tx
+          .update(ticketTypesTable)
+          .set({
+            soldCount: sql`${ticketTypesTable.soldCount} + ${qty}`,
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(ticketTypesTable.id, typeId),
+            sql`${ticketTypesTable.quantity} - ${ticketTypesTable.soldCount} >= ${qty}`,
+          ))
+          .returning({ id: ticketTypesTable.id });
+
+        if (updated.length === 0) {
+          throw new Error(`SOLD_OUT:${ticketTypeMap.get(typeId)!.name}`);
+        }
+      }
+
+      const [order] = await tx
+        .insert(ticketOrdersTable)
+        .values({
+          eventId,
+          buyerUserId: req.user.id,
+          buyerEmail: customerEmail,
+          buyerName,
+          totalAmount,
+          ticketCount: attendees.length,
+          paymentStatus: "pending",
+          paymentMethod,
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        })
+        .returning();
+
+      return order;
+    }).catch((err) => {
+      if (err.message?.startsWith("SOLD_OUT:")) {
+        const name = err.message.replace("SOLD_OUT:", "");
+        res.status(409).json({ error: `Tickets for ${name} are sold out` });
+        return null;
+      }
+      throw err;
+    });
+
+    if (!result) return;
+    const order = result;
+
+    const reference = `ticket_${order.id}_${Date.now()}`;
+    let wompiTransactionId: string | undefined;
+    let redirectUrl: string | undefined;
+
+    try {
+      const acceptanceToken = await fetchWompiAcceptanceToken();
+      const amountCentavos = totalAmount * 100;
+
+      let wompiBody: Record<string, unknown>;
+
+      if (paymentMethod === "card") {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "CARD",
+            token: cardToken,
+            installments: installments ?? 1,
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+        };
+      } else if (paymentMethod === "nequi") {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "NEQUI",
+            phone_number: phoneNumber,
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+        };
+      } else {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "PSE",
+            user_type: 0,
+            user_legal_id_type: userLegalIdType ?? "CC",
+            user_legal_id: userLegalId!,
+            financial_institution_code: bankCode,
+            payment_description: `Entrada ${event.name}`,
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+          redirect_url: `${process.env.APP_URL ?? "https://example.com"}/payment-return`,
+        };
+      }
+
+      const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
+        },
+        body: JSON.stringify(wompiBody),
+      });
+
+      const wompiData = await wompiRes.json() as { data?: { id: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: unknown };
+      if (!wompiRes.ok || !wompiData.data) {
+        logger.error({ wompiData }, "Wompi ticket payment error");
+        await db
+          .update(ticketOrdersTable)
+          .set({ paymentStatus: "cancelled", updatedAt: new Date() })
+          .where(eq(ticketOrdersTable.id, order.id));
+        for (const [typeId, qty] of quantityByType) {
+          await db
+            .update(ticketTypesTable)
+            .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - ${qty}, 0)`, updatedAt: new Date() })
+            .where(eq(ticketTypesTable.id, typeId));
+        }
+        res.status(502).json({ error: "Failed to initiate payment. Try again." });
+        return;
+      }
+
+      wompiTransactionId = wompiData.data.id;
+      redirectUrl = wompiData.data.payment_method?.extra?.async_payment_url;
+    } catch (err) {
+      logger.error({ err }, "Wompi API error");
+      await db
+        .update(ticketOrdersTable)
+        .set({ paymentStatus: "cancelled", updatedAt: new Date() })
+        .where(eq(ticketOrdersTable.id, order.id));
+      for (const [typeId, qty] of quantityByType) {
+        await db
+          .update(ticketTypesTable)
+          .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - ${qty}, 0)`, updatedAt: new Date() })
+          .where(eq(ticketTypesTable.id, typeId));
+      }
+      res.status(502).json({ error: "Payment gateway unavailable. Try again later." });
+      return;
+    }
+
+    await db
+      .update(ticketOrdersTable)
+      .set({ wompiTransactionId, wompiReference: reference, updatedAt: new Date() })
+      .where(eq(ticketOrdersTable.id, order.id));
+
+    await db
+      .insert(wompiPaymentIntentsTable)
+      .values({
+        amount: totalAmount,
+        paymentMethod,
+        wompiTransactionId,
+        wompiReference: reference,
+        status: "pending",
+        performedByUserId: req.user.id,
+        ticketOrderId: order.id,
+        purposeType: "ticket",
+      });
+
+    for (const attendee of attendees) {
+      const normalizedEmail = attendee.email.toLowerCase().trim();
+      const [existingUser] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.email, normalizedEmail));
+
+      await db
+        .insert(ticketsTable)
+        .values({
+          orderId: order.id,
+          ticketTypeId: attendee.ticketTypeId,
+          eventId,
+          attendeeName: attendee.name,
+          attendeeEmail: normalizedEmail,
+          attendeePhone: attendee.phone ?? null,
+          attendeeUserId: existingUser?.id ?? null,
+          status: "valid",
+        });
+    }
+
+    res.status(201).json({
+      orderId: order.id,
+      totalAmount,
+      ticketCount: attendees.length,
+      paymentMethod,
+      wompiTransactionId,
+      redirectUrl: redirectUrl ?? null,
+      status: "pending",
+    });
+  },
+);
+
+router.get(
+  "/tickets/orders/:orderId/status",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { orderId } = req.params as { orderId: string };
+
+    const [order] = await db
+      .select()
+      .from(ticketOrdersTable)
+      .where(eq(ticketOrdersTable.id, orderId));
+
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    if (order.buyerUserId !== req.user.id && req.user.role !== "admin") {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    if (order.paymentStatus === "pending" && order.wompiTransactionId && WOMPI_PRIVATE_KEY) {
+      try {
+        const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions/${order.wompiTransactionId}`, {
+          headers: { Authorization: `Bearer ${WOMPI_PRIVATE_KEY}` },
+        });
+        const wompiData = await wompiRes.json() as { data?: { status: string } };
+        if (wompiRes.ok && wompiData.data) {
+          if (wompiData.data.status === "APPROVED") {
+            const reqLocale = parseAcceptLocale(req.headers["accept-language"]);
+            await processTicketOrderPayment(order.id, order.wompiTransactionId!, reqLocale);
+            const [updated] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, orderId));
+            res.json({ orderId: updated.id, status: updated.paymentStatus });
+            return;
+          } else if (["DECLINED", "ERROR", "VOIDED"].includes(wompiData.data.status)) {
+            await cancelTicketOrder(order.id);
+            res.json({ orderId, status: "cancelled" });
+            return;
+          }
+        }
+      } catch (err) {
+        logger.error({ err }, "Wompi status poll error");
+      }
+    }
+
+    res.json({ orderId: order.id, status: order.paymentStatus });
+  },
+);
+
+router.get(
+  "/tickets/my-tickets",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const tickets = await db
+      .select({
+        id: ticketsTable.id,
+        eventId: ticketsTable.eventId,
+        attendeeName: ticketsTable.attendeeName,
+        status: ticketsTable.status,
+        ticketTypeId: ticketsTable.ticketTypeId,
+        qrCodeToken: ticketsTable.qrCodeToken,
+        orderId: ticketsTable.orderId,
+        createdAt: ticketsTable.createdAt,
+      })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.attendeeUserId, req.user.id));
+
+    const enriched = await Promise.all(
+      tickets.map(async (ticket) => {
+        const [event] = await db
+          .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, coverImageUrl: eventsTable.coverImageUrl })
+          .from(eventsTable)
+          .where(eq(eventsTable.id, ticket.eventId));
+
+        const [ticketType] = await db
+          .select({ name: ticketTypesTable.name, validEventDayIds: ticketTypesTable.validEventDayIds })
+          .from(ticketTypesTable)
+          .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+
+        return {
+          ...ticket,
+          eventName: event?.name ?? null,
+          eventStartsAt: event?.startsAt ?? null,
+          eventCoverImage: event?.coverImageUrl ?? null,
+          ticketTypeName: ticketType?.name ?? null,
+          validEventDayIds: ticketType?.validEventDayIds ?? [],
+        };
+      }),
+    );
+
+    res.json({ tickets: enriched });
+  },
+);
+
+router.get(
+  "/tickets/:ticketId/wallet/apple",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { ticketId } = req.params as { ticketId: string };
+
+    const [ticket] = await db
+      .select()
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, ticketId));
+
+    if (!ticket || !ticket.qrCodeToken) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+
+    if (ticket.attendeeUserId !== req.user.id) {
+      const [order] = await db.select({ buyerUserId: ticketOrdersTable.buyerUserId }).from(ticketOrdersTable).where(eq(ticketOrdersTable.id, ticket.orderId));
+      if (!order || order.buyerUserId !== req.user.id) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
+
+    const { generateAppleWalletPass } = await import("../lib/walletPasses");
+
+    const [event] = await db
+      .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, venueAddress: eventsTable.venueAddress })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, ticket.eventId));
+
+    const [ticketType] = await db
+      .select({ name: ticketTypesTable.name, sectionId: ticketTypesTable.sectionId, validEventDayIds: ticketTypesTable.validEventDayIds })
+      .from(ticketTypesTable)
+      .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+
+    let sectionName = "General";
+    if (ticketType?.sectionId) {
+      const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
+      if (sec) sectionName = sec.name;
+    }
+
+    const validDayIds = (ticketType?.validEventDayIds as string[]) ?? [];
+    let validDays: string[] = [];
+    if (validDayIds.length > 0) {
+      const days = await db.select().from(eventDaysTable).where(inArray(eventDaysTable.id, validDayIds));
+      validDays = days.map((d) => d.label || d.date);
+    }
+
+    const passBuffer = await generateAppleWalletPass({
+      ticketId: ticket.id,
+      eventName: event?.name ?? "Event",
+      eventDate: event?.startsAt?.toISOString().split("T")[0] ?? "",
+      venueName: event?.venueAddress ?? "",
+      venueAddress: event?.venueAddress ?? "",
+      sectionName,
+      attendeeName: ticket.attendeeName,
+      qrCodeToken: ticket.qrCodeToken,
+      validDays,
+    });
+
+    if (!passBuffer) {
+      res.status(503).json({ error: "Apple Wallet pass generation is not configured" });
+      return;
+    }
+
+    res.set({
+      "Content-Type": "application/vnd.apple.pkpass",
+      "Content-Disposition": `attachment; filename="tapee-ticket-${ticket.id.slice(0, 8)}.pkpass"`,
+    });
+    res.send(passBuffer);
+  },
+);
+
+router.get(
+  "/tickets/:ticketId/wallet/google",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { ticketId } = req.params as { ticketId: string };
+
+    const [ticket] = await db
+      .select()
+      .from(ticketsTable)
+      .where(eq(ticketsTable.id, ticketId));
+
+    if (!ticket || !ticket.qrCodeToken) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+
+    if (ticket.attendeeUserId !== req.user.id) {
+      const [order] = await db.select({ buyerUserId: ticketOrdersTable.buyerUserId }).from(ticketOrdersTable).where(eq(ticketOrdersTable.id, ticket.orderId));
+      if (!order || order.buyerUserId !== req.user.id) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
+
+    const [event] = await db
+      .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, venueAddress: eventsTable.venueAddress })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, ticket.eventId));
+
+    const [ticketType] = await db
+      .select({ name: ticketTypesTable.name, sectionId: ticketTypesTable.sectionId, validEventDayIds: ticketTypesTable.validEventDayIds })
+      .from(ticketTypesTable)
+      .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+
+    let sectionName = "General";
+    if (ticketType?.sectionId) {
+      const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
+      if (sec) sectionName = sec.name;
+    }
+
+    const validDayIds = (ticketType?.validEventDayIds as string[]) ?? [];
+    let validDays: string[] = [];
+    if (validDayIds.length > 0) {
+      const days = await db.select().from(eventDaysTable).where(inArray(eventDaysTable.id, validDayIds));
+      validDays = days.map((d) => d.label || d.date);
+    }
+
+    const saveLink = generateGoogleWalletSaveLink({
+      ticketId: ticket.id,
+      eventName: event?.name ?? "Event",
+      eventDate: event?.startsAt?.toISOString().split("T")[0] ?? "",
+      venueName: event?.venueAddress ?? "",
+      venueAddress: event?.venueAddress ?? "",
+      sectionName,
+      attendeeName: ticket.attendeeName,
+      qrCodeToken: ticket.qrCodeToken,
+      validDays,
+    });
+
+    if (!saveLink) {
+      res.status(503).json({ error: "Google Wallet pass generation is not configured" });
+      return;
+    }
+
+    res.json({ saveLink });
+  },
+);
+
+export async function processTicketOrderPayment(orderId: string, wompiTransactionId: string, buyerLocale?: string) {
+  const confirmed = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select()
+      .from(ticketOrdersTable)
+      .where(and(eq(ticketOrdersTable.id, orderId), eq(ticketOrdersTable.paymentStatus, "pending")));
+
+    if (!order) return false;
+
+    await tx
+      .update(ticketOrdersTable)
+      .set({ paymentStatus: "confirmed", updatedAt: new Date() })
+      .where(eq(ticketOrdersTable.id, orderId));
+
+    await tx
+      .update(wompiPaymentIntentsTable)
+      .set({ status: "success", updatedAt: new Date() })
+      .where(eq(wompiPaymentIntentsTable.ticketOrderId, orderId));
+
+    return true;
+  });
+
+  if (!confirmed) return;
+
+  const [order] = await db
+    .select()
+    .from(ticketOrdersTable)
+    .where(eq(ticketOrdersTable.id, orderId));
+
+  if (!order) return;
+
+  const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, order.eventId));
+
+  const existingTickets = await db.select().from(ticketsTable).where(eq(ticketsTable.orderId, orderId));
+
+  for (const ticket of existingTickets) {
+    const qrCodeToken = generateTicketQrToken(ticket.id, ticket.attendeeUserId);
+    await db.update(ticketsTable).set({ qrCodeToken, updatedAt: new Date() }).where(eq(ticketsTable.id, ticket.id));
+
+    if (event) {
+      const [ticketType] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+      const validDayIds = (ticketType?.validEventDayIds as string[]) ?? [];
+      let validDays: string[] = [];
+      if (validDayIds.length > 0) {
+        const days = await db.select().from(eventDaysTable).where(inArray(eventDaysTable.id, validDayIds));
+        validDays = days.map((d) => d.label || d.date);
+      }
+
+      let sectionName = "General";
+      if (ticketType?.sectionId) {
+        const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
+        if (sec) sectionName = sec.name;
+      }
+
+      const hasAccount = !!ticket.attendeeUserId;
+      const attendeeLocale = buyerLocale ?? (event.currencyCode === "USD" ? "en" : "es");
+
+      void sendTicketConfirmationEmail({
+        attendeeName: ticket.attendeeName,
+        attendeeEmail: ticket.attendeeEmail,
+        eventName: event.name,
+        eventDates: [],
+        venueName: event.venueAddress ?? "",
+        venueAddress: event.venueAddress ?? "",
+        sectionName,
+        ticketTypeName: ticketType?.name ?? "",
+        validDays,
+        qrCodeToken,
+        ticketId: ticket.id,
+        orderId,
+        locale: attendeeLocale,
+        hasAccount,
+      }).catch((err) => logger.error(`Failed to send ticket email to ${ticket.attendeeEmail}: ${err}`));
+
+      if (!ticket.attendeeUserId) {
+        void sendTicketInvitationEmail({
+          attendeeName: ticket.attendeeName,
+          attendeeEmail: ticket.attendeeEmail,
+          eventName: event.name,
+          buyerName: order.buyerName ?? "Someone",
+          locale: attendeeLocale,
+        }).catch((err) => logger.error(`Failed to send invitation email to ${ticket.attendeeEmail}: ${err}`));
+      }
+    }
+  }
+}
+
+async function cancelTicketOrder(orderId: string) {
+  const [order] = await db
+    .select()
+    .from(ticketOrdersTable)
+    .where(eq(ticketOrdersTable.id, orderId));
+
+  if (!order || order.paymentStatus !== "pending") return;
+
+  await db
+    .update(ticketOrdersTable)
+    .set({ paymentStatus: "cancelled", updatedAt: new Date() })
+    .where(eq(ticketOrdersTable.id, orderId));
+
+  await db
+    .update(wompiPaymentIntentsTable)
+    .set({ status: "failed", updatedAt: new Date() })
+    .where(eq(wompiPaymentIntentsTable.ticketOrderId, orderId));
+
+  await db
+    .update(ticketsTable)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(eq(ticketsTable.orderId, orderId));
+
+  const tickets = await db
+    .select({ ticketTypeId: ticketsTable.ticketTypeId })
+    .from(ticketsTable)
+    .where(eq(ticketsTable.orderId, orderId));
+
+  const quantityByType = new Map<string, number>();
+  for (const t of tickets) {
+    quantityByType.set(t.ticketTypeId, (quantityByType.get(t.ticketTypeId) || 0) + 1);
+  }
+
+  for (const [typeId, qty] of quantityByType) {
+    await db
+      .update(ticketTypesTable)
+      .set({ soldCount: sql`GREATEST(${ticketTypesTable.soldCount} - ${qty}, 0)`, updatedAt: new Date() })
+      .where(eq(ticketTypesTable.id, typeId));
+  }
+}
+
+router.post(
+  "/tickets/claim",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+    if (!user || !user.email) {
+      res.status(400).json({ error: "User email not found" });
+      return;
+    }
+
+    if (!user.emailVerified) {
+      res.status(403).json({ error: "Email must be verified before claiming tickets" });
+      return;
+    }
+
+    const normalizedEmail = user.email.toLowerCase().trim();
+
+    const unlinkedTickets = await db
+      .select({ id: ticketsTable.id, orderId: ticketsTable.orderId })
+      .from(ticketsTable)
+      .where(and(
+        eq(ticketsTable.attendeeEmail, normalizedEmail),
+        sql`${ticketsTable.attendeeUserId} IS NULL`,
+        eq(ticketsTable.status, "valid"),
+      ));
+
+    if (unlinkedTickets.length === 0) {
+      res.json({ claimed: 0 });
+      return;
+    }
+
+    const ticketIds = unlinkedTickets.map((t) => t.id);
+    await db
+      .update(ticketsTable)
+      .set({ attendeeUserId: req.user.id, updatedAt: new Date() })
+      .where(inArray(ticketsTable.id, ticketIds));
+
+    res.json({ claimed: ticketIds.length, ticketIds });
+  },
+);
+
+export { cancelTicketOrder };
+
+export default router;

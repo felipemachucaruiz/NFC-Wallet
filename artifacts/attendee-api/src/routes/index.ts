@@ -5,6 +5,8 @@ import attendeeRouter from "./attendee";
 import selfServiceRouter from "./selfService";
 import paymentsRouter from "./payments";
 import attestationRouter from "./attestation";
+import catalogueRouter from "./catalogue";
+import ticketsRouter from "./tickets";
 
 const router: IRouter = Router();
 
@@ -14,5 +16,7 @@ router.use(attendeeRouter);
 router.use(selfServiceRouter);
 router.use(paymentsRouter);
 router.use(attestationRouter);
+router.use(catalogueRouter);
+router.use(ticketsRouter);
 
 export default router;
