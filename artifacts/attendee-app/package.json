@@ -11,8 +11,7 @@
     "build:apk": "EXPO_TOKEN=$EXPO_TOKEN eas build -p android --profile preview --non-interactive",
     "build:dev-apk": "EXPO_TOKEN=$EXPO_TOKEN eas build -p android --profile development --non-interactive",
     "android": "expo run:android",
-    "ios": "expo run:ios",
-    "ota:update": "bash ota-update.sh production"
+    "ios": "expo run:ios"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

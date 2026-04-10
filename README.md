@@ -48,7 +48,6 @@ Separate Express API for attendee-facing operations — balance checks, payment 
 | NFC security | HMAC-SHA256 (`balance:counter` signed with `HMAC_SECRET`) |
 | Payments | Wompi (Nequi / PSE) |
 | Mobile builds | EAS Build + EAS Update (OTA) |
-| TLS pinning | react-native-ssl-pinning |
 
 ---
 
@@ -160,24 +159,6 @@ EXPO_TOKEN=$EXPO_TOKEN \
 ```
 
 A new native EAS build is required when adding native modules, changing `app.config.js` permissions, or upgrading the Expo SDK. OTAs use fingerprint-based `runtimeVersion` — only binaries with matching native fingerprints will receive updates.
-
----
-
-## Certificate Pinning
-
-Both apps pin the Tapee API TLS certificate using `react-native-ssl-pinning`. In release builds, any API request to an unpinned host throws a hard error (fail-closed). In development builds, it falls back to standard fetch with a warning.
-
-Cert files live in `assets/certs/` in each app and are bundled via the `withSslPinning` Expo config plugin.
-
-**Rotation procedure:**
-```bash
-# 1. Extract new cert from your production domain
-openssl s_client -connect yourdomain.com:443 </dev/null 2>/dev/null | \
-  openssl x509 -outform DER -out tapee_api_next.cer
-
-# 2. Copy to both apps, trigger a new native EAS build
-# 3. Activate via OTA by updating EXPO_PUBLIC_SSL_CERTS
-```
 
 ---
 

@@ -13,8 +13,7 @@
         "gradleCommand": ":app:assembleDebug"
       },
       "env": {
-        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
-        "EXPO_PUBLIC_SSL_CERTS": "attendee_api"
+        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app"
       }
     },
     "preview": {
@@ -25,8 +24,7 @@
       },
       "env": {
         "EXPO_PUBLIC_DOMAIN": "prod.tapee.app",
-        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
-        "EXPO_PUBLIC_SSL_CERTS": "tapee_api,attendee_api"
+        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app"
       }
     },
     "production-apk": {
@@ -38,7 +36,6 @@
       },
       "env": {
         "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
-        "EXPO_PUBLIC_SSL_CERTS": "attendee_api",
         "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a,armeabi-v7a"
       }
     },
@@ -52,8 +49,7 @@
       },
       "env": {
         "EXPO_PUBLIC_DOMAIN": "prod.tapee.app",
-        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
-        "EXPO_PUBLIC_SSL_CERTS": "tapee_api,attendee_api"
+        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app"
       }
     }
   },

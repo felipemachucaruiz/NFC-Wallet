@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL, WOMPI_PUBLIC_KEY } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
-import { pinnedFetch } from "@/utils/pinnedFetch";
+import { fetchWithTimeout } from "@/utils/fetchWithTimeout";
 import type {
   EventListItem,
   EventDetail,
@@ -24,7 +24,7 @@ function useApiFetch() {
     headers: Record<string, string>,
     options?: RequestInit,
   ): Promise<T> {
-    const res = await pinnedFetch(url, {
+    const res = await fetchWithTimeout(url, {
       ...options,
       headers: { ...headers, "Content-Type": "application/json", ...options?.headers },
       cache: "no-store",
@@ -33,7 +33,7 @@ function useApiFetch() {
     if (res.status === 401) {
       const newToken = await handleUnauthorized();
       if (newToken) {
-        const retryRes = await pinnedFetch(url, {
+        const retryRes = await fetchWithTimeout(url, {
           ...options,
           headers: {
             ...headers,

@@ -16,7 +16,7 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { API_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
-import { pinnedFetch } from "@/utils/pinnedFetch";
+import { fetchWithTimeout } from "@/utils/fetchWithTimeout";
 import { useQueryClient } from "@tanstack/react-query";
 
 type NearbyEvent = {
@@ -53,7 +53,7 @@ export default function SelectEventScreen() {
     setPageState("fetching");
     setErrorMsg("");
     try {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/events/nearby`, {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/attendee/events/nearby`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -85,7 +85,7 @@ export default function SelectEventScreen() {
     setSelectedEvent(event);
     setPageState("linking");
     try {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/attendee/me/bracelets/link`, {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/attendee/me/bracelets/link`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

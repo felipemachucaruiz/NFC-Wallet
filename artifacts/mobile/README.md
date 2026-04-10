@@ -72,7 +72,7 @@ artifacts/mobile/
 ├── i18n/                   # i18next setup, ES/EN translations
 ├── utils/
 │   ├── nfc.ts              # NFC manager (safe try-require)
-│   └── pinnedFetch.ts      # TLS-pinned fetch wrapper
+│   └── fetchWithTimeout.ts # Fetch wrapper with 30s timeout
 └── constants/
     └── domain.ts           # API base URL
 ```

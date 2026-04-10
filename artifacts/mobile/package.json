@@ -10,8 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:apk": "eas build -p android --profile preview",
     "build:dev-apk": "eas build -p android --profile development",
-    "eas:login": "eas login",
-    "ota:update": "bash ota-update.sh production"
+    "eas:login": "eas login"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

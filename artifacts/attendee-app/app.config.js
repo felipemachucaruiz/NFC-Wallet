@@ -59,7 +59,6 @@ module.exports = {
           androidMode: "default",
         },
       ],
-      "./plugins/withNetworkSecurityConfig",
     ],
     experiments: {
       typedRoutes: true,

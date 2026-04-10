@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ATTENDEE_API_BASE_URL, API_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
-import { pinnedFetch } from "@/utils/pinnedFetch";
+import { fetchWithTimeout } from "@/utils/fetchWithTimeout";
 
 function useAuthHeaders(): Record<string, string> {
   const { token } = useAuth();
@@ -9,7 +9,7 @@ function useAuthHeaders(): Record<string, string> {
 }
 
 async function apiFetch<T>(url: string, headers: Record<string, string>): Promise<T> {
-  const res = await pinnedFetch(url, { headers: { ...headers, "Content-Type": "application/json" } });
+  const res = await fetchWithTimeout(url, { headers: { ...headers, "Content-Type": "application/json" } });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string }).error ?? res.statusText);
@@ -54,7 +54,7 @@ export function useBlockBracelet() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ uid, reason }: { uid: string; reason?: string }) => {
-      const res = await pinnedFetch(`${ATTENDEE_API_BASE_URL}/api/attendee/me/bracelets/${uid}/block`, {
+      const res = await fetchWithTimeout(`${ATTENDEE_API_BASE_URL}/api/attendee/me/bracelets/${uid}/block`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
@@ -81,7 +81,7 @@ export function useSubmitRefundRequest() {
       accountDetails?: string;
       notes?: string;
     }) => {
-      const res = await pinnedFetch(`${ATTENDEE_API_BASE_URL}/api/attendee/me/refund-request`, {
+      const res = await fetchWithTimeout(`${ATTENDEE_API_BASE_URL}/api/attendee/me/refund-request`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -103,7 +103,7 @@ export function useLinkBracelet() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ uid, attendeeUserId }: { uid: string; attendeeUserId: string }) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/bank/bracelets/${uid}/link`, {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/bank/bracelets/${uid}/link`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ attendeeUserId }),
@@ -135,7 +135,7 @@ export function useProcessRefundRequest() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: "approved" | "rejected"; notes?: string }) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/bank/attendee-refund-requests/${id}/process`, {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/bank/attendee-refund-requests/${id}/process`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ status, notes }),
@@ -157,7 +157,7 @@ export function useConfirmChipZero() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/bank/attendee-refund-requests/${id}/confirm-chip-zero`, {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/bank/attendee-refund-requests/${id}/confirm-chip-zero`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
       });
@@ -178,7 +178,7 @@ export function useTransferBalance() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ oldUid, newUid }: { oldUid: string; newUid: string }) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/bank/bracelets/transfer-balance`, {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/bank/bracelets/transfer-balance`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ oldUid, newUid }),
@@ -200,7 +200,7 @@ export function useLinkAndTransfer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ oldUid, newUid }: { oldUid: string; newUid: string }) => {
-      const res = await pinnedFetch(`${API_BASE_URL}/api/bank/bracelets/link-and-transfer`, {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/bank/bracelets/link-and-transfer`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ oldUid, newUid }),
