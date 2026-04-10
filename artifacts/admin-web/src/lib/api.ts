@@ -118,7 +118,7 @@ export async function apiFetchVenues(eventId: string) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/venues`), { headers: authHeaders() });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to fetch venues");
-  return data.venues as Array<{ id: string; eventId: string; name: string; address: string | null; city: string | null; latitude: string | null; longitude: string | null }>;
+  return data.venues as Array<{ id: string; eventId: string; name: string; address: string | null; city: string | null; latitude: string | null; longitude: string | null; floorplanImageUrl: string | null }>;
 }
 
 export async function apiCreateVenue(eventId: string, body: { name: string; address?: string; city?: string }) {
@@ -133,6 +133,20 @@ export async function apiFetchSections(eventId: string, venueId: string) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to fetch sections");
   return data.sections as Array<{ id: string; venueId: string; name: string; capacity: number | null; totalTickets: number; soldTickets: number; colorHex: string | null; displayOrder: number }>;
+}
+
+export async function apiUploadVenueFloorplan(eventId: string, venueId: string, file: File) {
+  const formData = new FormData();
+  formData.append("image", file);
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  const res = await fetch(apiUrl(`/api/events/${eventId}/venues/${venueId}/floorplan`), {
+    method: "POST",
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to upload floorplan");
+  return data as { floorplanImageUrl: string };
 }
 
 export async function apiCreateSection(eventId: string, venueId: string, body: { name: string; capacity?: number }) {

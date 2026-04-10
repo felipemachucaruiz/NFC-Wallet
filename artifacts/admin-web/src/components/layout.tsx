@@ -120,7 +120,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <>
                   <NavSectionLabel label={t("nav.ticketingSection")} />
                   <NavItem href="/event-days" icon={CalendarDays} label={t("nav.eventDays")} />
-                  <NavItem href="/event-venue-location" icon={MapPin} label={t("nav.venueLocation")} />
                   <NavItem href="/event-venue-map" icon={Map} label={t("nav.venueMap")} />
                   <NavItem href="/event-ticket-types" icon={Ticket} label={t("nav.ticketTypes")} />
                   <NavItem href="/event-sales-config" icon={ShoppingCart} label={t("nav.salesConfig")} />
@@ -141,7 +140,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <>
                   <NavSectionLabel label={t("nav.ticketingSection")} />
                   <NavItem href="/event-days" icon={CalendarDays} label={t("nav.eventDays")} />
-                  <NavItem href="/event-venue-location" icon={MapPin} label={t("nav.venueLocation")} />
                   <NavItem href="/event-venue-map" icon={Map} label={t("nav.venueMap")} />
                   <NavItem href="/event-ticket-types" icon={Ticket} label={t("nav.ticketTypes")} />
                   <NavItem href="/event-sales-config" icon={ShoppingCart} label={t("nav.salesConfig")} />

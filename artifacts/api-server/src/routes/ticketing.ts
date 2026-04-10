@@ -4,7 +4,32 @@ import { eq, and, asc, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { requireTicketingEnabled } from "../middlewares/featureGating";
 import { z } from "zod";
+import { randomUUID } from "crypto";
+import multer from "multer";
+import { uploadObject, isBucketConfigured } from "../lib/objectStorage";
+import { Storage } from "@google-cloud/storage";
 import { verifyTicketQrToken } from "./ticketCheckin";
+
+const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
+const ticketingStorageClient = new Storage({
+  credentials: {
+    audience: "replit",
+    subject_token_type: "access_token",
+    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+    type: "external_account",
+    credential_source: {
+      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+      format: { type: "json", subject_token_field_name: "access_token" },
+    },
+    universe_domain: "googleapis.com",
+  },
+  projectId: "",
+} as ConstructorParameters<typeof Storage>[0]);
+
+const venueImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 const router: IRouter = Router();
 
@@ -223,6 +248,74 @@ router.post(
       .returning();
 
     res.status(201).json(venue);
+  },
+);
+
+router.post(
+  "/events/:eventId/venues/:venueId/floorplan",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  venueImageUpload.single("image"),
+  async (req: Request, res: Response) => {
+    const { eventId, venueId } = req.params as { eventId: string; venueId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [venue] = await db
+      .select({ id: venuesTable.id })
+      .from(venuesTable)
+      .where(and(eq(venuesTable.id, venueId), eq(venuesTable.eventId, eventId)));
+    if (!venue) {
+      res.status(404).json({ error: "Venue not found" });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: "No image file provided" });
+      return;
+    }
+
+    if (!req.file.mimetype.startsWith("image/")) {
+      res.status(400).json({ error: "Only image files are allowed" });
+      return;
+    }
+
+    try {
+      let imageUrl: string;
+      const prefix = `venue-floorplans/${eventId}/${venueId}`;
+
+      if (isBucketConfigured()) {
+        const key = `${prefix}/floorplan-${randomUUID()}`;
+        imageUrl = await uploadObject(key, req.file.buffer, req.file.mimetype);
+      } else {
+        const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+        if (!bucketId) {
+          res.status(500).json({ error: "No image storage configured" });
+          return;
+        }
+        const objectName = `${prefix}/floorplan-${randomUUID()}`;
+        const bucket = ticketingStorageClient.bucket(bucketId);
+        const file = bucket.file(objectName);
+        await file.save(req.file.buffer, {
+          metadata: { contentType: req.file.mimetype },
+          resumable: false,
+        });
+        imageUrl = `/api/storage/objects/${objectName}`;
+      }
+
+      await db
+        .update(venuesTable)
+        .set({ floorplanImageUrl: imageUrl, updatedAt: new Date() })
+        .where(eq(venuesTable.id, venueId));
+
+      res.json({ floorplanImageUrl: imageUrl });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[ticketing] floorplan upload error:", msg);
+      res.status(500).json({ error: `Failed to upload floorplan: ${msg}` });
+    }
   },
 );
 

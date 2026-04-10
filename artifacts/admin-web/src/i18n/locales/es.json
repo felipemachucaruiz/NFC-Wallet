@@ -944,7 +944,8 @@
     "sectionCreated": "Sección creada",
     "sectionUpdated": "Sección actualizada",
     "sectionDeleted": "Sección eliminada",
-    "imageUploaded": "Imagen del venue subida"
+    "imageUploaded": "Imagen del venue subida",
+    "changeImage": "Cambiar Plano"
   },
   "ticketTypes": {
     "title": "Tipos de Boleta",

@@ -1,18 +1,24 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useGetCurrentAuthUser } from "@workspace/api-client-react";
+import { useGetCurrentAuthUser, useGetEvent } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Pencil, Trash2, Map, Square, Loader2 } from "lucide-react";
+import { Upload, Pencil, Trash2, Map, Square, Loader2, ImageIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
-import { apiFetchVenues, apiFetchSections, apiCreateSection } from "@/lib/api";
+import { apiFetchVenues, apiFetchSections, apiCreateSection, apiCreateVenue, apiUploadVenueFloorplan } from "@/lib/api";
 
 const DEFAULT_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
+
+function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("/api/")) return `${import.meta.env.BASE_URL}_srv${url}`;
+  return url;
+}
 
 export default function EventVenueMap() {
   const { t } = useTranslation();
@@ -22,13 +28,43 @@ export default function EventVenueMap() {
   const { eventId: ctxEventId } = useEventContext();
   const resolvedEventId = auth?.user?.role === "admin" ? ctxEventId : (auth?.user?.eventId ?? "");
 
+  const { data: eventData } = useGetEvent(resolvedEventId || "skip");
+  const event = eventData as Record<string, unknown> | undefined;
+
   const { data: venues = [], isLoading: venuesLoading } = useQuery({
     queryKey: ["venues", resolvedEventId],
     queryFn: () => apiFetchVenues(resolvedEventId),
     enabled: !!resolvedEventId,
   });
 
-  const firstVenueId = venues[0]?.id ?? "";
+  const autoCreateAttempted = useRef(false);
+
+  useEffect(() => {
+    if (venuesLoading || autoCreateAttempted.current || !resolvedEventId || !event) return;
+    if (venues.length > 0) return;
+
+    autoCreateAttempted.current = true;
+    const eventName = (event.name as string) || "Venue";
+    const venueAddress = (event.venueAddress as string) || undefined;
+    const city = (event.city as string) || undefined;
+    apiCreateVenue(resolvedEventId, {
+      name: eventName,
+      address: venueAddress,
+      city,
+    })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["venues", resolvedEventId] });
+      })
+      .catch((err) => {
+        toast({ title: t("common.error"), description: String(err.message || err), variant: "destructive" });
+        autoCreateAttempted.current = false;
+      });
+  }, [venuesLoading, venues.length, resolvedEventId, event, queryClient, toast, t]);
+
+  const firstVenue = venues[0];
+  const firstVenueId = firstVenue?.id ?? "";
+  const savedFloorplan = resolveImageUrl(firstVenue?.floorplanImageUrl);
+
   const { data: sections = [], isLoading: sectionsLoading } = useQuery({
     queryKey: ["sections", resolvedEventId, firstVenueId],
     queryFn: () => apiFetchSections(resolvedEventId, firstVenueId),
@@ -46,7 +82,15 @@ export default function EventVenueMap() {
     onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
   });
 
-  const [bgImage, setBgImage] = useState<string | null>(null);
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => apiUploadVenueFloorplan(resolvedEventId, firstVenueId, file),
+    onSuccess: () => {
+      toast({ title: t("venueMap.imageUploaded") });
+      queryClient.invalidateQueries({ queryKey: ["venues", resolvedEventId] });
+    },
+    onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
+  });
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ name: "", color: "#3b82f6", capacity: "" });
 
@@ -58,15 +102,16 @@ export default function EventVenueMap() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const bgImage = savedFloorplan;
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setBgImage(ev.target?.result as string);
-      toast({ title: t("venueMap.imageUploaded") });
-    };
-    reader.readAsDataURL(file);
+    if (!file.type.startsWith("image/")) {
+      toast({ title: t("common.error"), description: "Only image files are allowed", variant: "destructive" });
+      return;
+    }
+    uploadMutation.mutate(file);
   };
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
@@ -137,8 +182,8 @@ export default function EventVenueMap() {
         </div>
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            <Map className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>{t("venueMap.createVenueFirst", "Please create a venue in the Venue Location page first.")}</p>
+            <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin opacity-50" />
+            <p>{t("common.loading")}</p>
           </CardContent>
         </Card>
       </div>
@@ -154,8 +199,13 @@ export default function EventVenueMap() {
         </div>
         <div className="flex items-center gap-2">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-            <Upload className="w-4 h-4 mr-2" /> {t("venueMap.uploadImage")}
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadMutation.isPending}>
+            {uploadMutation.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="w-4 h-4 mr-2" />
+            )}
+            {bgImage ? t("venueMap.changeImage", "Change Floorplan") : t("venueMap.uploadImage")}
           </Button>
           {bgImage && (
             <Button
@@ -192,8 +242,11 @@ export default function EventVenueMap() {
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
-                      <Map className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                      <p>{t("venueMap.uploadHint")}</p>
+                      <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">{t("venueMap.uploadHint")}</p>
+                      <Button variant="outline" size="sm" className="mt-3" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="w-3.5 h-3.5 mr-1.5" /> {t("venueMap.uploadImage")}
+                      </Button>
                     </div>
                   </div>
                 )}

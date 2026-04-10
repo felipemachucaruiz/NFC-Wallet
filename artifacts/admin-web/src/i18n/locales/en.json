@@ -944,7 +944,8 @@
     "sectionCreated": "Section created",
     "sectionUpdated": "Section updated",
     "sectionDeleted": "Section deleted",
-    "imageUploaded": "Venue image uploaded"
+    "imageUploaded": "Venue image uploaded",
+    "changeImage": "Change Floorplan"
   },
   "ticketTypes": {
     "title": "Ticket Types",

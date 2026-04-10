@@ -47,7 +47,6 @@ import EventSettlement from "@/pages/event-settlement";
 import EventSettings from "@/pages/event-settings";
 import EventDays from "@/pages/event-days";
 import EventVenueMap from "@/pages/event-venue-map";
-import EventVenueLocation from "@/pages/event-venue-location";
 import EventTicketTypes from "@/pages/event-ticket-types";
 import EventSalesConfig from "@/pages/event-sales-config";
 import EventSalesDashboard from "@/pages/event-sales-dashboard";
@@ -216,9 +215,6 @@ function Router() {
       </Route>
       <Route path="/event-venue-map">
         <ModuleGatedRoute component={EventVenueMap} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
-      </Route>
-      <Route path="/event-venue-location">
-        <ModuleGatedRoute component={EventVenueLocation} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
       </Route>
       <Route path="/event-ticket-types">
         <ModuleGatedRoute component={EventTicketTypes} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
