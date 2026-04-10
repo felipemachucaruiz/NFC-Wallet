@@ -55,6 +55,23 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - **Deployment Strategy:** Critical separation of `master` (API services) and `main` (Web Admin) branches for Railway deployments. Pushing to the wrong branch causes production downtime.
 - **Mobile App Updates:** Distributed via APK builds only (OTA updates removed).
 
+# Railway (Production Hosting)
+
+The production services are hosted on Railway. Access credentials are stored as Replit secrets:
+- `RAILWAY_TOKEN` — Railway API/CLI token
+- `RAILWAY_ACCOUNT_TOKEN` — Railway account-level token
+- `RAILWAY_DATABASE_URL` — Direct connection string for the production PostgreSQL database
+
+**Railway domains:**
+- `prod.tapee.app` — Staff API (api-server)
+- `attendee.tapee.app` — Attendee API (attendee-api)
+- `admin.tapee.app` — Web Admin portal
+- `tickets.tapee.app` — Ticket storefront
+
+**DB schema sync:** When new tables/columns are added to `lib/db/src/schema`, the production DB must be updated. Use `psql "$RAILWAY_DATABASE_URL"` to apply SQL directly, since `drizzle-kit push` may hang with interactive prompts.
+
+**Deployment branches:** `master` → API services + mobile. `main` → Web Admin ONLY. See scratchpad for push flow details.
+
 # External Dependencies
 
 - **Database:** PostgreSQL
