@@ -21,24 +21,9 @@ const fs = require("fs");
 
 const NSC_XML = `<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-  <!-- Disable cleartext traffic to Tapee API domains -->
   <domain-config cleartextTrafficPermitted="false">
     <domain includeSubdomains="false">prod.tapee.app</domain>
     <domain includeSubdomains="false">attendee.tapee.app</domain>
-    <!--
-      Pin the Let's Encrypt intermediate CA public keys (SPKI SHA-256).
-      R12 is used by prod.tapee.app; R13 is used by attendee.tapee.app.
-      Both are valid until March 2027. Update when Let's Encrypt rotates intermediates.
-
-      To recompute a pin:
-        openssl x509 -in CERT.cer -inform DER -noout -pubkey |
-        openssl pkey -pubin -outform DER |
-        openssl dgst -sha256 -binary | base64
-    -->
-    <pin-set expiration="2027-03-12">
-      <pin digest="SHA-256">kZwN96eHtZftBWrOZUsd6cA4es80n3NzSk/XtYz2EqQ=</pin>
-      <pin digest="SHA-256">AlSQhgtJirc8ahLyekmtX+Iw+v46yPYRLJt9Cq1GlB0=</pin>
-    </pin-set>
   </domain-config>
 </network-security-config>
 `;
