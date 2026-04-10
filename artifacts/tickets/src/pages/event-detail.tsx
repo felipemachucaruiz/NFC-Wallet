@@ -39,7 +39,7 @@ function DarkMapEmbed({ lat, lng }: { lat: number; lng: number }) {
     return () => { map.remove(); mapRef.current = null; };
   }, [lat, lng]);
 
-  return <div ref={containerRef} style={{ width: "100%", height: "250px", backgroundColor: "#0a0a0a" }} />;
+  return <div ref={containerRef} style={{ width: "100%", height: "250px", backgroundColor: "#0a0a0a", position: "relative", zIndex: 0 }} />;
 }
 
 export default function EventDetail() {
