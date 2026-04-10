@@ -220,10 +220,10 @@
     "nfcBraceletsModule": "NFC Bracelets",
     "nfcBraceletsModuleDesc": "Enable cashless payments with NFC wristbands.",
     "atLeastOneModule": "At least one module must be enabled.",
-    "coverImageUrl": "Cover Image URL",
-    "coverImageUrlPlaceholder": "https://example.com/cover.jpg (16:9 landscape)",
-    "flyerImageUrl": "Flyer Image URL",
-    "flyerImageUrlPlaceholder": "https://example.com/flyer.jpg (1:1 square)"
+    "coverImage": "Cover Image",
+    "flyerImage": "Flyer Image",
+    "clickToUpload": "Click to upload",
+    "imageUploaded": "Image uploaded"
   },
   "products": {
     "title": "Products",

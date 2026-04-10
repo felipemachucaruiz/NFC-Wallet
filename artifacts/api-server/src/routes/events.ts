@@ -1,10 +1,34 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { hashPassword } from "../lib/bcryptWorker";
-import crypto from "crypto";
+import crypto, { randomUUID } from "crypto";
+import multer from "multer";
+import { Storage } from "@google-cloud/storage";
 import { db, eventsTable, eventDaysTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable, convertToCOP, getExchangeRatesForDisplay } from "@workspace/db";
 import { eq, sql, and, ilike, or, count, sum, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
+import { uploadObject, isBucketConfigured } from "../lib/objectStorage";
 import { z } from "zod";
+
+const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
+const objectStorageClient = new Storage({
+  credentials: {
+    audience: "replit",
+    subject_token_type: "access_token",
+    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+    type: "external_account",
+    credential_source: {
+      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+      format: { type: "json", subject_token_field_name: "access_token" },
+    },
+    universe_domain: "googleapis.com",
+  },
+  projectId: "",
+} as ConstructorParameters<typeof Storage>[0]);
+
+const eventImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 export async function getEventInventoryMode(eventId: string): Promise<"location_based" | "centralized_warehouse"> {
   const [event] = await db
@@ -1262,6 +1286,79 @@ router.get(
       braceletCount: bracelets.length,
     });
   }
+);
+
+router.post(
+  "/events/:eventId/image/:imageType",
+  requireRole("admin", "event_admin"),
+  eventImageUpload.single("image"),
+  async (req: Request, res: Response) => {
+    const { eventId, imageType } = req.params;
+
+    if (imageType !== "cover" && imageType !== "flyer") {
+      res.status(400).json({ error: "imageType must be 'cover' or 'flyer'" });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ error: "No image file provided" });
+      return;
+    }
+
+    if (!req.file.mimetype.startsWith("image/")) {
+      res.status(400).json({ error: "Only image files are allowed" });
+      return;
+    }
+
+    const user = req.user!;
+    const [event] = await db.select({ id: eventsTable.id }).from(eventsTable).where(eq(eventsTable.id, eventId));
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    if (user.role === "event_admin" && user.eventId !== eventId) {
+      res.status(403).json({ error: "Event does not belong to your account" });
+      return;
+    }
+
+    try {
+      let imageUrl: string;
+      const prefix = `event-images/${eventId}`;
+
+      if (isBucketConfigured()) {
+        const key = `${prefix}/${imageType}-${randomUUID()}`;
+        imageUrl = await uploadObject(key, req.file.buffer, req.file.mimetype);
+      } else {
+        const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+        if (!bucketId) {
+          res.status(500).json({ error: "No image storage configured" });
+          return;
+        }
+        const objectName = `${prefix}/${imageType}-${randomUUID()}`;
+        const bucket = objectStorageClient.bucket(bucketId);
+        const file = bucket.file(objectName);
+        await file.save(req.file.buffer, {
+          metadata: { contentType: req.file.mimetype },
+          resumable: false,
+        });
+        imageUrl = `/api/storage/objects/${objectName}`;
+      }
+
+      const updateData =
+        imageType === "cover"
+          ? { coverImageUrl: imageUrl, updatedAt: new Date() }
+          : { flyerImageUrl: imageUrl, updatedAt: new Date() };
+
+      await db.update(eventsTable).set(updateData).where(eq(eventsTable.id, eventId));
+
+      res.json({ imageUrl });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[events] image upload error:", msg);
+      res.status(500).json({ error: `Failed to upload image: ${msg}` });
+    }
+  },
 );
 
 export default router;

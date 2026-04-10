@@ -220,10 +220,10 @@
     "nfcBraceletsModule": "Manillas NFC",
     "nfcBraceletsModuleDesc": "Habilita pagos cashless con manillas NFC.",
     "atLeastOneModule": "Al menos un módulo debe estar habilitado.",
-    "coverImageUrl": "URL Imagen de Portada",
-    "coverImageUrlPlaceholder": "https://ejemplo.com/portada.jpg (16:9 landscape)",
-    "flyerImageUrl": "URL Imagen del Flyer",
-    "flyerImageUrlPlaceholder": "https://ejemplo.com/flyer.jpg (1:1 cuadrada)"
+    "coverImage": "Imagen de Portada",
+    "flyerImage": "Imagen del Flyer",
+    "clickToUpload": "Clic para subir",
+    "imageUploaded": "Imagen subida"
   },
   "products": {
     "title": "Productos",

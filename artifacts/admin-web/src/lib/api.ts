@@ -63,6 +63,24 @@ export async function apiForgotPassword(email: string, source: "admin" | "attend
   }
 }
 
+export async function apiUploadEventImage(
+  eventId: string,
+  imageType: "cover" | "flyer",
+  file: File,
+): Promise<{ imageUrl: string }> {
+  const token = localStorage.getItem("tapee_admin_token");
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch(apiUrl(`/api/events/${eventId}/image/${imageType}`), {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Upload failed");
+  return data as { imageUrl: string };
+}
+
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")

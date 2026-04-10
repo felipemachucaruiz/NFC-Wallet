@@ -33,7 +33,7 @@ router.get("/storage/objects/*objectPath", async (req: Request, res: Response) =
     return;
   }
 
-  if (!objectName.startsWith("product-images/")) {
+  if (!objectName.startsWith("product-images/") && !objectName.startsWith("event-images/")) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }

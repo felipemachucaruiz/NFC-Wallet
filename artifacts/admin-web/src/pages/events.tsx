@@ -20,10 +20,11 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, MapPin, ChevronDown, ChevronsUpDown, Check, Building2 } from "lucide-react";
+import { Plus, Search, Pencil, MapPin, ChevronDown, ChevronsUpDown, Check, Building2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { LocationMapPicker } from "@/components/LocationMapPicker";
+import { apiUploadEventImage } from "@/lib/api";
 
 type EventAdminForm = {
   email: string;
@@ -123,7 +124,93 @@ type FormFieldsProps = {
   setMapPickerOpen: (open: boolean) => void;
   adminOpen: boolean;
   setAdminOpen: (open: boolean) => void;
+  eventId?: string;
+  pendingImages?: { cover: File | null; flyer: File | null };
+  setPendingImages?: React.Dispatch<React.SetStateAction<{ cover: File | null; flyer: File | null }>>;
 };
+
+function ImageUploadField({
+  label,
+  currentUrl,
+  eventId,
+  imageType,
+  isCreate,
+  pendingFile,
+  onPendingFileChange,
+  onUploaded,
+}: {
+  label: string;
+  currentUrl: string;
+  eventId?: string;
+  imageType: "cover" | "flyer";
+  isCreate: boolean;
+  pendingFile?: File | null;
+  onPendingFileChange?: (f: File | null) => void;
+  onUploaded?: (url: string) => void;
+}) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const preview = URL.createObjectURL(file);
+    setPreviewUrl(preview);
+
+    if (isCreate) {
+      onPendingFileChange?.(file);
+      return;
+    }
+
+    if (!eventId) return;
+    setUploading(true);
+    try {
+      const { imageUrl } = await apiUploadEventImage(eventId, imageType, file);
+      onUploaded?.(imageUrl);
+      toast({ title: t("events.imageUploaded") });
+    } catch (err: unknown) {
+      toast({ title: t("common.error"), description: (err as Error).message, variant: "destructive" });
+      setPreviewUrl(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const displayUrl = previewUrl || currentUrl;
+  const isCover = imageType === "cover";
+
+  return (
+    <div className="space-y-1">
+      <Label>{label}</Label>
+      <label className={cn(
+        "flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 transition-colors",
+        isCover ? "h-24" : "h-24 w-24",
+        uploading && "opacity-60 pointer-events-none"
+      )}>
+        {displayUrl ? (
+          <img
+            src={displayUrl}
+            alt={label}
+            className={cn("rounded-md object-cover", isCover ? "h-full w-full" : "h-full w-full")}
+            onError={(e) => (e.currentTarget.style.display = "none")}
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-1 text-muted-foreground text-xs p-2">
+            <Upload className="w-5 h-5" />
+            <span>{uploading ? t("events.uploading") : t("events.clickToUpload")}</span>
+          </div>
+        )}
+        <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} disabled={uploading} />
+      </label>
+      {pendingFile && isCreate && (
+        <p className="text-xs text-muted-foreground">{pendingFile.name}</p>
+      )}
+    </div>
+  );
+}
 
 function FormFields({
   isCreate,
@@ -134,6 +221,9 @@ function FormFields({
   setMapPickerOpen,
   adminOpen,
   setAdminOpen,
+  eventId,
+  pendingImages,
+  setPendingImages,
 }: FormFieldsProps) {
   const { t } = useTranslation();
   const [promoterOpen, setPromoterOpen] = useState(false);
@@ -182,28 +272,26 @@ function FormFields({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label>{t("events.coverImageUrl")}</Label>
-          <Input
-            value={form.coverImageUrl}
-            onChange={(e) => setForm((f) => ({ ...f, coverImageUrl: e.target.value }))}
-            placeholder={t("events.coverImageUrlPlaceholder")}
-          />
-          {form.coverImageUrl && (
-            <img src={form.coverImageUrl} alt="Cover preview" className="mt-1 rounded-md h-20 w-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
-          )}
-        </div>
-        <div className="space-y-1">
-          <Label>{t("events.flyerImageUrl")}</Label>
-          <Input
-            value={form.flyerImageUrl}
-            onChange={(e) => setForm((f) => ({ ...f, flyerImageUrl: e.target.value }))}
-            placeholder={t("events.flyerImageUrlPlaceholder")}
-          />
-          {form.flyerImageUrl && (
-            <img src={form.flyerImageUrl} alt="Flyer preview" className="mt-1 rounded-md h-20 w-20 object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
-          )}
-        </div>
+        <ImageUploadField
+          label={t("events.coverImage")}
+          currentUrl={form.coverImageUrl}
+          eventId={eventId}
+          imageType="cover"
+          isCreate={isCreate}
+          pendingFile={pendingImages?.cover}
+          onPendingFileChange={(f) => setPendingImages?.((prev) => ({ ...prev, cover: f }))}
+          onUploaded={(url) => setForm((f) => ({ ...f, coverImageUrl: url }))}
+        />
+        <ImageUploadField
+          label={t("events.flyerImage")}
+          currentUrl={form.flyerImageUrl}
+          eventId={eventId}
+          imageType="flyer"
+          isCreate={isCreate}
+          pendingFile={pendingImages?.flyer}
+          onPendingFileChange={(f) => setPendingImages?.((prev) => ({ ...prev, flyer: f }))}
+          onUploaded={(url) => setForm((f) => ({ ...f, flyerImageUrl: url }))}
+        />
       </div>
 
       <div className="space-y-1">
@@ -460,6 +548,7 @@ export default function Events() {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [form, setForm] = useState<EventForm>(emptyForm);
+  const [pendingImages, setPendingImages] = useState<{ cover: File | null; flyer: File | null }>({ cover: null, flyer: null });
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
 
@@ -536,8 +625,6 @@ export default function Events() {
       currencyCode: form.currencyCode || "COP",
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
-      coverImageUrl: form.coverImageUrl || undefined,
-      flyerImageUrl: form.flyerImageUrl || undefined,
       ...(hasAdmin ? {
         eventAdmin: {
           email: form.eventAdmin.email,
@@ -550,7 +637,19 @@ export default function Events() {
     createEvent.mutate(
       { data: payload },
       {
-        onSuccess: () => { toast({ title: t("events.created") }); setCreateOpen(false); invalidate(); },
+        onSuccess: async (data: any) => {
+          const newEventId = data?.event?.id;
+          if (newEventId) {
+            const uploads: Promise<unknown>[] = [];
+            if (pendingImages.cover) uploads.push(apiUploadEventImage(newEventId, "cover", pendingImages.cover).catch(() => {}));
+            if (pendingImages.flyer) uploads.push(apiUploadEventImage(newEventId, "flyer", pendingImages.flyer).catch(() => {}));
+            if (uploads.length) await Promise.all(uploads);
+          }
+          setPendingImages({ cover: null, flyer: null });
+          toast({ title: t("events.created") });
+          setCreateOpen(false);
+          invalidate();
+        },
         onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
@@ -580,8 +679,6 @@ export default function Events() {
       currencyCode: form.currencyCode || undefined,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
-      coverImageUrl: form.coverImageUrl || null,
-      flyerImageUrl: form.flyerImageUrl || null,
     };
     updateEvent.mutate(
       { eventId: selectedEvent.id, data: payload },
@@ -702,6 +799,8 @@ export default function Events() {
             setMapPickerOpen={setMapPickerOpen}
             adminOpen={adminOpen}
             setAdminOpen={setAdminOpen}
+            pendingImages={pendingImages}
+            setPendingImages={setPendingImages}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
@@ -724,6 +823,7 @@ export default function Events() {
             setMapPickerOpen={setMapPickerOpen}
             adminOpen={adminOpen}
             setAdminOpen={setAdminOpen}
+            eventId={selectedEvent?.id}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
