@@ -2,7 +2,7 @@ export type EventCategory = "concert" | "festival" | "sports" | "theater" | "con
 
 export type TicketAvailability = "available" | "limited" | "sold_out";
 
-export type TicketStatus = "active" | "used" | "cancelled" | "expired";
+export type TicketStatus = "valid" | "active" | "used" | "cancelled" | "expired";
 
 export interface EventDay {
   dayNumber: number;

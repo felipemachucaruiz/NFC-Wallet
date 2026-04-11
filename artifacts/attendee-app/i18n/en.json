@@ -372,6 +372,7 @@
     "attendeeInfo": "Attendee info",
     "addAppleWallet": "Add to Apple Wallet",
     "addGoogleWallet": "Add to Google Wallet",
+    "status_valid": "Valid",
     "status_active": "Active",
     "status_used": "Used",
     "status_cancelled": "Cancelled",

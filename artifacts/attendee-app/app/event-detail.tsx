@@ -58,8 +58,19 @@ export default function EventDetailScreen() {
             <Feather name="arrow-left" size={22} color={C.text} />
           </Pressable>
         </View>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ color: C.textSecondary }}>{t("common.error")}</Text>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 24 }}>
+          <Feather name="wifi-off" size={40} color={C.textMuted} />
+          <Text style={{ color: C.textSecondary, textAlign: "center", fontSize: 15, fontFamily: "Inter_500Medium" }}>
+            {t("common.loadError", "No se pudo cargar el evento")}
+          </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={{ backgroundColor: C.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+          >
+            <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 14 }}>
+              {t("common.goBack", "Volver")}
+            </Text>
+          </Pressable>
         </View>
       </View>
     );

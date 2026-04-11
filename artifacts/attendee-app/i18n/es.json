@@ -371,6 +371,7 @@
     "attendeeInfo": "Datos del asistente",
     "addAppleWallet": "Agregar a Apple Wallet",
     "addGoogleWallet": "Agregar a Google Wallet",
+    "status_valid": "Válida",
     "status_active": "Activa",
     "status_used": "Usada",
     "status_cancelled": "Cancelada",
