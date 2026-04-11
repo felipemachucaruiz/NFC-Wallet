@@ -1,4 +1,4 @@
-import { sendEmail, getAppUrl } from "./email";
+import { sendEmail, getAppUrl, type InlineImage } from "./email";
 import { logger } from "./logger";
 import QRCode from "qrcode";
 
@@ -91,14 +91,18 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
   const appleWalletUrl = `${appUrl}/api/tickets/${data.ticketId}/wallet/apple`;
   const googleWalletUrl = `${appUrl}/api/tickets/${data.ticketId}/wallet/google`;
 
-  let qrDataUrl = "";
+  let qrBase64 = "";
+  const inlineImages: InlineImage[] = [];
   try {
-    qrDataUrl = await QRCode.toDataURL(data.qrCodeToken, {
+    const qrBuffer = await QRCode.toBuffer(data.qrCodeToken, {
       width: 250,
       margin: 2,
       color: { dark: "#000000", light: "#ffffff" },
       errorCorrectionLevel: "M",
+      type: "png",
     });
+    qrBase64 = qrBuffer.toString("base64");
+    inlineImages.push({ name: "qrcode.png", content: qrBase64 });
   } catch (err) {
     logger.error({ err }, "Failed to generate QR code for email");
   }
@@ -107,8 +111,8 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
     ? data.validDays.join(", ")
     : (isEs ? "Todos los días" : "All days");
 
-  const qrImageHtml = qrDataUrl
-    ? `<img src="${qrDataUrl}" alt="QR Code" width="250" height="250" style="display:block;margin:0 auto 12px;border-radius:8px;" />`
+  const qrImageHtml = qrBase64
+    ? `<img src="cid:qrcode.png" alt="QR Code" width="250" height="250" style="display:block;margin:0 auto 12px;border-radius:8px;" />`
     : `<p style="color: #ef4444; font-size: 14px; margin: 0 0 8px;">${isEs ? "No se pudo generar el código QR. Usa la app de Tapee." : "QR code could not be generated. Use the Tapee app."}</p>`;
 
   const body = `
@@ -152,6 +156,7 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
     subject,
     htmlContent,
     textContent,
+    inlineImages,
   });
 }
 

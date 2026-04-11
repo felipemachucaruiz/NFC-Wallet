@@ -48,12 +48,18 @@ function emailWrapper(body: string): string {
 </html>`;
 }
 
+export interface InlineImage {
+  name: string;
+  content: string;
+}
+
 interface SendEmailOptions {
   to: string;
   toName?: string;
   subject: string;
   htmlContent: string;
   textContent?: string;
+  inlineImages?: InlineImage[];
 }
 
 export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
@@ -63,19 +69,28 @@ export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
   }
 
   try {
+    const payload: Record<string, unknown> = {
+      sender: { name: FROM_NAME, email: FROM_EMAIL },
+      to: [{ email: opts.to, name: opts.toName ?? opts.to }],
+      subject: opts.subject,
+      htmlContent: opts.htmlContent,
+      textContent: opts.textContent,
+    };
+
+    if (opts.inlineImages && opts.inlineImages.length > 0) {
+      payload.attachment = opts.inlineImages.map((img) => ({
+        name: img.name,
+        content: img.content,
+      }));
+    }
+
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "api-key": BREVO_API_KEY,
       },
-      body: JSON.stringify({
-        sender: { name: FROM_NAME, email: FROM_EMAIL },
-        to: [{ email: opts.to, name: opts.toName ?? opts.to }],
-        subject: opts.subject,
-        htmlContent: opts.htmlContent,
-        textContent: opts.textContent,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
