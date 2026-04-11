@@ -7,9 +7,9 @@ import { requireTicketingEnabled } from "../middlewares/featureGating";
 import { z } from "zod";
 
 function getTicketQrSecret(): string {
-  const secret = process.env.TICKET_QR_SECRET;
+  const secret = process.env.TICKET_QR_SECRET || process.env.HMAC_SECRET;
   if (!secret) {
-    throw new Error("TICKET_QR_SECRET environment variable is required for ticket QR code verification");
+    throw new Error("TICKET_QR_SECRET or HMAC_SECRET environment variable is required for ticket QR code verification");
   }
   return secret;
 }

@@ -92,8 +92,12 @@ async function resolveTicketFromDb(ticketId: string, eventId: string): Promise<T
     })
     .from(ticketsTable)
     .where(eq(ticketsTable.id, ticketId));
-  if (!ticket || ticket.eventId !== eventId) return null;
+  // Note: we intentionally do NOT filter by eventId here so cross-event scans
+  // return WRONG_EVENT (not INVALID_TICKET) in the route handler.
+  if (!ticket) return null;
   if (ticket.status === "cancelled") return null;
+  // Use the ticket's actual eventId for day lookups, regardless of requested eventId
+  const ticketEventId = ticket.eventId;
 
   let zid = "";
   let typ = "";
@@ -123,7 +127,7 @@ async function resolveTicketFromDb(ticketId: string, eventId: string): Promise<T
     const allDays = await db
       .select({ id: eventDaysTable.id, label: eventDaysTable.label, displayOrder: eventDaysTable.displayOrder })
       .from(eventDaysTable)
-      .where(eq(eventDaysTable.eventId, eventId));
+      .where(eq(eventDaysTable.eventId, ticketEventId));
     allDays.sort((a, b) => a.displayOrder - b.displayOrder);
     for (let i = 0; i < allDays.length; i++) {
       if (validDayIds.includes(allDays[i].id)) {
@@ -157,7 +161,7 @@ async function resolveQrToken(qrToken: string, eventHmacSecret: string, eventId:
   const [ticketByToken] = await db
     .select({ id: ticketsTable.id })
     .from(ticketsTable)
-    .where(and(eq(ticketsTable.qrCodeToken, qrToken), eq(ticketsTable.eventId, eventId)));
+    .where(eq(ticketsTable.qrCodeToken, qrToken));
   if (ticketByToken) {
     return resolveTicketFromDb(ticketByToken.id, eventId);
   }
