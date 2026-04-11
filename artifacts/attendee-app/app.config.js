@@ -17,7 +17,7 @@ module.exports = {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.tapee.attendee",
-      buildNumber: "15",
+      buildNumber: "16",
       infoPlist: {
         NFCReaderUsageDescription: "Used to read NFC wristbands for cashless payments.",
         ITSAppUsesNonExemptEncryption: false,
