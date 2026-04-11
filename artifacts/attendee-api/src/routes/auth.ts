@@ -144,12 +144,14 @@ router.get("/auth/user", async (req: Request, res: Response) => {
 
   // Fetch emailVerified for this user
   let emailVerified = false;
+  let userPhone: string | null = null;
   try {
     const [dbUser] = await db
-      .select({ emailVerified: usersTable.emailVerified })
+      .select({ emailVerified: usersTable.emailVerified, phone: usersTable.phone })
       .from(usersTable)
       .where(eq(usersTable.id, u.id));
     emailVerified = dbUser?.emailVerified ?? false;
+    userPhone = dbUser?.phone ?? null;
   } catch {
     // Non-fatal
   }
@@ -163,6 +165,7 @@ router.get("/auth/user", async (req: Request, res: Response) => {
       eventName,
       gateZoneId: (u as unknown as { gateZoneId?: string | null }).gateZoneId ?? null,
       emailVerified,
+      phone: userPhone,
     },
   });
 });

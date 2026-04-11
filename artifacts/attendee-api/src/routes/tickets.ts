@@ -292,6 +292,25 @@ router.post(
     if (!result) return;
     const order = result;
 
+    const buyerPhone = attendees[0]?.phone;
+    if (buyerPhone && req.user?.id) {
+      try {
+        const [currentUser] = await db
+          .select({ phone: usersTable.phone })
+          .from(usersTable)
+          .where(eq(usersTable.id, req.user.id));
+        if (currentUser && !currentUser.phone) {
+          await db
+            .update(usersTable)
+            .set({ phone: buyerPhone, updatedAt: new Date() })
+            .where(eq(usersTable.id, req.user.id));
+          logger.info({ userId: req.user.id }, "Saved phone number from ticket purchase to user profile");
+        }
+      } catch (err) {
+        logger.error({ err }, "Failed to save phone to user profile");
+      }
+    }
+
     if (paymentMethod === "free") {
       for (const attendee of attendees) {
         const normalizedEmail = attendee.email.toLowerCase().trim();

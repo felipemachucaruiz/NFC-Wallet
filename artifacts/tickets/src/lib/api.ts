@@ -158,6 +158,7 @@ export interface ApiUser {
   lastName: string | null;
   profileImageUrl: string | null;
   role: string;
+  phone?: string | null;
 }
 
 export async function fetchAuthProviders(): Promise<{ providers: { google?: string } }> {

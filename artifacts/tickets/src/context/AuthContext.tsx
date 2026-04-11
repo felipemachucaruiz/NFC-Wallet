@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: res.user.email || "",
             firstName: res.user.firstName || "",
             lastName: res.user.lastName || "",
-            phone: "",
+            phone: res.user.phone || "",
           });
         } else {
           setAuthToken(null);
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: userRes.user.email || "",
         firstName: userRes.user.firstName || "",
         lastName: userRes.user.lastName || "",
-        phone: "",
+        phone: userRes.user.phone || "",
       });
       setShowAuthModal(false);
       return true;
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: userRes.user.email || "",
         firstName: userRes.user.firstName || "",
         lastName: userRes.user.lastName || "",
-        phone: "",
+        phone: userRes.user.phone || "",
       });
       setShowAuthModal(false);
       return true;
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: userRes.user.email || "",
         firstName: userRes.user.firstName || "",
         lastName: userRes.user.lastName || "",
-        phone: "",
+        phone: userRes.user.phone || "",
       });
       setShowAuthModal(false);
       return true;
