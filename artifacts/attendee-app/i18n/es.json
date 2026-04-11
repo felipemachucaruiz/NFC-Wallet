@@ -346,6 +346,8 @@
     "invalidEmail": "Correo electrónico inválido",
     "orderSummary": "Resumen de orden",
     "proceedToPayment": "Ir a pagar",
+    "confirmFree": "Obtener boletas gratis",
+    "free": "Gratis",
     "checkout": "Pago",
     "subtotal": "Subtotal",
     "serviceFees": "Cargos por servicio",

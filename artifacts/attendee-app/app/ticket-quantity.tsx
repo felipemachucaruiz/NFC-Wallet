@@ -145,7 +145,7 @@ export default function TicketQuantityScreen() {
           <View style={[styles.totalRow, { borderTopColor: C.border }]}>
             <Text style={[styles.totalLabel, { color: C.text }]}>{t("tickets.total")}</Text>
             <Text style={[styles.totalValue, { color: C.primary }]}>
-              {formatCurrency(total, currencyCode)}
+              {total === 0 ? t("tickets.free") : formatCurrency(total, currencyCode)}
             </Text>
           </View>
         </Card>

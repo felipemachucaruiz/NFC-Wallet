@@ -347,6 +347,8 @@
     "invalidEmail": "Invalid email address",
     "orderSummary": "Order summary",
     "proceedToPayment": "Proceed to payment",
+    "confirmFree": "Get free tickets",
+    "free": "Free",
     "checkout": "Checkout",
     "subtotal": "Subtotal",
     "serviceFees": "Service fees",

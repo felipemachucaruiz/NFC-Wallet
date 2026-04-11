@@ -14,10 +14,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/utils/format";
+import { usePurchaseTickets } from "@/hooks/useEventsApi";
 import type { AttendeeInfo, OrderTicket } from "@/types/events";
 
 function isValidEmail(email: string): boolean {
@@ -26,11 +28,13 @@ function isValidEmail(email: string): boolean {
 
 export default function AttendeeFormScreen() {
   const { t } = useTranslation();
+  const { show: showAlert } = useAlert();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { user } = useAuth();
+  const { mutate: purchaseTickets, isPending: isPurchasing } = usePurchaseTickets();
 
   const params = useLocalSearchParams<{
     eventId: string;
@@ -95,6 +99,11 @@ export default function AttendeeFormScreen() {
     return true;
   };
 
+  const subtotal = price * quantity;
+  const totalFees = serviceFee * quantity;
+  const total = subtotal + totalFees;
+  const isFree = total === 0;
+
   const handleContinue = () => {
     if (!validateAll()) return;
 
@@ -108,9 +117,28 @@ export default function AttendeeFormScreen() {
       attendee: a,
     }));
 
-    const subtotal = price * quantity;
-    const totalFees = serviceFee * quantity;
-    const total = subtotal + totalFees;
+    if (isFree) {
+      purchaseTickets(
+        {
+          eventId: params.eventId ?? "",
+          tickets: tickets.map((tk) => ({
+            ticketTypeId: tk.ticketTypeId,
+            attendee: tk.attendee,
+          })),
+          paymentMethod: "free",
+        },
+        {
+          onSuccess: () => {
+            router.replace("/(tabs)/my-tickets");
+          },
+          onError: (err: unknown) => {
+            const msg = (err as { message?: string }).message ?? t("common.unknownError");
+            showAlert(t("common.error"), msg);
+          },
+        },
+      );
+      return;
+    }
 
     router.push({
       pathname: "/ticket-checkout",
@@ -255,15 +283,17 @@ export default function AttendeeFormScreen() {
                 )}
               </View>
               <Text style={[styles.orderPrice, { color: C.text }]}>
-                {formatCurrency(price + serviceFee, currencyCode)}
+                {isFree ? t("tickets.free") : formatCurrency(price + serviceFee, currencyCode)}
               </Text>
             </View>
           ))}
         </Card>
 
         <Button
-          title={t("tickets.proceedToPayment")}
+          title={isPurchasing ? t("common.processing") : isFree ? t("tickets.confirmFree") : t("tickets.proceedToPayment")}
           onPress={handleContinue}
+          disabled={isPurchasing}
+          loading={isPurchasing}
           variant="primary"
           fullWidth
           size="lg"
