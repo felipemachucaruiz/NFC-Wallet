@@ -3,7 +3,8 @@ import { logger } from "./logger";
 const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
 const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
 const GUPSHUP_SOURCE = process.env.GUPSHUP_SOURCE_NUMBER;
-const GUPSHUP_API_URL = "https://api.gupshup.io/wa/api/v1/msg";
+const GUPSHUP_MSG_URL = "https://api.gupshup.io/wa/api/v1/msg";
+const GUPSHUP_TEMPLATE_URL = "https://api.gupshup.io/wa/api/v1/template/msg";
 
 function isConfigured(): boolean {
   return !!(GUPSHUP_API_KEY && GUPSHUP_APP_NAME && GUPSHUP_SOURCE);
@@ -32,7 +33,7 @@ async function sendGupshupRequest(destination: string, message: Record<string, u
   body.append("src.name", GUPSHUP_APP_NAME!);
 
   try {
-    const res = await fetch(GUPSHUP_API_URL, {
+    const res = await fetch(GUPSHUP_MSG_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -80,7 +81,11 @@ export async function sendWhatsAppTemplate(
   destination: string,
   templateId: string,
   params: TemplateParam[],
+  isAuthentication?: boolean,
 ): Promise<boolean> {
+  if (isAuthentication) {
+    return sendAuthenticationTemplate(destination, templateId, params);
+  }
   return sendGupshupRequest(destination, {
     type: "template",
     template: {
@@ -88,6 +93,63 @@ export async function sendWhatsAppTemplate(
       params,
     },
   });
+}
+
+async function sendAuthenticationTemplate(
+  destination: string,
+  templateId: string,
+  params: TemplateParam[],
+): Promise<boolean> {
+  if (!isConfigured()) {
+    logger.warn("Gupshup WhatsApp not configured — skipping send");
+    return false;
+  }
+
+  const phone = normalizePhone(destination);
+  const otpCode = params[0]?.text || "";
+  const templatePayload = {
+    id: templateId,
+    params: [otpCode, otpCode],
+  };
+
+  const body = new URLSearchParams();
+  body.append("channel", "whatsapp");
+  body.append("source", GUPSHUP_SOURCE!);
+  body.append("destination", phone);
+  body.append("template", JSON.stringify(templatePayload));
+  body.append("src.name", GUPSHUP_APP_NAME!);
+
+  try {
+    const res = await fetch(GUPSHUP_TEMPLATE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        apikey: GUPSHUP_API_KEY!,
+      },
+      body: body.toString(),
+    });
+
+    const responseText = await res.text();
+
+    if (!res.ok) {
+      logger.error({ status: res.status, body: responseText }, "Gupshup auth template send failed");
+      return false;
+    }
+
+    let parsed: Record<string, unknown> = {};
+    try { parsed = JSON.parse(responseText); } catch {}
+
+    if (parsed.status === "error") {
+      logger.error({ response: parsed }, "Gupshup auth template returned error");
+      return false;
+    }
+
+    logger.info({ destination: phone, templateId }, "WhatsApp auth template sent successfully");
+    return true;
+  } catch (err) {
+    logger.error({ err }, "Gupshup auth template send error");
+    return false;
+  }
 }
 
 export async function sendWhatsAppDocument(

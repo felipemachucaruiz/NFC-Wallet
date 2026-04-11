@@ -17,6 +17,7 @@ export interface ResolvedTemplate {
   parameters: Array<{ name: string; description: string; example?: string }>;
   parameterMappings: ParameterMapping[];
   bodyPreview: string | null;
+  category: string;
 }
 
 export async function resolveTemplate(triggerType: TriggerType, eventId?: string): Promise<ResolvedTemplate | null> {
@@ -58,6 +59,7 @@ export async function resolveTemplate(triggerType: TriggerType, eventId?: string
       parameters: (resolved.template.parameters as any) || [],
       parameterMappings: (resolved.mapping.parameterMappings as ParameterMapping[]) || [],
       bodyPreview: resolved.template.bodyPreview,
+      category: resolved.template.category,
     };
   } catch (err) {
     logger.error({ err, triggerType, eventId }, "Failed to resolve WhatsApp template");
@@ -108,7 +110,8 @@ export async function sendWithTemplate(
     ? buildParamsFromMappings(template.parameterMappings, context, paramValues)
     : paramValues;
 
+  const isAuth = template.category === "AUTHENTICATION";
   const params: TemplateParam[] = finalValues.map((text) => ({ type: "text", text }));
-  const sent = await sendWhatsAppTemplate(destination, template.gupshupTemplateId, params);
+  const sent = await sendWhatsAppTemplate(destination, template.gupshupTemplateId, params, isAuth);
   return { sent, usedTemplate: true };
 }
