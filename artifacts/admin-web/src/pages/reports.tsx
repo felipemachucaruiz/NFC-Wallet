@@ -44,24 +44,24 @@ export default function Reports() {
         <p className="text-muted-foreground mt-1">{t("reports.subtitle")}</p>
       </div>
 
-      <div className="flex flex-wrap gap-4 p-4 bg-card border border-border rounded-lg">
-        <div className="space-y-1 min-w-48">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-card border border-border rounded-lg">
+        <div className="space-y-1.5">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("reports.event")}</Label>
           <Select value={eventId || "all"} onValueChange={(v) => setEventId(v === "all" ? "" : v)}>
-            <SelectTrigger data-testid="select-report-event"><SelectValue placeholder={t("reports.allEvents")} /></SelectTrigger>
+            <SelectTrigger data-testid="select-report-event" className="w-full"><SelectValue placeholder={t("reports.allEvents")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("reports.allEvents")}</SelectItem>
               {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("reports.startDate")}</Label>
-          <DatePicker data-testid="input-report-start" value={startDate} onChange={setStartDate} className="w-48" />
+          <DatePicker data-testid="input-report-start" value={startDate} onChange={setStartDate} className="w-full" />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("reports.endDate")}</Label>
-          <DatePicker data-testid="input-report-end" value={endDate} onChange={setEndDate} className="w-48" />
+          <DatePicker data-testid="input-report-end" value={endDate} onChange={setEndDate} className="w-full" />
         </div>
       </div>
 
