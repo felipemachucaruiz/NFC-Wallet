@@ -88,7 +88,7 @@ import PDFDocument from "pdfkit";
     const TH = PAGE_H - TY * 2; // 576
     const TR = 16;             // corner radius
 
-    const FLYER_H = 195;       // height of the flyer/image area
+    const FLYER_H = 210;       // height of the flyer/image area
     const NOTCH_Y = TY + FLYER_H; // where the notch/perforation sits
     const NOTCH_R = 14;        // notch semicircle radius
 
@@ -106,10 +106,21 @@ import PDFDocument from "pdfkit";
     // We'll redraw it clipped for content
     doc.roundedRect(TX, TY, TW, TH, TR).fill("#131313");
 
-    // Flyer area clip
-    doc.save();
-    ticketPath(doc, TX, TY, TW, TH, TR, NOTCH_Y, NOTCH_R);
+    // ── Flyer area (clipped to top-rounded shape) ────────────────────────────────
     {
+      // Build clip: rectangle with rounded corners only at top, straight at notch line
+      doc.save();
+      // Clip to flyer area: rounded top corners only, straight at notch line
+      doc
+        .moveTo(TX, NOTCH_Y)
+        .lineTo(TX, TY + TR)
+        .quadraticCurveTo(TX, TY, TX + TR, TY)
+        .lineTo(TX + TW - TR, TY)
+        .quadraticCurveTo(TX + TW, TY, TX + TW, TY + TR)
+        .lineTo(TX + TW, NOTCH_Y)
+        .closePath()
+        .clip();
+
       let flyerLoaded = false;
       if (data.flyerImageUrl) {
         const imgBuf = await fetchImageBuffer(data.flyerImageUrl);
@@ -126,10 +137,7 @@ import PDFDocument from "pdfkit";
               drawW = TW; drawH = TW / imgAspect;
               drawX = TX; drawY = TY + (FLYER_H - drawH) / 2;
             }
-            doc.save();
-            doc.rect(TX, TY, TW, FLYER_H).clip();
             doc.image(imgBuf, drawX, drawY, { width: drawW, height: drawH });
-            doc.restore();
             flyerLoaded = true;
           } catch (err) {
             logger.warn({ err }, "Failed to embed flyer image in PDF");
@@ -143,14 +151,8 @@ import PDFDocument from "pdfkit";
         doc.fontSize(10).font("Helvetica").fillColor("#8b949e")
           .text("Eventos Cashless", TX, TY + FLYER_H / 2 + 12, { width: TW, align: "center" });
       }
-
-      // Gradient fade at bottom of flyer into ticket body
-      const grad = doc.linearGradient(0, NOTCH_Y - 60, 0, NOTCH_Y);
-      grad.stop(0, "#131313", 0);
-      grad.stop(1, "#131313", 1);
-      doc.rect(TX, NOTCH_Y - 60, TW, 60).fill(grad);
+      doc.restore();
     }
-    doc.restore();
 
     // ── Notch cutouts (drawn in page background color to punch holes in ticket) ──
     doc.circle(TX, NOTCH_Y, NOTCH_R).fill("#0a0a0a");
