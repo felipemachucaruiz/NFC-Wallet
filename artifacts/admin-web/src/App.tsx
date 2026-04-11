@@ -91,6 +91,7 @@ import EventSalesDashboard from "@/pages/event-sales-dashboard";
 import EventOrders from "@/pages/event-orders";
 import EventCheckins from "@/pages/event-checkins";
 import EventGuestLists from "@/pages/event-guest-lists";
+import WhatsAppTemplates from "@/pages/whatsapp-templates";
 
 const queryClient = new QueryClient();
 
@@ -205,6 +206,9 @@ function Router() {
       </Route>
       <Route path="/ticketing">
         <ProtectedRoute component={Ticketing} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/whatsapp-templates">
+        <ProtectedRoute component={WhatsAppTemplates} allowedRoles={["admin"]} />
       </Route>
 
       {/* Event Admin Routes */}

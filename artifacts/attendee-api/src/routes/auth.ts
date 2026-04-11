@@ -890,8 +890,14 @@ router.post("/auth/whatsapp-otp/send", async (req: Request, res: Response) => {
   const code = generateOtp();
   otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
 
-  const message = `🔐 Tu código de verificación Tapee es: *${code}*\n\nExpira en 5 minutos. No compartas este código con nadie.`;
-  const sent = await sendWhatsAppText(phone, message);
+  const { sendWithTemplate } = await import("../lib/templateResolver");
+  const templateResult = await sendWithTemplate(phone, "otp_verification", [code]);
+  let sent = templateResult.sent;
+
+  if (!templateResult.usedTemplate) {
+    const message = `🔐 Tu código de verificación Tapee es: *${code}*\n\nExpira en 5 minutos. No compartas este código con nadie.`;
+    sent = await sendWhatsAppText(phone, message);
+  }
 
   if (!sent) {
     otpStore.delete(phone);

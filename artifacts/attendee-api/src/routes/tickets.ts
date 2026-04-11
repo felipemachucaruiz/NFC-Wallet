@@ -778,6 +778,7 @@ async function sendTicketWhatsApp(data: {
   ticketId: string;
   attendeeName: string;
   attendeePhone: string;
+  eventId?: string;
   eventName: string;
   venueName: string;
   venueAddress: string;
@@ -795,24 +796,37 @@ async function sendTicketWhatsApp(data: {
     ? data.validDays.join(", ")
     : "Todos los días";
 
-  const message = [
-    `🎟️ *Tu entrada para ${data.eventName}*`,
-    ``,
-    `Hola ${data.attendeeName}, tu entrada ha sido confirmada.`,
-    ``,
-    `📍 *Lugar:* ${data.venueName}`,
-    data.venueAddress !== data.venueName ? `📌 *Dirección:* ${data.venueAddress}` : "",
-    `🎫 *Sección:* ${data.sectionName}`,
-    `🏷️ *Tipo:* ${data.ticketTypeName}`,
-    `📅 *Días válidos:* ${validDaysStr}`,
-    `🔖 *Orden:* ${data.orderId.slice(0, 8)}`,
-    ``,
-    `Presenta el código QR adjunto en la puerta del evento.`,
-    ``,
-    `— Tapee`,
-  ].filter(Boolean).join("\n");
+  const { sendWithTemplate } = await import("../lib/templateResolver");
+  const templateResult = await sendWithTemplate(
+    data.attendeePhone,
+    "ticket_purchased",
+    [data.attendeeName, data.eventName, data.venueName, data.sectionName, data.ticketTypeName, validDaysStr],
+    data.eventId,
+  );
 
-  const textSent = await sendWhatsAppText(data.attendeePhone, message);
+  let textSent = templateResult.sent;
+
+  if (!templateResult.usedTemplate) {
+    const message = [
+      `🎟️ *Tu entrada para ${data.eventName}*`,
+      ``,
+      `Hola ${data.attendeeName}, tu entrada ha sido confirmada.`,
+      ``,
+      `📍 *Lugar:* ${data.venueName}`,
+      data.venueAddress !== data.venueName ? `📌 *Dirección:* ${data.venueAddress}` : "",
+      `🎫 *Sección:* ${data.sectionName}`,
+      `🏷️ *Tipo:* ${data.ticketTypeName}`,
+      `📅 *Días válidos:* ${validDaysStr}`,
+      `🔖 *Orden:* ${data.orderId.slice(0, 8)}`,
+      ``,
+      `Presenta el código QR adjunto en la puerta del evento.`,
+      ``,
+      `— Tapee`,
+    ].filter(Boolean).join("\n");
+
+    textSent = await sendWhatsAppText(data.attendeePhone, message);
+  }
+
   if (!textSent) {
     logger.warn({ phone: data.attendeePhone }, "WhatsApp text message failed, skipping PDF");
     return;
@@ -907,6 +921,7 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
           ticketId: ticket.id,
           attendeeName: ticket.attendeeName,
           attendeePhone: ticket.attendeePhone,
+          eventId: order.eventId,
           eventName: event.name,
           venueName: event.venueAddress ?? "",
           venueAddress: event.venueAddress ?? "",

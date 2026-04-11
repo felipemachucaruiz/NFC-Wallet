@@ -60,7 +60,7 @@ router.post(
       }
     }
 
-    const text = customMessage || [
+    const fallbackText = customMessage || [
       `📢 *Recordatorio: ${event.name}*`,
       ``,
       `Hola, te recordamos que el evento *${event.name}* es pronto.`,
@@ -72,12 +72,22 @@ router.post(
       `— Tapee`,
     ].filter(Boolean).join("\n");
 
+    const { resolveTemplate, sendWithTemplate } = await import("../lib/templateResolver");
+    const hasTemplate = !customMessage && await resolveTemplate("event_reminder", eventId);
+
     let sent = 0;
     let failed = 0;
 
-    for (const [phone] of uniquePhones) {
+    for (const [phone, name] of uniquePhones) {
       try {
-        const ok = await sendWhatsAppText(phone, text);
+        let ok = false;
+        if (hasTemplate) {
+          const result = await sendWithTemplate(phone, "event_reminder", [name, event.name, event.venueAddress || ""], eventId);
+          ok = result.sent;
+        }
+        if (!ok) {
+          ok = await sendWhatsAppText(phone, fallbackText);
+        }
         if (ok) sent++;
         else failed++;
       } catch {

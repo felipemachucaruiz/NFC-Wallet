@@ -67,7 +67,8 @@
     "guestLists": "Guest Lists",
     "backToEvents": "Back to Events",
     "manageTicketing": "Manage Ticketing",
-    "ticketing": "Ticketing"
+    "ticketing": "Ticketing",
+    "whatsappTemplates": "WhatsApp"
   },
   "ticketingHub": {
     "title": "Ticketing",
@@ -1169,5 +1170,67 @@
     "maxGuestsLabel": "Max Guests",
     "publicLabel": "Show on event page (public)",
     "expiresAtLabel": "Expiration Date (optional)"
+  },
+  "whatsapp": {
+    "title": "WhatsApp Templates",
+    "description": "Manage your Gupshup WhatsApp templates and assign them to triggers.",
+    "templatesTab": "Templates",
+    "triggersTab": "Trigger Mappings",
+    "addTemplate": "Add Template",
+    "editTemplate": "Edit Template",
+    "deleteTemplate": "Delete Template",
+    "deleteTemplateConfirm": "Are you sure you want to delete this template? This will also remove all its trigger mappings.",
+    "templateName": "Display Name",
+    "templateNamePlaceholder": "e.g. Ticket Confirmation",
+    "gupshupId": "Gupshup Template ID",
+    "gupshupIdPlaceholder": "e.g. ticket_confirmation_v1",
+    "language": "Language",
+    "category": "Category",
+    "bodyPreview": "Body Preview",
+    "bodyPreviewPlaceholder": "Preview of the template message body...",
+    "parameters": "Parameters",
+    "paramName": "Parameter Name",
+    "paramDescription": "Description",
+    "paramExample": "Example",
+    "addParam": "Add Parameter",
+    "noTemplates": "No templates registered yet",
+    "templateCreated": "Template created",
+    "templateUpdated": "Template updated",
+    "templateDeleted": "Template deleted",
+    "addMapping": "Add Trigger Mapping",
+    "editMapping": "Edit Mapping",
+    "deleteMapping": "Delete Mapping",
+    "deleteMappingConfirm": "Are you sure you want to delete this trigger mapping?",
+    "triggerType": "Trigger Type",
+    "template": "Template",
+    "eventOverride": "Event Override",
+    "eventOverrideHelp": "Leave empty for global default. Select an event to override the template for that specific event.",
+    "priority": "Priority",
+    "noMappings": "No trigger mappings configured",
+    "mappingCreated": "Trigger mapping created",
+    "mappingUpdated": "Trigger mapping updated",
+    "mappingDeleted": "Trigger mapping deleted",
+    "triggerTypes": {
+      "ticket_purchased": "Ticket Purchased",
+      "otp_verification": "OTP Verification",
+      "event_reminder": "Event Reminder",
+      "ticket_refund": "Ticket Refund",
+      "welcome_message": "Welcome Message",
+      "custom": "Custom"
+    },
+    "categories": {
+      "UTILITY": "Utility",
+      "MARKETING": "Marketing",
+      "AUTHENTICATION": "Authentication"
+    },
+    "statuses": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "pending_approval": "Pending Approval"
+    },
+    "global": "Global",
+    "selectTemplate": "Select a template...",
+    "selectTrigger": "Select a trigger...",
+    "selectEvent": "Global (all events)"
   }
 }

@@ -67,7 +67,8 @@
     "guestLists": "Listas de Invitados",
     "backToEvents": "Volver a Eventos",
     "manageTicketing": "Gestionar Boletería",
-    "ticketing": "Boletería"
+    "ticketing": "Boletería",
+    "whatsappTemplates": "WhatsApp"
   },
   "ticketingHub": {
     "title": "Boletería",
@@ -1169,5 +1170,67 @@
     "maxGuestsLabel": "Máximo de Invitados",
     "publicLabel": "Mostrar en página del evento (pública)",
     "expiresAtLabel": "Fecha de Expiración (opcional)"
+  },
+  "whatsapp": {
+    "title": "Plantillas WhatsApp",
+    "description": "Administra tus plantillas de Gupshup para WhatsApp y asígnalas a disparadores.",
+    "templatesTab": "Plantillas",
+    "triggersTab": "Mapeo de Disparadores",
+    "addTemplate": "Agregar Plantilla",
+    "editTemplate": "Editar Plantilla",
+    "deleteTemplate": "Eliminar Plantilla",
+    "deleteTemplateConfirm": "¿Estás seguro de eliminar esta plantilla? También se eliminarán todos sus mapeos de disparadores.",
+    "templateName": "Nombre",
+    "templateNamePlaceholder": "ej. Confirmación de Boleta",
+    "gupshupId": "ID de Plantilla Gupshup",
+    "gupshupIdPlaceholder": "ej. ticket_confirmation_v1",
+    "language": "Idioma",
+    "category": "Categoría",
+    "bodyPreview": "Vista Previa del Cuerpo",
+    "bodyPreviewPlaceholder": "Vista previa del cuerpo del mensaje...",
+    "parameters": "Parámetros",
+    "paramName": "Nombre del Parámetro",
+    "paramDescription": "Descripción",
+    "paramExample": "Ejemplo",
+    "addParam": "Agregar Parámetro",
+    "noTemplates": "No hay plantillas registradas",
+    "templateCreated": "Plantilla creada",
+    "templateUpdated": "Plantilla actualizada",
+    "templateDeleted": "Plantilla eliminada",
+    "addMapping": "Agregar Mapeo",
+    "editMapping": "Editar Mapeo",
+    "deleteMapping": "Eliminar Mapeo",
+    "deleteMappingConfirm": "¿Estás seguro de eliminar este mapeo de disparador?",
+    "triggerType": "Tipo de Disparador",
+    "template": "Plantilla",
+    "eventOverride": "Evento Específico",
+    "eventOverrideHelp": "Dejar vacío para usar como predeterminado global. Selecciona un evento para sobreescribir la plantilla para ese evento.",
+    "priority": "Prioridad",
+    "noMappings": "No hay mapeos de disparadores configurados",
+    "mappingCreated": "Mapeo de disparador creado",
+    "mappingUpdated": "Mapeo de disparador actualizado",
+    "mappingDeleted": "Mapeo de disparador eliminado",
+    "triggerTypes": {
+      "ticket_purchased": "Boleta Comprada",
+      "otp_verification": "Verificación OTP",
+      "event_reminder": "Recordatorio de Evento",
+      "ticket_refund": "Reembolso de Boleta",
+      "welcome_message": "Mensaje de Bienvenida",
+      "custom": "Personalizado"
+    },
+    "categories": {
+      "UTILITY": "Utilidad",
+      "MARKETING": "Marketing",
+      "AUTHENTICATION": "Autenticación"
+    },
+    "statuses": {
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "pending_approval": "Pendiente de Aprobación"
+    },
+    "global": "Global",
+    "selectTemplate": "Selecciona una plantilla...",
+    "selectTrigger": "Selecciona un disparador...",
+    "selectEvent": "Global (todos los eventos)"
   }
 }

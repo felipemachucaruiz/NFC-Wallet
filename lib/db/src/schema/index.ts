@@ -13,3 +13,4 @@ export * from "./accessZones";
 export * from "./braceletTransfers";
 export * from "./ticketing";
 export * from "./ticketCheckins";
+export * from "./whatsapp";

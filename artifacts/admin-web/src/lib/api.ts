@@ -332,6 +332,87 @@ export async function apiFetchGuestListEntries(eventId: string, listId: string):
   return data.entries as GuestListEntryData[];
 }
 
+export interface WhatsAppTemplate {
+  id: string;
+  name: string;
+  gupshupTemplateId: string;
+  description: string | null;
+  language: string;
+  category: string;
+  status: string;
+  parameters: Array<{ name: string; description: string; example?: string }>;
+  bodyPreview: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WhatsAppTriggerMapping {
+  mapping: {
+    id: string;
+    triggerType: string;
+    templateId: string;
+    eventId: string | null;
+    active: boolean;
+    priority: number;
+    createdAt: string;
+    updatedAt: string;
+  };
+  templateName: string | null;
+  templateGupshupId: string | null;
+}
+
+export async function apiFetchWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
+  const res = await fetch(apiUrl("/api/whatsapp-templates"), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch templates");
+  return data.templates;
+}
+
+export async function apiCreateWhatsAppTemplate(body: Omit<WhatsAppTemplate, "id" | "createdAt" | "updatedAt">): Promise<WhatsAppTemplate> {
+  const res = await fetch(apiUrl("/api/whatsapp-templates"), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to create template");
+  return data.template;
+}
+
+export async function apiUpdateWhatsAppTemplate(id: string, body: Record<string, unknown>): Promise<WhatsAppTemplate> {
+  const res = await fetch(apiUrl(`/api/whatsapp-templates/${id}`), { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update template");
+  return data.template;
+}
+
+export async function apiDeleteWhatsAppTemplate(id: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/whatsapp-templates/${id}`), { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to delete template"); }
+}
+
+export async function apiFetchWhatsAppTriggerMappings(): Promise<WhatsAppTriggerMapping[]> {
+  const res = await fetch(apiUrl("/api/whatsapp-trigger-mappings"), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch trigger mappings");
+  return data.mappings;
+}
+
+export async function apiCreateWhatsAppTriggerMapping(body: { triggerType: string; templateId: string; eventId?: string | null; active?: boolean; priority?: number }): Promise<WhatsAppTriggerMapping> {
+  const res = await fetch(apiUrl("/api/whatsapp-trigger-mappings"), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to create trigger mapping");
+  return data.mapping;
+}
+
+export async function apiUpdateWhatsAppTriggerMapping(id: string, body: Record<string, unknown>): Promise<WhatsAppTriggerMapping> {
+  const res = await fetch(apiUrl(`/api/whatsapp-trigger-mappings/${id}`), { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to update trigger mapping");
+  return data.mapping;
+}
+
+export async function apiDeleteWhatsAppTriggerMapping(id: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/whatsapp-trigger-mappings/${id}`), { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to delete trigger mapping"); }
+}
+
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")
