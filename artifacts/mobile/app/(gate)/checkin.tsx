@@ -1,10 +1,9 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,12 +17,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
-import { extractErrorMessage } from "@/utils/errorMessage";
 import { useAuth } from "@/contexts/AuthContext";
-import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
 import { API_BASE_URL } from "@/constants/domain";
 import {
-  TicketConfirmation,
   CheckinHistoryList,
   type TicketAttendee,
   type TicketInfo,
@@ -53,12 +49,11 @@ try {
 type PageState =
   | "ready"
   | "qr_scanning"
-  | "ticket_validating"
-  | "ticket_confirmed"
-  | "ticket_nfc_scanning"
-  | "ticket_registering"
-  | "ticket_success"
-  | "ticket_error";
+  | "validating"
+  | "confirmed"
+  | "submitting"
+  | "success"
+  | "error";
 
 function formatTime(isoString: string | Date | null, locale: string): string {
   if (!isoString) return "–";
@@ -86,7 +81,40 @@ function triggerHaptic(type: "success" | "error" | "light") {
   } catch {}
 }
 
-export default function RegisterBraceletScreen() {
+function InfoRow({
+  icon,
+  label,
+  value,
+  C,
+  valueBadge,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  C: typeof Colors.light;
+  valueBadge?: { text: string; color: string };
+}) {
+  return (
+    <View style={styles.infoRow}>
+      <View style={styles.infoRowLeft}>
+        <Feather name={icon as any} size={14} color={C.textSecondary} />
+        <Text style={[styles.infoLabel, { color: C.textSecondary }]}>{label}</Text>
+      </View>
+      <View style={styles.infoRowRight}>
+        {valueBadge ? (
+          <View style={[styles.zoneBadgeSmall, { backgroundColor: valueBadge.color + "22", borderColor: valueBadge.color }]}>
+            <View style={[styles.zoneDotSmall, { backgroundColor: valueBadge.color }]} />
+            <Text style={[styles.zoneBadgeText, { color: valueBadge.color }]}>{valueBadge.text}</Text>
+          </View>
+        ) : (
+          <Text style={[styles.infoValue, { color: C.text }]}>{value}</Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
+export default function EntranceCheckinScreen() {
   const { t, i18n } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
@@ -105,16 +133,13 @@ export default function RegisterBraceletScreen() {
   const [ticketTodayDayIndex, setTicketTodayDayIndex] = useState(0);
   const [ticketCheckinHistory, setTicketCheckinHistory] = useState<CheckinHistoryEntry[]>([]);
   const [qrToken, setQrToken] = useState("");
-  const [ticketSuccessName, setTicketSuccessName] = useState("");
-  const [ticketSuccessZone, setTicketSuccessZone] = useState("");
-  const [ticketSuccessBraceletUid, setTicketSuccessBraceletUid] = useState("");
+  const [successName, setSuccessName] = useState("");
+  const [successZone, setSuccessZone] = useState("");
   const [sessionHistory, setSessionHistory] = useState<CheckinHistoryListItem[]>([]);
   const [showQrScanner, setShowQrScanner] = useState(false);
 
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const scanningRef = useRef(false);
-  const qrProcessedRef = useRef(false);
   const barcodeInputRef = useRef<TextInput>(null);
+  const qrProcessedRef = useRef(false);
 
   const cameraPermissionHook = useCameraPermissions ? useCameraPermissions() : null;
   const cameraPermission = cameraPermissionHook ? cameraPermissionHook[0] : null;
@@ -124,35 +149,7 @@ export default function RegisterBraceletScreen() {
   const hasCamera = CameraView !== null && Platform.OS !== "web";
 
   useEffect(() => {
-    if (pageState !== "ticket_nfc_scanning") return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.15,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 650,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pageState]);
-
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        void cancelNfc().catch(() => {});
-      };
-    }, []),
-  );
-
-  useEffect(() => {
-    if (pageState === "ticket_success") {
+    if (pageState === "success") {
       setSuccessCountdown(3);
       const interval = setInterval(() => {
         setSuccessCountdown((c) => {
@@ -170,7 +167,7 @@ export default function RegisterBraceletScreen() {
 
   const validateTicket = useCallback(
     async (data: string) => {
-      setPageState("ticket_validating");
+      setPageState("validating");
       setErrorMsg("");
 
       try {
@@ -197,7 +194,7 @@ export default function RegisterBraceletScreen() {
             errHint = t("gate.ticketAttendeeNotFoundHint");
           }
           setErrorMsg(`${errTitle}\n${errHint}`);
-          setPageState("ticket_error");
+          setPageState("error");
           triggerHaptic("error");
           return;
         }
@@ -207,14 +204,14 @@ export default function RegisterBraceletScreen() {
           setErrorMsg(
             `${t("gate.ticketAlreadyUsed")}\n${t("gate.ticketAlreadyUsedHint", { time: checkedTime })}`,
           );
-          setPageState("ticket_error");
+          setPageState("error");
           triggerHaptic("error");
           return;
         }
 
         if (!payload.isValidForToday) {
           setErrorMsg(`${t("gate.ticketWrongDay")}\n${t("gate.ticketWrongDayHint")}`);
-          setPageState("ticket_error");
+          setPageState("error");
           triggerHaptic("error");
           return;
         }
@@ -225,11 +222,11 @@ export default function RegisterBraceletScreen() {
         setTicketTodayDayIndex(payload.todayDayIndex);
         setTicketCheckinHistory(payload.checkinHistory ?? []);
         setQrToken(data);
-        setPageState("ticket_confirmed");
+        setPageState("confirmed");
         triggerHaptic("success");
       } catch {
         setErrorMsg(t("common.unknownError"));
-        setPageState("ticket_error");
+        setPageState("error");
         triggerHaptic("error");
       }
     },
@@ -254,32 +251,18 @@ export default function RegisterBraceletScreen() {
     [validateTicket],
   );
 
-  const handleTicketNfcTap = useCallback(async () => {
-    if (scanningRef.current) return;
-    scanningRef.current = true;
-    setPageState("ticket_nfc_scanning");
+  const handleConfirmCheckin = useCallback(async () => {
+    if (!qrToken) return;
+    setPageState("submitting");
 
     try {
-      const result = await scanBracelet();
-      const uid = result.payload.uid;
-      if (!uid) {
-        setPageState("ticket_confirmed");
-        scanningRef.current = false;
-        return;
-      }
-
-      setPageState("ticket_registering");
-
-      const res = await fetch(`${API_BASE_URL}/api/gate/ticket-checkin`, {
+      const res = await fetch(`${API_BASE_URL}/api/gate/ticket-checkin-only`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          qrToken,
-          braceletNfcUid: uid,
-        }),
+        body: JSON.stringify({ qrToken }),
       });
 
       const payload = await res.json().catch(() => ({}));
@@ -291,23 +274,19 @@ export default function RegisterBraceletScreen() {
           setErrorMsg(
             `${t("gate.ticketAlreadyUsed")}\n${t("gate.ticketAlreadyUsedHint", { time: checkedTime })}`,
           );
-        } else if (errCode === "BRACELET_WRONG_EVENT") {
-          setErrorMsg(t("gate.ticketBraceletWrongEvent"));
         } else {
           setErrorMsg(payload.message ?? t("gate.ticketError"));
         }
-        setPageState("ticket_error");
+        setPageState("error");
         triggerHaptic("error");
-        scanningRef.current = false;
         return;
       }
 
       const attendeeName = payload.attendee?.fullName ?? "";
       const zoneName = payload.zone?.name ?? "";
 
-      setTicketSuccessName(attendeeName);
-      setTicketSuccessZone(zoneName);
-      setTicketSuccessBraceletUid(uid);
+      setSuccessName(attendeeName);
+      setSuccessZone(zoneName);
 
       const historyItem: CheckinHistoryListItem = {
         id: payload.checkin?.id ?? Date.now().toString(),
@@ -315,25 +294,18 @@ export default function RegisterBraceletScreen() {
         attendeeName,
         section: payload.ticket?.section ?? null,
         ticketType: payload.ticket?.ticketType ?? null,
-        braceletNfcUid: uid,
+        braceletNfcUid: null,
         eventDayIndex: payload.todayDayIndex ?? 0,
         checkedInAt: payload.checkin?.checkedInAt ?? new Date().toISOString(),
       };
       setSessionHistory((prev) => [historyItem, ...prev]);
 
       triggerHaptic("success");
-      setPageState("ticket_success");
-    } catch (err: unknown) {
-      const msg = extractErrorMessage(err, "");
-      if (msg === "NFC_CANCELLED" || msg === "USER_CANCELLED") {
-        setPageState("ticket_confirmed");
-      } else {
-        setErrorMsg(t("gate.scanFailed"));
-        setPageState("ticket_error");
-        triggerHaptic("error");
-      }
-    } finally {
-      scanningRef.current = false;
+      setPageState("success");
+    } catch {
+      setErrorMsg(t("common.unknownError"));
+      setPageState("error");
+      triggerHaptic("error");
     }
   }, [t, token, qrToken, locale]);
 
@@ -343,9 +315,8 @@ export default function RegisterBraceletScreen() {
     setTicketInfo(null);
     setTicketZone(null);
     setQrToken("");
-    setTicketSuccessName("");
-    setTicketSuccessZone("");
-    setTicketSuccessBraceletUid("");
+    setSuccessName("");
+    setSuccessZone("");
     qrProcessedRef.current = false;
     setPageState("ready");
     setShowQrScanner(false);
@@ -358,7 +329,7 @@ export default function RegisterBraceletScreen() {
       const perm = await requestCameraPermission();
       if (!perm.granted) {
         setErrorMsg(t("gate.ticketCameraPermissionDenied"));
-        setPageState("ticket_error");
+        setPageState("error");
         triggerHaptic("error");
         return;
       }
@@ -367,6 +338,8 @@ export default function RegisterBraceletScreen() {
     setShowQrScanner(true);
     setPageState("qr_scanning");
   };
+
+  const isMultiDay = ticketInfo ? ticketInfo.validDays.length > 1 : false;
 
   return (
     <KeyboardAvoidingView
@@ -385,22 +358,19 @@ export default function RegisterBraceletScreen() {
       >
         <View style={styles.header}>
           <Pressable
-            onPress={() => {
-              void cancelNfc().catch(() => {});
-              router.back();
-            }}
+            onPress={() => router.back()}
             style={styles.backBtn}
             hitSlop={8}
           >
             <Feather name="arrow-left" size={22} color={C.text} />
           </Pressable>
           <Text style={[styles.title, { color: C.text }]}>
-            {t("gate.registerBracelet")}
+            {t("gate.entranceCheckin")}
           </Text>
           <View style={{ width: 32 }} />
         </View>
 
-        {pageState === "ticket_success" && (
+        {pageState === "success" && (
           <View
             style={[
               styles.resultCard,
@@ -409,21 +379,13 @@ export default function RegisterBraceletScreen() {
           >
             <Feather name="check-circle" size={52} color="#16a34a" />
             <Text style={[styles.resultTitle, { color: "#16a34a" }]}>
-              {t("gate.ticketSuccess")}
+              {t("gate.checkinSuccess")}
             </Text>
             <Text style={[styles.resultSub, { color: C.textSecondary }]}>
-              {ticketSuccessZone
-                ? t("gate.ticketSuccessHint", { name: ticketSuccessName, zone: ticketSuccessZone })
-                : t("gate.ticketSuccessNoZone", { name: ticketSuccessName })}
+              {successZone
+                ? t("gate.checkinSuccessHint", { name: successName, zone: successZone })
+                : t("gate.checkinSuccessNoZone", { name: successName })}
             </Text>
-            {ticketSuccessBraceletUid ? (
-              <View style={styles.successMeta}>
-                <Feather name="wifi" size={14} color={C.textMuted} />
-                <Text style={[styles.successMetaText, { color: C.textMuted }]}>
-                  {ticketSuccessBraceletUid}
-                </Text>
-              </View>
-            ) : null}
             <View
               style={[
                 styles.countdownBadge,
@@ -443,7 +405,7 @@ export default function RegisterBraceletScreen() {
           </View>
         )}
 
-        {pageState === "ticket_error" && (
+        {pageState === "error" && (
           <View
             style={[
               styles.resultCard,
@@ -470,7 +432,7 @@ export default function RegisterBraceletScreen() {
           </View>
         )}
 
-        {pageState === "ticket_validating" && (
+        {pageState === "validating" && (
           <View style={[styles.loadingCard, { backgroundColor: C.card, borderColor: C.primary }]}>
             <ActivityIndicator size="large" color={C.primary} />
             <Text style={[styles.loadingText, { color: C.text }]}>
@@ -479,24 +441,118 @@ export default function RegisterBraceletScreen() {
           </View>
         )}
 
-        {(pageState === "ticket_confirmed" ||
-          pageState === "ticket_nfc_scanning" ||
-          pageState === "ticket_registering") &&
-          ticketAttendee &&
-          ticketInfo && (
-            <TicketConfirmation
-              attendee={ticketAttendee}
-              ticket={ticketInfo}
-              zone={ticketZone}
-              todayDayIndex={ticketTodayDayIndex}
-              checkinHistory={ticketCheckinHistory}
-              onTapBracelet={handleTicketNfcTap}
-              isRegistering={
-                pageState === "ticket_nfc_scanning" ||
-                pageState === "ticket_registering"
-              }
-            />
-          )}
+        {pageState === "submitting" && (
+          <View style={[styles.loadingCard, { backgroundColor: C.card, borderColor: C.primary }]}>
+            <ActivityIndicator size="large" color={C.primary} />
+            <Text style={[styles.loadingText, { color: C.text }]}>
+              {t("gate.checkinProcessing")}
+            </Text>
+          </View>
+        )}
+
+        {(pageState === "confirmed") && ticketAttendee && ticketInfo && (
+          <>
+            <View style={[styles.validBadge, { backgroundColor: "#16a34a22", borderColor: "#16a34a" }]}>
+              <Feather name="check-circle" size={20} color="#16a34a" />
+              <Text style={[styles.validText, { color: "#16a34a" }]}>{t("gate.ticketValid")}</Text>
+            </View>
+
+            <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
+              <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
+                {t("gate.ticketAttendeeInfo")}
+              </Text>
+              <InfoRow icon="user" label={t("gate.ticketFullName")} value={ticketAttendee.fullName || "—"} C={C} />
+              {ticketAttendee.phone ? (
+                <InfoRow icon="phone" label={t("gate.ticketPhone")} value={ticketAttendee.phone} C={C} />
+              ) : null}
+              {ticketAttendee.email ? (
+                <InfoRow icon="mail" label={t("gate.ticketEmail")} value={ticketAttendee.email} C={C} />
+              ) : null}
+            </View>
+
+            <View style={[styles.card, { backgroundColor: C.card, borderColor: C.border }]}>
+              <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
+                {t("gate.ticketDetails")}
+              </Text>
+              {ticketInfo.section ? (
+                <InfoRow
+                  icon="map-pin"
+                  label={t("gate.ticketSection")}
+                  value={ticketInfo.section}
+                  C={C}
+                  valueBadge={ticketZone ? { text: ticketZone.name, color: ticketZone.colorHex ?? C.primary } : undefined}
+                />
+              ) : null}
+              <InfoRow
+                icon="tag"
+                label={t("gate.ticketType")}
+                value={isMultiDay ? t("gate.ticketAbono") : t("gate.ticketSingle")}
+                C={C}
+              />
+              {isMultiDay && ticketInfo.dayLabels.length > 0 ? (
+                <View style={styles.daysSection}>
+                  <Text style={[styles.daysLabel, { color: C.textSecondary }]}>
+                    {t("gate.ticketValidDays")}
+                  </Text>
+                  {ticketInfo.validDays.map((dayIdx, i) => {
+                    const label = ticketInfo.dayLabels[i] || t("gate.ticketDay", { number: dayIdx + 1 });
+                    const isToday = dayIdx === ticketTodayDayIndex;
+                    const wasCheckedIn = ticketCheckinHistory.some((ch) => ch.dayIndex === dayIdx);
+                    let statusIcon: string;
+                    let statusColor: string;
+                    let statusText: string;
+                    if (wasCheckedIn && !isToday) {
+                      statusIcon = "check-circle";
+                      statusColor = "#16a34a";
+                      statusText = t("gate.ticketDayCheckedIn");
+                    } else if (isToday) {
+                      statusIcon = "arrow-right";
+                      statusColor = C.primary;
+                      statusText = t("gate.ticketDayToday");
+                    } else {
+                      statusIcon = "circle";
+                      statusColor = C.textMuted;
+                      statusText = t("gate.ticketDayUpcoming");
+                    }
+                    return (
+                      <View key={dayIdx} style={styles.dayRow}>
+                        <Feather name={statusIcon as any} size={16} color={statusColor} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.dayLabel, { color: isToday ? C.text : C.textSecondary }]}>
+                            {t("gate.ticketDay", { number: dayIdx + 1 })} — {label}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dayStatus,
+                            { color: statusColor, fontFamily: isToday ? "Inter_700Bold" : "Inter_500Medium" },
+                          ]}
+                        >
+                          {statusText}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+
+            <Pressable
+              style={[styles.checkinBtn, { backgroundColor: "#16a34a" }]}
+              onPress={handleConfirmCheckin}
+            >
+              <Feather name="log-in" size={24} color="#fff" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.checkinBtnText, { color: "#fff" }]}>
+                  {t("gate.confirmCheckin")}
+                </Text>
+                <Text style={[styles.checkinBtnSub, { color: "rgba(255,255,255,0.75)" }]}>
+                  {t("gate.checkinOnly")}
+                </Text>
+              </View>
+            </Pressable>
+          </>
+        )}
 
         {pageState === "qr_scanning" && showQrScanner && CameraView && (
           <View style={styles.qrContainer}>
@@ -664,16 +720,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  successMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  successMetaText: {
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-    letterSpacing: 0.5,
-  },
   loadingCard: {
     borderRadius: 20,
     borderWidth: 1,
@@ -685,6 +731,115 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "Inter_700Bold",
     textAlign: "center",
+  },
+  validBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  validText: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  infoRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
+  },
+  infoRowRight: {
+    flex: 1,
+    alignItems: "flex-end",
+  },
+  infoLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+  },
+  infoValue: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "right",
+  },
+  zoneBadgeSmall: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  zoneDotSmall: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  zoneBadgeText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  daysSection: {
+    marginTop: 4,
+    gap: 8,
+  },
+  daysLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    marginBottom: 4,
+  },
+  dayRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 6,
+  },
+  dayLabel: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+  },
+  dayStatus: {
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  checkinBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderRadius: 16,
+    padding: 20,
+  },
+  checkinBtnText: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  checkinBtnSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
   },
   scannerCard: {
     borderRadius: 20,

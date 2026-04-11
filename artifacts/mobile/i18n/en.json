@@ -1308,7 +1308,22 @@
     "ticketCameraPermissionBtn": "Grant Permission",
     "ticketCameraPermissionDenied": "Camera permission was denied. Please enable camera access in your device settings to scan QR codes.",
     "ticketBraceletUid": "Bracelet",
-    "ticketCheckedInAt": "Checked in at"
+    "ticketCheckedInAt": "Checked in at",
+    "entranceCheckin": "Entrance Check-in",
+    "entranceCheckinHint": "Scan ticket barcode to validate and record entry",
+    "registerBracelet": "Register Bracelet",
+    "registerBraceletHint": "Scan ticket barcode, then link NFC bracelet",
+    "scanBarcode": "Scan Barcode",
+    "barcodeInputPlaceholder": "Scan ticket or type code...",
+    "barcodeInputHint": "Point the hardware scanner at the ticket barcode, or type the code manually",
+    "barcodeOrCamera": "Or scan with camera",
+    "confirmCheckin": "Confirm Check-in",
+    "checkinSuccess": "Check-in Complete!",
+    "checkinSuccessHint": "{{name}} has been checked in. Zone: {{zone}}.",
+    "checkinSuccessNoZone": "{{name}} has been checked in.",
+    "checkinProcessing": "Processing check-in...",
+    "scanNextTicket": "Scan next ticket",
+    "checkinOnly": "Entry only (no bracelet)"
   },
   "zones": {
     "title": "Access Zones",

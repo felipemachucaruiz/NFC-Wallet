@@ -335,6 +335,186 @@ router.post(
   },
 );
 
+const ticketCheckinOnlySchema = z.object({
+  qrToken: z.string().min(1),
+});
+
+router.post(
+  "/gate/ticket-checkin-only",
+  requireRole("gate", "admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const parsed = ticketCheckinOnlySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const { qrToken } = parsed.data;
+
+    const userEventId = req.user!.eventId;
+    if (!userEventId && req.user!.role === "gate") {
+      res.status(403).json({ error: "Gate user is not assigned to an event" });
+      return;
+    }
+
+    const effectiveEventId = userEventId;
+    if (!effectiveEventId) {
+      res.status(400).json({ error: "No event context" });
+      return;
+    }
+
+    const [event] = await db
+      .select()
+      .from(eventsTable)
+      .where(eq(eventsTable.id, effectiveEventId));
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    if (!event.hmacSecret) {
+      res.status(400).json({ error: "Event HMAC secret not configured" });
+      return;
+    }
+
+    const ticket = verifyTicketToken(qrToken, event.hmacSecret);
+    if (!ticket) {
+      res.status(400).json({ error: "INVALID_TICKET", message: "Invalid or tampered ticket QR code" });
+      return;
+    }
+
+    if (ticket.eid !== effectiveEventId) {
+      res.status(400).json({ error: "WRONG_EVENT", message: "This ticket is for a different event" });
+      return;
+    }
+
+    const now = new Date();
+    const todayDayIndex = getEventDayIndex(event, now);
+
+    if (todayDayIndex < 0) {
+      res.status(400).json({ error: "WRONG_DAY", message: "Event has not started yet" });
+      return;
+    }
+
+    if (!ticket.days.includes(todayDayIndex)) {
+      res.status(400).json({
+        error: "WRONG_DAY",
+        message: "This ticket is not valid for today",
+        todayDayIndex,
+        validDays: ticket.days,
+        dayLabels: ticket.dayLabels,
+      });
+      return;
+    }
+
+    const [attendee] = await db
+      .select({
+        id: usersTable.id,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        email: usersTable.email,
+        phone: usersTable.phone,
+        profileImageUrl: usersTable.profileImageUrl,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, ticket.uid));
+
+    if (!attendee) {
+      res.status(404).json({ error: "ATTENDEE_NOT_FOUND", message: "Attendee account not found" });
+      return;
+    }
+
+    let zone = null;
+    if (ticket.zid) {
+      const [z] = await db
+        .select()
+        .from(accessZonesTable)
+        .where(eq(accessZonesTable.id, ticket.zid));
+      zone = z ?? null;
+    }
+
+    const existingCheckins = await db
+      .select()
+      .from(ticketCheckinsTable)
+      .where(and(
+        eq(ticketCheckinsTable.ticketId, ticket.tid),
+        eq(ticketCheckinsTable.eventId, effectiveEventId),
+      ));
+
+    const todayCheckin = existingCheckins.find(c => c.eventDayIndex === todayDayIndex);
+    if (todayCheckin) {
+      res.status(409).json({
+        error: "ALREADY_CHECKED_IN",
+        message: "This ticket was already used today",
+        checkedInAt: todayCheckin.checkedInAt,
+      });
+      return;
+    }
+
+    let checkin;
+    try {
+      [checkin] = await db
+        .insert(ticketCheckinsTable)
+        .values({
+          ticketId: ticket.tid,
+          eventId: effectiveEventId,
+          eventDayIndex: todayDayIndex,
+          attendeeUserId: attendee.id,
+          braceletId: null,
+          braceletNfcUid: null,
+          accessZoneId: zone?.id ?? null,
+          section: ticket.sec || null,
+          ticketType: ticket.typ || null,
+          checkedInByUserId: req.user!.id,
+        })
+        .returning();
+    } catch (insertErr: any) {
+      if (insertErr?.code === "23505") {
+        res.status(409).json({
+          error: "ALREADY_CHECKED_IN",
+          message: "This ticket was already used today (concurrent check-in)",
+        });
+        return;
+      }
+      throw insertErr;
+    }
+
+    const checkinHistory = existingCheckins.map(c => ({
+      dayIndex: c.eventDayIndex,
+      checkedInAt: c.checkedInAt,
+    }));
+    checkinHistory.push({
+      dayIndex: todayDayIndex,
+      checkedInAt: checkin.checkedInAt,
+    });
+
+    res.status(201).json({
+      checkin,
+      attendee: {
+        id: attendee.id,
+        firstName: attendee.firstName,
+        lastName: attendee.lastName,
+        fullName: [attendee.firstName, attendee.lastName].filter(Boolean).join(" "),
+        email: attendee.email,
+        phone: attendee.phone,
+        profileImageUrl: attendee.profileImageUrl,
+      },
+      ticket: {
+        ticketId: ticket.tid,
+        section: ticket.sec,
+        ticketType: ticket.typ,
+        validDays: ticket.days,
+        dayLabels: ticket.dayLabels,
+        accessZoneId: ticket.zid,
+      },
+      zone: zone
+        ? { id: zone.id, name: zone.name, colorHex: zone.colorHex, rank: zone.rank }
+        : null,
+      todayDayIndex,
+      checkinHistory,
+    });
+  },
+);
+
 const validateTicketSchema = z.object({
   qrToken: z.string().min(1),
 });

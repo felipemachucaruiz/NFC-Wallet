@@ -1297,7 +1297,22 @@
     "ticketCameraPermissionBtn": "Dar Permiso",
     "ticketCameraPermissionDenied": "El permiso de cámara fue denegado. Habilita el acceso a la cámara en la configuración de tu dispositivo para escanear códigos QR.",
     "ticketBraceletUid": "Pulsera",
-    "ticketCheckedInAt": "Registrado a las"
+    "ticketCheckedInAt": "Registrado a las",
+    "entranceCheckin": "Check-in de Entrada",
+    "entranceCheckinHint": "Escanea código de barras del ticket para validar y registrar entrada",
+    "registerBracelet": "Registrar Pulsera",
+    "registerBraceletHint": "Escanea código de barras del ticket, luego vincula pulsera NFC",
+    "scanBarcode": "Escanear Código",
+    "barcodeInputPlaceholder": "Escanea ticket o escribe el código...",
+    "barcodeInputHint": "Apunta el escáner al código de barras del ticket, o escribe el código manualmente",
+    "barcodeOrCamera": "O escanear con cámara",
+    "confirmCheckin": "Confirmar Check-in",
+    "checkinSuccess": "¡Check-in Completo!",
+    "checkinSuccessHint": "{{name}} ha sido registrado. Zona: {{zone}}.",
+    "checkinSuccessNoZone": "{{name}} ha sido registrado.",
+    "checkinProcessing": "Procesando check-in...",
+    "scanNextTicket": "Escanear siguiente ticket",
+    "checkinOnly": "Solo entrada (sin pulsera)"
   },
   "zones": {
     "title": "Zonas de Acceso",

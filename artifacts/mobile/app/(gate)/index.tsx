@@ -59,7 +59,6 @@ export default function GateHomeScreen() {
       </View>
 
       <View style={styles.body}>
-        {/* Zone badge or warning */}
         {assignedZone ? (
           <View style={[styles.zoneBadge, { backgroundColor: assignedZone.colorHex + "22", borderColor: assignedZone.colorHex }]}>
             <View style={[styles.zoneDot, { backgroundColor: assignedZone.colorHex }]} />
@@ -76,6 +75,20 @@ export default function GateHomeScreen() {
         )}
 
         <Pressable
+          style={[styles.ctaBtn, { backgroundColor: "#16a34a" }]}
+          onPress={() => router.push("/(gate)/checkin" as never)}
+        >
+          <View style={styles.ctaBtnInner}>
+            <View style={[styles.ctaIconWrap, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
+              <Feather name="log-in" size={36} color="#fff" />
+            </View>
+            <Text style={[styles.ctaBtnTitle, { color: "#fff" }]}>{t("gate.entranceCheckin")}</Text>
+            <Text style={[styles.ctaBtnSub, { color: "rgba(255,255,255,0.75)" }]}>{t("gate.entranceCheckinHint")}</Text>
+          </View>
+          <Feather name="arrow-right" size={22} color="rgba(255,255,255,0.7)" />
+        </Pressable>
+
+        <Pressable
           style={[styles.ctaBtn, { backgroundColor: C.primary }]}
           onPress={() => router.push("/register" as never)}
         >
@@ -83,8 +96,8 @@ export default function GateHomeScreen() {
             <View style={[styles.ctaIconWrap, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
               <Feather name="wifi" size={36} color={C.primaryText} />
             </View>
-            <Text style={[styles.ctaBtnTitle, { color: C.primaryText }]}>{t("gate.registerWristband")}</Text>
-            <Text style={[styles.ctaBtnSub, { color: C.primaryText + "99" }]}>{t("gate.registerWristbandHint")}</Text>
+            <Text style={[styles.ctaBtnTitle, { color: C.primaryText }]}>{t("gate.registerBracelet")}</Text>
+            <Text style={[styles.ctaBtnSub, { color: C.primaryText + "99" }]}>{t("gate.registerBraceletHint")}</Text>
           </View>
           <Feather name="arrow-right" size={22} color={C.primaryText + "B3"} />
         </Pressable>
@@ -131,19 +144,10 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 32,
-    gap: 20,
+    paddingTop: 24,
+    gap: 16,
     alignItems: "stretch",
   },
-  infoCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  infoText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
   ctaBtn: {
     borderRadius: 20,
     padding: 24,
@@ -165,8 +169,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
-  ctaBtnTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#fff" },
-  ctaBtnSub: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)" },
+  ctaBtnTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  ctaBtnSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
   zoneBadge: {
     flexDirection: "row",
     alignItems: "center",
