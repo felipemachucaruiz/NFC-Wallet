@@ -6,6 +6,7 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import staticRouter from "./routes/static";
 import notificationsRouter from "./routes/notifications";
+import whatsappWebhookRouter from "./routes/whatsappWebhook";
 import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import { generalLimiter, authLimiter, braceletLookupLimiter } from "./middlewares/rateLimiter";
@@ -98,6 +99,9 @@ app.use(
 
 app.use("/api", staticRouter);
 app.use("/attendee-api/api", staticRouter);
+
+app.use("/api", whatsappWebhookRouter);
+app.use("/attendee-api/api", whatsappWebhookRouter);
 
 app.use(authMiddleware);
 

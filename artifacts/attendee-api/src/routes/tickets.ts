@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable, pendingWhatsappDocumentsTable } from "@workspace/db";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -982,7 +982,7 @@ router.post(
     }
 
     if (whatsAppPhones.size > 0) {
-      void sendOrderTicketDocuments(orderId, event.name, whatsAppPhones)
+      void queueOrderTicketDocuments(orderId, event.name, whatsAppPhones)
         .catch((err) => logger.error({ err, orderId }, "Failed to send resend ticket documents"));
     }
 
@@ -1061,7 +1061,7 @@ async function sendTicketWhatsApp(data: {
   return textSent;
 }
 
-async function sendOrderTicketDocuments(
+async function queueOrderTicketDocuments(
   orderId: string,
   eventName: string,
   ticketsByPhone: Map<string, { attendeeName: string; ticketCount: number }>,
@@ -1070,28 +1070,33 @@ async function sendOrderTicketDocuments(
   const pdfToken = generatePdfToken(`order:${orderId}`);
   const pdfUrl = `${appUrl}/api/orders/${orderId}/pdf?token=${pdfToken}`;
 
-  await new Promise((resolve) => setTimeout(resolve, 3000));
-
   for (const [phone, info] of ticketsByPhone) {
-    const ticketLabel = info.ticketCount === 1
-      ? `Entrada para ${eventName} - ${info.attendeeName}`
-      : `${info.ticketCount} entradas para ${eventName}`;
-
     const filename = info.ticketCount === 1
       ? `tapee-ticket-${orderId.slice(0, 8)}.pdf`
       : `tapee-tickets-${orderId.slice(0, 8)}.pdf`;
 
-    const logContext = {
-      triggerType: "ticket_document",
-      orderId,
-      attendeeName: info.attendeeName,
-    };
-
-    const sent = await sendWhatsAppDocument(phone, pdfUrl, filename, ticketLabel, logContext);
-    if (!sent) {
-      logger.warn({ phone, orderId }, "Failed to send ticket PDF document via WhatsApp");
+    try {
+      await db.insert(pendingWhatsappDocumentsTable).values({
+        phone: normalizePhone(phone),
+        orderId,
+        eventName,
+        attendeeName: info.attendeeName,
+        ticketCount: info.ticketCount,
+        pdfUrl,
+        filename,
+      });
+      logger.info({ phone, orderId }, "Queued pending WhatsApp document for user reply");
+    } catch (err) {
+      logger.error({ err, phone, orderId }, "Failed to queue pending WhatsApp document");
     }
   }
+}
+
+function normalizePhone(phone: string): string {
+  let cleaned = phone.replace(/[\s\-\(\)]/g, "");
+  if (cleaned.startsWith("+")) cleaned = cleaned.slice(1);
+  if (/^\d{10}$/.test(cleaned)) cleaned = `57${cleaned}`;
+  return cleaned;
 }
 
 export async function processTicketOrderPayment(orderId: string, wompiTransactionId: string, buyerLocale?: string) {
@@ -1209,7 +1214,7 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
   }
 
   if (whatsAppPhones.size > 0 && event) {
-    void sendOrderTicketDocuments(orderId, event.name, whatsAppPhones)
+    void queueOrderTicketDocuments(orderId, event.name, whatsAppPhones)
       .catch((err) => logger.error({ err, orderId }, "Failed to send order ticket documents"));
   }
 }
@@ -1297,7 +1302,7 @@ async function deliverFreeTicketNotifications(orderId: string, eventId: string, 
   }
 
   if (whatsAppPhones.size > 0 && event) {
-    void sendOrderTicketDocuments(orderId, event.name, whatsAppPhones)
+    void queueOrderTicketDocuments(orderId, event.name, whatsAppPhones)
       .catch((err) => logger.error({ err, orderId }, "Failed to send free ticket documents"));
   }
 }

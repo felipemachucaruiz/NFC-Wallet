@@ -69,6 +69,27 @@ export const whatsappTemplatesTable = pgTable("whatsapp_templates", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const pendingWhatsappDocStatusEnum = pgEnum("pending_wa_doc_status", [
+  "pending",
+  "sent",
+  "expired",
+  "failed",
+]);
+
+export const pendingWhatsappDocumentsTable = pgTable("pending_whatsapp_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  phone: varchar("phone", { length: 30 }).notNull(),
+  orderId: varchar("order_id").notNull(),
+  eventName: varchar("event_name", { length: 255 }).notNull(),
+  attendeeName: varchar("attendee_name", { length: 255 }).notNull(),
+  ticketCount: integer("ticket_count").notNull().default(1),
+  pdfUrl: text("pdf_url").notNull(),
+  filename: varchar("filename", { length: 255 }).notNull(),
+  status: pendingWhatsappDocStatusEnum("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const whatsappTriggerMappingsTable = pgTable("whatsapp_trigger_mappings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   triggerType: whatsappTriggerTypeEnum("trigger_type").notNull(),
