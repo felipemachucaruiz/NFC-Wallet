@@ -385,6 +385,52 @@ export async function sendAccountActivationEmail(data: AccountActivationEmailDat
   });
 }
 
+interface TransferEmailData {
+  recipientName: string;
+  recipientEmail: string;
+  senderName: string;
+  eventName: string;
+  locale?: string;
+}
+
+export async function sendTicketTransferEmail(data: TransferEmailData): Promise<boolean> {
+  const isEs = (data.locale ?? "es").startsWith("es");
+
+  const subject = isEs
+    ? `🎟️ ${data.senderName} te ha transferido una entrada para ${data.eventName}`
+    : `🎟️ ${data.senderName} transferred a ticket to you for ${data.eventName}`;
+
+  const greeting = isEs
+    ? `Hola ${data.recipientName},`
+    : `Hi ${data.recipientName},`;
+
+  const intro = isEs
+    ? `<strong>${escapeHtml(data.senderName)}</strong> te ha transferido una entrada para <strong>${escapeHtml(data.eventName)}</strong>. Abre la app de Tapee o inicia sesion en tapee.app para ver tu entrada y codigo QR.`
+    : `<strong>${escapeHtml(data.senderName)}</strong> transferred a ticket to you for <strong>${escapeHtml(data.eventName)}</strong>. Open the Tapee app or sign in at tapee.app to view your ticket and QR code.`;
+
+  const body = `
+    <h2 style="color: #1a1a1a; font-size: 20px; margin: 0 0 16px;">🎟️ ${isEs ? "Te han transferido una entrada" : "You received a ticket transfer"}</h2>
+    <p style="color: #52525b; margin: 0 0 24px;">${greeting} ${intro}</p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="https://tickets.tapee.app/my-tickets" style="display: inline-block; background-color: #00f1ff; color: #000000; font-weight: bold; font-size: 16px; padding: 14px 32px; border-radius: 8px; text-decoration: none;">${isEs ? "Ver mi entrada" : "View my ticket"}</a>
+    </div>
+    <p style="color: #71717a; font-size: 13px; margin: 24px 0 0;">${isEs ? "Tu entrada ya esta vinculada a tu cuenta. Presenta el codigo QR en la puerta del evento." : "Your ticket is already linked to your account. Present the QR code at the event gate."}</p>
+  `;
+
+  const htmlContent = emailWrapper(body);
+  const textContent = isEs
+    ? `${greeting}\n\n${data.senderName} te ha transferido una entrada para ${data.eventName}. Abre la app de Tapee para ver tu entrada.\n\n-- El equipo de Tapee`
+    : `${greeting}\n\n${data.senderName} transferred a ticket to you for ${data.eventName}. Open the Tapee app to view your ticket.\n\n-- The Tapee team`;
+
+  return sendEmail({
+    to: data.recipientEmail,
+    toName: data.recipientName,
+    subject,
+    htmlContent,
+    textContent,
+  });
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

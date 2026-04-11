@@ -3,13 +3,17 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import QRCode from "react-native-qrcode-svg";
@@ -19,7 +23,7 @@ import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAlert } from "@/components/CustomAlert";
-import { useAddToWallet, useTicketDetail } from "@/hooks/useEventsApi";
+import { useAddToWallet, useTicketDetail, useTransferTicket } from "@/hooks/useEventsApi";
 import { Loading } from "@/components/ui/Loading";
 import type { MyTicket } from "@/types/events";
 
@@ -99,8 +103,13 @@ export default function TicketDetailScreen() {
   const ticket: MyTicket | null = passedTicket ?? fetchedTicket ?? null;
 
   const { mutate: addToWallet, isPending: walletLoading } = useAddToWallet();
+  const { mutate: transferTicket, isPending: transferLoading } = useTransferTicket();
   const [qrExpanded, setQrExpanded] = useState(false);
   const [dominantColor, setDominantColor] = useState("rgba(90,50,180,0.35)");
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferName, setTransferName] = useState("");
+  const [transferEmail, setTransferEmail] = useState("");
+  const [transferPhone, setTransferPhone] = useState("");
 
   useEffect(() => {
     if (ticket?.eventCoverImageUrl) {
@@ -135,6 +144,35 @@ export default function TicketDetailScreen() {
   const isIOS = Platform.OS === "ios";
   const walletPlatform = isIOS ? "apple" : "google";
   const walletLabel = isIOS ? t("tickets.addAppleWallet") : t("tickets.addGoogleWallet");
+
+  const handleTransfer = () => {
+    if (!transferName.trim() || !transferEmail.trim()) return;
+    transferTicket(
+      {
+        ticketId: ticket!.id,
+        recipientName: transferName.trim(),
+        recipientEmail: transferEmail.trim(),
+        recipientPhone: transferPhone.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setShowTransfer(false);
+          setTransferName("");
+          setTransferEmail("");
+          setTransferPhone("");
+          showAlert(
+            t("tickets.transferSuccess", "Transferida"),
+            t("tickets.transferSuccessMsg", "La entrada ha sido transferida exitosamente."),
+          );
+          router.back();
+        },
+        onError: (err: unknown) => {
+          const msg = (err as { message?: string }).message ?? t("common.unknownError");
+          showAlert(t("common.error"), msg);
+        },
+      },
+    );
+  };
 
   const handleAddToWallet = () => {
     addToWallet(
@@ -330,7 +368,112 @@ export default function TicketDetailScreen() {
             icon={isIOS ? "smartphone" : "smartphone"}
           />
         )}
+
+        {ticket.status === "active" && (
+          <Pressable
+            onPress={() => setShowTransfer(true)}
+            style={[styles.transferBtn, { borderColor: "rgba(255,255,255,0.15)" }]}
+          >
+            <Feather name="send" size={16} color="rgba(255,255,255,0.7)" />
+            <Text style={styles.transferBtnText}>
+              {t("tickets.transferTicket", "Transferir entrada")}
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
+
+      <Modal
+        visible={showTransfer}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTransfer(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setShowTransfer(false)}>
+            <Pressable style={[styles.modalContent, { backgroundColor: C.card }]} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHandle} />
+              <Text style={[styles.modalTitle, { color: C.text }]}>
+                {t("tickets.transferTicket", "Transferir entrada")}
+              </Text>
+              <Text style={[styles.modalSubtitle, { color: C.textSecondary }]}>
+                {t("tickets.transferDesc", "Ingresa los datos de la persona a quien deseas transferir esta entrada.")}
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: C.textSecondary }]}>
+                  {t("tickets.recipientName", "Nombre")} *
+                </Text>
+                <TextInput
+                  style={[styles.input, { color: C.text, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)" }]}
+                  value={transferName}
+                  onChangeText={setTransferName}
+                  placeholder={t("tickets.recipientNamePlaceholder", "Nombre completo")}
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  autoCapitalize="words"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: C.textSecondary }]}>
+                  {t("tickets.recipientEmail", "Correo electrónico")} *
+                </Text>
+                <TextInput
+                  style={[styles.input, { color: C.text, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)" }]}
+                  value={transferEmail}
+                  onChangeText={setTransferEmail}
+                  placeholder="correo@ejemplo.com"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: C.textSecondary }]}>
+                  {t("tickets.recipientPhone", "Teléfono (WhatsApp)")}
+                </Text>
+                <TextInput
+                  style={[styles.input, { color: C.text, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)" }]}
+                  value={transferPhone}
+                  onChangeText={setTransferPhone}
+                  placeholder="+57 300 123 4567"
+                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <Pressable
+                onPress={handleTransfer}
+                disabled={transferLoading || !transferName.trim() || !transferEmail.trim()}
+                style={[
+                  styles.transferConfirmBtn,
+                  (!transferName.trim() || !transferEmail.trim()) && { opacity: 0.5 },
+                ]}
+              >
+                {transferLoading ? (
+                  <ActivityIndicator color="#000" size="small" />
+                ) : (
+                  <>
+                    <Feather name="send" size={16} color="#000" />
+                    <Text style={styles.transferConfirmText}>
+                      {t("tickets.confirmTransfer", "Transferir")}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+
+              <Pressable onPress={() => setShowTransfer(false)} style={styles.cancelBtn}>
+                <Text style={[styles.cancelBtnText, { color: C.textSecondary }]}>
+                  {t("common.cancel", "Cancelar")}
+                </Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -524,5 +667,90 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     gap: 8,
+  },
+  transferBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  transferBtnText: {
+    fontSize: 15,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.7)",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    marginBottom: 6,
+  },
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  transferConfirmBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#00f1ff",
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  transferConfirmText: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: "#000",
+  },
+  cancelBtn: {
+    alignItems: "center",
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontFamily: "Inter_500Medium",
   },
 });

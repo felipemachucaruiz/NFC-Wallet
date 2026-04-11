@@ -431,3 +431,20 @@ export function useAddToWallet() {
       ),
   });
 }
+
+export function useTransferTicket() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { ticketId: string; recipientName: string; recipientEmail: string; recipientPhone?: string }) =>
+      apiFetch<{ success: boolean; ticketId: string }>(
+        `${API_BASE_URL}/api/tickets/${data.ticketId}/transfer`,
+        headers,
+        { method: "POST", body: JSON.stringify({ recipientName: data.recipientName, recipientEmail: data.recipientEmail, recipientPhone: data.recipientPhone }) },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-tickets"] });
+    },
+  });
+}

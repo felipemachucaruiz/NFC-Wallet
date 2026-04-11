@@ -5,7 +5,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import crypto from "crypto";
 import { generateTicketQrToken } from "../lib/ticketQr";
-import { sendTicketConfirmationEmail, sendTicketInvitationEmail, sendAccountActivationEmail } from "../lib/ticketEmails";
+import { sendTicketConfirmationEmail, sendTicketInvitationEmail, sendAccountActivationEmail, sendTicketTransferEmail } from "../lib/ticketEmails";
 import { findOrCreateAttendeeAccount, generateActivationToken, buildActivationUrl } from "../lib/attendeeAccounts";
 import { generateGoogleWalletSaveLink } from "../lib/walletPasses";
 import { verifyTurnstileToken } from "../lib/turnstile";
@@ -1613,6 +1613,119 @@ router.post(
       .where(inArray(ticketsTable.id, ticketIds));
 
     res.json({ claimed: ticketIds.length, ticketIds });
+  },
+);
+
+const transferSchema = z.object({
+  recipientName: z.string().min(1).max(255),
+  recipientEmail: z.string().email().max(320),
+  recipientPhone: z.string().max(30).optional(),
+});
+
+router.post(
+  "/:ticketId/transfer",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    const { ticketId } = req.params;
+    const parsed = transferSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+      return;
+    }
+
+    const { recipientName, recipientEmail, recipientPhone } = parsed.data;
+    const normalizedEmail = recipientEmail.toLowerCase().trim();
+
+    if (normalizedEmail === req.user.email?.toLowerCase().trim()) {
+      res.status(400).json({ error: "Cannot transfer ticket to yourself" });
+      return;
+    }
+
+    const [ticket] = await db
+      .select()
+      .from(ticketsTable)
+      .where(and(
+        eq(ticketsTable.id, ticketId),
+        eq(ticketsTable.attendeeUserId, req.user.id),
+        eq(ticketsTable.status, "valid"),
+      ));
+
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found or not eligible for transfer" });
+      return;
+    }
+
+    const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, ticket.eventId));
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    const { userId: recipientUserId, isNew } = await findOrCreateAttendeeAccount(
+      normalizedEmail,
+      recipientName,
+      recipientPhone,
+    );
+
+    const newQrCodeToken = generateTicketQrToken(ticketId, recipientUserId);
+
+    await db
+      .update(ticketsTable)
+      .set({
+        attendeeName: recipientName,
+        attendeeEmail: normalizedEmail,
+        attendeePhone: recipientPhone || null,
+        attendeeUserId: recipientUserId,
+        qrCodeToken: newQrCodeToken,
+        updatedAt: new Date(),
+      })
+      .where(eq(ticketsTable.id, ticketId));
+
+    const senderName = [req.user.firstName, req.user.lastName].filter(Boolean).join(" ") || req.user.email || "Someone";
+    const locale = event.currencyCode === "USD" ? "en" : "es";
+
+    if (isNew) {
+      const [recipientUser] = await db.select().from(usersTable).where(eq(usersTable.id, recipientUserId));
+      if (recipientUser && !recipientUser.passwordHash) {
+        const token = await generateActivationToken(recipientUserId);
+        const activationUrl = buildActivationUrl(token);
+        void sendAccountActivationEmail({
+          attendeeName: recipientName,
+          attendeeEmail: normalizedEmail,
+          eventName: event.name,
+          buyerName: senderName,
+          activationUrl,
+          locale,
+        }).catch((err) => logger.error(`Failed to send activation email: ${err}`));
+      }
+    }
+
+    void sendTicketTransferEmail({
+      recipientName,
+      recipientEmail: normalizedEmail,
+      senderName,
+      eventName: event.name,
+      locale,
+    }).catch((err) => logger.error(`Failed to send transfer email: ${err}`));
+
+    if (recipientPhone && isWhatsAppConfigured()) {
+      const message = [
+        `Hola ${recipientName}, tu amigo *${senderName}* te ha transferido uno de sus tickets 🎟️ para asistir a *${event.name}*.`,
+        ``,
+        `Quieres que te envie aqui tu ticket?`,
+      ].join("\n");
+
+      void sendWhatsAppText(recipientPhone, message, {
+        triggerType: "ticket_transferred",
+        ticketId,
+        eventId: event.id,
+        attendeeName: recipientName,
+      }).catch((err) => logger.error(`Failed to send transfer WhatsApp: ${err}`));
+    }
+
+    logger.info({ ticketId, from: req.user.id, to: recipientUserId, recipientEmail: normalizedEmail }, "Ticket transferred");
+
+    res.json({ success: true, ticketId });
   },
 );
 

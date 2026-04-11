@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
-import { Ticket, Calendar, MapPin, QrCode, Apple, Smartphone, Loader2, ArrowLeft, Clock, Tag, User, Mail, Phone } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Ticket, Calendar, MapPin, QrCode, Apple, Smartphone, Loader2, ArrowLeft, Clock, Tag, User, Mail, Phone, Send, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
-import { fetchMyTickets, resolveImageUrl, type ApiTicket } from "@/lib/api";
+import { fetchMyTickets, resolveImageUrl, transferTicket, type ApiTicket } from "@/lib/api";
 
 function extractDominantColor(imageUrl: string): Promise<string> {
   return new Promise((resolve) => {
@@ -176,8 +176,16 @@ function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => 
 
 function ETicketFull({ ticket }: { ticket: ApiTicket }) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [dominantColor, setDominantColor] = useState("rgba(90,50,180,0.4)");
   const imageUrl = resolveImageUrl(ticket.eventCoverImage);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferName, setTransferName] = useState("");
+  const [transferEmail, setTransferEmail] = useState("");
+  const [transferPhone, setTransferPhone] = useState("");
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferError, setTransferError] = useState("");
+  const [transferDone, setTransferDone] = useState(false);
 
   useEffect(() => {
     if (imageUrl) extractDominantColor(imageUrl).then(setDominantColor);
@@ -185,6 +193,37 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
 
   const isValid = ticket.status === "valid";
   const startDate = ticket.eventStartsAt ? new Date(ticket.eventStartsAt) : null;
+
+  const handleTransfer = async () => {
+    if (!transferName.trim() || !transferEmail.trim()) return;
+    setTransferLoading(true);
+    setTransferError("");
+    try {
+      await transferTicket(ticket.id, {
+        recipientName: transferName.trim(),
+        recipientEmail: transferEmail.trim(),
+        recipientPhone: transferPhone.trim() || undefined,
+      });
+      setTransferDone(true);
+      queryClient.invalidateQueries({ queryKey: ["my-tickets"] });
+    } catch (err: any) {
+      setTransferError(err.message || "Error transferring ticket");
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  if (transferDone) {
+    return (
+      <div className="rounded-3xl overflow-hidden bg-zinc-900 p-8 text-center">
+        <div className="w-16 h-16 rounded-full bg-emerald-600/20 flex items-center justify-center mx-auto mb-4">
+          <Send className="w-7 h-7 text-emerald-400" />
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">{t("myTickets.transferSuccess", "Entrada transferida")}</h2>
+        <p className="text-white/60 text-sm">{t("myTickets.transferSuccessMsg", "La entrada ha sido transferida exitosamente.")}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-3xl overflow-hidden" style={{ backgroundColor: dominantColor }}>
@@ -259,6 +298,80 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
         <div className="text-xs text-white/40 text-center pt-2">
           {ticket.attendeeName}
         </div>
+
+        {isValid && !showTransfer && (
+          <button
+            onClick={() => setShowTransfer(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-white/15 text-white/70 text-sm font-medium hover:bg-white/5 transition-colors mt-2"
+          >
+            <Send className="w-4 h-4" />
+            {t("myTickets.transferTicket", "Transferir entrada")}
+          </button>
+        )}
+
+        {showTransfer && (
+          <div className="pt-3 space-y-3 border-t border-white/10 mt-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-white">{t("myTickets.transferTicket", "Transferir entrada")}</h3>
+              <button onClick={() => setShowTransfer(false)} className="text-white/40 hover:text-white/70">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-white/50">{t("myTickets.transferDesc", "Ingresa los datos de la persona a quien deseas transferir esta entrada.")}</p>
+
+            <div>
+              <label className="text-xs text-white/50 mb-1 block">{t("myTickets.recipientName", "Nombre")} *</label>
+              <input
+                type="text"
+                value={transferName}
+                onChange={(e) => setTransferName(e.target.value)}
+                placeholder={t("myTickets.recipientNamePlaceholder", "Nombre completo")}
+                className="w-full h-10 rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-white/50 mb-1 block">{t("myTickets.recipientEmail", "Correo electrónico")} *</label>
+              <input
+                type="email"
+                value={transferEmail}
+                onChange={(e) => setTransferEmail(e.target.value)}
+                placeholder="correo@ejemplo.com"
+                className="w-full h-10 rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-white/50 mb-1 block">{t("myTickets.recipientPhone", "Teléfono (WhatsApp)")}</label>
+              <input
+                type="tel"
+                value={transferPhone}
+                onChange={(e) => setTransferPhone(e.target.value)}
+                placeholder="+57 300 123 4567"
+                className="w-full h-10 rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-primary/50"
+              />
+            </div>
+
+            {transferError && (
+              <p className="text-xs text-red-400">{transferError}</p>
+            )}
+
+            <button
+              onClick={handleTransfer}
+              disabled={transferLoading || !transferName.trim() || !transferEmail.trim()}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#00f1ff] text-black font-bold text-sm disabled:opacity-50 hover:bg-[#00d4e0] transition-colors"
+            >
+              {transferLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  {t("myTickets.confirmTransfer", "Transferir")}
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

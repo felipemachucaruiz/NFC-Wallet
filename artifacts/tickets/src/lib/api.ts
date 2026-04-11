@@ -258,6 +258,17 @@ export async function fetchMyTickets(): Promise<{ tickets: ApiTicket[] }> {
   return apiFetch("/tickets/my-tickets");
 }
 
+export async function transferTicket(ticketId: string, data: {
+  recipientName: string;
+  recipientEmail: string;
+  recipientPhone?: string;
+}): Promise<{ success: boolean; ticketId: string }> {
+  return apiFetch(`/tickets/${ticketId}/transfer`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function sendWhatsAppOtp(phone: string): Promise<{ success: boolean; expiresIn: number }> {
   return apiFetch("/auth/whatsapp-otp/send", {
     method: "POST",
