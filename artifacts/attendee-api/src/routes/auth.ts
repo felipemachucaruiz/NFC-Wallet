@@ -39,6 +39,7 @@ import {
   buildResetPasswordPage,
   getAppUrl,
 } from "../lib/email";
+import { sendWhatsAppText, isWhatsAppConfigured } from "../lib/whatsapp";
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 
@@ -837,6 +838,162 @@ router.post("/mobile-auth/logout", async (req: Request, res: Response) => {
     await deleteSession(sid);
   }
   res.json(LogoutMobileSessionResponse.parse({ success: true }));
+});
+
+const OTP_TTL_MS = 5 * 60 * 1000;
+const OTP_LENGTH = 6;
+const otpStore = new Map<string, { code: string; expiresAt: number; attempts: number }>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of otpStore) {
+    if (val.expiresAt < now) otpStore.delete(key);
+  }
+}, 60_000);
+
+function generateOtp(): string {
+  return crypto.randomInt(100_000, 999_999).toString();
+}
+
+const SendWhatsAppOtpBody = z.object({
+  phone: z.string().min(7).max(20),
+});
+
+function normalizePhoneForOtp(raw: string): string {
+  let phone = raw.replace(/[\s\-\(\)\+]/g, "");
+  if (phone.length === 10 && /^3\d{9}$/.test(phone)) {
+    phone = "57" + phone;
+  }
+  return phone;
+}
+
+router.post("/auth/whatsapp-otp/send", async (req: Request, res: Response) => {
+  if (!isWhatsAppConfigured()) {
+    res.status(503).json({ error: "WhatsApp is not configured" });
+    return;
+  }
+
+  const parsed = SendWhatsAppOtpBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "A valid phone number is required" });
+    return;
+  }
+
+  const phone = normalizePhoneForOtp(parsed.data.phone);
+
+  const existing = otpStore.get(phone);
+  if (existing && existing.expiresAt > Date.now() && (Date.now() - (existing.expiresAt - OTP_TTL_MS)) < 30_000) {
+    res.status(429).json({ error: "Please wait before requesting a new code" });
+    return;
+  }
+
+  const code = generateOtp();
+  otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
+
+  const message = `🔐 Tu código de verificación Tapee es: *${code}*\n\nExpira en 5 minutos. No compartas este código con nadie.`;
+  const sent = await sendWhatsAppText(phone, message);
+
+  if (!sent) {
+    otpStore.delete(phone);
+    res.status(500).json({ error: "Failed to send WhatsApp message" });
+    return;
+  }
+
+  res.json({ success: true, expiresIn: OTP_TTL_MS / 1000 });
+});
+
+const VerifyWhatsAppOtpBody = z.object({
+  phone: z.string().min(7).max(20),
+  code: z.string().length(OTP_LENGTH),
+});
+
+router.post("/auth/whatsapp-otp/verify", async (req: Request, res: Response) => {
+  const parsed = VerifyWhatsAppOtpBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Phone and 6-digit code are required" });
+    return;
+  }
+
+  const phone = normalizePhoneForOtp(parsed.data.phone);
+  const entry = otpStore.get(phone);
+
+  if (!entry || entry.expiresAt < Date.now()) {
+    otpStore.delete(phone);
+    res.status(400).json({ error: "Code expired or not found. Please request a new one." });
+    return;
+  }
+
+  entry.attempts += 1;
+  if (entry.attempts > 5) {
+    otpStore.delete(phone);
+    res.status(429).json({ error: "Too many attempts. Please request a new code." });
+    return;
+  }
+
+  if (entry.code !== parsed.data.code) {
+    res.status(400).json({ error: "Invalid code" });
+    return;
+  }
+
+  otpStore.delete(phone);
+
+  const normalizedPhone = `+${phone}`;
+
+  const [existingUser] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.phone, normalizedPhone));
+
+  if (existingUser) {
+    if (existingUser.role !== "attendee") {
+      res.status(403).json({ error: "Staff accounts must log in via the staff portal" });
+      return;
+    }
+
+    const sessionData = {
+      user: {
+        id: existingUser.id,
+        email: existingUser.email,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        profileImageUrl: existingUser.profileImageUrl,
+        role: existingUser.role,
+        merchantId: existingUser.merchantId ?? null,
+        eventId: existingUser.eventId ?? null,
+        promoterCompanyId: existingUser.promoterCompanyId ?? null,
+      },
+    };
+
+    const sid = await createSession(sessionData);
+    res.json({ token: sid, isNewUser: false, userId: existingUser.id });
+    return;
+  }
+
+  const [newUser] = await db
+    .insert(usersTable)
+    .values({
+      phone: normalizedPhone,
+      role: "attendee",
+      emailVerified: false,
+    })
+    .returning();
+
+  const sessionData = {
+    user: {
+      id: newUser.id,
+      email: newUser.email,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      profileImageUrl: newUser.profileImageUrl,
+      role: newUser.role,
+      merchantId: newUser.merchantId ?? null,
+      eventId: newUser.eventId ?? null,
+      promoterCompanyId: newUser.promoterCompanyId ?? null,
+    },
+  };
+
+  const sid = await createSession(sessionData);
+  res.json({ token: sid, isNewUser: true, userId: newUser.id });
 });
 
 export default router;

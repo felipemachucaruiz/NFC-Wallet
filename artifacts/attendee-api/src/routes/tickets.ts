@@ -3,9 +3,12 @@ import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticke
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
+import crypto from "crypto";
 import { generateTicketQrToken } from "../lib/ticketQr";
 import { sendTicketConfirmationEmail, sendTicketInvitationEmail } from "../lib/ticketEmails";
 import { generateGoogleWalletSaveLink } from "../lib/walletPasses";
+import { generateTicketPdf } from "../lib/ticketPdf";
+import { sendWhatsAppDocument, sendWhatsAppText, isWhatsAppConfigured } from "../lib/whatsapp";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -520,6 +523,101 @@ router.get(
   },
 );
 
+const PDF_TOKEN_SECRET = process.env.HMAC_SECRET || process.env.TICKET_QR_SECRET;
+if (!PDF_TOKEN_SECRET) {
+  console.warn("[tickets] WARNING: HMAC_SECRET / TICKET_QR_SECRET not set — PDF download endpoint will reject all requests");
+}
+
+function generatePdfToken(ticketId: string): string {
+  if (!PDF_TOKEN_SECRET) throw new Error("PDF_TOKEN_SECRET not configured");
+  const exp = Math.floor(Date.now() / 1000) + 3600;
+  const payload = `${ticketId}:${exp}`;
+  const sig = crypto.createHmac("sha256", PDF_TOKEN_SECRET).update(payload).digest("hex");
+  return Buffer.from(`${payload}:${sig}`).toString("base64url");
+}
+
+function verifyPdfToken(token: string, ticketId: string): boolean {
+  if (!PDF_TOKEN_SECRET) return false;
+  try {
+    const decoded = Buffer.from(token, "base64url").toString("utf8");
+    const parts = decoded.split(":");
+    if (parts.length !== 3) return false;
+    const [tid, expStr, sig] = parts;
+    if (tid !== ticketId) return false;
+    const exp = parseInt(expStr);
+    if (isNaN(exp) || exp < Math.floor(Date.now() / 1000)) return false;
+    const expectedSig = crypto.createHmac("sha256", PDF_TOKEN_SECRET).update(`${tid}:${expStr}`).digest("hex");
+    return crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expectedSig, "hex"));
+  } catch {
+    return false;
+  }
+}
+
+router.get(
+  "/tickets/:ticketId/pdf",
+  async (req: Request, res: Response) => {
+    const { ticketId } = req.params as { ticketId: string };
+    const token = req.query.token as string;
+
+    if (!token || !verifyPdfToken(token, ticketId)) {
+      res.status(403).json({ error: "Invalid or expired token" });
+      return;
+    }
+
+    const [ticket] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, ticketId));
+    if (!ticket || !ticket.qrCodeToken) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+
+    const [order] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, ticket.orderId));
+    const [event] = order ? await db.select().from(eventsTable).where(eq(eventsTable.id, order.eventId)) : [undefined];
+
+    let sectionName = "General";
+    let ticketTypeName = "";
+    let validDays: string[] = [];
+
+    if (ticket.ticketTypeId) {
+      const [ticketType] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+      if (ticketType) {
+        ticketTypeName = ticketType.name;
+        if (ticketType.sectionId) {
+          const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
+          if (sec) sectionName = sec.name;
+        }
+        const validDayIds = (ticketType.validEventDayIds as string[]) ?? [];
+        if (validDayIds.length > 0) {
+          const days = await db.select().from(eventDaysTable).where(inArray(eventDaysTable.id, validDayIds));
+          validDays = days.map((d) => d.label || d.date);
+        }
+      }
+    }
+
+    try {
+      const pdfBuffer = await generateTicketPdf({
+        attendeeName: ticket.attendeeName,
+        eventName: event?.name ?? "",
+        eventDates: [],
+        venueName: event?.venueAddress ?? "",
+        venueAddress: event?.venueAddress ?? "",
+        sectionName,
+        ticketTypeName,
+        validDays,
+        qrCodeToken: ticket.qrCodeToken,
+        ticketId: ticket.id,
+        orderId: ticket.orderId,
+      });
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="tapee-ticket-${ticketId.slice(0, 8)}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (err) {
+      logger.error({ err }, "Failed to generate ticket PDF");
+      res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  },
+);
+
 router.get(
   "/tickets/:ticketId/wallet/apple",
   requireRole("attendee"),
@@ -676,6 +774,58 @@ router.get(
   },
 );
 
+async function sendTicketWhatsApp(data: {
+  ticketId: string;
+  attendeeName: string;
+  attendeePhone: string;
+  eventName: string;
+  venueName: string;
+  venueAddress: string;
+  sectionName: string;
+  ticketTypeName: string;
+  validDays: string[];
+  qrCodeToken: string;
+  orderId: string;
+}): Promise<void> {
+  const appUrl = process.env.APP_URL || "https://attendee.tapee.app";
+  const pdfToken = generatePdfToken(data.ticketId);
+  const pdfUrl = `${appUrl}/api/tickets/${data.ticketId}/pdf?token=${pdfToken}`;
+
+  const validDaysStr = data.validDays.length > 0
+    ? data.validDays.join(", ")
+    : "Todos los días";
+
+  const message = [
+    `🎟️ *Tu entrada para ${data.eventName}*`,
+    ``,
+    `Hola ${data.attendeeName}, tu entrada ha sido confirmada.`,
+    ``,
+    `📍 *Lugar:* ${data.venueName}`,
+    data.venueAddress !== data.venueName ? `📌 *Dirección:* ${data.venueAddress}` : "",
+    `🎫 *Sección:* ${data.sectionName}`,
+    `🏷️ *Tipo:* ${data.ticketTypeName}`,
+    `📅 *Días válidos:* ${validDaysStr}`,
+    `🔖 *Orden:* ${data.orderId.slice(0, 8)}`,
+    ``,
+    `Presenta el código QR adjunto en la puerta del evento.`,
+    ``,
+    `— Tapee`,
+  ].filter(Boolean).join("\n");
+
+  const textSent = await sendWhatsAppText(data.attendeePhone, message);
+  if (!textSent) {
+    logger.warn({ phone: data.attendeePhone }, "WhatsApp text message failed, skipping PDF");
+    return;
+  }
+
+  await sendWhatsAppDocument(
+    data.attendeePhone,
+    pdfUrl,
+    `tapee-ticket-${data.ticketId.slice(0, 8)}.pdf`,
+    `Entrada para ${data.eventName} - ${data.attendeeName}`,
+  );
+}
+
 export async function processTicketOrderPayment(orderId: string, wompiTransactionId: string, buyerLocale?: string) {
   const confirmed = await db.transaction(async (tx) => {
     const [order] = await tx
@@ -751,6 +901,22 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         locale: attendeeLocale,
         hasAccount,
       }).catch((err) => logger.error(`Failed to send ticket email to ${ticket.attendeeEmail}: ${err}`));
+
+      if (ticket.attendeePhone && isWhatsAppConfigured()) {
+        void sendTicketWhatsApp({
+          ticketId: ticket.id,
+          attendeeName: ticket.attendeeName,
+          attendeePhone: ticket.attendeePhone,
+          eventName: event.name,
+          venueName: event.venueAddress ?? "",
+          venueAddress: event.venueAddress ?? "",
+          sectionName,
+          ticketTypeName: ticketType?.name ?? "",
+          validDays,
+          qrCodeToken,
+          orderId,
+        }).catch((err) => logger.error(`Failed to send WhatsApp ticket to ${ticket.attendeePhone}: ${err}`));
+      }
 
       if (!ticket.attendeeUserId) {
         void sendTicketInvitationEmail({

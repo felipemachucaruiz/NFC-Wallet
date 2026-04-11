@@ -53,6 +53,8 @@ async function buildAll() {
       "@prisma/client",
       "@mikro-orm/*",
       "@grpc/*",
+      "pdfkit",
+      "fontkit",
       "@swc/*",
       "@aws-sdk/*",
       "@azure/*",

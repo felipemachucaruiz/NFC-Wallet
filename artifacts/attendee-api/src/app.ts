@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import staticRouter from "./routes/static";
+import notificationsRouter from "./routes/notifications";
 import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import { generalLimiter, authLimiter, braceletLookupLimiter } from "./middlewares/rateLimiter";
@@ -47,7 +48,7 @@ const allowedOrigins = rawCorsOrigin
   .filter(Boolean);
 
 app.use((req, res, next) => {
-  if (req.path.includes("/public/") || req.path.endsWith("/auth/providers") || req.path.endsWith("/auth/google")) {
+  if (req.path.includes("/public/") || req.path.endsWith("/auth/providers") || req.path.endsWith("/auth/google") || req.path.includes("/whatsapp-otp/") || (req.path.includes("/tickets/") && req.path.endsWith("/pdf"))) {
     cors({ origin: true, credentials: true })(req, res, next);
   } else {
     cors({
@@ -79,6 +80,8 @@ const RATE_LIMITED_PATHS = [
   "/api/mobile-auth/token-exchange",
   "/api/mobile-auth/logout",
   "/api/attendee/me/refund-request",
+  "/api/auth/whatsapp-otp/send",
+  "/api/auth/whatsapp-otp/verify",
 ];
 
 // Also apply rate limits via proxy prefix (Replit path-based routing doesn't strip prefix)
@@ -108,6 +111,8 @@ app.use(BRACELET_LOOKUP_PATHS, braceletLookupLimiter);
 // Mount at /api (direct localhost access) and /attendee-api/api (Replit proxy)
 app.use("/api", router);
 app.use("/attendee-api/api", router);
+app.use("/api", notificationsRouter);
+app.use("/attendee-api/api", notificationsRouter);
 
 // Global error handler — catches any unhandled async route errors and returns
 // a clean JSON 500 instead of hanging the request or crashing the process.
