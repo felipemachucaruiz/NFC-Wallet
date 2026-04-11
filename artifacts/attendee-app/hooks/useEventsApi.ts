@@ -226,7 +226,34 @@ export function useMyTickets() {
   const apiFetch = useApiFetch();
   return useQuery({
     queryKey: ["tickets", "my"],
-    queryFn: () => apiFetch<{ tickets: MyTicket[] }>(`${API_BASE_URL}/api/attendee/me/tickets`, headers),
+    queryFn: async () => {
+      const data = await apiFetch<{ tickets: Array<Record<string, unknown>> }>(
+        `${API_BASE_URL}/api/tickets/my-tickets`,
+        headers,
+      );
+      const mapped: MyTicket[] = data.tickets.map((t) => ({
+        id: t.id as string,
+        eventId: t.eventId as string,
+        eventName: (t.eventName as string) ?? "",
+        eventCoverImageUrl: t.eventCoverImage
+          ? (t.eventCoverImage as string).startsWith("http")
+            ? (t.eventCoverImage as string)
+            : `${API_BASE_URL}${t.eventCoverImage}`
+          : undefined,
+        startsAt: (t.eventStartsAt as string) ?? "",
+        venueName: "",
+        ticketTypeName: (t.ticketTypeName as string) ?? "",
+        status: (t.status as MyTicket["status"]) ?? "active",
+        qrCode: (t.qrCodeToken as string) ?? "",
+        attendeeName: (t.attendeeName as string) ?? "",
+        attendeeEmail: "",
+        attendeePhone: "",
+        purchasedByMe: true,
+        currencyCode: "COP",
+        price: 0,
+      }));
+      return { tickets: mapped };
+    },
     enabled: !!headers.Authorization,
     staleTime: 30_000,
   });

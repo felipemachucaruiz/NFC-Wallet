@@ -322,6 +322,7 @@
     "select": "Seleccionar"
   },
   "tickets": {
+    "tab": "Boletas",
     "myTickets": "Mis Boletas",
     "noTickets": "No tienes boletas",
     "noTicketsSub": "Las boletas que compres o te asignen aparecerán aquí.",

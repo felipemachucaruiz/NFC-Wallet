@@ -323,6 +323,7 @@
     "select": "Select"
   },
   "tickets": {
+    "tab": "Tickets",
     "myTickets": "My Tickets",
     "noTickets": "No tickets yet",
     "noTicketsSub": "Tickets you purchase or are assigned to you will appear here.",

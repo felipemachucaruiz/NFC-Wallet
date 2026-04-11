@@ -81,6 +81,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="my-tickets"
+        options={{
+          title: t("tickets.tab"),
+          tabBarIcon: ({ color }) =>
+            isIOS && SymbolView
+              ? <SymbolView name="ticket.fill" tintColor={color} size={22} />
+              : <Feather name="tag" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="history"
         options={{
           title: t("history.tab"),
@@ -93,11 +103,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="notifications"
         options={{
-          title: t("notifications.tab"),
-          tabBarIcon: ({ color }) =>
-            isIOS && SymbolView
-              ? <SymbolView name="bell.fill" tintColor={color} size={22} />
-              : <Feather name="bell" size={22} color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen
