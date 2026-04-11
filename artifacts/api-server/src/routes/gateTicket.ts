@@ -150,22 +150,31 @@ async function resolveTicketFromDb(ticketId: string, eventId: string): Promise<T
 }
 
 async function resolveQrToken(qrToken: string, eventHmacSecret: string, eventId: string): Promise<TicketPayload | null> {
+  // 1. Try gate HMAC format (fastest, bracelet-linked or gate-generated QR)
   const gateResult = verifyTicketToken(qrToken, eventHmacSecret);
-  if (gateResult) return gateResult;
-
-  const attendeeResult = verifyAttendeeQrToken(qrToken);
-  if (attendeeResult) {
-    return resolveTicketFromDb(attendeeResult.ticketId, eventId);
+  if (gateResult) {
+    console.log("[resolveQrToken] Resolved via gate HMAC for event", eventId);
+    return gateResult;
   }
 
+  // 2. Try direct DB lookup by qrCodeToken (most robust — works even if HMAC secrets differ between services)
   const [ticketByToken] = await db
     .select({ id: ticketsTable.id })
     .from(ticketsTable)
     .where(eq(ticketsTable.qrCodeToken, qrToken));
   if (ticketByToken) {
+    console.log("[resolveQrToken] Resolved via direct DB qrCodeToken lookup for event", eventId);
     return resolveTicketFromDb(ticketByToken.id, eventId);
   }
 
+  // 3. Try attendee HMAC format (catches valid tokens whose value may differ from stored qrCodeToken due to regeneration)
+  const attendeeResult = verifyAttendeeQrToken(qrToken);
+  if (attendeeResult) {
+    console.log("[resolveQrToken] Resolved via attendee HMAC for event", eventId);
+    return resolveTicketFromDb(attendeeResult.ticketId, eventId);
+  }
+
+  console.warn("[resolveQrToken] All resolution paths failed. eventId=%s qrTokenPrefix=%s", eventId, qrToken.slice(0, 20));
   return null;
 }
 
@@ -249,7 +258,7 @@ router.post(
       return;
     }
 
-    if (!ticket.days.includes(todayDayIndex)) {
+    if (ticket.days.length > 0 && !ticket.days.includes(todayDayIndex)) {
       res.status(400).json({
         error: "WRONG_DAY",
         message: "This ticket is not valid for today",
@@ -497,7 +506,7 @@ router.post(
       return;
     }
 
-    if (!ticket.days.includes(todayDayIndex)) {
+    if (ticket.days.length > 0 && !ticket.days.includes(todayDayIndex)) {
       res.status(400).json({
         error: "WRONG_DAY",
         message: "This ticket is not valid for today",
@@ -700,7 +709,7 @@ router.post(
       zone = z ?? null;
     }
 
-    const isValidForToday = ticket.days.includes(todayDayIndex);
+    const isValidForToday = ticket.days.length === 0 || ticket.days.includes(todayDayIndex);
     const isAlreadyCheckedIn = !!todayCheckin;
 
     res.json({

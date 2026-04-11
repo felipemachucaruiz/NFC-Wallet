@@ -25,6 +25,16 @@ export default function MoreScreen() {
 
   const hasPromoterCompany = !!user?.promoterCompanyId;
 
+  const ticketingItems: MenuItem[] = [
+    { icon: "tag", labelKey: "ticketTypes.title", route: "/(event-admin)/ticket-types" },
+    { icon: "shopping-bag", labelKey: "ticketOrders.title", route: "/(event-admin)/ticket-orders" },
+    { icon: "user-check", labelKey: "ticketCheckins.title", route: "/(event-admin)/ticket-checkins" },
+    { icon: "bar-chart-2", labelKey: "salesDashboard.title", route: "/(event-admin)/sales-dashboard" },
+    { icon: "calendar", labelKey: "eventDays.title", route: "/(event-admin)/event-days" },
+    { icon: "list", labelKey: "guestLists.title", route: "/(event-admin)/guest-lists" },
+    { icon: "settings", labelKey: "salesConfig.title", route: "/(event-admin)/sales-config" },
+  ];
+
   const menuItems: MenuItem[] = [
     { icon: "users", labelKey: "eventAdmin.users", route: "/(event-admin)/users" },
     { icon: "credit-card", labelKey: "wristbands.title", route: "/(event-admin)/wristbands" },
@@ -66,6 +76,7 @@ export default function MoreScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        <Text style={[styles.sectionHeader, { color: C.textMuted }]}>{t("eventAdmin.general")}</Text>
         <View style={[styles.group, { backgroundColor: C.card, borderColor: C.border }]}>
           {visible.map((item, idx) => (
             <React.Fragment key={item.route}>
@@ -90,6 +101,32 @@ export default function MoreScreen() {
             </React.Fragment>
           ))}
         </View>
+
+        <Text style={[styles.sectionHeader, { color: C.textMuted }]}>{t("eventAdmin.ticketing")}</Text>
+        <View style={[styles.group, { backgroundColor: C.card, borderColor: C.border }]}>
+          {ticketingItems.map((item, idx) => (
+            <React.Fragment key={item.route}>
+              <Pressable
+                onPress={() => router.push(item.route as any)}
+                style={({ pressed }) => [
+                  styles.row,
+                  pressed && { backgroundColor: C.inputBg },
+                ]}
+              >
+                <View style={[styles.iconWrap, { backgroundColor: C.primaryLight }]}>
+                  <Feather name={item.icon} size={18} color={C.primary} />
+                </View>
+                <Text style={[styles.label, { color: C.text }]}>
+                  {t(item.labelKey)}
+                </Text>
+                <Feather name="chevron-right" size={18} color={C.textMuted} />
+              </Pressable>
+              {idx < ticketingItems.length - 1 && (
+                <View style={[styles.divider, { backgroundColor: C.separator }]} />
+              )}
+            </React.Fragment>
+          ))}
+        </View>
       </ScrollView>
     </View>
   );
@@ -99,7 +136,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingBottom: 16, gap: 4 },
   title: { fontSize: 26, fontFamily: "Inter_700Bold" },
-  list: { paddingHorizontal: 20, paddingTop: 8 },
+  list: { paddingHorizontal: 20, paddingTop: 8, gap: 0 },
+  sectionHeader: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8, marginTop: 20, marginBottom: 8, marginLeft: 4 },
   group: {
     borderRadius: 16,
     borderWidth: 1,

@@ -90,6 +90,14 @@ function ClassicTabLayout() {
       <Tabs.Screen name="event-settings" options={{ href: null }} />
       <Tabs.Screen name="access-zones" options={{ href: null }} />
       <Tabs.Screen name="profile" options={{ href: null }} />
+      {/* Ticketing screens */}
+      <Tabs.Screen name="ticket-types" options={{ href: null }} />
+      <Tabs.Screen name="ticket-orders" options={{ href: null }} />
+      <Tabs.Screen name="ticket-checkins" options={{ href: null }} />
+      <Tabs.Screen name="event-days" options={{ href: null }} />
+      <Tabs.Screen name="guest-lists" options={{ href: null }} />
+      <Tabs.Screen name="sales-config" options={{ href: null }} />
+      <Tabs.Screen name="sales-dashboard" options={{ href: null }} />
     </Tabs>
   );
 }
