@@ -33,7 +33,10 @@ const createMappingSchema = z.object({
   parameterMappings: z.array(z.object({
     position: z.number().int().min(1),
     field: z.string().min(1),
-  })).default([]),
+  })).default([]).refine(
+    (arr) => new Set(arr.map(m => m.position)).size === arr.length,
+    { message: "Duplicate positions are not allowed" }
+  ),
 });
 
 const updateMappingSchema = createMappingSchema.partial();
@@ -262,6 +265,7 @@ router.get("/whatsapp-trigger-mappings/resolve/:triggerType", requireAuth, async
         templateId: resolved.template.id,
         gupshupTemplateId: resolved.template.gupshupTemplateId,
         parameters: resolved.template.parameters,
+        parameterMappings: resolved.mapping.parameterMappings,
         bodyPreview: resolved.template.bodyPreview,
       },
     });

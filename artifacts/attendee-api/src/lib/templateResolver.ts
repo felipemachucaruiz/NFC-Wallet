@@ -74,12 +74,12 @@ export function buildParamsFromMappings(
     return fallbackValues;
   }
 
-  const sorted = [...mappings].sort((a, b) => a.position - b.position);
-  const maxPos = sorted[sorted.length - 1]?.position || 0;
+  const highestMappedPos = Math.max(...mappings.map((m) => m.position), 0);
+  const totalPositions = Math.max(fallbackValues.length, highestMappedPos);
   const result: string[] = [];
 
-  for (let pos = 1; pos <= maxPos; pos++) {
-    const mapping = sorted.find((m) => m.position === pos);
+  for (let pos = 1; pos <= totalPositions; pos++) {
+    const mapping = mappings.find((m) => m.position === pos);
     if (mapping && context[mapping.field] !== undefined) {
       result.push(context[mapping.field]);
     } else if (fallbackValues[pos - 1] !== undefined) {
