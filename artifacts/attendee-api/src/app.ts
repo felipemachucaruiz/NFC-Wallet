@@ -48,7 +48,7 @@ const allowedOrigins = rawCorsOrigin
   .filter(Boolean);
 
 app.use((req, res, next) => {
-  if (req.path.includes("/public/") || req.path.endsWith("/auth/providers") || req.path.endsWith("/auth/google") || req.path.includes("/whatsapp-otp/") || (req.path.includes("/tickets/") && req.path.endsWith("/pdf"))) {
+  if (req.path.includes("/public/") || req.path.includes("/auth/") || (req.path.includes("/tickets/") && req.path.endsWith("/pdf"))) {
     cors({ origin: true, credentials: true })(req, res, next);
   } else {
     cors({
