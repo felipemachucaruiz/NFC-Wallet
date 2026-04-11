@@ -1714,18 +1714,41 @@ router.post(
     }).catch((err) => logger.error(`Failed to send transfer email: ${err}`));
 
     if (recipientPhone && isWhatsAppConfigured()) {
-      const message = [
-        `Hola ${recipientName}, tu amigo *${senderName}* te ha transferido uno de sus tickets 🎟️ para asistir a *${event.name}*.`,
-        ``,
-        `Quieres que te envie aqui tu ticket?`,
-      ].join("\n");
-
-      void sendWhatsAppText(recipientPhone, message, {
-        triggerType: "ticket_transferred",
+      const { sendWithTemplate } = await import("../lib/templateResolver");
+      const waContext: Record<string, string> = {
+        recipientName,
+        senderName,
+        eventName: event.name,
+      };
+      const waLogContext = {
+        triggerType: "ticket_transfer",
         ticketId,
         eventId: event.id,
         attendeeName: recipientName,
-      }).catch((err) => logger.error(`Failed to send transfer WhatsApp: ${err}`));
+      };
+
+      void (async () => {
+        try {
+          const result = await sendWithTemplate(
+            recipientPhone,
+            "ticket_transfer",
+            [recipientName, senderName, event.name],
+            event.id,
+            waContext,
+            waLogContext,
+          );
+          if (!result.usedTemplate) {
+            const message = [
+              `Hola ${recipientName}, tu amigo *${senderName}* te ha transferido uno de sus tickets 🎟️ para asistir a *${event.name}*.`,
+              ``,
+              `Quieres que te envie aqui tu ticket?`,
+            ].join("\n");
+            await sendWhatsAppText(recipientPhone, message, waLogContext);
+          }
+        } catch (err) {
+          logger.error(`Failed to send transfer WhatsApp: ${err}`);
+        }
+      })();
     }
 
     logger.info({ ticketId, from: req.user.id, to: recipientUserId, recipientEmail: normalizedEmail }, "Ticket transferred");

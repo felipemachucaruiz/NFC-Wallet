@@ -4,7 +4,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { sendWhatsAppTemplate, type TemplateParam, type MessageLogContext } from "./whatsapp";
 import { logger } from "./logger";
 
-export type TriggerType = "ticket_purchased" | "otp_verification" | "event_reminder" | "ticket_refund" | "welcome_message" | "custom";
+export type TriggerType = "ticket_purchased" | "otp_verification" | "event_reminder" | "ticket_refund" | "welcome_message" | "ticket_transfer" | "custom";
 
 export interface ParameterMapping {
   position: number;

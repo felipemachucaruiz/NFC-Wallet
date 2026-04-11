@@ -40,6 +40,7 @@ export const whatsappTriggerTypeEnum = pgEnum("whatsapp_trigger_type", [
   "event_reminder",
   "ticket_refund",
   "welcome_message",
+  "ticket_transfer",
   "custom",
 ]);
 
