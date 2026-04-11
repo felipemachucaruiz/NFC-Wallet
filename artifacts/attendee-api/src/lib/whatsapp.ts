@@ -17,7 +17,7 @@ function normalizePhone(phone: string): string {
   return cleaned;
 }
 
-async function sendGupshupRequest(destination: string, message: Record<string, unknown>): Promise<boolean> {
+async function sendGupshupSessionMessage(destination: string, message: Record<string, unknown>): Promise<boolean> {
   if (!isConfigured()) {
     logger.warn("Gupshup WhatsApp not configured — skipping send");
     return false;
@@ -45,7 +45,7 @@ async function sendGupshupRequest(destination: string, message: Record<string, u
     const responseText = await res.text();
 
     if (!res.ok) {
-      logger.error({ status: res.status, body: responseText }, "Gupshup WhatsApp send failed");
+      logger.error({ status: res.status, body: responseText }, "Gupshup session message send failed");
       return false;
     }
 
@@ -53,52 +53,22 @@ async function sendGupshupRequest(destination: string, message: Record<string, u
     try { parsed = JSON.parse(responseText); } catch {}
 
     if (parsed.status === "error") {
-      logger.error({ response: parsed }, "Gupshup WhatsApp returned error");
+      logger.error({ response: parsed }, "Gupshup session message returned error");
       return false;
     }
 
-    logger.info({ destination: phone, messageType: message.type }, "WhatsApp message sent successfully");
+    logger.info({ destination: phone, messageType: message.type }, "WhatsApp session message sent successfully");
     return true;
   } catch (err) {
-    logger.error({ err }, "Gupshup WhatsApp send error");
+    logger.error({ err }, "Gupshup session message send error");
     return false;
   }
 }
 
-export async function sendWhatsAppText(destination: string, text: string): Promise<boolean> {
-  return sendGupshupRequest(destination, {
-    type: "text",
-    text,
-  });
-}
-
-export interface TemplateParam {
-  type: "text";
-  text: string;
-}
-
-export async function sendWhatsAppTemplate(
+async function sendGupshupTemplateMessage(
   destination: string,
   templateId: string,
-  params: TemplateParam[],
-  isAuthentication?: boolean,
-): Promise<boolean> {
-  if (isAuthentication) {
-    return sendAuthenticationTemplate(destination, templateId, params);
-  }
-  return sendGupshupRequest(destination, {
-    type: "template",
-    template: {
-      id: templateId,
-      params,
-    },
-  });
-}
-
-async function sendAuthenticationTemplate(
-  destination: string,
-  templateId: string,
-  params: TemplateParam[],
+  params: string[],
 ): Promise<boolean> {
   if (!isConfigured()) {
     logger.warn("Gupshup WhatsApp not configured — skipping send");
@@ -106,10 +76,10 @@ async function sendAuthenticationTemplate(
   }
 
   const phone = normalizePhone(destination);
-  const otpCode = params[0]?.text || "";
+
   const templatePayload = {
     id: templateId,
-    params: [otpCode, otpCode],
+    params,
   };
 
   const body = new URLSearchParams();
@@ -132,7 +102,7 @@ async function sendAuthenticationTemplate(
     const responseText = await res.text();
 
     if (!res.ok) {
-      logger.error({ status: res.status, body: responseText }, "Gupshup auth template send failed");
+      logger.error({ status: res.status, body: responseText, templateId }, "Gupshup template send failed");
       return false;
     }
 
@@ -140,16 +110,44 @@ async function sendAuthenticationTemplate(
     try { parsed = JSON.parse(responseText); } catch {}
 
     if (parsed.status === "error") {
-      logger.error({ response: parsed }, "Gupshup auth template returned error");
+      logger.error({ response: parsed, templateId }, "Gupshup template returned error");
       return false;
     }
 
-    logger.info({ destination: phone, templateId }, "WhatsApp auth template sent successfully");
+    logger.info({ destination: phone, templateId }, "WhatsApp template sent successfully");
     return true;
   } catch (err) {
-    logger.error({ err }, "Gupshup auth template send error");
+    logger.error({ err, templateId }, "Gupshup template send error");
     return false;
   }
+}
+
+export async function sendWhatsAppText(destination: string, text: string): Promise<boolean> {
+  return sendGupshupSessionMessage(destination, {
+    type: "text",
+    text,
+  });
+}
+
+export interface TemplateParam {
+  type: "text";
+  text: string;
+}
+
+export async function sendWhatsAppTemplate(
+  destination: string,
+  templateId: string,
+  params: TemplateParam[],
+  isAuthentication?: boolean,
+): Promise<boolean> {
+  const paramStrings = params.map((p) => p.text);
+
+  if (isAuthentication) {
+    const otpCode = paramStrings[0] || "";
+    return sendGupshupTemplateMessage(destination, templateId, [otpCode, otpCode]);
+  }
+
+  return sendGupshupTemplateMessage(destination, templateId, paramStrings);
 }
 
 export async function sendWhatsAppDocument(
@@ -158,7 +156,7 @@ export async function sendWhatsAppDocument(
   filename: string,
   caption?: string,
 ): Promise<boolean> {
-  return sendGupshupRequest(destination, {
+  return sendGupshupSessionMessage(destination, {
     type: "file",
     url: documentUrl,
     filename,
@@ -171,7 +169,7 @@ export async function sendWhatsAppImage(
   imageUrl: string,
   caption?: string,
 ): Promise<boolean> {
-  return sendGupshupRequest(destination, {
+  return sendGupshupSessionMessage(destination, {
     type: "image",
     originalUrl: imageUrl,
     previewUrl: imageUrl,
