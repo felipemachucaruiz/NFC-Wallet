@@ -361,6 +361,24 @@ export interface WhatsAppTriggerMapping {
   templateGupshupId: string | null;
 }
 
+export interface GupshupTemplate {
+  id: string;
+  elementName: string;
+  category: string;
+  languageCode: string;
+  status: string;
+  templateType: string;
+  data: string;
+  meta: string;
+}
+
+export async function apiFetchGupshupTemplates(): Promise<GupshupTemplate[]> {
+  const res = await fetch(apiUrl("/api/whatsapp-templates/gupshup"), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch Gupshup templates");
+  return data.templates;
+}
+
 export async function apiFetchWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
   const res = await fetch(apiUrl("/api/whatsapp-templates"), { headers: authHeaders() });
   const data = await res.json();
