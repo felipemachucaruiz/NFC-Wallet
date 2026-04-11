@@ -36,33 +36,39 @@ import PDFDocument from "pdfkit";
   async function renderTicketPage(doc: PDFKit.PDFDocument, data: TicketPdfData): Promise<void> {
     const W = 396;
     const H = 612;
+    const FLYER_H = 210;
+    const QR_SIZE = 160;
+    const QR_BORDER = 10;
+    const QR_BOX = QR_SIZE + QR_BORDER * 2;
+    const QR_X = (W - QR_BOX) / 2;
+    const QR_Y = FLYER_H - QR_SIZE * 0.25; // QR overlaps bottom of flyer slightly
 
+    // ── Background ──────────────────────────────────────────────────────────────
     doc.rect(0, 0, W, H).fill("#0a0a0a");
 
-    const flyerH = 200;
+    // ── Flyer / header area ──────────────────────────────────────────────────────
     let flyerLoaded = false;
-
     if (data.flyerImageUrl) {
       const imgBuf = await fetchImageBuffer(data.flyerImageUrl);
       if (imgBuf) {
         try {
           const img = doc.openImage(imgBuf);
           const imgAspect = img.width / img.height;
-          const boxAspect = W / flyerH;
+          const boxAspect = W / FLYER_H;
           let drawW: number, drawH: number, drawX: number, drawY: number;
           if (imgAspect > boxAspect) {
-            drawH = flyerH;
-            drawW = flyerH * imgAspect;
+            drawH = FLYER_H;
+            drawW = FLYER_H * imgAspect;
             drawX = (W - drawW) / 2;
             drawY = 0;
           } else {
             drawW = W;
             drawH = W / imgAspect;
             drawX = 0;
-            drawY = (flyerH - drawH) / 2;
+            drawY = (FLYER_H - drawH) / 2;
           }
           doc.save();
-          doc.rect(0, 0, W, flyerH).clip();
+          doc.rect(0, 0, W, FLYER_H).clip();
           doc.image(imgBuf, drawX, drawY, { width: drawW, height: drawH });
           doc.restore();
           flyerLoaded = true;
@@ -73,111 +79,134 @@ import PDFDocument from "pdfkit";
     }
 
     if (!flyerLoaded) {
-      doc.rect(0, 0, W, flyerH).fill("#111111");
-      doc.fontSize(28).font("Helvetica-Bold").fillColor("#00f1ff")
-        .text("tapee", 30, 70, { width: 336, align: "center" });
-      doc.fontSize(10).font("Helvetica").fillColor("#8b949e")
-        .text("Eventos Cashless", 30, 105, { width: 336, align: "center" });
+      // Dark branded header when no flyer
+      doc.rect(0, 0, W, FLYER_H).fill("#111111");
+      doc.fontSize(36).font("Helvetica-Bold").fillColor("#00f1ff")
+        .text("tapee", 0, FLYER_H / 2 - 30, { width: W, align: "center" });
+      doc.fontSize(11).font("Helvetica").fillColor("#8b949e")
+        .text("Eventos Cashless", 0, FLYER_H / 2 + 14, { width: W, align: "center" });
     }
 
+    // Gradient fade at bottom of flyer into dark background
     doc.save();
-    doc.rect(0, flyerH - 60, W, 60).clip();
-    const grad = doc.linearGradient(0, flyerH - 60, 0, flyerH);
+    doc.rect(0, FLYER_H - 70, W, 70).clip();
+    const grad = doc.linearGradient(0, FLYER_H - 70, 0, FLYER_H);
     grad.stop(0, "#0a0a0a", 0);
     grad.stop(1, "#0a0a0a", 1);
-    doc.rect(0, flyerH - 60, W, 60).fill(grad);
+    doc.rect(0, FLYER_H - 70, W, 70).fill(grad);
     doc.restore();
 
-    let y = flyerH + 10;
-
-    doc.fontSize(16).font("Helvetica-Bold").fillColor("#ffffff")
-      .text(data.eventName, 30, y, { width: 336, align: "center" });
-    y += 25;
-
-    const dateStr = data.eventDates.length > 0
-      ? data.eventDates.join(" \u2022 ")
-      : "";
-    if (dateStr) {
-      doc.fontSize(10).font("Helvetica").fillColor("#00f1ff")
-        .text(dateStr, 30, y, { width: 336, align: "center" });
-      y += 18;
-    }
-
-    y += 5;
-
-    doc.strokeColor("#333333").lineWidth(0.5)
-      .moveTo(30, y).lineTo(366, y).stroke();
-    y += 10;
-
-    const labelColor = "#8b949e";
-    const valueColor = "#ffffff";
-
-    const addField = (label: string, value: string) => {
-      doc.fontSize(8).font("Helvetica").fillColor(labelColor)
-        .text(label.toUpperCase(), 30, y, { width: 160 });
-      doc.fontSize(10).font("Helvetica-Bold").fillColor(valueColor)
-        .text(value, 30, y + 10, { width: 336 });
-      y += 26;
-    };
-
-    addField("Asistente", data.attendeeName);
-    addField("Lugar", data.venueName);
-    if (data.venueAddress && data.venueAddress !== data.venueName) {
-      addField("Direccion", data.venueAddress);
-    }
-    addField("Seccion", data.sectionName);
-    addField("Tipo", data.ticketTypeName);
-
-    const validDaysStr = data.validDays.length > 0
-      ? data.validDays.join(", ")
-      : "Todos los dias";
-    addField("Dias validos", validDaysStr);
-
-    doc.strokeColor("#333333").lineWidth(0.5)
-      .moveTo(30, y).lineTo(366, y).stroke();
-    y += 8;
-
-    const qrSize = 120;
-    const qrX = (W - qrSize) / 2;
-
+    // ── QR code block ────────────────────────────────────────────────────────────
     try {
       const qrDataUrl = await QRCode.toDataURL(data.qrCodeToken, {
-        width: qrSize * 2,
+        width: QR_SIZE * 3,
         margin: 1,
         color: { dark: "#000000", light: "#ffffff" },
         errorCorrectionLevel: "H",
       });
+      const qrBuffer = Buffer.from(qrDataUrl.replace(/^data:image\/png;base64,/, ""), "base64");
 
-      const qrImageData = qrDataUrl.replace(/^data:image\/png;base64,/, "");
-      const qrBuffer = Buffer.from(qrImageData, "base64");
+      // White rounded rect behind QR
+      doc.roundedRect(QR_X, QR_Y, QR_BOX, QR_BOX, 12).fill("#ffffff");
+      // QR image
+      doc.image(qrBuffer, QR_X + QR_BORDER, QR_Y + QR_BORDER, { width: QR_SIZE, height: QR_SIZE });
 
-      doc.roundedRect(qrX - 6, y - 6, qrSize + 12, qrSize + 12, 6).fill("#ffffff");
-      doc.image(qrBuffer, qrX, y, { width: qrSize, height: qrSize });
-
-      // Logo overlay in the center of the QR code
-      const logoSize = 26;
-      const logoBgSize = 34;
-      const logoX = qrX + (qrSize - logoSize) / 2;
-      const logoY = y + (qrSize - logoSize) / 2;
-      const logoBgX = qrX + (qrSize - logoBgSize) / 2;
-      const logoBgY = y + (qrSize - logoBgSize) / 2;
-      doc.roundedRect(logoBgX, logoBgY, logoBgSize, logoBgSize, 6).fill("#ffffff");
-      doc.image(tapeeLogoBuffer, logoX, logoY, { width: logoSize, height: logoSize });
+      // Tapee logo centered on QR
+      const LOGO_SIZE = 34;
+      const LOGO_BG = 44;
+      const logoX = QR_X + QR_BORDER + (QR_SIZE - LOGO_SIZE) / 2;
+      const logoY = QR_Y + QR_BORDER + (QR_SIZE - LOGO_SIZE) / 2;
+      const logoBgX = QR_X + QR_BORDER + (QR_SIZE - LOGO_BG) / 2;
+      const logoBgY = QR_Y + QR_BORDER + (QR_SIZE - LOGO_BG) / 2;
+      doc.roundedRect(logoBgX, logoBgY, LOGO_BG, LOGO_BG, 8).fill("#ffffff");
+      doc.image(tapeeLogoBuffer, logoX, logoY, { width: LOGO_SIZE, height: LOGO_SIZE });
     } catch (err) {
       logger.error({ err }, "Failed to generate QR for PDF");
-      doc.roundedRect(qrX - 6, y - 6, qrSize + 12, qrSize + 12, 6).fill("#ffffff");
+      doc.roundedRect(QR_X, QR_Y, QR_BOX, QR_BOX, 12).fill("#ffffff");
       doc.fontSize(10).fillColor("#ef4444")
-        .text("QR no disponible", qrX, y + qrSize / 2 - 5, { width: qrSize, align: "center" });
+        .text("QR no disponible", QR_X, QR_Y + QR_BOX / 2 - 5, { width: QR_BOX, align: "center" });
     }
 
-    y += qrSize + 14;
+    // ── Info section ─────────────────────────────────────────────────────────────
+    let y = QR_Y + QR_BOX + 18;
 
-    doc.fontSize(8).font("Helvetica").fillColor("#8b949e")
-      .text("Presenta este codigo QR en la puerta del evento", 30, y, { width: 336, align: "center" });
+    // Event name
+    doc.fontSize(18).font("Helvetica-Bold").fillColor("#ffffff")
+      .text(data.eventName, 24, y, { width: W - 48, align: "center" });
+    y += doc.heightOfString(data.eventName, { width: W - 48 }) + 6;
+
+    // Venue
+    doc.fontSize(10).font("Helvetica").fillColor("#8b949e")
+      .text(`\u{1F4CD} ${data.venueName}`, 24, y, { width: W - 48, align: "center" });
+    y += 18;
+
+    // Divider
+    doc.strokeColor("#222222").lineWidth(0.5).moveTo(24, y).lineTo(W - 24, y).stroke();
+    y += 14;
+
+    // Two-column row: FECHA | HORA
+    const dateStr = data.eventDates[0] ?? "—";
+    const timeStr = data.eventDates.length > 1 ? data.eventDates.slice(1).join(", ") : "Ver entrada";
+    const colW = (W - 48) / 2;
+
+    doc.fontSize(7).font("Helvetica").fillColor("#8b949e")
+      .text("FECHA", 24, y, { width: colW });
+    doc.fontSize(7).font("Helvetica").fillColor("#8b949e")
+      .text("TIPO DE ENTRADA", 24 + colW, y, { width: colW });
+    y += 11;
+
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#ffffff")
+      .text(dateStr, 24, y, { width: colW });
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#ffffff")
+      .text(data.ticketTypeName, 24 + colW, y, { width: colW });
+    y += 20;
+
+    // Section row
+    if (data.sectionName && data.sectionName !== "—") {
+      doc.fontSize(7).font("Helvetica").fillColor("#8b949e")
+        .text("SECCI\u00D3N", 24, y, { width: colW });
+      doc.fontSize(7).font("Helvetica").fillColor("#8b949e")
+        .text("D\u00CDAS V\u00C1LIDOS", 24 + colW, y, { width: colW });
+      y += 11;
+      const validDaysStr = data.validDays.length > 0 ? data.validDays.join(", ") : "Todos los d\u00edas";
+      doc.fontSize(11).font("Helvetica-Bold").fillColor("#ffffff")
+        .text(data.sectionName, 24, y, { width: colW });
+      doc.fontSize(11).font("Helvetica-Bold").fillColor("#ffffff")
+        .text(validDaysStr, 24 + colW, y, { width: colW });
+      y += 20;
+    }
+
+    // Divider
+    doc.strokeColor("#222222").lineWidth(0.5).moveTo(24, y).lineTo(W - 24, y).stroke();
     y += 12;
 
-    doc.fontSize(7).font("Helvetica").fillColor("#555555")
-      .text(`Orden: ${data.orderId.slice(0, 8)} | Ticket: ${data.ticketId.slice(0, 8)}`, 30, y, { width: 336, align: "center" });
+    // Ticket type badge with cyan accent
+    doc.fontSize(9).font("Helvetica").fillColor("#00f1ff")
+      .text(`\u{1F3AB} ${data.ticketTypeName}`, 24, y, { width: W - 48, align: "center" });
+    y += 16;
+
+    // Small order/ticket ID
+    doc.fontSize(7).font("Helvetica").fillColor("#333333")
+      .text(`Orden: ${data.orderId.slice(0, 8)}  |  Ticket: ${data.ticketId.slice(0, 8)}`, 24, y, { width: W - 48, align: "center" });
+
+    // ── Bottom bar: attendee name + Válida badge ─────────────────────────────────
+    const BAR_H = 40;
+    const BAR_Y = H - BAR_H;
+    doc.rect(0, BAR_Y, W, BAR_H).fill("#111111");
+    doc.strokeColor("#1a1a1a").lineWidth(0.5).moveTo(0, BAR_Y).lineTo(W, BAR_Y).stroke();
+
+    // Attendee name
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#ffffff")
+      .text(data.attendeeName, 20, BAR_Y + 13, { width: 220 });
+
+    // "Válida" green pill badge
+    const BADGE_W = 64;
+    const BADGE_H = 24;
+    const BADGE_X = W - BADGE_W - 16;
+    const BADGE_Y = BAR_Y + (BAR_H - BADGE_H) / 2;
+    doc.roundedRect(BADGE_X, BADGE_Y, BADGE_W, BADGE_H, 12).fill("#16a34a");
+    doc.fontSize(10).font("Helvetica-Bold").fillColor("#ffffff")
+      .text("V\u00e1lida", BADGE_X, BADGE_Y + 6, { width: BADGE_W, align: "center" });
   }
 
   export async function generateTicketPdf(data: TicketPdfData): Promise<Buffer> {
