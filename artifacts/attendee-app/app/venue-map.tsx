@@ -3,6 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -10,9 +11,14 @@ import {
   Text,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import Svg, { Path } from "react-native-svg";
 import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -22,10 +28,26 @@ import { useEventDetail } from "@/hooks/useEventsApi";
 import { formatCurrency } from "@/utils/format";
 import type { VenueSection, TicketType, TicketAvailability } from "@/types/events";
 
-function availabilityColor(a: TicketAvailability): string {
-  if (a === "available") return "#22c55e";
-  if (a === "limited") return "#eab308";
-  return "#ef4444";
+function parseSvgRect(pathData: string): { x: number; y: number; w: number; h: number } | null {
+  const nums = pathData.match(/[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 4) return null;
+  const xs = nums.filter((_, i) => i % 2 === 0);
+  const ys = nums.filter((_, i) => i % 2 === 1);
+  if (xs.length === 0 || ys.length === 0) return null;
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  const w = Math.max(...xs) - x;
+  const h = Math.max(...ys) - y;
+  if (w <= 0 || h <= 0) return null;
+  return { x, y, w, h };
+}
+
+function hexToRgba(hex: string, opacity: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${opacity})`;
 }
 
 function availabilityVariant(a: TicketAvailability): "success" | "warning" | "danger" {
@@ -34,103 +56,149 @@ function availabilityVariant(a: TicketAvailability): "success" | "warning" | "da
   return "danger";
 }
 
-function SvgVenueMap({
-  viewBox,
+function ZoomableMap({
+  floorplanImageUrl,
   sections,
   selectedId,
   onSelect,
 }: {
-  viewBox: string;
+  floorplanImageUrl?: string;
   sections: VenueSection[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }) {
-  return (
-    <View style={svgStyles.container}>
-      <Svg viewBox={viewBox} width="100%" height="100%" style={svgStyles.svg}>
-        {sections.map((section) => {
-          const isSelected = selectedId === section.id;
-          const isSoldOut = section.availability === "sold_out";
-          const fillColor = isSoldOut
-            ? "#3f3f46"
-            : isSelected
-            ? availabilityColor(section.availability)
-            : `${availabilityColor(section.availability)}60`;
-          const strokeColor = isSelected
-            ? "#ffffff"
-            : availabilityColor(section.availability);
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
 
-          if (section.svgPathData) {
-            return (
-              <Path
-                key={section.id}
-                d={section.svgPathData}
-                fill={fillColor}
-                stroke={strokeColor}
-                strokeWidth={isSelected ? 3 : 1.5}
-                opacity={isSoldOut ? 0.4 : 1}
-                onPress={() => {
-                  if (!isSoldOut) onSelect(isSelected ? null : section.id);
-                }}
+  const pinch = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = Math.max(1, Math.min(4, savedScale.value * e.scale));
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      if (scale.value <= 1) {
+        translateX.value = withTiming(0);
+        translateY.value = withTiming(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      }
+    });
+
+  const pan = Gesture.Pan()
+    .onUpdate((e) => {
+      translateX.value = savedTranslateX.value + e.translationX;
+      translateY.value = savedTranslateY.value + e.translationY;
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  const composed = Gesture.Simultaneous(pinch, pan);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  const zoomIn = () => {
+    const next = Math.min(4, savedScale.value + 0.5);
+    scale.value = withTiming(next);
+    savedScale.value = next;
+  };
+
+  const zoomOut = () => {
+    const next = Math.max(1, savedScale.value - 0.5);
+    scale.value = withTiming(next);
+    savedScale.value = next;
+    if (next <= 1) {
+      translateX.value = withTiming(0);
+      translateY.value = withTiming(0);
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+    }
+  };
+
+  const hasFloorplan = !!floorplanImageUrl;
+  const hasSections = sections.some((s) => !!s.svgPathData);
+
+  return (
+    <View style={mapStyles.wrapper}>
+      <GestureDetector gesture={composed}>
+        <View style={[mapStyles.mapContainer, !hasFloorplan && mapStyles.mapBg]}>
+          <Animated.View style={[mapStyles.mapInner, animStyle]}>
+            {hasFloorplan && (
+              <Image
+                source={{ uri: floorplanImageUrl }}
+                style={mapStyles.floorplanImage}
+                resizeMode="contain"
               />
-            );
-          }
+            )}
+            {!hasFloorplan && (
+              <View style={mapStyles.stagePlaceholder}>
+                <Text style={mapStyles.stageText}>STAGE</Text>
+              </View>
+            )}
+            {hasSections &&
+              sections.map((section) => {
+                const rect = section.svgPathData ? parseSvgRect(section.svgPathData) : null;
+                if (!rect) return null;
+                const isSelected = selectedId === section.id;
+                const isSoldOut = section.availability === "sold_out";
+                const color = section.color || "#22c55e";
+                const bg = isSoldOut
+                  ? "rgba(63,63,70,0.5)"
+                  : isSelected
+                  ? hexToRgba(color, 0.65)
+                  : hexToRgba(color, 0.35);
+                return (
+                  <Pressable
+                    key={section.id}
+                    onPress={() => {
+                      if (!isSoldOut) onSelect(isSelected ? null : section.id);
+                    }}
+                    style={[
+                      mapStyles.sectionOverlay,
+                      {
+                        left: `${rect.x}%`,
+                        top: `${rect.y}%`,
+                        width: `${rect.w}%`,
+                        height: `${rect.h}%`,
+                        backgroundColor: bg,
+                        borderColor: isSoldOut ? "#3f3f46" : color,
+                        borderWidth: isSelected ? 2.5 : 1.5,
+                        opacity: isSoldOut ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[mapStyles.sectionLabel, { color: "#fff" }]}
+                      numberOfLines={2}
+                    >
+                      {section.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+          </Animated.View>
+        </View>
+      </GestureDetector>
 
-          return null;
-        })}
-      </Svg>
-    </View>
-  );
-}
-
-function BlockVenueMap({
-  sections,
-  selectedId,
-  onSelect,
-}: {
-  sections: VenueSection[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}) {
-  return (
-    <View style={blockStyles.container}>
-      {sections.map((section) => {
-        const isSelected = selectedId === section.id;
-        const isSoldOut = section.availability === "sold_out";
-        const bgColor = isSoldOut
-          ? "#3f3f46"
-          : isSelected
-          ? availabilityColor(section.availability)
-          : `${availabilityColor(section.availability)}40`;
-
-        return (
-          <Pressable
-            key={section.id}
-            onPress={() =>
-              !isSoldOut && onSelect(isSelected ? null : section.id)
-            }
-            style={[
-              blockStyles.block,
-              {
-                backgroundColor: bgColor,
-                borderColor: isSelected
-                  ? availabilityColor(section.availability)
-                  : "transparent",
-                opacity: isSoldOut ? 0.5 : 1,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                blockStyles.blockText,
-                { color: isSelected ? "#000" : "#fff" },
-              ]}
-            >
-              {section.name}
-            </Text>
-          </Pressable>
-        );
-      })}
+      <View style={mapStyles.zoomBtns}>
+        <Pressable onPress={zoomIn} style={mapStyles.zoomBtn}>
+          <Feather name="plus" size={16} color="#fff" />
+        </Pressable>
+        <Pressable onPress={zoomOut} style={mapStyles.zoomBtn}>
+          <Feather name="minus" size={16} color="#fff" />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -150,9 +218,9 @@ export default function VenueMapScreen() {
   if (isPending || !event) return <Loading label={t("common.loading")} />;
 
   const sections = event.venueMap?.sections ?? [];
-  const viewBox = event.venueMap?.svgViewBox ?? "";
-  const hasSvgData = sections.some((s) => !!s.svgPathData);
+  const floorplanImageUrl = event.venueMap?.floorplanImageUrl;
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
+  const hasMap = sections.length > 0;
 
   const handleSelectTicketType = (tt: TicketType, section: VenueSection) => {
     router.push({
@@ -163,7 +231,7 @@ export default function VenueMapScreen() {
         ticketTypeName: tt.name,
         price: String(tt.price),
         serviceFee: String(tt.serviceFee),
-        maxPerOrder: String(tt.maxPerOrder),
+        maxPerOrder: String(tt.maxPerOrder ?? 10),
         currencyCode: event.currencyCode,
         eventName: event.name,
         sectionName: section.name,
@@ -188,19 +256,20 @@ export default function VenueMapScreen() {
             {t("events.selectSection").toUpperCase()}
           </Text>
 
-          {hasSvgData && viewBox ? (
-            <SvgVenueMap
-              viewBox={viewBox}
+          {hasMap ? (
+            <ZoomableMap
+              floorplanImageUrl={floorplanImageUrl}
               sections={sections}
               selectedId={selectedSectionId}
               onSelect={setSelectedSectionId}
             />
           ) : (
-            <BlockVenueMap
-              sections={sections}
-              selectedId={selectedSectionId}
-              onSelect={setSelectedSectionId}
-            />
+            <View style={mapStyles.emptyMap}>
+              <Feather name="map" size={36} color={C.textMuted} />
+              <Text style={{ color: C.textMuted, marginTop: 8, fontFamily: "Inter_400Regular" }}>
+                {t("events.noMap", "Sin mapa disponible")}
+              </Text>
+            </View>
           )}
 
           <View style={styles.legendRow}>
@@ -224,6 +293,11 @@ export default function VenueMapScreen() {
             <Text style={[styles.selectedSectionName, { color: C.text }]}>
               {selectedSection.name}
             </Text>
+            {selectedSection.ticketTypes.length === 0 && (
+              <Text style={{ color: C.textSecondary, fontFamily: "Inter_400Regular", fontSize: 13 }}>
+                {t("events.noTicketsInSection", "No hay boletas disponibles en esta sección")}
+              </Text>
+            )}
             {selectedSection.ticketTypes.map((tt) => (
               <View key={tt.id} style={[styles.ticketTypeRow, { borderColor: C.border }]}>
                 <View style={{ flex: 1, gap: 2 }}>
@@ -269,15 +343,23 @@ export default function VenueMapScreen() {
                 },
               ]}
             >
-              <View style={[styles.sectionDot, { backgroundColor: availabilityColor(section.availability) }]} />
+              <View
+                style={[
+                  styles.sectionDot,
+                  { backgroundColor: section.color || "#22c55e" },
+                ]}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.sectionListName, { color: C.text }]}>{section.name}</Text>
-                <Text style={[styles.sectionListPrice, { color: C.textSecondary }]}>
-                  {t("events.from")} {formatCurrency(
-                    Math.min(...section.ticketTypes.map((tt) => tt.price)),
-                    event.currencyCode,
-                  )}
-                </Text>
+                {section.ticketTypes.length > 0 && (
+                  <Text style={[styles.sectionListPrice, { color: C.textSecondary }]}>
+                    {t("events.from")}{" "}
+                    {formatCurrency(
+                      Math.min(...section.ticketTypes.map((tt) => tt.price)),
+                      event.currencyCode,
+                    )}
+                  </Text>
+                )}
               </View>
               <Badge
                 label={t(`events.availability_${section.availability}`)}
@@ -292,39 +374,89 @@ export default function VenueMapScreen() {
   );
 }
 
-const svgStyles = StyleSheet.create({
-  container: {
+const mapStyles = StyleSheet.create({
+  wrapper: {
     width: "100%",
-    aspectRatio: 1.5,
+    aspectRatio: 16 / 10,
     borderRadius: 12,
     overflow: "hidden",
+    position: "relative",
+  },
+  mapContainer: {
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+    borderRadius: 12,
+  },
+  mapBg: {
     backgroundColor: "#1a1a2e",
   },
-  svg: {
-    flex: 1,
+  mapInner: {
+    width: "100%",
+    height: "100%",
+    position: "relative",
   },
-});
-
-const blockStyles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    justifyContent: "center",
-    paddingVertical: 16,
+  floorplanImage: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
   },
-  block: {
-    borderWidth: 2,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    minWidth: "40%",
+  stagePlaceholder: {
+    position: "absolute",
+    left: "35%",
+    top: "42%",
+    width: "30%",
+    height: "16%",
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    borderRadius: 4,
     alignItems: "center",
     justifyContent: "center",
   },
-  blockText: {
-    fontSize: 14,
+  stageText: {
+    color: "rgba(255,255,255,0.5)",
     fontFamily: "Inter_700Bold",
+    fontSize: 11,
+  },
+  sectionOverlay: {
+    position: "absolute",
+    borderRadius: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  sectionLabel: {
+    fontSize: 9,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  zoomBtns: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    gap: 4,
+  },
+  zoomBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyMap: {
+    width: "100%",
+    aspectRatio: 16 / 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1a1a2e",
+    borderRadius: 12,
   },
 });
 

@@ -219,10 +219,17 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
     };
   });
 
+  const floorplanImageUrl = venue?.floorplanImageUrl
+    ? venue.floorplanImageUrl.startsWith("http")
+      ? venue.floorplanImageUrl
+      : `${STAFF_API_BASE_URL}${venue.floorplanImageUrl}`
+    : undefined;
+
   let venueMap: EventDetail["venueMap"] | undefined;
-  if (raw.sections && raw.sections.length > 0 && raw.sections.some((s) => s.svgPathData)) {
+  if (raw.sections && raw.sections.length > 0) {
     venueMap = {
-      svgViewBox: "0 0 1000 1000",
+      svgViewBox: "0 0 100 100",
+      floorplanImageUrl,
       sections: raw.sections.map((sec) => {
         const sectionTTs = ticketTypes.filter((tt) => tt.sectionId === sec.id);
         const secAvail: TicketAvailability = sec.soldTickets >= sec.totalTickets ? "sold_out" : sec.totalTickets - sec.soldTickets <= 10 ? "limited" : "available";

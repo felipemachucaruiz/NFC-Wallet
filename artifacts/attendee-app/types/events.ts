@@ -33,6 +33,7 @@ export interface VenueSection {
 
 export interface VenueMap {
   svgViewBox: string;
+  floorplanImageUrl?: string;
   sections: VenueSection[];
 }
 
