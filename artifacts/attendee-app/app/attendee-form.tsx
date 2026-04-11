@@ -17,6 +17,7 @@ import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/utils/format";
 import { usePurchaseTickets } from "@/hooks/useEventsApi";
@@ -24,6 +25,16 @@ import type { AttendeeInfo, OrderTicket } from "@/types/events";
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function parseStoredPhone(full: string): { country: CountryCode; local: string } {
+  const sorted = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+  for (const c of sorted) {
+    if (full.startsWith(c.code)) {
+      return { country: c, local: full.slice(c.code.length) };
+    }
+  }
+  return { country: COUNTRY_CODES[0], local: full };
 }
 
 export default function AttendeeFormScreen() {
@@ -58,16 +69,37 @@ export default function AttendeeFormScreen() {
     try { return JSON.parse(params.validDays) as number[]; } catch { return []; }
   })();
 
+  const firstPhone = user?.phone ? parseStoredPhone(user.phone) : null;
+
   const [attendees, setAttendees] = useState<AttendeeInfo[]>(
     Array.from({ length: quantity }, (_, i) => ({
       name: i === 0 ? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() : "",
       email: i === 0 ? user?.email ?? "" : "",
-      phone: "",
+      phone: i === 0 && user?.phone ? user.phone : "",
     })),
+  );
+
+  const [phoneCountries, setPhoneCountries] = useState<CountryCode[]>(
+    Array.from({ length: quantity }, (_, i) =>
+      i === 0 && firstPhone ? firstPhone.country : COUNTRY_CODES[0]
+    ),
+  );
+
+  const [phoneLocals, setPhoneLocals] = useState<string[]>(
+    Array.from({ length: quantity }, (_, i) =>
+      i === 0 && firstPhone ? firstPhone.local : ""
+    ),
   );
 
   const [expandedIndex, setExpandedIndex] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const updatePhone = (index: number, country: CountryCode, local: string) => {
+    setPhoneCountries((prev) => { const n = [...prev]; n[index] = country; return n; });
+    setPhoneLocals((prev) => { const n = [...prev]; n[index] = local; return n; });
+    updateAttendee(index, "phone", country.code + local);
+    setErrors((prev) => { const n = { ...prev }; delete n[`${index}_phone`]; return n; });
+  };
 
   const updateAttendee = (index: number, field: keyof AttendeeInfo, value: string) => {
     setAttendees((prev) => {
@@ -88,7 +120,7 @@ export default function AttendeeFormScreen() {
       if (!a.name.trim()) newErrors[`${i}_name`] = t("tickets.required");
       if (!a.email.trim()) newErrors[`${i}_email`] = t("tickets.required");
       else if (!isValidEmail(a.email)) newErrors[`${i}_email`] = t("tickets.invalidEmail");
-      if (!a.phone.trim()) newErrors[`${i}_phone`] = t("tickets.required");
+      if (!phoneLocals[i]?.trim()) newErrors[`${i}_phone`] = t("tickets.required");
     });
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
@@ -243,13 +275,14 @@ export default function AttendeeFormScreen() {
                   <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
                     {t("tickets.attendeePhone")}
                   </Text>
-                  <TextInput
-                    style={inputStyle(`${index}_phone`)}
-                    placeholder={t("tickets.phonePlaceholder")}
-                    placeholderTextColor={C.textMuted}
-                    value={attendee.phone}
-                    onChangeText={(v) => updateAttendee(index, "phone", v)}
-                    keyboardType="phone-pad"
+                  <PhoneInput
+                    number={phoneLocals[index] ?? ""}
+                    country={phoneCountries[index] ?? COUNTRY_CODES[0]}
+                    onNumberChange={(v) => updatePhone(index, phoneCountries[index] ?? COUNTRY_CODES[0], v)}
+                    onCountryChange={(c) => updatePhone(index, c, phoneLocals[index] ?? "")}
+                    inputStyle={{
+                      borderColor: errors[`${index}_phone`] ? C.danger : C.border,
+                    }}
                   />
                   {errors[`${index}_phone`] && (
                     <Text style={[styles.errorText, { color: C.danger }]}>
