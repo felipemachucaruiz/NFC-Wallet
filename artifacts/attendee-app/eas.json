@@ -36,6 +36,7 @@
       },
       "env": {
         "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
+        "EXPO_PUBLIC_WOMPI_PUBLIC_KEY": "pub_test_Di9jS6XJ4JF3G5PtBgTs4x43b86i3xGd",
         "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a,armeabi-v7a"
       }
     },
