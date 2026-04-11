@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
 import { Ticket, Calendar, MapPin, QrCode, Apple, Smartphone, Loader2, ArrowLeft, Clock, Tag, User, Mail, Phone, Send, X } from "lucide-react";
@@ -241,10 +242,18 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
       <div className="flex flex-col items-center -mt-16 relative z-10 pb-4">
         <div className="bg-white rounded-2xl p-4 shadow-2xl">
           {ticket.qrCodeToken ? (
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(ticket.qrCodeToken)}`}
-              alt="QR Code"
-              className="w-44 h-44"
+            <QRCodeSVG
+              value={ticket.qrCodeToken}
+              size={176}
+              bgColor="#ffffff"
+              fgColor="#000000"
+              level="H"
+              imageSettings={{
+                src: `${import.meta.env.BASE_URL}tapee-qr-logo.png`,
+                height: 38,
+                width: 38,
+                excavate: true,
+              }}
             />
           ) : (
             <div className="w-44 h-44 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">

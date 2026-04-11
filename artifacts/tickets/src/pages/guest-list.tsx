@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar, MapPin, Users, CheckCircle, Loader2, AlertCircle } from "lucide-react";
-import QRCode from "qrcode";
+import { QRCodeSVG } from "qrcode.react";
 import { resolveImageUrl } from "@/lib/api";
 
 const PROD_ORIGIN = "https://attendee.tapee.app";
@@ -44,7 +44,6 @@ export default function GuestListPage() {
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
-  const [qrDataUrl, setQrDataUrl] = useState("");
   const [signupResult, setSignupResult] = useState<{ ticket: { id: string; qrCodeToken: string }; event: { name: string; venueAddress: string; startsAt: string } } | null>(null);
 
   const { data, isLoading, isError, error } = useQuery({
@@ -59,21 +58,8 @@ export default function GuestListPage() {
       email: formEmail.trim(),
       phone: formPhone.trim() || undefined,
     }),
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
       setSignupResult(result);
-      if (result.ticket?.qrCodeToken) {
-        try {
-          const url = await QRCode.toDataURL(result.ticket.qrCodeToken, {
-            width: 280,
-            margin: 2,
-            color: { dark: "#000000", light: "#ffffff" },
-            errorCorrectionLevel: "M",
-          });
-          setQrDataUrl(url);
-        } catch {
-          /* QR display falls back gracefully */
-        }
-      }
     },
   });
 
@@ -125,9 +111,21 @@ export default function GuestListPage() {
                 )}
               </div>
 
-              {qrDataUrl && (
+              {signupResult.ticket?.qrCodeToken && (
                 <div className="text-center bg-white rounded-xl p-4 mx-auto max-w-[320px]">
-                  <img src={qrDataUrl} alt="QR Code" className="mx-auto" style={{ width: 280, height: 280 }} />
+                  <QRCodeSVG
+                    value={signupResult.ticket.qrCodeToken}
+                    size={260}
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                    level="H"
+                    imageSettings={{
+                      src: `${import.meta.env.BASE_URL}tapee-qr-logo.png`,
+                      height: 52,
+                      width: 52,
+                      excavate: true,
+                    }}
+                  />
                 </div>
               )}
 

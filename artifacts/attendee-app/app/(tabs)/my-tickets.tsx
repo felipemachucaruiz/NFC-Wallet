@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Loading } from "@/components/ui/Loading";
 import { Empty } from "@/components/ui/Empty";
 import { useMyTickets, useTransferTicket } from "@/hooks/useEventsApi";
+import QRCode from "react-native-qrcode-svg";
 import { useAlert } from "@/components/CustomAlert";
 import type { MyTicket } from "@/types/events";
 
@@ -180,9 +181,6 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
   const startDate = ticket.startsAt ? new Date(ticket.startsAt) : null;
   const isValidDate = startDate && !isNaN(startDate.getTime());
   const venue = shortVenue(ticket.venueName);
-  const qrUrl = ticket.qrCode
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(ticket.qrCode)}&bgcolor=ffffff&color=000000&margin=10`
-    : null;
   const isTransferable = ticket.status === "valid" || ticket.status === "active";
 
   return (
@@ -224,8 +222,19 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                 </View>
 
                 <View style={styles.qrWrap}>
-                  {qrUrl ? (
-                    <Image source={{ uri: qrUrl }} style={styles.qrImage} resizeMode="contain" />
+                  {ticket.qrCode ? (
+                    <View style={{ backgroundColor: "#fff", padding: 8, borderRadius: 8 }}>
+                      <QRCode
+                        value={ticket.qrCode}
+                        size={180}
+                        backgroundColor="#fff"
+                        color="#000"
+                        logo={require("../../../assets/tapee-qr-logo.png")}
+                        logoSize={38}
+                        logoBorderRadius={8}
+                        logoBackgroundColor="#fff"
+                      />
+                    </View>
                   ) : (
                     <View style={[styles.qrImage, { alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }]}>
                       <Feather name="alert-circle" size={32} color="#ccc" />
