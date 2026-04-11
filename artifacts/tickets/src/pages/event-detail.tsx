@@ -186,6 +186,11 @@ export default function EventDetail() {
     if (!event) return;
     const section = event.sections.find((s) => s.id === sectionId);
     if (section && section.ticketTypes.length > 0) {
+      const availableTicket = section.ticketTypes.find((tt) => tt.status !== "sold_out");
+      if (availableTicket) {
+        setSelectedTicket(availableTicket);
+        setSelectedSectionName(section.name);
+      }
       const el = document.getElementById(`section-group-${sectionId}`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -441,8 +446,15 @@ export default function EventDetail() {
                 <SectionTicketGroups
                   event={event}
                   highlightedSectionId={highlightedSectionId}
+                  selectedTicketId={selectedTicket?.id || null}
                   onTicketSelect={handleTicketSelect}
-                  onSelectionChange={setSelectedTicket}
+                  onSelectionChange={(ticket) => {
+                    setSelectedTicket(ticket);
+                    if (ticket) {
+                      const section = event.sections.find((s) => s.ticketTypes.some((t) => t.id === ticket.id));
+                      setSelectedSectionName(section?.name || ticket.name);
+                    }
+                  }}
                 />
                 <Separator className="my-4" />
                 {isSoldOut ? (
@@ -525,17 +537,18 @@ export default function EventDetail() {
 function SectionTicketGroups({
   event,
   highlightedSectionId,
+  selectedTicketId: parentSelectedTicketId,
   onTicketSelect,
   onSelectionChange,
 }: {
   event: EventData;
   highlightedSectionId: string | null;
+  selectedTicketId: string | null;
   onTicketSelect: (ticket: TicketType, sectionName: string) => void;
   onSelectionChange?: (ticket: TicketType | null) => void;
 }) {
   const { t } = useTranslation();
   const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
 
   useEffect(() => {
     if (highlightedSectionId) {
@@ -587,7 +600,6 @@ function SectionTicketGroups({
   };
 
   const handleRadioSelect = (ticket: TicketType, sectionName: string) => {
-    setSelectedTicketId(ticket.id);
     onSelectionChange?.(ticket);
   };
 
@@ -599,6 +611,7 @@ function SectionTicketGroups({
         const hasSingleTicket = group.tickets.length === 1;
         const allSoldOut = group.tickets.every((tt) => tt.status === "sold_out");
         const lowestPrice = Math.min(...group.tickets.map((tt) => tt.price));
+        const hasSelectedTicket = group.tickets.some((tt) => tt.id === parentSelectedTicketId);
 
         return (
           <div
@@ -609,9 +622,11 @@ function SectionTicketGroups({
                 ? "border-border opacity-50"
                 : isHighlighted
                   ? "border-primary ring-1 ring-primary shadow-lg shadow-primary/20"
-                  : isExpanded
-                    ? "border-primary/60"
-                    : "border-border hover:border-primary/40"
+                  : hasSelectedTicket
+                    ? "border-primary ring-1 ring-primary"
+                    : isExpanded
+                      ? "border-primary/60"
+                      : "border-border hover:border-primary/40"
             }`}
           >
             {hasSingleTicket ? (
@@ -620,9 +635,10 @@ function SectionTicketGroups({
                 sectionName={group.sectionName}
                 sectionColor={group.color}
                 currencyCode={event.currencyCode}
+                isSelected={parentSelectedTicketId === group.tickets[0].id}
                 onSelect={() => {
                   if (group.tickets[0].status !== "sold_out") {
-                    onTicketSelect(group.tickets[0], group.sectionName);
+                    handleRadioSelect(group.tickets[0], group.sectionName);
                   }
                 }}
               />
@@ -655,7 +671,7 @@ function SectionTicketGroups({
                 {isExpanded && (
                   <div className="px-3 pb-3 space-y-1.5">
                     {group.tickets.map((tt) => {
-                      const isSelected = selectedTicketId === tt.id;
+                      const isSelected = parentSelectedTicketId === tt.id;
                       return (
                         <div key={tt.id} id={`ticket-card-${tt.id}`}>
                           <label
@@ -722,19 +738,27 @@ function SingleTicketCard({
   sectionName,
   sectionColor,
   currencyCode,
+  isSelected,
   onSelect,
 }: {
   ticket: TicketType;
   sectionName: string;
   sectionColor: string;
   currencyCode: string;
+  isSelected?: boolean;
   onSelect: () => void;
 }) {
   const { t } = useTranslation();
   return (
     <div
       id={`ticket-card-${ticket.id}`}
-      className={`p-3 cursor-pointer hover:bg-muted/30 transition-colors ${ticket.status === "sold_out" ? "opacity-50 cursor-not-allowed" : ""}`}
+      className={`p-3 cursor-pointer hover:bg-muted/30 transition-colors ${
+        ticket.status === "sold_out"
+          ? "opacity-50 cursor-not-allowed"
+          : isSelected
+            ? "bg-primary/5"
+            : ""
+      }`}
       onClick={onSelect}
     >
       <div className="flex items-center gap-2 mb-1">
