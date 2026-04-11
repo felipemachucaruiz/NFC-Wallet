@@ -150,12 +150,11 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
     ? `<img src="cid:qrcode.png" alt="QR Code" width="220" height="220" style="display:block;margin:0 auto;border-radius:12px;" />`
     : `<p style="color: #ef4444; font-size: 14px; margin: 0;">${isEs ? "No se pudo generar el QR. Usa la app de Tapee." : "QR code could not be generated. Use the Tapee app."}</p>`;
 
-  let flyerHtml = "";
+  let flyerUrl = "";
   if (data.flyerImageUrl) {
-    const flyerUrl = data.flyerImageUrl.startsWith("http")
+    flyerUrl = data.flyerImageUrl.startsWith("http")
       ? data.flyerImageUrl
       : `${STAFF_API_BASE_URL}${data.flyerImageUrl}`;
-    flyerHtml = `<img src="${escapeHtml(flyerUrl)}" alt="${escapeHtml(data.eventName)}" width="100%" style="display:block;border-radius:16px 16px 0 0;max-height:200px;object-fit:cover;" />`;
   }
 
   let startDateHtml = "";
@@ -198,23 +197,8 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
     <p class="intro-text" style="color:#71717a;margin:0 0 24px;font-size:14px;">${intro}</p>
 
     <div class="ticket-card" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e4e4e7;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-      ${flyerHtml}
 
-      <div style="text-align:center;padding:24px 20px 16px;">
-        <div class="qr-bg" style="display:inline-block;background:#ffffff;border-radius:12px;padding:12px;">
-          ${qrImageHtml}
-        </div>
-      </div>
-
-      <div style="position:relative;margin:0 12px;">
-        <div style="display:flex;align-items:center;">
-          <div style="width:20px;height:20px;background:#f4f4f5;border-radius:50%;position:absolute;left:-22px;"></div>
-          <div class="separator-line" style="flex:1;border-top:2px dashed #e4e4e7;margin:0 8px;"></div>
-          <div style="width:20px;height:20px;background:#f4f4f5;border-radius:50%;position:absolute;right:-22px;"></div>
-        </div>
-      </div>
-
-      <div class="ticket-details" style="padding:20px 24px 24px;">
+      <div class="ticket-details" style="padding:20px 24px 16px;">
         <h2 class="event-title" style="color:#1a1a1a;font-size:20px;font-weight:700;margin:0 0 6px;">${escapeHtml(data.eventName)}</h2>
 
         ${data.venueName ? `<p class="venue-text" style="color:#71717a;font-size:14px;margin:0 0 12px;">&#x1F4CD; ${escapeHtml(data.venueName)}</p>` : ""}
@@ -223,9 +207,15 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
           ${startDateHtml}
         </table>
 
-        <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;">
-          ${priceHtml}
-          <span class="badge-bg badge-text" style="display:inline-block;background:#dcfce7;color:#15803d;font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px;">${isEs ? "Valida" : "Valid"}</span>
+        <div style="margin-top:14px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="vertical-align:middle;">${priceHtml}</td>
+              <td style="vertical-align:middle;text-align:right;">
+                <span class="badge-bg badge-text" style="display:inline-block;background:#dcfce7;color:#15803d;font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px;">${isEs ? "Valida" : "Valid"}</span>
+              </td>
+            </tr>
+          </table>
         </div>
 
         ${data.sectionName && data.sectionName !== "General" ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #e4e4e7;">
@@ -245,8 +235,30 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
           <span class="detail-label" style="color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">${isEs ? "Tipo" : "Type"}</span><br/>
           <span class="detail-value" style="color:#1a1a1a;font-size:13px;">${escapeHtml(data.ticketTypeName)}</span>
         </div>`}
+      </div>
 
-        <p class="attendee-name" style="color:#71717a;font-size:13px;text-align:center;margin:16px 0 0;">${escapeHtml(data.attendeeName)}</p>
+      <div style="position:relative;margin:0 12px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="width:20px;"><div style="width:20px;height:20px;background:#f4f4f5;border-radius:50%;margin-left:-10px;"></div></td>
+            <td style="border-top:2px dashed #e4e4e7;"></td>
+            <td style="width:20px;"><div style="width:20px;height:20px;background:#f4f4f5;border-radius:50%;margin-left:-10px;"></div></td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align:center;padding:20px 20px 8px;">
+        <div class="qr-bg" style="display:inline-block;background:#ffffff;border-radius:12px;padding:12px;">
+          ${qrImageHtml}
+        </div>
+      </div>
+
+      ${flyerUrl ? `<div style="padding:8px 16px 0;">
+        <img src="${escapeHtml(flyerUrl)}" alt="${escapeHtml(data.eventName)}" width="100%" style="display:block;border-radius:12px;" />
+      </div>` : ""}
+
+      <div style="padding:12px 24px 20px;text-align:center;">
+        <p class="attendee-name" style="color:#71717a;font-size:13px;margin:0;">${escapeHtml(data.attendeeName)}</p>
       </div>
     </div>
 
