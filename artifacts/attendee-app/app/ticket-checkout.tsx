@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCurrency } from "@/utils/format";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePurchaseTickets, useTokenizeCard } from "@/hooks/useEventsApi";
 import { usePseBanks } from "@/hooks/useAttendeeApi";
 import type { OrderTicket, PaymentMethod } from "@/types/events";
@@ -85,6 +86,7 @@ export default function TicketCheckoutScreen() {
     name: b.financial_institution_name,
   }));
 
+  const { refreshUser } = useAuth();
   const { mutate: purchaseTickets, isPending } = usePurchaseTickets();
   const { mutateAsync: tokenizeCard, isPending: isTokenizing } = useTokenizeCard();
 
@@ -133,6 +135,7 @@ export default function TicketCheckoutScreen() {
 
     purchaseTickets(body, {
       onSuccess: (result) => {
+        void refreshUser();
         router.push({
           pathname: "/ticket-payment-status/[id]",
           params: {

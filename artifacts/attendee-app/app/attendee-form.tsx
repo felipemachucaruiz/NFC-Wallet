@@ -44,7 +44,7 @@ export default function AttendeeFormScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { mutate: purchaseTickets, isPending: isPurchasing } = usePurchaseTickets();
 
   const params = useLocalSearchParams<{
@@ -161,6 +161,7 @@ export default function AttendeeFormScreen() {
         },
         {
           onSuccess: () => {
+            void refreshUser();
             router.replace("/(tabs)/my-tickets");
           },
           onError: (err: unknown) => {
