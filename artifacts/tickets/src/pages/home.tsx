@@ -39,11 +39,19 @@ export default function Home() {
   const categories = ["all", "concerts", "festivals", "sports", "theater"];
   const cities = useMemo(() => {
     const c = new Set<string>();
+    const countryNames = new Set(["colombia", "argentina", "mexico", "méxico", "brasil", "brazil", "chile", "peru", "perú", "ecuador", "usa", "united states", "venezuela", "panamá", "panama"]);
+    const colombianDepts = new Set(["antioquia", "cundinamarca", "valle del cauca", "atlántico", "atlantico", "santander", "boyacá", "boyaca", "bolívar", "bolivar", "nariño", "narino", "tolima", "huila", "caldas", "risaralda", "quindío", "quindio", "meta", "cesar", "magdalena", "córdoba", "cordoba", "cauca", "sucre"]);
     events.forEach((e) => {
       if (e.venueAddress) {
-        const parts = e.venueAddress.split(",");
-        const city = parts[parts.length - 1]?.trim();
-        if (city) c.add(city);
+        const parts = e.venueAddress.split(",").map((p) => p.trim()).filter(Boolean);
+        if (parts.length >= 2 && countryNames.has(parts[parts.length - 1].toLowerCase())) {
+          parts.pop();
+        }
+        if (parts.length >= 2 && colombianDepts.has(parts[parts.length - 1].toLowerCase())) {
+          parts.pop();
+        }
+        const cityPart = parts[parts.length - 1];
+        if (cityPart) c.add(cityPart);
       }
     });
     return ["all", ...Array.from(c).sort()];
