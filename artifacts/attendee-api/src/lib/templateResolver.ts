@@ -77,10 +77,9 @@ export function buildParamsFromMappings(
   }
 
   const highestMappedPos = Math.max(...mappings.map((m) => m.position), 0);
-  const totalPositions = Math.max(fallbackValues.length, highestMappedPos);
   const result: string[] = [];
 
-  for (let pos = 1; pos <= totalPositions; pos++) {
+  for (let pos = 1; pos <= highestMappedPos; pos++) {
     const mapping = mappings.find((m) => m.position === pos);
     if (mapping && context[mapping.field] !== undefined) {
       result.push(context[mapping.field]);
