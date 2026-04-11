@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
+import { useSocialAuth } from "@/context/SocialAuthProvider";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 export default function Login() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const search = useSearch();
   const { login } = useAuth();
+  const { googleEnabled } = useSocialAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -85,6 +88,18 @@ export default function Login() {
           >
             {loading ? t("common.loading") : t("auth.login")}
           </Button>
+          {googleEnabled && (
+            <>
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t("auth.orDivider")}</span></div>
+              </div>
+              <GoogleSignInButton
+                onSuccess={() => navigate(redirect === "checkout" ? "/checkout" : redirect === "my-tickets" ? "/my-tickets" : "/")}
+                onError={(msg) => setError(msg)}
+              />
+            </>
+          )}
           <div className="text-center text-sm">
             <p className="text-muted-foreground">
               {t("auth.noAccount")}{" "}

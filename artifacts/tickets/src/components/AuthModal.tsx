@@ -8,11 +8,14 @@ import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
+import { useSocialAuth } from "@/context/SocialAuthProvider";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 function LoginForm() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const { login, switchAuthView, authRedirect } = useAuth();
+  const { googleEnabled } = useSocialAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -80,6 +83,18 @@ function LoginForm() {
       >
         {loading ? t("common.loading") : t("auth.login")}
       </Button>
+      {googleEnabled && (
+        <>
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+            <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t("auth.orDivider")}</span></div>
+          </div>
+          <GoogleSignInButton
+            onSuccess={() => { if (authRedirect) navigate(`/${authRedirect}`); }}
+            onError={(msg) => setError(msg)}
+          />
+        </>
+      )}
       <div className="text-center text-sm">
         <p className="text-muted-foreground">
           {t("auth.noAccount")}{" "}
@@ -178,6 +193,7 @@ function RegisterForm() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const { register, switchAuthView, authRedirect } = useAuth();
+  const { googleEnabled } = useSocialAuth();
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -249,6 +265,18 @@ function RegisterForm() {
       <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
         {loading ? t("common.loading") : t("auth.register")}
       </Button>
+      {googleEnabled && (
+        <>
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+            <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t("auth.orDivider")}</span></div>
+          </div>
+          <GoogleSignInButton
+            onSuccess={() => { if (authRedirect) navigate(`/${authRedirect}`); }}
+            onError={(msg) => setError(msg)}
+          />
+        </>
+      )}
       <div className="text-center text-sm">
         <p className="text-muted-foreground">
           {t("auth.hasAccount")}{" "}

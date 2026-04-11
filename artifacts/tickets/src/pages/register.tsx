@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
+import { useSocialAuth } from "@/context/SocialAuthProvider";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 export default function Register() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const search = useSearch();
   const { register } = useAuth();
+  const { googleEnabled } = useSocialAuth();
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -89,6 +92,18 @@ export default function Register() {
           <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
             {loading ? t("common.loading") : t("auth.register")}
           </Button>
+          {googleEnabled && (
+            <>
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t("auth.orDivider")}</span></div>
+              </div>
+              <GoogleSignInButton
+                onSuccess={() => navigate(redirect === "checkout" ? "/checkout" : "/")}
+                onError={(msg) => setError(msg)}
+              />
+            </>
+          )}
           <div className="text-center text-sm">
             <p className="text-muted-foreground">
               {t("auth.hasAccount")}{" "}

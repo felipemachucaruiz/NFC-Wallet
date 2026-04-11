@@ -160,10 +160,21 @@ export interface ApiUser {
   role: string;
 }
 
+export async function fetchAuthProviders(): Promise<{ providers: { google?: string } }> {
+  return apiFetch("/auth/providers");
+}
+
 export async function loginApi(identifier: string, password: string): Promise<{ token: string }> {
   return apiFetch("/auth/login", {
     method: "POST",
     body: JSON.stringify({ identifier, password }),
+  });
+}
+
+export async function loginWithGoogleApi(credential: string): Promise<{ token: string }> {
+  return apiFetch("/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ credential }),
   });
 }
 

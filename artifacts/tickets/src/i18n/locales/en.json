@@ -134,7 +134,10 @@
     "loginRequired": "You must log in to purchase tickets",
     "passwordMismatch": "Passwords do not match",
     "loginFailed": "Login failed",
-    "registerFailed": "Registration failed"
+    "registerFailed": "Registration failed",
+    "googleFailed": "Google sign-in failed",
+    "orDivider": "or",
+    "googleLocale": "en"
   },
   "checkout": {
     "title": "Checkout",

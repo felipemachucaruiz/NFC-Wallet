@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import type { User } from "@/data/types";
-import { loginApi, createAccountApi, fetchCurrentUser, logoutApi, setAuthToken, getAuthToken } from "@/lib/api";
+import { loginApi, loginWithGoogleApi, createAccountApi, fetchCurrentUser, logoutApi, setAuthToken, getAuthToken } from "@/lib/api";
 
 type AuthModalView = "login" | "register" | "forgot";
 
@@ -9,6 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  loginWithGoogle: (credential: string) => Promise<boolean>;
   register: (data: { email: string; password: string; firstName: string; lastName: string; phone: string }) => Promise<boolean>;
   logout: () => void;
   showAuthModal: boolean;
@@ -87,6 +88,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false;
   }, []);
 
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    const res = await loginWithGoogleApi(credential);
+    setAuthToken(res.token);
+
+    const userRes = await fetchCurrentUser();
+    if (userRes.user) {
+      setUser({
+        id: userRes.user.id,
+        email: userRes.user.email || "",
+        firstName: userRes.user.firstName || "",
+        lastName: userRes.user.lastName || "",
+        phone: "",
+      });
+      setShowAuthModal(false);
+      return true;
+    }
+    return false;
+  }, []);
+
   const register = useCallback(async (data: { email: string; password: string; firstName: string; lastName: string; phone: string }) => {
     await createAccountApi({
       email: data.email,
@@ -125,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, isAuthenticated: !!user, loading, login, register, logout,
+      user, isAuthenticated: !!user, loading, login, loginWithGoogle, register, logout,
       showAuthModal, authModalView, authRedirect,
       openAuthModal, closeAuthModal, switchAuthView,
     }}>

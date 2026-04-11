@@ -1,5 +1,6 @@
 import * as oidc from "openid-client";
 import crypto from "crypto";
+import { OAuth2Client } from "google-auth-library";
 import { hashPassword, comparePassword } from "../lib/bcryptWorker";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
@@ -100,6 +101,14 @@ async function upsertUser(claims: Record<string, unknown>) {
     .returning();
   return user;
 }
+
+router.get("/auth/providers", (_req: Request, res: Response) => {
+  const providers: { google?: string } = {};
+  if (process.env.GOOGLE_CLIENT_ID) {
+    providers.google = process.env.GOOGLE_CLIENT_ID;
+  }
+  res.json({ providers });
+});
 
 router.get("/auth/user", async (req: Request, res: Response) => {
   if (!req.isAuthenticated() || !req.user) {
@@ -213,6 +222,117 @@ router.post("/auth/login", async (req: Request, res: Response) => {
 
   const sid = await createSession(sessionData);
   res.json({ token: sid });
+});
+
+const GoogleAuthBody = z.object({
+  credential: z.string().min(1),
+});
+
+const googleClient = process.env.GOOGLE_CLIENT_ID
+  ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+  : null;
+
+router.post("/auth/google", async (req: Request, res: Response) => {
+  if (!googleClient || !process.env.GOOGLE_CLIENT_ID) {
+    res.status(503).json({ error: "Google sign-in is not configured" });
+    return;
+  }
+
+  const parsed = GoogleAuthBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Google credential is required" });
+    return;
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: parsed.data.credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      res.status(401).json({ error: "Invalid Google token" });
+      return;
+    }
+
+    if (!payload.email_verified) {
+      res.status(401).json({ error: "Google email not verified" });
+      return;
+    }
+
+    const googleEmail = payload.email.toLowerCase().trim();
+
+    const [existingUser] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, googleEmail));
+
+    let userId: string;
+
+    if (existingUser) {
+      if (existingUser.role !== "attendee") {
+        res.status(403).json({ error: "Staff accounts must log in via the staff portal" });
+        return;
+      }
+      userId = existingUser.id;
+
+      if (!existingUser.emailVerified) {
+        await db
+          .update(usersTable)
+          .set({ emailVerified: true, updatedAt: new Date() })
+          .where(eq(usersTable.id, existingUser.id));
+      }
+      if (!existingUser.firstName && payload.given_name) {
+        await db
+          .update(usersTable)
+          .set({
+            firstName: payload.given_name,
+            lastName: payload.family_name ?? null,
+            profileImageUrl: payload.picture ?? null,
+            updatedAt: new Date(),
+          })
+          .where(eq(usersTable.id, existingUser.id));
+      }
+    } else {
+      const [newUser] = await db
+        .insert(usersTable)
+        .values({
+          email: googleEmail,
+          firstName: payload.given_name ?? null,
+          lastName: payload.family_name ?? null,
+          profileImageUrl: payload.picture ?? null,
+          role: "attendee",
+          emailVerified: true,
+        })
+        .returning();
+      userId = newUser.id;
+    }
+
+    const [freshUser] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+
+    const sessionData = {
+      user: {
+        id: freshUser.id,
+        email: freshUser.email,
+        firstName: freshUser.firstName,
+        lastName: freshUser.lastName,
+        profileImageUrl: freshUser.profileImageUrl,
+        role: freshUser.role,
+        merchantId: freshUser.merchantId ?? null,
+        eventId: freshUser.eventId ?? null,
+        promoterCompanyId: freshUser.promoterCompanyId ?? null,
+      },
+    };
+
+    const sid = await createSession(sessionData);
+    res.json({ token: sid });
+  } catch (err) {
+    req.log.error({ err }, "Google auth error");
+    res.status(401).json({ error: "Google authentication failed" });
+  }
 });
 
 router.post("/auth/logout", async (req: Request, res: Response) => {

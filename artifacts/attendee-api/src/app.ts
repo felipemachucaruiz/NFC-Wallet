@@ -72,6 +72,7 @@ const RATE_LIMITED_PATHS = [
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/create-account",
+  "/api/auth/google",
   "/api/auth/forgot-password",
   "/api/auth/reset-password",
   "/api/auth/resend-verification",

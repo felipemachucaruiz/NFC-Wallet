@@ -134,7 +134,10 @@
     "loginRequired": "Debes iniciar sesión para comprar boletas",
     "passwordMismatch": "Las contraseñas no coinciden",
     "loginFailed": "Error al iniciar sesión",
-    "registerFailed": "Error al crear la cuenta"
+    "registerFailed": "Error al crear la cuenta",
+    "googleFailed": "Error al iniciar sesión con Google",
+    "orDivider": "o",
+    "googleLocale": "es"
   },
   "checkout": {
     "title": "Checkout",
