@@ -4,6 +4,13 @@ import { API_BASE_URL } from "@/constants/domain";
 
 const STORAGE_KEY_EVENT = "@tapee_offline_event";
 const STORAGE_KEY_QUEUE = "@tapee_offline_checkin_queue";
+const SYNC_FETCH_TIMEOUT = 10000;
+
+function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = SYNC_FETCH_TIMEOUT): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
 
 export interface OfflineTicket {
   id: string;
@@ -84,7 +91,7 @@ export interface QueuedCheckin {
 
 export async function syncEventData(token: string): Promise<OfflineEventData | null> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/gate/sync-event-data`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/api/gate/sync-event-data`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return null;
@@ -304,7 +311,7 @@ export async function syncCheckinQueue(token: string): Promise<{ synced: number;
   if (queue.length === 0) return { synced: 0, failed: 0, duplicates: 0 };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/api/gate/sync-checkins`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/api/gate/sync-checkins`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

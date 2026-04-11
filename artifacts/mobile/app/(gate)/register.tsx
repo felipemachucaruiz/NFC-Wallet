@@ -28,6 +28,14 @@ import {
   resolveTicketOffline,
 } from "@/utils/offlineTickets";
 import { API_BASE_URL } from "@/constants/domain";
+
+const GATE_FETCH_TIMEOUT = 5000;
+
+function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = GATE_FETCH_TIMEOUT): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
 import {
   TicketConfirmation,
   CheckinHistoryList,
@@ -291,7 +299,7 @@ export default function RegisterBraceletScreen() {
       }
 
       try {
-        const res = await fetch(`${API_BASE_URL}/api/gate/validate-ticket`, {
+        const res = await fetchWithTimeout(`${API_BASE_URL}/api/gate/validate-ticket`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -385,7 +393,7 @@ export default function RegisterBraceletScreen() {
 
       setPageState("ticket_registering");
 
-      const res = await fetch(`${API_BASE_URL}/api/gate/ticket-checkin`, {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/gate/ticket-checkin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -395,7 +403,7 @@ export default function RegisterBraceletScreen() {
           qrToken,
           braceletNfcUid: uid,
         }),
-      });
+      }, 8000);
 
       const payload = await res.json().catch(() => ({}));
 
