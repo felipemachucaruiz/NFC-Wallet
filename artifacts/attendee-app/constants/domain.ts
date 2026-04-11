@@ -22,3 +22,6 @@ export const STAFF_API_BASE_URL: string = `https://${PRODUCTION_STAFF_DOMAIN}`;
 
 export const WOMPI_PUBLIC_KEY: string =
   process.env.EXPO_PUBLIC_WOMPI_PUBLIC_KEY ?? "";
+
+export const WOMPI_BASE_URL: string =
+  process.env.EXPO_PUBLIC_WOMPI_BASE_URL ?? "https://sandbox.wompi.co/v1";

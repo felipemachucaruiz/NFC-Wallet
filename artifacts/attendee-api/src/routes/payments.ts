@@ -29,7 +29,7 @@ async function fetchWompiAcceptanceToken(): Promise<string> {
 const initiatePaymentSchema = z.object({
   braceletUid: z.string().min(1),
   amount: z.number().int().min(1000),
-  paymentMethod: z.enum(["nequi", "pse", "card"]),
+  paymentMethod: z.enum(["nequi", "pse", "card", "bancolombia_transfer"]),
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
   userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
@@ -161,6 +161,20 @@ router.post(
           reference,
           acceptance_token: acceptanceToken,
         };
+      } else if (paymentMethod === "bancolombia_transfer") {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "BANCOLOMBIA_TRANSFER",
+            user_type: "PERSON",
+            payment_description: "Recarga pulsera evento",
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+          redirect_url: `${process.env.APP_URL ?? "https://attendee.tapee.app"}/payment-return`,
+        };
       } else {
         wompiBody = {
           amount_in_cents: amountCentavos,
@@ -196,7 +210,7 @@ router.post(
         return;
       }
       wompiTransactionId = wompiData.data.id;
-      if (paymentMethod === "pse") {
+      if (paymentMethod === "pse" || paymentMethod === "bancolombia_transfer") {
         redirectUrl = wompiData.data.payment_method?.extra?.async_payment_url;
       }
     } catch (err) {
@@ -546,6 +560,16 @@ router.get(
     } catch (err) {
       res.status(502).json({ error: "Failed to fetch PSE banks" });
     }
+  },
+);
+
+router.get(
+  "/config/wompi",
+  (req: Request, res: Response) => {
+    res.json({
+      publicKey: WOMPI_PUBLIC_KEY,
+      baseUrl: WOMPI_BASE_URL,
+    });
   },
 );
 

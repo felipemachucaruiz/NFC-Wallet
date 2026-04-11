@@ -94,6 +94,7 @@ export default function TicketCheckoutScreen() {
     if (method === "nequi") return phoneNumber.replace(/\D/g, "").length === 10;
     if (method === "pse") return selectedBank !== null && legalId.trim().length >= 5;
     if (method === "card") return cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0;
+    if (method === "bancolombia_transfer") return true;
     return false;
   };
 
@@ -210,26 +211,31 @@ export default function TicketCheckoutScreen() {
           <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
             {t("tickets.paymentMethod").toUpperCase()}
           </Text>
-          <View style={styles.methodRow}>
-            {(["nequi", "pse", "card"] as PaymentMethod[]).map((m) => (
+          <View style={styles.methodGrid}>
+            {([
+              { id: "nequi", icon: "smartphone", label: "Nequi" },
+              { id: "pse", icon: "globe", label: "PSE" },
+              { id: "card", icon: "credit-card", label: t("tickets.creditCard") },
+              { id: "bancolombia_transfer", icon: "repeat", label: "Bancolombia" },
+            ] as { id: PaymentMethod; icon: string; label: string }[]).map((m) => (
               <Pressable
-                key={m}
-                onPress={() => { setMethod(m); setSelectedBank(null); setShowBankPicker(false); }}
+                key={m.id}
+                onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); }}
                 style={[
                   styles.methodBtn,
                   {
-                    backgroundColor: method === m ? C.primaryLight : C.inputBg,
-                    borderColor: method === m ? C.primary : C.border,
+                    backgroundColor: method === m.id ? C.primaryLight : C.inputBg,
+                    borderColor: method === m.id ? C.primary : C.border,
                   },
                 ]}
               >
                 <Feather
-                  name={m === "nequi" ? "smartphone" : m === "pse" ? "globe" : "credit-card"}
+                  name={m.icon as never}
                   size={18}
-                  color={method === m ? C.primary : C.textSecondary}
+                  color={method === m.id ? C.primary : C.textSecondary}
                 />
-                <Text style={[styles.methodLabel, { color: method === m ? C.primary : C.text }]}>
-                  {m === "nequi" ? "Nequi" : m === "pse" ? "PSE" : t("tickets.creditCard")}
+                <Text style={[styles.methodLabel, { color: method === m.id ? C.primary : C.text }]}>
+                  {m.label}
                 </Text>
               </Pressable>
             ))}
@@ -318,6 +324,17 @@ export default function TicketCheckoutScreen() {
           </Card>
         )}
 
+        {method === "bancolombia_transfer" && (
+          <Card style={{ gap: 8 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              {"BANCOLOMBIA TRANSFER"}
+            </Text>
+            <Text style={[styles.hint, { color: C.textSecondary }]}>
+              {t("topUp.bancolombiaTransferInfo")}
+            </Text>
+          </Card>
+        )}
+
         {method === "card" && (
           <Card style={{ gap: 10 }}>
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
@@ -396,8 +413,8 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 10, borderTopWidth: 1, marginTop: 4 },
   totalLabel: { fontSize: 16, fontFamily: "Inter_700Bold" },
   totalValue: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  methodRow: { flexDirection: "row", gap: 10 },
-  methodBtn: { borderWidth: 1.5, borderRadius: 14, padding: 14, alignItems: "center", gap: 6, flex: 1 },
+  methodGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  methodBtn: { borderWidth: 1.5, borderRadius: 14, padding: 14, alignItems: "center", gap: 6, width: "48%" },
   methodLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   input: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: "Inter_400Regular" },
   hint: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },

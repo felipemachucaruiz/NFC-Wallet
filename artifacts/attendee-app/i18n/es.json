@@ -189,6 +189,8 @@
     "pseBank": "Banco",
     "pseBankPlaceholder": "Selecciona tu banco",
     "pseInfo": "Serás redirigido al portal de tu banco para confirmar el pago.",
+    "bancolombiaTransferInfo": "Serás redirigido a Bancolombia para autorizar la transferencia.",
+    "cardInfo": "Los datos de tu tarjeta se cifran y envían de forma segura a la pasarela de pago.",
     "noBracelet": "Selecciona una pulsera primero",
     "selectBracelet": "Pulsera",
     "scanToSelect": "Escanear para seleccionar",

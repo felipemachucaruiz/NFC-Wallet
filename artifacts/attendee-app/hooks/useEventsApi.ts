@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { API_BASE_URL, STAFF_API_BASE_URL, WOMPI_PUBLIC_KEY } from "@/constants/domain";
+import { API_BASE_URL, STAFF_API_BASE_URL, WOMPI_PUBLIC_KEY, WOMPI_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchWithTimeout } from "@/utils/fetchWithTimeout";
 import type {
@@ -400,7 +400,7 @@ export function useTokenizeCard() {
       expYear: string;
       cardHolder: string;
     }) => {
-      const res = await fetch("https://production.wompi.co/v1/tokens/cards", {
+      const res = await fetch(`${WOMPI_BASE_URL}/tokens/cards`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

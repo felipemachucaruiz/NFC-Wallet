@@ -204,12 +204,23 @@ export interface PurchaseRequest {
   eventId: string;
   attendees: { name: string; email: string; phone?: string; ticketTypeId: string }[];
   unitSelections?: { ticketTypeId: string; unitId: string }[];
-  paymentMethod: "nequi" | "pse" | "free";
+  paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "free";
   phoneNumber?: string;
   bankCode?: string;
   userLegalIdType?: "CC" | "CE" | "NIT" | "PP" | "TI";
   userLegalId?: string;
+  cardToken?: string;
+  installments?: number;
   turnstileToken?: string;
+}
+
+export interface WompiConfig {
+  publicKey: string;
+  baseUrl: string;
+}
+
+export async function getWompiConfig(): Promise<WompiConfig> {
+  return apiFetch("/config/wompi");
 }
 
 export interface PurchaseResponse {

@@ -21,8 +21,9 @@ import { formatCOP } from "@/utils/format";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 import { useInitiateTopUp, useMyBracelets, usePseBanks } from "@/hooks/useAttendeeApi";
+import { useTokenizeCard } from "@/hooks/useEventsApi";
 
-type DigitalMethod = "nequi" | "pse";
+type DigitalMethod = "nequi" | "pse" | "card" | "bancolombia_transfer";
 type LegalIdType = "CC" | "CE" | "NIT" | "PP" | "TI";
 
 const LEGAL_ID_TYPES: { code: LegalIdType; label: string }[] = [
@@ -76,7 +77,13 @@ export default function TopUpScreen() {
     name: b.financial_institution_name,
   }));
 
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+
   const { mutate: initiatePayment, isPending } = useInitiateTopUp();
+  const { mutateAsync: tokenizeCard, isPending: isTokenizing } = useTokenizeCard();
 
   useEffect(() => {
     setNfcAvailable(isNfcSupported());
@@ -100,20 +107,42 @@ export default function TopUpScreen() {
     braceletUid.length > 0 &&
     (method === "nequi"
       ? phoneNumber.replace(/\D/g, "").length === 10
-      : selectedBank !== null && legalId.trim().length >= 5);
+      : method === "pse"
+      ? selectedBank !== null && legalId.trim().length >= 5
+      : method === "card"
+      ? cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0
+      : true);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return;
     const body: Parameters<typeof initiatePayment>[0] = {
       braceletUid,
       amount: effectiveAmount,
       paymentMethod: method,
     };
-    if (method === "nequi") body.phoneNumber = phoneNumber.replace(/\D/g, "");
-    else {
+    if (method === "nequi") {
+      body.phoneNumber = phoneNumber.replace(/\D/g, "");
+    } else if (method === "pse") {
       body.bankCode = selectedBank!.code;
       body.userLegalIdType = legalIdType;
       body.userLegalId = legalId.trim();
+    } else if (method === "card") {
+      try {
+        const [expMonth, expYear] = cardExpiry.split("/");
+        const tokenResult = await tokenizeCard({
+          number: cardNumber.replace(/\s/g, ""),
+          cvc: cardCvc,
+          expMonth: expMonth?.trim() ?? "",
+          expYear: expYear?.trim() ?? "",
+          cardHolder: cardHolder.trim(),
+        });
+        body.cardToken = tokenResult.data?.id;
+        body.installments = 1;
+      } catch (err) {
+        const msg = (err as { message?: string }).message ?? t("common.unknownError");
+        showAlert(t("common.error"), msg);
+        return;
+      }
     }
 
     initiatePayment(body, {
@@ -264,27 +293,31 @@ export default function TopUpScreen() {
           <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
             {t("topUp.method").toUpperCase()}
           </Text>
-          <View style={styles.methodRow}>
-            {(["nequi", "pse"] as DigitalMethod[]).map((m) => (
+          <View style={styles.methodGrid}>
+            {([
+              { id: "nequi", icon: "smartphone", label: "Nequi" },
+              { id: "pse", icon: "globe", label: "PSE" },
+              { id: "card", icon: "credit-card", label: t("tickets.creditCard") },
+              { id: "bancolombia_transfer", icon: "repeat", label: "Bancolombia" },
+            ] as { id: DigitalMethod; icon: string; label: string }[]).map((m) => (
               <Pressable
-                key={m}
-                onPress={() => { setMethod(m); setSelectedBank(null); setShowBankPicker(false); }}
+                key={m.id}
+                onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); }}
                 style={[
                   styles.methodBtn,
                   {
-                    backgroundColor: method === m ? C.primaryLight : C.inputBg,
-                    borderColor: method === m ? C.primary : C.border,
-                    flex: 1,
+                    backgroundColor: method === m.id ? C.primaryLight : C.inputBg,
+                    borderColor: method === m.id ? C.primary : C.border,
                   },
                 ]}
               >
                 <Feather
-                  name={m === "nequi" ? "smartphone" : "globe"}
+                  name={m.icon as never}
                   size={20}
-                  color={method === m ? C.primary : C.textSecondary}
+                  color={method === m.id ? C.primary : C.textSecondary}
                 />
-                <Text style={[styles.methodLabel, { color: method === m ? C.primary : C.text }]}>
-                  {m === "nequi" ? "Nequi" : "PSE"}
+                <Text style={[styles.methodLabel, { color: method === m.id ? C.primary : C.text }]}>
+                  {m.label}
                 </Text>
               </Pressable>
             ))}
@@ -419,18 +452,81 @@ export default function TopUpScreen() {
           </Card>
         )}
 
+        {method === "card" && (
+          <Card style={{ gap: 10 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              {t("tickets.cardDetails").toUpperCase()}
+            </Text>
+            <TextInput
+              style={inputStyle}
+              placeholder={t("tickets.cardNumber")}
+              placeholderTextColor={C.textMuted}
+              value={cardNumber}
+              onChangeText={setCardNumber}
+              keyboardType="numeric"
+              maxLength={19}
+            />
+            <View style={styles.cardRow}>
+              <TextInput
+                style={[inputStyle, { flex: 1 }]}
+                placeholder="MM/AA"
+                placeholderTextColor={C.textMuted}
+                value={cardExpiry}
+                onChangeText={setCardExpiry}
+                keyboardType="numeric"
+                maxLength={5}
+              />
+              <TextInput
+                style={[inputStyle, { flex: 1 }]}
+                placeholder="CVC"
+                placeholderTextColor={C.textMuted}
+                value={cardCvc}
+                onChangeText={setCardCvc}
+                keyboardType="numeric"
+                maxLength={4}
+                secureTextEntry
+              />
+            </View>
+            <TextInput
+              style={inputStyle}
+              placeholder={t("tickets.cardHolder")}
+              placeholderTextColor={C.textMuted}
+              value={cardHolder}
+              onChangeText={setCardHolder}
+              autoCapitalize="characters"
+            />
+          </Card>
+        )}
+
+        {method === "bancolombia_transfer" && (
+          <Card style={{ gap: 8 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              {"BANCOLOMBIA TRANSFER"}
+            </Text>
+            <Text style={[styles.hintText, { color: C.textSecondary }]}>
+              {t("topUp.bancolombiaTransferInfo")}
+            </Text>
+          </Card>
+        )}
+
         <View style={[styles.infoBox, { backgroundColor: C.cardSecondary, borderColor: C.border }]}>
           <Feather name="info" size={14} color={C.textSecondary} />
           <Text style={[styles.infoText, { color: C.textSecondary }]}>
-            {method === "nequi" ? t("topUp.nequiInfo") : t("topUp.pseInfo")}
+            {method === "nequi"
+              ? t("topUp.nequiInfo")
+              : method === "pse"
+              ? t("topUp.pseInfo")
+              : method === "bancolombia_transfer"
+              ? t("topUp.bancolombiaTransferInfo")
+              : t("topUp.cardInfo")}
           </Text>
         </View>
 
         <Button
-          title={isPending ? t("topUp.submitting") : `${t("topUp.submit")}${effectiveAmount > 0 ? ` ${formatCOP(effectiveAmount)}` : ""}`}
+          title={(isPending || isTokenizing) ? t("topUp.submitting") : `${t("topUp.submit")}${effectiveAmount > 0 ? ` ${formatCOP(effectiveAmount)}` : ""}`}
           onPress={handleSubmit}
-          disabled={!canSubmit || isPending}
-          loading={isPending}
+          disabled={!canSubmit || isPending || isTokenizing}
+          loading={isPending || isTokenizing}
           variant="primary"
           fullWidth
         />
@@ -506,15 +602,17 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
   },
   amountPreview: { fontSize: 16, fontFamily: "Inter_700Bold", textAlign: "center" },
-  methodRow: { flexDirection: "row", gap: 12 },
+  methodGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   methodBtn: {
     borderWidth: 1.5,
     borderRadius: 14,
     padding: 16,
     alignItems: "center",
     gap: 8,
+    width: "48%",
   },
-  methodLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  methodLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  cardRow: { flexDirection: "row", gap: 10 },
   hintText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   bankSelector: {
     borderWidth: 1,

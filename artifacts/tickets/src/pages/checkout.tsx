@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, Link } from "wouter";
-import { Smartphone, Building2, Check, AlertCircle, Ticket } from "lucide-react";
+import { Smartphone, Building2, Check, AlertCircle, Ticket, CreditCard, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatPrice } from "@/lib/format";
-import { purchaseTickets, getAuthToken } from "@/lib/api";
+import { purchaseTickets, getAuthToken, getWompiConfig } from "@/lib/api";
 import { Turnstile } from "@/components/Turnstile";
 
 interface CheckoutData {
@@ -52,7 +52,7 @@ export default function Checkout() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const [data, setData] = useState<CheckoutData | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"nequi" | "pse">("nequi");
+  const [paymentMethod, setPaymentMethod] = useState<"nequi" | "pse" | "card" | "bancolombia_transfer">("nequi");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -62,6 +62,10 @@ export default function Checkout() {
   const [pseBank, setPseBank] = useState("");
   const [pseLegalId, setPseLegalId] = useState("");
   const [pseLegalIdType, setPseLegalIdType] = useState<"CC" | "CE" | "NIT" | "PP" | "TI">("CC");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
   const [turnstileToken, setTurnstileToken] = useState("");
   const isGuest = !getAuthToken();
 
@@ -154,6 +158,8 @@ export default function Checkout() {
   const isPaymentValid = () => {
     if (paymentMethod === "nequi") return /^\d{10}$/.test(nequiPhone.replace(/\s/g, ""));
     if (paymentMethod === "pse") return pseBank.length > 0 && pseLegalId.length > 0;
+    if (paymentMethod === "card") return cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0;
+    if (paymentMethod === "bancolombia_transfer") return true;
     return false;
   };
 
@@ -182,6 +188,26 @@ export default function Checkout() {
         purchaseData.bankCode = pseBank;
         purchaseData.userLegalId = pseLegalId;
         purchaseData.userLegalIdType = pseLegalIdType;
+      } else if (paymentMethod === "card") {
+        const wompiConfig = await getWompiConfig();
+        const [expMonth, expYear] = cardExpiry.split("/");
+        const tokenRes = await fetch(`${wompiConfig.baseUrl}/tokens/cards`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${wompiConfig.publicKey}` },
+          body: JSON.stringify({
+            number: cardNumber.replace(/\s/g, ""),
+            cvc: cardCvc,
+            exp_month: expMonth?.trim() ?? "",
+            exp_year: expYear?.trim() ?? "",
+            card_holder: cardHolder.trim(),
+          }),
+        });
+        const tokenData = await tokenRes.json() as { data?: { id?: string }; status?: string };
+        if (!tokenRes.ok || !tokenData.data?.id) {
+          throw new Error("No se pudo tokenizar la tarjeta. Verifica los datos e intenta de nuevo.");
+        }
+        purchaseData.cardToken = tokenData.data.id;
+        purchaseData.installments = 1;
       }
 
       const result = await purchaseTickets(purchaseData);
@@ -205,6 +231,8 @@ export default function Checkout() {
   const methods = [
     { id: "nequi" as const, icon: Smartphone, label: t("checkout.nequi") },
     { id: "pse" as const, icon: Building2, label: t("checkout.pse") },
+    { id: "card" as const, icon: CreditCard, label: t("checkout.card", "Tarjeta") },
+    { id: "bancolombia_transfer" as const, icon: RefreshCw, label: "Bancolombia" },
   ];
 
   return (
@@ -319,6 +347,69 @@ export default function Checkout() {
                       />
                     </div>
                   </div>
+                </div>
+              )}
+
+              {paymentMethod === "card" && (
+                <div className="space-y-3">
+                  <div>
+                    <Label>Número de tarjeta</Label>
+                    <Input
+                      type="text"
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value)}
+                      placeholder="1234 5678 9012 3456"
+                      maxLength={19}
+                      className="mt-1 font-mono"
+                      disabled={processing}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Vencimiento (MM/AA)</Label>
+                      <Input
+                        type="text"
+                        value={cardExpiry}
+                        onChange={(e) => setCardExpiry(e.target.value)}
+                        placeholder="12/28"
+                        maxLength={5}
+                        className="mt-1"
+                        disabled={processing}
+                      />
+                    </div>
+                    <div>
+                      <Label>CVC</Label>
+                      <Input
+                        type="password"
+                        value={cardCvc}
+                        onChange={(e) => setCardCvc(e.target.value)}
+                        placeholder="•••"
+                        maxLength={4}
+                        className="mt-1"
+                        disabled={processing}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Titular de la tarjeta</Label>
+                    <Input
+                      type="text"
+                      value={cardHolder}
+                      onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                      placeholder="NOMBRE APELLIDO"
+                      className="mt-1 uppercase"
+                      disabled={processing}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Los datos de tu tarjeta se cifran con TLS y se tokenizarán por Wompi.
+                  </p>
+                </div>
+              )}
+
+              {paymentMethod === "bancolombia_transfer" && (
+                <div className="p-3 bg-muted/40 rounded-lg text-sm text-muted-foreground">
+                  Serás redirigido a Bancolombia para autorizar la transferencia. No se requieren datos adicionales.
                 </div>
               )}
             </div>

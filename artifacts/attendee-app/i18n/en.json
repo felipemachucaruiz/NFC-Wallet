@@ -190,6 +190,8 @@
     "pseBank": "Bank",
     "pseBankPlaceholder": "Select your bank",
     "pseInfo": "You'll be redirected to your bank's portal to confirm the payment.",
+    "bancolombiaTransferInfo": "You'll be redirected to Bancolombia to authorize the transfer.",
+    "cardInfo": "Your card details are encrypted and sent securely to the payment gateway.",
     "noBracelet": "Select a wristband first",
     "selectBracelet": "Wristband",
     "scanToSelect": "Scan to select",

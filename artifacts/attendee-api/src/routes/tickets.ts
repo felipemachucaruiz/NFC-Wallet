@@ -58,7 +58,7 @@ const createOrderSchema = z.object({
     ticketTypeId: z.string().min(1),
     unitId: z.string().min(1),
   })).optional(),
-  paymentMethod: z.enum(["card", "nequi", "pse", "free"]),
+  paymentMethod: z.enum(["card", "nequi", "pse", "bancolombia_transfer", "free"]),
   cardToken: z.string().optional(),
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
@@ -431,6 +431,20 @@ router.post(
           },
           reference,
           acceptance_token: acceptanceToken,
+        };
+      } else if (paymentMethod === "bancolombia_transfer") {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "BANCOLOMBIA_TRANSFER",
+            user_type: "PERSON",
+            payment_description: `Entrada ${event.name}`,
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+          redirect_url: `${process.env.APP_URL ?? "https://tickets.tapee.app"}/payment-return`,
         };
       } else {
         wompiBody = {

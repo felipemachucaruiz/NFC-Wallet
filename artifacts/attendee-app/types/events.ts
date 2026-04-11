@@ -94,7 +94,7 @@ export interface OrderSummary {
   currencyCode: string;
 }
 
-export type PaymentMethod = "nequi" | "pse" | "card" | "free";
+export type PaymentMethod = "nequi" | "pse" | "card" | "bancolombia_transfer" | "free";
 
 export interface TicketPurchaseResult {
   orderId: string;

@@ -178,11 +178,13 @@ export function useInitiateTopUp() {
     mutationFn: (data: {
       braceletUid: string;
       amount: number;
-      paymentMethod: "nequi" | "pse";
+      paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer";
       phoneNumber?: string;
       bankCode?: string;
       userLegalIdType?: string;
       userLegalId?: string;
+      cardToken?: string;
+      installments?: number;
     }) =>
       apiFetch<{ intentId: string; status: string; redirectUrl?: string | null }>(
         `${API_BASE_URL}/api/payments/initiate`,
