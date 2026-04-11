@@ -657,6 +657,10 @@ router.get(
       }
     }
 
+    const apiBase = process.env.APP_URL || "https://attendee.tapee.app";
+    const rawFlyer = (event as any)?.flyerImageUrl ?? null;
+    const flyerImageUrl = rawFlyer && !rawFlyer.startsWith("http") ? `https://prod.tapee.app${rawFlyer}` : rawFlyer;
+
     try {
       const pdfBuffer = await generateTicketPdf({
         attendeeName: ticket.attendeeName,
@@ -670,6 +674,7 @@ router.get(
         qrCodeToken: ticket.qrCodeToken,
         ticketId: ticket.id,
         orderId: ticket.orderId,
+        flyerImageUrl,
       });
 
       res.setHeader("Content-Type", "application/pdf");
@@ -707,6 +712,9 @@ router.get(
       return;
     }
 
+    const rawFlyer = (event as any)?.flyerImageUrl ?? null;
+    const flyerImageUrl = rawFlyer && !rawFlyer.startsWith("http") ? `https://prod.tapee.app${rawFlyer}` : rawFlyer;
+
     try {
       const ticketDataList: TicketPdfData[] = [];
 
@@ -743,6 +751,7 @@ router.get(
           qrCodeToken: ticket.qrCodeToken ?? "",
           ticketId: ticket.id,
           orderId,
+          flyerImageUrl,
         });
       }
 
