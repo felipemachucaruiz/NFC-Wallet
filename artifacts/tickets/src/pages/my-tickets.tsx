@@ -68,23 +68,20 @@ export default function MyTickets() {
             <DialogTitle>{t("myTickets.viewQR")}</DialogTitle>
           </DialogHeader>
           {showQR && (
-            <div className="text-center space-y-4">
-              <div className="bg-white rounded-xl p-6 mx-auto w-fit">
+            <div className="flex items-center justify-center py-4">
+              <div className="bg-white rounded-xl p-6">
                 {showQR.qrCodeToken ? (
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(showQR.qrCodeToken)}`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(showQR.qrCodeToken)}`}
                     alt="QR Code"
-                    className="w-48 h-48"
+                    className="w-56 h-56"
                   />
                 ) : (
-                  <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
+                  <div className="w-56 h-56 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
                     QR pending
                   </div>
                 )}
               </div>
-              <p className="font-mono text-sm text-muted-foreground">{showQR.qrCodeToken || "Pending"}</p>
-              <p className="text-sm">{showQR.eventName}</p>
-              <p className="text-xs text-muted-foreground">{showQR.ticketTypeName}</p>
             </div>
           )}
         </DialogContent>
