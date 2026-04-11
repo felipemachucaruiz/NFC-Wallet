@@ -238,16 +238,18 @@ export default function ChargeScreen() {
         setStep("waiting");
         return;
       }
-      await enqueue({
-        locationId,
-        nfcUid: uid,
-        newBalance,
-        counter: newCounter,
-        lineItems,
-        grossAmount: total,
-        tipAmount: confirmedTipAmount,
-        hmac: newHmac,
-      });
+      try {
+        await enqueue({
+          locationId,
+          nfcUid: uid,
+          newBalance,
+          counter: newCounter,
+          lineItems,
+          grossAmount: total,
+          tipAmount: confirmedTipAmount,
+          hmac: newHmac,
+        });
+      } catch {}
     }
     clearCart();
     setStep("success");
