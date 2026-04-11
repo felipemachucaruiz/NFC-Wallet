@@ -379,6 +379,7 @@ export async function processSelfServicePayment(intentId: string, wompiTransacti
         lastCounter: newCounter,
         pendingSync: true,
         pendingBalance: newBalance,
+        pendingTopUpAmount: (bracelet.pendingTopUpAmount ?? 0) + intent.amount,
         updatedAt: new Date(),
       })
       .where(eq(braceletsTable.nfcUid, braceletUid));

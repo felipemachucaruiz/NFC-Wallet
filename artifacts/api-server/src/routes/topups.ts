@@ -171,6 +171,7 @@ router.post(
         lastCounter: newCounter,
         pendingSync: false,
         pendingBalance: 0,
+        pendingTopUpAmount: 0,
         updatedAt: new Date(),
       })
       .where(eq(braceletsTable.nfcUid, nfcUid));
@@ -330,6 +331,7 @@ router.post(
       .set({
         lastKnownBalance: newBalance,
         lastCounter: newCounter,
+        pendingTopUpAmount: 0,
         updatedAt: new Date(),
       })
       .where(eq(braceletsTable.nfcUid, nfcUid));

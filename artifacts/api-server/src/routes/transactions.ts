@@ -304,6 +304,7 @@ async function processTransaction(
     lastCounter: input.counter,
     pendingSync: false,
     pendingBalance: 0,
+    pendingTopUpAmount: 0,
     updatedAt: new Date(),
   };
 
@@ -315,6 +316,7 @@ async function processTransaction(
         lastCounter: input.counter,
         pendingSync: false,
         pendingBalance: 0,
+        pendingTopUpAmount: 0,
         updatedAt: new Date(),
       };
     } else {

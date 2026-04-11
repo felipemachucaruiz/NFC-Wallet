@@ -188,17 +188,16 @@ export default function ChargeScreen() {
     return () => loop.stop();
   }, [nfcModalVisible]);
 
-  const fetchServerPendingBalance = async (uid: string): Promise<number | null> => {
+  const fetchServerPendingTopUp = async (uid: string): Promise<number> => {
     try {
       const data = await customFetch(`/api/bracelets/${encodeURIComponent(uid)}`) as {
-        pendingSync?: boolean;
-        pendingBalance?: number | null;
+        pendingTopUpAmount?: number | null;
       } | null;
-      if (data?.pendingSync && data?.pendingBalance && data.pendingBalance > 0) {
-        return data.pendingBalance;
+      if (data?.pendingTopUpAmount && data.pendingTopUpAmount > 0) {
+        return data.pendingTopUpAmount;
       }
     } catch {}
-    return null;
+    return 0;
   };
 
   const logAndFinish = async (uid: string, newBalance: number, newCounter: number, newHmac?: string) => {
@@ -320,8 +319,8 @@ export default function ChargeScreen() {
           setTagInfo(detectedTagInfo);
           setStep("verifying");
 
-          const serverPending = await fetchServerPendingBalance(payload.uid);
-          const effectiveBalance = serverPending !== null ? serverPending : payload.balance;
+          const pendingTopUp = await fetchServerPendingTopUp(payload.uid);
+          const effectiveBalance = payload.balance + pendingTopUp;
 
           if (effectiveBalance < chargeTotal) {
             setBraceletBalance(effectiveBalance);
@@ -395,8 +394,8 @@ export default function ChargeScreen() {
               return null;
             }
 
-            const serverPending = await fetchServerPendingBalance(payload.uid);
-            const effectiveBalance = serverPending !== null ? serverPending : payload.balance;
+            const pendingTopUp = await fetchServerPendingTopUp(payload.uid);
+            const effectiveBalance = payload.balance + pendingTopUp;
 
             if (effectiveBalance < chargeTotal) {
               setBraceletBalance(effectiveBalance);

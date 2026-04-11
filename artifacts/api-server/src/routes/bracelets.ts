@@ -71,6 +71,7 @@ router.get(
           flagReason: braceletsTable.flagReason,
           pendingSync: braceletsTable.pendingSync,
           pendingBalance: braceletsTable.pendingBalance,
+          pendingTopUpAmount: braceletsTable.pendingTopUpAmount,
           accessZoneIds: braceletsTable.accessZoneIds,
           registeredByUserId: braceletsTable.registeredByUserId,
           createdAt: braceletsTable.createdAt,
