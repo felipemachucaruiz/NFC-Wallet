@@ -113,9 +113,10 @@ router.get(
           .where(eq(eventDaysTable.eventId, event.id))
           .orderBy(asc(eventDaysTable.displayOrder));
 
+        const paidPrices = prices.filter((p) => p > 0);
         return {
           ...event,
-          priceFrom: prices.length > 0 ? Math.min(...prices) : 0,
+          priceFrom: paidPrices.length > 0 ? Math.min(...paidPrices) : 0,
           priceTo: prices.length > 0 ? Math.max(...prices) : 0,
           eventDays: days,
           dayCount: days.length,
