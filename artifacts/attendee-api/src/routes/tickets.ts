@@ -7,7 +7,7 @@ import crypto from "crypto";
 import { generateTicketQrToken } from "../lib/ticketQr";
 import { sendTicketConfirmationEmail, sendTicketInvitationEmail } from "../lib/ticketEmails";
 import { generateGoogleWalletSaveLink } from "../lib/walletPasses";
-import { generateTicketPdf } from "../lib/ticketPdf";
+import { generateTicketPdf, generateMultiTicketPdf, type TicketPdfData } from "../lib/ticketPdf";
 import { sendWhatsAppDocument, sendWhatsAppText, isWhatsAppConfigured } from "../lib/whatsapp";
 import { logger } from "../lib/logger";
 
@@ -592,22 +592,22 @@ if (!PDF_TOKEN_SECRET) {
   console.warn("[tickets] WARNING: HMAC_SECRET / TICKET_QR_SECRET not set — PDF download endpoint will reject all requests");
 }
 
-function generatePdfToken(ticketId: string): string {
+function generatePdfToken(id: string): string {
   if (!PDF_TOKEN_SECRET) throw new Error("PDF_TOKEN_SECRET not configured");
   const exp = Math.floor(Date.now() / 1000) + 3600;
-  const payload = `${ticketId}:${exp}`;
+  const payload = `${id}:${exp}`;
   const sig = crypto.createHmac("sha256", PDF_TOKEN_SECRET).update(payload).digest("hex");
   return Buffer.from(`${payload}:${sig}`).toString("base64url");
 }
 
-function verifyPdfToken(token: string, ticketId: string): boolean {
+function verifyPdfToken(token: string, expectedId: string): boolean {
   if (!PDF_TOKEN_SECRET) return false;
   try {
     const decoded = Buffer.from(token, "base64url").toString("utf8");
     const parts = decoded.split(":");
     if (parts.length !== 3) return false;
     const [tid, expStr, sig] = parts;
-    if (tid !== ticketId) return false;
+    if (tid !== expectedId) return false;
     const exp = parseInt(expStr);
     if (isNaN(exp) || exp < Math.floor(Date.now() / 1000)) return false;
     const expectedSig = crypto.createHmac("sha256", PDF_TOKEN_SECRET).update(`${tid}:${expStr}`).digest("hex");
@@ -677,6 +677,82 @@ router.get(
       res.send(pdfBuffer);
     } catch (err) {
       logger.error({ err }, "Failed to generate ticket PDF");
+      res.status(500).json({ error: "Failed to generate PDF" });
+    }
+  },
+);
+
+router.get(
+  "/orders/:orderId/pdf",
+  async (req: Request, res: Response) => {
+    const { orderId } = req.params as { orderId: string };
+    const token = req.query.token as string;
+
+    if (!token || !verifyPdfToken(token, `order:${orderId}`)) {
+      res.status(403).json({ error: "Invalid or expired token" });
+      return;
+    }
+
+    const [order] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, orderId));
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, order.eventId));
+    const orderTickets = await db.select().from(ticketsTable).where(and(eq(ticketsTable.orderId, orderId), eq(ticketsTable.status, "valid")));
+
+    if (orderTickets.length === 0) {
+      res.status(404).json({ error: "No valid tickets in this order" });
+      return;
+    }
+
+    try {
+      const ticketDataList: TicketPdfData[] = [];
+
+      for (const ticket of orderTickets) {
+        let sectionName = "General";
+        let ticketTypeName = "";
+        let validDays: string[] = [];
+
+        if (ticket.ticketTypeId) {
+          const [ticketType] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+          if (ticketType) {
+            ticketTypeName = ticketType.name;
+            if (ticketType.sectionId) {
+              const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
+              if (sec) sectionName = sec.name;
+            }
+            const validDayIds = (ticketType.validEventDayIds as string[]) ?? [];
+            if (validDayIds.length > 0) {
+              const days = await db.select().from(eventDaysTable).where(inArray(eventDaysTable.id, validDayIds));
+              validDays = days.map((d) => d.label || d.date);
+            }
+          }
+        }
+
+        ticketDataList.push({
+          attendeeName: ticket.attendeeName,
+          eventName: event?.name ?? "",
+          eventDates: [],
+          venueName: event?.venueAddress ?? "",
+          venueAddress: event?.venueAddress ?? "",
+          sectionName,
+          ticketTypeName,
+          validDays,
+          qrCodeToken: ticket.qrCodeToken ?? "",
+          ticketId: ticket.id,
+          orderId,
+        });
+      }
+
+      const pdfBuffer = await generateMultiTicketPdf(ticketDataList);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="tapee-tickets-${orderId.slice(0, 8)}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (err) {
+      logger.error({ err }, "Failed to generate order PDF");
       res.status(500).json({ error: "Failed to generate PDF" });
     }
   },
@@ -861,6 +937,7 @@ router.post(
 
     let sent = 0;
     let failed = 0;
+    const whatsAppPhones = new Map<string, { attendeeName: string; ticketCount: number }>();
 
     for (const ticket of orderTickets) {
       if (!ticket.attendeePhone) continue;
@@ -873,7 +950,7 @@ router.post(
       const validDays = eventDaysList.map((d) => d.label || d.date);
 
       try {
-        await sendTicketWhatsApp({
+        const ok = await sendTicketWhatsApp({
           ticketId: ticket.id,
           attendeeName: ticket.attendeeName,
           attendeePhone: ticket.attendeePhone,
@@ -887,11 +964,26 @@ router.post(
           qrCodeToken: ticket.qrCodeToken ?? "",
           orderId,
         });
-        sent++;
+        if (ok) {
+          sent++;
+          const existing = whatsAppPhones.get(ticket.attendeePhone);
+          if (existing) {
+            existing.ticketCount += 1;
+          } else {
+            whatsAppPhones.set(ticket.attendeePhone, { attendeeName: ticket.attendeeName, ticketCount: 1 });
+          }
+        } else {
+          failed++;
+        }
       } catch (err) {
         logger.error({ err, ticketId: ticket.id }, "Failed to resend WhatsApp for ticket");
         failed++;
       }
+    }
+
+    if (whatsAppPhones.size > 0) {
+      void sendOrderTicketDocuments(orderId, event.name, whatsAppPhones)
+        .catch((err) => logger.error({ err, orderId }, "Failed to send resend ticket documents"));
     }
 
     res.json({ sent, failed, total: orderTickets.length });
@@ -911,14 +1003,10 @@ async function sendTicketWhatsApp(data: {
   validDays: string[];
   qrCodeToken: string;
   orderId: string;
-}): Promise<void> {
-  const appUrl = process.env.APP_URL || "https://attendee.tapee.app";
-  const pdfToken = generatePdfToken(data.ticketId);
-  const pdfUrl = `${appUrl}/api/tickets/${data.ticketId}/pdf?token=${pdfToken}`;
-
+}): Promise<boolean> {
   const validDaysStr = data.validDays.length > 0
     ? data.validDays.join(", ")
-    : "Todos los días";
+    : "Todos los dias";
 
   const { sendWithTemplate } = await import("../lib/templateResolver");
   const context: Record<string, string> = {
@@ -951,36 +1039,59 @@ async function sendTicketWhatsApp(data: {
 
   if (!templateResult.usedTemplate) {
     const message = [
-      `🎟️ *Tu entrada para ${data.eventName}*`,
+      `*Tu entrada para ${data.eventName}*`,
       ``,
       `Hola ${data.attendeeName}, tu entrada ha sido confirmada.`,
       ``,
-      `📍 *Lugar:* ${data.venueName}`,
-      data.venueAddress !== data.venueName ? `📌 *Dirección:* ${data.venueAddress}` : "",
-      `🎫 *Sección:* ${data.sectionName}`,
-      `🏷️ *Tipo:* ${data.ticketTypeName}`,
-      `📅 *Días válidos:* ${validDaysStr}`,
-      `🔖 *Orden:* ${data.orderId.slice(0, 8)}`,
+      `*Lugar:* ${data.venueName}`,
+      data.venueAddress !== data.venueName ? `*Direccion:* ${data.venueAddress}` : "",
+      `*Seccion:* ${data.sectionName}`,
+      `*Tipo:* ${data.ticketTypeName}`,
+      `*Dias validos:* ${validDaysStr}`,
+      `*Orden:* ${data.orderId.slice(0, 8)}`,
       ``,
-      `Presenta el código QR adjunto en la puerta del evento.`,
+      `Presenta el codigo QR adjunto en la puerta del evento.`,
       ``,
-      `— Tapee`,
+      `-- Tapee`,
     ].filter(Boolean).join("\n");
 
     textSent = await sendWhatsAppText(data.attendeePhone, message);
   }
 
-  if (!textSent) {
-    logger.warn({ phone: data.attendeePhone }, "WhatsApp text message failed, skipping PDF");
-    return;
-  }
+  return textSent;
+}
 
-  await sendWhatsAppDocument(
-    data.attendeePhone,
-    pdfUrl,
-    `tapee-ticket-${data.ticketId.slice(0, 8)}.pdf`,
-    `Entrada para ${data.eventName} - ${data.attendeeName}`,
-  );
+async function sendOrderTicketDocuments(
+  orderId: string,
+  eventName: string,
+  ticketsByPhone: Map<string, { attendeeName: string; ticketCount: number }>,
+): Promise<void> {
+  const appUrl = process.env.APP_URL || "https://attendee.tapee.app";
+  const pdfToken = generatePdfToken(`order:${orderId}`);
+  const pdfUrl = `${appUrl}/api/orders/${orderId}/pdf?token=${pdfToken}`;
+
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
+  for (const [phone, info] of ticketsByPhone) {
+    const ticketLabel = info.ticketCount === 1
+      ? `Entrada para ${eventName} - ${info.attendeeName}`
+      : `${info.ticketCount} entradas para ${eventName}`;
+
+    const filename = info.ticketCount === 1
+      ? `tapee-ticket-${orderId.slice(0, 8)}.pdf`
+      : `tapee-tickets-${orderId.slice(0, 8)}.pdf`;
+
+    const logContext = {
+      triggerType: "ticket_document",
+      orderId,
+      attendeeName: info.attendeeName,
+    };
+
+    const sent = await sendWhatsAppDocument(phone, pdfUrl, filename, ticketLabel, logContext);
+    if (!sent) {
+      logger.warn({ phone, orderId }, "Failed to send ticket PDF document via WhatsApp");
+    }
+  }
 }
 
 export async function processTicketOrderPayment(orderId: string, wompiTransactionId: string, buyerLocale?: string) {
@@ -1017,6 +1128,8 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
   const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, order.eventId));
 
   const existingTickets = await db.select().from(ticketsTable).where(eq(ticketsTable.orderId, orderId));
+
+  const whatsAppPhones = new Map<string, { attendeeName: string; ticketCount: number }>();
 
   for (const ticket of existingTickets) {
     const qrCodeToken = generateTicketQrToken(ticket.id, ticket.attendeeUserId);
@@ -1074,6 +1187,13 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
           qrCodeToken,
           orderId,
         }).catch((err) => logger.error(`Failed to send WhatsApp ticket to ${ticket.attendeePhone}: ${err}`));
+
+        const existing = whatsAppPhones.get(ticket.attendeePhone);
+        if (existing) {
+          existing.ticketCount += 1;
+        } else {
+          whatsAppPhones.set(ticket.attendeePhone, { attendeeName: ticket.attendeeName, ticketCount: 1 });
+        }
       }
 
       if (!ticket.attendeeUserId) {
@@ -1087,6 +1207,11 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
       }
     }
   }
+
+  if (whatsAppPhones.size > 0 && event) {
+    void sendOrderTicketDocuments(orderId, event.name, whatsAppPhones)
+      .catch((err) => logger.error({ err, orderId }, "Failed to send order ticket documents"));
+  }
 }
 
 async function deliverFreeTicketNotifications(orderId: string, eventId: string, buyerLocale?: string) {
@@ -1096,6 +1221,8 @@ async function deliverFreeTicketNotifications(orderId: string, eventId: string, 
   if (!event) return;
 
   const tickets = await db.select().from(ticketsTable).where(eq(ticketsTable.orderId, orderId));
+
+  const whatsAppPhones = new Map<string, { attendeeName: string; ticketCount: number }>();
 
   for (const ticket of tickets) {
     const [ticketType] = ticket.ticketTypeId
@@ -1149,6 +1276,13 @@ async function deliverFreeTicketNotifications(orderId: string, eventId: string, 
         qrCodeToken: ticket.qrCodeToken ?? "",
         orderId,
       }).catch((err) => logger.error(`Failed to send free ticket WhatsApp to ${ticket.attendeePhone}: ${err}`));
+
+      const existing = whatsAppPhones.get(ticket.attendeePhone);
+      if (existing) {
+        existing.ticketCount += 1;
+      } else {
+        whatsAppPhones.set(ticket.attendeePhone, { attendeeName: ticket.attendeeName, ticketCount: 1 });
+      }
     }
 
     if (!ticket.attendeeUserId) {
@@ -1160,6 +1294,11 @@ async function deliverFreeTicketNotifications(orderId: string, eventId: string, 
         locale: attendeeLocale,
       }).catch((err) => logger.error(`Failed to send invitation email to ${ticket.attendeeEmail}: ${err}`));
     }
+  }
+
+  if (whatsAppPhones.size > 0 && event) {
+    void sendOrderTicketDocuments(orderId, event.name, whatsAppPhones)
+      .catch((err) => logger.error({ err, orderId }, "Failed to send free ticket documents"));
   }
 }
 
