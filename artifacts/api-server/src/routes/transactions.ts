@@ -304,19 +304,18 @@ async function processTransaction(
     lastCounter: input.counter,
     pendingSync: false,
     pendingBalance: 0,
-    pendingTopUpAmount: 0,
+    pendingTopUpAmount: sql`GREATEST(${braceletsTable.pendingTopUpAmount} - ${bracelet.pendingTopUpAmount}, 0)`,
     updatedAt: new Date(),
   };
 
   if (isSyncBatch && bracelet.lastKnownBalance !== null) {
-    if (bracelet.pendingSync && bracelet.pendingBalance !== null && bracelet.pendingBalance > 0) {
-      const reconciledBalance = Math.max(0, bracelet.pendingBalance - chargedAmount);
+    if (bracelet.pendingSync && bracelet.pendingTopUpAmount > 0) {
       braceletUpdate = {
-        lastKnownBalance: reconciledBalance,
+        lastKnownBalance: input.newBalance,
         lastCounter: input.counter,
         pendingSync: false,
         pendingBalance: 0,
-        pendingTopUpAmount: 0,
+        pendingTopUpAmount: sql`GREATEST(${braceletsTable.pendingTopUpAmount} - ${bracelet.pendingTopUpAmount}, 0)`,
         updatedAt: new Date(),
       };
     } else {
@@ -355,6 +354,7 @@ async function processTransaction(
       lastCounter: input.counter,
       pendingSync: false,
       pendingBalance: 0,
+      pendingTopUpAmount: sql`GREATEST(${braceletsTable.pendingTopUpAmount} - ${bracelet.pendingTopUpAmount}, 0)`,
       updatedAt: new Date(),
     };
   }

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, braceletsTable, eventsTable, topUpsTable, usersTable } from "@workspace/db";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { requireAttestation } from "../middlewares/requireAttestation";
 import { z } from "zod";
@@ -180,6 +180,7 @@ router.post(
       topUp,
       signedPayload: { balance: newBalance, counter: newCounter, hmac },
     });
+
   },
 );
 
@@ -331,7 +332,7 @@ router.post(
       .set({
         lastKnownBalance: newBalance,
         lastCounter: newCounter,
-        pendingTopUpAmount: 0,
+        pendingTopUpAmount: sql`GREATEST(${braceletsTable.pendingTopUpAmount} - ${amount}, 0)`,
         updatedAt: new Date(),
       })
       .where(eq(braceletsTable.nfcUid, nfcUid));
