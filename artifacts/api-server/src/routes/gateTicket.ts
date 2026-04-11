@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, usersTable, accessZonesTable, eventsTable, ticketCheckinsTable, ticketsTable, ticketTypesTable, eventDaysTable, pool } from "@workspace/db";
+import { db, braceletsTable, usersTable, accessZonesTable, eventsTable, ticketCheckinsTable, ticketsTable, ticketTypesTable, venueSectionsTable, eventDaysTable, pool } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -989,17 +989,17 @@ router.post(
 
         let section: string | null = null;
         let ticketTypeName: string | null = null;
-        let accessZoneId: string | null = checkin.accessZoneId ?? null;
+        const accessZoneId: string | null = checkin.accessZoneId ?? null;
         if (ticket.ticketTypeId) {
           const [tt] = await db
-            .select({ name: ticketTypesTable.name, section: ticketTypesTable.section, accessZoneId: ticketTypesTable.accessZoneId })
+            .select({ name: ticketTypesTable.name, sectionName: venueSectionsTable.name })
             .from(ticketTypesTable)
+            .leftJoin(venueSectionsTable, eq(venueSectionsTable.id, ticketTypesTable.sectionId))
             .where(eq(ticketTypesTable.id, ticket.ticketTypeId))
             .limit(1);
           if (tt) {
-            section = tt.section ?? null;
+            section = tt.sectionName ?? null;
             ticketTypeName = tt.name ?? null;
-            if (!accessZoneId) accessZoneId = tt.accessZoneId ?? null;
           }
         }
 
