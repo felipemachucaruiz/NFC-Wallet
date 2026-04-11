@@ -1216,6 +1216,7 @@
       "event_reminder": "Recordatorio de Evento",
       "ticket_refund": "Reembolso de Boleta",
       "welcome_message": "Mensaje de Bienvenida",
+      "ticket_transfer": "Transferencia de Boleta",
       "custom": "Personalizado"
     },
     "categories": {

@@ -34,7 +34,7 @@ import {
   type WhatsAppMessageLog,
 } from "@/lib/api";
 
-const TRIGGER_TYPES = ["ticket_purchased", "otp_verification", "event_reminder", "ticket_refund", "welcome_message", "custom"] as const;
+const TRIGGER_TYPES = ["ticket_purchased", "otp_verification", "event_reminder", "ticket_refund", "welcome_message", "ticket_transfer", "custom"] as const;
 const CATEGORIES = ["UTILITY", "MARKETING", "AUTHENTICATION"] as const;
 const STATUSES = ["active", "inactive", "pending_approval"] as const;
 
@@ -65,6 +65,11 @@ const TRIGGER_AVAILABLE_FIELDS: Record<string, Array<{ field: string; label: str
   ],
   welcome_message: [
     { field: "attendeeName", label: "Nombre del asistente" },
+    { field: "eventName", label: "Nombre del evento" },
+  ],
+  ticket_transfer: [
+    { field: "recipientName", label: "Nombre del destinatario" },
+    { field: "senderName", label: "Nombre del remitente" },
     { field: "eventName", label: "Nombre del evento" },
   ],
   custom: [],

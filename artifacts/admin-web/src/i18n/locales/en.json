@@ -1216,6 +1216,7 @@
       "event_reminder": "Event Reminder",
       "ticket_refund": "Ticket Refund",
       "welcome_message": "Welcome Message",
+      "ticket_transfer": "Ticket Transfer",
       "custom": "Custom"
     },
     "categories": {
