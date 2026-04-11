@@ -14,6 +14,26 @@ function normalizePhone(phone: string): string {
   return cleaned;
 }
 
+function isTicketDocumentRequest(body: Record<string, unknown>): boolean {
+  const payload = body?.payload as Record<string, unknown> | undefined;
+  if (!payload) return false;
+
+  const msgType = payload.type as string | undefined;
+  const inner = payload.payload as Record<string, unknown> | undefined;
+
+  if (msgType === "button_reply" || msgType === "quick_reply") {
+    const title = (inner?.title as string || "").toLowerCase().trim();
+    if (title.includes("env") && title.includes("aqu")) return true;
+  }
+
+  if (msgType === "text") {
+    const text = (inner?.text as string || inner as unknown as string || "").toLowerCase().trim();
+    if (text.includes("env") && text.includes("aqu")) return true;
+  }
+
+  return false;
+}
+
 router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 
@@ -34,7 +54,12 @@ router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
     if (!senderPhone) return;
 
     const normalized = normalizePhone(senderPhone);
-    logger.info({ phone: normalized }, "Inbound WhatsApp message received");
+    logger.info({ phone: normalized, isDocRequest: isTicketDocumentRequest(body) }, "Inbound WhatsApp message received");
+
+    if (!isTicketDocumentRequest(body)) {
+      logger.info({ phone: normalized }, "Message is not a ticket document request — ignoring");
+      return;
+    }
 
     const pendingDocs = await db
       .select()
@@ -51,7 +76,7 @@ router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
       return;
     }
 
-    logger.info({ phone: normalized, count: pendingDocs.length }, "Sending pending documents after user reply");
+    logger.info({ phone: normalized, count: pendingDocs.length }, "Sending pending documents after user button reply");
 
     for (const doc of pendingDocs) {
       const freshPdfUrl = buildOrderPdfUrl(doc.orderId);
