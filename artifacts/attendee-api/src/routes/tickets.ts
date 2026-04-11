@@ -931,12 +931,20 @@ async function sendTicketWhatsApp(data: {
     validDays: validDaysStr,
     orderId: data.orderId.slice(0, 8),
   };
+  const logContext = {
+    triggerType: "ticket_purchased",
+    orderId: data.orderId,
+    ticketId: data.ticketId,
+    eventId: data.eventId,
+    attendeeName: data.attendeeName,
+  };
   const templateResult = await sendWithTemplate(
     data.attendeePhone,
     "ticket_purchased",
     [data.attendeeName, data.eventName, data.venueName, data.sectionName, data.ticketTypeName, validDaysStr],
     data.eventId,
     context,
+    logContext,
   );
 
   let textSent = templateResult.sent;

@@ -1,7 +1,7 @@
 import { db } from "@workspace/db";
 import { whatsappTemplatesTable, whatsappTriggerMappingsTable } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { sendWhatsAppTemplate, type TemplateParam } from "./whatsapp";
+import { sendWhatsAppTemplate, type TemplateParam, type MessageLogContext } from "./whatsapp";
 import { logger } from "./logger";
 
 export type TriggerType = "ticket_purchased" | "otp_verification" | "event_reminder" | "ticket_refund" | "welcome_message" | "custom";
@@ -100,6 +100,7 @@ export async function sendWithTemplate(
   paramValues: string[],
   eventId?: string,
   context?: Record<string, string>,
+  logContext?: MessageLogContext,
 ): Promise<{ sent: boolean; usedTemplate: boolean }> {
   const template = await resolveTemplate(triggerType, eventId);
   if (!template) {
@@ -112,6 +113,14 @@ export async function sendWithTemplate(
 
   const isAuth = template.category === "AUTHENTICATION";
   const params: TemplateParam[] = finalValues.map((text) => ({ type: "text", text }));
-  const sent = await sendWhatsAppTemplate(destination, template.gupshupTemplateId, params, isAuth);
+
+  const enrichedLogContext: MessageLogContext = {
+    ...logContext,
+    triggerType,
+    templateName: template.gupshupTemplateId,
+    eventId,
+  };
+
+  const sent = await sendWhatsAppTemplate(destination, template.gupshupTemplateId, params, isAuth, enrichedLogContext);
   return { sent, usedTemplate: true };
 }

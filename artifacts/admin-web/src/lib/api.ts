@@ -432,6 +432,53 @@ export async function apiDeleteWhatsAppTriggerMapping(id: string): Promise<void>
   if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to delete trigger mapping"); }
 }
 
+export interface WhatsAppMessageLog {
+  id: string;
+  destination: string;
+  messageType: "template" | "text" | "document" | "image";
+  templateId: string | null;
+  templateName: string | null;
+  triggerType: string | null;
+  status: "sent" | "failed" | "pending";
+  errorMessage: string | null;
+  payload: Record<string, unknown> | null;
+  orderId: string | null;
+  ticketId: string | null;
+  eventId: string | null;
+  attendeeName: string | null;
+  gupshupMessageId: string | null;
+  retryCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MessageLogResponse {
+  messages: WhatsAppMessageLog[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export async function apiFetchMessageLog(params: { page?: number; limit?: number; status?: string; search?: string } = {}): Promise<MessageLogResponse> {
+  const query = new URLSearchParams();
+  if (params.page) query.set("page", String(params.page));
+  if (params.limit) query.set("limit", String(params.limit));
+  if (params.status) query.set("status", params.status);
+  if (params.search) query.set("search", params.search);
+  const res = await fetch(apiUrl(`/api/whatsapp-message-log?${query.toString()}`), { headers: authHeaders() });
+  if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to fetch message log"); }
+  return res.json();
+}
+
+export async function apiFetchMessageLogStats(): Promise<Record<string, number>> {
+  const res = await fetch(apiUrl("/api/whatsapp-message-log/stats"), { headers: authHeaders() });
+  if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to fetch stats"); }
+  return res.json();
+}
+
+export async function apiResendMessage(id: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const res = await fetch(apiUrl(`/api/whatsapp-message-log/${id}/resend`), { method: "POST", headers: authHeaders() });
+  return res.json();
+}
+
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")

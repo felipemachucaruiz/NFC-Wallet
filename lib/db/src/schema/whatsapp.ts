@@ -1,6 +1,39 @@
 import { pgTable, pgEnum, varchar, text, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
+export const whatsappMessageStatusEnum = pgEnum("whatsapp_message_status", [
+  "sent",
+  "failed",
+  "pending",
+]);
+
+export const whatsappMessageTypeEnum = pgEnum("whatsapp_message_type", [
+  "template",
+  "text",
+  "document",
+  "image",
+]);
+
+export const whatsappMessageLogTable = pgTable("whatsapp_message_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  destination: varchar("destination", { length: 30 }).notNull(),
+  messageType: whatsappMessageTypeEnum("message_type").notNull(),
+  templateId: varchar("template_id"),
+  templateName: varchar("template_name", { length: 255 }),
+  triggerType: varchar("trigger_type", { length: 50 }),
+  status: whatsappMessageStatusEnum("status").notNull().default("pending"),
+  errorMessage: text("error_message"),
+  payload: jsonb("payload").$type<Record<string, unknown>>(),
+  orderId: varchar("order_id"),
+  ticketId: varchar("ticket_id"),
+  eventId: varchar("event_id"),
+  attendeeName: varchar("attendee_name", { length: 255 }),
+  gupshupMessageId: varchar("gupshup_message_id", { length: 255 }),
+  retryCount: integer("retry_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const whatsappTriggerTypeEnum = pgEnum("whatsapp_trigger_type", [
   "ticket_purchased",
   "otp_verification",

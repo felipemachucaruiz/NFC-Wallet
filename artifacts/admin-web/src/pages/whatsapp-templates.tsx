@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil, MessageCircle, Zap, X, Download, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Pencil, MessageCircle, Zap, X, Download, RefreshCw, Clock, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight, RotateCw, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   apiFetchWhatsAppTemplates,
@@ -25,9 +25,13 @@ import {
   apiUpdateWhatsAppTriggerMapping,
   apiDeleteWhatsAppTriggerMapping,
   apiFetchGupshupTemplates,
+  apiFetchMessageLog,
+  apiFetchMessageLogStats,
+  apiResendMessage,
   type WhatsAppTemplate,
   type WhatsAppTriggerMapping,
   type GupshupTemplate,
+  type WhatsAppMessageLog,
 } from "@/lib/api";
 
 const TRIGGER_TYPES = ["ticket_purchased", "otp_verification", "event_reminder", "ticket_refund", "welcome_message", "custom"] as const;
@@ -72,6 +76,12 @@ export default function WhatsAppTemplates() {
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState("templates");
+  const [logPage, setLogPage] = useState(1);
+  const [logStatusFilter, setLogStatusFilter] = useState("");
+  const [logSearch, setLogSearch] = useState("");
+  const [logSearchInput, setLogSearchInput] = useState("");
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<WhatsAppTemplate | null>(null);
   const [showMappingDialog, setShowMappingDialog] = useState(false);
@@ -114,6 +124,36 @@ export default function WhatsAppTemplates() {
     queryKey: ["gupshup-templates"],
     queryFn: apiFetchGupshupTemplates,
     enabled: showImportDialog,
+  });
+
+  const { data: messageLogData, isLoading: logLoading } = useQuery({
+    queryKey: ["whatsapp-message-log", logPage, logStatusFilter, logSearch],
+    queryFn: () => apiFetchMessageLog({ page: logPage, limit: 20, status: logStatusFilter || undefined, search: logSearch || undefined }),
+    enabled: activeTab === "log",
+  });
+
+  const { data: logStats } = useQuery({
+    queryKey: ["whatsapp-message-log-stats"],
+    queryFn: apiFetchMessageLogStats,
+    enabled: activeTab === "log",
+  });
+
+  const resendMut = useMutation({
+    mutationFn: apiResendMessage,
+    onSuccess: (data, id) => {
+      if (data.success) {
+        toast({ title: t("whatsapp.messageResent", "Mensaje reenviado exitosamente") });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-message-log"] });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-message-log-stats"] });
+      } else {
+        toast({ title: t("common.error"), description: data.error || "Resend failed", variant: "destructive" });
+      }
+      setResendingId(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+      setResendingId(null);
+    },
   });
 
   const { data: eventsData } = useListEvents();
@@ -341,6 +381,10 @@ export default function WhatsAppTemplates() {
             <Zap className="h-4 w-4 mr-2" />
             {t("whatsapp.triggersTab")}
           </TabsTrigger>
+          <TabsTrigger value="log">
+            <FileText className="h-4 w-4 mr-2" />
+            {t("whatsapp.messageLogTab", "Registro de Mensajes")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="templates" className="mt-4">
@@ -477,6 +521,189 @@ export default function WhatsAppTemplates() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="log" className="mt-4">
+          <div className="space-y-4">
+            {logStats && (
+              <div className="grid grid-cols-4 gap-3">
+                <Card className="cursor-pointer" onClick={() => { setLogStatusFilter(""); setLogPage(1); }}>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <MessageCircle className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-2xl font-bold">{logStats.total || 0}</p>
+                      <p className="text-xs text-muted-foreground">{t("whatsapp.logTotal", "Total")}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="cursor-pointer" onClick={() => { setLogStatusFilter("sent"); setLogPage(1); }}>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <div>
+                      <p className="text-2xl font-bold">{logStats.sent || 0}</p>
+                      <p className="text-xs text-muted-foreground">{t("whatsapp.logSent", "Enviados")}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="cursor-pointer" onClick={() => { setLogStatusFilter("failed"); setLogPage(1); }}>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <XCircle className="h-5 w-5 text-red-500" />
+                    <div>
+                      <p className="text-2xl font-bold">{logStats.failed || 0}</p>
+                      <p className="text-xs text-muted-foreground">{t("whatsapp.logFailed", "Fallidos")}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="cursor-pointer" onClick={() => { setLogStatusFilter("pending"); setLogPage(1); }}>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-yellow-500" />
+                    <div>
+                      <p className="text-2xl font-bold">{logStats.pending || 0}</p>
+                      <p className="text-xs text-muted-foreground">{t("whatsapp.logPending", "Pendientes")}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">
+                    {t("whatsapp.messageLogTab", "Registro de Mensajes")}
+                    {logStatusFilter && (
+                      <Badge variant="outline" className="ml-2">
+                        {logStatusFilter}
+                        <button onClick={() => { setLogStatusFilter(""); setLogPage(1); }} className="ml-1"><X className="h-3 w-3" /></button>
+                      </Badge>
+                    )}
+                  </h2>
+                  <div className="flex gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder={t("whatsapp.searchMessages", "Buscar...")}
+                        className="pl-8 w-60"
+                        value={logSearchInput}
+                        onChange={(e) => setLogSearchInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { setLogSearch(logSearchInput); setLogPage(1); } }}
+                      />
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => { queryClient.invalidateQueries({ queryKey: ["whatsapp-message-log"] }); queryClient.invalidateQueries({ queryKey: ["whatsapp-message-log-stats"] }); }}>
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {logLoading ? (
+                  <p className="text-muted-foreground text-center py-8">{t("common.loading")}</p>
+                ) : !messageLogData?.messages.length ? (
+                  <p className="text-muted-foreground text-center py-8">{t("whatsapp.noMessages", "No hay mensajes registrados")}</p>
+                ) : (
+                  <>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("whatsapp.logDate", "Fecha")}</TableHead>
+                          <TableHead>{t("whatsapp.logDestination", "Destino")}</TableHead>
+                          <TableHead>{t("whatsapp.logType", "Tipo")}</TableHead>
+                          <TableHead>{t("whatsapp.logTemplate", "Plantilla")}</TableHead>
+                          <TableHead>{t("whatsapp.logTrigger", "Trigger")}</TableHead>
+                          <TableHead>{t("common.status", "Estado")}</TableHead>
+                          <TableHead>{t("whatsapp.logRetries", "Reintentos")}</TableHead>
+                          <TableHead className="text-right">{t("common.actions", "Acciones")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {messageLogData.messages.map((msg) => (
+                          <>
+                            <TableRow key={msg.id} className="cursor-pointer" onClick={() => setExpandedLogId(expandedLogId === msg.id ? null : msg.id)}>
+                              <TableCell className="text-xs whitespace-nowrap">
+                                {new Date(msg.createdAt).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}
+                              </TableCell>
+                              <TableCell className="font-mono text-xs">
+                                {msg.destination}
+                                {msg.attendeeName && <span className="block text-muted-foreground">{msg.attendeeName}</span>}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">{msg.messageType}</Badge>
+                              </TableCell>
+                              <TableCell className="text-xs max-w-[120px] truncate">{msg.templateName || "—"}</TableCell>
+                              <TableCell>
+                                {msg.triggerType && <Badge variant="outline" className="text-xs">{msg.triggerType}</Badge>}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={msg.status === "sent" ? "default" : msg.status === "failed" ? "destructive" : "secondary"} className="text-xs">
+                                  {msg.status === "sent" && <CheckCircle className="h-3 w-3 mr-1" />}
+                                  {msg.status === "failed" && <XCircle className="h-3 w-3 mr-1" />}
+                                  {msg.status === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                                  {msg.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">{msg.retryCount}</TableCell>
+                              <TableCell className="text-right">
+                                {(msg.status === "failed" || msg.status === "pending") && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={resendingId === msg.id}
+                                    onClick={(e) => { e.stopPropagation(); setResendingId(msg.id); resendMut.mutate(msg.id); }}
+                                  >
+                                    <RotateCw className={`h-3 w-3 mr-1 ${resendingId === msg.id ? "animate-spin" : ""}`} />
+                                    {t("whatsapp.resend", "Reenviar")}
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                            {expandedLogId === msg.id && (
+                              <TableRow key={`${msg.id}-detail`}>
+                                <TableCell colSpan={8} className="bg-muted/50 p-4">
+                                  <div className="grid grid-cols-2 gap-4 text-sm">
+                                    {msg.orderId && <div><span className="font-semibold">{t("whatsapp.logOrderId", "Orden")}:</span> <span className="font-mono">{msg.orderId}</span></div>}
+                                    {msg.ticketId && <div><span className="font-semibold">{t("whatsapp.logTicketId", "Ticket")}:</span> <span className="font-mono">{msg.ticketId}</span></div>}
+                                    {msg.eventId && <div><span className="font-semibold">{t("whatsapp.logEventId", "Evento")}:</span> <span className="font-mono">{msg.eventId}</span></div>}
+                                    {msg.gupshupMessageId && <div><span className="font-semibold">Gupshup ID:</span> <span className="font-mono">{msg.gupshupMessageId}</span></div>}
+                                    {msg.errorMessage && (
+                                      <div className="col-span-2">
+                                        <span className="font-semibold text-destructive">{t("whatsapp.logError", "Error")}:</span>
+                                        <pre className="mt-1 text-xs bg-destructive/10 p-2 rounded whitespace-pre-wrap">{msg.errorMessage}</pre>
+                                      </div>
+                                    )}
+                                    {msg.payload && (
+                                      <div className="col-span-2">
+                                        <span className="font-semibold">Payload:</span>
+                                        <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-auto max-h-40 whitespace-pre-wrap">{JSON.stringify(msg.payload, null, 2)}</pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        ))}
+                      </TableBody>
+                    </Table>
+
+                    {messageLogData.pagination.totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          {t("whatsapp.logShowing", "Mostrando")} {((messageLogData.pagination.page - 1) * messageLogData.pagination.limit) + 1}-{Math.min(messageLogData.pagination.page * messageLogData.pagination.limit, messageLogData.pagination.total)} {t("whatsapp.logOf", "de")} {messageLogData.pagination.total}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" disabled={logPage <= 1} onClick={() => setLogPage(logPage - 1)}>
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" disabled={logPage >= messageLogData.pagination.totalPages} onClick={() => setLogPage(logPage + 1)}>
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "@workspace/db";
-import { whatsappTemplatesTable, whatsappTriggerMappingsTable } from "@workspace/db/schema";
-import { eq, and, desc, asc, isNull } from "drizzle-orm";
+import { whatsappTemplatesTable, whatsappTriggerMappingsTable, whatsappMessageLogTable } from "@workspace/db/schema";
+import { eq, and, desc, asc, isNull, sql, like, or } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 
 const router = Router();
@@ -272,6 +272,161 @@ router.get("/whatsapp-trigger-mappings/resolve/:triggerType", requireAuth, async
   } catch (err) {
     console.error("Failed to resolve trigger mapping:", err);
     res.status(500).json({ error: "Failed to resolve trigger mapping" });
+  }
+});
+
+router.get("/whatsapp-message-log", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const offset = (page - 1) * limit;
+    const statusFilter = req.query.status as string;
+    const search = req.query.search as string;
+
+    const conditions = [];
+    if (statusFilter && ["sent", "failed", "pending"].includes(statusFilter)) {
+      conditions.push(eq(whatsappMessageLogTable.status, statusFilter as "sent" | "failed" | "pending"));
+    }
+    if (search) {
+      conditions.push(
+        or(
+          like(whatsappMessageLogTable.destination, `%${search}%`),
+          like(whatsappMessageLogTable.attendeeName, `%${search}%`),
+          like(whatsappMessageLogTable.templateName, `%${search}%`),
+        ),
+      );
+    }
+
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(whatsappMessageLogTable)
+      .where(where);
+
+    const messages = await db
+      .select()
+      .from(whatsappMessageLogTable)
+      .where(where)
+      .orderBy(desc(whatsappMessageLogTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    res.json({
+      messages,
+      pagination: {
+        page,
+        limit,
+        total: Number(countResult.count),
+        totalPages: Math.ceil(Number(countResult.count) / limit),
+      },
+    });
+  } catch (err) {
+    console.error("Failed to fetch message log:", err);
+    res.status(500).json({ error: "Failed to fetch message log" });
+  }
+});
+
+router.get("/whatsapp-message-log/stats", requireAuth, requireRole("admin"), async (_req, res) => {
+  try {
+    const stats = await db
+      .select({
+        status: whatsappMessageLogTable.status,
+        count: sql<number>`count(*)`,
+      })
+      .from(whatsappMessageLogTable)
+      .groupBy(whatsappMessageLogTable.status);
+
+    const result: Record<string, number> = { sent: 0, failed: 0, pending: 0 };
+    for (const row of stats) {
+      result[row.status] = Number(row.count);
+    }
+    result.total = result.sent + result.failed + result.pending;
+
+    res.json(result);
+  } catch (err) {
+    console.error("Failed to fetch message stats:", err);
+    res.status(500).json({ error: "Failed to fetch message stats" });
+  }
+});
+
+router.post("/whatsapp-message-log/:id/resend", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [message] = await db
+      .select()
+      .from(whatsappMessageLogTable)
+      .where(eq(whatsappMessageLogTable.id, id));
+
+    if (!message) {
+      res.status(404).json({ error: "Message not found" });
+      return;
+    }
+
+    const payload = message.payload as Record<string, unknown>;
+    if (!payload) {
+      res.status(400).json({ error: "No payload available for resend" });
+      return;
+    }
+
+    const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
+    const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
+    const GUPSHUP_SOURCE = process.env.GUPSHUP_SOURCE_NUMBER;
+
+    if (!GUPSHUP_API_KEY || !GUPSHUP_APP_NAME || !GUPSHUP_SOURCE) {
+      res.status(503).json({ error: "WhatsApp not configured" });
+      return;
+    }
+
+    let url: string;
+    const body = new URLSearchParams();
+    body.append("channel", "whatsapp");
+    body.append("source", GUPSHUP_SOURCE);
+    body.append("destination", message.destination);
+    body.append("src.name", GUPSHUP_APP_NAME);
+
+    if (message.messageType === "template") {
+      url = "https://api.gupshup.io/wa/api/v1/template/msg";
+      const templatePayload = { id: payload.templateId, params: payload.params };
+      body.append("template", JSON.stringify(templatePayload));
+    } else {
+      url = "https://api.gupshup.io/wa/api/v1/msg";
+      body.append("message", JSON.stringify(payload));
+    }
+
+    const gupshupRes = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        apikey: GUPSHUP_API_KEY,
+      },
+      body: body.toString(),
+    });
+
+    const responseText = await gupshupRes.text();
+    let parsed: Record<string, unknown> = {};
+    try { parsed = JSON.parse(responseText); } catch {}
+
+    const success = gupshupRes.ok && parsed.status !== "error";
+
+    await db.update(whatsappMessageLogTable)
+      .set({
+        status: success ? "sent" : "failed",
+        errorMessage: success ? null : (parsed.message as string || responseText),
+        retryCount: sql`${whatsappMessageLogTable.retryCount} + 1`,
+        gupshupMessageId: success ? (parsed.messageId as string || null) : message.gupshupMessageId,
+        updatedAt: new Date(),
+      })
+      .where(eq(whatsappMessageLogTable.id, id));
+
+    if (success) {
+      res.json({ success: true, messageId: parsed.messageId });
+    } else {
+      res.status(502).json({ success: false, error: parsed.message || responseText });
+    }
+  } catch (err) {
+    console.error("Failed to resend message:", err);
+    res.status(500).json({ error: "Failed to resend message" });
   }
 });
 
