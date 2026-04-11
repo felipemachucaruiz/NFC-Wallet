@@ -44,7 +44,7 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - **NFC Security:** HMAC-SHA256 for securing NFC bracelet payloads to prevent rollback attacks.
 - **QR Ticket + NFC Gate Registration:** Atomic database transactions for validating QR tickets, showing attendee profiles, and linking NFC bracelets. Supports multi-day passes.
 - **Monetary Values:** Multi-currency support for Latin America with configurable event currencies (e.g., COP, MXN). Exchange rates cached via exchangerate-api.com.
-- **Authentication:** Email/password with bcrypt, Google OAuth, and WhatsApp OTP. Server-side database-stored sessions.
+- **Authentication:** Email/password with bcrypt, Google OAuth, and WhatsApp OTP. Server-side database-stored sessions. Auto-account creation: when tickets are purchased for someone without an account, a passwordless attendee account is auto-created and the ticket is linked immediately. The attendee receives an activation email to set their password. If they register manually later with the same email, the existing passwordless account is upgraded instead of rejected.
 - **Inventory Management:** Supports `location_based` and `centralized_warehouse` modes, including audits and damaged goods tracking.
 - **Auto-Restock:** Automatic creation of restock orders based on inventory thresholds.
 - **Commission Tracking:** Commissions calculated as `Math.round(gross × rate / 100)`.
