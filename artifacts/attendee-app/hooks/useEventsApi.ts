@@ -444,7 +444,7 @@ export function useTransferTicket() {
         { method: "POST", body: JSON.stringify({ recipientName: data.recipientName, recipientEmail: data.recipientEmail, recipientPhone: data.recipientPhone }) },
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["tickets", "my"] });
     },
   });
 }

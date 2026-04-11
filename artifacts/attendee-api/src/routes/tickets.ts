@@ -1623,7 +1623,7 @@ const transferSchema = z.object({
 });
 
 router.post(
-  "/:ticketId/transfer",
+  "/tickets/:ticketId/transfer",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
     const { ticketId } = req.params;
@@ -1666,6 +1666,11 @@ router.post(
       recipientName,
       recipientPhone,
     );
+
+    if (recipientUserId === req.user.id) {
+      res.status(400).json({ error: "Cannot transfer ticket to yourself" });
+      return;
+    }
 
     const newQrCodeToken = generateTicketQrToken(ticketId, recipientUserId);
 
