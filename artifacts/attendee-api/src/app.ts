@@ -54,7 +54,8 @@ app.use((req, res, next) => {
     req.path.includes("/auth/") ||
     req.path.includes("/tickets/") ||
     req.path.includes("/guest-lists/") ||
-    req.path.includes("/self-service/")
+    req.path.includes("/self-service/") ||
+    req.path.includes("/whatsapp/")
   ) {
     cors({ origin: true, credentials: true })(req, res, next);
   } else {

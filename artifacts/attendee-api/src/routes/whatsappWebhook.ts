@@ -19,6 +19,8 @@ router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
 
   try {
     const body = req.body;
+    logger.info({ webhookBody: JSON.stringify(body).slice(0, 1000) }, "Raw WhatsApp webhook payload");
+
     const type = body?.type;
 
     if (type !== "message" && type !== "message-event") return;
