@@ -3,6 +3,7 @@ import { db, pendingWhatsappDocumentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { sendWhatsAppDocument } from "../lib/whatsapp";
 import { logger } from "../lib/logger";
+import { buildOrderPdfUrl } from "./tickets";
 
 const router: IRouter = Router();
 
@@ -51,6 +52,8 @@ router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
     logger.info({ phone: normalized, count: pendingDocs.length }, "Sending pending documents after user reply");
 
     for (const doc of pendingDocs) {
+      const freshPdfUrl = buildOrderPdfUrl(doc.orderId);
+
       const ticketLabel = doc.ticketCount === 1
         ? `Entrada para ${doc.eventName} - ${doc.attendeeName}`
         : `${doc.ticketCount} entradas para ${doc.eventName}`;
@@ -63,7 +66,7 @@ router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
 
       const sent = await sendWhatsAppDocument(
         normalized,
-        doc.pdfUrl,
+        freshPdfUrl,
         doc.filename,
         ticketLabel,
         logContext,
@@ -73,6 +76,7 @@ router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
         .update(pendingWhatsappDocumentsTable)
         .set({
           status: sent ? "sent" : "failed",
+          pdfUrl: freshPdfUrl,
           updatedAt: new Date(),
         })
         .where(eq(pendingWhatsappDocumentsTable.id, doc.id));

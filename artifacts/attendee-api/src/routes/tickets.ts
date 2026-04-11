@@ -1075,10 +1075,6 @@ async function queueOrderTicketDocuments(
   eventName: string,
   ticketsByPhone: Map<string, { attendeeName: string; ticketCount: number }>,
 ): Promise<void> {
-  const appUrl = process.env.APP_URL || "https://attendee.tapee.app";
-  const pdfToken = generatePdfToken(`order:${orderId}`);
-  const pdfUrl = `${appUrl}/api/orders/${orderId}/pdf?token=${pdfToken}`;
-
   for (const [phone, info] of ticketsByPhone) {
     const filename = info.ticketCount === 1
       ? `tapee-ticket-${orderId.slice(0, 8)}.pdf`
@@ -1091,7 +1087,7 @@ async function queueOrderTicketDocuments(
         eventName,
         attendeeName: info.attendeeName,
         ticketCount: info.ticketCount,
-        pdfUrl,
+        pdfUrl: "",
         filename,
       });
       logger.info({ phone, orderId }, "Queued pending WhatsApp document for user reply");
@@ -1099,6 +1095,12 @@ async function queueOrderTicketDocuments(
       logger.error({ err, phone, orderId }, "Failed to queue pending WhatsApp document");
     }
   }
+}
+
+export function buildOrderPdfUrl(orderId: string): string {
+  const appUrl = process.env.APP_URL || "https://attendee.tapee.app";
+  const pdfToken = generatePdfToken(`order:${orderId}`);
+  return `${appUrl}/api/orders/${orderId}/pdf?token=${pdfToken}`;
 }
 
 function normalizePhone(phone: string): string {
