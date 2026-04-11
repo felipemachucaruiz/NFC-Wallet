@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, usersTable, accessZonesTable, eventsTable, ticketCheckinsTable, pool } from "@workspace/db";
+import { db, braceletsTable, usersTable, accessZonesTable, eventsTable, ticketCheckinsTable, ticketsTable, ticketTypesTable, eventDaysTable, pool } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -55,6 +55,114 @@ function verifyTicketToken(token: string, hmacSecret: string): TicketPayload | n
   } catch {
     return null;
   }
+}
+
+function verifyAttendeeQrToken(token: string): { ticketId: string; attendeeUserId: string } | null {
+  const secret = process.env.TICKET_QR_SECRET || process.env.HMAC_SECRET || "tapee-default-qr-secret";
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [data, signature] = parts;
+  const expectedSig = crypto.createHmac("sha256", secret).update(data).digest("base64url");
+  try {
+    const sigBuf = Buffer.from(signature, "base64url");
+    const expectedBuf = Buffer.from(expectedSig, "base64url");
+    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf8"));
+    if (!payload.tid) return null;
+    return { ticketId: payload.tid, attendeeUserId: payload.uid || "" };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveTicketFromDb(ticketId: string, eventId: string): Promise<TicketPayload | null> {
+  const [ticket] = await db
+    .select({
+      id: ticketsTable.id,
+      eventId: ticketsTable.eventId,
+      attendeeUserId: ticketsTable.attendeeUserId,
+      ticketTypeId: ticketsTable.ticketTypeId,
+      status: ticketsTable.status,
+    })
+    .from(ticketsTable)
+    .where(eq(ticketsTable.id, ticketId));
+  if (!ticket || ticket.eventId !== eventId) return null;
+  if (ticket.status === "cancelled") return null;
+
+  let zid = "";
+  let typ = "";
+  let sec = "";
+  let validDayIds: string[] = [];
+  if (ticket.ticketTypeId) {
+    const [tt] = await db
+      .select({
+        name: ticketTypesTable.name,
+        sectionId: ticketTypesTable.sectionId,
+        validEventDayIds: ticketTypesTable.validEventDayIds,
+      })
+      .from(ticketTypesTable)
+      .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+    if (tt) {
+      typ = tt.name ?? "";
+      validDayIds = tt.validEventDayIds ?? [];
+      if (tt.sectionId) {
+        sec = tt.sectionId;
+      }
+    }
+  }
+
+  let days: number[] = [];
+  let dayLabels: string[] = [];
+  if (validDayIds.length > 0) {
+    const allDays = await db
+      .select({ id: eventDaysTable.id, label: eventDaysTable.label, displayOrder: eventDaysTable.displayOrder })
+      .from(eventDaysTable)
+      .where(eq(eventDaysTable.eventId, eventId));
+    allDays.sort((a, b) => a.displayOrder - b.displayOrder);
+    for (let i = 0; i < allDays.length; i++) {
+      if (validDayIds.includes(allDays[i].id)) {
+        days.push(i);
+        dayLabels.push(allDays[i].label ?? `Day ${i + 1}`);
+      }
+    }
+  }
+
+  return {
+    tid: ticket.id,
+    uid: ticket.attendeeUserId ?? "",
+    eid: ticket.eventId,
+    sec,
+    zid,
+    typ,
+    days,
+    dayLabels,
+  };
+}
+
+async function resolveQrToken(qrToken: string, eventHmacSecret: string, eventId: string): Promise<TicketPayload | null> {
+  const gateResult = verifyTicketToken(qrToken, eventHmacSecret);
+  if (gateResult) return gateResult;
+
+  const attendeeResult = verifyAttendeeQrToken(qrToken);
+  if (attendeeResult) {
+    return resolveTicketFromDb(attendeeResult.ticketId, eventId);
+  }
+
+  const [ticketByToken] = await db
+    .select({ id: ticketsTable.id })
+    .from(ticketsTable)
+    .where(and(eq(ticketsTable.qrCodeToken, qrToken), eq(ticketsTable.eventId, eventId)));
+  if (ticketByToken) {
+    return resolveTicketFromDb(ticketByToken.id, eventId);
+  }
+
+  return null;
 }
 
 function getEventDayIndex(event: { startsAt: Date | null; endsAt: Date | null; timezone: string }, now: Date): number {
@@ -118,12 +226,7 @@ router.post(
       return;
     }
 
-    if (!event.hmacSecret) {
-      res.status(400).json({ error: "Event HMAC secret not configured" });
-      return;
-    }
-
-    const ticket = verifyTicketToken(qrToken, event.hmacSecret);
+    const ticket = await resolveQrToken(qrToken, event.hmacSecret ?? "", effectiveEventId);
     if (!ticket) {
       res.status(400).json({ error: "INVALID_TICKET", message: "Invalid or tampered ticket QR code" });
       return;
@@ -371,12 +474,7 @@ router.post(
       return;
     }
 
-    if (!event.hmacSecret) {
-      res.status(400).json({ error: "Event HMAC secret not configured" });
-      return;
-    }
-
-    const ticket = verifyTicketToken(qrToken, event.hmacSecret);
+    const ticket = await resolveQrToken(qrToken, event.hmacSecret ?? "", effectiveEventId);
     if (!ticket) {
       res.status(400).json({ error: "INVALID_TICKET", message: "Invalid or tampered ticket QR code" });
       return;
@@ -549,12 +647,7 @@ router.post(
       res.status(404).json({ error: "Event not found" });
       return;
     }
-    if (!event.hmacSecret) {
-      res.status(400).json({ error: "Event HMAC secret not configured" });
-      return;
-    }
-
-    const ticket = verifyTicketToken(qrToken, event.hmacSecret);
+    const ticket = await resolveQrToken(qrToken, event.hmacSecret ?? "", effectiveEventId);
     if (!ticket) {
       res.status(400).json({ error: "INVALID_TICKET", message: "Invalid or tampered ticket QR code" });
       return;
