@@ -210,6 +210,55 @@ export async function sendTicketInvitationEmail(data: InvitationEmailData): Prom
   });
 }
 
+interface AccountActivationEmailData {
+  attendeeName: string;
+  attendeeEmail: string;
+  eventName: string;
+  buyerName: string;
+  activationUrl: string;
+  locale?: string;
+}
+
+export async function sendAccountActivationEmail(data: AccountActivationEmailData): Promise<boolean> {
+  const isEs = (data.locale ?? "es").startsWith("es");
+
+  const subject = isEs
+    ? `🎟️ ${data.buyerName} te compró una entrada — Activa tu cuenta Tapee`
+    : `🎟️ ${data.buyerName} bought you a ticket — Activate your Tapee account`;
+
+  const greeting = isEs
+    ? `Hola ${data.attendeeName},`
+    : `Hi ${data.attendeeName},`;
+
+  const intro = isEs
+    ? `<strong>${escapeHtml(data.buyerName)}</strong> te compró una entrada para <strong>${escapeHtml(data.eventName)}</strong>. Ya creamos tu cuenta en Tapee — solo necesitas crear una contraseña para acceder a tu entrada y código QR.`
+    : `<strong>${escapeHtml(data.buyerName)}</strong> bought you a ticket for <strong>${escapeHtml(data.eventName)}</strong>. We've created your Tapee account — just set a password to access your ticket and QR code.`;
+
+  const btnLabel = isEs ? "Activar mi cuenta" : "Activate my account";
+
+  const body = `
+    <h2 style="color: #1a1a1a; font-size: 20px; margin: 0 0 16px;">🎟️ ${isEs ? "Tienes una entrada" : "You have a ticket"}</h2>
+    <p style="color: #52525b; margin: 0 0 24px;">${greeting} ${intro}</p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${data.activationUrl}" style="display: inline-block; background-color: #00f1ff; color: #000000; font-weight: bold; font-size: 16px; padding: 14px 32px; border-radius: 8px; text-decoration: none;">${btnLabel}</a>
+    </div>
+    <p style="color: #71717a; font-size: 13px; margin: 24px 0 0;">${isEs ? "Tu entrada ya está vinculada a tu cuenta. Una vez actives tu cuenta podrás ver tu código QR." : "Your ticket is already linked to your account. Once you activate your account you'll be able to see your QR code."}</p>
+  `;
+
+  const htmlContent = emailWrapper(body);
+  const textContent = isEs
+    ? `${greeting}\n\n${data.buyerName} te compró una entrada para ${data.eventName}. Activa tu cuenta aquí: ${data.activationUrl}\n\n— El equipo de Tapee`
+    : `${greeting}\n\n${data.buyerName} bought you a ticket for ${data.eventName}. Activate your account here: ${data.activationUrl}\n\n— The Tapee team`;
+
+  return sendEmail({
+    to: data.attendeeEmail,
+    toName: data.attendeeName,
+    subject,
+    htmlContent,
+    textContent,
+  });
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

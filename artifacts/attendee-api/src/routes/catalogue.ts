@@ -3,6 +3,7 @@ import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticke
 import { eq, and, sql, ilike, gte, lte, asc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { logger } from "../lib/logger";
+import { findOrCreateAttendeeAccount } from "../lib/attendeeAccounts";
 
 const router: IRouter = Router();
 
@@ -775,7 +776,11 @@ router.post(
 
     for (const attendee of attendees) {
       const normalizedEmail = attendee.email.toLowerCase().trim();
-      const [existingUser] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, normalizedEmail));
+      const { userId: attendeeUserId } = await findOrCreateAttendeeAccount(
+        normalizedEmail,
+        attendee.name,
+        attendee.phone,
+      );
 
       await db.insert(ticketsTable).values({
         orderId: order.id,
@@ -785,7 +790,7 @@ router.post(
         attendeeName: attendee.name,
         attendeeEmail: normalizedEmail,
         attendeePhone: attendee.phone ?? null,
-        attendeeUserId: existingUser?.id ?? null,
+        attendeeUserId,
         status: "valid",
       });
     }

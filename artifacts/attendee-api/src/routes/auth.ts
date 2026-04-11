@@ -37,6 +37,7 @@ import {
   buildVerifySuccessPage,
   buildVerifyErrorPage,
   buildResetPasswordPage,
+  buildActivateAccountPage,
   getAppUrl,
 } from "../lib/email";
 import { sendWhatsAppText, isWhatsAppConfigured } from "../lib/whatsapp";
@@ -194,8 +195,13 @@ router.post("/auth/login", async (req: Request, res: Response) => {
       eq(usersTable.username, lower),
     ));
 
-  if (!user || !user.passwordHash) {
+  if (!user) {
     res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  if (!user.passwordHash) {
+    res.status(401).json({ error: "Tu cuenta aún no ha sido activada. Revisa tu correo electrónico para activar tu cuenta." });
     return;
   }
 
@@ -401,8 +407,34 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
   const normalizedUsername = username ? username.trim().toLowerCase() : null;
 
   if (normalizedEmail) {
-    const [dup] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, normalizedEmail));
-    if (dup) { res.status(409).json({ error: "Email already registered" }); return; }
+    const [dup] = await db.select({ id: usersTable.id, passwordHash: usersTable.passwordHash }).from(usersTable).where(eq(usersTable.email, normalizedEmail));
+    if (dup) {
+      if (!dup.passwordHash) {
+        const passwordHash = await hashPassword(password, 10);
+        await db
+          .update(usersTable)
+          .set({
+            passwordHash,
+            firstName: firstName ?? undefined,
+            lastName: lastName ?? undefined,
+            phone: phone ?? undefined,
+            username: normalizedUsername ?? undefined,
+            emailVerified: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(usersTable.id, dup.id));
+
+        const sessionData = {
+          user: { id: dup.id, email: normalizedEmail, role: "attendee" as const, firstName: firstName ?? null, lastName: lastName ?? null, merchantId: null, eventId: null, profileImageUrl: null },
+        };
+        const sessionId = await createSession(sessionData);
+        const token = sessionId;
+        res.json({ token, id: dup.id, email: normalizedEmail });
+        return;
+      }
+      res.status(409).json({ error: "Email already registered" });
+      return;
+    }
   }
   if (normalizedUsername) {
     const [dup] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.username, normalizedUsername));
@@ -573,6 +605,18 @@ router.get("/auth/reset-password-form", (req: Request, res: Response) => {
   const appUrl = getAppUrl() || getOrigin(req);
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(buildResetPasswordPage(token, appUrl));
+});
+
+router.get("/auth/activate-account", (req: Request, res: Response) => {
+  const token = typeof req.query.token === "string" ? req.query.token : "";
+  if (!token || !/^[a-f0-9]+$/i.test(token)) {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.status(400).send(buildVerifyErrorPage("El enlace de activación no es válido o ha expirado."));
+    return;
+  }
+  const appUrl = getAppUrl() || getOrigin(req);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(buildActivateAccountPage(token, appUrl));
 });
 
 // ── Email verification ──────────────────────────────────────────────────────

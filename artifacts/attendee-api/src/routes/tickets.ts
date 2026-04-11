@@ -5,7 +5,8 @@ import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import crypto from "crypto";
 import { generateTicketQrToken } from "../lib/ticketQr";
-import { sendTicketConfirmationEmail, sendTicketInvitationEmail } from "../lib/ticketEmails";
+import { sendTicketConfirmationEmail, sendTicketInvitationEmail, sendAccountActivationEmail } from "../lib/ticketEmails";
+import { findOrCreateAttendeeAccount, generateActivationToken, buildActivationUrl } from "../lib/attendeeAccounts";
 import { generateGoogleWalletSaveLink } from "../lib/walletPasses";
 import { generateTicketPdf, generateMultiTicketPdf, type TicketPdfData } from "../lib/ticketPdf";
 import { sendWhatsAppDocument, sendWhatsAppText, isWhatsAppConfigured } from "../lib/whatsapp";
@@ -314,10 +315,11 @@ router.post(
     if (paymentMethod === "free") {
       for (const attendee of attendees) {
         const normalizedEmail = attendee.email.toLowerCase().trim();
-        const [existingUser] = await db
-          .select({ id: usersTable.id })
-          .from(usersTable)
-          .where(eq(usersTable.email, normalizedEmail));
+        const { userId: attendeeUserId } = await findOrCreateAttendeeAccount(
+          normalizedEmail,
+          attendee.name,
+          attendee.phone,
+        );
 
         await db
           .insert(ticketsTable)
@@ -329,7 +331,7 @@ router.post(
             attendeeName: attendee.name,
             attendeeEmail: normalizedEmail,
             attendeePhone: attendee.phone ?? null,
-            attendeeUserId: existingUser?.id ?? null,
+            attendeeUserId,
             status: "valid",
           });
       }
@@ -462,10 +464,11 @@ router.post(
 
     for (const attendee of attendees) {
       const normalizedEmail = attendee.email.toLowerCase().trim();
-      const [existingUser] = await db
-        .select({ id: usersTable.id })
-        .from(usersTable)
-        .where(eq(usersTable.email, normalizedEmail));
+      const { userId: attendeeUserId } = await findOrCreateAttendeeAccount(
+        normalizedEmail,
+        attendee.name,
+        attendee.phone,
+      );
 
       await db
         .insert(ticketsTable)
@@ -477,7 +480,7 @@ router.post(
           attendeeName: attendee.name,
           attendeeEmail: normalizedEmail,
           attendeePhone: attendee.phone ?? null,
-          attendeeUserId: existingUser?.id ?? null,
+          attendeeUserId: attendeeUserId,
           status: "valid",
         });
     }
@@ -1246,7 +1249,6 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         if (sec) sectionName = sec.name;
       }
 
-      const hasAccount = !!ticket.attendeeUserId;
       const attendeeLocale = buyerLocale ?? (event.currencyCode === "USD" ? "en" : "es");
 
       void sendTicketConfirmationEmail({
@@ -1263,7 +1265,7 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         ticketId: ticket.id,
         orderId,
         locale: attendeeLocale,
-        hasAccount,
+        hasAccount: true,
       }).catch((err) => logger.error(`Failed to send ticket email to ${ticket.attendeeEmail}: ${err}`));
 
       if (ticket.attendeePhone && isWhatsAppConfigured()) {
@@ -1290,14 +1292,29 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         }
       }
 
-      if (!ticket.attendeeUserId) {
-        void sendTicketInvitationEmail({
-          attendeeName: ticket.attendeeName,
-          attendeeEmail: ticket.attendeeEmail,
-          eventName: event.name,
-          buyerName: order.buyerName ?? "Someone",
-          locale: attendeeLocale,
-        }).catch((err) => logger.error(`Failed to send invitation email to ${ticket.attendeeEmail}: ${err}`));
+      if (ticket.attendeeUserId) {
+        const [attendeeUser] = await db
+          .select({ passwordHash: usersTable.passwordHash })
+          .from(usersTable)
+          .where(eq(usersTable.id, ticket.attendeeUserId));
+        if (attendeeUser && !attendeeUser.passwordHash) {
+          void (async () => {
+            try {
+              const activationToken = await generateActivationToken(ticket.attendeeUserId!);
+              const activationUrl = buildActivationUrl(activationToken);
+              await sendAccountActivationEmail({
+                attendeeName: ticket.attendeeName,
+                attendeeEmail: ticket.attendeeEmail,
+                eventName: event.name,
+                buyerName: order.buyerName ?? "Someone",
+                activationUrl,
+                locale: attendeeLocale,
+              });
+            } catch (err) {
+              logger.error({ err }, `Failed to send activation email to ${ticket.attendeeEmail}`);
+            }
+          })();
+        }
       }
     }
   }
@@ -1335,7 +1352,6 @@ async function deliverFreeTicketNotifications(orderId: string, eventId: string, 
       if (sec) sectionName = sec.name;
     }
 
-    const hasAccount = !!ticket.attendeeUserId;
     const attendeeLocale = buyerLocale ?? (event.currencyCode === "USD" ? "en" : "es");
 
     void sendTicketConfirmationEmail({
@@ -1352,7 +1368,7 @@ async function deliverFreeTicketNotifications(orderId: string, eventId: string, 
       ticketId: ticket.id,
       orderId,
       locale: attendeeLocale,
-      hasAccount,
+      hasAccount: true,
     }).catch((err) => logger.error(`Failed to send free ticket email to ${ticket.attendeeEmail}: ${err}`));
 
     if (ticket.attendeePhone && isWhatsAppConfigured()) {
@@ -1379,14 +1395,29 @@ async function deliverFreeTicketNotifications(orderId: string, eventId: string, 
       }
     }
 
-    if (!ticket.attendeeUserId) {
-      void sendTicketInvitationEmail({
-        attendeeName: ticket.attendeeName,
-        attendeeEmail: ticket.attendeeEmail,
-        eventName: event.name,
-        buyerName: order.buyerName ?? "Someone",
-        locale: attendeeLocale,
-      }).catch((err) => logger.error(`Failed to send invitation email to ${ticket.attendeeEmail}: ${err}`));
+    if (ticket.attendeeUserId) {
+      const [attendeeUser] = await db
+        .select({ passwordHash: usersTable.passwordHash })
+        .from(usersTable)
+        .where(eq(usersTable.id, ticket.attendeeUserId));
+      if (attendeeUser && !attendeeUser.passwordHash) {
+        void (async () => {
+          try {
+            const activationToken = await generateActivationToken(ticket.attendeeUserId!);
+            const activationUrl = buildActivationUrl(activationToken);
+            await sendAccountActivationEmail({
+              attendeeName: ticket.attendeeName,
+              attendeeEmail: ticket.attendeeEmail,
+              eventName: event.name,
+              buyerName: order.buyerName ?? "Someone",
+              activationUrl,
+              locale: attendeeLocale,
+            });
+          } catch (err) {
+            logger.error({ err }, `Failed to send activation email to ${ticket.attendeeEmail}`);
+          }
+        })();
+      }
     }
   }
 

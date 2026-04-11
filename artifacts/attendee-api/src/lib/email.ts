@@ -167,6 +167,96 @@ function escapeJs(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/</g, "\\x3c").replace(/>/g, "\\x3e").replace(/\n/g, "\\n");
 }
 
+export function buildActivateAccountPage(token: string, appUrl: string): string {
+  const safeToken = escapeJs(token);
+  const safeAppUrl = escapeJs(appUrl);
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Activar Cuenta - Tapee</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f4f4f5; color: #1a1a1a; margin: 0; padding: 0; }
+  .container { max-width: 480px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e4e4e7; }
+  .header { background: linear-gradient(135deg, #0a0a0a, #111827); padding: 32px 32px 24px; text-align: center; }
+  .header h1 { color: #00f1ff; font-size: 28px; margin: 0 0 8px; }
+  .header p { color: #8b949e; margin: 0; font-size: 14px; }
+  .body { padding: 32px; }
+  .body h2 { color: #1a1a1a; font-size: 20px; margin: 0 0 8px; }
+  .body .subtitle { color: #52525b; font-size: 14px; margin: 0 0 24px; }
+  .body label { color: #52525b; display: block; margin-bottom: 8px; font-size: 14px; }
+  .body input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #d4d4d8; background: #ffffff; color: #1a1a1a; font-size: 16px; box-sizing: border-box; margin-bottom: 16px; }
+  .body input:focus { outline: none; border-color: #00f1ff; }
+  .body button { width: 100%; background-color: #00f1ff; color: #000000; font-weight: bold; font-size: 16px; padding: 14px; border-radius: 8px; border: none; cursor: pointer; }
+  .body button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .footer { padding: 16px 32px; background: #f4f4f5; text-align: center; border-top: 1px solid #e4e4e7; }
+  .footer p { color: #71717a; font-size: 12px; margin: 0; }
+  .msg { padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+  .msg-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  .msg-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    ${getLogoImg()}
+    <p>Eventos &middot; Ticketing</p>
+  </div>
+  <div class="body">
+    <h2>🎟️ Activa tu cuenta</h2>
+    <p class="subtitle">Alguien te compró una entrada. Crea una contraseña para acceder a tu cuenta y ver tu ticket.</p>
+    <div id="msg" style="display:none"></div>
+    <form id="form">
+      <label for="password">Contraseña</label>
+      <input type="password" id="password" name="password" minlength="6" placeholder="Mínimo 6 caracteres" required />
+      <label for="confirm">Confirmar contraseña</label>
+      <input type="password" id="confirm" name="confirm" minlength="6" placeholder="Repite tu contraseña" required />
+      <button type="submit" id="btn">Activar mi cuenta</button>
+    </form>
+  </div>
+  <div class="footer"><p>&copy; Tapee &middot; Eventos</p></div>
+</div>
+<script>
+  var form = document.getElementById('form');
+  var msg = document.getElementById('msg');
+  var btn = document.getElementById('btn');
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var pw = document.getElementById('password').value;
+    var cf = document.getElementById('confirm').value;
+    if (pw.length < 6) { showMsg('La contraseña debe tener al menos 6 caracteres.', true); return; }
+    if (pw !== cf) { showMsg('Las contraseñas no coinciden.', true); return; }
+    btn.disabled = true;
+    btn.textContent = 'Procesando...';
+    fetch('${safeAppUrl}/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: '${safeToken}', password: pw })
+    }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+    .then(function(res) {
+      if (res.ok) {
+        form.style.display = 'none';
+        showMsg('¡Cuenta activada! Ya puedes iniciar sesión con tu email y contraseña en la app o en tickets.tapee.app.', false);
+      } else {
+        showMsg(res.data.error || 'Error al activar la cuenta. Intenta de nuevo.', true);
+        btn.disabled = false;
+        btn.textContent = 'Activar mi cuenta';
+      }
+    }).catch(function() {
+      showMsg('Error de conexión. Intenta de nuevo.', true);
+      btn.disabled = false;
+      btn.textContent = 'Activar mi cuenta';
+    });
+  });
+  function showMsg(text, isError) {
+    msg.style.display = 'block';
+    msg.className = 'msg ' + (isError ? 'msg-error' : 'msg-success');
+    msg.textContent = text;
+  }
+</script>
+</body>
+</html>`;
+}
+
 export function buildResetPasswordPage(token: string, appUrl: string): string {
   const safeToken = escapeJs(token);
   const safeAppUrl = escapeJs(appUrl);
