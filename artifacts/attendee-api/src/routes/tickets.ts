@@ -301,11 +301,17 @@ router.post(
           .from(usersTable)
           .where(eq(usersTable.id, req.user.id));
         if (currentUser && !currentUser.phone) {
-          await db
-            .update(usersTable)
-            .set({ phone: buyerPhone, updatedAt: new Date() })
-            .where(eq(usersTable.id, req.user.id));
-          logger.info({ userId: req.user.id }, "Saved phone number from ticket purchase to user profile");
+          const [phoneOwner] = await db
+            .select({ id: usersTable.id })
+            .from(usersTable)
+            .where(eq(usersTable.phone, buyerPhone));
+          if (!phoneOwner) {
+            await db
+              .update(usersTable)
+              .set({ phone: buyerPhone, updatedAt: new Date() })
+              .where(eq(usersTable.id, req.user.id));
+            logger.info({ userId: req.user.id }, "Saved phone number from ticket purchase to user profile");
+          }
         }
       } catch (err) {
         logger.error({ err }, "Failed to save phone to user profile");

@@ -411,13 +411,19 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
     if (dup) {
       if (!dup.passwordHash) {
         const passwordHash = await hashPassword(password, 10);
+        let upgradePhone: string | undefined = phone ?? undefined;
+        if (upgradePhone) {
+          const [phoneOwner] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, upgradePhone));
+          if (phoneOwner && phoneOwner.id !== dup.id) upgradePhone = undefined;
+        }
+
         await db
           .update(usersTable)
           .set({
             passwordHash,
             firstName: firstName ?? undefined,
             lastName: lastName ?? undefined,
-            phone: phone ?? undefined,
+            phone: upgradePhone,
             username: normalizedUsername ?? undefined,
             emailVerified: true,
             updatedAt: new Date(),
@@ -443,6 +449,12 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
 
   const passwordHash = await hashPassword(password, 10);
 
+  let safePhone: string | null = phone ?? null;
+  if (safePhone) {
+    const [phoneOwner] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, safePhone));
+    if (phoneOwner) safePhone = null;
+  }
+
   const [newUser] = await db
     .insert(usersTable)
     .values({
@@ -451,7 +463,7 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
       passwordHash,
       firstName: firstName ?? null,
       lastName: lastName ?? null,
-      phone: phone ?? null,
+      phone: safePhone,
       role: "attendee",
       emailVerified: false,
     })

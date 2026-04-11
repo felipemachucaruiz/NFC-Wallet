@@ -24,13 +24,26 @@ export async function findOrCreateAttendeeAccount(
   const firstName = nameParts[0] ?? name;
   const lastName = nameParts.slice(1).join(" ") || null;
 
+  let safePhone: string | null = null;
+  if (phone) {
+    const [phoneOwner] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.phone, phone));
+    if (!phoneOwner) {
+      safePhone = phone;
+    } else {
+      logger.info({ phone, existingUserId: phoneOwner.id }, "Skipping phone on auto-created account — already used by another user");
+    }
+  }
+
   const [newUser] = await db
     .insert(usersTable)
     .values({
       email: normalizedEmail,
       firstName,
       lastName,
-      phone: phone ?? null,
+      phone: safePhone,
       role: "attendee",
       emailVerified: true,
       passwordHash: null,
