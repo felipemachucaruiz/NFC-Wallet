@@ -97,7 +97,7 @@ export interface OrderSummary {
 export type PaymentMethod = "nequi" | "pse" | "card" | "free";
 
 export interface TicketPurchaseResult {
-  intentId: string;
+  orderId: string;
   status: string;
   redirectUrl?: string | null;
 }

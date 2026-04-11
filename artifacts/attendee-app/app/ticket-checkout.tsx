@@ -139,7 +139,7 @@ export default function TicketCheckoutScreen() {
         router.push({
           pathname: "/ticket-payment-status/[id]",
           params: {
-            id: result.intentId,
+            id: result.orderId,
             redirectUrl: result.redirectUrl ?? "",
             paymentMethod: method,
             eventName: params.eventName ?? "",

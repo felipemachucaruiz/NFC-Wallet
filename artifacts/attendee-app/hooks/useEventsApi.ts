@@ -316,7 +316,7 @@ export function usePurchaseTickets() {
       cardToken?: string;
     }) =>
       apiFetch<TicketPurchaseResult>(
-        `${API_BASE_URL}/api/attendee/tickets/purchase`,
+        `${API_BASE_URL}/api/tickets/purchase`,
         headers,
         { method: "POST", body: JSON.stringify(data) },
       ),
@@ -326,17 +326,17 @@ export function usePurchaseTickets() {
   });
 }
 
-export function useTicketPaymentStatus(intentId: string) {
+export function useTicketPaymentStatus(orderId: string) {
   const headers = useAuthHeaders();
   const apiFetch = useApiFetch();
   return useQuery({
-    queryKey: ["ticket-payment", "status", intentId],
+    queryKey: ["ticket-payment", "status", orderId],
     queryFn: () =>
       apiFetch<{ status: string; tickets?: Array<{ qrCode: string; attendeeEmail: string }> }>(
-        `${API_BASE_URL}/api/attendee/tickets/payment/${intentId}/status`,
+        `${API_BASE_URL}/api/tickets/orders/${orderId}/status`,
         headers,
       ),
-    enabled: !!intentId && !!headers.Authorization,
+    enabled: !!orderId && !!headers.Authorization,
     refetchInterval: false,
   });
 }
