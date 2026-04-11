@@ -354,6 +354,7 @@ export default function RegisterBraceletScreen() {
   };
 
   const openQrScanner = async () => {
+    void cancelNfc().catch(() => {});
     if (!cameraPermission?.granted && requestCameraPermission) {
       const perm = await requestCameraPermission();
       if (!perm.granted) {

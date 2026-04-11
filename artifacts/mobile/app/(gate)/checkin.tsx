@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
+import { cancelNfc } from "@/utils/nfc";
 import { API_BASE_URL } from "@/constants/domain";
 import {
   CheckinHistoryList,
@@ -325,6 +326,7 @@ export default function EntranceCheckinScreen() {
   };
 
   const openQrScanner = async () => {
+    void cancelNfc().catch(() => {});
     if (!cameraPermission?.granted && requestCameraPermission) {
       const perm = await requestCameraPermission();
       if (!perm.granted) {
