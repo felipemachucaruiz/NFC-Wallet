@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useRoute, useLocation } from "wouter";
-import { Calendar, MapPin, Clock, Shield, User as UserIcon, ChevronDown, ChevronUp, ExternalLink, X, Loader2, Briefcase, DoorOpen, Info } from "lucide-react";
+import { Calendar, MapPin, Shield, User as UserIcon, ChevronDown, ChevronUp, ExternalLink, X, Loader2, Briefcase, DoorOpen, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -284,11 +284,15 @@ export default function EventDetail() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="bg-card rounded-xl border border-border p-4 mb-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <EventInfoItem
               icon={<MapPin className="w-5 h-5 text-primary" />}
               label={t("event.venue", "Lugar")}
-              value={event.venueName || event.venueAddress || "—"}
+              value={
+                event.venueName && event.venueName.toLowerCase() !== event.name.toLowerCase()
+                  ? event.venueName
+                  : event.venueAddress || event.venueName || "—"
+              }
             />
             <EventInfoItem
               icon={<Calendar className="w-5 h-5 text-primary" />}
@@ -296,11 +300,6 @@ export default function EventDetail() {
               value={event.days.length > 0
                 ? event.days.map((d) => new Date(d.date).toLocaleDateString(i18n.language === "es" ? "es-CO" : "en-US", { day: "numeric", month: "short" })).join(", ")
                 : formatFullDate(event.startsAt, i18n.language)}
-            />
-            <EventInfoItem
-              icon={<Clock className="w-5 h-5 text-primary" />}
-              label={t("event.time", "Hora")}
-              value={event.startsAt ? new Date(event.startsAt).toLocaleTimeString(i18n.language === "es" ? "es-CO" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : "—"}
             />
             <EventInfoItem
               icon={<DoorOpen className="w-5 h-5 text-primary" />}
