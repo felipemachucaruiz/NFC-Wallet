@@ -137,7 +137,19 @@
     "registerFailed": "Error al crear la cuenta",
     "googleFailed": "Error al iniciar sesión con Google",
     "orDivider": "o",
-    "googleLocale": "es"
+    "googleLocale": "es",
+    "phoneLogin": "Ingresar con WhatsApp",
+    "phoneLoginTitle": "Ingresar con teléfono",
+    "phoneLoginDesc": "Te enviaremos un código de verificación por WhatsApp",
+    "sendCode": "Enviar código",
+    "verifyCode": "Verificar código",
+    "otpSent": "Código enviado a tu WhatsApp",
+    "otpPlaceholder": "Ingresa el código de 6 dígitos",
+    "otpFailed": "Código incorrecto o expirado",
+    "otpSendFailed": "No se pudo enviar el código",
+    "resendCode": "Reenviar código",
+    "changeNumber": "Cambiar número",
+    "emailLogin": "Ingresar con correo"
   },
   "checkout": {
     "title": "Checkout",

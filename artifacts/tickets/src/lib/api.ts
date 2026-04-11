@@ -255,3 +255,17 @@ export interface ApiTicket {
 export async function fetchMyTickets(): Promise<{ tickets: ApiTicket[] }> {
   return apiFetch("/tickets/my-tickets");
 }
+
+export async function sendWhatsAppOtp(phone: string): Promise<{ success: boolean; expiresIn: number }> {
+  return apiFetch("/auth/whatsapp-otp/send", {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export async function verifyWhatsAppOtp(phone: string, code: string): Promise<{ token: string; isNewUser: boolean; userId: string }> {
+  return apiFetch("/auth/whatsapp-otp/verify", {
+    method: "POST",
+    body: JSON.stringify({ phone, code }),
+  });
+}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { X, ArrowLeft, Mail } from "lucide-react";
+import { X, ArrowLeft, Mail, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import { useSocialAuth } from "@/context/SocialAuthProvider";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { WhatsAppLoginForm } from "@/components/WhatsAppLoginButton";
 
 function LoginForm() {
   const { t } = useTranslation();
@@ -20,6 +21,16 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPhoneLogin, setShowPhoneLogin] = useState(false);
+
+  if (showPhoneLogin) {
+    return (
+      <WhatsAppLoginForm
+        onSuccess={() => { if (authRedirect) navigate(`/${authRedirect}`); }}
+        onBack={() => setShowPhoneLogin(false)}
+      />
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,18 +94,32 @@ function LoginForm() {
       >
         {loading ? t("common.loading") : t("auth.login")}
       </Button>
-      {googleEnabled && (
-        <>
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t("auth.orDivider")}</span></div>
+
+      <div className="relative my-2">
+        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+        <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t("auth.orDivider")}</span></div>
+      </div>
+
+      <div className="space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full border-green-600/50 text-green-500 hover:bg-green-600/10 hover:text-green-400"
+          onClick={() => setShowPhoneLogin(true)}
+        >
+          <MessageCircle className="w-4 h-4 mr-2" />
+          {t("auth.phoneLogin")}
+        </Button>
+        {googleEnabled && (
+          <div>
+            <GoogleSignInButton
+              onSuccess={() => { if (authRedirect) navigate(`/${authRedirect}`); }}
+              onError={(msg) => setError(msg)}
+            />
           </div>
-          <GoogleSignInButton
-            onSuccess={() => { if (authRedirect) navigate(`/${authRedirect}`); }}
-            onError={(msg) => setError(msg)}
-          />
-        </>
-      )}
+        )}
+      </div>
+
       <div className="text-center text-sm">
         <p className="text-muted-foreground">
           {t("auth.noAccount")}{" "}
@@ -197,6 +222,16 @@ function RegisterForm() {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "", confirmPassword: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPhoneLogin, setShowPhoneLogin] = useState(false);
+
+  if (showPhoneLogin) {
+    return (
+      <WhatsAppLoginForm
+        onSuccess={() => { if (authRedirect) navigate(`/${authRedirect}`); }}
+        onBack={() => setShowPhoneLogin(false)}
+      />
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,18 +300,30 @@ function RegisterForm() {
       <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
         {loading ? t("common.loading") : t("auth.register")}
       </Button>
-      {googleEnabled && (
-        <>
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t("auth.orDivider")}</span></div>
-          </div>
+
+      <div className="relative my-2">
+        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+        <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">{t("auth.orDivider")}</span></div>
+      </div>
+
+      <div className="space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full border-green-600/50 text-green-500 hover:bg-green-600/10 hover:text-green-400"
+          onClick={() => setShowPhoneLogin(true)}
+        >
+          <MessageCircle className="w-4 h-4 mr-2" />
+          {t("auth.phoneLogin")}
+        </Button>
+        {googleEnabled && (
           <GoogleSignInButton
             onSuccess={() => { if (authRedirect) navigate(`/${authRedirect}`); }}
             onError={(msg) => setError(msg)}
           />
-        </>
-      )}
+        )}
+      </div>
+
       <div className="text-center text-sm">
         <p className="text-muted-foreground">
           {t("auth.hasAccount")}{" "}

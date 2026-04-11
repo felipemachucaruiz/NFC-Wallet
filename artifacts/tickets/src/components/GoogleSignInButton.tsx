@@ -42,7 +42,7 @@ export function GoogleSignInButton({ onSuccess, onError }: Props) {
   }
 
   return (
-    <div className="w-full flex justify-center [&>div]:w-full">
+    <div className="w-full flex justify-center [&>div]:w-full [&_iframe]:rounded-lg [&_div[role='button']]:rounded-lg" style={{ colorScheme: "auto" }}>
       <GoogleLogin
         onSuccess={handleSuccess}
         onError={() => onError?.(t("auth.googleFailed"))}

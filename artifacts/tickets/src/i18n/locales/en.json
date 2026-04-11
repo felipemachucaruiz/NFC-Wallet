@@ -137,7 +137,19 @@
     "registerFailed": "Registration failed",
     "googleFailed": "Google sign-in failed",
     "orDivider": "or",
-    "googleLocale": "en"
+    "googleLocale": "en",
+    "phoneLogin": "Sign in with WhatsApp",
+    "phoneLoginTitle": "Sign in with phone",
+    "phoneLoginDesc": "We'll send a verification code to your WhatsApp",
+    "sendCode": "Send code",
+    "verifyCode": "Verify code",
+    "otpSent": "Code sent to your WhatsApp",
+    "otpPlaceholder": "Enter 6-digit code",
+    "otpFailed": "Incorrect or expired code",
+    "otpSendFailed": "Could not send code",
+    "resendCode": "Resend code",
+    "changeNumber": "Change number",
+    "emailLogin": "Sign in with email"
   },
   "checkout": {
     "title": "Checkout",
