@@ -561,7 +561,7 @@ router.get(
     const enriched = await Promise.all(
       tickets.map(async (ticket) => {
         const [event] = await db
-          .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, coverImageUrl: eventsTable.coverImageUrl })
+          .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, flyerImageUrl: eventsTable.flyerImageUrl, coverImageUrl: eventsTable.coverImageUrl })
           .from(eventsTable)
           .where(eq(eventsTable.id, ticket.eventId));
 
@@ -576,7 +576,7 @@ router.get(
           ...ticket,
           eventName: event?.name ?? null,
           eventStartsAt: event?.startsAt ?? null,
-          eventCoverImage: event?.coverImageUrl ?? null,
+          eventCoverImage: event?.flyerImageUrl ?? event?.coverImageUrl ?? null,
           ticketTypeName: ticketType?.name ?? null,
           validEventDayIds: ticketType?.validEventDayIds ?? [],
         };

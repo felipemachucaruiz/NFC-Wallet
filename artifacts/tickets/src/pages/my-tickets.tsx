@@ -113,18 +113,18 @@ function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => 
   return (
     <div
       className="rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.01] active:scale-[0.99]"
-      style={{ backgroundColor: "#111111" }}
+      style={{ backgroundColor: dominantColor }}
       onClick={onExpand}
     >
-      <div className="relative h-36 overflow-hidden" style={{ backgroundColor: dominantColor }}>
+      <div className="relative h-44 overflow-hidden flex items-center justify-center">
         {imageUrl ? (
-          <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+          <img src={imageUrl} alt="" className="w-full h-full object-contain" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Ticket className="w-10 h-10 text-white/20" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/40" />
         <Badge
           className={`absolute top-3 right-3 ${isValid ? "bg-emerald-600/80 text-white border-emerald-500/50" : "bg-gray-600/80 text-gray-200 border-gray-500/50"}`}
         >
@@ -132,7 +132,7 @@ function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => 
         </Badge>
       </div>
 
-      <div className="px-4 py-3 flex items-center gap-3">
+      <div className="px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
         <div className="bg-white rounded-lg p-1.5 shrink-0">
           {ticket.qrCodeToken ? (
             <img
@@ -174,16 +174,16 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
   const startDate = ticket.eventStartsAt ? new Date(ticket.eventStartsAt) : null;
 
   return (
-    <div className="rounded-3xl overflow-hidden" style={{ backgroundColor: "#111111" }}>
-      <div className="relative h-52 overflow-hidden" style={{ backgroundColor: dominantColor }}>
+    <div className="rounded-3xl overflow-hidden" style={{ backgroundColor: dominantColor }}>
+      <div className="relative h-56 overflow-hidden flex items-center justify-center" style={{ backgroundColor: dominantColor }}>
         {imageUrl ? (
-          <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+          <img src={imageUrl} alt="" className="w-full h-full object-contain" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Ticket className="w-12 h-12 text-white/20" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
       </div>
 
       <div className="flex flex-col items-center -mt-16 relative z-10 pb-4">
@@ -204,11 +204,11 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
 
       <div className="relative mx-0 h-6 flex items-center">
         <div className="absolute -left-3 w-6 h-6 rounded-full bg-background" />
-        <div className="flex-1 border-t border-dashed border-white/10 mx-4" />
+        <div className="flex-1 border-t border-dashed border-white/20 mx-4" />
         <div className="absolute -right-3 w-6 h-6 rounded-full bg-background" />
       </div>
 
-      <div className="px-5 pb-5 space-y-3">
+      <div className="px-5 pb-5 space-y-3" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
         <h2 className="text-xl font-bold text-white">{ticket.eventName || "Event"}</h2>
 
         <div className="flex items-center gap-2 text-white/60 text-sm">
@@ -219,13 +219,13 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
         {startDate && (
           <div className="flex gap-8">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-white/35 font-medium">{t("myTickets.date", "Fecha")}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium">{t("myTickets.date", "Fecha")}</p>
               <p className="text-sm text-white font-medium">
                 {startDate.toLocaleDateString("es-CO", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-white/35 font-medium">{t("myTickets.time", "Hora")}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium">{t("myTickets.time", "Hora")}</p>
               <p className="text-sm text-white font-medium">
                 {startDate.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
               </p>
@@ -243,7 +243,7 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
           </Badge>
         </div>
 
-        <div className="text-xs text-white/30 text-center pt-2">
+        <div className="text-xs text-white/40 text-center pt-2">
           {ticket.attendeeName}
         </div>
       </div>
