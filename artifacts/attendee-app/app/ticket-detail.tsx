@@ -94,7 +94,8 @@ export default function TicketDetailScreen() {
   const passedTicket = safeParseJson<MyTicket>(params.ticketData);
   const ticketId = params.ticketId ?? passedTicket?.id ?? "";
 
-  const { data: fetchedTicket, isPending: isFetching } = useTicketDetail(ticketId);
+  const skipFetch = !!passedTicket;
+  const { data: fetchedTicket, isPending: isFetching } = useTicketDetail(skipFetch ? "" : ticketId);
   const ticket: MyTicket | null = passedTicket ?? fetchedTicket ?? null;
 
   const { mutate: addToWallet, isPending: walletLoading } = useAddToWallet();
@@ -181,22 +182,30 @@ export default function TicketDetailScreen() {
             <View style={styles.imageOverlay} />
           </View>
 
-          <Pressable
-            onPress={() => setQrExpanded(!qrExpanded)}
-            style={styles.qrSection}
-          >
-            <View style={[styles.qrBox, qrExpanded && styles.qrBoxExpanded]}>
-              <QRCode
-                value={ticket.qrCode}
-                size={qrExpanded ? 220 : 160}
-                backgroundColor="#fff"
-                color="#000"
-              />
+          {ticket.qrCode ? (
+            <Pressable
+              onPress={() => setQrExpanded(!qrExpanded)}
+              style={styles.qrSection}
+            >
+              <View style={[styles.qrBox, qrExpanded && styles.qrBoxExpanded]}>
+                <QRCode
+                  value={ticket.qrCode}
+                  size={qrExpanded ? 220 : 160}
+                  backgroundColor="#fff"
+                  color="#000"
+                />
+              </View>
+              <Text style={styles.qrHint}>
+                {t("tickets.tapToEnlarge")}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={styles.qrSection}>
+              <View style={styles.qrBox}>
+                <Feather name="alert-circle" size={40} color="rgba(0,0,0,0.3)" />
+              </View>
             </View>
-            <Text style={styles.qrHint}>
-              {t("tickets.tapToEnlarge")}
-            </Text>
-          </Pressable>
+          )}
 
           <View style={styles.separator}>
             <View style={[styles.separatorCircle, styles.separatorCircleLeft, { backgroundColor: C.background }]} />
