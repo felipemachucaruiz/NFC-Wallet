@@ -881,6 +881,7 @@ router.get(
         id: event.id,
         name: event.name,
         hmacSecret: event.hmacSecret ?? "",
+        attendeeQrSecret: process.env.TICKET_QR_SECRET || process.env.HMAC_SECRET || "",
         startsAt: event.startsAt,
         endsAt: event.endsAt,
         timezone: event.timezone,
@@ -948,15 +949,59 @@ router.post(
           continue;
         }
 
+        const [ticket] = await db
+          .select({
+            id: ticketsTable.id,
+            eventId: ticketsTable.eventId,
+            attendeeUserId: ticketsTable.attendeeUserId,
+            ticketTypeId: ticketsTable.ticketTypeId,
+            status: ticketsTable.status,
+          })
+          .from(ticketsTable)
+          .where(and(
+            eq(ticketsTable.id, checkin.ticketId),
+            eq(ticketsTable.eventId, effectiveEventId),
+          ))
+          .limit(1);
+
+        if (!ticket) {
+          results.push({ offlineId: checkin.offlineId, status: "error", error: "Ticket not found for this event" });
+          continue;
+        }
+
+        if (ticket.status === "cancelled") {
+          results.push({ offlineId: checkin.offlineId, status: "error", error: "Ticket is cancelled" });
+          continue;
+        }
+
+        let section: string | null = null;
+        let ticketTypeName: string | null = null;
+        let accessZoneId: string | null = checkin.accessZoneId ?? null;
+        if (ticket.ticketTypeId) {
+          const [tt] = await db
+            .select({ name: ticketTypesTable.name, section: ticketTypesTable.section, accessZoneId: ticketTypesTable.accessZoneId })
+            .from(ticketTypesTable)
+            .where(eq(ticketTypesTable.id, ticket.ticketTypeId))
+            .limit(1);
+          if (tt) {
+            section = tt.section ?? null;
+            ticketTypeName = tt.name ?? null;
+            if (!accessZoneId) accessZoneId = tt.accessZoneId ?? null;
+          }
+        }
+
         await db.insert(ticketCheckinsTable).values({
-          ticketId: checkin.ticketId,
+          ticketId: ticket.id,
           eventId: effectiveEventId,
           eventDayIndex: checkin.eventDayIndex,
+          attendeeUserId: ticket.attendeeUserId,
           checkedInAt: new Date(checkin.checkedInAt),
           checkedInByUserId: req.user!.id,
           braceletId: checkin.braceletId ?? null,
           braceletNfcUid: checkin.braceletNfcUid ?? null,
-          accessZoneId: checkin.accessZoneId ?? null,
+          accessZoneId,
+          section,
+          ticketType: ticketTypeName,
         });
 
         results.push({ offlineId: checkin.offlineId, status: "created" });

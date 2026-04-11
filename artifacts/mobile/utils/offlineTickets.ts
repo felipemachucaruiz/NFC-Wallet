@@ -58,6 +58,7 @@ export interface OfflineEventData {
     id: string;
     name: string;
     hmacSecret: string;
+    attendeeQrSecret: string;
     startsAt: string | null;
     endsAt: string | null;
     timezone: string;
@@ -117,7 +118,7 @@ export function verifyQrTokenOffline(
     return { ticketId: ticketByToken.id, attendeeUserId: ticketByToken.attendeeUserId ?? "" };
   }
 
-  const attendeeResult = verifyAttendeeFormat(qrToken);
+  const attendeeResult = verifyAttendeeFormat(qrToken, eventData.event.attendeeQrSecret);
   if (attendeeResult) {
     const ticket = eventData.tickets.find(t => t.id === attendeeResult.ticketId);
     if (ticket && ticket.eventId === eventData.event.id) {
@@ -151,12 +152,12 @@ function verifyGateFormat(
   }
 }
 
-function verifyAttendeeFormat(token: string): { ticketId: string; attendeeUserId: string } | null {
+function verifyAttendeeFormat(token: string, attendeeQrSecret: string): { ticketId: string; attendeeUserId: string } | null {
+  if (!attendeeQrSecret) return null;
   const parts = token.split(".");
   if (parts.length !== 2) return null;
   const [data, signature] = parts;
-  const secret = getQrSecret();
-  const expectedSig = CryptoJS.HmacSHA256(data, secret).toString(CryptoJS.enc.Base64url);
+  const expectedSig = CryptoJS.HmacSHA256(data, attendeeQrSecret).toString(CryptoJS.enc.Base64url);
   if (expectedSig !== signature) return null;
   try {
     const decoded = base64urlDecode(data);
@@ -166,10 +167,6 @@ function verifyAttendeeFormat(token: string): { ticketId: string; attendeeUserId
   } catch {
     return null;
   }
-}
-
-function getQrSecret(): string {
-  return "tapee-default-qr-secret";
 }
 
 function base64urlDecode(str: string): string {

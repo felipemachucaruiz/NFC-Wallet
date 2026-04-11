@@ -17,6 +17,7 @@ export function useOfflineGate() {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const syncingRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -26,19 +27,21 @@ export function useOfflineGate() {
   }, []);
 
   const doSync = useCallback(async () => {
-    if (!token) return;
+    if (!token || syncingRef.current) return;
+    syncingRef.current = true;
     setIsSyncing(true);
     try {
+      await syncCheckinQueue(token);
       const data = await syncEventData(token);
       if (data) {
         setEventData(data);
         setLastSyncTime(data.syncedAt);
       }
-      await syncCheckinQueue(token);
       const count = await getQueueCount();
       setPendingCount(count);
     } catch {
     } finally {
+      syncingRef.current = false;
       setIsSyncing(false);
     }
   }, [token]);
