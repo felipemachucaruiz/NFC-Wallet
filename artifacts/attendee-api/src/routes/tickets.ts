@@ -306,7 +306,7 @@ router.post(
     const order = result;
 
     const buyerPhone = attendees[0]?.phone;
-    if (buyerPhone && buyerUserId) {
+    if (buyerPhone && req.isAuthenticated()) {
       try {
         const [currentUser] = await db
           .select({ phone: usersTable.phone })
@@ -523,13 +523,7 @@ router.post(
 
 router.get(
   "/tickets/orders/:orderId/status",
-  requireRole("attendee"),
   async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
     const { orderId } = req.params as { orderId: string };
 
     const [order] = await db
@@ -542,7 +536,7 @@ router.get(
       return;
     }
 
-    if (order.buyerUserId !== req.user.id && req.user.role !== "admin") {
+    if (req.isAuthenticated() && order.buyerUserId !== req.user.id && req.user.role !== "admin") {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
