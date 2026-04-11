@@ -24,7 +24,7 @@ interface TicketSelectorProps {
 export function TicketSelector({ event, ticketType, sectionName, onClose, preSelectedUnitId }: TicketSelectorProps) {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
-  const { user, isAuthenticated, openAuthModal } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const isNumbered = ticketType.isNumberedUnits && ticketType.units && ticketType.units.length > 0;
   const [step, setStep] = useState<"quantity" | "unit" | "attendees">(isNumbered ? "unit" : "quantity");
   const [quantity, setQuantity] = useState(isNumbered ? (ticketType.ticketsPerUnit || 1) : 1);
@@ -118,12 +118,6 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
       checkoutData.selectedUnitLabel = selectedUnit ? `${selectedUnit.unitLabel} ${selectedUnit.unitNumber}` : "";
     }
 
-    if (!isAuthenticated) {
-      sessionStorage.setItem("tapee_checkout", JSON.stringify(checkoutData));
-      openAuthModal("login", "checkout");
-      onClose();
-      return;
-    }
     sessionStorage.setItem("tapee_checkout", JSON.stringify(checkoutData));
     navigate("/checkout");
     onClose();

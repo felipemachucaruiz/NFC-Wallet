@@ -68,14 +68,8 @@ const createOrderSchema = z.object({
 
 router.post(
   "/tickets/purchase",
-  requireRole("attendee"),
   async (req: Request, res: Response) => {
     try {
-    if (!req.isAuthenticated()) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
     const parsed = createOrderSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
@@ -83,6 +77,28 @@ router.post(
     }
 
     const { eventId, attendees, unitSelections, paymentMethod, cardToken, phoneNumber, bankCode, userLegalIdType, userLegalId, installments } = parsed.data;
+
+    let buyerUserId: string;
+    let customerEmail: string;
+    let buyerName: string;
+
+    if (req.isAuthenticated()) {
+      buyerUserId = req.user.id;
+      const [userRecord] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+      customerEmail = userRecord?.email || `attendee_${req.user.id}@evento.local`;
+      buyerName = userRecord ? `${userRecord.firstName || ""} ${userRecord.lastName || ""}`.trim() : "Attendee";
+    } else {
+      const firstAttendee = attendees[0];
+      const normalizedEmail = firstAttendee.email.toLowerCase().trim();
+      const { userId } = await findOrCreateAttendeeAccount(
+        normalizedEmail,
+        firstAttendee.name,
+        firstAttendee.phone,
+      );
+      buyerUserId = userId;
+      customerEmail = normalizedEmail;
+      buyerName = firstAttendee.name;
+    }
 
     if (paymentMethod !== "free") {
       if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
@@ -208,10 +224,6 @@ router.post(
       return;
     }
 
-    const [userRecord] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
-    const customerEmail = userRecord?.email || `attendee_${req.user.id}@evento.local`;
-    const buyerName = userRecord ? `${userRecord.firstName || ""} ${userRecord.lastName || ""}`.trim() : "Attendee";
-
     const result = await db.transaction(async (tx) => {
       for (const [typeId, qty] of quantityByType) {
         const tt = ticketTypeMap.get(typeId)!;
@@ -262,7 +274,7 @@ router.post(
         .insert(ticketOrdersTable)
         .values({
           eventId,
-          buyerUserId: req.user.id,
+          buyerUserId,
           buyerEmail: customerEmail,
           buyerName,
           totalAmount,
@@ -294,12 +306,12 @@ router.post(
     const order = result;
 
     const buyerPhone = attendees[0]?.phone;
-    if (buyerPhone && req.user?.id) {
+    if (buyerPhone && buyerUserId) {
       try {
         const [currentUser] = await db
           .select({ phone: usersTable.phone })
           .from(usersTable)
-          .where(eq(usersTable.id, req.user.id));
+          .where(eq(usersTable.id, buyerUserId));
         if (currentUser && !currentUser.phone) {
           const [phoneOwner] = await db
             .select({ id: usersTable.id })
@@ -309,8 +321,8 @@ router.post(
             await db
               .update(usersTable)
               .set({ phone: buyerPhone, updatedAt: new Date() })
-              .where(eq(usersTable.id, req.user.id));
-            logger.info({ userId: req.user.id }, "Saved phone number from ticket purchase to user profile");
+              .where(eq(usersTable.id, buyerUserId));
+            logger.info({ userId: buyerUserId }, "Saved phone number from ticket purchase to user profile");
           }
         }
       } catch (err) {
@@ -463,7 +475,7 @@ router.post(
         wompiTransactionId,
         wompiReference: reference,
         status: "pending",
-        performedByUserId: req.user.id,
+        performedByUserId: buyerUserId,
         ticketOrderId: order.id,
         purposeType: "ticket",
       });

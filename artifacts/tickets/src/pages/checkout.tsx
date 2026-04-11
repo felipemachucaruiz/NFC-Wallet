@@ -8,7 +8,6 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/format";
 import { purchaseTickets } from "@/lib/api";
 
@@ -51,7 +50,6 @@ const PSE_BANKS = [
 export default function Checkout() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
-  const { isAuthenticated, user, openAuthModal } = useAuth();
   const [data, setData] = useState<CheckoutData | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"nequi" | "pse">("nequi");
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -65,11 +63,6 @@ export default function Checkout() {
   const [pseLegalIdType, setPseLegalIdType] = useState<"CC" | "CE" | "NIT" | "PP" | "TI">("CC");
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      openAuthModal("login", "checkout");
-      navigate("/");
-      return;
-    }
     const raw = sessionStorage.getItem("tapee_checkout");
     if (!raw) {
       navigate("/");
@@ -80,7 +73,7 @@ export default function Checkout() {
     } catch {
       navigate("/");
     }
-  }, [isAuthenticated, navigate]);
+  }, [navigate]);
 
   const isFreeOrder = data !== null && data.total === 0;
 
