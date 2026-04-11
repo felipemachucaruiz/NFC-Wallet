@@ -84,35 +84,37 @@ export default function Checkout() {
 
   const isFreeOrder = data !== null && data.total === 0;
 
+  const submitFreeOrder = async () => {
+    if (!data) return;
+    setProcessing(true);
+    setError("");
+    try {
+      const result = await purchaseTickets({
+        eventId: data.eventId,
+        attendees: data.attendees.map((a) => ({
+          name: a.name,
+          email: a.email,
+          phone: a.phone || undefined,
+          ticketTypeId: data.ticketTypeId,
+        })),
+        unitSelections: data.unitSelections,
+        paymentMethod: "free",
+      });
+
+      sessionStorage.removeItem("tapee_checkout");
+      sessionStorage.setItem("tapee_order_id", result.orderId);
+      sessionStorage.setItem("tapee_order_status", result.status);
+      navigate("/payment-status");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al procesar la compra");
+      setProcessing(false);
+    }
+  };
+
   useEffect(() => {
     if (!data || !isFreeOrder || freeSubmittedRef.current) return;
     freeSubmittedRef.current = true;
-    setProcessing(true);
-
-    (async () => {
-      try {
-        const result = await purchaseTickets({
-          eventId: data.eventId,
-          attendees: data.attendees.map((a) => ({
-            name: a.name,
-            email: a.email,
-            phone: a.phone || undefined,
-            ticketTypeId: data.ticketTypeId,
-          })),
-          unitSelections: data.unitSelections,
-          paymentMethod: "free",
-        });
-
-        sessionStorage.removeItem("tapee_checkout");
-        sessionStorage.setItem("tapee_order_id", result.orderId);
-        sessionStorage.setItem("tapee_order_status", result.status);
-        navigate("/payment-status");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Error al procesar la compra");
-        setProcessing(false);
-        freeSubmittedRef.current = false;
-      }
-    })();
+    submitFreeOrder();
   }, [data, isFreeOrder]);
 
   if (!data) return null;
@@ -127,7 +129,7 @@ export default function Checkout() {
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 {error}
               </div>
-              <Button onClick={() => { freeSubmittedRef.current = false; setError(""); setProcessing(false); }}>
+              <Button onClick={submitFreeOrder}>
                 {t("common.retry", "Reintentar")}
               </Button>
             </>

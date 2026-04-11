@@ -314,8 +314,20 @@ router.post(
           });
       }
 
-      processTicketOrderPayment(order.id, "", req.headers["accept-language"]).catch((err) => {
-        logger.error({ err, orderId: order.id }, "Error processing free ticket delivery");
+      await db
+        .update(ticketOrdersTable)
+        .set({ paymentStatus: "confirmed", updatedAt: new Date() })
+        .where(eq(ticketOrdersTable.id, order.id));
+
+      const freeTickets = await db.select().from(ticketsTable).where(eq(ticketsTable.orderId, order.id));
+      const [freeEvent] = await db.select().from(eventsTable).where(eq(eventsTable.id, eventId));
+      for (const ticket of freeTickets) {
+        const qrCodeToken = generateTicketQrToken(ticket.id, ticket.attendeeUserId);
+        await db.update(ticketsTable).set({ qrCodeToken, updatedAt: new Date() }).where(eq(ticketsTable.id, ticket.id));
+      }
+
+      deliverFreeTicketNotifications(order.id, eventId, req.headers["accept-language"]).catch((err) => {
+        logger.error({ err, orderId: order.id }, "Error delivering free ticket notifications");
       });
 
       res.status(201).json({
@@ -987,6 +999,80 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
           locale: attendeeLocale,
         }).catch((err) => logger.error(`Failed to send invitation email to ${ticket.attendeeEmail}: ${err}`));
       }
+    }
+  }
+}
+
+async function deliverFreeTicketNotifications(orderId: string, eventId: string, buyerLocale?: string) {
+  const [order] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, orderId));
+  if (!order) return;
+  const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, eventId));
+  if (!event) return;
+
+  const tickets = await db.select().from(ticketsTable).where(eq(ticketsTable.orderId, orderId));
+
+  for (const ticket of tickets) {
+    const [ticketType] = ticket.ticketTypeId
+      ? await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId))
+      : [undefined];
+    const validDayIds = (ticketType?.validEventDayIds as string[]) ?? [];
+    let validDays: string[] = [];
+    if (validDayIds.length > 0) {
+      const days = await db.select().from(eventDaysTable).where(inArray(eventDaysTable.id, validDayIds));
+      validDays = days.map((d) => d.label || d.date);
+    }
+
+    let sectionName = "General";
+    if (ticketType?.sectionId) {
+      const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
+      if (sec) sectionName = sec.name;
+    }
+
+    const hasAccount = !!ticket.attendeeUserId;
+    const attendeeLocale = buyerLocale ?? (event.currencyCode === "USD" ? "en" : "es");
+
+    void sendTicketConfirmationEmail({
+      attendeeName: ticket.attendeeName,
+      attendeeEmail: ticket.attendeeEmail,
+      eventName: event.name,
+      eventDates: [],
+      venueName: event.venueAddress ?? "",
+      venueAddress: event.venueAddress ?? "",
+      sectionName,
+      ticketTypeName: ticketType?.name ?? "",
+      validDays,
+      qrCodeToken: ticket.qrCodeToken ?? "",
+      ticketId: ticket.id,
+      orderId,
+      locale: attendeeLocale,
+      hasAccount,
+    }).catch((err) => logger.error(`Failed to send free ticket email to ${ticket.attendeeEmail}: ${err}`));
+
+    if (ticket.attendeePhone && isWhatsAppConfigured()) {
+      void sendTicketWhatsApp({
+        ticketId: ticket.id,
+        attendeeName: ticket.attendeeName,
+        attendeePhone: ticket.attendeePhone,
+        eventId,
+        eventName: event.name,
+        venueName: event.venueAddress ?? "",
+        venueAddress: event.venueAddress ?? "",
+        sectionName,
+        ticketTypeName: ticketType?.name ?? "",
+        validDays,
+        qrCodeToken: ticket.qrCodeToken ?? "",
+        orderId,
+      }).catch((err) => logger.error(`Failed to send free ticket WhatsApp to ${ticket.attendeePhone}: ${err}`));
+    }
+
+    if (!ticket.attendeeUserId) {
+      void sendTicketInvitationEmail({
+        attendeeName: ticket.attendeeName,
+        attendeeEmail: ticket.attendeeEmail,
+        eventName: event.name,
+        buyerName: order.buyerName ?? "Someone",
+        locale: attendeeLocale,
+      }).catch((err) => logger.error(`Failed to send invitation email to ${ticket.attendeeEmail}: ${err}`));
     }
   }
 }
