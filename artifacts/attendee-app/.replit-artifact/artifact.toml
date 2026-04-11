@@ -16,7 +16,7 @@ paths = [ "/attendee-app/" ]
 localPort = 18116
 
 [services.development]
-run = "pnpm --filter @workspace/attendee-app run dev"
+run = "fuser -k 18116/tcp 2>/dev/null || true; sleep 1; pnpm --filter @workspace/attendee-app run dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/attendee-app", "run", "build" ]
