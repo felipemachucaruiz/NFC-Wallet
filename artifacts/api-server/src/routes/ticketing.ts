@@ -208,7 +208,16 @@ router.get(
     }
 
     const venues = await db
-      .select()
+      .select({
+        id: venuesTable.id,
+        eventId: venuesTable.eventId,
+        name: venuesTable.name,
+        address: venuesTable.address,
+        city: venuesTable.city,
+        latitude: venuesTable.latitude,
+        longitude: venuesTable.longitude,
+        floorplanImageUrl: venuesTable.floorplanImageUrl,
+      })
       .from(venuesTable)
       .where(eq(venuesTable.eventId, eventId));
 
@@ -350,7 +359,18 @@ router.get(
     }
 
     const sections = await db
-      .select()
+      .select({
+        id: venueSectionsTable.id,
+        venueId: venueSectionsTable.venueId,
+        name: venueSectionsTable.name,
+        capacity: venueSectionsTable.capacity,
+        totalTickets: venueSectionsTable.totalTickets,
+        soldTickets: venueSectionsTable.soldTickets,
+        colorHex: venueSectionsTable.colorHex,
+        sectionType: venueSectionsTable.sectionType,
+        svgPathData: venueSectionsTable.svgPathData,
+        displayOrder: venueSectionsTable.displayOrder,
+      })
       .from(venueSectionsTable)
       .where(eq(venueSectionsTable.venueId, venueId))
       .orderBy(asc(venueSectionsTable.displayOrder));

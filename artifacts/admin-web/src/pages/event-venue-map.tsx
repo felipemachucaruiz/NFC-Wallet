@@ -14,6 +14,7 @@ import { useEventContext } from "@/contexts/event-context";
 import { apiFetchVenues, apiFetchSections, apiCreateSection, apiUpdateSection, apiDeleteSection, apiCreateVenue, apiUploadVenueFloorplan, apiFetchTicketTypes, apiFetchTicketTypeUnits, apiUpdateUnitPositions } from "@/lib/api";
 
 const DEFAULT_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
+const EMPTY_ARRAY: readonly { id: string; ticketTypeId: string; unitNumber: number; unitLabel: string; status: string; mapX: string | null; mapY: string | null }[] = [];
 
 function safe(v: unknown): string {
   if (v == null) return "";
@@ -65,7 +66,6 @@ export default function EventVenueMap() {
       })
       .catch((err) => {
         toast({ title: t("common.error"), description: safe(err.message || err), variant: "destructive" });
-        autoCreateAttempted.current = false;
       });
   }, [venuesLoading, venues.length, resolvedEventId, event, queryClient, toast, t]);
 
@@ -155,7 +155,7 @@ export default function EventVenueMap() {
 
   const numberedTicketTypes = ticketTypes.filter((tt) => tt.isNumberedUnits);
 
-  const { data: units = [], isLoading: unitsLoading } = useQuery({
+  const { data: units = EMPTY_ARRAY, isLoading: unitsLoading } = useQuery({
     queryKey: ["ticketTypeUnits", resolvedEventId, selectedTicketTypeId],
     queryFn: () => apiFetchTicketTypeUnits(resolvedEventId, selectedTicketTypeId),
     enabled: !!resolvedEventId && !!selectedTicketTypeId,
@@ -172,7 +172,7 @@ export default function EventVenueMap() {
       setUnitPositions(positions);
       setUnitPositionsDirty(false);
     } else {
-      setUnitPositions({});
+      setUnitPositions((prev) => Object.keys(prev).length === 0 ? prev : {});
       setUnitPositionsDirty(false);
     }
   }, [units]);
