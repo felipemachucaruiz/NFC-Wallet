@@ -694,6 +694,7 @@ export default function RegisterBraceletScreen() {
                 placeholder={t("gate.barcodeInputPlaceholder")}
                 placeholderTextColor={C.textMuted}
                 autoFocus
+                showSoftInputOnFocus={false}
                 returnKeyType="go"
                 blurOnSubmit={false}
                 autoCapitalize="none"
