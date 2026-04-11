@@ -90,6 +90,7 @@ The production services are hosted on Railway. Access credentials are stored as 
 - **Email Service:** Brevo
 - **WhatsApp Messaging:** Gupshup API (ticket delivery, OTP, event reminders)
 - **Wallet Passes:** Apple Wallet, Google Wallet
+- **Ticket Transfer:** POST /api/tickets/:ticketId/transfer — reassign ticket ownership with auto-account creation, email + WhatsApp notifications
 - **QR Code Signing:** Custom HMAC-signed QR tokens
 - **NFC Hardware:** NTAG213/215, Mifare Classic compatible NFC chips
 - **OAuth/OIDC:** `openid-client`
