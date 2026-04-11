@@ -838,6 +838,66 @@ router.get(
   },
 );
 
+router.post(
+  "/tickets/resend-whatsapp/:orderId",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const { orderId } = req.params;
+
+    const [order] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, orderId));
+    if (!order || order.paymentStatus !== "confirmed") {
+      res.status(404).json({ error: "Confirmed order not found" });
+      return;
+    }
+
+    const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, order.eventId));
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    const orderTickets = await db.select().from(ticketsTable).where(eq(ticketsTable.orderId, orderId));
+    const eventDaysList = await db.select().from(eventDaysTable).where(eq(eventDaysTable.eventId, order.eventId));
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const ticket of orderTickets) {
+      if (!ticket.attendeePhone) continue;
+
+      const ticketType = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId)).then(r => r[0]);
+      const section = ticketType?.sectionId
+        ? await db.select().from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId)).then(r => r[0])
+        : null;
+
+      const validDays = eventDaysList.map((d) => d.label || d.date);
+
+      try {
+        await sendTicketWhatsApp({
+          ticketId: ticket.id,
+          attendeeName: ticket.attendeeName,
+          attendeePhone: ticket.attendeePhone,
+          eventId: order.eventId,
+          eventName: event.name,
+          venueName: event.venueAddress ?? "",
+          venueAddress: event.venueAddress ?? "",
+          sectionName: section?.name ?? "General",
+          ticketTypeName: ticketType?.name ?? "",
+          validDays: validDays as string[],
+          qrCodeToken: ticket.qrCodeToken ?? "",
+          orderId,
+        });
+        sent++;
+      } catch (err) {
+        logger.error({ err, ticketId: ticket.id }, "Failed to resend WhatsApp for ticket");
+        failed++;
+      }
+    }
+
+    res.json({ sent, failed, total: orderTickets.length });
+  },
+);
+
 async function sendTicketWhatsApp(data: {
   ticketId: string;
   attendeeName: string;
