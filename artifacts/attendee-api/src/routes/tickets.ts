@@ -740,6 +740,7 @@ router.get(
         qrCodeToken: ticket.qrCodeToken,
         ticketId: ticket.id,
         orderId: ticket.orderId,
+        purchasedAt: ticket.createdAt,
         flyerImageUrl,
       });
 
@@ -817,6 +818,7 @@ router.get(
           qrCodeToken: ticket.qrCodeToken ?? "",
           ticketId: ticket.id,
           orderId,
+          purchasedAt: ticket.createdAt,
           flyerImageUrl,
         });
       }
@@ -1217,6 +1219,7 @@ export async function generateOrderPdfBuffer(orderId: string): Promise<Buffer | 
         qrCodeToken: ticket.qrCodeToken ?? "",
         ticketId: ticket.id,
         orderId,
+        purchasedAt: ticket.createdAt,
         flyerImageUrl,
       });
     }
