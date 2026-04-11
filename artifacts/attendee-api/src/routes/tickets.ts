@@ -610,7 +610,7 @@ router.get(
     const enriched = await Promise.all(
       tickets.map(async (ticket) => {
         const [event] = await db
-          .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, flyerImageUrl: eventsTable.flyerImageUrl, coverImageUrl: eventsTable.coverImageUrl })
+          .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, endsAt: eventsTable.endsAt, flyerImageUrl: eventsTable.flyerImageUrl, coverImageUrl: eventsTable.coverImageUrl, venueAddress: eventsTable.venueAddress, currencyCode: eventsTable.currencyCode })
           .from(eventsTable)
           .where(eq(eventsTable.id, ticket.eventId));
 
@@ -625,9 +625,12 @@ router.get(
           ...ticket,
           eventName: event?.name ?? null,
           eventStartsAt: event?.startsAt ?? null,
+          eventEndsAt: event?.endsAt ?? null,
           eventCoverImage: event?.flyerImageUrl ?? event?.coverImageUrl ?? null,
+          venueAddress: event?.venueAddress ?? null,
           ticketTypeName: ticketType?.name ?? null,
           validEventDayIds: ticketType?.validEventDayIds ?? [],
+          currencyCode: event?.currencyCode ?? "COP",
         };
       }),
     );
@@ -1283,6 +1286,8 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         attendeeEmail: ticket.attendeeEmail,
         eventName: event.name,
         eventDates: [],
+        eventStartsAt: event.startsAt ? new Date(event.startsAt).toISOString() : undefined,
+        flyerImageUrl: event.flyerImageUrl ?? event.coverImageUrl ?? undefined,
         venueName: event.venueAddress ?? "",
         venueAddress: event.venueAddress ?? "",
         sectionName,
@@ -1293,6 +1298,8 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         orderId,
         locale: attendeeLocale,
         hasAccount: true,
+        price: ticketType?.price ? Number(ticketType.price) : undefined,
+        currencyCode: event.currencyCode ?? "COP",
       }).catch((err) => logger.error(`Failed to send ticket email to ${ticket.attendeeEmail}: ${err}`));
 
       if (ticket.attendeePhone && isWhatsAppConfigured()) {
@@ -1386,6 +1393,8 @@ async function deliverFreeTicketNotifications(orderId: string, eventId: string, 
       attendeeEmail: ticket.attendeeEmail,
       eventName: event.name,
       eventDates: [],
+      eventStartsAt: event.startsAt ? new Date(event.startsAt).toISOString() : undefined,
+      flyerImageUrl: event.flyerImageUrl ?? event.coverImageUrl ?? undefined,
       venueName: event.venueAddress ?? "",
       venueAddress: event.venueAddress ?? "",
       sectionName,
@@ -1396,6 +1405,8 @@ async function deliverFreeTicketNotifications(orderId: string, eventId: string, 
       orderId,
       locale: attendeeLocale,
       hasAccount: true,
+      price: ticketType?.price ? Number(ticketType.price) : undefined,
+      currencyCode: event.currencyCode ?? "COP",
     }).catch((err) => logger.error(`Failed to send free ticket email to ${ticket.attendeeEmail}: ${err}`));
 
     if (ticket.attendeePhone && isWhatsAppConfigured()) {

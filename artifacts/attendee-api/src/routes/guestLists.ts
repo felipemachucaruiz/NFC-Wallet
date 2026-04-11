@@ -201,6 +201,8 @@ router.post(
         attendeeEmail: normalizedEmail,
         eventName: result.event.name,
         eventDates: [],
+        eventStartsAt: result.event.startsAt ? new Date(result.event.startsAt).toISOString() : undefined,
+        flyerImageUrl: result.event.flyerImageUrl ?? result.event.coverImageUrl ?? undefined,
         venueName: result.event.venueAddress ?? "",
         venueAddress: result.event.venueAddress ?? "",
         sectionName: "Guest List",
@@ -211,6 +213,7 @@ router.post(
         orderId: result.order.id,
         locale,
         hasAccount: false,
+        currencyCode: result.event.currencyCode ?? "COP",
       }).catch((err) => logger.error(`Failed to send guest list email to ${normalizedEmail}: ${err}`));
 
       res.status(201).json({

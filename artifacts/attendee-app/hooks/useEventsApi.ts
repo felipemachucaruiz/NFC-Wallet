@@ -354,7 +354,8 @@ export function useMyTickets() {
             : `${STAFF_API_BASE_URL}${t.eventCoverImage}`
           : undefined,
         startsAt: (t.eventStartsAt as string) ?? "",
-        venueName: "",
+        endsAt: (t.eventEndsAt as string) ?? undefined,
+        venueName: (t.venueAddress as string) ?? "",
         ticketTypeName: (t.ticketTypeName as string) ?? "",
         status: (t.status as MyTicket["status"]) ?? "active",
         qrCode: (t.qrCodeToken as string) ?? "",
@@ -362,7 +363,7 @@ export function useMyTickets() {
         attendeeEmail: "",
         attendeePhone: "",
         purchasedByMe: true,
-        currencyCode: "COP",
+        currencyCode: (t.currencyCode as string) ?? "COP",
         price: 0,
       }));
       return { tickets: mapped };
