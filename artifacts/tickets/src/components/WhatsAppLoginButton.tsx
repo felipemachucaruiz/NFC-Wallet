@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { ArrowLeft, MessageCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useAuth } from "@/context/AuthContext";
 import { sendWhatsAppOtp, verifyWhatsAppOtp } from "@/lib/api";
 
@@ -24,19 +24,13 @@ export function WhatsAppLoginForm({ onSuccess, onBack }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(0);
-  const otpRef = useRef<HTMLInputElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timer);
   }, [countdown]);
-
-  useEffect(() => {
-    if (step === "otp" && otpRef.current) {
-      otpRef.current.focus();
-    }
-  }, [step]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,21 +98,32 @@ export function WhatsAppLoginForm({ onSuccess, onBack }: Props) {
           <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg">{error}</div>
         )}
 
-        <div>
-          <Input
-            ref={otpRef}
-            type="text"
-            inputMode="numeric"
+        <div className="flex justify-center">
+          <InputOTP
             maxLength={6}
             value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder={t("auth.otpPlaceholder")}
-            className="text-center text-2xl tracking-[0.5em] font-mono"
-            autoComplete="one-time-code"
-          />
+            onChange={(val) => {
+              setOtp(val);
+              if (val.length === 6) {
+                setTimeout(() => submitRef.current?.click(), 100);
+              }
+            }}
+            autoFocus
+          >
+            <InputOTPGroup className="gap-2">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <InputOTPSlot
+                  key={i}
+                  index={i}
+                  className="w-12 h-14 text-xl font-bold rounded-lg border-border bg-muted/30 first:rounded-l-lg last:rounded-r-lg first:border-l"
+                />
+              ))}
+            </InputOTPGroup>
+          </InputOTP>
         </div>
 
         <Button
+          ref={submitRef}
           type="submit"
           className="w-full bg-green-600 text-white hover:bg-green-700"
           disabled={loading || otp.length !== 6}
