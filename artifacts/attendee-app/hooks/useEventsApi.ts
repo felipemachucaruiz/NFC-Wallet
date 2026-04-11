@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { API_BASE_URL, WOMPI_PUBLIC_KEY } from "@/constants/domain";
+import { API_BASE_URL, STAFF_API_BASE_URL, WOMPI_PUBLIC_KEY } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchWithTimeout } from "@/utils/fetchWithTimeout";
 import type {
@@ -98,12 +98,12 @@ function mapPublicEvent(raw: PublicEventRaw): EventListItem {
     coverImageUrl: raw.coverImageUrl
       ? raw.coverImageUrl.startsWith("http")
         ? raw.coverImageUrl
-        : `${API_BASE_URL}${raw.coverImageUrl}`
+        : `${STAFF_API_BASE_URL}${raw.coverImageUrl}`
       : undefined,
     flyerImageUrl: raw.flyerImageUrl
       ? raw.flyerImageUrl.startsWith("http")
         ? raw.flyerImageUrl
-        : `${API_BASE_URL}${raw.flyerImageUrl}`
+        : `${STAFF_API_BASE_URL}${raw.flyerImageUrl}`
       : undefined,
     startsAt: raw.startsAt,
     endsAt: raw.endsAt,
@@ -242,10 +242,10 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
     id: e.id,
     name: e.name,
     coverImageUrl: e.coverImageUrl
-      ? e.coverImageUrl.startsWith("http") ? e.coverImageUrl : `${API_BASE_URL}${e.coverImageUrl}`
+      ? e.coverImageUrl.startsWith("http") ? e.coverImageUrl : `${STAFF_API_BASE_URL}${e.coverImageUrl}`
       : undefined,
     flyerImageUrl: e.flyerImageUrl
-      ? e.flyerImageUrl.startsWith("http") ? e.flyerImageUrl : `${API_BASE_URL}${e.flyerImageUrl}`
+      ? e.flyerImageUrl.startsWith("http") ? e.flyerImageUrl : `${STAFF_API_BASE_URL}${e.flyerImageUrl}`
       : undefined,
     startsAt: e.startsAt,
     endsAt: e.endsAt,
@@ -351,7 +351,7 @@ export function useMyTickets() {
         eventCoverImageUrl: t.eventCoverImage
           ? (t.eventCoverImage as string).startsWith("http")
             ? (t.eventCoverImage as string)
-            : `${API_BASE_URL}${t.eventCoverImage}`
+            : `${STAFF_API_BASE_URL}${t.eventCoverImage}`
           : undefined,
         startsAt: (t.eventStartsAt as string) ?? "",
         venueName: "",
