@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, Link } from "wouter";
-import { Smartphone, Building2, Check, AlertCircle } from "lucide-react";
+import { Smartphone, Building2, Check, AlertCircle, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
@@ -57,6 +57,7 @@ export default function Checkout() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
+  const freeSubmittedRef = useRef(false);
 
   const [nequiPhone, setNequiPhone] = useState("");
   const [pseBank, setPseBank] = useState("");
@@ -81,7 +82,65 @@ export default function Checkout() {
     }
   }, [isAuthenticated, navigate]);
 
+  const isFreeOrder = data !== null && data.total === 0;
+
+  useEffect(() => {
+    if (!data || !isFreeOrder || freeSubmittedRef.current) return;
+    freeSubmittedRef.current = true;
+    setProcessing(true);
+
+    (async () => {
+      try {
+        const result = await purchaseTickets({
+          eventId: data.eventId,
+          attendees: data.attendees.map((a) => ({
+            name: a.name,
+            email: a.email,
+            phone: a.phone || undefined,
+            ticketTypeId: data.ticketTypeId,
+          })),
+          unitSelections: data.unitSelections,
+          paymentMethod: "free",
+        });
+
+        sessionStorage.removeItem("tapee_checkout");
+        sessionStorage.setItem("tapee_order_id", result.orderId);
+        sessionStorage.setItem("tapee_order_status", result.status);
+        navigate("/payment-status");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error al procesar la compra");
+        setProcessing(false);
+        freeSubmittedRef.current = false;
+      }
+    })();
+  }, [data, isFreeOrder]);
+
   if (!data) return null;
+
+  if (isFreeOrder) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          {error ? (
+            <>
+              <div className="p-4 bg-destructive/10 text-destructive text-sm rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {error}
+              </div>
+              <Button onClick={() => { freeSubmittedRef.current = false; setError(""); setProcessing(false); }}>
+                {t("common.retry", "Reintentar")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Ticket className="w-12 h-12 text-primary mx-auto animate-pulse" />
+              <p className="text-lg font-medium">{t("checkout.processingFreeOrder", "Confirmando tu entrada gratuita...")}</p>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const isPaymentValid = () => {
     if (paymentMethod === "nequi") return /^\d{10}$/.test(nequiPhone.replace(/\s/g, ""));

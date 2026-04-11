@@ -56,7 +56,7 @@ const createOrderSchema = z.object({
     ticketTypeId: z.string().min(1),
     unitId: z.string().min(1),
   })).optional(),
-  paymentMethod: z.enum(["card", "nequi", "pse"]),
+  paymentMethod: z.enum(["card", "nequi", "pse", "free"]),
   cardToken: z.string().optional(),
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
@@ -74,11 +74,6 @@ router.post(
       return;
     }
 
-    if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
-      res.status(503).json({ error: "Payment gateway not configured" });
-      return;
-    }
-
     const parsed = createOrderSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
@@ -87,17 +82,23 @@ router.post(
 
     const { eventId, attendees, unitSelections, paymentMethod, cardToken, phoneNumber, bankCode, userLegalIdType, userLegalId, installments } = parsed.data;
 
-    if (paymentMethod === "card" && !cardToken) {
-      res.status(400).json({ error: "cardToken is required for card payments" });
-      return;
-    }
-    if (paymentMethod === "nequi" && !phoneNumber) {
-      res.status(400).json({ error: "phoneNumber is required for Nequi payments" });
-      return;
-    }
-    if (paymentMethod === "pse" && (!bankCode || !userLegalId)) {
-      res.status(400).json({ error: "bankCode and userLegalId are required for PSE payments" });
-      return;
+    if (paymentMethod !== "free") {
+      if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
+        res.status(503).json({ error: "Payment gateway not configured" });
+        return;
+      }
+      if (paymentMethod === "card" && !cardToken) {
+        res.status(400).json({ error: "cardToken is required for card payments" });
+        return;
+      }
+      if (paymentMethod === "nequi" && !phoneNumber) {
+        res.status(400).json({ error: "phoneNumber is required for Nequi payments" });
+        return;
+      }
+      if (paymentMethod === "pse" && (!bankCode || !userLegalId)) {
+        res.status(400).json({ error: "bankCode and userLegalId are required for PSE payments" });
+        return;
+      }
     }
 
     const [event] = await db
@@ -200,6 +201,11 @@ router.post(
       }
     }
 
+    if (paymentMethod === "free" && totalAmount !== 0) {
+      res.status(400).json({ error: "Free payment method is only allowed for free tickets (total = 0)" });
+      return;
+    }
+
     const [userRecord] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
     const customerEmail = userRecord?.email || `attendee_${req.user.id}@evento.local`;
     const buyerName = userRecord ? `${userRecord.firstName || ""} ${userRecord.lastName || ""}`.trim() : "Attendee";
@@ -284,6 +290,45 @@ router.post(
 
     if (!result) return;
     const order = result;
+
+    if (paymentMethod === "free") {
+      for (const attendee of attendees) {
+        const normalizedEmail = attendee.email.toLowerCase().trim();
+        const [existingUser] = await db
+          .select({ id: usersTable.id })
+          .from(usersTable)
+          .where(eq(usersTable.email, normalizedEmail));
+
+        await db
+          .insert(ticketsTable)
+          .values({
+            orderId: order.id,
+            ticketTypeId: attendee.ticketTypeId,
+            eventId,
+            unitId: unitSelMap.get(attendee.ticketTypeId) ?? null,
+            attendeeName: attendee.name,
+            attendeeEmail: normalizedEmail,
+            attendeePhone: attendee.phone ?? null,
+            attendeeUserId: existingUser?.id ?? null,
+            status: "valid",
+          });
+      }
+
+      processTicketOrderPayment(order.id, "", req.headers["accept-language"]).catch((err) => {
+        logger.error({ err, orderId: order.id }, "Error processing free ticket delivery");
+      });
+
+      res.status(201).json({
+        orderId: order.id,
+        totalAmount: 0,
+        ticketCount: attendees.length,
+        paymentMethod: "free",
+        wompiTransactionId: null,
+        redirectUrl: null,
+        status: "confirmed",
+      });
+      return;
+    }
 
     const reference = `ticket_${order.id}_${Date.now()}`;
     let wompiTransactionId: string | undefined;

@@ -203,7 +203,7 @@ export interface PurchaseRequest {
   eventId: string;
   attendees: { name: string; email: string; phone?: string; ticketTypeId: string }[];
   unitSelections?: { ticketTypeId: string; unitId: string }[];
-  paymentMethod: "nequi" | "pse";
+  paymentMethod: "nequi" | "pse" | "free";
   phoneNumber?: string;
   bankCode?: string;
   userLegalIdType?: "CC" | "CE" | "NIT" | "PP" | "TI";

@@ -265,10 +265,15 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
             <div className="space-y-6">
               <p className="text-sm text-muted-foreground">{t("ticketSelection.attendeeInfo")}</p>
 
-              {attendees.map((attendee, index) => (
+              {attendees.map((attendee, index) => {
+                const isLockedByAuth = index === 0 && isAuthenticated && !!user;
+                return (
                 <div key={index} className="bg-card rounded-lg border border-border p-4">
                   <p className="font-medium text-sm mb-3">
                     {t("ticketSelection.ticket")} {index + 1}
+                    {isLockedByAuth && (
+                      <span className="ml-2 text-xs text-muted-foreground font-normal">({t("ticketSelection.yourTicket", "Tu entrada")})</span>
+                    )}
                   </p>
                   <div className="space-y-3">
                     <div>
@@ -276,7 +281,8 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                       <Input
                         value={attendee.name}
                         onChange={(e) => updateAttendee(index, "name", e.target.value)}
-                        className={errors[`${index}-name`] ? "border-destructive" : ""}
+                        className={`${errors[`${index}-name`] ? "border-destructive" : ""} ${isLockedByAuth ? "opacity-60" : ""}`}
+                        disabled={isLockedByAuth}
                       />
                       {errors[`${index}-name`] && (
                         <p className="text-xs text-destructive mt-1">{errors[`${index}-name`]}</p>
@@ -288,7 +294,8 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         type="email"
                         value={attendee.email}
                         onChange={(e) => updateAttendee(index, "email", e.target.value)}
-                        className={errors[`${index}-email`] ? "border-destructive" : ""}
+                        className={`${errors[`${index}-email`] ? "border-destructive" : ""} ${isLockedByAuth ? "opacity-60" : ""}`}
+                        disabled={isLockedByAuth}
                       />
                       {errors[`${index}-email`] && (
                         <p className="text-xs text-destructive mt-1">{errors[`${index}-email`]}</p>
@@ -299,7 +306,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                       <PhoneField
                         value={attendee.phone}
                         onChange={(v) => updateAttendee(index, "phone", v)}
-                        className={errors[`${index}-phone`] ? "[&_div]:border-destructive" : ""}
+                        className={`${errors[`${index}-phone`] ? "[&_div]:border-destructive" : ""} ${isLockedByAuth ? "opacity-60 pointer-events-none" : ""}`}
                       />
                       {errors[`${index}-phone`] && (
                         <p className="text-xs text-destructive mt-1">{errors[`${index}-phone`]}</p>
@@ -307,7 +314,8 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
 
               <Separator />
 
