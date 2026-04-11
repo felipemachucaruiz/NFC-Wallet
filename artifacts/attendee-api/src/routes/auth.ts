@@ -18,7 +18,7 @@ import {
   passwordResetTokensTable,
   emailVerificationTokensTable,
 } from "@workspace/db";
-import { and, eq, lt, or } from "drizzle-orm";
+import { and, eq, lt, or, sql } from "drizzle-orm";
 import {
   clearSession,
   getOidcConfig,
@@ -842,14 +842,38 @@ router.post("/mobile-auth/logout", async (req: Request, res: Response) => {
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_LENGTH = 6;
-const otpStore = new Map<string, { code: string; expiresAt: number; attempts: number }>();
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of otpStore) {
-    if (val.expiresAt < now) otpStore.delete(key);
-  }
-}, 60_000);
+const otpDb = {
+  async cleanup() {
+    try {
+      await db.execute(sql`DELETE FROM otp_codes WHERE expires_at < NOW()`);
+    } catch {}
+  },
+  async get(phone: string) {
+    const rows = await db.execute(sql`SELECT code, attempts, expires_at FROM otp_codes WHERE phone = ${phone} AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1`);
+    const row = (rows as any).rows?.[0];
+    if (!row) return null;
+    return { code: row.code as string, attempts: row.attempts as number, expiresAt: new Date(row.expires_at).getTime(), createdAt: 0 };
+  },
+  async set(phone: string, code: string, expiresAt: Date) {
+    await db.execute(sql`DELETE FROM otp_codes WHERE phone = ${phone}`);
+    await db.execute(sql`INSERT INTO otp_codes (phone, code, attempts, expires_at) VALUES (${phone}, ${code}, 0, ${expiresAt})`);
+  },
+  async incrementAttempts(phone: string) {
+    await db.execute(sql`UPDATE otp_codes SET attempts = attempts + 1 WHERE phone = ${phone} AND expires_at > NOW()`);
+  },
+  async remove(phone: string) {
+    await db.execute(sql`DELETE FROM otp_codes WHERE phone = ${phone}`);
+  },
+  async getCreatedAt(phone: string) {
+    const rows = await db.execute(sql`SELECT created_at FROM otp_codes WHERE phone = ${phone} AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1`);
+    const row = (rows as any).rows?.[0];
+    if (!row) return null;
+    return new Date(row.created_at).getTime();
+  },
+};
+
+setInterval(() => { otpDb.cleanup(); }, 60_000);
 
 function generateOtp(): string {
   return crypto.randomInt(100_000, 999_999).toString();
@@ -881,14 +905,14 @@ router.post("/auth/whatsapp-otp/send", async (req: Request, res: Response) => {
 
   const phone = normalizePhoneForOtp(parsed.data.phone);
 
-  const existing = otpStore.get(phone);
-  if (existing && existing.expiresAt > Date.now() && (Date.now() - (existing.expiresAt - OTP_TTL_MS)) < 30_000) {
+  const createdAt = await otpDb.getCreatedAt(phone);
+  if (createdAt && (Date.now() - createdAt) < 30_000) {
     res.status(429).json({ error: "Please wait before requesting a new code" });
     return;
   }
 
   const code = generateOtp();
-  otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
+  await otpDb.set(phone, code, new Date(Date.now() + OTP_TTL_MS));
 
   const { sendWithTemplate } = await import("../lib/templateResolver");
   const logContext = { triggerType: "otp_verification" };
@@ -896,12 +920,12 @@ router.post("/auth/whatsapp-otp/send", async (req: Request, res: Response) => {
   let sent = templateResult.sent;
 
   if (!templateResult.usedTemplate) {
-    const message = `🔐 Tu código de verificación Tapee es: *${code}*\n\nExpira en 5 minutos. No compartas este código con nadie.`;
+    const message = `Tu codigo de verificacion Tapee es: *${code}*\n\nExpira en 5 minutos. No compartas este codigo con nadie.`;
     sent = await sendWhatsAppText(phone, message, logContext);
   }
 
   if (!sent) {
-    otpStore.delete(phone);
+    await otpDb.remove(phone);
     res.status(500).json({ error: "Failed to send WhatsApp message" });
     return;
   }
@@ -911,7 +935,7 @@ router.post("/auth/whatsapp-otp/send", async (req: Request, res: Response) => {
 
 const VerifyWhatsAppOtpBody = z.object({
   phone: z.string().min(7).max(20),
-  code: z.string().length(OTP_LENGTH),
+  code: z.string().min(1).max(10),
 });
 
 router.post("/auth/whatsapp-otp/verify", async (req: Request, res: Response) => {
@@ -922,27 +946,28 @@ router.post("/auth/whatsapp-otp/verify", async (req: Request, res: Response) => 
   }
 
   const phone = normalizePhoneForOtp(parsed.data.phone);
-  const entry = otpStore.get(phone);
+  const submittedCode = parsed.data.code.trim();
+  const entry = await otpDb.get(phone);
 
-  if (!entry || entry.expiresAt < Date.now()) {
-    otpStore.delete(phone);
+  if (!entry) {
     res.status(400).json({ error: "Code expired or not found. Please request a new one." });
     return;
   }
 
-  entry.attempts += 1;
-  if (entry.attempts > 5) {
-    otpStore.delete(phone);
+  if (entry.attempts >= 5) {
+    await otpDb.remove(phone);
     res.status(429).json({ error: "Too many attempts. Please request a new code." });
     return;
   }
 
-  if (entry.code !== parsed.data.code) {
+  await otpDb.incrementAttempts(phone);
+
+  if (entry.code !== submittedCode) {
     res.status(400).json({ error: "Invalid code" });
     return;
   }
 
-  otpStore.delete(phone);
+  await otpDb.remove(phone);
 
   const normalizedPhone = `+${phone}`;
 
