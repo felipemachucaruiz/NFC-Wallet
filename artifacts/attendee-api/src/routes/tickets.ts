@@ -1103,6 +1103,65 @@ export function buildOrderPdfUrl(orderId: string): string {
   return `${appUrl}/api/orders/${orderId}/pdf?token=${pdfToken}`;
 }
 
+export async function generateOrderPdfBuffer(orderId: string): Promise<Buffer | null> {
+  try {
+    const [order] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, orderId));
+    if (!order) return null;
+
+    const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, order.eventId));
+    const orderTickets = await db.select().from(ticketsTable).where(and(eq(ticketsTable.orderId, orderId), eq(ticketsTable.status, "valid")));
+
+    if (orderTickets.length === 0) return null;
+
+    const rawFlyer = (event as any)?.flyerImageUrl ?? null;
+    const flyerImageUrl = rawFlyer && !rawFlyer.startsWith("http") ? `https://prod.tapee.app${rawFlyer}` : rawFlyer;
+
+    const ticketDataList: TicketPdfData[] = [];
+
+    for (const ticket of orderTickets) {
+      let sectionName = "General";
+      let ticketTypeName = "";
+      let validDays: string[] = [];
+
+      if (ticket.ticketTypeId) {
+        const [ticketType] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+        if (ticketType) {
+          ticketTypeName = ticketType.name;
+          if (ticketType.sectionId) {
+            const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
+            if (sec) sectionName = sec.name;
+          }
+          const validDayIds = (ticketType.validEventDayIds as string[]) ?? [];
+          if (validDayIds.length > 0) {
+            const days = await db.select().from(eventDaysTable).where(inArray(eventDaysTable.id, validDayIds));
+            validDays = days.map((d) => d.label || d.date);
+          }
+        }
+      }
+
+      ticketDataList.push({
+        attendeeName: ticket.attendeeName,
+        eventName: event?.name ?? "",
+        eventDates: [],
+        venueName: event?.venueAddress ?? "",
+        venueAddress: event?.venueAddress ?? "",
+        sectionName,
+        ticketTypeName,
+        validDays,
+        qrCodeToken: ticket.qrCodeToken ?? "",
+        ticketId: ticket.id,
+        orderId,
+        flyerImageUrl,
+      });
+    }
+
+    return await generateMultiTicketPdf(ticketDataList);
+  } catch (err) {
+    logger.error({ err, orderId }, "Failed to generate order PDF buffer");
+    return null;
+  }
+}
+
 function normalizePhone(phone: string): string {
   let cleaned = phone.replace(/[\s\-\(\)]/g, "");
   if (cleaned.startsWith("+")) cleaned = cleaned.slice(1);

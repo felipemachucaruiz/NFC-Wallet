@@ -3,9 +3,13 @@ import { db, pendingWhatsappDocumentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { sendWhatsAppDocument } from "../lib/whatsapp";
 import { logger } from "../lib/logger";
-import { buildOrderPdfUrl } from "./tickets";
+import { generateOrderPdfBuffer } from "./tickets";
+import { uploadObject, isBucketConfigured } from "../lib/objectStorage";
+import crypto from "crypto";
 
 const router: IRouter = Router();
+
+const PROD_API_URL = process.env.PROD_API_URL || "https://prod.tapee.app";
 
 function normalizePhone(phone: string): string {
   let cleaned = phone.replace(/[\s\-\(\)]/g, "");
@@ -79,36 +83,68 @@ router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
     logger.info({ phone: normalized, count: pendingDocs.length }, "Sending pending documents after user button reply");
 
     for (const doc of pendingDocs) {
-      const freshPdfUrl = buildOrderPdfUrl(doc.orderId);
+      try {
+        const pdfBuffer = await generateOrderPdfBuffer(doc.orderId);
+        if (!pdfBuffer) {
+          logger.error({ orderId: doc.orderId }, "Failed to generate PDF for order");
+          await db
+            .update(pendingWhatsappDocumentsTable)
+            .set({ status: "failed", updatedAt: new Date() })
+            .where(eq(pendingWhatsappDocumentsTable.id, doc.id));
+          continue;
+        }
 
-      const ticketLabel = doc.ticketCount === 1
-        ? `Entrada para ${doc.eventName} - ${doc.attendeeName}`
-        : `${doc.ticketCount} entradas para ${doc.eventName}`;
+        let publicPdfUrl: string;
 
-      const logContext = {
-        triggerType: "ticket_document",
-        orderId: doc.orderId,
-        attendeeName: doc.attendeeName,
-      };
+        if (isBucketConfigured()) {
+          const uniqueKey = `ticket-pdfs/${doc.orderId}-${crypto.randomUUID().slice(0, 8)}.pdf`;
+          await uploadObject(uniqueKey, pdfBuffer, "application/pdf");
+          publicPdfUrl = `${PROD_API_URL}/api/storage/objects/${uniqueKey}`;
+          logger.info({ orderId: doc.orderId, url: publicPdfUrl }, "PDF uploaded to object storage");
+        } else {
+          logger.error({ orderId: doc.orderId }, "Object storage not configured — cannot upload PDF");
+          await db
+            .update(pendingWhatsappDocumentsTable)
+            .set({ status: "failed", updatedAt: new Date() })
+            .where(eq(pendingWhatsappDocumentsTable.id, doc.id));
+          continue;
+        }
 
-      const sent = await sendWhatsAppDocument(
-        normalized,
-        freshPdfUrl,
-        doc.filename,
-        ticketLabel,
-        logContext,
-      );
+        const ticketLabel = doc.ticketCount === 1
+          ? `Entrada para ${doc.eventName} - ${doc.attendeeName}`
+          : `${doc.ticketCount} entradas para ${doc.eventName}`;
 
-      await db
-        .update(pendingWhatsappDocumentsTable)
-        .set({
-          status: sent ? "sent" : "failed",
-          pdfUrl: freshPdfUrl,
-          updatedAt: new Date(),
-        })
-        .where(eq(pendingWhatsappDocumentsTable.id, doc.id));
+        const logContext = {
+          triggerType: "ticket_document",
+          orderId: doc.orderId,
+          attendeeName: doc.attendeeName,
+        };
 
-      logger.info({ phone: normalized, orderId: doc.orderId, sent }, "Processed pending document");
+        const sent = await sendWhatsAppDocument(
+          normalized,
+          publicPdfUrl,
+          doc.filename,
+          ticketLabel,
+          logContext,
+        );
+
+        await db
+          .update(pendingWhatsappDocumentsTable)
+          .set({
+            status: sent ? "sent" : "failed",
+            pdfUrl: publicPdfUrl,
+            updatedAt: new Date(),
+          })
+          .where(eq(pendingWhatsappDocumentsTable.id, doc.id));
+
+        logger.info({ phone: normalized, orderId: doc.orderId, sent, pdfUrl: publicPdfUrl }, "Processed pending document");
+      } catch (err) {
+        logger.error({ err, orderId: doc.orderId }, "Error processing individual pending document");
+        await db
+          .update(pendingWhatsappDocumentsTable)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(eq(pendingWhatsappDocumentsTable.id, doc.id));
+      }
     }
   } catch (err) {
     logger.error({ err }, "Error processing inbound WhatsApp webhook");

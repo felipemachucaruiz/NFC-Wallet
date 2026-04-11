@@ -1,0 +1,435 @@
+Document
+
+# Document
+
+## cURL
+
+```curl
+curl --location 'https://api.gupshup.io/wa/api/v1/msg' \
+--header 'Content-Type: application/x-www-form-urlencoded' \
+--header 'apikey: {{APIKEY}}' \
+--data-urlencode 'source={{SOURCE}}' \
+--data-urlencode 'destination={{DESTINATION}}' \
+--data-urlencode 'message={
+  "type": "file",
+  "url": "https://www.clickdimensions.com/links/TestPDFfile.pdf",
+  "filename": "Sample pdf",
+  "caption": "sample caption"
+}' \
+--data-urlencode 'src.name={{APP_NAME}}'
+```
+
+## Sample Request
+
+### With URL, Without Context
+
+```curl
+curl --location 'https://api.gupshup.io/wa/api/v1/msg' \
+--header 'Cache-Control: no-cache' \
+--header 'Content-Type: application/x-www-form-urlencoded' \
+--header 'apikey: xvnwgh9vgbbl6gjeezymu5v5iepxq2zt' \
+--header 'cache-control: no-cache' \
+--data-urlencode 'channel=whatsapp' \
+--data-urlencode 'source=918097424541' \
+--data-urlencode 'destination=91735824xxxx' \
+--data-urlencode 'message={
+   "type":"file",
+   "url":"https://www.clickdimensions.com/links/TestPDFfile.pdf",
+   "filename":"Sample pdf",
+   "caption":"sample caption"
+}' \
+--data-urlencode 'src.name=TedLasso'
+```
+
+### With Media ID, Without Context
+
+```curl
+curl --location 'https://api.gupshup.io/wa/api/v1/msg' \
+--header 'Cache-Control: no-cache' \
+--header 'Content-Type: application/x-www-form-urlencoded' \
+--header 'apikey: xvnwgh9vgbbl6gjeezymu5v5iepxq2zt' \
+--header 'cache-control: no-cache' \
+--data-urlencode 'channel=whatsapp' \
+--data-urlencode 'source=918097424541' \
+--data-urlencode 'destination=91735824xxxx' \
+--data-urlencode 'message={
+   "type":"file",
+   "id":"8736363726265261",
+   "filename":"Sample pdf",
+   "caption":"sample caption"
+}' \
+--data-urlencode 'src.name=TedLasso'
+```
+
+### With Context
+
+```curl
+curl --location 'https://api.gupshup.io/wa/api/v1/msg' \
+--header 'Cache-Control: no-cache' \
+--header 'Content-Type: application/x-www-form-urlencoded' \
+--header 'apikey: xvnwgh9vgbbl6gjeezymu5v5iepxq2zt' \
+--header 'cache-control: no-cache' \
+--data-urlencode 'channel=whatsapp' \
+--data-urlencode 'source=918097424541' \
+--data-urlencode 'destination=91735824xxxx' \
+--data-urlencode 'message={
+   "context":{
+      "msgId":"9c9ee217-db34-47ac-8922-17ee5b69cec3"
+   }
+   "type":"file",
+   "id":"8736363726265261",
+   "filename":"Sample pdf",
+   "caption":"sample caption"
+}' \
+--data-urlencode 'src.name=TedLasso'
+```
+
+### Request Parameters
+
+#### Header Parameters
+
+| Parameter Name | Location | Type   | Description                    | Required | Example                          |
+| -------------- | -------- | ------ | ------------------------------ | -------- | -------------------------------- |
+| apikey         | Header   | string | APIKEY of your Gupshup Account | Yes      | 61b3021c97214370b341f8baaae0xxxx |
+
+#### Form Parameters
+
+| Parameter Name | Location | Type    | Description                      | Required | Example                       |
+| -------------- | -------- | ------- | -------------------------------- | -------- | ----------------------------- |
+| source         | Form     | integer | Source Phone Number              | Yes      | 918929874278                  |
+| destination    | Form     | integer | Destination Phone Number         | Yes      | 918805162043                  |
+| src.name       | Form     | string  | App Name                         | Yes      | august18                      |
+| message        | Form     | object  | Message object (refer to schema) | Yes      | Refer to Message schema below |
+
+### Message Object (Form Parameter)
+
+| Property Name | Type   | Description             | Required | Example                                                                                                        |
+| ------------- | ------ | ----------------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
+| context       | object | Message context         | No       | \{ "msgId": "uniqueMsgId" }                                                                                    |
+| type          | string | Type of session message | Yes      | file                                                                                                           |
+| id            | string | Media Id                | No       | MEDIA\_ID if URL is not provided                                                                               |
+| caption       | string | Message caption         | No       | Lorem Ipsum                                                                                                    |
+| url           | string | URL of the file         | No       | [https://www.clickdimensions.com/links/TestPDFfile.pdf](https://www.clickdimensions.com/links/TestPDFfile.pdf) |
+| filename      | string | File name               | No       | sample.pdf                                                                                                     |
+
+### Response Parameters
+
+| Parameter Name | Type   | Description           | Example                                                                            |
+| -------------- | ------ | --------------------- | ---------------------------------------------------------------------------------- |
+| status         | string | Response status       | submitted                                                                          |
+| messageId      | string | Unique message ID     | 183dc8f1-7ecc-4419-895f-04fd0b1bfe07                                               |
+| message        | string | Error message         | Invalid Destination, Invalid App Details, Authentication Failed, Too Many Requests |
+| status         | string | Status of the request | error                                                                              |
+
+### Status Codes
+
+<Table>
+  <thead>
+    <tr>
+      <th>
+        Status Code
+      </th>
+
+      <th>
+        Description
+      </th>
+
+      <th>
+        Response Schema
+      </th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        200
+      </td>
+
+      <td>
+        Successful response
+      </td>
+
+      <td>
+        \{ "status": "submitted", "messageId": "183dc8f1-7ecc-4419-895f-04fd0b1bfe07" }
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        400
+      </td>
+
+      <td>
+        Bad Request
+      </td>
+
+      <td>
+        \{ "message": "Invalid Destination", "status": "error" } <br />or <br /> \{ "message": "Invalid App Details", "status": "error" }
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        401
+      </td>
+
+      <td>
+        Authentication Failed
+      </td>
+
+      <td>
+        \{ "message": "Authentication Failed", "status": "error" }
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        429
+      </td>
+
+      <td>
+        Too Many Requests
+      </td>
+
+      <td>
+        \{ "message": "Too Many Requests", "status": "error" }
+      </td>
+    </tr>
+  </tbody>
+</Table>
+
+# OpenAPI definition
+
+```json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Outbound Document/File session message API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.gupshup.io"
+    }
+  ],
+  "paths": {
+    "/wa/api/v1/msg": {
+      "post": {
+        "tags": [
+          "Document message"
+        ],
+        "summary": "Send document message",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "source",
+                  "destination",
+                  "src.name",
+                  "message"
+                ],
+                "properties": {
+                  "source": {
+                    "type": "integer",
+                    "description": "Source Phone Number",
+                    "example": "918929874278"
+                  },
+                  "destination": {
+                    "type": "integer",
+                    "description": "Destination Phone Number",
+                    "example": "918805162043"
+                  },
+                  "src.name": {
+                    "type": "string",
+                    "description": "App Name",
+                    "example": "august18"
+                  },
+                  "message": {
+                    "$ref": "#/components/schemas/Message"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "apikey",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            },
+            "description": "APIKEY of your Gupshup Account",
+            "example": "61b3021c97214370b341f8baaae0xxxx",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "submitted"
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "example": "183dc8f1-7ecc-4419-895f-04fd0b1bfe07"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/bad_request_invalid_destination"
+                    },
+                    {
+                      "$ref": "#/components/schemas/bad_request_invalid_app_details"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication Failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication Failed"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Too Many Requests"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Message": {
+        "title": "Document message",
+        "type": "object",
+        "properties": {
+          "context": {
+            "type": "object",
+            "properties": {
+              "msgId": {
+                "type": "string"
+              }
+            }
+          },
+          "type": {
+            "default": "file",
+            "type": "string",
+            "enum": [
+              "file"
+            ],
+            "description": "Type of session message"
+          },
+          "id": {
+            "type": "string",
+            "description": "Media Id",
+            "default": "MEDIA_ID if URL is not proivided"
+          },
+          "caption": {
+            "type": "string",
+            "default": "Lorem Ipsum",
+            "description": "Message caption"
+          },
+          "url": {
+            "default": "https://www.clickdimensions.com/links/TestPDFfile.pdf",
+            "type": "string",
+            "description": "URL of the File"
+          },
+          "filename": {
+            "default": "sample.pdf",
+            "type": "string",
+            "description": "File name"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "bad_request_invalid_destination": {
+        "title": "Invalid Destination",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Invalid Destination"
+          },
+          "status": {
+            "type": "string",
+            "example": "error"
+          }
+        }
+      },
+      "bad_request_invalid_app_details": {
+        "title": "Invalid App details",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Invalid App Details"
+          },
+          "status": {
+            "type": "string",
+            "example": "error"
+          }
+        }
+      }
+    }
+  },
+  "x-readme": {
+    "explorer-enabled": true,
+    "proxy-enabled": true
+  }
+}
+```
