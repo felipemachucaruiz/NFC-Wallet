@@ -47,7 +47,7 @@ const allowedOrigins = rawCorsOrigin
   .filter(Boolean);
 
 app.use((req, res, next) => {
-  if (req.path.includes("/public/")) {
+  if (req.path.includes("/public/") || req.path.endsWith("/auth/providers") || req.path.endsWith("/auth/google")) {
     cors({ origin: true, credentials: true })(req, res, next);
   } else {
     cors({
