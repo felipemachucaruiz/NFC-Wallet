@@ -8,6 +8,7 @@ import { generateTicketQrToken } from "../lib/ticketQr";
 import { sendTicketConfirmationEmail, sendTicketInvitationEmail, sendAccountActivationEmail } from "../lib/ticketEmails";
 import { findOrCreateAttendeeAccount, generateActivationToken, buildActivationUrl } from "../lib/attendeeAccounts";
 import { generateGoogleWalletSaveLink } from "../lib/walletPasses";
+import { verifyTurnstileToken } from "../lib/turnstile";
 import { generateTicketPdf, generateMultiTicketPdf, type TicketPdfData } from "../lib/ticketPdf";
 import { sendWhatsAppDocument, sendWhatsAppText, isWhatsAppConfigured } from "../lib/whatsapp";
 import { logger } from "../lib/logger";
@@ -64,6 +65,7 @@ const createOrderSchema = z.object({
   userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
   userLegalId: z.string().max(20).optional(),
   installments: z.number().int().min(1).max(36).optional(),
+  turnstileToken: z.string().optional(),
 });
 
 router.post(
@@ -76,7 +78,20 @@ router.post(
       return;
     }
 
-    const { eventId, attendees, unitSelections, paymentMethod, cardToken, phoneNumber, bankCode, userLegalIdType, userLegalId, installments } = parsed.data;
+    const { eventId, attendees, unitSelections, paymentMethod, cardToken, phoneNumber, bankCode, userLegalIdType, userLegalId, installments, turnstileToken } = parsed.data;
+
+    if (!req.isAuthenticated()) {
+      if (!turnstileToken) {
+        res.status(400).json({ error: "Captcha verification required" });
+        return;
+      }
+      const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress;
+      const valid = await verifyTurnstileToken(turnstileToken, clientIp || undefined);
+      if (!valid) {
+        res.status(403).json({ error: "Captcha verification failed. Please try again." });
+        return;
+      }
+    }
 
     let buyerUserId: string;
     let customerEmail: string;

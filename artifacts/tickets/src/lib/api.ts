@@ -209,6 +209,7 @@ export interface PurchaseRequest {
   bankCode?: string;
   userLegalIdType?: "CC" | "CE" | "NIT" | "PP" | "TI";
   userLegalId?: string;
+  turnstileToken?: string;
 }
 
 export interface PurchaseResponse {

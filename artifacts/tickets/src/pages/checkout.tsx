@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatPrice } from "@/lib/format";
-import { purchaseTickets } from "@/lib/api";
+import { purchaseTickets, getAuthToken } from "@/lib/api";
+import { Turnstile } from "@/components/Turnstile";
 
 interface CheckoutData {
   eventId: string;
@@ -61,6 +62,8 @@ export default function Checkout() {
   const [pseBank, setPseBank] = useState("");
   const [pseLegalId, setPseLegalId] = useState("");
   const [pseLegalIdType, setPseLegalIdType] = useState<"CC" | "CE" | "NIT" | "PP" | "TI">("CC");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const isGuest = !getAuthToken();
 
   useEffect(() => {
     const raw = sessionStorage.getItem("tapee_checkout");
@@ -92,6 +95,7 @@ export default function Checkout() {
         })),
         unitSelections: data.unitSelections,
         paymentMethod: "free",
+        turnstileToken: isGuest ? turnstileToken : undefined,
       });
 
       sessionStorage.removeItem("tapee_checkout");
@@ -106,9 +110,10 @@ export default function Checkout() {
 
   useEffect(() => {
     if (!data || !isFreeOrder || freeSubmittedRef.current) return;
+    if (isGuest && !turnstileToken) return;
     freeSubmittedRef.current = true;
     submitFreeOrder();
-  }, [data, isFreeOrder]);
+  }, [data, isFreeOrder, turnstileToken]);
 
   if (!data) return null;
 
@@ -128,8 +133,17 @@ export default function Checkout() {
             </>
           ) : (
             <>
-              <Ticket className="w-12 h-12 text-primary mx-auto animate-pulse" />
-              <p className="text-lg font-medium">{t("checkout.processingFreeOrder", "Confirmando tu entrada gratuita...")}</p>
+              {isGuest && !turnstileToken ? (
+                <div className="space-y-4">
+                  <p className="text-lg font-medium">{t("checkout.verifyHuman", "Verificación de seguridad")}</p>
+                  <Turnstile onToken={setTurnstileToken} />
+                </div>
+              ) : (
+                <>
+                  <Ticket className="w-12 h-12 text-primary mx-auto animate-pulse" />
+                  <p className="text-lg font-medium">{t("checkout.processingFreeOrder", "Confirmando tu entrada gratuita...")}</p>
+                </>
+              )}
             </>
           )}
         </div>
@@ -159,6 +173,7 @@ export default function Checkout() {
         })),
         unitSelections: data.unitSelections,
         paymentMethod,
+        turnstileToken: isGuest ? turnstileToken : undefined,
       };
 
       if (paymentMethod === "nequi") {
@@ -339,10 +354,14 @@ export default function Checkout() {
                 </label>
               </div>
 
+              {isGuest && (
+                <Turnstile onToken={setTurnstileToken} />
+              )}
+
               <Button
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                 size="lg"
-                disabled={!termsAccepted || processing || !isPaymentValid()}
+                disabled={!termsAccepted || processing || !isPaymentValid() || (isGuest && !turnstileToken)}
                 onClick={handlePayNow}
               >
                 {processing ? t("checkout.processing") : t("checkout.payNow")}

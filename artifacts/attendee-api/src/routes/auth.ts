@@ -41,6 +41,7 @@ import {
   getAppUrl,
 } from "../lib/email";
 import { sendWhatsAppText, isWhatsAppConfigured } from "../lib/whatsapp";
+import { verifyTurnstileToken } from "../lib/turnstile";
 
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 
@@ -391,6 +392,7 @@ const CreateAccountBody = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   phone: z.string().max(30).optional(),
+  turnstileToken: z.string().optional(),
 }).refine((d) => d.email || d.username, {
   message: "Either email or username is required",
 });
@@ -403,6 +405,15 @@ router.post("/auth/create-account", async (req: Request, res: Response) => {
   }
 
   const { email, username, password, firstName, lastName, phone } = parsed.data;
+
+  if (parsed.data.turnstileToken) {
+    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress;
+    const valid = await verifyTurnstileToken(parsed.data.turnstileToken, clientIp || undefined);
+    if (!valid) {
+      res.status(403).json({ error: "Captcha verification failed. Please try again." });
+      return;
+    }
+  }
   const normalizedEmail = email ? email.toLowerCase().trim() : null;
   const normalizedUsername = username ? username.trim().toLowerCase() : null;
 
