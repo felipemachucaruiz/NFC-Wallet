@@ -614,7 +614,7 @@ export default function WhatsAppTemplates() {
       </Dialog>
 
       <Dialog open={showMappingDialog} onOpenChange={(open) => { if (!open) closeMappingDialog(); }}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingMapping ? t("whatsapp.editMapping") : t("whatsapp.addMapping")}</DialogTitle>
           </DialogHeader>
