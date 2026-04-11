@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil, MessageCircle, Zap, X } from "lucide-react";
+import { Plus, Trash2, Pencil, MessageCircle, Zap, X, Download, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   apiFetchWhatsAppTemplates,
@@ -24,8 +24,10 @@ import {
   apiCreateWhatsAppTriggerMapping,
   apiUpdateWhatsAppTriggerMapping,
   apiDeleteWhatsAppTriggerMapping,
+  apiFetchGupshupTemplates,
   type WhatsAppTemplate,
   type WhatsAppTriggerMapping,
+  type GupshupTemplate,
 } from "@/lib/api";
 
 const TRIGGER_TYPES = ["ticket_purchased", "otp_verification", "event_reminder", "ticket_refund", "welcome_message", "custom"] as const;
@@ -43,6 +45,8 @@ export default function WhatsAppTemplates() {
   const [showMappingDialog, setShowMappingDialog] = useState(false);
   const [editingMapping, setEditingMapping] = useState<WhatsAppTriggerMapping | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: "template" | "mapping"; id: string } | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [selectedGupshupId, setSelectedGupshupId] = useState("");
 
   const [tplForm, setTplForm] = useState({
     name: "",
@@ -71,6 +75,12 @@ export default function WhatsAppTemplates() {
   const { data: mappings = [], isLoading: mappingsLoading } = useQuery({
     queryKey: ["whatsapp-trigger-mappings"],
     queryFn: apiFetchWhatsAppTriggerMappings,
+  });
+
+  const { data: gupshupTemplates = [], isLoading: gupshupLoading, refetch: refetchGupshup } = useQuery({
+    queryKey: ["gupshup-templates"],
+    queryFn: apiFetchGupshupTemplates,
+    enabled: showImportDialog,
   });
 
   const { data: eventsData } = useListEvents();
@@ -231,6 +241,27 @@ export default function WhatsAppTemplates() {
     }
   }
 
+  function handleImportTemplate() {
+    const sel = gupshupTemplates.find((g: GupshupTemplate) => g.id === selectedGupshupId);
+    if (!sel) return;
+
+    const bodyText = sel.data || "";
+    const params = extractTemplateParams(bodyText);
+
+    createTemplateMut.mutate({
+      name: sel.elementName,
+      gupshupTemplateId: sel.id,
+      description: `Imported from Gupshup (${sel.category})`,
+      language: sel.languageCode || "es",
+      category: (["UTILITY", "MARKETING", "AUTHENTICATION"].includes(sel.category) ? sel.category : "UTILITY") as any,
+      status: "active",
+      bodyPreview: bodyText,
+      parameters: params,
+    } as any);
+    setShowImportDialog(false);
+    setSelectedGupshupId("");
+  }
+
   function addParam() {
     setTplForm(f => ({ ...f, parameters: [...f.parameters, { name: "", description: "", example: "" }] }));
   }
@@ -282,10 +313,16 @@ export default function WhatsAppTemplates() {
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">{t("whatsapp.templatesTab")}</h2>
-                <Button onClick={openNewTemplate} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("whatsapp.addTemplate")}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { setShowImportDialog(true); setSelectedGupshupId(""); }}>
+                    <Download className="h-4 w-4 mr-2" />
+                    {t("whatsapp.importFromGupshup", "Importar de Gupshup")}
+                  </Button>
+                  <Button onClick={openNewTemplate} size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("whatsapp.addTemplate")}
+                  </Button>
+                </div>
               </div>
 
               {templatesLoading ? (
@@ -603,6 +640,91 @@ export default function WhatsAppTemplates() {
               disabled={!mapForm.triggerType || !mapForm.templateId || createMappingMut.isPending || updateMappingMut.isPending}
             >
               {(createMappingMut.isPending || updateMappingMut.isPending) ? t("common.saving") : t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showImportDialog} onOpenChange={(open) => { if (!open) setShowImportDialog(false); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("whatsapp.importFromGupshup", "Importar de Gupshup")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t("whatsapp.importDescription", "Selecciona una plantilla aprobada de tu cuenta Gupshup para importarla.")}
+            </p>
+
+            {gupshupLoading ? (
+              <div className="flex items-center justify-center py-8 gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span className="text-sm text-muted-foreground">{t("whatsapp.fetchingTemplates", "Cargando plantillas de Gupshup...")}</span>
+              </div>
+            ) : gupshupTemplates.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground text-sm">{t("whatsapp.noGupshupTemplates", "No se encontraron plantillas en Gupshup")}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => refetchGupshup()}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {t("common.retry", "Reintentar")}
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label>{t("whatsapp.selectGupshupTemplate", "Plantilla Gupshup")}</Label>
+                  <Select value={selectedGupshupId} onValueChange={setSelectedGupshupId}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder={t("whatsapp.selectTemplatePlaceholder", "Selecciona una plantilla...")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {gupshupTemplates
+                        .filter((g: GupshupTemplate) => g.status === "APPROVED")
+                        .map((g: GupshupTemplate) => {
+                          const alreadyExists = templates.some((t: WhatsAppTemplate) => t.gupshupTemplateId === g.id);
+                          return (
+                            <SelectItem key={g.id} value={g.id} disabled={alreadyExists}>
+                              {g.elementName} ({g.languageCode}) {alreadyExists ? " — ya importada" : ""}
+                            </SelectItem>
+                          );
+                        })}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedGupshupId && (() => {
+                  const sel = gupshupTemplates.find((g: GupshupTemplate) => g.id === selectedGupshupId);
+                  if (!sel) return null;
+                  return (
+                    <div className="bg-muted/30 rounded-lg border border-border p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{sel.category}</Badge>
+                        <Badge variant={sel.status === "APPROVED" ? "default" : "secondary"}>{sel.status}</Badge>
+                        <span className="text-xs text-muted-foreground ml-auto">{sel.languageCode?.toUpperCase()}</span>
+                      </div>
+                      <p className="text-xs font-mono text-muted-foreground">ID: {sel.id}</p>
+                      {sel.data && (
+                        <div>
+                          <p className="text-xs font-medium mb-1">{t("whatsapp.bodyPreview", "Vista previa")}:</p>
+                          <p className="text-sm bg-background p-2 rounded border whitespace-pre-wrap">{sel.data}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {gupshupTemplates.filter((g: GupshupTemplate) => g.status !== "APPROVED").length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("whatsapp.pendingTemplatesNote", `${gupshupTemplates.filter((g: GupshupTemplate) => g.status !== "APPROVED").length} plantilla(s) pendientes de aprobación no se muestran`)}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportDialog(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleImportTemplate} disabled={!selectedGupshupId}>
+              <Download className="h-4 w-4 mr-2" />
+              {t("whatsapp.importTemplate", "Importar")}
             </Button>
           </DialogFooter>
         </DialogContent>

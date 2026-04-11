@@ -34,6 +34,51 @@ const createMappingSchema = z.object({
 
 const updateMappingSchema = createMappingSchema.partial();
 
+router.get("/whatsapp-templates/gupshup", requireAuth, requireRole("admin"), async (req, res) => {
+  const apiKey = process.env.GUPSHUP_API_KEY;
+  const appId = process.env.GUPSHUP_APP_ID;
+
+  if (!apiKey || !appId) {
+    res.status(503).json({ error: "Gupshup not configured", templates: [] });
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.set("pageSize", "100");
+    const status = req.query.templateStatus as string | undefined;
+    if (status) params.set("templateStatus", status);
+
+    const gupshupRes = await fetch(
+      `https://api.gupshup.io/wa/app/${encodeURIComponent(appId)}/template?${params.toString()}`,
+      { headers: { apikey: apiKey } },
+    );
+
+    if (!gupshupRes.ok) {
+      const text = await gupshupRes.text();
+      console.error("Gupshup template list error:", gupshupRes.status, text);
+      res.status(502).json({ error: "Failed to fetch from Gupshup" });
+      return;
+    }
+
+    const data = await gupshupRes.json() as { status: string; templates?: Array<Record<string, unknown>> };
+    const templates = (data.templates ?? []).map((t: Record<string, unknown>) => ({
+      id: t.id,
+      elementName: t.elementName,
+      category: t.category,
+      languageCode: t.languageCode,
+      status: t.status,
+      templateType: t.templateType,
+      data: t.data,
+      meta: t.meta,
+    }));
+
+    res.json({ templates });
+  } catch (err) {
+    console.error("Failed to fetch Gupshup templates:", err);
+    res.status(502).json({ error: "Failed to fetch from Gupshup" });
+  }
+});
 
 router.get("/whatsapp-templates", requireAuth, requireRole("admin"), async (_req, res) => {
   try {
