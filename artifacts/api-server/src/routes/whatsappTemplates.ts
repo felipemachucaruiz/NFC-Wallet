@@ -30,6 +30,10 @@ const createMappingSchema = z.object({
   eventId: z.string().optional().nullable(),
   active: z.boolean().default(true),
   priority: z.number().int().default(0),
+  parameterMappings: z.array(z.object({
+    position: z.number().int().min(1),
+    field: z.string().min(1),
+  })).default([]),
 });
 
 const updateMappingSchema = createMappingSchema.partial();

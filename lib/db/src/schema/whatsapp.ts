@@ -43,6 +43,7 @@ export const whatsappTriggerMappingsTable = pgTable("whatsapp_trigger_mappings",
   eventId: varchar("event_id"),
   active: boolean("active").notNull().default(true),
   priority: integer("priority").notNull().default(0),
+  parameterMappings: jsonb("parameter_mappings").$type<Array<{ position: number; field: string }>>().notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

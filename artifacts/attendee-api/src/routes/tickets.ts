@@ -861,11 +861,22 @@ async function sendTicketWhatsApp(data: {
     : "Todos los días";
 
   const { sendWithTemplate } = await import("../lib/templateResolver");
+  const context: Record<string, string> = {
+    attendeeName: data.attendeeName,
+    eventName: data.eventName,
+    venueName: data.venueName,
+    venueAddress: data.venueAddress,
+    sectionName: data.sectionName,
+    ticketTypeName: data.ticketTypeName,
+    validDays: validDaysStr,
+    orderId: data.orderId.slice(0, 8),
+  };
   const templateResult = await sendWithTemplate(
     data.attendeePhone,
     "ticket_purchased",
     [data.attendeeName, data.eventName, data.venueName, data.sectionName, data.ticketTypeName, validDaysStr],
     data.eventId,
+    context,
   );
 
   let textSent = templateResult.sent;

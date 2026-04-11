@@ -1231,6 +1231,11 @@
     "global": "Global",
     "selectTemplate": "Select a template...",
     "selectTrigger": "Select a trigger...",
-    "selectEvent": "Global (all events)"
+    "selectEvent": "Global (all events)",
+    "parameterMapping": "Parameter Mapping",
+    "parameterMappingHelp": "Configure which data field maps to each {{N}} placeholder in the template. If unassigned, the default value is used.",
+    "selectField": "Select a field...",
+    "useDefault": "— Use default —",
+    "addParam": "Add parameter"
   }
 }

@@ -6,10 +6,16 @@ import { logger } from "./logger";
 
 export type TriggerType = "ticket_purchased" | "otp_verification" | "event_reminder" | "ticket_refund" | "welcome_message" | "custom";
 
+export interface ParameterMapping {
+  position: number;
+  field: string;
+}
+
 export interface ResolvedTemplate {
   templateId: string;
   gupshupTemplateId: string;
   parameters: Array<{ name: string; description: string; example?: string }>;
+  parameterMappings: ParameterMapping[];
   bodyPreview: string | null;
 }
 
@@ -50,6 +56,7 @@ export async function resolveTemplate(triggerType: TriggerType, eventId?: string
       templateId: resolved.template.id,
       gupshupTemplateId: resolved.template.gupshupTemplateId,
       parameters: (resolved.template.parameters as any) || [],
+      parameterMappings: (resolved.mapping.parameterMappings as ParameterMapping[]) || [],
       bodyPreview: resolved.template.bodyPreview,
     };
   } catch (err) {
@@ -58,18 +65,50 @@ export async function resolveTemplate(triggerType: TriggerType, eventId?: string
   }
 }
 
+export function buildParamsFromMappings(
+  mappings: ParameterMapping[],
+  context: Record<string, string>,
+  fallbackValues: string[],
+): string[] {
+  if (mappings.length === 0) {
+    return fallbackValues;
+  }
+
+  const sorted = [...mappings].sort((a, b) => a.position - b.position);
+  const maxPos = sorted[sorted.length - 1]?.position || 0;
+  const result: string[] = [];
+
+  for (let pos = 1; pos <= maxPos; pos++) {
+    const mapping = sorted.find((m) => m.position === pos);
+    if (mapping && context[mapping.field] !== undefined) {
+      result.push(context[mapping.field]);
+    } else if (fallbackValues[pos - 1] !== undefined) {
+      result.push(fallbackValues[pos - 1]);
+    } else {
+      result.push("");
+    }
+  }
+
+  return result;
+}
+
 export async function sendWithTemplate(
   destination: string,
   triggerType: TriggerType,
   paramValues: string[],
   eventId?: string,
+  context?: Record<string, string>,
 ): Promise<{ sent: boolean; usedTemplate: boolean }> {
   const template = await resolveTemplate(triggerType, eventId);
   if (!template) {
     return { sent: false, usedTemplate: false };
   }
 
-  const params: TemplateParam[] = paramValues.map((text) => ({ type: "text", text }));
+  const finalValues = context
+    ? buildParamsFromMappings(template.parameterMappings, context, paramValues)
+    : paramValues;
+
+  const params: TemplateParam[] = finalValues.map((text) => ({ type: "text", text }));
   const sent = await sendWhatsAppTemplate(destination, template.gupshupTemplateId, params);
   return { sent, usedTemplate: true };
 }

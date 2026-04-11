@@ -1231,6 +1231,11 @@
     "global": "Global",
     "selectTemplate": "Selecciona una plantilla...",
     "selectTrigger": "Selecciona un disparador...",
-    "selectEvent": "Global (todos los eventos)"
+    "selectEvent": "Global (todos los eventos)",
+    "parameterMapping": "Mapeo de parámetros",
+    "parameterMappingHelp": "Configura qué dato se envía en cada posición {{N}} de la plantilla. Si no se asigna, se usa el valor predeterminado.",
+    "selectField": "Selecciona un campo...",
+    "useDefault": "— Usar predeterminado —",
+    "addParam": "Agregar parámetro"
   }
 }

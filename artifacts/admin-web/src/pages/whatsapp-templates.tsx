@@ -34,6 +34,38 @@ const TRIGGER_TYPES = ["ticket_purchased", "otp_verification", "event_reminder",
 const CATEGORIES = ["UTILITY", "MARKETING", "AUTHENTICATION"] as const;
 const STATUSES = ["active", "inactive", "pending_approval"] as const;
 
+const TRIGGER_AVAILABLE_FIELDS: Record<string, Array<{ field: string; label: string }>> = {
+  ticket_purchased: [
+    { field: "attendeeName", label: "Nombre del asistente" },
+    { field: "eventName", label: "Nombre del evento" },
+    { field: "venueName", label: "Nombre del lugar" },
+    { field: "venueAddress", label: "Dirección del lugar" },
+    { field: "sectionName", label: "Sección" },
+    { field: "ticketTypeName", label: "Tipo de ticket" },
+    { field: "validDays", label: "Días válidos" },
+    { field: "orderId", label: "ID de orden" },
+  ],
+  otp_verification: [
+    { field: "otpCode", label: "Código OTP" },
+  ],
+  event_reminder: [
+    { field: "attendeeName", label: "Nombre del asistente" },
+    { field: "eventName", label: "Nombre del evento" },
+    { field: "venueName", label: "Nombre del lugar" },
+    { field: "eventDate", label: "Fecha del evento" },
+  ],
+  ticket_refund: [
+    { field: "attendeeName", label: "Nombre del asistente" },
+    { field: "eventName", label: "Nombre del evento" },
+    { field: "refundAmount", label: "Monto de reembolso" },
+  ],
+  welcome_message: [
+    { field: "attendeeName", label: "Nombre del asistente" },
+    { field: "eventName", label: "Nombre del evento" },
+  ],
+  custom: [],
+};
+
 export default function WhatsAppTemplates() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -65,6 +97,7 @@ export default function WhatsAppTemplates() {
     eventId: "",
     active: true,
     priority: 0,
+    parameterMappings: [] as Array<{ position: number; field: string }>,
   });
 
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
@@ -185,7 +218,7 @@ export default function WhatsAppTemplates() {
 
   function openNewMapping() {
     setEditingMapping(null);
-    setMapForm({ triggerType: "", templateId: "", eventId: "", active: true, priority: 0 });
+    setMapForm({ triggerType: "", templateId: "", eventId: "", active: true, priority: 0, parameterMappings: [] });
     setShowMappingDialog(true);
   }
 
@@ -197,6 +230,7 @@ export default function WhatsAppTemplates() {
       eventId: m.mapping.eventId || "",
       active: m.mapping.active,
       priority: m.mapping.priority,
+      parameterMappings: m.mapping.parameterMappings || [],
     });
     setShowMappingDialog(true);
   }
@@ -232,6 +266,7 @@ export default function WhatsAppTemplates() {
       eventId: mapForm.eventId || null,
       active: mapForm.active,
       priority: mapForm.priority,
+      parameterMappings: mapForm.parameterMappings.filter(pm => pm.field),
     };
 
     if (editingMapping) {
@@ -411,7 +446,12 @@ export default function WhatsAppTemplates() {
                           <TableCell>
                             <Badge variant="outline">{t(`whatsapp.triggerTypes.${m.mapping.triggerType}`)}</Badge>
                           </TableCell>
-                          <TableCell className="font-medium">{m.templateName || "—"}</TableCell>
+                          <TableCell className="font-medium">
+                            {m.templateName || "—"}
+                            {m.mapping.parameterMappings?.length > 0 && (
+                              <Badge variant="outline" className="ml-2 text-xs">{m.mapping.parameterMappings.length} params</Badge>
+                            )}
+                          </TableCell>
                           <TableCell>{eventName}</TableCell>
                           <TableCell>{m.mapping.priority}</TableCell>
                           <TableCell>
@@ -616,6 +656,98 @@ export default function WhatsAppTemplates() {
               </Select>
               <p className="text-xs text-muted-foreground mt-1">{t("whatsapp.eventOverrideHelp")}</p>
             </div>
+
+            {mapForm.triggerType && mapForm.templateId && (() => {
+              const selectedTpl = templates.find(t => t.id === mapForm.templateId);
+              const tplParams = (selectedTpl?.parameters || []) as Array<{ name: string; description: string }>;
+              const availableFields = TRIGGER_AVAILABLE_FIELDS[mapForm.triggerType] || [];
+              const paramCount = tplParams.length || 0;
+
+              if (paramCount === 0 && availableFields.length === 0) return null;
+
+              const displayCount = paramCount > 0 ? paramCount : Math.max(...mapForm.parameterMappings.map(m => m.position), 0);
+
+              return (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label>{t("whatsapp.parameterMapping")}</Label>
+                    {paramCount === 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const nextPos = mapForm.parameterMappings.length + 1;
+                          setMapForm(f => ({
+                            ...f,
+                            parameterMappings: [...f.parameterMappings, { position: nextPos, field: "" }],
+                          }));
+                        }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" /> {t("whatsapp.addParam")}
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">{t("whatsapp.parameterMappingHelp")}</p>
+                  <div className="space-y-2">
+                    {(paramCount > 0
+                      ? Array.from({ length: paramCount }, (_, i) => i + 1)
+                      : mapForm.parameterMappings.map(m => m.position)
+                    ).map(pos => {
+                      const paramDef = tplParams[pos - 1];
+                      const currentMapping = mapForm.parameterMappings.find(m => m.position === pos);
+                      return (
+                        <div key={pos} className="flex items-center gap-2">
+                          <span className="text-sm font-mono w-12 shrink-0">{`{{${pos}}}`}</span>
+                          {paramDef && (
+                            <span className="text-xs text-muted-foreground w-28 shrink-0 truncate" title={paramDef.description}>
+                              {paramDef.name}
+                            </span>
+                          )}
+                          <Select
+                            value={currentMapping?.field || "__none__"}
+                            onValueChange={v => {
+                              setMapForm(f => {
+                                const updated = f.parameterMappings.filter(m => m.position !== pos);
+                                if (v !== "__none__") {
+                                  updated.push({ position: pos, field: v });
+                                }
+                                return { ...f, parameterMappings: updated };
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder={t("whatsapp.selectField")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">{t("whatsapp.useDefault")}</SelectItem>
+                              {availableFields.map(af => (
+                                <SelectItem key={af.field} value={af.field}>{af.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {paramCount === 0 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setMapForm(f => ({
+                                  ...f,
+                                  parameterMappings: f.parameterMappings.filter(m => m.position !== pos),
+                                }));
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

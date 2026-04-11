@@ -354,6 +354,7 @@ export interface WhatsAppTriggerMapping {
     eventId: string | null;
     active: boolean;
     priority: number;
+    parameterMappings: Array<{ position: number; field: string }>;
     createdAt: string;
     updatedAt: string;
   };
@@ -412,7 +413,7 @@ export async function apiFetchWhatsAppTriggerMappings(): Promise<WhatsAppTrigger
   return data.mappings;
 }
 
-export async function apiCreateWhatsAppTriggerMapping(body: { triggerType: string; templateId: string; eventId?: string | null; active?: boolean; priority?: number }): Promise<WhatsAppTriggerMapping> {
+export async function apiCreateWhatsAppTriggerMapping(body: { triggerType: string; templateId: string; eventId?: string | null; active?: boolean; priority?: number; parameterMappings?: Array<{ position: number; field: string }> }): Promise<WhatsAppTriggerMapping> {
   const res = await fetch(apiUrl("/api/whatsapp-trigger-mappings"), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to create trigger mapping");

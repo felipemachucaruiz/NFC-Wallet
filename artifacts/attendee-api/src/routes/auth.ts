@@ -891,7 +891,7 @@ router.post("/auth/whatsapp-otp/send", async (req: Request, res: Response) => {
   otpStore.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
 
   const { sendWithTemplate } = await import("../lib/templateResolver");
-  const templateResult = await sendWithTemplate(phone, "otp_verification", [code]);
+  const templateResult = await sendWithTemplate(phone, "otp_verification", [code], undefined, { otpCode: code });
   let sent = templateResult.sent;
 
   if (!templateResult.usedTemplate) {
