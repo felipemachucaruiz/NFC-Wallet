@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneField } from "@/components/ui/phone-input";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Account() {
@@ -75,10 +76,9 @@ export default function Account() {
             </div>
             <div>
               <Label>{t("auth.phone")}</Label>
-              <Input
-                type="tel"
+              <PhoneField
                 value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
                 className="mt-1"
               />
             </div>
