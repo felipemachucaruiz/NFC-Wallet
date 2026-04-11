@@ -1,10 +1,12 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   FlatList,
   Image,
+  ImageBackground,
   Platform,
   Pressable,
   RefreshControl,
@@ -47,50 +49,102 @@ function EventCard({ event }: { event: EventListItem }) {
 
   return (
     <Pressable
-      style={[styles.eventCard, { backgroundColor: C.card, borderColor: C.border }]}
+      style={[styles.eventCard, { borderColor: C.border }]}
       onPress={() => router.push({ pathname: "/event-detail", params: { eventId: event.id } })}
     >
       {event.coverImageUrl ? (
-        <Image source={{ uri: event.coverImageUrl }} style={styles.eventCover} resizeMode="cover" />
-      ) : (
-        <View style={[styles.eventCover, { backgroundColor: C.inputBg, alignItems: "center", justifyContent: "center" }]}>
-          <Feather name="calendar" size={32} color={C.textMuted} />
-        </View>
-      )}
-      {event.soldOut && (
-        <View style={styles.soldOutOverlay}>
-          <Text style={styles.soldOutText}>{t("events.soldOut")}</Text>
-        </View>
-      )}
-      <View style={styles.eventInfo}>
-        <Text style={[styles.eventName, { color: C.text }]} numberOfLines={2}>
-          {event.name}
-        </Text>
-        <View style={styles.eventMeta}>
-          <Feather name="calendar" size={12} color={C.textSecondary} />
-          <Text style={[styles.eventMetaText, { color: C.textSecondary }]} numberOfLines={1}>
-            {formatEventDate(event.startsAt, locale, event.endsAt, event.multiDay)}
-          </Text>
-        </View>
-        <View style={styles.eventMeta}>
-          <Feather name="map-pin" size={12} color={C.textSecondary} />
-          <Text style={[styles.eventMetaText, { color: C.textSecondary }]} numberOfLines={1}>
-            {event.venueName} · {event.city}
-          </Text>
-        </View>
-        <View style={styles.eventFooter}>
-          {event.minPrice != null && (
-            <Badge
-              label={`${t("events.from")} ${formatCurrency(event.minPrice, event.currencyCode)}`}
-              variant="info"
-              size="sm"
+        <ImageBackground
+          source={{ uri: event.coverImageUrl }}
+          style={styles.cardHero}
+          resizeMode="cover"
+          blurRadius={1}
+        >
+          <View style={styles.scrim} />
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.92)"]}
+            style={styles.gradient}
+          />
+
+          {event.flyerImageUrl && (
+            <Image
+              source={{ uri: event.flyerImageUrl }}
+              style={styles.flyerSquare}
+              resizeMode="cover"
             />
           )}
-          {event.multiDay && (
-            <Badge label={t("events.multiDay")} variant="muted" size="sm" />
+
+          {event.soldOut && (
+            <View style={styles.soldOutOverlay}>
+              <Text style={styles.soldOutText}>{t("events.soldOut")}</Text>
+            </View>
           )}
+
+          <View style={styles.heroInfo}>
+            <Text style={styles.heroName} numberOfLines={2}>{event.name}</Text>
+            <View style={styles.heroMeta}>
+              <Feather name="calendar" size={11} color="rgba(255,255,255,0.75)" />
+              <Text style={styles.heroMetaText} numberOfLines={1}>
+                {formatEventDate(event.startsAt, locale, event.endsAt, event.multiDay)}
+              </Text>
+            </View>
+            <View style={styles.heroMeta}>
+              <Feather name="map-pin" size={11} color="rgba(255,255,255,0.75)" />
+              <Text style={styles.heroMetaText} numberOfLines={1}>
+                {event.venueName} · {event.city}
+              </Text>
+            </View>
+            <View style={styles.heroBadges}>
+              {event.minPrice != null && (
+                <Badge
+                  label={`${t("events.from")} ${formatCurrency(event.minPrice, event.currencyCode)}`}
+                  variant="info"
+                  size="sm"
+                />
+              )}
+              {event.multiDay && (
+                <Badge label={t("events.multiDay")} variant="muted" size="sm" />
+              )}
+            </View>
+          </View>
+        </ImageBackground>
+      ) : (
+        <View style={[styles.cardHero, { backgroundColor: C.inputBg }]}>
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+            <Feather name="calendar" size={36} color={C.textMuted} />
+          </View>
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.7)", "rgba(0,0,0,0.95)"]}
+            style={styles.gradient}
+          />
+          <View style={styles.heroInfo}>
+            <Text style={styles.heroName} numberOfLines={2}>{event.name}</Text>
+            <View style={styles.heroMeta}>
+              <Feather name="calendar" size={11} color="rgba(255,255,255,0.75)" />
+              <Text style={styles.heroMetaText} numberOfLines={1}>
+                {formatEventDate(event.startsAt, locale, event.endsAt, event.multiDay)}
+              </Text>
+            </View>
+            <View style={styles.heroMeta}>
+              <Feather name="map-pin" size={11} color="rgba(255,255,255,0.75)" />
+              <Text style={styles.heroMetaText} numberOfLines={1}>
+                {event.venueName} · {event.city}
+              </Text>
+            </View>
+            <View style={styles.heroBadges}>
+              {event.minPrice != null && (
+                <Badge
+                  label={`${t("events.from")} ${formatCurrency(event.minPrice, event.currencyCode)}`}
+                  variant="info"
+                  size="sm"
+                />
+              )}
+              {event.multiDay && (
+                <Badge label={t("events.multiDay")} variant="muted" size="sm" />
+              )}
+            </View>
+          </View>
         </View>
-      </View>
+      )}
     </Pressable>
   );
 }
@@ -372,14 +426,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: "hidden",
   },
-  eventCover: {
+  cardHero: {
     width: "100%",
-    height: 160,
+    height: 200,
+    justifyContent: "flex-end",
+  },
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.15)",
+  },
+  gradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 140,
+  },
+  flyerSquare: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.18)",
   },
   soldOutOverlay: {
     position: "absolute",
     top: 12,
-    right: 12,
+    left: 12,
     backgroundColor: "rgba(239,68,68,0.9)",
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -391,28 +467,31 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     textTransform: "uppercase",
   },
-  eventInfo: {
+  heroInfo: {
     padding: 14,
-    gap: 6,
+    gap: 4,
   },
-  eventName: {
-    fontSize: 16,
+  heroName: {
+    fontSize: 17,
     fontFamily: "Inter_700Bold",
-    lineHeight: 22,
+    color: "#fff",
+    lineHeight: 23,
+    marginBottom: 2,
   },
-  eventMeta: {
+  heroMeta: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
   },
-  eventMetaText: {
+  heroMetaText: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.75)",
     flex: 1,
   },
-  eventFooter: {
+  heroBadges: {
     flexDirection: "row",
     gap: 8,
-    marginTop: 4,
+    marginTop: 6,
   },
 });
