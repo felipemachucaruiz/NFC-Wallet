@@ -6,6 +6,7 @@ import type {
   EventListItem,
   EventDetail,
   EventCategory,
+  TicketAvailability,
   TicketPurchaseResult,
   MyTicket,
   PaymentMethod,
@@ -165,13 +166,125 @@ export function useEventCatalogue(filters?: {
   });
 }
 
+interface PublicEventDetailRaw {
+  event: PublicEventRaw & {
+    minAge?: number;
+    longDescription?: string;
+    ticketingEnabled?: boolean;
+    currencyCode?: string;
+  };
+  eventDays?: Array<{ id: string; date: string; label: string; dayNumber?: number }>;
+  venues?: Array<{ name: string; address?: string; city?: string; latitude?: string | number; longitude?: string | number; floorplanImageUrl?: string }>;
+  sections?: Array<{ id: string; name: string; svgPathData?: string; colorHex?: string; soldTickets: number; totalTickets: number }>;
+  ticketTypes?: Array<{
+    ticketTypeId: string;
+    name: string;
+    currentPrice: number;
+    serviceFee: number;
+    available: number;
+    total: number;
+    saleStart?: string;
+    saleEnd?: string;
+    validEventDayIds?: string[];
+    sectionId?: string;
+  }>;
+}
+
+function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetailRaw["eventDays"]): EventDetail {
+  const e = raw.event;
+  const venue = raw.venues?.[0];
+  const venueName = venue?.name ?? e.venueAddress?.split(",")[0]?.trim() ?? "";
+  const city = venue?.city ?? extractCity(e.venueAddress);
+  const lat = venue?.latitude ?? e.latitude;
+  const lng = venue?.longitude ?? e.longitude;
+
+  const ticketTypes: EventDetail["ticketTypes"] = (raw.ticketTypes ?? []).map((tt) => {
+    const avail: TicketAvailability = tt.available <= 0 ? "sold_out" : tt.available <= 10 ? "limited" : "available";
+    const dayIds = tt.validEventDayIds ?? [];
+    const validDays = dayIds.length > 0 && days
+      ? dayIds.map((did) => {
+          const idx = days.findIndex((d) => d.id === did);
+          return idx >= 0 ? idx + 1 : 0;
+        }).filter((n) => n > 0)
+      : undefined;
+    return {
+      id: tt.ticketTypeId,
+      name: tt.name,
+      price: tt.currentPrice,
+      serviceFee: tt.serviceFee,
+      availability: avail,
+      maxPerOrder: 10,
+      validDays,
+      sectionId: tt.sectionId,
+    };
+  });
+
+  let venueMap: EventDetail["venueMap"] | undefined;
+  if (raw.sections && raw.sections.length > 0 && raw.sections.some((s) => s.svgPathData)) {
+    venueMap = {
+      svgViewBox: "0 0 1000 1000",
+      sections: raw.sections.map((sec) => {
+        const sectionTTs = ticketTypes.filter((tt) => tt.sectionId === sec.id);
+        const secAvail: TicketAvailability = sec.soldTickets >= sec.totalTickets ? "sold_out" : sec.totalTickets - sec.soldTickets <= 10 ? "limited" : "available";
+        return {
+          id: sec.id,
+          name: sec.name,
+          svgPathData: sec.svgPathData,
+          color: sec.colorHex ?? "#888",
+          availability: secAvail,
+          ticketTypes: sectionTTs,
+        };
+      }),
+    };
+  }
+
+  return {
+    id: e.id,
+    name: e.name,
+    coverImageUrl: e.coverImageUrl
+      ? e.coverImageUrl.startsWith("http") ? e.coverImageUrl : `${API_BASE_URL}${e.coverImageUrl}`
+      : undefined,
+    flyerImageUrl: e.flyerImageUrl
+      ? e.flyerImageUrl.startsWith("http") ? e.flyerImageUrl : `${API_BASE_URL}${e.flyerImageUrl}`
+      : undefined,
+    startsAt: e.startsAt,
+    endsAt: e.endsAt,
+    venueName,
+    venueAddress: venue?.address ?? e.venueAddress ?? "",
+    city,
+    category: (e.category as EventCategory) ?? "other",
+    minPrice: e.priceFrom ?? 0,
+    maxPrice: e.priceTo ?? 0,
+    currencyCode: e.currencyCode ?? "COP",
+    soldOut: ticketTypes.every((tt) => tt.availability === "sold_out"),
+    multiDay: (days?.length ?? 0) > 1,
+    days: days?.map((d, i) => ({ dayNumber: d.dayNumber ?? i + 1, label: d.label, date: d.date })),
+    description: e.longDescription ?? e.description,
+    minAge: e.minAge,
+    latitude: lat != null ? Number(lat) : undefined,
+    longitude: lng != null ? Number(lng) : undefined,
+    timezone: "America/Bogota",
+    ticketTypes,
+    venueMap,
+  };
+}
+
 export function useEventDetail(eventId: string) {
-  const headers = useAuthHeaders();
-  const apiFetch = useApiFetch();
   return useQuery({
     queryKey: ["events", "detail", eventId],
-    queryFn: () => apiFetch<EventDetail>(`${API_BASE_URL}/api/attendee/events/${eventId}`, headers),
-    enabled: !!eventId && !!headers.Authorization,
+    queryFn: async () => {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/public/events/${eventId}`, {
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error || `HTTP ${res.status}`);
+      }
+      const data = await res.json() as PublicEventDetailRaw;
+      return mapPublicEventDetail(data, data.eventDays);
+    },
+    enabled: !!eventId,
     staleTime: 60_000,
   });
 }
