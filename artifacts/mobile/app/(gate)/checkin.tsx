@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -140,7 +141,10 @@ export default function EntranceCheckinScreen() {
   const [showQrScanner, setShowQrScanner] = useState(false);
 
   const barcodeInputRef = useRef<TextInput>(null);
+  const barcodePausedRef = useRef(false);
+  const refocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qrProcessedRef = useRef(false);
+  const REFOCUS_DELAY_MS = 4000;
 
   const cameraPermissionHook = useCameraPermissions ? useCameraPermissions() : null;
   const cameraPermission = cameraPermissionHook ? cameraPermissionHook[0] : null;
@@ -148,6 +152,48 @@ export default function EntranceCheckinScreen() {
 
   const locale = i18n.language ?? "es";
   const hasCamera = CameraView !== null && Platform.OS !== "web";
+
+  const scheduleRefocus = useCallback(() => {
+    if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current);
+    refocusTimerRef.current = setTimeout(() => {
+      barcodePausedRef.current = false;
+      if (pageState === "ready") barcodeInputRef.current?.focus();
+    }, REFOCUS_DELAY_MS);
+  }, [pageState]);
+
+  const pauseBarcodeFocus = useCallback(() => {
+    barcodePausedRef.current = true;
+    barcodeInputRef.current?.blur();
+    scheduleRefocus();
+  }, [scheduleRefocus]);
+
+  const refocusBarcodeInput = useCallback(() => {
+    if (!barcodePausedRef.current && pageState === "ready") {
+      setTimeout(() => barcodeInputRef.current?.focus(), 100);
+    }
+  }, [pageState]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active" && !barcodePausedRef.current && pageState === "ready") {
+        barcodeInputRef.current?.focus();
+      }
+    });
+    return () => subscription.remove();
+  }, [pageState]);
+
+  useEffect(() => {
+    return () => {
+      if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pageState === "ready" && !showQrScanner) {
+      const t = setTimeout(() => barcodeInputRef.current?.focus(), 300);
+      return () => clearTimeout(t);
+    }
+  }, [pageState, showQrScanner]);
 
   useEffect(() => {
     if (pageState === "success") {
@@ -614,6 +660,7 @@ export default function EntranceCheckinScreen() {
                 value={barcodeInput}
                 onChangeText={setBarcodeInput}
                 onSubmitEditing={handleBarcodeSubmit}
+                onBlur={refocusBarcodeInput}
                 placeholder={t("gate.barcodeInputPlaceholder")}
                 placeholderTextColor={C.textMuted}
                 autoFocus
@@ -628,7 +675,7 @@ export default function EntranceCheckinScreen() {
               {barcodeInput.trim() ? (
                 <Button
                   title={t("gate.ticketValidating").replace("...", "")}
-                  onPress={handleBarcodeSubmit}
+                  onPress={() => { pauseBarcodeFocus(); handleBarcodeSubmit(); }}
                   variant="primary"
                   style={{ marginTop: 4 }}
                 />
@@ -642,7 +689,7 @@ export default function EntranceCheckinScreen() {
                 </Text>
                 <Pressable
                   style={[styles.cameraScanBtn, { backgroundColor: "#7c3aed" }]}
-                  onPress={openQrScanner}
+                  onPress={() => { pauseBarcodeFocus(); openQrScanner(); }}
                 >
                   <View style={[styles.cameraScanIconWrap, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
                     <Feather name="camera" size={24} color="#fff" />
