@@ -1,5 +1,6 @@
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  timeout?: number;
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -21,6 +22,7 @@ let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
 let _attestationTokenGetter: AttestationTokenGetter | null = null;
 let _fetchImpl: typeof fetch | null = null;
+let _defaultTimeout: number | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -67,6 +69,16 @@ export function setAttestationTokenGetter(getter: AttestationTokenGetter | null)
  */
 export function setFetchImplementation(impl: typeof fetch | null): void {
   _fetchImpl = impl;
+}
+
+/**
+ * Set a default request timeout in milliseconds for all `customFetch` calls.
+ *
+ * Individual calls can override this via `options.timeout`.
+ * Pass `null` to disable the default timeout.
+ */
+export function setDefaultTimeout(ms: number | null): void {
+  _defaultTimeout = ms;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -352,7 +364,7 @@ export async function customFetch<T = unknown>(
   options: CustomFetchOptions = {},
 ): Promise<T> {
   input = applyBaseUrl(input);
-  const { responseType = "auto", headers: headersInit, ...init } = options;
+  const { responseType = "auto", timeout, headers: headersInit, ...init } = options;
 
   const method = resolveMethod(input, init.method);
 
@@ -393,13 +405,31 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const activeFetch = _fetchImpl ?? fetch;
-  const response = await activeFetch(input, { ...init, method, headers });
+  const effectiveTimeout = timeout ?? _defaultTimeout;
+  let controller: AbortController | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
-  if (!response.ok) {
-    const errorData = await parseErrorBody(response, method);
-    throw new ApiError(response, errorData, requestInfo);
+  if (effectiveTimeout != null && effectiveTimeout > 0 && !init.signal) {
+    controller = new AbortController();
+    timer = setTimeout(() => controller!.abort(), effectiveTimeout);
   }
 
-  return (await parseSuccessBody(response, responseType, requestInfo)) as T;
+  const activeFetch = _fetchImpl ?? fetch;
+  try {
+    const response = await activeFetch(input, {
+      ...init,
+      method,
+      headers,
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+
+    if (!response.ok) {
+      const errorData = await parseErrorBody(response, method);
+      throw new ApiError(response, errorData, requestInfo);
+    }
+
+    return (await parseSuccessBody(response, responseType, requestInfo)) as T;
+  } finally {
+    if (timer != null) clearTimeout(timer);
+  }
 }

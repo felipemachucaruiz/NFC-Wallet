@@ -6,6 +6,7 @@ export {
   setAuthTokenGetter,
   setAttestationTokenGetter,
   setFetchImplementation,
+  setDefaultTimeout,
   customFetch,
 } from "./custom-fetch";
 export type { AuthTokenGetter, AttestationTokenGetter } from "./custom-fetch";
