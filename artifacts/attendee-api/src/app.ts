@@ -48,7 +48,13 @@ const allowedOrigins = rawCorsOrigin
   .filter(Boolean);
 
 app.use((req, res, next) => {
-  if (req.path.includes("/public/") || req.path.includes("/auth/") || (req.path.includes("/tickets/") && req.path.endsWith("/pdf"))) {
+  if (
+    req.path.includes("/public/") ||
+    req.path.includes("/auth/") ||
+    req.path.includes("/tickets/") ||
+    req.path.includes("/guest-lists/") ||
+    req.path.includes("/self-service/")
+  ) {
     cors({ origin: true, credentials: true })(req, res, next);
   } else {
     cors({
