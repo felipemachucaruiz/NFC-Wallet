@@ -5,6 +5,7 @@ import { fetchWithTimeout } from "@/utils/fetchWithTimeout";
 import type {
   EventListItem,
   EventDetail,
+  EventCategory,
   TicketPurchaseResult,
   MyTicket,
   PaymentMethod,
@@ -62,26 +63,104 @@ function useApiFetch() {
   };
 }
 
+interface PublicEventRaw {
+  id: string;
+  name: string;
+  slug?: string;
+  description?: string;
+  coverImageUrl?: string;
+  flyerImageUrl?: string;
+  category?: string;
+  tags?: string[];
+  venueAddress?: string;
+  startsAt: string;
+  endsAt?: string;
+  latitude?: string;
+  longitude?: string;
+  salesChannel?: string;
+  priceFrom?: number;
+  priceTo?: number;
+  eventDays?: Array<{ id: string; date: string; label: string }>;
+  dayCount?: number;
+}
+
+function extractCity(venueAddress?: string): string {
+  if (!venueAddress) return "";
+  const parts = venueAddress.split(",").map((p) => p.trim());
+  return parts.length >= 2 ? parts[parts.length - 2] : parts[0] || "";
+}
+
+function mapPublicEvent(raw: PublicEventRaw): EventListItem {
+  return {
+    id: raw.id,
+    name: raw.name,
+    coverImageUrl: raw.coverImageUrl
+      ? raw.coverImageUrl.startsWith("http")
+        ? raw.coverImageUrl
+        : `${API_BASE_URL}${raw.coverImageUrl}`
+      : undefined,
+    flyerImageUrl: raw.flyerImageUrl
+      ? raw.flyerImageUrl.startsWith("http")
+        ? raw.flyerImageUrl
+        : `${API_BASE_URL}${raw.flyerImageUrl}`
+      : undefined,
+    startsAt: raw.startsAt,
+    endsAt: raw.endsAt,
+    venueName: raw.venueAddress?.split(",")[0]?.trim() ?? "",
+    venueAddress: raw.venueAddress ?? "",
+    city: extractCity(raw.venueAddress),
+    category: (raw.category as EventCategory) ?? "other",
+    minPrice: raw.priceFrom ?? 0,
+    maxPrice: raw.priceTo ?? 0,
+    currencyCode: "COP",
+    soldOut: false,
+    multiDay: (raw.dayCount ?? 1) > 1,
+    days: raw.eventDays?.map((d, i) => ({ dayNumber: i + 1, label: d.label, date: d.date })),
+  };
+}
+
 export function useEventCatalogue(filters?: {
   search?: string;
   category?: string;
   city?: string;
   dateFilter?: string;
 }) {
-  const headers = useAuthHeaders();
-  const apiFetch = useApiFetch();
   const params = new URLSearchParams();
   if (filters?.search) params.set("search", filters.search);
   if (filters?.category) params.set("category", filters.category);
   if (filters?.city) params.set("city", filters.city);
-  if (filters?.dateFilter) params.set("dateFilter", filters.dateFilter);
+  if (filters?.dateFilter) {
+    const now = new Date();
+    if (filters.dateFilter === "upcoming") {
+      params.set("dateFrom", now.toISOString());
+    } else if (filters.dateFilter === "this_week") {
+      const weekEnd = new Date(now);
+      weekEnd.setDate(weekEnd.getDate() + (7 - weekEnd.getDay()));
+      params.set("dateFrom", now.toISOString());
+      params.set("dateTo", weekEnd.toISOString());
+    } else if (filters.dateFilter === "this_month") {
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      params.set("dateFrom", now.toISOString());
+      params.set("dateTo", monthEnd.toISOString());
+    }
+  }
   const qs = params.toString();
-  const url = `${API_BASE_URL}/api/attendee/events${qs ? `?${qs}` : ""}`;
+  const url = `${API_BASE_URL}/api/public/events${qs ? `?${qs}` : ""}`;
 
   return useQuery({
     queryKey: ["events", "catalogue", filters],
-    queryFn: () => apiFetch<{ events: EventListItem[] }>(url, headers),
-    enabled: !!headers.Authorization,
+    queryFn: async () => {
+      const res = await fetchWithTimeout(url, {
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error || `HTTP ${res.status}`);
+      }
+      const data = await res.json() as { events: PublicEventRaw[] };
+      return { events: data.events.map(mapPublicEvent) };
+    },
     staleTime: 60_000,
   });
 }
