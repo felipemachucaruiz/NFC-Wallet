@@ -1312,7 +1312,20 @@
     "checkinSuccessNoZone": "{{name}} ha sido registrado.",
     "checkinProcessing": "Procesando check-in...",
     "scanNextTicket": "Escanear siguiente ticket",
-    "checkinOnly": "Solo entrada (sin pulsera)"
+    "checkinOnly": "Solo entrada (sin pulsera)",
+    "offlineBadge": "SIN CONEXIÓN",
+    "offlineMode": "Modo Sin Conexión",
+    "offlineModeHint": "Sin conexión a internet. Validando tickets desde caché local.",
+    "offlineSyncing": "Sincronizando datos...",
+    "offlineSynced": "Datos sincronizados",
+    "offlineSyncFailed": "Sincronización fallida — usando datos en caché",
+    "offlineLastSync": "Última sincronización: {{time}}",
+    "offlineNeverSynced": "Sin sincronizar — conecta a internet para descargar datos de tickets",
+    "offlineCheckinQueued": "Check-in guardado sin conexión — se sincronizará al conectarse",
+    "offlineQueueCount": "{{count}} pendientes de sincronizar",
+    "offlineSyncNow": "Sincronizar Ahora",
+    "offlineSyncSuccess": "Sincronizados {{synced}} check-ins ({{duplicates}} ya en el servidor)",
+    "offlineNoData": "Sin datos offline disponibles. Conecta a internet para sincronizar."
   },
   "zones": {
     "title": "Zonas de Acceso",

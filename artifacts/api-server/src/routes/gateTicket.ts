@@ -777,4 +777,196 @@ router.get(
   },
 );
 
+router.get(
+  "/gate/sync-event-data",
+  requireRole("gate", "admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const userEventId = req.user!.eventId;
+    if (!userEventId && req.user!.role === "gate") {
+      res.status(403).json({ error: "Gate user is not assigned to an event" });
+      return;
+    }
+    const effectiveEventId = userEventId;
+    if (!effectiveEventId) {
+      res.status(400).json({ error: "No event context" });
+      return;
+    }
+
+    const [event] = await db
+      .select()
+      .from(eventsTable)
+      .where(eq(eventsTable.id, effectiveEventId));
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    const tickets = await db
+      .select({
+        id: ticketsTable.id,
+        eventId: ticketsTable.eventId,
+        ticketTypeId: ticketsTable.ticketTypeId,
+        attendeeName: ticketsTable.attendeeName,
+        attendeeEmail: ticketsTable.attendeeEmail,
+        attendeeUserId: ticketsTable.attendeeUserId,
+        qrCodeToken: ticketsTable.qrCodeToken,
+        status: ticketsTable.status,
+      })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.eventId, effectiveEventId));
+
+    const ticketTypes = await db
+      .select({
+        id: ticketTypesTable.id,
+        name: ticketTypesTable.name,
+        sectionId: ticketTypesTable.sectionId,
+        validEventDayIds: ticketTypesTable.validEventDayIds,
+      })
+      .from(ticketTypesTable)
+      .where(eq(ticketTypesTable.eventId, effectiveEventId));
+
+    const eventDays = await db
+      .select({
+        id: eventDaysTable.id,
+        date: eventDaysTable.date,
+        label: eventDaysTable.label,
+        displayOrder: eventDaysTable.displayOrder,
+      })
+      .from(eventDaysTable)
+      .where(eq(eventDaysTable.eventId, effectiveEventId));
+
+    const zones = await db
+      .select()
+      .from(accessZonesTable)
+      .where(eq(accessZonesTable.eventId, effectiveEventId));
+
+    const checkins = await db
+      .select({
+        id: ticketCheckinsTable.id,
+        ticketId: ticketCheckinsTable.ticketId,
+        eventDayIndex: ticketCheckinsTable.eventDayIndex,
+        checkedInAt: ticketCheckinsTable.checkedInAt,
+        braceletId: ticketCheckinsTable.braceletId,
+      })
+      .from(ticketCheckinsTable)
+      .where(eq(ticketCheckinsTable.eventId, effectiveEventId));
+
+    const attendeeUserIds = tickets
+      .map(t => t.attendeeUserId)
+      .filter((uid): uid is string => !!uid);
+    const uniqueUserIds = [...new Set(attendeeUserIds)];
+
+    let attendees: Array<{ id: string; firstName: string | null; lastName: string | null; email: string; phone: string | null; profileImageUrl: string | null }> = [];
+    if (uniqueUserIds.length > 0) {
+      const batchSize = 500;
+      for (let i = 0; i < uniqueUserIds.length; i += batchSize) {
+        const batch = uniqueUserIds.slice(i, i + batchSize);
+        const batchResult = await db
+          .select({
+            id: usersTable.id,
+            firstName: usersTable.firstName,
+            lastName: usersTable.lastName,
+            email: usersTable.email,
+            phone: usersTable.phone,
+            profileImageUrl: usersTable.profileImageUrl,
+          })
+          .from(usersTable)
+          .where(sql`${usersTable.id} IN (${sql.join(batch.map(id => sql`${id}`), sql`, `)})`);
+        attendees.push(...batchResult);
+      }
+    }
+
+    res.json({
+      event: {
+        id: event.id,
+        name: event.name,
+        hmacSecret: event.hmacSecret ?? "",
+        startsAt: event.startsAt,
+        endsAt: event.endsAt,
+        timezone: event.timezone,
+      },
+      tickets,
+      ticketTypes,
+      eventDays: eventDays.sort((a, b) => a.displayOrder - b.displayOrder),
+      zones,
+      attendees,
+      checkins,
+      syncedAt: new Date().toISOString(),
+    });
+  },
+);
+
+const syncCheckinsSchema = z.object({
+  checkins: z.array(z.object({
+    ticketId: z.string().min(1),
+    eventDayIndex: z.number(),
+    checkedInAt: z.string(),
+    braceletId: z.string().nullable().optional(),
+    braceletNfcUid: z.string().nullable().optional(),
+    accessZoneId: z.string().nullable().optional(),
+    offlineId: z.string().min(1),
+  })),
+});
+
+router.post(
+  "/gate/sync-checkins",
+  requireRole("gate", "admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const parsed = syncCheckinsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+
+    const userEventId = req.user!.eventId;
+    if (!userEventId && req.user!.role === "gate") {
+      res.status(403).json({ error: "Gate user is not assigned to an event" });
+      return;
+    }
+    const effectiveEventId = userEventId;
+    if (!effectiveEventId) {
+      res.status(400).json({ error: "No event context" });
+      return;
+    }
+
+    const results: Array<{ offlineId: string; status: "created" | "duplicate" | "error"; error?: string }> = [];
+
+    for (const checkin of parsed.data.checkins) {
+      try {
+        const existing = await db
+          .select({ id: ticketCheckinsTable.id })
+          .from(ticketCheckinsTable)
+          .where(and(
+            eq(ticketCheckinsTable.ticketId, checkin.ticketId),
+            eq(ticketCheckinsTable.eventId, effectiveEventId),
+            eq(ticketCheckinsTable.eventDayIndex, checkin.eventDayIndex),
+          ))
+          .limit(1);
+
+        if (existing.length > 0) {
+          results.push({ offlineId: checkin.offlineId, status: "duplicate" });
+          continue;
+        }
+
+        await db.insert(ticketCheckinsTable).values({
+          ticketId: checkin.ticketId,
+          eventId: effectiveEventId,
+          eventDayIndex: checkin.eventDayIndex,
+          checkedInAt: new Date(checkin.checkedInAt),
+          checkedInByUserId: req.user!.id,
+          braceletId: checkin.braceletId ?? null,
+          braceletNfcUid: checkin.braceletNfcUid ?? null,
+          accessZoneId: checkin.accessZoneId ?? null,
+        });
+
+        results.push({ offlineId: checkin.offlineId, status: "created" });
+      } catch (err: any) {
+        results.push({ offlineId: checkin.offlineId, status: "error", error: err.message });
+      }
+    }
+
+    res.json({ results });
+  },
+);
+
 export default router;

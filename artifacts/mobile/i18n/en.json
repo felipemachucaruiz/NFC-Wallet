@@ -1323,7 +1323,20 @@
     "checkinSuccessNoZone": "{{name}} has been checked in.",
     "checkinProcessing": "Processing check-in...",
     "scanNextTicket": "Scan next ticket",
-    "checkinOnly": "Entry only (no bracelet)"
+    "checkinOnly": "Entry only (no bracelet)",
+    "offlineBadge": "OFFLINE",
+    "offlineMode": "Offline Mode",
+    "offlineModeHint": "No internet connection. Validating tickets from local cache.",
+    "offlineSyncing": "Syncing data...",
+    "offlineSynced": "Data synced",
+    "offlineSyncFailed": "Sync failed — using cached data",
+    "offlineLastSync": "Last sync: {{time}}",
+    "offlineNeverSynced": "Not synced yet — connect to internet to download ticket data",
+    "offlineCheckinQueued": "Check-in saved offline — will sync when online",
+    "offlineQueueCount": "{{count}} pending sync",
+    "offlineSyncNow": "Sync Now",
+    "offlineSyncSuccess": "Synced {{synced}} check-ins ({{duplicates}} already on server)",
+    "offlineNoData": "No offline data available. Connect to internet to sync."
   },
   "zones": {
     "title": "Access Zones",

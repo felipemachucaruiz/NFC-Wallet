@@ -20,6 +20,12 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cancelNfc } from "@/utils/nfc";
+import { useOfflineGate } from "@/hooks/useOfflineGate";
+import {
+  verifyQrTokenOffline,
+  resolveTicketOffline,
+  addOfflineCheckin,
+} from "@/utils/offlineTickets";
 import { API_BASE_URL } from "@/constants/domain";
 import {
   CheckinHistoryList,
@@ -123,6 +129,7 @@ export default function EntranceCheckinScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { token } = useAuth();
+  const { isOnline, eventData, isSyncing, pendingCount, doSync, refreshPendingCount, refreshEventData } = useOfflineGate();
 
   const [pageState, setPageState] = useState<PageState>("ready");
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -212,10 +219,75 @@ export default function EntranceCheckinScreen() {
     }
   }, [pageState]);
 
+  const validateTicketOffline = useCallback(
+    (data: string) => {
+      if (!eventData) {
+        setErrorMsg(t("gate.offlineNoData"));
+        setPageState("error");
+        triggerHaptic("error");
+        return;
+      }
+      const result = verifyQrTokenOffline(data, eventData);
+      if (!result) {
+        setErrorMsg(`${t("gate.ticketInvalid")}\n${t("gate.ticketInvalidHint")}`);
+        setPageState("error");
+        triggerHaptic("error");
+        return;
+      }
+      const resolved = resolveTicketOffline(result.ticketId, eventData);
+      if (!resolved) {
+        setErrorMsg(`${t("gate.ticketAttendeeNotFound")}\n${t("gate.ticketAttendeeNotFoundHint")}`);
+        setPageState("error");
+        triggerHaptic("error");
+        return;
+      }
+      if (resolved.ticket.status === "cancelled") {
+        setErrorMsg(`${t("gate.ticketInvalid")}\n${t("gate.ticketInvalidHint")}`);
+        setPageState("error");
+        triggerHaptic("error");
+        return;
+      }
+      const todayCheckin = resolved.checkins.find(c => c.eventDayIndex === resolved.todayDayIndex);
+      if (todayCheckin) {
+        const checkedTime = formatTime(todayCheckin.checkedInAt, locale);
+        setErrorMsg(`${t("gate.ticketAlreadyUsed")}\n${t("gate.ticketAlreadyUsedHint", { time: checkedTime })}`);
+        setPageState("error");
+        triggerHaptic("error");
+        return;
+      }
+      if (resolved.validDays.length > 0 && !resolved.validDays.includes(resolved.todayDayIndex)) {
+        setErrorMsg(`${t("gate.ticketWrongDay")}\n${t("gate.ticketWrongDayHint")}`);
+        setPageState("error");
+        triggerHaptic("error");
+        return;
+      }
+      const fullName = resolved.attendee
+        ? [resolved.attendee.firstName, resolved.attendee.lastName].filter(Boolean).join(" ") || resolved.attendee.email
+        : resolved.ticket.attendeeName;
+      const attendee: TicketAttendee = resolved.attendee
+        ? { id: resolved.attendee.id, firstName: resolved.attendee.firstName, lastName: resolved.attendee.lastName, fullName, email: resolved.attendee.email, phone: resolved.attendee.phone }
+        : { id: "", firstName: resolved.ticket.attendeeName, lastName: "", fullName, email: resolved.ticket.attendeeEmail, phone: null };
+      setTicketAttendee(attendee);
+      setTicketInfo({ ticketId: resolved.ticket.id, section: "", ticketType: resolved.ticketType?.name ?? "", validDays: resolved.validDays, dayLabels: resolved.dayLabels, accessZoneId: "" });
+      setTicketZone(resolved.zone ? { id: resolved.zone.id, name: resolved.zone.name, colorHex: null, rank: 0 } : null);
+      setTicketTodayDayIndex(resolved.todayDayIndex);
+      setTicketCheckinHistory(resolved.checkins.map(c => ({ dayIndex: c.eventDayIndex, checkedInAt: c.checkedInAt })));
+      setQrToken(data);
+      setPageState("confirmed");
+      triggerHaptic("success");
+    },
+    [eventData, t, locale],
+  );
+
   const validateTicket = useCallback(
     async (data: string) => {
       setPageState("validating");
       setErrorMsg("");
+
+      if (!isOnline) {
+        validateTicketOffline(data);
+        return;
+      }
 
       try {
         const res = await fetch(`${API_BASE_URL}/api/gate/validate-ticket`, {
@@ -272,12 +344,10 @@ export default function EntranceCheckinScreen() {
         setPageState("confirmed");
         triggerHaptic("success");
       } catch {
-        setErrorMsg(t("common.unknownError"));
-        setPageState("error");
-        triggerHaptic("error");
+        validateTicketOffline(data);
       }
     },
-    [t, token, locale],
+    [t, token, locale, isOnline, validateTicketOffline],
   );
 
   const handleBarcodeSubmit = useCallback(() => {
@@ -298,9 +368,44 @@ export default function EntranceCheckinScreen() {
     [validateTicket],
   );
 
+  const confirmCheckinOffline = useCallback(async () => {
+    if (!ticketInfo || !ticketAttendee) return;
+    try {
+      await addOfflineCheckin(ticketInfo.ticketId, ticketTodayDayIndex);
+      await refreshEventData();
+      await refreshPendingCount();
+      const attendeeName = [ticketAttendee.firstName, ticketAttendee.lastName].filter(Boolean).join(" ") || ticketAttendee.email || "";
+      const zoneName = ticketZone?.name ?? "";
+      setSuccessName(attendeeName);
+      setSuccessZone(zoneName);
+      const historyItem: CheckinHistoryListItem = {
+        id: Date.now().toString(),
+        ticketId: ticketInfo.ticketId,
+        attendeeName,
+        section: ticketInfo.section ?? null,
+        ticketType: ticketInfo.ticketType ?? null,
+        braceletNfcUid: null,
+        eventDayIndex: ticketTodayDayIndex,
+        checkedInAt: new Date().toISOString(),
+      };
+      setSessionHistory((prev) => [historyItem, ...prev]);
+      triggerHaptic("success");
+      setPageState("success");
+    } catch {
+      setErrorMsg(t("common.unknownError"));
+      setPageState("error");
+      triggerHaptic("error");
+    }
+  }, [ticketInfo, ticketAttendee, ticketZone, ticketTodayDayIndex, t, refreshEventData, refreshPendingCount]);
+
   const handleConfirmCheckin = useCallback(async () => {
     if (!qrToken) return;
     setPageState("submitting");
+
+    if (!isOnline) {
+      await confirmCheckinOffline();
+      return;
+    }
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/gate/ticket-checkin-only`, {
@@ -350,11 +455,9 @@ export default function EntranceCheckinScreen() {
       triggerHaptic("success");
       setPageState("success");
     } catch {
-      setErrorMsg(t("common.unknownError"));
-      setPageState("error");
-      triggerHaptic("error");
+      await confirmCheckinOffline();
     }
-  }, [t, token, qrToken, locale]);
+  }, [t, token, qrToken, locale, isOnline, confirmCheckinOffline]);
 
   const resetForNext = () => {
     setErrorMsg("");
@@ -417,6 +520,16 @@ export default function EntranceCheckinScreen() {
           </Text>
           <View style={{ width: 32 }} />
         </View>
+
+        {!isOnline && (
+          <View style={styles.offlineBanner}>
+            <Feather name="wifi-off" size={14} color="#fff" />
+            <Text style={styles.offlineBannerText}>{t("gate.offlineBadge")}</Text>
+            {pendingCount > 0 && (
+              <Text style={styles.offlineBannerCount}>{t("gate.offlineQueueCount", { count: pendingCount })}</Text>
+            )}
+          </View>
+        )}
 
         {pageState === "success" && (
           <View
@@ -1014,5 +1127,29 @@ const styles = StyleSheet.create({
   qrCancelText: {
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
+  },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#dc2626",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  offlineBannerText: {
+    color: "#fff",
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
+  },
+  offlineBannerCount: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    marginLeft: 4,
   },
 });
