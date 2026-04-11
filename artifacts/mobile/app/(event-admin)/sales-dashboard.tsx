@@ -2,7 +2,6 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState, useCallback, useEffect } from "react";
 import {
-  FlatList,
   Platform,
   RefreshControl,
   ScrollView,
@@ -27,6 +26,7 @@ type TicketType = {
   quantity: number;
   soldCount: number;
   isActive: boolean;
+  sectionId: string | null;
 };
 
 type Order = {
@@ -37,6 +37,13 @@ type Order = {
   ticketCount: number;
   paymentStatus: string;
   createdAt: string;
+};
+
+type Section = {
+  id: string;
+  name: string;
+  color: string | null;
+  capacity: number | null;
 };
 
 export default function SalesDashboardScreen() {
@@ -50,6 +57,7 @@ export default function SalesDashboardScreen() {
 
   const [types, setTypes] = useState<TicketType[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -59,14 +67,24 @@ export default function SalesDashboardScreen() {
   const load = useCallback(async () => {
     if (!eventId) return;
     try {
-      const [typesRes, ordersRes] = await Promise.all([
+      const [typesRes, ordersRes, venuesRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/events/${eventId}/ticket-types`, { headers: authHeader }),
         fetch(`${API_BASE_URL}/api/events/${eventId}/ticket-orders`, { headers: authHeader }),
+        fetch(`${API_BASE_URL}/api/events/${eventId}/venues`, { headers: authHeader }),
       ]);
       const typesData = await typesRes.json();
       const ordersData = await ordersRes.json();
+      const venuesData = await venuesRes.json();
       if (typesRes.ok) setTypes(typesData.ticketTypes ?? []);
       if (ordersRes.ok) setOrders(ordersData.orders ?? []);
+      if (venuesRes.ok && venuesData.venues?.length > 0) {
+        const firstVenueId = venuesData.venues[0].id;
+        const sectionsRes = await fetch(`${API_BASE_URL}/api/events/${eventId}/venues/${firstVenueId}/sections`, { headers: authHeader });
+        if (sectionsRes.ok) {
+          const sectionsData = await sectionsRes.json();
+          setSections(sectionsData.sections ?? []);
+        }
+      }
     } catch {}
     setLoading(false);
   }, [eventId, token]);
@@ -77,9 +95,26 @@ export default function SalesDashboardScreen() {
   const confirmedOrders = orders.filter(o => o.paymentStatus === "confirmed");
   const totalSold = confirmedOrders.reduce((s, o) => s + o.ticketCount, 0);
   const totalRevenue = confirmedOrders.reduce((s, o) => s + o.totalAmount, 0);
-  const totalCapacity = types.reduce((s, t) => s + t.quantity, 0);
+  const totalCapacity = types.reduce((s, tt) => s + tt.quantity, 0);
   const remaining = Math.max(0, totalCapacity - totalSold);
   const recentOrders = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 20);
+
+  const sectionStats = sections.map(sec => {
+    const sectionTTs = types.filter(tt => tt.sectionId === sec.id);
+    const sold = sectionTTs.reduce((s, tt) => s + tt.soldCount, 0);
+    const capacity = sectionTTs.reduce((s, tt) => s + tt.quantity, 0) || sec.capacity || 0;
+    const revenue = sectionTTs.reduce((s, tt) => s + tt.soldCount * tt.price, 0);
+    return { ...sec, sold, capacity, revenue };
+  });
+
+  const unassignedTTs = types.filter(tt => !tt.sectionId || !sections.find(s => s.id === tt.sectionId));
+  const hasSectionData = sections.length > 0;
+
+  const fillColor = (pct: number) => {
+    if (pct >= 90) return Colors.danger;
+    if (pct >= 70) return "#F59E0B";
+    return "#22C55E";
+  };
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -127,6 +162,59 @@ export default function SalesDashboardScreen() {
           <Text style={[styles.statLabel, { color: C.textMuted }]}>{t("salesDashboard.remaining")}</Text>
         </Card>
       </View>
+
+      {/* Section Breakdown */}
+      {hasSectionData && (
+        <>
+          <Text style={[styles.sectionTitle, { color: C.text }]}>{t("salesDashboard.bySection")}</Text>
+          {sectionStats.map(sec => {
+            const pct = sec.capacity > 0 ? Math.min(100, Math.round((sec.sold / sec.capacity) * 100)) : 0;
+            const color = sec.color || fillColor(pct);
+            return (
+              <Card key={sec.id} style={styles.typeCard}>
+                <View style={styles.typeRow}>
+                  <View style={[styles.secDot, { backgroundColor: color }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.typeName, { color: C.text }]}>{sec.name}</Text>
+                    <Text style={[styles.typePrice, { color: C.textMuted }]}>{fmt(sec.revenue)}</Text>
+                  </View>
+                  <View style={styles.typeSales}>
+                    <Text style={[styles.typeSold, { color: color }]}>{sec.sold}/{sec.capacity}</Text>
+                    <Text style={[styles.typePct, { color: C.textMuted }]}>{pct}%</Text>
+                  </View>
+                </View>
+                <View style={[styles.progressBar, { backgroundColor: C.inputBg }]}>
+                  <View style={[styles.progressFill, { width: `${pct}%` as any, backgroundColor: color }]} />
+                </View>
+              </Card>
+            );
+          })}
+          {unassignedTTs.length > 0 && (() => {
+            const sold = unassignedTTs.reduce((s, tt) => s + tt.soldCount, 0);
+            const cap = unassignedTTs.reduce((s, tt) => s + tt.quantity, 0);
+            const rev = unassignedTTs.reduce((s, tt) => s + tt.soldCount * tt.price, 0);
+            const pct = cap > 0 ? Math.min(100, Math.round((sold / cap) * 100)) : 0;
+            return (
+              <Card style={styles.typeCard}>
+                <View style={styles.typeRow}>
+                  <View style={[styles.secDot, { backgroundColor: C.textMuted }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.typeName, { color: C.text }]}>{t("salesDashboard.generalAdmission")}</Text>
+                    <Text style={[styles.typePrice, { color: C.textMuted }]}>{fmt(rev)}</Text>
+                  </View>
+                  <View style={styles.typeSales}>
+                    <Text style={[styles.typeSold, { color: C.primary }]}>{sold}/{cap}</Text>
+                    <Text style={[styles.typePct, { color: C.textMuted }]}>{pct}%</Text>
+                  </View>
+                </View>
+                <View style={[styles.progressBar, { backgroundColor: C.inputBg }]}>
+                  <View style={[styles.progressFill, { width: `${pct}%` as any, backgroundColor: C.primary }]} />
+                </View>
+              </Card>
+            );
+          })()}
+        </>
+      )}
 
       {/* Ticket Type Breakdown */}
       {types.length > 0 && (
@@ -196,7 +284,8 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 11, fontFamily: "Inter_400Regular", textAlign: "center" },
   sectionTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", marginTop: 20, marginBottom: 10, paddingHorizontal: 4 },
   typeCard: { marginHorizontal: 0, marginBottom: 8 },
-  typeRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  typeRow: { flexDirection: "row", alignItems: "center", marginBottom: 8, gap: 8 },
+  secDot: { width: 10, height: 10, borderRadius: 5 },
   typeName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   typePrice: { fontSize: 12, fontFamily: "Inter_400Regular" },
   typeSales: { alignItems: "flex-end" },

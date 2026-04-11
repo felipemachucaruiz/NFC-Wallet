@@ -106,6 +106,14 @@ export default function TicketCheckinsScreen() {
           <Text style={[styles.statLabel, { color: C.textMuted }]}>{t("ticketCheckins.checkinRate")}</Text>
           <Text style={[styles.statSub, { color: C.textMuted }]}>{t("ticketCheckins.ofTicketsSold")}</Text>
         </Card>
+        <Card style={[styles.statCard, { flex: 1 }]}>
+          <View style={[styles.statIcon, { backgroundColor: "#F59E0B20" }]}>
+            <Feather name="calendar" size={18} color="#F59E0B" />
+          </View>
+          <Text style={[styles.statValue, { color: C.text }]}>{days.length}</Text>
+          <Text style={[styles.statLabel, { color: C.textMuted }]}>{t("ticketCheckins.eventDays")}</Text>
+          <Text style={[styles.statSub, { color: C.textMuted }]}>{t("ticketCheckins.daysConfigured")}</Text>
+        </Card>
       </View>
 
       {/* Day Filter */}

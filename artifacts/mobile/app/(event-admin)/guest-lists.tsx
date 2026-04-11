@@ -65,6 +65,7 @@ export default function GuestListsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<GuestList | null>(null);
   const [form, setForm] = useState<ListForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
@@ -87,6 +88,23 @@ export default function GuestListsScreen() {
   useEffect(() => { load(); }, [load]);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
+  const openCreate = () => {
+    setEditing(null);
+    setForm(EMPTY_FORM);
+    setShowForm(true);
+  };
+
+  const openEdit = (gl: GuestList) => {
+    setEditing(gl);
+    setForm({
+      name: gl.name,
+      maxGuests: String(gl.maxGuests),
+      isPublic: gl.isPublic,
+      expiresAt: gl.expiresAt ? gl.expiresAt.slice(0, 16) : "",
+    });
+    setShowForm(true);
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { showAlert(t("common.error"), t("guestLists.nameRequired")); return; }
     const maxGuests = parseInt(form.maxGuests, 10);
@@ -99,9 +117,16 @@ export default function GuestListsScreen() {
         isPublic: form.isPublic,
         expiresAt: form.expiresAt || null,
       };
-      const res = await fetch(`${API_BASE_URL}/api/events/${eventId}/guest-lists`, { method: "POST", headers: authHeader, body: JSON.stringify(body) });
+      const url = editing
+        ? `${API_BASE_URL}/api/events/${eventId}/guest-lists/${editing.id}`
+        : `${API_BASE_URL}/api/events/${eventId}/guest-lists`;
+      const res = await fetch(url, {
+        method: editing ? "PATCH" : "POST",
+        headers: authHeader,
+        body: JSON.stringify(body),
+      });
       if (!res.ok) { const d = await res.json(); showAlert(t("common.error"), d.error ?? t("common.unknownError")); }
-      else { setShowForm(false); setForm(EMPTY_FORM); load(); }
+      else { setShowForm(false); setEditing(null); setForm(EMPTY_FORM); load(); }
     } catch { showAlert(t("common.error"), t("common.unknownError")); }
     setSaving(false);
   };
@@ -152,7 +177,7 @@ export default function GuestListsScreen() {
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 16, backgroundColor: C.background }]}>
         <Text style={[styles.title, { color: C.text }]}>{t("guestLists.title")}</Text>
-        <Pressable onPress={() => { setForm(EMPTY_FORM); setShowForm(true); }} style={[styles.addBtn, { backgroundColor: C.primary }]}>
+        <Pressable onPress={openCreate} style={[styles.addBtn, { backgroundColor: C.primary }]}>
           <Feather name="plus" size={20} color="#fff" />
         </Pressable>
       </View>
@@ -188,6 +213,9 @@ export default function GuestListsScreen() {
                 <Pressable onPress={() => openEntries(item)} style={styles.actionBtn}>
                   <Feather name="users" size={16} color={C.primary} />
                 </Pressable>
+                <Pressable onPress={() => openEdit(item)} style={styles.actionBtn}>
+                  <Feather name="edit-2" size={16} color={C.textMuted} />
+                </Pressable>
                 {item.isPublic && (
                   <Pressable onPress={() => shareLink(item)} style={styles.actionBtn}>
                     <Feather name="share-2" size={16} color={C.primary} />
@@ -206,12 +234,16 @@ export default function GuestListsScreen() {
         )}
       />
 
-      {/* Create Modal */}
-      <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowForm(false)}>
+      {/* Create / Edit Modal */}
+      <Modal visible={showForm} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { setShowForm(false); setEditing(null); }}>
         <View style={[styles.modalContainer, { backgroundColor: C.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: C.border }]}>
-            <Pressable onPress={() => setShowForm(false)}><Feather name="x" size={22} color={C.textMuted} /></Pressable>
-            <Text style={[styles.modalTitle, { color: C.text }]}>{t("guestLists.create")}</Text>
+            <Pressable onPress={() => { setShowForm(false); setEditing(null); }}>
+              <Feather name="x" size={22} color={C.textMuted} />
+            </Pressable>
+            <Text style={[styles.modalTitle, { color: C.text }]}>
+              {editing ? t("guestLists.edit") : t("guestLists.create")}
+            </Text>
             <View style={{ width: 22 }} />
           </View>
           <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
