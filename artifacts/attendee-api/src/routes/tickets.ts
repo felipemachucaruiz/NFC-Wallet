@@ -69,6 +69,7 @@ router.post(
   "/tickets/purchase",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
+    try {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });
       return;
@@ -471,6 +472,12 @@ router.post(
       redirectUrl: redirectUrl ?? null,
       status: "pending",
     });
+    } catch (err) {
+      logger.error({ err }, "Unhandled error in ticket purchase");
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Internal server error processing purchase" });
+      }
+    }
   },
 );
 
