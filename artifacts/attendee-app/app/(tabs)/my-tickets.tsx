@@ -58,68 +58,68 @@ function TicketCard({ ticket, onPress }: { ticket: MyTicket; onPress: () => void
       style={[styles.ticketCard, { backgroundColor: C.card, borderColor: C.border }]}
       onPress={onPress}
     >
-      <View style={styles.ticketCardRow}>
+      <View style={styles.ticketImageWrap}>
         {ticket.eventCoverImageUrl ? (
-          <Image source={{ uri: ticket.eventCoverImageUrl }} style={styles.ticketThumb} resizeMode="cover" />
+          <Image source={{ uri: ticket.eventCoverImageUrl }} style={styles.ticketCoverImage} resizeMode="cover" />
         ) : (
-          <View style={[styles.ticketThumb, { backgroundColor: C.inputBg, alignItems: "center", justifyContent: "center" }]}>
-            <Feather name="tag" size={20} color={C.textMuted} />
+          <View style={[styles.ticketCoverImage, { backgroundColor: C.inputBg, alignItems: "center", justifyContent: "center" }]}>
+            <Feather name="tag" size={32} color={C.textMuted} />
           </View>
         )}
-        <View style={styles.ticketInfo}>
-          <Text style={[styles.ticketEventName, { color: C.text }]} numberOfLines={1}>
-            {ticket.eventName}
-          </Text>
-          <Text style={[styles.ticketTypeName, { color: C.primary }]} numberOfLines={1}>
-            {ticket.ticketTypeName}
-            {ticket.sectionName ? ` · ${ticket.sectionName}` : ""}
-          </Text>
-          {startDate && !isNaN(startDate.getTime()) && (
-            <View style={styles.ticketMeta}>
-              <Feather name="calendar" size={11} color={C.textSecondary} />
-              <Text style={[styles.ticketMetaText, { color: C.textSecondary }]}>
-                {startDate.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" })}
-              </Text>
-            </View>
-          )}
-          {venue ? (
-            <View style={styles.ticketMeta}>
-              <Feather name="map-pin" size={11} color={C.textSecondary} />
-              <Text style={[styles.ticketMetaText, { color: C.textSecondary }]} numberOfLines={1}>
-                {venue}
-              </Text>
-            </View>
-          ) : null}
-
-          {ticket.validDays && ticket.validDays.length > 0 && (
-            <View style={styles.daysRow}>
-              {ticket.validDays.map((day) => {
-                const isCheckedIn = ticket.checkedInDays?.includes(day.dayNumber);
-                return (
-                  <View
-                    key={day.dayNumber}
-                    style={[
-                      styles.dayChip,
-                      {
-                        backgroundColor: isCheckedIn ? C.successLight : C.inputBg,
-                        borderColor: isCheckedIn ? C.success : C.border,
-                      },
-                    ]}
-                  >
-                    {isCheckedIn && <Feather name="check" size={10} color={C.success} />}
-                    <Text style={[styles.dayChipText, { color: isCheckedIn ? C.success : C.textSecondary }]}>
-                      {t("events.dayLabel", { n: day.dayNumber })}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          <View style={{ marginTop: 4 }}>
-            <Badge label={t(`tickets.status_${ticket.status}`, ticket.status)} variant={statusVariant(ticket.status)} size="sm" />
-          </View>
+        <View style={styles.ticketBadgeOverlay}>
+          <Badge label={t(`tickets.status_${ticket.status}`, ticket.status)} variant={statusVariant(ticket.status)} size="sm" />
         </View>
+      </View>
+
+      <View style={styles.ticketInfo}>
+        <Text style={[styles.ticketEventName, { color: C.text }]} numberOfLines={1}>
+          {ticket.eventName}
+        </Text>
+        <Text style={[styles.ticketTypeName, { color: C.primary }]} numberOfLines={1}>
+          {ticket.ticketTypeName}
+          {ticket.sectionName ? ` · ${ticket.sectionName}` : ""}
+        </Text>
+        {startDate && !isNaN(startDate.getTime()) && (
+          <View style={styles.ticketMeta}>
+            <Feather name="calendar" size={11} color={C.textSecondary} />
+            <Text style={[styles.ticketMetaText, { color: C.textSecondary }]}>
+              {startDate.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" })}
+            </Text>
+          </View>
+        )}
+        {venue ? (
+          <View style={styles.ticketMeta}>
+            <Feather name="map-pin" size={11} color={C.textSecondary} />
+            <Text style={[styles.ticketMetaText, { color: C.textSecondary }]} numberOfLines={1}>
+              {venue}
+            </Text>
+          </View>
+        ) : null}
+
+        {ticket.validDays && ticket.validDays.length > 0 && (
+          <View style={styles.daysRow}>
+            {ticket.validDays.map((day) => {
+              const isCheckedIn = ticket.checkedInDays?.includes(day.dayNumber);
+              return (
+                <View
+                  key={day.dayNumber}
+                  style={[
+                    styles.dayChip,
+                    {
+                      backgroundColor: isCheckedIn ? C.successLight : C.inputBg,
+                      borderColor: isCheckedIn ? C.success : C.border,
+                    },
+                  ]}
+                >
+                  {isCheckedIn && <Feather name="check" size={10} color={C.success} />}
+                  <Text style={[styles.dayChipText, { color: isCheckedIn ? C.success : C.textSecondary }]}>
+                    {t("events.dayLabel", { n: day.dayNumber })}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -440,9 +440,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontFamily: "Inter_700Bold" },
   listContent: { paddingHorizontal: 20, paddingTop: 8, gap: 12 },
   ticketCard: { borderRadius: 16, borderWidth: 1, overflow: "hidden" },
-  ticketCardRow: { flexDirection: "row" },
-  ticketThumb: { width: 90, height: "100%", minHeight: 120 },
-  ticketInfo: { flex: 1, padding: 12, gap: 3 },
+  ticketImageWrap: { width: "100%", aspectRatio: 1, position: "relative" },
+  ticketCoverImage: { width: "100%", height: "100%" },
+  ticketBadgeOverlay: { position: "absolute", top: 10, right: 10 },
+  ticketInfo: { padding: 12, gap: 3 },
   ticketEventName: { fontSize: 15, fontFamily: "Inter_700Bold" },
   ticketTypeName: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   ticketMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
