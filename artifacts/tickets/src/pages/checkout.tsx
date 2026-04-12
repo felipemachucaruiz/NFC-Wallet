@@ -65,6 +65,70 @@ const PSE_BANKS = [
   { code: "1151", name: "Rappipay" },
 ];
 
+type CardBrand = "visa" | "mastercard" | "amex" | "discover" | "diners" | null;
+
+function detectCardBrand(raw: string): CardBrand {
+  const n = raw.replace(/\D/g, "");
+  if (/^4/.test(n)) return "visa";
+  if (/^(5[1-5]|2[2-7]\d{2})/.test(n)) return "mastercard";
+  if (/^3[47]/.test(n)) return "amex";
+  if (/^(6011|65|64[4-9]|622)/.test(n)) return "discover";
+  if (/^(30[0-5]|36|38)/.test(n)) return "diners";
+  return null;
+}
+
+function formatCardNumber(raw: string, brand: CardBrand): string {
+  const digits = raw.replace(/\D/g, "");
+  if (brand === "amex") {
+    const p1 = digits.slice(0, 4);
+    const p2 = digits.slice(4, 10);
+    const p3 = digits.slice(10, 15);
+    return [p1, p2, p3].filter(Boolean).join(" ");
+  }
+  return (digits.match(/.{1,4}/g) || []).join(" ").slice(0, 19);
+}
+
+function CardBrandLogo({ brand }: { brand: CardBrand }) {
+  if (!brand) return null;
+  if (brand === "visa") {
+    return (
+      <div className="bg-white rounded px-1.5 py-0.5 shrink-0">
+        <span className="text-[#1A1F71] font-black text-xs tracking-tighter italic select-none">VISA</span>
+      </div>
+    );
+  }
+  if (brand === "mastercard") {
+    return (
+      <div className="flex items-center shrink-0">
+        <div className="w-5 h-5 rounded-full bg-[#EB001B]" />
+        <div className="w-5 h-5 rounded-full bg-[#F79E1B] -ml-2.5 mix-blend-multiply opacity-90" />
+      </div>
+    );
+  }
+  if (brand === "amex") {
+    return (
+      <div className="bg-[#016FD0] rounded px-1.5 py-0.5 shrink-0">
+        <span className="text-white font-bold text-[10px] tracking-tight select-none">AMEX</span>
+      </div>
+    );
+  }
+  if (brand === "discover") {
+    return (
+      <div className="bg-[#FF6600] rounded px-1.5 py-0.5 shrink-0">
+        <span className="text-white font-bold text-[10px] tracking-tight select-none">DISC</span>
+      </div>
+    );
+  }
+  if (brand === "diners") {
+    return (
+      <div className="bg-zinc-600 rounded px-1.5 py-0.5 shrink-0">
+        <span className="text-white font-bold text-[10px] tracking-tight select-none">DINERS</span>
+      </div>
+    );
+  }
+  return null;
+}
+
 export default function Checkout() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
@@ -371,15 +435,24 @@ export default function Checkout() {
                 <div className="space-y-3">
                   <div>
                     <Label>Número de tarjeta</Label>
-                    <Input
-                      type="text"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                      placeholder="1234 5678 9012 3456"
-                      maxLength={19}
-                      className="mt-1 font-mono"
-                      disabled={processing}
-                    />
+                    <div className="relative mt-1">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={cardNumber}
+                        onChange={(e) => {
+                          const brand = detectCardBrand(e.target.value);
+                          setCardNumber(formatCardNumber(e.target.value, brand));
+                        }}
+                        placeholder="1234 5678 9012 3456"
+                        maxLength={detectCardBrand(cardNumber) === "amex" ? 17 : 19}
+                        className="font-mono pr-16"
+                        disabled={processing}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                        <CardBrandLogo brand={detectCardBrand(cardNumber)} />
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
