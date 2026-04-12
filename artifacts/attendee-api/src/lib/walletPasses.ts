@@ -147,7 +147,6 @@ export async function generateAppleWalletPass(data: WalletPassData): Promise<Buf
       wwdr: _cachedWwdr,
       signerCert: certs.signerCert,
       signerKey: certs.signerKey,
-      signerKeyPassphrase: "",
     });
 
     return pass.getAsBuffer();
