@@ -412,15 +412,23 @@ const WOMPI_BASE_URL = process.env.WOMPI_BASE_URL || "https://sandbox.wompi.co/v
 const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY || "";
 const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY || "";
 
-async function fetchWompiAcceptanceToken(): Promise<string> {
+async function fetchWompiTokens(): Promise<{ acceptanceToken: string; personalAuthToken: string }> {
   if (!WOMPI_PUBLIC_KEY) throw new Error("WOMPI_PUBLIC_KEY not configured");
   const res = await fetch(`${WOMPI_BASE_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
   if (!res.ok) {
     const body = await res.text().catch(() => "(unreadable)");
     throw new Error(`Wompi merchants/${res.status}: ${body.slice(0, 300)}`);
   }
-  const data = await res.json() as { data: { presigned_acceptance: { acceptance_token: string } } };
-  return data.data.presigned_acceptance.acceptance_token;
+  const data = await res.json() as {
+    data: {
+      presigned_acceptance: { acceptance_token: string };
+      presigned_personal_data_auth: { acceptance_token: string };
+    };
+  };
+  return {
+    acceptanceToken: data.data.presigned_acceptance.acceptance_token,
+    personalAuthToken: data.data.presigned_personal_data_auth.acceptance_token,
+  };
 }
 
 const guestAttendeeSchema = z.object({
@@ -681,7 +689,7 @@ router.post(
     let paymentRedirectUrl: string | undefined;
 
     try {
-      const acceptanceToken = await fetchWompiAcceptanceToken();
+      const { acceptanceToken, personalAuthToken } = await fetchWompiTokens();
       const amountCentavos = totalAmount * 100;
 
       let wompiBody: Record<string, unknown>;
@@ -694,6 +702,7 @@ router.post(
           payment_method: { type: "CARD", token: cardToken, installments: installments ?? 1 },
           reference,
           acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
         };
       } else if (paymentMethod === "nequi") {
         wompiBody = {
@@ -703,6 +712,7 @@ router.post(
           payment_method: { type: "NEQUI", phone_number: phoneNumber },
           reference,
           acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
         };
       } else {
         wompiBody = {
@@ -719,6 +729,7 @@ router.post(
           },
           reference,
           acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
           redirect_url: redirectUrl ?? `${process.env.APP_URL ?? "https://example.com"}/payment-return`,
         };
       }

@@ -24,15 +24,23 @@ function computeWompiIntegrity(reference: string, amountCentavos: number, curren
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
 
-async function fetchWompiAcceptanceToken(): Promise<string> {
+async function fetchWompiTokens(): Promise<{ acceptanceToken: string; personalAuthToken: string }> {
   if (!WOMPI_PUBLIC_KEY) throw new Error("WOMPI_PUBLIC_KEY not configured");
   const res = await fetch(`${WOMPI_BASE_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
   if (!res.ok) {
     const body = await res.text().catch(() => "(unreadable)");
     throw new Error(`Wompi merchants/${res.status}: ${body.slice(0, 300)}`);
   }
-  const data = await res.json() as { data: { presigned_acceptance: { acceptance_token: string } } };
-  return data.data.presigned_acceptance.acceptance_token;
+  const data = await res.json() as {
+    data: {
+      presigned_acceptance: { acceptance_token: string };
+      presigned_personal_data_auth: { acceptance_token: string };
+    };
+  };
+  return {
+    acceptanceToken: data.data.presigned_acceptance.acceptance_token,
+    personalAuthToken: data.data.presigned_personal_data_auth.acceptance_token,
+  };
 }
 
 const initiatePaymentSchema = z.object({
@@ -138,7 +146,7 @@ router.post(
     let redirectUrl: string | undefined;
 
     try {
-      const acceptanceToken = await fetchWompiAcceptanceToken();
+      const { acceptanceToken, personalAuthToken } = await fetchWompiTokens();
       // Wompi (Colombian payment gateway) only processes COP transactions.
       // For non-COP events, amount is collected in COP and credited to bracelet in event currency.
       const amountCentavos = amount * 100;
@@ -156,6 +164,7 @@ router.post(
           },
           reference,
           acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
         };
       } else if (paymentMethod === "card") {
         wompiBody = {
@@ -169,6 +178,7 @@ router.post(
           },
           reference,
           acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
         };
       } else if (paymentMethod === "bancolombia_transfer") {
         wompiBody = {
@@ -182,6 +192,7 @@ router.post(
           },
           reference,
           acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
           redirect_url: `${process.env.APP_URL ?? "https://attendee.tapee.app"}/payment-return`,
         };
       } else {
@@ -199,6 +210,7 @@ router.post(
           },
           reference,
           acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
           redirect_url: `${process.env.APP_URL ?? "https://attendee.tapee.app"}/payment-return`,
         };
       }
