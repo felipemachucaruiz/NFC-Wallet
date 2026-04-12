@@ -17,6 +17,12 @@ const WOMPI_BASE_URL = process.env.WOMPI_BASE_URL || "https://sandbox.wompi.co/v
 const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY || "";
 const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY || "";
 const WOMPI_EVENTS_SECRET = process.env.WOMPI_EVENTS_SECRET || "";
+const WOMPI_INTEGRITY_SECRET = process.env.WOMPI_INTEGRITY_SECRET || "";
+
+function computeWompiIntegrity(reference: string, amountCentavos: number, currency: string): string {
+  const payload = `${reference}${amountCentavos}${currency}${WOMPI_INTEGRITY_SECRET}`;
+  return crypto.createHash("sha256").update(payload).digest("hex");
+}
 
 async function fetchWompiAcceptanceToken(): Promise<string> {
   if (!WOMPI_PUBLIC_KEY) throw new Error("WOMPI_PUBLIC_KEY not configured");
@@ -192,6 +198,10 @@ router.post(
           acceptance_token: acceptanceToken,
           redirect_url: `${process.env.APP_URL ?? "https://attendee.tapee.app"}/payment-return`,
         };
+      }
+
+      if (WOMPI_INTEGRITY_SECRET) {
+        wompiBody.signature = { integrity: computeWompiIntegrity(reference, amountCentavos, "COP") };
       }
 
       const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions`, {
