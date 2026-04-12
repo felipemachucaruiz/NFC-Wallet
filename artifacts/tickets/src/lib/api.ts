@@ -196,6 +196,18 @@ export async function fetchCurrentUser(): Promise<{ user: ApiUser | null }> {
   return apiFetch("/auth/user");
 }
 
+export async function updateProfile(data: {
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+}): Promise<{ user: ApiUser }> {
+  return apiFetch("/auth/profile", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
 export async function logoutApi(): Promise<void> {
   await apiFetch("/auth/logout", { method: "POST" });
 }

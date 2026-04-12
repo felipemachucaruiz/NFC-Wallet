@@ -30,6 +30,7 @@ import {
   ISSUER_URL,
   type SessionData,
 } from "../lib/auth";
+import { requireAuth } from "../middlewares/requireRole";
 import {
   sendEmail,
   buildPasswordResetEmail,
@@ -170,6 +171,58 @@ router.get("/auth/user", async (req: Request, res: Response) => {
       phone: userPhone,
     },
   });
+});
+
+const UpdateProfileBody = z.object({
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
+  phone: z.string().max(30).nullable().optional(),
+});
+
+router.patch("/auth/profile", requireAuth, async (req: Request, res: Response) => {
+  const parsed = UpdateProfileBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid data", issues: parsed.error.issues });
+    return;
+  }
+
+  const { firstName, lastName, phone } = parsed.data;
+  const userId = req.user!.id;
+
+  try {
+    if (phone) {
+      const [phoneOwner] = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.phone, phone));
+      if (phoneOwner && phoneOwner.id !== userId) {
+        res.status(409).json({ error: "Este número ya está registrado en otra cuenta." });
+        return;
+      }
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (firstName !== undefined) updates.firstName = firstName;
+    if (lastName !== undefined) updates.lastName = lastName;
+    if (phone !== undefined) updates.phone = phone;
+
+    const [updated] = await db
+      .update(usersTable)
+      .set(updates)
+      .where(eq(usersTable.id, userId))
+      .returning({
+        id: usersTable.id,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        phone: usersTable.phone,
+        email: usersTable.email,
+      });
+
+    res.json({ user: updated });
+  } catch (err) {
+    console.error("[PATCH /auth/profile]", err);
+    res.status(500).json({ error: "Error al actualizar el perfil." });
+  }
 });
 
 const PasswordLoginBody = z.object({

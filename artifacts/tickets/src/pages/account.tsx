@@ -1,18 +1,21 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
 import { useAuth } from "@/context/AuthContext";
+import { updateProfile } from "@/lib/api";
 
 export default function Account() {
   const { t } = useTranslation();
   const { user, isAuthenticated, openAuthModal } = useAuth();
   const [, navigate] = useLocation();
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -38,10 +41,25 @@ export default function Account() {
 
   if (!isAuthenticated || !user) return null;
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError("");
+    setSaving(true);
+    try {
+      await updateProfile({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        phone: form.phone || null,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Error al guardar. Inténtalo de nuevo.";
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -82,8 +100,15 @@ export default function Account() {
                 className="mt-1"
               />
             </div>
-            <Button type="submit" className="gap-2">
-              {saved ? <><Check className="w-4 h-4" /> {t("account.saved")}</> : t("account.save")}
+            {saveError && (
+              <p className="text-sm text-destructive">{saveError}</p>
+            )}
+            <Button type="submit" disabled={saving} className="gap-2">
+              {saving ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Guardando…</>
+              ) : saved ? (
+                <><Check className="w-4 h-4" /> {t("account.saved")}</>
+              ) : t("account.save")}
             </Button>
           </form>
         </div>
