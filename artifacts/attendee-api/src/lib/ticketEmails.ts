@@ -212,6 +212,10 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
     <p class="greeting-text" style="color:#52525b;margin:0 0 4px;font-size:15px;">${greeting}</p>
     <p class="intro-text" style="color:#71717a;margin:0 0 24px;font-size:14px;">${intro}</p>
 
+    ${flyerUrl ? `<div style="margin-bottom:20px;">
+      <img src="${escapeHtml(flyerUrl)}" alt="${escapeHtml(data.eventName)}" width="100%" style="display:block;border-radius:16px;border:0;max-width:100%;" />
+    </div>` : ""}
+
     <div class="ticket-card" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e4e4e7;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 
       <div class="ticket-details" style="padding:20px 24px 16px;">
@@ -268,10 +272,6 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
           ${qrImageHtml}
         </div>
       </div>
-
-      ${flyerUrl ? `<div style="padding:8px 16px 0;">
-        <img src="${escapeHtml(flyerUrl)}" alt="${escapeHtml(data.eventName)}" width="100%" style="display:block;border-radius:12px;" />
-      </div>` : ""}
 
       <div style="padding:12px 24px 20px;text-align:center;">
         <p class="attendee-name" style="color:#71717a;font-size:13px;margin:0;">${escapeHtml(data.attendeeName)}</p>
