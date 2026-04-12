@@ -415,7 +415,10 @@ const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY || "";
 async function fetchWompiAcceptanceToken(): Promise<string> {
   if (!WOMPI_PUBLIC_KEY) throw new Error("WOMPI_PUBLIC_KEY not configured");
   const res = await fetch(`${WOMPI_BASE_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
-  if (!res.ok) throw new Error("Failed to fetch Wompi acceptance token");
+  if (!res.ok) {
+    const body = await res.text().catch(() => "(unreadable)");
+    throw new Error(`Wompi merchants/${res.status}: ${body.slice(0, 300)}`);
+  }
   const data = await res.json() as { data: { presigned_acceptance: { acceptance_token: string } } };
   return data.data.presigned_acceptance.acceptance_token;
 }
@@ -748,7 +751,8 @@ router.post(
       wompiTransactionId = wompiData.data.id;
       paymentRedirectUrl = wompiData.data.payment_method?.extra?.async_payment_url;
     } catch (err) {
-      logger.error({ err }, "Wompi API error (guest purchase)");
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error({ err, errMsg, wompiBaseUrl: WOMPI_BASE_URL }, "Wompi API error (guest purchase)");
       await db.update(ticketOrdersTable).set({ paymentStatus: "cancelled", updatedAt: new Date() }).where(eq(ticketOrdersTable.id, order.id));
       for (const [typeId, qty] of quantityByType) {
         const tt = ticketTypeMap.get(typeId);
@@ -758,7 +762,7 @@ router.post(
       for (const [, unitId] of unitSelMap) {
         await db.update(ticketTypeUnitsTable).set({ status: "available", orderId: null }).where(eq(ticketTypeUnitsTable.id, unitId));
       }
-      res.status(502).json({ error: "Payment gateway unavailable. Try again later." });
+      res.status(502).json({ error: `Payment gateway error: ${errMsg}` });
       return;
     }
 
