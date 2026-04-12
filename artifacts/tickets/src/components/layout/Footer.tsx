@@ -38,7 +38,16 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-border mt-8 pt-6 text-center text-sm text-muted-foreground">
+        <div className="border-t border-border mt-8 pt-6 flex flex-col items-center gap-3">
+          <p className="text-xs text-muted-foreground">{t("footer.paymentMethods", "Métodos de pago aceptados")}</p>
+          <img
+            src={`${import.meta.env.BASE_URL}metodos-pago.png`}
+            alt="Amex, Visa, Mastercard, Addi, Efecty, Nequi, Apple Pay, Google Pay"
+            className="h-8 object-contain"
+          />
+        </div>
+
+        <div className="border-t border-border mt-6 pt-5 text-center text-sm text-muted-foreground">
           © {year} Tapee. {t("footer.rights")}.
         </div>
       </div>
