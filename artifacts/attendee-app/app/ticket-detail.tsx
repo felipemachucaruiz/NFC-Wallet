@@ -231,7 +231,7 @@ export default function TicketDetailScreen() {
                   size={qrExpanded ? 220 : 160}
                   backgroundColor="#fff"
                   color="#000"
-                  logo={require("../assets/tapee-qr-logo.png")}
+                  logo={require("../assets/images/icon.png")}
                   logoSize={qrExpanded ? 46 : 32}
                   logoBorderRadius={10}
                   logoBackgroundColor="#fff"
