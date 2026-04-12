@@ -221,7 +221,7 @@ router.post(
       }
 
       if (WOMPI_INTEGRITY_SECRET) {
-        wompiBody.signature = { integrity: computeWompiIntegrity(reference, amountCentavos, "COP") };
+        wompiBody.signature = computeWompiIntegrity(reference, amountCentavos, "COP");
       }
 
       const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions`, {
