@@ -107,16 +107,16 @@ router.post(
           .where(eq(guestListsTable.slug, slug))
           .for("update");
 
-        if (!list) return { error: "Guest list not found", status: 404 } as const;
+        if (!list) return { error: "Lista de invitados no encontrada", status: 404 } as const;
 
-        if (list.status !== "active") return { error: "This guest list is closed", status: 400 } as const;
+        if (list.status !== "active") return { error: "Esta lista de invitados está cerrada", status: 400 } as const;
 
         if (list.expiresAt && new Date(list.expiresAt) < new Date()) {
-          return { error: "This guest list has expired", status: 400 } as const;
+          return { error: "Esta lista de invitados ha expirado", status: 400 } as const;
         }
 
         if (list.currentCount >= list.maxGuests) {
-          return { error: "This guest list is full", status: 400 } as const;
+          return { error: "Esta lista de invitados está llena", status: 400 } as const;
         }
 
         const existingEntries = await tx
@@ -128,7 +128,7 @@ router.post(
           ));
 
         if (existingEntries.length > 0) {
-          return { error: "This email is already registered on this guest list", status: 409 } as const;
+          return { error: "Este correo ya está registrado en esta lista", status: 409 } as const;
         }
 
         const [event] = await tx
@@ -234,12 +234,17 @@ router.post(
         },
       });
     } catch (err: unknown) {
-      if (err instanceof Error && err.message?.includes("unique")) {
-        res.status(409).json({ error: "This email is already registered on this guest list" });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error({ err, errMsg }, "Guest list signup error");
+      if (errMsg?.includes("unique") || errMsg?.includes("duplicate")) {
+        res.status(409).json({ error: "Este correo ya está registrado en esta lista" });
         return;
       }
-      logger.error({ err }, "Guest list signup error");
-      res.status(500).json({ error: "An error occurred during signup" });
+      if (errMsg?.includes("does not exist") || errMsg?.includes("no existe")) {
+        res.status(500).json({ error: `Error de base de datos: tabla no encontrada. Contacta soporte.` });
+        return;
+      }
+      res.status(500).json({ error: `Ocurrió un error al registrarse: ${errMsg}` });
     }
   },
 );
