@@ -23,9 +23,10 @@ import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Loading } from "@/components/ui/Loading";
 import { Empty } from "@/components/ui/Empty";
-import { useMyTickets, useTransferTicket } from "@/hooks/useEventsApi";
+import { useMyTickets, useTransferTicket, useAddToWallet } from "@/hooks/useEventsApi";
 import QRCode from "react-native-qrcode-svg";
 import { useAlert } from "@/components/CustomAlert";
+import { Linking } from "react-native";
 import type { MyTicket } from "@/types/events";
 
 function statusVariant(status: string): "success" | "warning" | "danger" | "muted" {
@@ -140,6 +141,29 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
   const [transferDone, setTransferDone] = useState(false);
 
   const { mutate: transferTicket, isPending: transferLoading } = useTransferTicket();
+  const { mutate: addToWallet, isPending: walletLoading } = useAddToWallet();
+
+  const isIOS = Platform.OS === "ios";
+  const walletPlatform = isIOS ? "apple" : "google";
+  const walletLabel = isIOS ? t("tickets.addAppleWallet") : t("tickets.addGoogleWallet");
+
+  const handleAddToWallet = () => {
+    if (!ticket) return;
+    addToWallet(
+      { ticketId: ticket.id, platform: walletPlatform },
+      {
+        onSuccess: (result) => {
+          if (result.passUrl) {
+            Linking.openURL(result.passUrl).catch(() => {});
+          }
+        },
+        onError: (err: unknown) => {
+          const msg = (err as { message?: string }).message ?? t("common.unknownError");
+          showAlert(t("common.error"), msg);
+        },
+      },
+    );
+  };
 
   const resetTransfer = () => {
     setShowTransfer(false);
@@ -292,6 +316,23 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                   ) : null}
                 </View>
               </View>
+
+              {!showTransfer && (
+                <Pressable
+                  onPress={handleAddToWallet}
+                  disabled={walletLoading}
+                  style={styles.walletBtn}
+                >
+                  {walletLoading ? (
+                    <ActivityIndicator color="#000" size="small" />
+                  ) : (
+                    <>
+                      <Feather name="smartphone" size={15} color="#000" />
+                      <Text style={styles.walletBtnText}>{walletLabel}</Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
 
               {isTransferable && !showTransfer && (
                 <Pressable onPress={() => setShowTransfer(true)} style={styles.transferBtn}>
@@ -485,6 +526,8 @@ const styles = StyleSheet.create({
   statusBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#fff" },
   attendeeName: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.3)", textAlign: "center", marginTop: 4 },
 
+  walletBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 12, paddingVertical: 14, borderRadius: 12, backgroundColor: "#00f1ff" },
+  walletBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#000" },
   transferBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 12, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
   transferBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.8)" },
 
