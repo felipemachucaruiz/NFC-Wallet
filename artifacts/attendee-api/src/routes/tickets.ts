@@ -487,11 +487,16 @@ router.post(
         body: JSON.stringify(wompiBody),
       });
 
-      const wompiData = await wompiRes.json() as { data?: { id: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: { type?: string; messages?: string[] } };
+      const wompiData = await wompiRes.json() as { data?: { id: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: { type?: string; messages?: string[] | Record<string, string[]> } };
       if (!wompiRes.ok || !wompiData.data) {
         logger.error({ wompiData }, "Wompi ticket payment error");
         await rollbackOrderInventory(order.id, quantityByType, ticketTypeMap, unitSelMap);
-        const wompiMsg = wompiData.error?.messages?.join("; ") || wompiData.error?.type || "";
+        const msgs = wompiData.error?.messages;
+        const wompiMsg = msgs
+          ? Array.isArray(msgs)
+            ? msgs.join("; ")
+            : Object.values(msgs).flat().join("; ")
+          : wompiData.error?.type || "";
         res.status(502).json({ error: wompiMsg ? `Error del sistema de pago: ${wompiMsg}` : "Failed to initiate payment. Try again." });
         return;
       }
