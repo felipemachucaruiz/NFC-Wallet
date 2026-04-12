@@ -246,21 +246,23 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
       <div className="px-5 pb-5 space-y-3 bg-zinc-900">
         <h2 className="text-xl font-bold text-white">{ticket.eventName || "Event"}</h2>
 
-        <div className="flex items-center gap-2 text-white/60 text-sm">
-          <MapPin className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">—</span>
-        </div>
+        {ticket.venueAddress && (
+          <div className="flex items-center gap-2 text-white/60 text-sm">
+            <MapPin className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{ticket.venueAddress}</span>
+          </div>
+        )}
 
         {startDate && (
           <div className="flex gap-8">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium">{t("myTickets.date", "Fecha")}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium">{t("myTickets.date")}</p>
               <p className="text-sm text-white font-medium">
                 {startDate.toLocaleDateString("es-CO", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium">{t("myTickets.time", "Hora")}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium">{t("myTickets.time")}</p>
               <p className="text-sm text-white font-medium">
                 {startDate.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
               </p>
@@ -278,8 +280,23 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
           </Badge>
         </div>
 
-        <div className="text-xs text-white/40 text-center pt-2">
+        <div className="text-xs text-white/40 text-center pt-1">
           {ticket.attendeeName}
+        </div>
+
+        <div className="flex gap-8 pt-1 border-t border-white/5">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-white/30 font-medium">{t("myTickets.orderNumber")}</p>
+            <p className="text-xs text-white/50 font-mono">{ticket.orderId.slice(0, 8).toUpperCase()}</p>
+          </div>
+          {ticket.createdAt && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-white/30 font-medium">{t("myTickets.orderDate")}</p>
+              <p className="text-xs text-white/50">
+                {new Date(ticket.createdAt).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
+              </p>
+            </div>
+          )}
         </div>
 
         {isValid && isIOS && !showTransfer && (

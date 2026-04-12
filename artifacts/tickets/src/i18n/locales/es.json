@@ -198,9 +198,22 @@
     "orderHistory": "Historial de órdenes",
     "order": "Orden",
     "date": "Fecha",
+    "time": "Hora",
+    "location": "Lugar",
+    "orderNumber": "Orden",
+    "orderDate": "Compra",
     "tickets": "Boletas",
     "amount": "Monto",
-    "transferError": "Error al transferir la boleta. Inténtalo de nuevo."
+    "transferError": "Error al transferir la boleta. Inténtalo de nuevo.",
+    "transferSuccess": "Entrada transferida",
+    "transferSuccessMsg": "La entrada ha sido transferida exitosamente.",
+    "transferTicket": "Transferir entrada",
+    "transferDesc": "Ingresa los datos de la persona a quien deseas transferir esta entrada.",
+    "recipientName": "Nombre completo",
+    "recipientNamePlaceholder": "Nombre completo",
+    "recipientEmail": "Correo electrónico",
+    "recipientPhone": "Teléfono (WhatsApp)",
+    "confirmTransfer": "Transferir"
   },
   "account": {
     "title": "Mi Cuenta",

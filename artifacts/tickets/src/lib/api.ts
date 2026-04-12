@@ -275,6 +275,7 @@ export interface ApiTicket {
   eventCoverImage: string | null;
   ticketTypeName: string | null;
   validEventDayIds: string[];
+  venueAddress: string | null;
 }
 
 export async function fetchMyTickets(): Promise<{ tickets: ApiTicket[] }> {

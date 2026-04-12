@@ -198,9 +198,22 @@
     "orderHistory": "Order History",
     "order": "Order",
     "date": "Date",
+    "time": "Time",
+    "location": "Location",
+    "orderNumber": "Order",
+    "orderDate": "Purchased",
     "tickets": "Tickets",
     "amount": "Amount",
-    "transferError": "Error transferring ticket. Please try again."
+    "transferError": "Error transferring ticket. Please try again.",
+    "transferSuccess": "Ticket transferred",
+    "transferSuccessMsg": "The ticket has been transferred successfully.",
+    "transferTicket": "Transfer ticket",
+    "transferDesc": "Enter the details of the person you want to transfer this ticket to.",
+    "recipientName": "Full name",
+    "recipientNamePlaceholder": "Full name",
+    "recipientEmail": "Email",
+    "recipientPhone": "Phone (WhatsApp)",
+    "confirmTransfer": "Transfer"
   },
   "account": {
     "title": "My Account",
