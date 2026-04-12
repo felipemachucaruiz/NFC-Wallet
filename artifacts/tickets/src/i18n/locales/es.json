@@ -162,6 +162,7 @@
     "total": "Total",
     "paymentMethod": "Método de pago",
     "creditCard": "Tarjeta de crédito/débito",
+    "card": "Tarjeta",
     "nequi": "Nequi",
     "pse": "PSE",
     "terms": "Acepto los términos y condiciones",
@@ -171,11 +172,16 @@
     "paymentProcessing": "Procesando tu pago",
     "paymentSuccess": "¡Pago exitoso!",
     "paymentFailed": "Pago fallido",
+    "paymentFailedDesc": "Algo salió mal con tu pago. Por favor intenta de nuevo.",
     "orderNumber": "Número de orden",
     "qrSent": "Los códigos QR han sido enviados al correo de cada asistente",
     "retry": "Reintentar",
     "backToEvent": "Volver al evento",
-    "viewTickets": "Ver mis boletas"
+    "viewTickets": "Ver mis boletas",
+    "errorProcessing": "Error al procesar la compra",
+    "errorCardTokenize": "No se pudo procesar la tarjeta. Verifica los datos e intenta de nuevo.",
+    "verifyHuman": "Verificación de seguridad",
+    "processingFreeOrder": "Confirmando tu entrada gratuita..."
   },
   "myTickets": {
     "title": "Mis Boletas",

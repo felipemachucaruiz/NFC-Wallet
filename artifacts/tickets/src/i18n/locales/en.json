@@ -162,6 +162,7 @@
     "total": "Total",
     "paymentMethod": "Payment Method",
     "creditCard": "Credit/Debit Card",
+    "card": "Card",
     "nequi": "Nequi",
     "pse": "PSE",
     "terms": "I accept the terms and conditions",
@@ -171,11 +172,16 @@
     "paymentProcessing": "Processing your payment",
     "paymentSuccess": "Payment successful!",
     "paymentFailed": "Payment failed",
+    "paymentFailedDesc": "Something went wrong with your payment. Please try again.",
     "orderNumber": "Order number",
     "qrSent": "QR codes have been sent to each attendee's email",
     "retry": "Retry",
     "backToEvent": "Back to event",
-    "viewTickets": "View my tickets"
+    "viewTickets": "View my tickets",
+    "errorProcessing": "Error processing purchase",
+    "errorCardTokenize": "Could not process card. Please check your details and try again.",
+    "verifyHuman": "Security verification",
+    "processingFreeOrder": "Confirming your free ticket..."
   },
   "myTickets": {
     "title": "My Tickets",

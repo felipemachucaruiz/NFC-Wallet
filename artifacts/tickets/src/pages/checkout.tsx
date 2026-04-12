@@ -178,7 +178,7 @@ export default function Checkout() {
       sessionStorage.setItem("tapee_order_status", result.status);
       navigate("/payment-status");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al procesar la compra");
+      setError(err instanceof Error ? err.message : t("checkout.errorProcessing"));
       setProcessing(false);
     }
   };
@@ -203,20 +203,20 @@ export default function Checkout() {
                 {error}
               </div>
               <Button onClick={submitFreeOrder}>
-                {t("common.retry", "Reintentar")}
+                {t("checkout.retry")}
               </Button>
             </>
           ) : (
             <>
               {isGuest && !turnstileToken ? (
                 <div className="space-y-4">
-                  <p className="text-lg font-medium">{t("checkout.verifyHuman", "Verificación de seguridad")}</p>
+                  <p className="text-lg font-medium">{t("checkout.verifyHuman")}</p>
                   <Turnstile onToken={setTurnstileToken} />
                 </div>
               ) : (
                 <>
                   <Ticket className="w-12 h-12 text-primary mx-auto animate-pulse" />
-                  <p className="text-lg font-medium">{t("checkout.processingFreeOrder", "Confirmando tu entrada gratuita...")}</p>
+                  <p className="text-lg font-medium">{t("checkout.processingFreeOrder")}</p>
                 </>
               )}
             </>
@@ -275,7 +275,7 @@ export default function Checkout() {
         });
         const tokenData = await tokenRes.json() as { data?: { id?: string }; status?: string };
         if (!tokenRes.ok || !tokenData.data?.id) {
-          throw new Error("No se pudo tokenizar la tarjeta. Verifica los datos e intenta de nuevo.");
+          throw new Error(t("checkout.errorCardTokenize"));
         }
         purchaseData.cardToken = tokenData.data.id;
         purchaseData.installments = 1;
@@ -294,7 +294,7 @@ export default function Checkout() {
 
       navigate("/payment-status");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al procesar la compra");
+      setError(err instanceof Error ? err.message : t("checkout.errorProcessing"));
       setProcessing(false);
     }
   };
@@ -302,7 +302,7 @@ export default function Checkout() {
   const methods = [
     { id: "nequi" as const, icon: null, label: t("checkout.nequi") },
     { id: "pse" as const, icon: Building2, label: t("checkout.pse") },
-    { id: "card" as const, icon: CreditCard, label: t("checkout.card", "Tarjeta") },
+    { id: "card" as const, icon: CreditCard, label: t("checkout.card") },
     { id: "bancolombia_transfer" as const, icon: null, label: "Bancolombia" },
   ];
 

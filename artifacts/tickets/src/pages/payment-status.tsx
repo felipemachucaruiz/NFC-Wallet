@@ -111,7 +111,7 @@ export default function PaymentStatus() {
             <div>
               <h1 className="text-2xl font-bold mb-2">{t("checkout.paymentFailed")}</h1>
               <p className="text-muted-foreground">
-                Something went wrong with your payment. Please try again.
+                {t("checkout.paymentFailedDesc")}
               </p>
             </div>
             <div className="flex flex-col gap-3">
