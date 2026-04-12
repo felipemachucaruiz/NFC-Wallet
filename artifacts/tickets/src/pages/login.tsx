@@ -38,7 +38,7 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.loginFailed") || "Login failed");
+      setError(err instanceof Error ? err.message : t("auth.loginFailed"));
     } finally {
       setLoading(false);
     }

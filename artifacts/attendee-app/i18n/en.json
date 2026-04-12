@@ -382,5 +382,33 @@
     "status_cancelled": "Cancelled",
     "status_expired": "Expired",
     "purchaseNotification": "Purchase confirmed! Your tickets for {{event}} are ready."
+  },
+  "forgotPassword": {
+    "title": "Recover password",
+    "subtitle": "Enter your email and we'll send you a link to reset your password.",
+    "emailPlaceholder": "Email address",
+    "emailRequired": "Please enter your email address.",
+    "sending": "Sending...",
+    "sendLink": "Send link",
+    "sendFailed": "Could not send email. Please try again.",
+    "networkError": "Network error. Please try again.",
+    "successMsg": "If an account exists with that email, you'll receive a link within a few minutes. Also check your spam folder.",
+    "backToLogin": "Back to sign in"
+  },
+  "resetPassword": {
+    "title": "New password",
+    "subtitle": "Choose a secure password for your Tapee account.",
+    "invalidToken": "Invalid reset link.",
+    "minLength": "Password must be at least 6 characters.",
+    "passwordsNoMatch": "Passwords do not match.",
+    "resetFailed": "Could not reset password. The link may have expired.",
+    "networkError": "Network error. Please try again.",
+    "saving": "Saving...",
+    "saveBtn": "Save password",
+    "newPasswordPlaceholder": "New password",
+    "confirmPasswordPlaceholder": "Confirm password",
+    "successTitle": "Password updated!",
+    "successMsg": "You can now sign in with your new password.",
+    "goToLogin": "Go to sign in"
   }
 }

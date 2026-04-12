@@ -182,7 +182,7 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
       setTransferDone(true);
       queryClient.invalidateQueries({ queryKey: ["my-tickets"] });
     } catch (err: any) {
-      setTransferError(err.message || "Error transferring ticket");
+      setTransferError(err.message || t("myTickets.transferError"));
     } finally {
       setTransferLoading(false);
     }

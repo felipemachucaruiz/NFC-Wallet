@@ -169,8 +169,8 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
           setShowTransfer(false);
         },
         onError: (err: unknown) => {
-          const msg = (err as { message?: string }).message ?? t("common.unknownError", "Error desconocido");
-          showAlert(t("common.error", "Error"), msg);
+          const msg = (err as { message?: string }).message ?? t("common.unknownError");
+          showAlert(t("common.error"), msg);
         },
       },
     );

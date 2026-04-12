@@ -55,7 +55,7 @@ export default function Account() {
       setTimeout(() => setSaved(false), 2500);
     } catch (err: unknown) {
       const msg =
-        err instanceof Error ? err.message : "Error al guardar. Inténtalo de nuevo.";
+        err instanceof Error ? err.message : t("account.saveError");
       setSaveError(msg);
     } finally {
       setSaving(false);

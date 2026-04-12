@@ -199,13 +199,15 @@
     "order": "Order",
     "date": "Date",
     "tickets": "Tickets",
-    "amount": "Amount"
+    "amount": "Amount",
+    "transferError": "Error transferring ticket. Please try again."
   },
   "account": {
     "title": "My Account",
     "profile": "Profile",
     "save": "Save",
-    "saved": "Saved"
+    "saved": "Saved",
+    "saveError": "Error saving. Please try again."
   },
   "footer": {
     "rights": "All rights reserved",

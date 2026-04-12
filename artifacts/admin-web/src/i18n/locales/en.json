@@ -1244,6 +1244,19 @@
     "parameterMappingHelp": "Configure which data field maps to each {{N}} placeholder in the template. If unassigned, the default value is used.",
     "selectField": "Select a field...",
     "useDefault": "— Use default —",
-    "addParam": "Add parameter"
+    "addParam": "Add parameter",
+    "field_attendeeName": "Attendee name",
+    "field_eventName": "Event name",
+    "field_venueName": "Venue name",
+    "field_venueAddress": "Venue address",
+    "field_sectionName": "Section",
+    "field_ticketTypeName": "Ticket type",
+    "field_validDays": "Valid days",
+    "field_orderId": "Order ID",
+    "field_otpCode": "OTP code",
+    "field_eventDate": "Event date",
+    "field_refundAmount": "Refund amount",
+    "field_recipientName": "Recipient name",
+    "field_senderName": "Sender name"
   }
 }

@@ -12,12 +12,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { API_BASE_URL } from "@/constants/domain";
 
 export default function ForgotPasswordScreen() {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -31,7 +33,7 @@ export default function ForgotPasswordScreen() {
     setError(null);
     const trimmed = email.trim();
     if (!trimmed) {
-      setError("Por favor ingresa tu correo electrónico.");
+      setError(t("forgotPassword.emailRequired"));
       return;
     }
     setSubmitting(true);
@@ -43,12 +45,12 @@ export default function ForgotPasswordScreen() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setError((body as { error?: string }).error ?? "Error al enviar. Intenta nuevamente.");
+        setError((body as { error?: string }).error ?? t("forgotPassword.sendFailed"));
       } else {
         setSent(true);
       }
     } catch {
-      setError("Error de red. Intenta nuevamente.");
+      setError(t("forgotPassword.networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -70,23 +72,19 @@ export default function ForgotPasswordScreen() {
           <Feather name="lock" size={32} color="#00f1ff" />
         </View>
 
-        <Text style={styles.title}>Recuperar contraseña</Text>
-        <Text style={styles.subtitle}>
-          Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
-        </Text>
+        <Text style={styles.title}>{t("forgotPassword.title")}</Text>
+        <Text style={styles.subtitle}>{t("forgotPassword.subtitle")}</Text>
 
         {sent ? (
           <View style={[styles.successBox, { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "#22c55e" }]}>
             <Feather name="check-circle" size={18} color="#22c55e" />
-            <Text style={styles.successText}>
-              Si existe una cuenta con ese correo, recibirás un enlace en los próximos minutos. Revisa también tu carpeta de spam.
-            </Text>
+            <Text style={styles.successText}>{t("forgotPassword.successMsg")}</Text>
           </View>
         ) : (
           <View style={styles.form}>
             <TextInput
               style={[styles.input, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
-              placeholder="Correo electrónico"
+              placeholder={t("forgotPassword.emailPlaceholder")}
               placeholderTextColor={C.textMuted}
               value={email}
               onChangeText={setEmail}
@@ -105,7 +103,7 @@ export default function ForgotPasswordScreen() {
             )}
 
             <Button
-              title={submitting ? "Enviando..." : "Enviar enlace"}
+              title={submitting ? t("forgotPassword.sending") : t("forgotPassword.sendLink")}
               onPress={handleSubmit}
               loading={submitting}
               disabled={submitting}
@@ -117,7 +115,7 @@ export default function ForgotPasswordScreen() {
         )}
 
         <Pressable onPress={() => router.back()} style={styles.backLink}>
-          <Text style={styles.backLinkText}>Volver al inicio de sesión</Text>
+          <Text style={styles.backLinkText}>{t("forgotPassword.backToLogin")}</Text>
         </Pressable>
       </KeyboardAvoidingView>
     </View>

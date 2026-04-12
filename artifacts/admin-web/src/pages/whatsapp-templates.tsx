@@ -38,39 +38,39 @@ const TRIGGER_TYPES = ["ticket_purchased", "otp_verification", "event_reminder",
 const CATEGORIES = ["UTILITY", "MARKETING", "AUTHENTICATION"] as const;
 const STATUSES = ["active", "inactive", "pending_approval"] as const;
 
-const TRIGGER_AVAILABLE_FIELDS: Record<string, Array<{ field: string; label: string }>> = {
+const TRIGGER_AVAILABLE_FIELDS: Record<string, Array<{ field: string; labelKey: string }>> = {
   ticket_purchased: [
-    { field: "attendeeName", label: "Nombre del asistente" },
-    { field: "eventName", label: "Nombre del evento" },
-    { field: "venueName", label: "Nombre del lugar" },
-    { field: "venueAddress", label: "Dirección del lugar" },
-    { field: "sectionName", label: "Sección" },
-    { field: "ticketTypeName", label: "Tipo de ticket" },
-    { field: "validDays", label: "Días válidos" },
-    { field: "orderId", label: "ID de orden" },
+    { field: "attendeeName", labelKey: "whatsapp.field_attendeeName" },
+    { field: "eventName", labelKey: "whatsapp.field_eventName" },
+    { field: "venueName", labelKey: "whatsapp.field_venueName" },
+    { field: "venueAddress", labelKey: "whatsapp.field_venueAddress" },
+    { field: "sectionName", labelKey: "whatsapp.field_sectionName" },
+    { field: "ticketTypeName", labelKey: "whatsapp.field_ticketTypeName" },
+    { field: "validDays", labelKey: "whatsapp.field_validDays" },
+    { field: "orderId", labelKey: "whatsapp.field_orderId" },
   ],
   otp_verification: [
-    { field: "otpCode", label: "Código OTP" },
+    { field: "otpCode", labelKey: "whatsapp.field_otpCode" },
   ],
   event_reminder: [
-    { field: "attendeeName", label: "Nombre del asistente" },
-    { field: "eventName", label: "Nombre del evento" },
-    { field: "venueName", label: "Nombre del lugar" },
-    { field: "eventDate", label: "Fecha del evento" },
+    { field: "attendeeName", labelKey: "whatsapp.field_attendeeName" },
+    { field: "eventName", labelKey: "whatsapp.field_eventName" },
+    { field: "venueName", labelKey: "whatsapp.field_venueName" },
+    { field: "eventDate", labelKey: "whatsapp.field_eventDate" },
   ],
   ticket_refund: [
-    { field: "attendeeName", label: "Nombre del asistente" },
-    { field: "eventName", label: "Nombre del evento" },
-    { field: "refundAmount", label: "Monto de reembolso" },
+    { field: "attendeeName", labelKey: "whatsapp.field_attendeeName" },
+    { field: "eventName", labelKey: "whatsapp.field_eventName" },
+    { field: "refundAmount", labelKey: "whatsapp.field_refundAmount" },
   ],
   welcome_message: [
-    { field: "attendeeName", label: "Nombre del asistente" },
-    { field: "eventName", label: "Nombre del evento" },
+    { field: "attendeeName", labelKey: "whatsapp.field_attendeeName" },
+    { field: "eventName", labelKey: "whatsapp.field_eventName" },
   ],
   ticket_transfer: [
-    { field: "recipientName", label: "Nombre del destinatario" },
-    { field: "senderName", label: "Nombre del remitente" },
-    { field: "eventName", label: "Nombre del evento" },
+    { field: "recipientName", labelKey: "whatsapp.field_recipientName" },
+    { field: "senderName", labelKey: "whatsapp.field_senderName" },
+    { field: "eventName", labelKey: "whatsapp.field_eventName" },
   ],
   custom: [],
 };
@@ -954,7 +954,7 @@ export default function WhatsAppTemplates() {
                             <SelectContent>
                               <SelectItem value="__none__">{t("whatsapp.useDefault")}</SelectItem>
                               {availableFields.map(af => (
-                                <SelectItem key={af.field} value={af.field}>{af.label}</SelectItem>
+                                <SelectItem key={af.field} value={af.field}>{t(af.labelKey)}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>

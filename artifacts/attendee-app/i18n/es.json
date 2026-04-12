@@ -381,5 +381,33 @@
     "status_cancelled": "Cancelada",
     "status_expired": "Expirada",
     "purchaseNotification": "¡Compra confirmada! Tus boletas para {{event}} están listas."
+  },
+  "forgotPassword": {
+    "title": "Recuperar contraseña",
+    "subtitle": "Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.",
+    "emailPlaceholder": "Correo electrónico",
+    "emailRequired": "Por favor ingresa tu correo electrónico.",
+    "sending": "Enviando...",
+    "sendLink": "Enviar enlace",
+    "sendFailed": "Error al enviar. Intenta nuevamente.",
+    "networkError": "Error de red. Intenta nuevamente.",
+    "successMsg": "Si existe una cuenta con ese correo, recibirás un enlace en los próximos minutos. Revisa también tu carpeta de spam.",
+    "backToLogin": "Volver al inicio de sesión"
+  },
+  "resetPassword": {
+    "title": "Nueva contraseña",
+    "subtitle": "Elige una contraseña segura para tu cuenta de Tapee.",
+    "invalidToken": "Enlace de restablecimiento inválido.",
+    "minLength": "La contraseña debe tener al menos 6 caracteres.",
+    "passwordsNoMatch": "Las contraseñas no coinciden.",
+    "resetFailed": "Error al restablecer. El enlace puede haber expirado.",
+    "networkError": "Error de red. Intenta nuevamente.",
+    "saving": "Guardando...",
+    "saveBtn": "Guardar contraseña",
+    "newPasswordPlaceholder": "Nueva contraseña",
+    "confirmPasswordPlaceholder": "Confirmar contraseña",
+    "successTitle": "¡Contraseña actualizada!",
+    "successMsg": "Ya puedes iniciar sesión con tu nueva contraseña.",
+    "goToLogin": "Ir a iniciar sesión"
   }
 }

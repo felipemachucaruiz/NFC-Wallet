@@ -12,12 +12,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { API_BASE_URL } from "@/constants/domain";
 
 export default function ResetPasswordScreen() {
+  const { t } = useTranslation();
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
@@ -33,15 +35,15 @@ export default function ResetPasswordScreen() {
   const handleSubmit = async () => {
     setError(null);
     if (!token) {
-      setError("Enlace de restablecimiento inválido.");
+      setError(t("resetPassword.invalidToken"));
       return;
     }
     if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+      setError(t("resetPassword.minLength"));
       return;
     }
     if (password !== confirm) {
-      setError("Las contraseñas no coinciden.");
+      setError(t("resetPassword.passwordsNoMatch"));
       return;
     }
 
@@ -54,12 +56,12 @@ export default function ResetPasswordScreen() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError((body as { error?: string }).error ?? "Error al restablecer. El enlace puede haber expirado.");
+        setError((body as { error?: string }).error ?? t("resetPassword.resetFailed"));
       } else {
         setDone(true);
       }
     } catch {
-      setError("Error de red. Intenta nuevamente.");
+      setError(t("resetPassword.networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -77,21 +79,17 @@ export default function ResetPasswordScreen() {
           <Feather name="shield" size={32} color="#00f1ff" />
         </View>
 
-        <Text style={styles.title}>Nueva contraseña</Text>
-        <Text style={styles.subtitle}>
-          Elige una contraseña segura para tu cuenta de Tapee.
-        </Text>
+        <Text style={styles.title}>{t("resetPassword.title")}</Text>
+        <Text style={styles.subtitle}>{t("resetPassword.subtitle")}</Text>
 
         {done ? (
           <View style={[styles.successBox, { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "#22c55e" }]}>
             <Feather name="check-circle" size={18} color="#22c55e" />
             <View style={{ flex: 1, gap: 8 }}>
-              <Text style={styles.successTitle}>¡Contraseña actualizada!</Text>
-              <Text style={styles.successText}>
-                Ya puedes iniciar sesión con tu nueva contraseña.
-              </Text>
+              <Text style={styles.successTitle}>{t("resetPassword.successTitle")}</Text>
+              <Text style={styles.successText}>{t("resetPassword.successMsg")}</Text>
               <Pressable onPress={() => router.replace("/login")} style={styles.goLoginBtn}>
-                <Text style={styles.goLoginText}>Ir a iniciar sesión</Text>
+                <Text style={styles.goLoginText}>{t("resetPassword.goToLogin")}</Text>
               </Pressable>
             </View>
           </View>
@@ -100,7 +98,7 @@ export default function ResetPasswordScreen() {
             <View style={styles.passwordRow}>
               <TextInput
                 style={[styles.input, { flex: 1, backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
-                placeholder="Nueva contraseña"
+                placeholder={t("resetPassword.newPasswordPlaceholder")}
                 placeholderTextColor={C.textMuted}
                 value={password}
                 onChangeText={setPassword}
@@ -117,7 +115,7 @@ export default function ResetPasswordScreen() {
 
             <TextInput
               style={[styles.input, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
-              placeholder="Confirmar contraseña"
+              placeholder={t("resetPassword.confirmPasswordPlaceholder")}
               placeholderTextColor={C.textMuted}
               value={confirm}
               onChangeText={setConfirm}
@@ -135,7 +133,7 @@ export default function ResetPasswordScreen() {
             )}
 
             <Button
-              title={submitting ? "Guardando..." : "Guardar contraseña"}
+              title={submitting ? t("resetPassword.saving") : t("resetPassword.saveBtn")}
               onPress={handleSubmit}
               loading={submitting}
               disabled={submitting}

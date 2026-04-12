@@ -199,13 +199,15 @@
     "order": "Orden",
     "date": "Fecha",
     "tickets": "Boletas",
-    "amount": "Monto"
+    "amount": "Monto",
+    "transferError": "Error al transferir la boleta. Inténtalo de nuevo."
   },
   "account": {
     "title": "Mi Cuenta",
     "profile": "Perfil",
     "save": "Guardar",
-    "saved": "Guardado"
+    "saved": "Guardado",
+    "saveError": "Error al guardar. Inténtalo de nuevo."
   },
   "footer": {
     "rights": "Todos los derechos reservados",
