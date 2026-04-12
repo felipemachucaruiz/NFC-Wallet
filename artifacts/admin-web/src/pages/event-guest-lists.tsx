@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +21,7 @@ import {
   apiUpdateGuestList,
   apiDeleteGuestList,
   apiFetchGuestListEntries,
+  apiFetchTicketTypes,
   type GuestListData,
   type GuestListEntryData,
 } from "@/lib/api";
@@ -44,6 +46,7 @@ export default function EventGuestLists() {
   const [formMaxGuests, setFormMaxGuests] = useState("50");
   const [formIsPublic, setFormIsPublic] = useState(false);
   const [formExpiresAt, setFormExpiresAt] = useState("");
+  const [formTicketTypeId, setFormTicketTypeId] = useState<string>("");
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
 
   const { data: guestLists = [], isLoading } = useQuery({
@@ -52,6 +55,14 @@ export default function EventGuestLists() {
     enabled: !!resolvedEventId,
   });
 
+  const { data: allTicketTypes = [] } = useQuery({
+    queryKey: ["ticketTypes", resolvedEventId],
+    queryFn: () => apiFetchTicketTypes(resolvedEventId),
+    enabled: !!resolvedEventId,
+  });
+
+  const hiddenTicketTypes = allTicketTypes.filter((tt) => tt.isHidden);
+
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ["guest-list-entries", resolvedEventId, expandedListId],
     queryFn: () => apiFetchGuestListEntries(resolvedEventId, expandedListId!),
@@ -59,7 +70,7 @@ export default function EventGuestLists() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: { name: string; maxGuests: number; isPublic?: boolean; expiresAt?: string | null }) =>
+    mutationFn: (body: { name: string; maxGuests: number; isPublic?: boolean; expiresAt?: string | null; ticketTypeId?: string | null }) =>
       apiCreateGuestList(resolvedEventId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["guest-lists"] });
@@ -95,6 +106,7 @@ export default function EventGuestLists() {
     setFormMaxGuests("50");
     setFormIsPublic(false);
     setFormExpiresAt("");
+    setFormTicketTypeId("");
     setShowDialog(true);
   }
 
@@ -104,6 +116,7 @@ export default function EventGuestLists() {
     setFormMaxGuests(String(list.maxGuests));
     setFormIsPublic(list.isPublic);
     setFormExpiresAt(list.expiresAt ? list.expiresAt.slice(0, 16) : "");
+    setFormTicketTypeId(list.ticketTypeId ?? "");
     setShowDialog(true);
   }
 
@@ -121,6 +134,7 @@ export default function EventGuestLists() {
       maxGuests,
       isPublic: formIsPublic,
       expiresAt: formExpiresAt || null,
+      ticketTypeId: formTicketTypeId || null,
     };
 
     if (editingList) {
@@ -139,6 +153,8 @@ export default function EventGuestLists() {
     navigator.clipboard.writeText(getShareableLink(slug));
     toast({ title: t("guestLists.linkCopied") });
   }
+
+  const ticketTypeMap = new Map(allTicketTypes.map((tt) => [tt.id, tt]));
 
   if (isLoading) {
     return (
@@ -177,6 +193,7 @@ export default function EventGuestLists() {
                   <TableHead>{t("guestLists.nameCol")}</TableHead>
                   <TableHead>{t("guestLists.capacityCol")}</TableHead>
                   <TableHead>{t("guestLists.signupsCol")}</TableHead>
+                  <TableHead>{t("guestLists.zoneCol")}</TableHead>
                   <TableHead>{t("guestLists.visibilityCol")}</TableHead>
                   <TableHead>{t("guestLists.statusCol")}</TableHead>
                   <TableHead>{t("guestLists.expiresCol")}</TableHead>
@@ -191,6 +208,15 @@ export default function EventGuestLists() {
                       <TableCell>{list.maxGuests}</TableCell>
                       <TableCell>
                         {list.currentCount} / {list.maxGuests}
+                      </TableCell>
+                      <TableCell>
+                        {list.ticketTypeId && ticketTypeMap.has(list.ticketTypeId) ? (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {ticketTypeMap.get(list.ticketTypeId)!.name}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={list.isPublic ? "default" : "secondary"}>
@@ -240,7 +266,7 @@ export default function EventGuestLists() {
                     </TableRow>
                     {expandedListId === list.id && (
                       <TableRow key={`${list.id}-entries`}>
-                        <TableCell colSpan={7} className="bg-muted/50 p-4">
+                        <TableCell colSpan={8} className="bg-muted/50 p-4">
                           <div className="mb-2 flex items-center gap-2">
                             <Link2 className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground font-mono truncate">
@@ -315,6 +341,23 @@ export default function EventGuestLists() {
                 onChange={(e) => setFormMaxGuests(e.target.value)}
               />
             </div>
+            {hiddenTicketTypes.length > 0 && (
+              <div className="space-y-1">
+                <Label>{t("guestLists.zoneLabel")}</Label>
+                <Select value={formTicketTypeId} onValueChange={setFormTicketTypeId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("guestLists.noZone")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">{t("guestLists.noZone")}</SelectItem>
+                    {hiddenTicketTypes.map((tt) => (
+                      <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t("guestLists.zoneHelper")}</p>
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <Switch checked={formIsPublic} onCheckedChange={setFormIsPublic} />
               <Label>{t("guestLists.publicLabel")}</Label>

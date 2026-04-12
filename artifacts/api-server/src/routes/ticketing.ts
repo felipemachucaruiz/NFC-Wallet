@@ -526,6 +526,7 @@ const createTicketTypeSchema = z.object({
   saleStart: z.string().optional(),
   saleEnd: z.string().optional(),
   isActive: z.boolean().optional(),
+  isHidden: z.boolean().optional(),
   validEventDayIds: z.array(z.string()).optional(),
   isNumberedUnits: z.boolean().optional(),
   unitLabel: z.string().max(100).optional(),
@@ -569,7 +570,7 @@ router.post(
       return;
     }
 
-    const { sectionId, name, description, price, serviceFee, serviceFeeType, quantity, saleStart, saleEnd, isActive, validEventDayIds, isNumberedUnits, unitLabel, ticketsPerUnit } = parsed.data;
+    const { sectionId, name, description, price, serviceFee, serviceFeeType, quantity, saleStart, saleEnd, isActive, isHidden, validEventDayIds, isNumberedUnits, unitLabel, ticketsPerUnit } = parsed.data;
 
     if (isNumberedUnits && (!unitLabel || !ticketsPerUnit)) {
       res.status(400).json({ error: "unitLabel and ticketsPerUnit are required for numbered units" });
@@ -590,6 +591,7 @@ router.post(
         saleStart: saleStart ? new Date(saleStart) : null,
         saleEnd: saleEnd ? new Date(saleEnd) : null,
         isActive: isActive ?? true,
+        isHidden: isHidden ?? false,
         validEventDayIds: validEventDayIds ?? [],
         isNumberedUnits: isNumberedUnits ?? false,
         unitLabel: isNumberedUnits ? unitLabel! : null,
@@ -632,6 +634,7 @@ router.patch(
     if (body.saleStart !== undefined) updates.saleStart = body.saleStart ? new Date(body.saleStart as string) : null;
     if (body.saleEnd !== undefined) updates.saleEnd = body.saleEnd ? new Date(body.saleEnd as string) : null;
     if (body.isActive !== undefined) updates.isActive = body.isActive;
+    if (body.isHidden !== undefined) updates.isHidden = body.isHidden;
     if (body.validEventDayIds !== undefined) updates.validEventDayIds = body.validEventDayIds;
     if (body.sectionId !== undefined) updates.sectionId = body.sectionId;
     if (body.isNumberedUnits !== undefined) updates.isNumberedUnits = body.isNumberedUnits;

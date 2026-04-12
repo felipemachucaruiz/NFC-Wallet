@@ -1041,7 +1041,10 @@
     "numberedUnitsDesc": "Enable to sell numbered units like VIP tables or palcos",
     "unitLabel": "Unit Label",
     "unitLabelPlaceholder": "e.g. Palco, Mesa, Box",
-    "ticketsPerUnit": "Tickets per Unit"
+    "ticketsPerUnit": "Tickets per Unit",
+    "isHidden": "Hidden (guest list only)",
+    "isHiddenDesc": "Does not appear in the public store; assigned through guest lists.",
+    "hiddenBadge": "Invite only"
   },
   "salesConfig": {
     "title": "Sales Configuration",
@@ -1169,7 +1172,11 @@
     "namePlaceholder": "e.g. DJ Martinez Guest List",
     "maxGuestsLabel": "Max Guests",
     "publicLabel": "Show on event page (public)",
-    "expiresAtLabel": "Expiration Date (optional)"
+    "expiresAtLabel": "Expiration Date (optional)",
+    "zoneCol": "Zone",
+    "zoneLabel": "Access Zone (optional)",
+    "zoneHelper": "Assign a hidden ticket type to grant access to a specific zone.",
+    "noZone": "No zone assigned"
   },
   "whatsapp": {
     "title": "WhatsApp Templates",

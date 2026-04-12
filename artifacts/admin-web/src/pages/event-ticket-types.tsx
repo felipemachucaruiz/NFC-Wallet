@@ -38,6 +38,7 @@ type TicketForm = {
   saleStart: string;
   saleEnd: string;
   active: boolean;
+  isHidden: boolean;
   selectedDays: string[];
   isNumberedUnits: boolean;
   unitLabel: string;
@@ -54,6 +55,7 @@ const emptyForm: TicketForm = {
   saleStart: "",
   saleEnd: "",
   active: true,
+  isHidden: false,
   selectedDays: [],
   isNumberedUnits: false,
   unitLabel: "",
@@ -142,6 +144,7 @@ export default function EventTicketTypes() {
       saleStart: tt.saleStart ? tt.saleStart.slice(0, 16) : "",
       saleEnd: tt.saleEnd ? tt.saleEnd.slice(0, 16) : "",
       active: tt.isActive,
+      isHidden: tt.isHidden ?? false,
       selectedDays: tt.validEventDayIds ?? [],
       isNumberedUnits: tt.isNumberedUnits ?? false,
       unitLabel: tt.unitLabel ?? "",
@@ -172,6 +175,7 @@ export default function EventTicketTypes() {
       saleStart: form.saleStart ? new Date(form.saleStart).toISOString() : undefined,
       saleEnd: form.saleEnd ? new Date(form.saleEnd).toISOString() : undefined,
       isActive: form.active,
+      isHidden: form.isHidden,
       validEventDayIds: form.selectedDays,
       isNumberedUnits: form.isNumberedUnits,
       unitLabel: form.isNumberedUnits ? (form.unitLabel || undefined) : undefined,
@@ -255,6 +259,11 @@ export default function EventTicketTypes() {
                         {tt.isNumberedUnits && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                             {tt.unitLabel || t("ticketTypes.numberedUnits", "Palcos")}
+                          </Badge>
+                        )}
+                        {tt.isHidden && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                            {t("ticketTypes.hiddenBadge")}
                           </Badge>
                         )}
                       </div>
@@ -474,9 +483,22 @@ export default function EventTicketTypes() {
               </div>
             )}
 
-            <div className="flex items-center justify-between">
-              <Label>{t("common.status")}</Label>
-              <Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} />
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <Label>{t("common.status")}</Label>
+                <Switch checked={form.active} onCheckedChange={(v) => setForm((f) => ({ ...f, active: v }))} />
+              </div>
+              <div className="flex items-start gap-3">
+                <Switch
+                  checked={form.isHidden}
+                  onCheckedChange={(v) => setForm((f) => ({ ...f, isHidden: v }))}
+                  className="mt-0.5"
+                />
+                <div>
+                  <Label className="cursor-pointer">{t("ticketTypes.isHidden")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("ticketTypes.isHiddenDesc")}</p>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>

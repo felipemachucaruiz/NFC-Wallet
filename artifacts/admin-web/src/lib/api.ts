@@ -188,7 +188,7 @@ export async function apiFetchTicketTypes(eventId: string) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types`), { headers: authHeaders() });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to fetch ticket types");
-  return data.ticketTypes as Array<{ id: string; eventId: string; sectionId: string | null; name: string; description: string | null; price: number; serviceFee: number; quantity: number; soldCount: number; saleStart: string | null; saleEnd: string | null; isActive: boolean; validEventDayIds: string[]; isNumberedUnits?: boolean; unitLabel?: string; ticketsPerUnit?: number }>;
+  return data.ticketTypes as Array<{ id: string; eventId: string; sectionId: string | null; name: string; description: string | null; price: number; serviceFee: number; serviceFeeType: string; quantity: number; soldCount: number; saleStart: string | null; saleEnd: string | null; isActive: boolean; isHidden: boolean; validEventDayIds: string[]; isNumberedUnits?: boolean; unitLabel?: string; ticketsPerUnit?: number }>;
 }
 
 export async function apiCreateTicketType(eventId: string, body: { name: string; price: number; serviceFee?: number; quantity: number; sectionId?: string; saleStart?: string; saleEnd?: string; validEventDayIds?: string[] }) {
@@ -281,6 +281,7 @@ export interface GuestListData {
   slug: string;
   maxGuests: number;
   currentCount: number;
+  ticketTypeId: string | null;
   isPublic: boolean;
   status: string;
   expiresAt: string | null;
@@ -306,7 +307,7 @@ export async function apiFetchGuestLists(eventId: string): Promise<GuestListData
   return data.guestLists as GuestListData[];
 }
 
-export async function apiCreateGuestList(eventId: string, body: { name: string; maxGuests: number; isPublic?: boolean; expiresAt?: string | null }) {
+export async function apiCreateGuestList(eventId: string, body: { name: string; maxGuests: number; isPublic?: boolean; expiresAt?: string | null; ticketTypeId?: string | null }) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/guest-lists`), { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to create guest list");

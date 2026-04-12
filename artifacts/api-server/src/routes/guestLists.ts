@@ -36,6 +36,7 @@ const createSchema = z.object({
   maxGuests: z.number().int().min(1),
   isPublic: z.boolean().optional().default(false),
   expiresAt: isoDatetime.nullable().optional(),
+  ticketTypeId: z.string().nullable().optional(),
 });
 
 const updateSchema = z.object({
@@ -44,6 +45,7 @@ const updateSchema = z.object({
   isPublic: z.boolean().optional(),
   status: z.enum(["active", "closed"]).optional(),
   expiresAt: isoDatetime.nullable().optional(),
+  ticketTypeId: z.string().nullable().optional(),
 });
 
 router.get(
@@ -110,7 +112,7 @@ router.post(
       return;
     }
 
-    const { name, maxGuests, isPublic, expiresAt } = parsed.data;
+    const { name, maxGuests, isPublic, expiresAt, ticketTypeId } = parsed.data;
 
     const [created] = await db
       .insert(guestListsTable)
@@ -121,6 +123,7 @@ router.post(
         maxGuests,
         isPublic,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
+        ticketTypeId: ticketTypeId ?? null,
       })
       .returning();
 
@@ -171,6 +174,7 @@ router.patch(
     if (parsed.data.expiresAt !== undefined) {
       updates.expiresAt = parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null;
     }
+    if (parsed.data.ticketTypeId !== undefined) updates.ticketTypeId = parsed.data.ticketTypeId;
 
     if (Object.keys(updates).length === 0) {
       res.status(400).json({ error: "No fields to update" });

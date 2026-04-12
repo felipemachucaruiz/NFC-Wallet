@@ -81,7 +81,7 @@ router.get(
         const activeTypes = await db
           .select({ id: ticketTypesTable.id, price: ticketTypesTable.price })
           .from(ticketTypesTable)
-          .where(and(eq(ticketTypesTable.eventId, event.id), eq(ticketTypesTable.isActive, true)));
+          .where(and(eq(ticketTypesTable.eventId, event.id), eq(ticketTypesTable.isActive, true), eq(ticketTypesTable.isHidden, false)));
 
         let prices: number[] = [];
         if (activeTypes.length > 0) {
@@ -270,7 +270,7 @@ router.get(
               ticketsPerUnit: ticketTypesTable.ticketsPerUnit,
             })
             .from(ticketTypesTable)
-            .where(and(eq(ticketTypesTable.eventId, eventId), eq(ticketTypesTable.isActive, true)))
+            .where(and(eq(ticketTypesTable.eventId, eventId), eq(ticketTypesTable.isActive, true), eq(ticketTypesTable.isHidden, false)))
         : [];
 
       const allStages = ticketTypes.length > 0

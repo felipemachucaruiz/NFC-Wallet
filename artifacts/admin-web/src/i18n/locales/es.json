@@ -1041,7 +1041,10 @@
     "numberedUnitsDesc": "Habilitar para vender unidades numeradas como palcos o mesas VIP",
     "unitLabel": "Etiqueta de Unidad",
     "unitLabelPlaceholder": "ej. Palco, Mesa, Box",
-    "ticketsPerUnit": "Boletas por Unidad"
+    "ticketsPerUnit": "Boletas por Unidad",
+    "isHidden": "Oculto (solo lista de invitados)",
+    "isHiddenDesc": "No aparece en la tienda pública; se asigna mediante listas de invitados.",
+    "hiddenBadge": "Solo invitados"
   },
   "salesConfig": {
     "title": "Configuración de Ventas",
@@ -1169,7 +1172,11 @@
     "namePlaceholder": "ej. Lista de DJ Martinez",
     "maxGuestsLabel": "Máximo de Invitados",
     "publicLabel": "Mostrar en página del evento (pública)",
-    "expiresAtLabel": "Fecha de Expiración (opcional)"
+    "expiresAtLabel": "Fecha de Expiración (opcional)",
+    "zoneCol": "Zona",
+    "zoneLabel": "Zona de Acceso (opcional)",
+    "zoneHelper": "Asigna un tipo de boleta oculto para dar acceso a una zona específica.",
+    "noZone": "Sin zona asignada"
   },
   "whatsapp": {
     "title": "Plantillas WhatsApp",

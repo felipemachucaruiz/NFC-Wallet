@@ -159,7 +159,7 @@ router.post(
           .values({
             id: ticketId,
             orderId: order.id,
-            ticketTypeId: null,
+            ticketTypeId: list.ticketTypeId ?? null,
             eventId: list.eventId,
             attendeeName: name,
             attendeeEmail: normalizedEmail,
