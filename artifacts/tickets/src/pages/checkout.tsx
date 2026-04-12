@@ -122,6 +122,7 @@ export default function Checkout() {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
   const freeSubmittedRef = useRef(false);
+  const cardInputRef = useRef<HTMLInputElement>(null);
 
   const [nequiPhone, setNequiPhone] = useState("");
   const [pseBank, setPseBank] = useState("");
@@ -146,6 +147,21 @@ export default function Checkout() {
       navigate("/");
     }
   }, [navigate]);
+
+  // Handle Chrome/browser autofill — fires 'change' (not React's synthetic 'input')
+  // on the raw DOM element, bypassing our onChange handler.
+  useEffect(() => {
+    const el = cardInputRef.current;
+    if (!el) return;
+    const handle = () => {
+      const raw = el.value;
+      const brand = detectCardBrand(raw);
+      const formatted = formatCardNumber(raw, brand);
+      if (formatted !== raw) setCardNumber(formatted);
+    };
+    el.addEventListener("change", handle);
+    return () => el.removeEventListener("change", handle);
+  }, []);
 
   const isFreeOrder = data !== null && data.total === 0;
 
@@ -421,8 +437,10 @@ export default function Checkout() {
                     <Label>Número de tarjeta</Label>
                     <div className="relative mt-1">
                       <Input
+                        ref={cardInputRef}
                         type="text"
                         inputMode="numeric"
+                        autoComplete="cc-number"
                         value={cardNumber}
                         onChange={(e) => {
                           const brand = detectCardBrand(e.target.value);
@@ -433,7 +451,7 @@ export default function Checkout() {
                         className="font-mono pr-16"
                         disabled={processing}
                       />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
                         <CardBrandLogo brand={detectCardBrand(cardNumber)} />
                       </div>
                     </div>
@@ -443,8 +461,17 @@ export default function Checkout() {
                       <Label>Vencimiento (MM/AA)</Label>
                       <Input
                         type="text"
+                        autoComplete="cc-exp"
                         value={cardExpiry}
-                        onChange={(e) => setCardExpiry(e.target.value)}
+                        onChange={(e) => {
+                          let v = e.target.value.replace(/[^\d/]/g, "");
+                          // Auto-insert slash after 2 digits
+                          if (v.length === 2 && !v.includes("/") && cardExpiry.length === 1) v = v + "/";
+                          // Normalize 4-digit year autofill (12/2028 → 12/28)
+                          const parts = v.split("/");
+                          if (parts[1] && parts[1].length === 4) v = parts[0] + "/" + parts[1].slice(2);
+                          setCardExpiry(v.slice(0, 5));
+                        }}
                         placeholder="12/28"
                         maxLength={5}
                         className="mt-1"
@@ -455,8 +482,9 @@ export default function Checkout() {
                       <Label>CVC</Label>
                       <Input
                         type="password"
+                        autoComplete="cc-csc"
                         value={cardCvc}
-                        onChange={(e) => setCardCvc(e.target.value)}
+                        onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
                         placeholder="•••"
                         maxLength={4}
                         className="mt-1"
@@ -468,6 +496,7 @@ export default function Checkout() {
                     <Label>Titular de la tarjeta</Label>
                     <Input
                       type="text"
+                      autoComplete="cc-name"
                       value={cardHolder}
                       onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
                       placeholder="NOMBRE APELLIDO"
