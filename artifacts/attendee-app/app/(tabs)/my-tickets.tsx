@@ -229,7 +229,7 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                         size={180}
                         backgroundColor="#fff"
                         color="#000"
-                        logo={require("../../../assets/tapee-qr-logo.png")}
+                        logo={require("../../assets/tapee-qr-logo.png")}
                         logoSize={38}
                         logoBorderRadius={8}
                         logoBackgroundColor="#fff"
