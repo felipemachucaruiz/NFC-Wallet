@@ -65,15 +65,13 @@ const PSE_BANKS = [
   { code: "1151", name: "Rappipay" },
 ];
 
-type CardBrand = "visa" | "mastercard" | "amex" | "discover" | "diners" | null;
+type CardBrand = "visa" | "mastercard" | "amex" | null;
 
 function detectCardBrand(raw: string): CardBrand {
   const n = raw.replace(/\D/g, "");
   if (/^4/.test(n)) return "visa";
   if (/^(5[1-5]|2[2-7]\d{2})/.test(n)) return "mastercard";
   if (/^3[47]/.test(n)) return "amex";
-  if (/^(6011|65|64[4-9]|622)/.test(n)) return "discover";
-  if (/^(30[0-5]|36|38)/.test(n)) return "diners";
   return null;
 }
 
@@ -109,20 +107,6 @@ function CardBrandLogo({ brand }: { brand: CardBrand }) {
     return (
       <div className="bg-[#016FD0] rounded px-1.5 py-0.5 shrink-0">
         <span className="text-white font-bold text-[10px] tracking-tight select-none">AMEX</span>
-      </div>
-    );
-  }
-  if (brand === "discover") {
-    return (
-      <div className="bg-[#FF6600] rounded px-1.5 py-0.5 shrink-0">
-        <span className="text-white font-bold text-[10px] tracking-tight select-none">DISC</span>
-      </div>
-    );
-  }
-  if (brand === "diners") {
-    return (
-      <div className="bg-zinc-600 rounded px-1.5 py-0.5 shrink-0">
-        <span className="text-white font-bold text-[10px] tracking-tight select-none">DINERS</span>
       </div>
     );
   }
