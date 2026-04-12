@@ -3,13 +3,9 @@ import { db, pendingWhatsappDocumentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { sendWhatsAppDocument } from "../lib/whatsapp";
 import { logger } from "../lib/logger";
-import { generateOrderPdfBuffer } from "./tickets";
-import { uploadObject, isBucketConfigured } from "../lib/objectStorage";
-import crypto from "crypto";
+import { buildOrderPdfUrl } from "./tickets";
 
 const router: IRouter = Router();
-
-const PROD_API_URL = process.env.PROD_API_URL || "https://prod.tapee.app";
 
 function normalizePhone(phone: string): string {
   let cleaned = phone.replace(/[\s\-\(\)]/g, "");
@@ -84,31 +80,8 @@ router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
 
     for (const doc of pendingDocs) {
       try {
-        const pdfBuffer = await generateOrderPdfBuffer(doc.orderId);
-        if (!pdfBuffer) {
-          logger.error({ orderId: doc.orderId }, "Failed to generate PDF for order");
-          await db
-            .update(pendingWhatsappDocumentsTable)
-            .set({ status: "failed", updatedAt: new Date() })
-            .where(eq(pendingWhatsappDocumentsTable.id, doc.id));
-          continue;
-        }
-
-        let publicPdfUrl: string;
-
-        if (isBucketConfigured()) {
-          const uniqueKey = `ticket-pdfs/${doc.orderId}-${crypto.randomUUID().slice(0, 8)}.pdf`;
-          await uploadObject(uniqueKey, pdfBuffer, "application/pdf");
-          publicPdfUrl = `${PROD_API_URL}/api/storage/objects/${uniqueKey}`;
-          logger.info({ orderId: doc.orderId, url: publicPdfUrl }, "PDF uploaded to object storage");
-        } else {
-          logger.error({ orderId: doc.orderId }, "Object storage not configured — cannot upload PDF");
-          await db
-            .update(pendingWhatsappDocumentsTable)
-            .set({ status: "failed", updatedAt: new Date() })
-            .where(eq(pendingWhatsappDocumentsTable.id, doc.id));
-          continue;
-        }
+        const publicPdfUrl = buildOrderPdfUrl(doc.orderId);
+        logger.info({ orderId: doc.orderId, url: publicPdfUrl }, "Using signed PDF URL for WhatsApp delivery");
 
         const ticketLabel = doc.ticketCount === 1
           ? `Entrada para ${doc.eventName} - ${doc.attendeeName}`

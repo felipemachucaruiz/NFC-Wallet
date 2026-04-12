@@ -1213,9 +1213,9 @@ async function queueOrderTicketDocuments(
 }
 
 export function buildOrderPdfUrl(orderId: string): string {
-  const appUrl = process.env.APP_URL || "https://attendee.tapee.app";
+  const appUrl = (process.env.APP_URL || "https://attendee.tapee.app").replace(/\/$/, "");
   const pdfToken = generatePdfToken(`order:${orderId}`);
-  return `${appUrl}/api/orders/${orderId}/pdf?token=${pdfToken}`;
+  return `${appUrl}/attendee-api/api/orders/${orderId}/pdf?token=${pdfToken}`;
 }
 
 export async function generateOrderPdfBuffer(orderId: string): Promise<Buffer | null> {
