@@ -1,6 +1,17 @@
 import { sendEmail, getAppUrl, type InlineImage } from "./email";
 import { logger } from "./logger";
 import QRCode from "qrcode";
+import fs from "fs";
+import path from "path";
+
+function readAssetBase64(filename: string): string {
+  try {
+    const assetPath = path.join(process.cwd(), "dist", "assets", filename);
+    return fs.readFileSync(assetPath).toString("base64");
+  } catch {
+    return "";
+  }
+}
 
 const APP_URL = process.env.APP_URL ?? "";
 const STAFF_API_BASE_URL = process.env.STAFF_API_BASE_URL ?? "https://prod.tapee.app";
@@ -142,6 +153,11 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
     logger.error({ err }, "Failed to generate QR code for email");
   }
 
+  const appleWalletBadgeBase64 = readAssetBase64("apple-wallet-badge.png");
+  const googleWalletBadgeBase64 = readAssetBase64("google-wallet-badge.png");
+  if (appleWalletBadgeBase64) inlineImages.push({ name: "apple-wallet-badge.png", content: appleWalletBadgeBase64 });
+  if (googleWalletBadgeBase64) inlineImages.push({ name: "google-wallet-badge.png", content: googleWalletBadgeBase64 });
+
   const validDaysList = data.validDays.length > 0
     ? data.validDays.join(", ")
     : (isEs ? "Todos los dias" : "All days");
@@ -264,8 +280,12 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
 
     ${data.hasAccount ? `<div style="text-align:center;margin:24px 0 8px;">
       <p class="wallet-text" style="color:#71717a;font-size:13px;margin:0 0 12px;">${isEs ? "Agrega a tu billetera" : "Add to your wallet"}</p>
-      <a href="${appleWalletUrl}" style="display:inline-block;background-color:#000000;color:#ffffff;font-weight:bold;font-size:14px;padding:10px 20px;border-radius:8px;text-decoration:none;margin:4px;">&#x1F34E; Apple Wallet</a>
-      <a href="${googleWalletUrl}" style="display:inline-block;background-color:#4285f4;color:#ffffff;font-weight:bold;font-size:14px;padding:10px 20px;border-radius:8px;text-decoration:none;margin:4px;">&#x1F4F1; Google Wallet</a>
+      ${appleWalletBadgeBase64
+        ? `<a href="${appleWalletUrl}" style="display:inline-block;margin:4px;text-decoration:none;"><img src="cid:apple-wallet-badge.png" alt="Añadir a Apple Wallet" width="180" style="display:inline-block;border:0;" /></a>`
+        : `<a href="${appleWalletUrl}" style="display:inline-block;background-color:#000000;color:#ffffff;font-weight:bold;font-size:14px;padding:10px 20px;border-radius:8px;text-decoration:none;margin:4px;">&#x1F34E; Apple Wallet</a>`}
+      ${googleWalletBadgeBase64
+        ? `<a href="${googleWalletUrl}" style="display:inline-block;margin:4px;text-decoration:none;"><img src="cid:google-wallet-badge.png" alt="Añadir a Google Wallet" width="180" style="display:inline-block;border:0;" /></a>`
+        : `<a href="${googleWalletUrl}" style="display:inline-block;background-color:#4285f4;color:#ffffff;font-weight:bold;font-size:14px;padding:10px 20px;border-radius:8px;text-decoration:none;margin:4px;">&#x1F4F1; Google Wallet</a>`}
     </div>` : `<div style="text-align:center;margin:24px 0 8px;">
       <p class="wallet-text" style="color:#71717a;font-size:13px;margin:0;">${isEs ? "Descarga la app de Tapee para agregar tu entrada a Apple Wallet o Google Wallet." : "Download the Tapee app to add your ticket to Apple Wallet or Google Wallet."}</p>
     </div>`}

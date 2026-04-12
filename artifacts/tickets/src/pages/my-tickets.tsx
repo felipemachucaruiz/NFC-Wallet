@@ -286,14 +286,16 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
           <button
             onClick={() => handleAddToWallet("apple")}
             disabled={!!walletLoading}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-black border border-white/20 text-white text-sm font-semibold hover:bg-white/5 transition-colors mt-2 disabled:opacity-60"
+            className="w-full flex items-center justify-center mt-2 disabled:opacity-60 hover:opacity-90 transition-opacity"
           >
             {walletLoading === "apple" ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <div className="flex items-center gap-2 py-3">
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span className="text-white text-sm">{t("myTickets.addAppleWallet", "Añadir a Apple Wallet")}</span>
+              </div>
             ) : (
-              <Apple className="w-4 h-4" />
+              <img src={`${import.meta.env.BASE_URL}apple-wallet-badge.png`} alt="Añadir a Apple Wallet" className="h-12 w-auto" />
             )}
-            {t("myTickets.addAppleWallet", "Añadir a Apple Wallet")}
           </button>
         )}
 
@@ -301,14 +303,16 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
           <button
             onClick={() => handleAddToWallet("google")}
             disabled={!!walletLoading}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1a73e8] text-white text-sm font-semibold hover:bg-[#1565c0] transition-colors mt-2 disabled:opacity-60"
+            className="w-full flex items-center justify-center mt-2 disabled:opacity-60 hover:opacity-90 transition-opacity"
           >
             {walletLoading === "google" ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <div className="flex items-center gap-2 py-3">
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span className="text-white text-sm">{t("myTickets.addGoogleWallet", "Añadir a Google Wallet")}</span>
+              </div>
             ) : (
-              <Smartphone className="w-4 h-4" />
+              <img src={`${import.meta.env.BASE_URL}google-wallet-badge.png`} alt="Añadir a Google Wallet" className="h-12 w-auto" />
             )}
-            {t("myTickets.addGoogleWallet", "Añadir a Google Wallet")}
           </button>
         )}
 
