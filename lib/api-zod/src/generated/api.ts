@@ -1958,7 +1958,7 @@ export const initiateDigitalTopUpBodyAmountMin = 1000;
 export const InitiateDigitalTopUpBody = zod.object({
   braceletUid: zod.string().min(1),
   amount: zod.number().min(initiateDigitalTopUpBodyAmountMin),
-  paymentMethod: zod.enum(["nequi", "pse"]),
+  paymentMethod: zod.enum(["nequi", "pse", "card", "bancolombia_transfer"]),
   phoneNumber: zod.string().optional(),
   bankCode: zod.string().optional(),
 });

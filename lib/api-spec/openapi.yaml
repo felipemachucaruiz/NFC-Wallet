@@ -4718,7 +4718,7 @@ components:
           enum: [pending, success, failed]
         paymentMethod:
           type: string
-          enum: [nequi, pse]
+          enum: [nequi, pse, card, bancolombia_transfer]
         wompiTransactionId:
           type: [string, 'null']
         redirectUrl:
@@ -4748,7 +4748,7 @@ components:
           minimum: 1000
         paymentMethod:
           type: string
-          enum: [nequi, pse]
+          enum: [nequi, pse, card, bancolombia_transfer]
         phoneNumber:
           type: string
         bankCode:

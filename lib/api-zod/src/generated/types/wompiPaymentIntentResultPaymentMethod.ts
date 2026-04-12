@@ -12,4 +12,6 @@ export type WompiPaymentIntentResultPaymentMethod =
 export const WompiPaymentIntentResultPaymentMethod = {
   nequi: "nequi",
   pse: "pse",
+  card: "card",
+  bancolombia_transfer: "bancolombia_transfer",
 } as const;

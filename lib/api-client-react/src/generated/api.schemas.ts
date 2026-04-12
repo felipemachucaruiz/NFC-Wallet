@@ -1109,6 +1109,8 @@ export type WompiPaymentIntentResultPaymentMethod =
 export const WompiPaymentIntentResultPaymentMethod = {
   nequi: "nequi",
   pse: "pse",
+  card: "card",
+  bancolombia_transfer: "bancolombia_transfer",
 } as const;
 
 export interface WompiPaymentIntentResult {
@@ -1143,6 +1145,8 @@ export type InitiateDigitalTopUpBodyPaymentMethod =
 export const InitiateDigitalTopUpBodyPaymentMethod = {
   nequi: "nequi",
   pse: "pse",
+  card: "card",
+  bancolombia_transfer: "bancolombia_transfer",
 } as const;
 
 export interface InitiateDigitalTopUpBody {
