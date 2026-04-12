@@ -202,7 +202,7 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
 
   return (
     <div className="rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800">
-      <div className="relative w-full aspect-square overflow-hidden bg-zinc-800">
+      <div className="relative w-full aspect-square overflow-hidden bg-zinc-900">
         {imageUrl ? (
           <img src={imageUrl} alt="" className="w-full h-full object-cover" />
         ) : (
@@ -210,7 +210,7 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
             <Ticket className="w-12 h-12 text-white/20" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent from-40% via-zinc-900/60 via-70% to-zinc-900" />
       </div>
 
       <div className="flex flex-col items-center -mt-16 relative z-10 pb-4">
