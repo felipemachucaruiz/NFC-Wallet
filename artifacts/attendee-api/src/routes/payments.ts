@@ -27,7 +27,10 @@ function computeWompiIntegrity(reference: string, amountCentavos: number, curren
 async function fetchWompiAcceptanceToken(): Promise<string> {
   if (!WOMPI_PUBLIC_KEY) throw new Error("WOMPI_PUBLIC_KEY not configured");
   const res = await fetch(`${WOMPI_BASE_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
-  if (!res.ok) throw new Error("Failed to fetch Wompi acceptance token");
+  if (!res.ok) {
+    const body = await res.text().catch(() => "(unreadable)");
+    throw new Error(`Wompi merchants/${res.status}: ${body.slice(0, 300)}`);
+  }
   const data = await res.json() as { data: { presigned_acceptance: { acceptance_token: string } } };
   return data.data.presigned_acceptance.acceptance_token;
 }
@@ -224,8 +227,9 @@ router.post(
         redirectUrl = wompiData.data.payment_method?.extra?.async_payment_url;
       }
     } catch (err) {
-      console.error("Wompi API error:", err);
-      res.status(502).json({ error: "Payment gateway unavailable. Try again later." });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error("Wompi API error:", errMsg, "| WOMPI_BASE_URL:", WOMPI_BASE_URL);
+      res.status(502).json({ error: `Payment gateway error: ${errMsg}` });
       return;
     }
 
