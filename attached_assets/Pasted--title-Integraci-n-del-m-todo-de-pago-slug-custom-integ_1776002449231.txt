@@ -1,0 +1,68 @@
+---
+title: Integración del método de pago
+slug: custom-integrations/integracion-del-metodo-de-pago
+description: Learn how to integrate an e-commerce platform with ADDI using this comprehensive document. It covers authentication, HTTP resource usage, handling communication failures, and temporary issues. Find out how ADDI offers staging and production environments f
+docTags: 
+createdAt: 2023-09-27T15:49:10.171Z
+updatedAt: 2024-05-25T18:11:15.506Z
+---
+
+A continuación se describe el flujo de comunicación que se debe seguir para la integración de una plataforma de e-commerce con ADDI. En primer lugar,  se describe la manera en que se efectúa la autenticación al API de integración con tiendas en línea (de ahora en adelante eCommerce), y en segundo lugar, se describen los recursos HTTP que permiten ofrecer ADDI como medio de pago en un eCommerce.
+
+En caso de fallas en la comunicación o fallos temporales en los recursos HTTP de ADDI que retornen HTTP Status 5XX, se pueden realizar reintentos para obtener la respuesta original. Los recursos HTTP de nuestro API son idempotentes y garantizan que un crédito va a ser originado una sola vez.
+
+![](https://archbee-doc-uploads.s3.amazonaws.com/MCXyezaW9WrT4cGwqpD-5/dzI2xmCUTCCDCEgbCfzy7_oun9apuro35ulna6id6etflujoe-commerce-spa.png)
+
+ADDI cuenta con ambientes de Staging y Productivo para crear tokens e interactuar con el API, para su configuración, necesitas las credenciales del ambiente de staging y del ambiente productivo.
+
+A continuación te compartimos las credenciales del ambiente de producción, estas son únicas e intransferibles. Por favor, no las uses hasta que tu integración sea certificada por nuestro equipo de soporte.
+
+:::Iframe{iframeHeight="0" code="<!--<div contenteditable=&#x22;true&#x22; class=&#x22;ab-code-editor code-editor break-inside-avoid max-w-full w-full grow relative flex flex-col&#x22;><div class=&#x22;flex w-full bg-gray-700 justify-between break-after-avoid rounded-t-md&#x22;><div class=&#x22;flex w-300 flex-1 overflow-x-auto&#x22;><div class=&#x22;flex items-center&#x22;><div class=&#x22;flex&#x22; data-rbd-droppable-id=&#x22;language-droppable&#x22; data-rbd-droppable-context-id=&#x22;56419&#x22;><div class=&#x22;flex&#x22; data-rbd-draggable-context-id=&#x22;56419&#x22; data-rbd-draggable-id=&#x22;kNklSqK8_I_LfzXbQBH41&#x22;><div class=&#x22;flex items-center py-2.5 px-4 cursor-pointer text-white bg-gray-800 rounded-t&#x22;>Credentials</div></div></div></div></div></div><div class=&#x22;bg-gray-800 w-full h-full flex-col rounded-b-md shadow overflow-y-auto p-4 w-full break-inside-avoid&#x22; style=&#x22;color:#CCC;font-size:14px;&#x22; id=&#x22;credentials&#x22;><b>Client ID=</b>{{CLIENT_ID}}&#xA;<b>Client Secret=</b>{{CLIENT_SECRET}}</div></div>&#xA;&#xA;<script>&#xA;(() => {&#xA;  const credentials = document.querySelector('#credentials');&#xA;  const newText = credentials.innerHTML.replace('{{CLIENT_ID}}', addiClientId).replace('{{CLIENT_SECRET}}', addiClientSecret);  &#xA;  credentials.innerHTML = newText;&#xA;})()&#xA;</script>-->&#xA;<div id=&#x22;credentials&#x22; data-slate-node=&#x22;element&#x22; data-slate-void=&#x22;true&#x22; id=&#x22;S61Gk4FtjxYi_ydgghEu_&#x22; class=&#x22;mb-8 ab-plugin-wrapper transition delay-75 w-full ease-out&#x22;><div class=&#x22;flex-col&#x22;><div contenteditable=&#x22;false&#x22; class=&#x22;ab-code-editor code-editor select-none&#x22; style=&#x22;padding-top: 46px;&#x22;><div class=&#x22;ab-code-editor-language-bar&#x22;><div class=&#x22;hidden xl:block&#x22;></div><div class=&#x22;flex justify-between&#x22;><div class=&#x22;flex w-300 flex-1 overflow-x-auto&#x22;><div class=&#x22;flex items-center&#x22;><div class=&#x22;flex&#x22; data-rbd-droppable-id=&#x22;language-droppable&#x22; data-rbd-droppable-context-id=&#x22;1&#x22;><div class=&#x22;flex&#x22; data-rbd-draggable-context-id=&#x22;1&#x22; data-rbd-draggable-id=&#x22;XgP2zuaCUGUKsKd_rBran&#x22;><div class=&#x22;ab-code-language-label ab-selected&#x22;>Credentials</div></div></div></div></div></div></div><div class=&#x22;ab-prism-editor pt-2 w-full break-inside-avoid&#x22;><div class=&#x22;ab-prism-editor-wrap w-full h-full read-only&#x22;><div data-overlayscrollbars-initialize=&#x22;&#x22; class=&#x22;pb-2 px-4 flex flex-col max-h-full h-full min-h-[36px]&#x22; data-overlayscrollbars=&#x22;host&#x22;><div class=&#x22;os-size-observer&#x22;><div class=&#x22;os-size-observer-listener ltr&#x22;></div></div><div data-overlayscrollbars-contents=&#x22;&#x22; data-overlayscrollbars-viewport style=&#x22;margin-right: 0px; margin-bottom: 0px; margin-left: 0px; top: 0px; right: 0px; left: 0px; padding: 0px; width: calc(100% + 0px);&#x22;><div class=&#x22;ab-react-simple-code-editor&#x22; style=&#x22;position: relative; text-align: left; box-sizing: border-box; padding: 0px;&#x22;><div class=&#x22;language-plain ab-pre&#x22; aria-hidden=&#x22;true&#x22; style=&#x22;margin: 0px; border: 0px; background: none; box-sizing: inherit; display: inherit; font-family: inherit; font-size: inherit; font-style: inherit; font-variant-ligatures: inherit; font-weight: inherit; letter-spacing: inherit; line-height: inherit; tab-size: inherit; text-indent: inherit; text-rendering: inherit; text-transform: inherit; word-break: keep-all; overflow-wrap: break-word; white-space: pre; position: relative; pointer-events: none; padding: 0px;&#x22;>Client ID={{CLIENT_ID}}&#xA;Client Secret={{CLIENT_SECRET}}<br></div><textarea class=&#x22;npm__react-simple-code-editor__textarea&#x22; readonly=&#x22;&#x22; autocapitalize=&#x22;off&#x22; autocomplete=&#x22;off&#x22; autocorrect=&#x22;off&#x22; spellcheck=&#x22;false&#x22; data-gramm=&#x22;false&#x22; style=&#x22;margin: 0px; border: 0px; background: none; box-sizing: inherit; display: inherit; font-family: inherit; font-size: inherit; font-style: inherit; font-variant-ligatures: inherit; font-weight: inherit; letter-spacing: inherit; line-height: inherit; tab-size: inherit; text-indent: inherit; text-rendering: inherit; text-transform: inherit; word-break: keep-all; overflow-wrap: break-word; white-space: pre; position: absolute; top: 0px; left: 0px; height: 100%; min-width: 100%; resize: none; color: inherit; overflow: hidden; -webkit-font-smoothing: antialiased; -webkit-text-fill-color: transparent; padding: 0px; width: 629px;&#x22;>Client ID={{CLIENT_ID}}&#xA;Client Secret={{CLIENT_SECRET}}</textarea><style>&#xA;/**&#xA; * Reset the text fill color so that placeholder is visible&#xA; */&#xA;.npm__react-simple-code-editor__textarea:empty {&#xA;  -webkit-text-fill-color: inherit !important;&#xA;}&#xA;&#xA;/**&#xA; * Hack to apply on some CSS on IE10 and IE11&#xA; */&#xA;@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {&#xA;  /**&#xA;    * IE doesn't support '-webkit-text-fill-color'&#xA;    * So we use 'color: transparent' to make the text transparent on IE&#xA;    * Unlike other browsers, it doesn't affect caret color in IE&#xA;    */&#xA;  .npm__react-simple-code-editor__textarea {&#xA;    color: transparent !important;&#xA;  }&#xA;&#xA;  .npm__react-simple-code-editor__textarea::selection {&#xA;    background-color: #accef7 !important;&#xA;    color: transparent !important;&#xA;  }&#xA;}&#xA;</style></div></div><div class=&#x22;os-scrollbar os-scrollbar-horizontal os-theme-dark os-scrollbar-auto-hide os-scrollbar-handle-interactive os-scrollbar-cornerless os-scrollbar-unusable os-scrollbar-auto-hide-hidden&#x22;><div class=&#x22;os-scrollbar-track&#x22;><div class=&#x22;os-scrollbar-handle&#x22; style=&#x22;width: 100%;&#x22;></div></div></div><div class=&#x22;os-scrollbar os-scrollbar-vertical os-theme-dark os-scrollbar-auto-hide os-scrollbar-handle-interactive os-scrollbar-cornerless os-scrollbar-unusable os-scrollbar-auto-hide-hidden&#x22;><div class=&#x22;os-scrollbar-track&#x22;><div class=&#x22;os-scrollbar-handle&#x22; style=&#x22;height: 100%;&#x22;></div></div></div></div></div></div></div><div data-slate-spacer=&#x22;true&#x22; style=&#x22;height: 0px; color: transparent; outline: none; position: absolute;&#x22;><span data-slate-node=&#x22;text&#x22;><span data-slate-leaf=&#x22;true&#x22;><span data-slate-zero-width=&#x22;z&#x22; data-slate-length=&#x22;0&#x22;>﻿</span></span></span></div></div></div>&#xA;<script>&#xA;    (() => {&#xA;    const credentials = document.querySelector('#credentials');&#xA;    const newText = credentials.innerHTML.replaceAll('{{CLIENT_ID}}', addiClientId).replaceAll('{{CLIENT_SECRET}}', addiClientSecret);  &#xA;    credentials.innerHTML = newText;&#xA;    })()&#xA;</script>"}
+
+:::
+
+### 1. Endpoint para verificación de montos y descuentos
+
+Se debe consumir nuestro endpoint de configuración de aliado para determinar si el método de pago debe mostrase y si debe mostrar algún descuento para ese comercio.
+
+[**https://channels-public-api.addi.com/allies/ALLY\_SLUG/config?requestedAmount=XXXX**](https://channels-public-api.addi.com/allies/ALLY_SLUG/config?requestedAmount=XXXX) indicando el monto del carrito que se va a enviar y el ALLY\_SLUG que corresponda al comercio. Este se proporcionará una vez se inicie el proceso de integración.
+
+La respuesta tendrá el siguiente formato:
+
+```javascript
+{
+  "minAmount":50000,
+  "maxAmount":5000000,
+  "policy":{
+    "discount":0,
+    "productType":"ADDI_PAGO"
+  }
+}
+```
+
+En caso que el monto esté por fuera del rango de mínimo y máximo indicado, por favor ocultar el método de pago. Si le aplica un descuento, por favor mostrar el porcentaje en el checkout indicando el ahorro para el cliente.
+
+### 2. Endpoint de autenticación
+
+El proceso de autenticación sucede en [**Auth0**](https://auth0.com/) quién actúa como plataforma Idaas (Identity as a Service), siendo la responsable de generar JSON Web Tokens que son usados en los llamados a los recursos HTTP expuestos por el API.
+**Documentación:** [**https://api-docs.addi-staging.com/auth/#/authentication**](https://api-docs.addi-staging.com/auth/#/authentication)
+
+### **3. Endpoint de creación de aplicación**
+
+Proceso de creación de una transacción de pago con ADDI (aplicación).
+**Documentación:** [**https://api-docs.addi-staging.com/integration/#/online application/createOnlineLoanApplication**](https://api-docs.addi-staging.com/integration/#/online%20application/createOnlineLoanApplication)
+
+Este endpoint devolverá un 301 con el header Location que debe ser usado para redirigir al usuario a la plataforma ADDI.
+
+### **4. Endpoint para reporte de resultado (callback)**
+
+Proceso de respuesta a una aplicación de crédito en línea que debe ser recibido por el comercio.
+
+:::hint{type="warning"}
+En el schema de OnlineLoanApplicationCallbackRequest se pueden identificar los distintos estados de respuesta que proporciona ADDI:&#x20;
+
+Enum:
+\[ APPROVED, REJECTED, DECLINED, ABANDONED]
+:::
+
+Documentación: [**https://api-docs.addi-staging.com/integration/#/online%20application%20callback/post\_**](https://api-docs.addi-staging.com/integration/#/online%20application%20callback/post_)
