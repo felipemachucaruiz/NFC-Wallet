@@ -143,7 +143,7 @@ export default function TopUpScreen() {
           expYear: expYear?.trim() ?? "",
           cardHolder: cardHolder.trim(),
         });
-        body.cardToken = tokenResult.data?.id;
+        body.cardToken = tokenResult;
         body.installments = 1;
       } catch (err) {
         const msg = (err as { message?: string }).message ?? t("common.unknownError");
