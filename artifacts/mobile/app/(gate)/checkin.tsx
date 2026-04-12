@@ -319,6 +319,9 @@ export default function EntranceCheckinScreen() {
           } else if (errCode === "ATTENDEE_NOT_FOUND") {
             errTitle = t("gate.ticketAttendeeNotFound");
             errHint = t("gate.ticketAttendeeNotFoundHint");
+          } else if (errCode === "WRONG_DAY") {
+            errTitle = t("gate.ticketWrongDay");
+            errHint = t("gate.ticketWrongDayHint");
           }
           setErrorMsg(`${errTitle}\n${errHint}`);
           setPageState("error");

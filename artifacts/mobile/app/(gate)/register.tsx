@@ -320,6 +320,9 @@ export default function RegisterBraceletScreen() {
           } else if (errCode === "ATTENDEE_NOT_FOUND") {
             errTitle = t("gate.ticketAttendeeNotFound");
             errHint = t("gate.ticketAttendeeNotFoundHint");
+          } else if (errCode === "WRONG_DAY") {
+            errTitle = t("gate.ticketWrongDay");
+            errHint = t("gate.ticketWrongDayHint");
           }
           setErrorMsg(`${errTitle}\n${errHint}`);
           setPageState("ticket_error");

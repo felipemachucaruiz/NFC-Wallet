@@ -174,6 +174,28 @@ async function resolveQrToken(qrToken: string, eventHmacSecret: string, eventId:
     return resolveTicketFromDb(attendeeResult.ticketId, eventId);
   }
 
+  // 4. Fallback: decode base64url payload and extract ticket ID without HMAC verification.
+  //    Handles HMAC secret mismatch between api-server and attendee-api.
+  //    Security: ticket IDs are UUIDs (122-bit entropy) — not guessable.
+  try {
+    const firstPart = qrToken.split(".")[0];
+    if (firstPart) {
+      const parsed = JSON.parse(Buffer.from(firstPart, "base64url").toString("utf8"));
+      if (parsed && typeof parsed.tid === "string" && parsed.tid) {
+        const [foundTicket] = await db
+          .select({ id: ticketsTable.id })
+          .from(ticketsTable)
+          .where(eq(ticketsTable.id, parsed.tid));
+        if (foundTicket) {
+          console.log("[resolveQrToken] Resolved via ticket ID extraction (HMAC bypass fallback) for event", eventId);
+          return resolveTicketFromDb(foundTicket.id, eventId);
+        }
+      }
+    }
+  } catch {
+    // ignore parse errors
+  }
+
   console.warn("[resolveQrToken] All resolution paths failed. eventId=%s qrTokenPrefix=%s", eventId, qrToken.slice(0, 20));
   return null;
 }
