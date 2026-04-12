@@ -91,6 +91,11 @@ export function buildAppleWalletUrl(ticketId: string, baseUrl: string): string {
   return `${baseUrl}/api/tickets/${ticketId}/apple-wallet?token=${token}`;
 }
 
+export function buildGoogleWalletUrl(ticketId: string, baseUrl: string): string {
+  const token = generateWalletToken(ticketId);
+  return `${baseUrl}/api/tickets/${ticketId}/google-wallet-link?token=${token}`;
+}
+
 function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "";
   return new Date(date).toLocaleDateString("es-CO", {
@@ -222,6 +227,63 @@ router.get(
       console.error("[appleWallet] Error generating pass:", err);
       res.status(500).json({ error: "Error al generar el pase de Apple Wallet" });
     }
+  },
+);
+
+router.get(
+  "/tickets/:ticketId/google-wallet-link",
+  async (req: Request, res: Response) => {
+    const { ticketId } = req.params as { ticketId: string };
+    const token = req.query.token as string;
+
+    if (!token || !verifyWalletToken(token, ticketId)) {
+      res.status(403).json({ error: "Token inválido o expirado" });
+      return;
+    }
+
+    const [ticket] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, ticketId));
+    if (!ticket) {
+      res.status(404).json({ error: "Tiquete no encontrado" });
+      return;
+    }
+
+    const [order] = ticket.orderId
+      ? await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, ticket.orderId))
+      : [undefined];
+
+    const [event] = order
+      ? await db.select().from(eventsTable).where(eq(eventsTable.id, order.eventId))
+      : [undefined];
+
+    let sectionName = "General";
+    if (ticket.ticketTypeId) {
+      const [tt] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+      if (tt?.sectionId) {
+        const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, tt.sectionId));
+        if (sec) sectionName = sec.name;
+      }
+    }
+
+    const { generateGoogleWalletSaveLink } = await import("../lib/walletPasses");
+
+    const saveLink = generateGoogleWalletSaveLink({
+      ticketId: ticket.id,
+      eventName: event?.name ?? "Evento Tapee",
+      eventDate: event?.startsAt ? new Date(event.startsAt).toISOString().split("T")[0] : "",
+      venueName: event?.venueAddress ?? "",
+      venueAddress: event?.venueAddress ?? "",
+      sectionName,
+      attendeeName: ticket.attendeeName ?? order?.buyerName ?? "Asistente",
+      qrCodeToken: ticket.qrCodeToken ?? ticket.id,
+      validDays: [],
+    });
+
+    if (!saveLink) {
+      res.status(503).json({ error: "Google Wallet no configurado" });
+      return;
+    }
+
+    res.redirect(saveLink);
   },
 );
 

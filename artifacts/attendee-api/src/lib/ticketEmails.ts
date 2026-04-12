@@ -3,10 +3,17 @@ import { logger } from "./logger";
 import QRCode from "qrcode";
 import fs from "fs";
 import path from "path";
+import { buildAppleWalletUrl, buildGoogleWalletUrl } from "../routes/appleWallet";
+
+function getEmailAssetsDir(): string {
+  const d = (globalThis as { __dirname?: string }).__dirname;
+  if (d) return path.join(d, "assets");
+  return path.join(path.dirname(new URL(import.meta.url).pathname), "..", "assets");
+}
 
 function readAssetBase64(filename: string): string {
   try {
-    const assetPath = path.join(process.cwd(), "dist", "assets", filename);
+    const assetPath = path.join(getEmailAssetsDir(), filename);
     return fs.readFileSync(assetPath).toString("base64");
   } catch {
     return "";
@@ -134,8 +141,8 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
     ? "Tu entrada ha sido confirmada. Presenta el QR en la puerta del evento."
     : "Your ticket has been confirmed. Present the QR code at the event gate.";
 
-  const appleWalletUrl = `${appUrl}/api/tickets/${data.ticketId}/wallet/apple`;
-  const googleWalletUrl = `${appUrl}/api/tickets/${data.ticketId}/wallet/google`;
+  const appleWalletUrl = buildAppleWalletUrl(data.ticketId, appUrl);
+  const googleWalletUrl = buildGoogleWalletUrl(data.ticketId, appUrl);
 
   let qrBase64 = "";
   const inlineImages: InlineImage[] = [];
