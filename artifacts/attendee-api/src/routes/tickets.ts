@@ -51,14 +51,19 @@ async function fetchWompiTokens(): Promise<{ acceptanceToken: string; personalAu
   }
   const data = await res.json() as {
     data: {
-      presigned_acceptance: { acceptance_token: string };
-      presigned_personal_data_auth: { acceptance_token: string };
+      presigned_acceptance: { acceptance_token: unknown };
+      presigned_personal_data_auth: { acceptance_token: unknown };
     };
   };
-  return {
-    acceptanceToken: data.data.presigned_acceptance.acceptance_token,
-    personalAuthToken: data.data.presigned_personal_data_auth.acceptance_token,
-  };
+  const acceptanceToken = data.data?.presigned_acceptance?.acceptance_token;
+  const personalAuthToken = data.data?.presigned_personal_data_auth?.acceptance_token;
+  if (typeof acceptanceToken !== "string" || !acceptanceToken) {
+    throw new Error(`Wompi presigned_acceptance.acceptance_token is missing or not a string (got ${typeof acceptanceToken})`);
+  }
+  if (typeof personalAuthToken !== "string" || !personalAuthToken) {
+    throw new Error(`Wompi presigned_personal_data_auth.acceptance_token is missing or not a string (got ${typeof personalAuthToken})`);
+  }
+  return { acceptanceToken, personalAuthToken };
 }
 
 const attendeeDataSchema = z.object({
@@ -245,9 +250,9 @@ router.post(
     for (const a of attendees) {
       const tt = ticketTypeMap.get(a.ticketTypeId)!;
       if (tt.isNumberedUnits) {
-        totalAmount += tt.price / (tt.ticketsPerUnit || 1);
+        totalAmount += Number(tt.price) / (Number(tt.ticketsPerUnit) || 1);
       } else {
-        totalAmount += tt.price;
+        totalAmount += Number(tt.price);
       }
     }
 
@@ -420,7 +425,7 @@ router.post(
 
     try {
       const { acceptanceToken, personalAuthToken } = await fetchWompiTokens();
-      const amountCentavos = totalAmount * 100;
+      const amountCentavos = Math.round(totalAmount * 100);
 
       let wompiBody: Record<string, unknown>;
 
@@ -501,14 +506,24 @@ router.post(
 
       const wompiData = await wompiRes.json() as { data?: { id: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: { type?: string; messages?: string[] | Record<string, string[]> } };
       if (!wompiRes.ok || !wompiData.data) {
-        logger.error({ wompiData }, "Wompi ticket payment error");
+        logger.error({ wompiData, amountCentavos, paymentMethod, reference }, "Wompi ticket payment error");
         await rollbackOrderInventory(order.id, quantityByType, ticketTypeMap, unitSelMap);
         const msgs = wompiData.error?.messages;
-        const wompiMsg = msgs
-          ? Array.isArray(msgs)
-            ? msgs.join("; ")
-            : Object.values(msgs).flat().join("; ")
-          : wompiData.error?.type || "";
+        let wompiMsg = "";
+        if (msgs) {
+          if (Array.isArray(msgs)) {
+            wompiMsg = msgs.join("; ");
+          } else {
+            wompiMsg = Object.entries(msgs)
+              .map(([field, val]) => {
+                const errs = Array.isArray(val) ? val : typeof val === "object" && val !== null ? Object.values(val as Record<string, string[]>).flat() : [String(val)];
+                return `${field}: ${errs.join(", ")}`;
+              })
+              .join("; ");
+          }
+        } else {
+          wompiMsg = wompiData.error?.type || "";
+        }
         res.status(502).json({ error: wompiMsg ? `Error del sistema de pago: ${wompiMsg}` : "Failed to initiate payment. Try again." });
         return;
       }

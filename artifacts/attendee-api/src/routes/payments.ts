@@ -33,14 +33,19 @@ async function fetchWompiTokens(): Promise<{ acceptanceToken: string; personalAu
   }
   const data = await res.json() as {
     data: {
-      presigned_acceptance: { acceptance_token: string };
-      presigned_personal_data_auth: { acceptance_token: string };
+      presigned_acceptance: { acceptance_token: unknown };
+      presigned_personal_data_auth: { acceptance_token: unknown };
     };
   };
-  return {
-    acceptanceToken: data.data.presigned_acceptance.acceptance_token,
-    personalAuthToken: data.data.presigned_personal_data_auth.acceptance_token,
-  };
+  const acceptanceToken = data.data?.presigned_acceptance?.acceptance_token;
+  const personalAuthToken = data.data?.presigned_personal_data_auth?.acceptance_token;
+  if (typeof acceptanceToken !== "string" || !acceptanceToken) {
+    throw new Error(`Wompi presigned_acceptance.acceptance_token is missing or not a string (got ${typeof acceptanceToken})`);
+  }
+  if (typeof personalAuthToken !== "string" || !personalAuthToken) {
+    throw new Error(`Wompi presigned_personal_data_auth.acceptance_token is missing or not a string (got ${typeof personalAuthToken})`);
+  }
+  return { acceptanceToken, personalAuthToken };
 }
 
 const initiatePaymentSchema = z.object({
@@ -149,7 +154,7 @@ router.post(
       const { acceptanceToken, personalAuthToken } = await fetchWompiTokens();
       // Wompi (Colombian payment gateway) only processes COP transactions.
       // For non-COP events, amount is collected in COP and credited to bracelet in event currency.
-      const amountCentavos = amount * 100;
+      const amountCentavos = Math.round(amount * 100);
 
       let wompiBody: Record<string, unknown>;
 
@@ -228,10 +233,26 @@ router.post(
         body: JSON.stringify(wompiBody),
       });
 
-      const wompiData = await wompiRes.json() as { data?: { id: string; payment_method_type?: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: unknown };
+      const wompiData = await wompiRes.json() as { data?: { id: string; payment_method_type?: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: { type?: string; messages?: string[] | Record<string, unknown> } };
       if (!wompiRes.ok || !wompiData.data) {
-        console.error(`Wompi ${paymentMethod} error:`, wompiData);
-        res.status(502).json({ error: `Failed to initiate ${paymentMethod} payment. Try again.` });
+        console.error(`Wompi ${paymentMethod} error:`, JSON.stringify(wompiData), "| amountCentavos:", amountCentavos, "| reference:", reference);
+        const msgs = wompiData.error?.messages;
+        let wompiMsg = "";
+        if (msgs) {
+          if (Array.isArray(msgs)) {
+            wompiMsg = msgs.join("; ");
+          } else {
+            wompiMsg = Object.entries(msgs)
+              .map(([field, val]) => {
+                const errs = Array.isArray(val) ? val : typeof val === "object" && val !== null ? Object.values(val as Record<string, string[]>).flat() : [String(val)];
+                return `${field}: ${errs.join(", ")}`;
+              })
+              .join("; ");
+          }
+        } else {
+          wompiMsg = wompiData.error?.type || "";
+        }
+        res.status(502).json({ error: wompiMsg ? `Error del sistema de pago: ${wompiMsg}` : `Failed to initiate ${paymentMethod} payment. Try again.` });
         return;
       }
       wompiTransactionId = wompiData.data.id;

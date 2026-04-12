@@ -421,14 +421,19 @@ async function fetchWompiTokens(): Promise<{ acceptanceToken: string; personalAu
   }
   const data = await res.json() as {
     data: {
-      presigned_acceptance: { acceptance_token: string };
-      presigned_personal_data_auth: { acceptance_token: string };
+      presigned_acceptance: { acceptance_token: unknown };
+      presigned_personal_data_auth: { acceptance_token: unknown };
     };
   };
-  return {
-    acceptanceToken: data.data.presigned_acceptance.acceptance_token,
-    personalAuthToken: data.data.presigned_personal_data_auth.acceptance_token,
-  };
+  const acceptanceToken = data.data?.presigned_acceptance?.acceptance_token;
+  const personalAuthToken = data.data?.presigned_personal_data_auth?.acceptance_token;
+  if (typeof acceptanceToken !== "string" || !acceptanceToken) {
+    throw new Error(`Wompi presigned_acceptance.acceptance_token is missing or not a string (got ${typeof acceptanceToken})`);
+  }
+  if (typeof personalAuthToken !== "string" || !personalAuthToken) {
+    throw new Error(`Wompi presigned_personal_data_auth.acceptance_token is missing or not a string (got ${typeof personalAuthToken})`);
+  }
+  return { acceptanceToken, personalAuthToken };
 }
 
 const guestAttendeeSchema = z.object({
@@ -592,7 +597,7 @@ router.post(
       const tt = ticketTypeMap.get(a.ticketTypeId)!;
       const stages = purchaseStagesByType.get(a.ticketTypeId) ?? [];
       const { active } = resolveActiveStage(stages);
-      const unitPrice = active ? active.price : tt.price;
+      const unitPrice = Number(active ? active.price : tt.price);
       if (tt.isNumberedUnits) {
         if (!processedUnitTypes.has(tt.id)) {
           processedUnitTypes.add(tt.id);
@@ -690,7 +695,7 @@ router.post(
 
     try {
       const { acceptanceToken, personalAuthToken } = await fetchWompiTokens();
-      const amountCentavos = totalAmount * 100;
+      const amountCentavos = Math.round(totalAmount * 100);
 
       let wompiBody: Record<string, unknown>;
 
@@ -743,9 +748,9 @@ router.post(
         body: JSON.stringify(wompiBody),
       });
 
-      const wompiData = await wompiRes.json() as { data?: { id: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: unknown };
+      const wompiData = await wompiRes.json() as { data?: { id: string; payment_method?: { extra?: { async_payment_url?: string } } }; error?: { type?: string; messages?: string[] | Record<string, unknown> } };
       if (!wompiRes.ok || !wompiData.data) {
-        logger.error({ wompiData }, "Wompi guest ticket payment error");
+        logger.error({ wompiData, amountCentavos, paymentMethod, reference }, "Wompi guest ticket payment error");
         await db.update(ticketOrdersTable).set({ paymentStatus: "cancelled", updatedAt: new Date() }).where(eq(ticketOrdersTable.id, order.id));
         for (const [typeId, qty] of quantityByType) {
           const tt = ticketTypeMap.get(typeId);
@@ -755,7 +760,23 @@ router.post(
         for (const [, unitId] of unitSelMap) {
           await db.update(ticketTypeUnitsTable).set({ status: "available", orderId: null }).where(eq(ticketTypeUnitsTable.id, unitId));
         }
-        res.status(502).json({ error: "Failed to initiate payment. Try again." });
+        const msgs = wompiData.error?.messages;
+        let wompiMsg = "";
+        if (msgs) {
+          if (Array.isArray(msgs)) {
+            wompiMsg = msgs.join("; ");
+          } else {
+            wompiMsg = Object.entries(msgs)
+              .map(([field, val]) => {
+                const errs = Array.isArray(val) ? val : typeof val === "object" && val !== null ? Object.values(val as Record<string, string[]>).flat() : [String(val)];
+                return `${field}: ${errs.join(", ")}`;
+              })
+              .join("; ");
+          }
+        } else {
+          wompiMsg = wompiData.error?.type || "";
+        }
+        res.status(502).json({ error: wompiMsg ? `Error del sistema de pago: ${wompiMsg}` : "Failed to initiate payment. Try again." });
         return;
       }
 
