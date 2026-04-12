@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, Link } from "wouter";
-import { Smartphone, Building2, Check, AlertCircle, Ticket, CreditCard } from "lucide-react";
+import { Building2, Check, AlertCircle, Ticket, CreditCard } from "lucide-react";
 
 function NequiIcon({ className }: { className?: string }) {
   return (
