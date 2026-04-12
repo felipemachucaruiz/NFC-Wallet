@@ -11,11 +11,18 @@ import {
   attendeeRefundRequestsTable,
   braceletTransferLogsTable,
   usersTable,
+  ticketsTable,
+  ticketOrdersTable,
+  ticketTypesTable,
+  venueSectionsTable,
+  eventDaysTable,
 } from "@workspace/db";
 import { eq, and, ne, desc, inArray, lte, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { notifyBraceletBlocked } from "../lib/pushNotifications";
+import { buildAppleWalletUrl } from "./appleWallet";
+import { generateGoogleWalletSaveLink } from "../lib/walletPasses";
 
 const router: IRouter = Router();
 
@@ -755,6 +762,106 @@ router.post(
 
     res.json({ success: true });
   }
+);
+
+const walletPlatformSchema = z.object({
+  platform: z.enum(["apple", "google"]),
+});
+
+router.post(
+  "/attendee/tickets/:ticketId/wallet",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { ticketId } = req.params as { ticketId: string };
+    const parsed = walletPlatformSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "platform is required (apple | google)" });
+      return;
+    }
+    const { platform } = parsed.data;
+
+    const [ticket] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, ticketId));
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
+
+    if (ticket.attendeeUserId !== req.user!.id) {
+      if (ticket.orderId) {
+        const [order] = await db.select({ buyerUserId: ticketOrdersTable.buyerUserId }).from(ticketOrdersTable).where(eq(ticketOrdersTable.id, ticket.orderId));
+        if (!order || order.buyerUserId !== req.user!.id) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+      } else {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
+
+    if (platform === "apple") {
+      const appUrl = (process.env.APP_URL || "https://attendee.tapee.app/attendee-api").replace(/\/$/, "");
+      const passUrl = buildAppleWalletUrl(ticketId, appUrl);
+      res.json({ passUrl });
+      return;
+    }
+
+    if (platform === "google") {
+      const [event] = ticket.orderId
+        ? await db.select({ name: eventsTable.name, startsAt: eventsTable.startsAt, venueAddress: eventsTable.venueAddress })
+            .from(eventsTable)
+            .innerJoin(ticketOrdersTable, eq(ticketOrdersTable.eventId, eventsTable.id))
+            .where(eq(ticketOrdersTable.id, ticket.orderId!))
+        : [];
+
+      let sectionName = "General";
+      let ticketTypeName = "";
+      let validDays: string[] = [];
+
+      if (ticket.ticketTypeId) {
+        const [tt] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+        if (tt) {
+          ticketTypeName = tt.name;
+          if (tt.sectionId) {
+            const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, tt.sectionId));
+            if (sec) sectionName = sec.name;
+          }
+          const validDayIds = ((tt as unknown as { validEventDayIds?: string[] }).validEventDayIds) ?? [];
+          if (validDayIds.length > 0) {
+            const days = await db.select().from(eventDaysTable).where(inArray(eventDaysTable.id, validDayIds));
+            validDays = days.map((d) => (d as unknown as { label?: string; date?: string }).label || (d as unknown as { date?: string }).date || "");
+          }
+        }
+      }
+
+      const passUrl = generateGoogleWalletSaveLink({
+        ticketId: ticket.id,
+        eventName: event?.name ?? "Evento",
+        eventDate: event?.startsAt?.toISOString().split("T")[0] ?? "",
+        venueName: event?.venueAddress ?? "",
+        venueAddress: event?.venueAddress ?? "",
+        sectionName,
+        attendeeName: ticket.attendeeName ?? "Asistente",
+        qrCodeToken: ticket.qrCodeToken ?? ticket.id,
+        validDays,
+      });
+
+      if (!passUrl) {
+        res.status(503).json({ error: "Google Wallet not configured" });
+        return;
+      }
+
+      res.json({ passUrl });
+      return;
+    }
+
+    res.status(400).json({ error: "Invalid platform" });
+  },
 );
 
 export default router;

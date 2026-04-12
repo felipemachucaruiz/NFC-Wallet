@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
-import { fetchMyTickets, resolveImageUrl, transferTicket, type ApiTicket } from "@/lib/api";
+import { fetchMyTickets, resolveImageUrl, transferTicket, addTicketToWallet, type ApiTicket } from "@/lib/api";
 
 
 export default function MyTickets() {
@@ -151,6 +151,19 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
   const [transferLoading, setTransferLoading] = useState(false);
   const [transferError, setTransferError] = useState("");
   const [transferDone, setTransferDone] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  const handleAddToWallet = async () => {
+    setWalletLoading(true);
+    try {
+      const { passUrl } = await addTicketToWallet(ticket.id, "apple");
+      if (passUrl) window.open(passUrl, "_blank");
+    } catch {
+    } finally {
+      setWalletLoading(false);
+    }
+  };
 
   const isValid = ticket.status === "valid";
   const startDate = ticket.eventStartsAt ? new Date(ticket.eventStartsAt) : null;
@@ -267,6 +280,21 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
         <div className="text-xs text-white/40 text-center pt-2">
           {ticket.attendeeName}
         </div>
+
+        {isValid && isIOS && !showTransfer && (
+          <button
+            onClick={handleAddToWallet}
+            disabled={walletLoading}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-black border border-white/20 text-white text-sm font-semibold hover:bg-white/5 transition-colors mt-2 disabled:opacity-60"
+          >
+            {walletLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Apple className="w-4 h-4" />
+            )}
+            {t("myTickets.addAppleWallet", "Añadir a Apple Wallet")}
+          </button>
+        )}
 
         {isValid && !showTransfer && (
           <button

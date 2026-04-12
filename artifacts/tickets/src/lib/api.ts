@@ -292,6 +292,13 @@ export async function transferTicket(ticketId: string, data: {
   });
 }
 
+export async function addTicketToWallet(ticketId: string, platform: "apple" | "google"): Promise<{ passUrl: string }> {
+  return apiFetch(`/attendee/tickets/${ticketId}/wallet`, {
+    method: "POST",
+    body: JSON.stringify({ platform }),
+  });
+}
+
 export async function sendWhatsAppOtp(phone: string): Promise<{ success: boolean; expiresIn: number }> {
   return apiFetch("/auth/whatsapp-otp/send", {
     method: "POST",

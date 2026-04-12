@@ -8,6 +8,7 @@ import attestationRouter from "./attestation";
 import catalogueRouter from "./catalogue";
 import ticketsRouter from "./tickets";
 import guestListsRouter from "./guestLists";
+import appleWalletRouter from "./appleWallet";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(attestationRouter);
 router.use(catalogueRouter);
 router.use(ticketsRouter);
 router.use(guestListsRouter);
+router.use(appleWalletRouter);
 
 export default router;

@@ -1,4 +1,8 @@
 import crypto from "crypto";
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
 import { logger } from "./logger";
 
 const APP_URL = process.env.APP_URL ?? "";
@@ -15,92 +19,140 @@ export interface WalletPassData {
   validDays: string[];
 }
 
-export async function generateAppleWalletPass(data: WalletPassData): Promise<Buffer | null> {
-  const passTypeId = process.env.APPLE_PASS_TYPE_ID;
-  const teamId = process.env.APPLE_TEAM_ID;
-  const passCert = process.env.APPLE_PASS_CERTIFICATE;
-  const passKey = process.env.APPLE_PASS_KEY;
+let _cachedCerts: { signerCert: string; signerKey: string } | null = null;
+let _cachedWwdr: Buffer | null = null;
+let _cachedIcon: Buffer | null = null;
+let _cachedLogo: Buffer | null = null;
 
-  if (!passTypeId || !teamId || !passCert || !passKey) {
-    logger.warn("Apple Wallet pass generation not configured — missing env vars");
+function getAssetsDir(): string {
+  const d = (globalThis as { __dirname?: string }).__dirname;
+  if (d) return path.join(d, "assets");
+  return path.resolve(import.meta.dirname ?? __dirname, "..", "assets");
+}
+
+function loadWalletAssets() {
+  if (_cachedWwdr) return;
+  const assetsDir = getAssetsDir();
+  try {
+    _cachedWwdr = fs.readFileSync(path.join(assetsDir, "AppleWWDRCAG4.pem"));
+    _cachedIcon = fs.readFileSync(path.join(assetsDir, "wallet-icon.png"));
+    _cachedLogo = fs.readFileSync(path.join(assetsDir, "wallet-logo.png"));
+  } catch (err) {
+    logger.warn({ err }, "[walletPasses] Failed to load wallet assets");
+  }
+}
+
+function extractCerts(): { signerCert: string; signerKey: string } | null {
+  if (_cachedCerts) return _cachedCerts;
+  const p12b64 = process.env.APPLE_WALLET_CERT_P12_BASE64;
+  if (!p12b64) return null;
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pkpass-wp-"));
+  const p12Path = path.join(tmpDir, "cert.p12");
+  try {
+    fs.writeFileSync(p12Path, Buffer.from(p12b64, "base64"));
+    const cert = execSync(
+      `openssl pkcs12 -nokeys -clcerts -passin pass: -legacy -in "${p12Path}" 2>/dev/null`,
+      { encoding: "utf8" },
+    );
+    const key = execSync(
+      `openssl pkcs12 -nocerts -nodes -passin pass: -legacy -in "${p12Path}" 2>/dev/null`,
+      { encoding: "utf8" },
+    );
+    _cachedCerts = { signerCert: cert, signerKey: key };
+    return _cachedCerts;
+  } catch (err) {
+    logger.error({ err }, "[walletPasses] Failed to extract certs from p12");
+    return null;
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+export async function generateAppleWalletPass(data: WalletPassData): Promise<Buffer | null> {
+  const passTypeId = process.env.APPLE_PASS_TYPE_ID || "pass.tapee.tickets";
+  const teamId = process.env.APPLE_TEAM_ID || "F9V84KM292";
+
+  const certs = extractCerts();
+  if (!certs) {
+    logger.warn("[walletPasses] Apple Wallet pass not configured — APPLE_WALLET_CERT_P12_BASE64 missing");
+    return null;
+  }
+
+  loadWalletAssets();
+
+  if (!_cachedWwdr) {
+    logger.warn("[walletPasses] WWDR cert not found — cannot generate Apple Wallet pass");
     return null;
   }
 
   try {
     const { PKPass } = await import("passkit-generator");
 
-    const pass = new PKPass(
-      {},
-      {
-        wwdr: Buffer.from(process.env.APPLE_WWDR_CERT || "", "base64"),
-        signerCert: Buffer.from(passCert, "base64"),
-        signerKey: Buffer.from(passKey, "base64"),
-        signerKeyPassphrase: process.env.APPLE_PASS_KEY_PASSPHRASE || "",
-      },
-      {
-        serialNumber: data.ticketId,
-        description: `${data.eventName} Ticket`,
-        organizationName: "Tapee",
-        passTypeIdentifier: passTypeId,
-        teamIdentifier: teamId,
-        foregroundColor: "rgb(255, 255, 255)",
-        backgroundColor: "rgb(10, 10, 10)",
-        labelColor: "rgb(139, 148, 158)",
-      },
-    );
+    const buffers: Record<string, Buffer> = {
+      "pass.json": Buffer.from(
+        JSON.stringify({
+          formatVersion: 1,
+          passTypeIdentifier: passTypeId,
+          teamIdentifier: teamId,
+          serialNumber: data.ticketId,
+          organizationName: "Tapee",
+          description: `${data.eventName} — ${data.sectionName || "Entrada"}`,
+          backgroundColor: "rgb(10, 10, 10)",
+          foregroundColor: "rgb(255, 255, 255)",
+          labelColor: "rgb(0, 229, 255)",
+          eventTicket: {
+            headerFields: [
+              { key: "event", value: data.eventName, label: "EVENTO" },
+            ],
+            primaryFields: [
+              { key: "name", value: data.attendeeName || "Asistente", label: "ASISTENTE" },
+            ],
+            secondaryFields: [
+              { key: "section", value: data.sectionName || "General", label: "SECCIÓN" },
+              ...(data.eventDate ? [{ key: "date", value: data.eventDate, label: "FECHA" }] : []),
+            ],
+            auxiliaryFields: [
+              ...(data.venueName ? [{ key: "venue", value: data.venueName, label: "LUGAR" }] : []),
+              ...(data.validDays.length > 0 ? [{ key: "days", value: data.validDays.join(", "), label: "DÍAS VÁLIDOS" }] : []),
+            ],
+          },
+          barcodes: [
+            {
+              message: data.qrCodeToken,
+              format: "PKBarcodeFormatQR",
+              messageEncoding: "iso-8859-1",
+            },
+          ],
+          barcode: {
+            message: data.qrCodeToken,
+            format: "PKBarcodeFormatQR",
+            messageEncoding: "iso-8859-1",
+          },
+        }),
+      ),
+    };
 
-    pass.type = "eventTicket";
-
-    pass.setBarcodes({
-      message: data.qrCodeToken,
-      format: "PKBarcodeFormatQR",
-      messageEncoding: "iso-8859-1",
-    });
-
-    pass.primaryFields.push({
-      key: "event",
-      label: "EVENT",
-      value: data.eventName,
-    });
-
-    pass.secondaryFields.push(
-      {
-        key: "location",
-        label: "VENUE",
-        value: data.venueName,
-      },
-      {
-        key: "section",
-        label: "SECTION",
-        value: data.sectionName,
-      },
-    );
-
-    pass.auxiliaryFields.push(
-      {
-        key: "attendee",
-        label: "ATTENDEE",
-        value: data.attendeeName,
-      },
-      {
-        key: "date",
-        label: "DATE",
-        value: data.eventDate,
-      },
-    );
-
-    if (data.validDays.length > 0) {
-      pass.backFields.push({
-        key: "validDays",
-        label: "VALID DAYS",
-        value: data.validDays.join(", "),
-      });
+    if (_cachedIcon) {
+      buffers["icon.png"] = _cachedIcon;
+      buffers["icon@2x.png"] = _cachedIcon;
+      buffers["icon@3x.png"] = _cachedIcon;
+    }
+    if (_cachedLogo) {
+      buffers["logo.png"] = _cachedLogo;
+      buffers["logo@2x.png"] = _cachedLogo;
     }
 
-    const buffer = pass.getAsBuffer();
-    return buffer;
+    const pass = new PKPass(buffers, {
+      wwdr: _cachedWwdr,
+      signerCert: certs.signerCert,
+      signerKey: certs.signerKey,
+      signerKeyPassphrase: "",
+    });
+
+    return pass.getAsBuffer();
   } catch (err) {
-    logger.error(`Apple Wallet pass generation failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error({ err }, "[walletPasses] Apple Wallet pass generation failed");
     return null;
   }
 }
@@ -116,12 +168,12 @@ export function generateGoogleWalletSaveLink(data: WalletPassData): string | nul
   const privateKeyPem = process.env.GOOGLE_WALLET_PRIVATE_KEY;
 
   if (!issuerId) {
-    logger.warn("Google Wallet pass not configured — missing GOOGLE_WALLET_ISSUER_ID");
+    logger.warn("[walletPasses] Google Wallet not configured — missing GOOGLE_WALLET_ISSUER_ID");
     return null;
   }
 
   if (!serviceAccountEmail || !privateKeyPem) {
-    logger.warn("Google Wallet JWT signing not configured — missing service account credentials");
+    logger.warn("[walletPasses] Google Wallet JWT signing not configured — missing service account credentials");
     return null;
   }
 
@@ -174,7 +226,7 @@ export function generateGoogleWalletSaveLink(data: WalletPassData): string | nul
     const jwt = `${signingInput}.${signatureB64}`;
     return `https://pay.google.com/gp/v/save/${jwt}`;
   } catch (err) {
-    logger.error(`Google Wallet JWT generation failed: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error({ err }, "[walletPasses] Google Wallet JWT generation failed");
     return null;
   }
 }

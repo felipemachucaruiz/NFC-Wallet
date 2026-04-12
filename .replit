@@ -131,7 +131,7 @@ EMAIL_FROM_NAME = "Tapee"
 STAFF_APP_URL = "https://tapee.app"
 GUPSHUP_APP_ID = "d7cf118a-2803-4c31-8359-651b1f9171c5"
 TURNSTILE_SITE_KEY = "0x4AAAAAACzI1sblh4_d7fek"
-APPLE_PASS_TYPE_ID = "pass.tapee.app"
+APPLE_PASS_TYPE_ID = "pass.tapee.tickets"
 APPLE_TEAM_ID = "F9V84KM292"
 
 [nix]
