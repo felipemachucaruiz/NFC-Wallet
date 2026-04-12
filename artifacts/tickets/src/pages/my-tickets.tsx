@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
@@ -10,34 +10,6 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import { fetchMyTickets, resolveImageUrl, transferTicket, type ApiTicket } from "@/lib/api";
 
-function extractDominantColor(imageUrl: string): Promise<string> {
-  return new Promise((resolve) => {
-    if (!imageUrl) { resolve("rgba(90,50,180,0.4)"); return; }
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = 20;
-        canvas.height = 20;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) { resolve("rgba(90,50,180,0.4)"); return; }
-        ctx.drawImage(img, 0, 0, 20, 20);
-        const data = ctx.getImageData(0, 0, 20, 20).data;
-        let r = 0, g = 0, b = 0, count = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          r += data[i]; g += data[i + 1]; b += data[i + 2]; count++;
-        }
-        r = Math.round(r / count);
-        g = Math.round(g / count);
-        b = Math.round(b / count);
-        resolve(`rgba(${r},${g},${b},0.45)`);
-      } catch { resolve("rgba(90,50,180,0.4)"); }
-    };
-    img.onerror = () => resolve("rgba(90,50,180,0.4)");
-    img.src = imageUrl;
-  });
-}
 
 export default function MyTickets() {
   const { t } = useTranslation();
@@ -115,38 +87,31 @@ export default function MyTickets() {
 
 function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => void }) {
   const { t } = useTranslation();
-  const [dominantColor, setDominantColor] = useState("rgba(90,50,180,0.4)");
   const imageUrl = resolveImageUrl(ticket.eventCoverImage);
-
-  useEffect(() => {
-    if (imageUrl) extractDominantColor(imageUrl).then(setDominantColor);
-  }, [imageUrl]);
-
   const isValid = ticket.status === "valid";
 
   return (
     <div
-      className="rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.01] active:scale-[0.99]"
-      style={{ backgroundColor: dominantColor }}
+      className="rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.01] active:scale-[0.99] bg-zinc-900 border border-zinc-800"
       onClick={onExpand}
     >
-      <div className="relative h-44 overflow-hidden flex items-center justify-center">
+      <div className="relative w-full aspect-square overflow-hidden bg-zinc-800">
         {imageUrl ? (
-          <img src={imageUrl} alt="" className="w-full h-full object-contain" />
+          <img src={imageUrl} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Ticket className="w-10 h-10 text-white/20" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30" />
         <Badge
-          className={`absolute top-3 right-3 ${isValid ? "bg-emerald-600/80 text-white border-emerald-500/50" : "bg-gray-600/80 text-gray-200 border-gray-500/50"}`}
+          className={`absolute top-3 right-3 ${isValid ? "bg-emerald-600/90 text-white border-emerald-500/50" : "bg-gray-600/90 text-gray-200 border-gray-500/50"}`}
         >
           {isValid ? t("myTickets.valid") : t("myTickets.used")}
         </Badge>
       </div>
 
-      <div className="px-4 py-3 flex items-center gap-3" style={{ backgroundColor: "rgba(0,0,0,0.45)" }}>
+      <div className="px-4 py-3 flex items-center gap-3 bg-zinc-900">
         <div className="bg-white rounded-lg p-1.5 shrink-0">
           {ticket.qrCodeToken ? (
             <img
@@ -162,14 +127,14 @@ function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => 
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-white text-sm truncate">{ticket.eventName || "Event"}</h3>
-          <p className="text-xs text-white/50 truncate">{ticket.ticketTypeName}</p>
+          <p className="text-xs text-zinc-400 truncate">{ticket.ticketTypeName}</p>
           {ticket.eventStartsAt && (
-            <p className="text-xs text-white/40 mt-0.5">
+            <p className="text-xs text-zinc-500 mt-0.5">
               {new Date(ticket.eventStartsAt).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
             </p>
           )}
         </div>
-        <QrCode className="w-5 h-5 text-white/30" />
+        <QrCode className="w-5 h-5 text-zinc-600" />
       </div>
     </div>
   );
@@ -178,7 +143,6 @@ function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => 
 function ETicketFull({ ticket }: { ticket: ApiTicket }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [dominantColor, setDominantColor] = useState("rgba(90,50,180,0.4)");
   const imageUrl = resolveImageUrl(ticket.eventCoverImage);
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferName, setTransferName] = useState("");
@@ -187,10 +151,6 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
   const [transferLoading, setTransferLoading] = useState(false);
   const [transferError, setTransferError] = useState("");
   const [transferDone, setTransferDone] = useState(false);
-
-  useEffect(() => {
-    if (imageUrl) extractDominantColor(imageUrl).then(setDominantColor);
-  }, [imageUrl]);
 
   const isValid = ticket.status === "valid";
   const startDate = ticket.eventStartsAt ? new Date(ticket.eventStartsAt) : null;
@@ -227,16 +187,16 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
   }
 
   return (
-    <div className="rounded-3xl overflow-hidden" style={{ backgroundColor: dominantColor }}>
-      <div className="relative h-56 overflow-hidden flex items-center justify-center" style={{ backgroundColor: dominantColor }}>
+    <div className="rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800">
+      <div className="relative w-full aspect-square overflow-hidden bg-zinc-800">
         {imageUrl ? (
-          <img src={imageUrl} alt="" className="w-full h-full object-contain" />
+          <img src={imageUrl} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Ticket className="w-12 h-12 text-white/20" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40" />
       </div>
 
       <div className="flex flex-col items-center -mt-16 relative z-10 pb-4">
@@ -265,11 +225,11 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
 
       <div className="relative mx-0 h-6 flex items-center">
         <div className="absolute -left-3 w-6 h-6 rounded-full bg-background" />
-        <div className="flex-1 border-t border-dashed border-white/20 mx-4" />
+        <div className="flex-1 border-t border-dashed border-zinc-700 mx-4" />
         <div className="absolute -right-3 w-6 h-6 rounded-full bg-background" />
       </div>
 
-      <div className="px-5 pb-5 space-y-3" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+      <div className="px-5 pb-5 space-y-3 bg-zinc-900">
         <h2 className="text-xl font-bold text-white">{ticket.eventName || "Event"}</h2>
 
         <div className="flex items-center gap-2 text-white/60 text-sm">
