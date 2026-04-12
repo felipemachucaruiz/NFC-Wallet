@@ -190,7 +190,7 @@ router.post(
           },
           reference,
           acceptance_token: acceptanceToken,
-          redirect_url: `${process.env.APP_URL ?? "https://example.com"}/payment-return`,
+          redirect_url: `${process.env.APP_URL ?? "https://attendee.tapee.app"}/payment-return`,
         };
       }
 
