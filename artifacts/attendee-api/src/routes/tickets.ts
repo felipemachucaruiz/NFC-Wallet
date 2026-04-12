@@ -659,6 +659,7 @@ router.get(
         id: ticketsTable.id,
         eventId: ticketsTable.eventId,
         attendeeName: ticketsTable.attendeeName,
+        attendeeUserId: ticketsTable.attendeeUserId,
         status: ticketsTable.status,
         ticketTypeId: ticketsTable.ticketTypeId,
         qrCodeToken: ticketsTable.qrCodeToken,
@@ -670,6 +671,17 @@ router.get(
 
     const enriched = await Promise.all(
       tickets.map(async (ticket) => {
+        // Auto-generate QR token if missing (e.g. tickets created before this field was added
+        // or via admin panel without going through the normal purchase flow).
+        let qrCodeToken = ticket.qrCodeToken;
+        if (!qrCodeToken) {
+          qrCodeToken = generateTicketQrToken(ticket.id, ticket.attendeeUserId);
+          await db
+            .update(ticketsTable)
+            .set({ qrCodeToken, updatedAt: new Date() })
+            .where(eq(ticketsTable.id, ticket.id));
+        }
+
         const [event] = await db
           .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, endsAt: eventsTable.endsAt, flyerImageUrl: eventsTable.flyerImageUrl, coverImageUrl: eventsTable.coverImageUrl, venueAddress: eventsTable.venueAddress, currencyCode: eventsTable.currencyCode })
           .from(eventsTable)
@@ -684,6 +696,7 @@ router.get(
 
         return {
           ...ticket,
+          qrCodeToken,
           eventName: event?.name ?? null,
           eventStartsAt: event?.startsAt ?? null,
           eventEndsAt: event?.endsAt ?? null,
