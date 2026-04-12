@@ -86,31 +86,21 @@ function formatCardNumber(raw: string, brand: CardBrand): string {
   return (digits.match(/.{1,4}/g) || []).join(" ").slice(0, 19);
 }
 
+const CARD_LOGOS: Record<NonNullable<CardBrand>, string> = {
+  visa: `${import.meta.env.BASE_URL}card-visa.png`,
+  mastercard: `${import.meta.env.BASE_URL}card-mastercard.png`,
+  amex: `${import.meta.env.BASE_URL}card-amex.png`,
+};
+
 function CardBrandLogo({ brand }: { brand: CardBrand }) {
   if (!brand) return null;
-  if (brand === "visa") {
-    return (
-      <div className="bg-white rounded px-1.5 py-0.5 shrink-0">
-        <span className="text-[#1A1F71] font-black text-xs tracking-tighter italic select-none">VISA</span>
-      </div>
-    );
-  }
-  if (brand === "mastercard") {
-    return (
-      <div className="flex items-center shrink-0">
-        <div className="w-5 h-5 rounded-full bg-[#EB001B]" />
-        <div className="w-5 h-5 rounded-full bg-[#F79E1B] -ml-2.5 mix-blend-multiply opacity-90" />
-      </div>
-    );
-  }
-  if (brand === "amex") {
-    return (
-      <div className="bg-[#016FD0] rounded px-1.5 py-0.5 shrink-0">
-        <span className="text-white font-bold text-[10px] tracking-tight select-none">AMEX</span>
-      </div>
-    );
-  }
-  return null;
+  return (
+    <img
+      src={CARD_LOGOS[brand]}
+      alt={brand}
+      className="h-7 w-auto object-contain shrink-0 drop-shadow-sm"
+    />
+  );
 }
 
 export default function Checkout() {
