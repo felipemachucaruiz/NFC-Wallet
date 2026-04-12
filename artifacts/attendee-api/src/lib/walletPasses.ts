@@ -177,27 +177,50 @@ export function generateGoogleWalletSaveLink(data: WalletPassData): string | nul
     return null;
   }
 
-  const objectId = `${issuerId}.ticket-${data.ticketId}`;
+  const classId = `${issuerId}.tapee-event-ticket`;
+  const objectId = `${issuerId}.ticket-${data.ticketId.replace(/-/g, "_")}`;
+
+  const logoUri = "https://attendee.tapee.app/attendee-api/api/static/tapee-logo.png";
+
+  const eventTicketClass = {
+    id: classId,
+    issuerName: "Tapee",
+    reviewStatus: "underReview",
+    eventName: {
+      defaultValue: { language: "es", value: "Evento Tapee" },
+    },
+    logo: {
+      sourceUri: { uri: logoUri },
+      contentDescription: { defaultValue: { language: "es", value: "Logo Tapee" } },
+    },
+  };
 
   const eventTicketObject = {
     id: objectId,
-    classId: `${issuerId}.tapee-event-ticket`,
+    classId,
     state: "ACTIVE",
-    heroImage: {
-      sourceUri: { uri: `${APP_URL}/api/static/tapee-logo.png` },
+    ticketHolderName: data.attendeeName || "Asistente",
+    ticketNumber: data.ticketId.slice(0, 8).toUpperCase(),
+    logo: {
+      sourceUri: { uri: logoUri },
     },
-    textModulesData: [
-      { header: "Event", body: data.eventName },
-      { header: "Venue", body: `${data.venueName} - ${data.venueAddress}` },
-      { header: "Section", body: data.sectionName },
-      { header: "Attendee", body: data.attendeeName },
-      { header: "Date", body: data.eventDate },
-      ...(data.validDays.length > 0 ? [{ header: "Valid Days", body: data.validDays.join(", ") }] : []),
-    ],
+    eventName: {
+      defaultValue: { language: "es", value: data.eventName },
+    },
+    seatInfo: {
+      section: { defaultValue: { language: "es", value: data.sectionName || "General" } },
+    },
     barcode: {
       type: "QR_CODE",
       value: data.qrCodeToken,
+      alternateText: data.ticketId.slice(0, 8).toUpperCase(),
     },
+    textModulesData: [
+      ...(data.venueName ? [{ header: "Lugar", body: data.venueName, id: "venue" }] : []),
+      ...(data.eventDate ? [{ header: "Fecha", body: data.eventDate, id: "date" }] : []),
+      ...(data.validDays.length > 0 ? [{ header: "Días válidos", body: data.validDays.join(", "), id: "validDays" }] : []),
+    ],
+    hexBackgroundColor: "#000000",
   };
 
   try {
@@ -206,10 +229,11 @@ export function generateGoogleWalletSaveLink(data: WalletPassData): string | nul
     const payload = {
       iss: serviceAccountEmail,
       aud: "google",
-      origins: [APP_URL || "https://tapee.app"],
+      origins: ["https://tickets.tapee.app", "https://attendee.tapee.app"],
       typ: "savetowallet",
       iat: now,
       payload: {
+        eventTicketClasses: [eventTicketClass],
         eventTicketObjects: [eventTicketObject],
       },
     };

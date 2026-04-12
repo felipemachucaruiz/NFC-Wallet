@@ -151,17 +151,18 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
   const [transferLoading, setTransferLoading] = useState(false);
   const [transferError, setTransferError] = useState("");
   const [transferDone, setTransferDone] = useState(false);
-  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletLoading, setWalletLoading] = useState<"apple" | "google" | null>(null);
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isAndroid = /android/i.test(navigator.userAgent);
 
-  const handleAddToWallet = async () => {
-    setWalletLoading(true);
+  const handleAddToWallet = async (platform: "apple" | "google") => {
+    setWalletLoading(platform);
     try {
-      const { passUrl } = await addTicketToWallet(ticket.id, "apple");
+      const { passUrl } = await addTicketToWallet(ticket.id, platform);
       if (passUrl) window.open(passUrl, "_blank");
     } catch {
     } finally {
-      setWalletLoading(false);
+      setWalletLoading(null);
     }
   };
 
@@ -283,16 +284,31 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
 
         {isValid && isIOS && !showTransfer && (
           <button
-            onClick={handleAddToWallet}
-            disabled={walletLoading}
+            onClick={() => handleAddToWallet("apple")}
+            disabled={!!walletLoading}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-black border border-white/20 text-white text-sm font-semibold hover:bg-white/5 transition-colors mt-2 disabled:opacity-60"
           >
-            {walletLoading ? (
+            {walletLoading === "apple" ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Apple className="w-4 h-4" />
             )}
             {t("myTickets.addAppleWallet", "Añadir a Apple Wallet")}
+          </button>
+        )}
+
+        {isValid && (isAndroid || !isIOS) && !showTransfer && (
+          <button
+            onClick={() => handleAddToWallet("google")}
+            disabled={!!walletLoading}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1a73e8] text-white text-sm font-semibold hover:bg-[#1565c0] transition-colors mt-2 disabled:opacity-60"
+          >
+            {walletLoading === "google" ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Smartphone className="w-4 h-4" />
+            )}
+            {t("myTickets.addGoogleWallet", "Añadir a Google Wallet")}
           </button>
         )}
 
