@@ -3,6 +3,15 @@ import { useTranslation } from "react-i18next";
 import { useLocation, Link } from "wouter";
 import { Smartphone, Building2, Check, AlertCircle, Ticket, CreditCard } from "lucide-react";
 
+function NequiIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38.15 30">
+      <path fill="#ca0080" d="M8.38,3.86h-3.93c-.46,0-.83.37-.83.83v3.34c0,.46.37.83.83.83h3.93c.46,0,.83-.37.83-.83v-3.34c0-.46-.37-.83-.83-.83Z"/>
+      <path fill="currentColor" d="M32.4,3.86h-3.39c-.46,0-.83.38-.83.83v13.55c0,.28-.36.38-.49.13l-7.88-14.15c-.13-.23-.36-.36-.64-.36h-5.64c-.46,0-.83.38-.83.83v21.65c0,.46.38.83.83.83h3.39c.46,0,.83-.38.83-.83v-13.96c0-.28.36-.38.49-.13l8.1,14.57c.13.23.36.36.64.36h5.39c.46,0,.83-.38.83-.83V4.68c0-.46-.38-.83-.83-.83h.03Z"/>
+    </svg>
+  );
+}
+
 function BancolombiaIcon({ className }: { className?: string }) {
   return (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110.54 110.83" fill="currentColor">
@@ -237,7 +246,7 @@ export default function Checkout() {
   };
 
   const methods = [
-    { id: "nequi" as const, icon: Smartphone, label: t("checkout.nequi") },
+    { id: "nequi" as const, icon: null, label: t("checkout.nequi") },
     { id: "pse" as const, icon: Building2, label: t("checkout.pse") },
     { id: "card" as const, icon: CreditCard, label: t("checkout.card", "Tarjeta") },
     { id: "bancolombia_transfer" as const, icon: null, label: "Bancolombia" },
@@ -290,7 +299,7 @@ export default function Checkout() {
                     onClick={() => setPaymentMethod(m.id)}
                     disabled={processing}
                   >
-                    {m.icon ? <m.icon className="w-5 h-5" /> : <BancolombiaIcon className="w-5 h-5" />}
+                    {m.id === "nequi" ? <NequiIcon className="w-5 h-5" /> : m.id === "bancolombia_transfer" ? <BancolombiaIcon className="w-5 h-5" /> : m.icon ? <m.icon className="w-5 h-5" /> : null}
                     <span className="text-sm font-medium">{m.label}</span>
                     {paymentMethod === m.id && <Check className="w-4 h-4 text-primary ml-auto" />}
                   </button>
