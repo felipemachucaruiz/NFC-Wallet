@@ -24,9 +24,9 @@ export function formatDateRange(startsAt: string, endsAt: string, isMultiDay: bo
   });
 }
 
-export function formatFullDate(dateStr: string): string {
+export function formatFullDate(dateStr: string, locale?: string): string {
   const date = new Date(dateStr);
-  return date.toLocaleDateString("es-CO", {
+  return date.toLocaleDateString(locale?.startsWith("en") ? "en-US" : "es-CO", {
     weekday: "long",
     day: "numeric",
     month: "long",

@@ -179,6 +179,7 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
       const timer = setTimeout(() => setTappedUnitId(null), 4000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [tappedUnitId]);
 
   const renderMapContent = (hasFloorplan: boolean) => (

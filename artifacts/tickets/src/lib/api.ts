@@ -120,6 +120,8 @@ export interface ApiEventDetail {
     units?: { id: string; unitNumber: number; unitLabel: string; status: string; mapX?: number | null; mapY?: number | null }[];
     pricingStages?: { id: string; name: string; price: number; startsAt: string; endsAt: string }[];
     nextStage?: { name: string; price: number; startsAt: string } | null;
+    serviceFee?: number;
+    serviceFeeType?: "fixed" | "percentage";
   }[];
   guestLists?: {
     id: string;
