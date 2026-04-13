@@ -813,7 +813,7 @@ router.post(
 
     if (platform === "google") {
       const [event] = ticket.orderId
-        ? await db.select({ name: eventsTable.name, startsAt: eventsTable.startsAt, venueAddress: eventsTable.venueAddress })
+        ? await db.select({ name: eventsTable.name, startsAt: eventsTable.startsAt, venueAddress: eventsTable.venueAddress, coverImageUrl: eventsTable.coverImageUrl })
             .from(eventsTable)
             .innerJoin(ticketOrdersTable, eq(ticketOrdersTable.eventId, eventsTable.id))
             .where(eq(ticketOrdersTable.id, ticket.orderId!))
@@ -849,6 +849,7 @@ router.post(
         attendeeName: ticket.attendeeName ?? "Asistente",
         qrCodeToken: ticket.qrCodeToken ?? ticket.id,
         validDays,
+        flyerUrl: event?.coverImageUrl ?? null,
       });
 
       if (!passUrl) {

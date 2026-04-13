@@ -223,16 +223,20 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
   const [transferError, setTransferError] = useState("");
   const [transferDone, setTransferDone] = useState(false);
   const [walletLoading, setWalletLoading] = useState<"apple" | "google" | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isAndroid = /android/i.test(navigator.userAgent);
   const archived = isArchivedTicket(ticket);
 
   const handleAddToWallet = async (platform: "apple" | "google") => {
     setWalletLoading(platform);
+    setWalletError(null);
     try {
       const { passUrl } = await addTicketToWallet(ticket.id, platform);
       if (passUrl) window.open(passUrl, "_blank");
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("common.unknownError", "Error desconocido");
+      setWalletError(msg);
     } finally {
       setWalletLoading(null);
     }
@@ -421,6 +425,10 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
               <img src={`${import.meta.env.BASE_URL}google-wallet-badge.png`} alt="Añadir a Google Wallet" className="h-12 w-auto" />
             )}
           </button>
+        )}
+
+        {walletError && !showTransfer && (
+          <p className="text-red-400 text-xs text-center mt-1 px-2">{walletError}</p>
         )}
 
         {!archived && isValid && !showTransfer && (

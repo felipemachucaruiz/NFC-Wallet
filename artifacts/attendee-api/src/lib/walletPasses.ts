@@ -233,15 +233,12 @@ export function generateGoogleWalletSaveLink(data: WalletPassData): string | nul
     },
   };
 
-  const eventTicketObject = {
+  const eventTicketObject: Record<string, unknown> = {
     id: objectId,
     classId,
     state: "ACTIVE",
     ticketHolderName: data.attendeeName || "Asistente",
     ticketNumber: data.ticketId.slice(0, 8).toUpperCase(),
-    logo: {
-      sourceUri: { uri: logoUri },
-    },
     eventName: {
       defaultValue: { language: "es", value: data.eventName },
     },
@@ -261,6 +258,13 @@ export function generateGoogleWalletSaveLink(data: WalletPassData): string | nul
     hexBackgroundColor: "#000000",
   };
 
+  if (data.flyerUrl) {
+    eventTicketObject.heroImage = {
+      sourceUri: { uri: data.flyerUrl },
+      contentDescription: { defaultValue: { language: "es", value: data.eventName } },
+    };
+  }
+
   try {
     const now = Math.floor(Date.now() / 1000);
     const header = { alg: "RS256", typ: "JWT" };
@@ -270,6 +274,7 @@ export function generateGoogleWalletSaveLink(data: WalletPassData): string | nul
       origins: ["https://tickets.tapee.app", "https://attendee.tapee.app"],
       typ: "savetowallet",
       iat: now,
+      exp: now + 3600,
       payload: {
         eventTicketClasses: [eventTicketClass],
         eventTicketObjects: [eventTicketObject],
