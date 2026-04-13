@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from "@/lib/date";
 import { useState, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetCurrentAuthUser } from "@workspace/api-client-react";
@@ -234,7 +235,7 @@ export default function EventGuestLists() {
                       </TableCell>
                       <TableCell>
                         {list.expiresAt
-                          ? new Date(list.expiresAt).toLocaleDateString()
+                          ? fmtDate(list.expiresAt)
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right">
@@ -299,7 +300,7 @@ export default function EventGuestLists() {
                                     <TableCell>{entry.name}</TableCell>
                                     <TableCell>{entry.email}</TableCell>
                                     <TableCell>{entry.phone || "—"}</TableCell>
-                                    <TableCell>{new Date(entry.createdAt).toLocaleString()}</TableCell>
+                                    <TableCell>{fmtDateTime(entry.createdAt)}</TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>

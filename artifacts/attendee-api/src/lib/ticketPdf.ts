@@ -24,7 +24,7 @@ import PDFDocument from "pdfkit";
     if (!d) return "—";
     const date = d instanceof Date ? d : new Date(d);
     if (isNaN(date.getTime())) return "—";
-    return date.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+    return date.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" });
   }
 
   function formatPrice(price: number | null | undefined, currencyCode?: string | null): string {

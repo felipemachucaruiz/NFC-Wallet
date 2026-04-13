@@ -193,10 +193,10 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
     try {
       const dt = new Date(data.eventStartsAt);
       const dateStr = dt.toLocaleDateString(isEs ? "es-CO" : "en-US", {
-        weekday: "short", day: "numeric", month: "short", year: "numeric",
+        weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "America/Bogota",
       });
       const timeStr = dt.toLocaleTimeString(isEs ? "es-CO" : "en-US", {
-        hour: "2-digit", minute: "2-digit",
+        hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota",
       });
       startDateHtml = `
         <tr>

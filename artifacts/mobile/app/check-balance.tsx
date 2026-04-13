@@ -179,7 +179,7 @@ export default function CheckBalanceScreen() {
   const formatDate = (iso: string | null | undefined) => {
     if (!iso) return "—";
     const d = new Date(iso);
-    return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" }) + " " + d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" });
   };
 
   return (

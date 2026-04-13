@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/date";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -245,7 +246,7 @@ export default function Transactions() {
                   {isAllEvents && (
                     <TableCell className="text-sm max-w-[150px] truncate">{row.eventName ?? "—"}</TableCell>
                   )}
-                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{new Date(row.createdAt).toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{fmtDateTime(row.createdAt)}</TableCell>
                   <TableCell className="font-mono text-xs">{row.braceletUid}</TableCell>
                   <TableCell className="text-sm">
                     {row.kind === "sale" && row.sale ? (
@@ -295,7 +296,7 @@ export default function Transactions() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelLocation")}</p><p>{selected.locationName ?? selected.locationId.slice(0, 8)}</p></div>
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelCreated")}</p><p>{new Date(selected.createdAt).toLocaleString()}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelCreated")}</p><p>{fmtDateTime(selected.createdAt)}</p></div>
               </div>
               {selected.items && selected.items.length > 0 && (
                 <div>
@@ -341,7 +342,7 @@ export default function Transactions() {
                 {selectedTopUp.performedByName && (
                   <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.topUpPerformedBy")}</p><p>{selectedTopUp.performedByName}</p></div>
                 )}
-                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelCreated")}</p><p>{new Date(selectedTopUp.createdAt).toLocaleString()}</p></div>
+                <div><p className="text-muted-foreground text-xs uppercase mb-1">{t("transactions.labelCreated")}</p><p>{fmtDateTime(selectedTopUp.createdAt)}</p></div>
               </div>
             </div>
           )}

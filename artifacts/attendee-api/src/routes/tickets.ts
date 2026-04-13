@@ -797,7 +797,7 @@ router.get(
     }
 
     const eventDateStr = event?.startsAt
-      ? new Date(event.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })
+      ? new Date(event.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })
       : null;
 
     const apiBase = process.env.APP_URL || "https://attendee.tapee.app";
@@ -865,7 +865,7 @@ router.get(
       const ticketDataList: TicketPdfData[] = [];
 
       const orderEventDateStr = event?.startsAt
-        ? new Date(event.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })
+        ? new Date(event.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })
         : null;
 
       for (const ticket of orderTickets) {
@@ -1277,7 +1277,7 @@ export async function generateOrderPdfBuffer(orderId: string): Promise<Buffer | 
     const ticketDataList: TicketPdfData[] = [];
 
     const bufEventDateStr = event?.startsAt
-      ? new Date(event.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })
+      ? new Date(event.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })
       : null;
 
     for (const ticket of orderTickets) {

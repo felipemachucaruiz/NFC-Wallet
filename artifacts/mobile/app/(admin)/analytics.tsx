@@ -709,7 +709,7 @@ function RefundRequestsPanel({
                 </Text>
               )}
               <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: C.textMuted }}>
-                {new Date(req.createdAt).toLocaleDateString("es-CO")}
+                {new Date(req.createdAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })}
               </Text>
               {req.status === "pending" && (
                 <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>

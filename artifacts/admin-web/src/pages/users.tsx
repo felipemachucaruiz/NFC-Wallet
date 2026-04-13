@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/date";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -134,7 +135,7 @@ export default function Users() {
                   <TableCell><Badge variant="outline" className="text-xs capitalize">{user.role.replace(/_/g, " ")}</Badge></TableCell>
                   <TableCell><UserStatusBadge user={user} t={t} /></TableCell>
                   <TableCell className="text-sm text-muted-foreground">{events.find((e) => e.id === user.eventId)?.name ?? "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{fmtDate(user.createdAt)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

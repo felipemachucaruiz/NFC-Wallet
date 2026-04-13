@@ -95,11 +95,11 @@ export default function EventPayouts() {
               payouts.map((payout: MerchantPayout) => (
                 <TableRow key={payout.id} data-testid={`row-payout-${payout.id}`}>
                   <TableCell className="font-medium">{merchants.find((m) => m.id === payout.merchantId)?.name ?? payout.merchantId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(payout.periodFrom).toLocaleDateString()} – {new Date(payout.periodTo).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{new Date(payout.periodFrom).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })} – {new Date(payout.periodTo).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })}</TableCell>
                   <TableCell className="text-right font-mono">{payout.grossSales.toLocaleString()}</TableCell>
                   <TableCell className="text-right font-mono">{payout.netPayout.toLocaleString()}</TableCell>
                   <TableCell className="text-sm capitalize">{payout.paymentMethod}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(payout.paidAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{new Date(payout.paidAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })}</TableCell>
                 </TableRow>
               ))
             )}

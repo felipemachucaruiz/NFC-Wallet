@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/date";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -824,8 +825,8 @@ export default function Events() {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm">{event.startsAt ? new Date(event.startsAt).toLocaleDateString() : "—"}</TableCell>
-                  <TableCell className="text-sm">{event.endsAt ? new Date(event.endsAt).toLocaleDateString() : "—"}</TableCell>
+                  <TableCell className="text-sm">{event.startsAt ? fmtDate(event.startsAt) : "—"}</TableCell>
+                  <TableCell className="text-sm">{event.endsAt ? fmtDate(event.endsAt) : "—"}</TableCell>
                   <TableCell>
                     {(() => {
                       const expired = event.endsAt && new Date(event.endsAt) < new Date();

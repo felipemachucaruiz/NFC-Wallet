@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/date";
 import {
   useGetCurrentAuthUser,
   useGetSettlementReport,
@@ -46,7 +47,7 @@ export default function EventSettlement() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t("settlement.title")}</h1>
           <p className="text-muted-foreground mt-1">
-            {report.eventName} — {t("settlement.generatedAt", { date: new Date(report.generatedAt).toLocaleString() })}
+            {report.eventName} — {t("settlement.generatedAt", { date: fmtDateTime(report.generatedAt) })}
           </p>
         </div>
         <div className="flex items-center gap-2">

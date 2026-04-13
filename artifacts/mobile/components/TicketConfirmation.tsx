@@ -295,7 +295,7 @@ export function CheckinHistoryList({ items }: CheckinHistoryListProps) {
       {items.map((item) => {
         const time = new Date(item.checkedInAt).toLocaleTimeString(
           locale === "es" ? "es-CO" : "en-US",
-          { hour: "2-digit", minute: "2-digit" }
+          { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" }
         );
         return (
           <View key={item.id} style={[styles.historyItem, { borderBottomColor: C.border }]}>

@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/date";
 import { useState, useEffect } from "react";
 import {
   useGetCurrentAuthUser,
@@ -110,8 +111,8 @@ export default function EventRefundRequests() {
       escCsv(r.accountDetails),
       escCsv(r.notes),
       escCsv(r.chipZeroed ? t("common.yes") : t("common.no")),
-      escCsv(r.createdAt ? new Date(r.createdAt).toLocaleString() : ""),
-      escCsv(r.processedAt ? new Date(r.processedAt).toLocaleString() : ""),
+      escCsv(r.createdAt ? fmtDateTime(r.createdAt) : ""),
+      escCsv(r.processedAt ? fmtDateTime(r.processedAt) : ""),
     ]);
     const bom = "\uFEFF";
     const csv = bom + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -210,7 +211,7 @@ export default function EventRefundRequests() {
                   <TableCell className="text-right font-mono">{fmt(req.amount)}</TableCell>
                   <TableCell className="text-sm capitalize">{req.refundMethod}</TableCell>
                   <TableCell>{statusBadge(req.status)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(req.createdAt).toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{fmtDateTime(req.createdAt)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => { setSelected(req); setDetailOpen(true); }}>
@@ -304,12 +305,12 @@ export default function EventRefundRequests() {
               </div>
               <div>
                 <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("refunds.labelRequested")}</p>
-                <p>{new Date(selected.createdAt).toLocaleString()}</p>
+                <p>{fmtDateTime(selected.createdAt)}</p>
               </div>
               {selected.processedAt && (
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("refunds.labelProcessed")}</p>
-                  <p>{new Date(selected.processedAt).toLocaleString()}</p>
+                  <p>{fmtDateTime(selected.processedAt)}</p>
                 </div>
               )}
             </div>

@@ -63,7 +63,7 @@ export default function WristbandsScreen() {
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
-    return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+    return d.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" });
   };
 
   const renderBracelet = ({ item }: { item: EventBracelet }) => (

@@ -102,7 +102,7 @@ export default function Payouts() {
                 <TableRow key={payout.id} data-testid={`row-payout-${payout.id}`}>
                   <TableCell className="font-medium">{merchants.find((m) => m.id === payout.merchantId)?.name ?? payout.merchantId.slice(0, 8)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{events.find((e) => e.id === payout.eventId)?.name ?? payout.eventId.slice(0, 8)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(payout.periodFrom).toLocaleDateString()} – {new Date(payout.periodTo).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{new Date(payout.periodFrom).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })} – {new Date(payout.periodTo).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })}</TableCell>
                   <TableCell className="text-right font-mono">{payout.grossSales.toLocaleString()}</TableCell>
                   <TableCell className="text-right font-mono">{payout.netPayout.toLocaleString()}</TableCell>
                   <TableCell className="text-sm capitalize">{payout.paymentMethod}</TableCell>
@@ -192,7 +192,7 @@ export default function Payouts() {
             ) : (
               txData.transactions.map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between text-sm border-b border-border pb-2">
-                  <span className="text-muted-foreground">{new Date(tx.createdAt).toLocaleString()}</span>
+                  <span className="text-muted-foreground">{new Date(tx.createdAt).toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" })}</span>
                   <span className="font-mono">{(tx.grossAmount ?? 0).toLocaleString()} {events.find((e) => e.id === selectedPayout?.eventId)?.currencyCode ?? "COP"}</span>
                 </div>
               ))

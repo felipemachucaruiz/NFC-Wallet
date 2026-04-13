@@ -195,7 +195,7 @@ export default function SyncIssuesScreen() {
 
               <View style={styles.itemFooter}>
                 <Text style={[styles.dateText, { color: C.textMuted }]}>
-                  {new Date(item.createdAt).toLocaleString()}
+                  {new Date(item.createdAt).toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" })}
                 </Text>
                 <Text style={[styles.failCount, { color: C.textMuted }]}>
                   {t("syncIssues.attempts", { count: item.failCount })}

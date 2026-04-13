@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/date";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -267,7 +268,7 @@ export default function Bracelets() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {new Date(bracelet.createdAt).toLocaleDateString()}
+                      {fmtDate(bracelet.createdAt)}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">

@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/date";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -105,7 +106,7 @@ export default function FraudAlerts() {
                   <TableCell>
                     <Badge variant="outline" className="text-xs capitalize">{alert.status}</Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(alert.createdAt).toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{fmtDateTime(alert.createdAt)}</TableCell>
                   <TableCell>
                     <Button
                       variant="ghost"
@@ -158,7 +159,7 @@ export default function FraudAlerts() {
               )}
               <div>
                 <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("fraudAlerts.labelCreated")}</p>
-                <p>{new Date(selected.createdAt).toLocaleString()}</p>
+                <p>{fmtDateTime(selected.createdAt)}</p>
               </div>
               <div className="space-y-1">
                 <Label>{t("fraudAlerts.updateStatus")}</Label>

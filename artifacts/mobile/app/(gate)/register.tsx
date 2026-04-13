@@ -81,6 +81,7 @@ function formatTime(isoString: string | Date | null, locale: string): string {
     return d.toLocaleTimeString(locale === "es" ? "es-CO" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Bogota",
     });
   } catch {
     return String(isoString);

@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/date";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -153,7 +154,7 @@ export default function Promoters() {
                   <TableCell className="text-muted-foreground font-mono text-sm">{company.nit ?? "—"}</TableCell>
                   <TableCell className="text-sm">{company.email ?? "—"}</TableCell>
                   <TableCell className="text-sm">{company.phone ?? "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(company.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{fmtDate(company.createdAt)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from "@/lib/date";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -153,7 +154,7 @@ export default function EventInventory() {
                     <TableRow key={wh.id}>
                       <TableCell className="font-medium">{wh.name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{wh.notes ?? "—"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{new Date(wh.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{fmtDate(wh.createdAt)}</TableCell>
                     </TableRow>
                   ))
                 )}
@@ -181,7 +182,7 @@ export default function EventInventory() {
                 ) : (
                   movements.map((mv: StockMovement) => (
                     <TableRow key={mv.id}>
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{new Date(mv.createdAt).toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{fmtDateTime(mv.createdAt)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs capitalize">{mv.movementType.replace(/_/g, " ")}</Badge>
                       </TableCell>
@@ -218,7 +219,7 @@ export default function EventInventory() {
                 ) : (
                   audits.map((a) => (
                     <TableRow key={a.id}>
-                      <TableCell className="text-sm text-muted-foreground">{new Date(a.createdAt).toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{fmtDateTime(a.createdAt)}</TableCell>
                       <TableCell className="text-sm">{a.locationId ? locationName(a.locationId) : a.warehouseId ? warehouseName(a.warehouseId) : "—"}</TableCell>
                       <TableCell className="font-mono">{a.items?.length ?? 0}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{a.notes ?? "—"}</TableCell>
@@ -248,7 +249,7 @@ export default function EventInventory() {
                 ) : (
                   damaged.map((d) => (
                     <TableRow key={d.id}>
-                      <TableCell className="text-sm text-muted-foreground">{new Date(d.createdAt).toLocaleString()}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{fmtDateTime(d.createdAt)}</TableCell>
                       <TableCell className="text-sm">{productName(d.productId)}</TableCell>
                       <TableCell className="text-right font-mono">{d.quantity}</TableCell>
                       <TableCell>

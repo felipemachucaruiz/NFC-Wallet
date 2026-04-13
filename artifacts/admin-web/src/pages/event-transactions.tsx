@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/date";
 import { useState } from "react";
 import {
   useGetCurrentAuthUser,
@@ -88,7 +89,7 @@ export default function EventTransactions() {
             ) : (
               transactions.map((tx) => (
                 <TableRow key={tx.id} data-testid={`row-tx-${tx.id}`}>
-                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{new Date(tx.createdAt).toLocaleString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{fmtDateTime(tx.createdAt)}</TableCell>
                   <TableCell className="font-mono text-xs">{tx.braceletUid}</TableCell>
                   <TableCell className="text-sm">{tx.locationName ?? tx.locationId.slice(0, 8)}</TableCell>
                   <TableCell className="text-sm">{tx.merchantName ?? merchants.find((m) => m.id === tx.merchantId)?.name ?? tx.merchantId.slice(0, 8)}</TableCell>
@@ -152,7 +153,7 @@ export default function EventTransactions() {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">{t("transactions.labelCreated")}</p>
-                  <p>{new Date(selected.createdAt).toLocaleString()}</p>
+                  <p>{fmtDateTime(selected.createdAt)}</p>
                 </div>
               </div>
               {selected.items && selected.items.length > 0 && (

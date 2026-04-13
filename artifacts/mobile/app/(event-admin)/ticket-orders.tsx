@@ -161,7 +161,7 @@ export default function TicketOrdersScreen() {
                   <Text style={[styles.orderAmount, { color: C.primary }]}>{fmt(item.totalAmount)}</Text>
                 </View>
                 <Text style={[styles.orderId, { color: C.textMuted }]}>
-                  {new Date(item.createdAt).toLocaleDateString()} · #{item.id.slice(0, 8)}
+                  {new Date(item.createdAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })} · #{item.id.slice(0, 8)}
                 </Text>
               </View>
             </View>

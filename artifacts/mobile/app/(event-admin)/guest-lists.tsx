@@ -205,7 +205,7 @@ export default function GuestListsScreen() {
                 </Text>
                 {item.expiresAt && (
                   <Text style={[styles.listExpiry, { color: C.textMuted }]}>
-                    {t("guestLists.expires")}: {new Date(item.expiresAt).toLocaleDateString()}
+                    {t("guestLists.expires")}: {new Date(item.expiresAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })}
                   </Text>
                 )}
               </View>
@@ -298,7 +298,7 @@ export default function GuestListsScreen() {
                   <Text style={[styles.entryEmail, { color: C.textMuted }]}>{item.email}</Text>
                   {item.phone && <Text style={[styles.entryEmail, { color: C.textMuted }]}>{item.phone}</Text>}
                   <Text style={[styles.entryDate, { color: C.textMuted }]}>
-                    {new Date(item.createdAt).toLocaleString()}
+                    {new Date(item.createdAt).toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" })}
                   </Text>
                 </Card>
               )}

@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ShieldAlert, DollarSign, Building, TrendingUp, MapPin, Nfc } from "lucide-react";
 import { DEFAULT_CENTER } from "@/lib/maps";
-import { format } from "date-fns";
+import { fmtDate } from "@/lib/date";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 import L from "leaflet";
@@ -98,7 +98,7 @@ export default function Dashboard() {
     if (popupRef.current) { popupRef.current.remove(); popupRef.current = null; }
     if (!selected) return;
     const dateStr = selected.startsAt
-      ? format(new Date(selected.startsAt), "MMM d, yyyy") + (selected.endsAt ? ` – ${format(new Date(selected.endsAt), "MMM d, yyyy")}` : "")
+      ? fmtDate(selected.startsAt) + (selected.endsAt ? ` – ${fmtDate(selected.endsAt)}` : "")
       : "";
     const popup = L.popup({ closeButton: true, className: "tapee-popup" })
       .setLatLng([selected.lat, selected.lng])

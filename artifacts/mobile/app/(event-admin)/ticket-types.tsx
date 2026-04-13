@@ -569,7 +569,7 @@ export default function TicketTypesScreen() {
                       <Text style={[styles.stageName, { color: C.text }]}>{s.name}</Text>
                       <Text style={[styles.stagePrice, { color: C.primary }]}>{fmt(s.price)}</Text>
                       <Text style={[styles.stageDates, { color: C.textMuted }]}>
-                        {new Date(s.startsAt).toLocaleDateString()} – {new Date(s.endsAt).toLocaleDateString()}
+                        {new Date(s.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })} – {new Date(s.endsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })}
                       </Text>
                     </View>
                     <View style={styles.stageActions}>

@@ -68,7 +68,7 @@ export function FraudAlertCard({ alert, onMarkReviewed, onDismiss, isUpdating }:
 
   const sc = severityColors[alert.severity];
   const isManual = alert.type === "manual_report";
-  const createdAt = new Date(alert.createdAt).toLocaleString();
+  const createdAt = new Date(alert.createdAt).toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" });
 
   return (
     <Card padding={14}>

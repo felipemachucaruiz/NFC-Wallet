@@ -280,7 +280,7 @@ export default function EventSalesDashboard() {
                     <TableCell>{order.buyerName || order.buyerEmail}</TableCell>
                     <TableCell>{order.ticketCount}</TableCell>
                     <TableCell className="font-mono">{fmt(order.totalAmount)}</TableCell>
-                    <TableCell className="text-sm">{new Date(order.createdAt).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm">{new Date(order.createdAt).toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" })}</TableCell>
                     <TableCell>
                       <Badge variant={order.paymentStatus === "paid" ? "default" : "secondary"}>
                         {order.paymentStatus}

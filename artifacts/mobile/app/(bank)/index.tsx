@@ -483,7 +483,7 @@ export default function BankLookupScreen() {
                   {fmt(pw.amount)} — {pw.nfcUid}
                 </Text>
                 <Text style={[styles.pendingWriteTime, { color: C.textMuted }]}>
-                  {t("bank.pendingNfcWriteAt", { time: new Date(pw.savedAt).toLocaleTimeString() })}
+                  {t("bank.pendingNfcWriteAt", { time: new Date(pw.savedAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" }) })}
                 </Text>
                 <Pressable
                   onPress={() => {

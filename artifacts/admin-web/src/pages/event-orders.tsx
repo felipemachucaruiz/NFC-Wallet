@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/date";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useGetCurrentAuthUser } from "@workspace/api-client-react";
@@ -129,7 +130,7 @@ export default function EventOrders() {
                     <TableCell>{order.ticketCount}</TableCell>
                     <TableCell className="font-mono">{fmt(order.totalAmount)}</TableCell>
                     <TableCell className="text-sm">
-                      {new Date(order.createdAt).toLocaleDateString("es-CO", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      {fmtDateTime(order.createdAt)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={statusBadgeVariant(order.paymentStatus)}>

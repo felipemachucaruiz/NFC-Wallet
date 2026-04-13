@@ -256,7 +256,7 @@ export default function SalesDashboardScreen() {
                   {order.buyerName || order.buyerEmail}
                 </Text>
                 <Text style={[styles.orderSub, { color: C.textMuted }]}>
-                  {order.ticketCount} {t("ticketOrders.tickets")} · {new Date(order.createdAt).toLocaleDateString()}
+                  {order.ticketCount} {t("ticketOrders.tickets")} · {new Date(order.createdAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" })}
                 </Text>
               </View>
               <View style={styles.orderRight}>

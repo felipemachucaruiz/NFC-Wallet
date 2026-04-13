@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Percent, TrendingUp, DollarSign, Calendar, Ticket, CreditCard } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
+import { fmtDate } from "@/lib/date";
 
 type EventRow = {
   id: string;
@@ -30,8 +31,7 @@ function fmt(n: number, cur: string = "COP") {
 }
 
 function formatDate(d: string | null) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+  return fmtDate(d);
 }
 
 export default function Commissions() {

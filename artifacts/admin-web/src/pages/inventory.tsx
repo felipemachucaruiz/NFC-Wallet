@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from "@/lib/date";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -119,7 +120,7 @@ export default function Inventory() {
                       <TableRow key={wh.id}>
                         <TableCell className="font-medium">{wh.name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{wh.notes ?? "—"}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{new Date(wh.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{fmtDate(wh.createdAt)}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -147,7 +148,7 @@ export default function Inventory() {
                   ) : (
                     movements.map((mv: StockMovement) => (
                       <TableRow key={mv.id}>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{new Date(mv.createdAt).toLocaleString()}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{fmtDateTime(mv.createdAt)}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs capitalize">{mv.movementType.replace(/_/g, " ")}</Badge></TableCell>
                         <TableCell className="text-sm">{productName(mv.productId)}</TableCell>
                         <TableCell className="text-right font-mono">{mv.quantity}</TableCell>

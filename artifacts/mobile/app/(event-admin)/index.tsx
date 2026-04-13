@@ -31,7 +31,7 @@ type EventDetail = {
 function formatDate(iso: string | null | undefined, t: (k: string) => string): string {
   if (!iso) return t("common.notSet");
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Bogota" });
 }
 
 function EventInfoCard({ event }: { event: EventDetail }) {

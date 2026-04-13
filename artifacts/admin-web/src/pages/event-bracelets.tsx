@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/date";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -117,7 +118,7 @@ export default function EventBracelets() {
                       <Badge variant="outline" className="text-xs text-green-500 border-green-500">{t("wristbands.ok")}</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{new Date(bracelet.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{fmtDate(bracelet.createdAt)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       {bracelet.flagged && (
