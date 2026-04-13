@@ -43,7 +43,7 @@ export function Footer() {
           <img
             src={`${import.meta.env.BASE_URL}metodos-pago.png`}
             alt="Amex, Visa, Mastercard, Addi, Efecty, Nequi, Apple Pay, Google Pay"
-            className="h-8 object-contain"
+            className="h-11 object-contain"
           />
         </div>
 
