@@ -989,7 +989,7 @@ router.get(
           })
           .from(usersTable)
           .where(sql`${usersTable.id} IN (${sql.join(batch.map(id => sql`${id}`), sql`, `)})`);
-        attendees.push(...batchResult);
+        attendees.push(...batchResult.map(r => ({ ...r, email: r.email ?? "" })));
       }
     }
 
@@ -1088,6 +1088,11 @@ router.post(
 
         if (ticket.status === "cancelled") {
           results.push({ offlineId: checkin.offlineId, status: "error", error: "Ticket is cancelled" });
+          continue;
+        }
+
+        if (!ticket.attendeeUserId) {
+          results.push({ offlineId: checkin.offlineId, status: "error", error: "Ticket has no linked attendee" });
           continue;
         }
 

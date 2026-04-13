@@ -907,7 +907,7 @@ router.get(
     if (whereClause) countQuery.where(whereClause);
     const [totalRow] = await countQuery;
 
-    const rows = await db
+    const rowsQuery = db
       .select({
         id: topUpsTable.id,
         braceletUid: topUpsTable.braceletUid,
@@ -926,9 +926,9 @@ router.get(
       .leftJoin(eventsTable, eq(braceletsTable.eventId, eventsTable.id))
       .leftJoin(usersTable, eq(topUpsTable.performedByUserId, usersTable.id));
     if (whereClause) {
-      rows.where(whereClause);
+      rowsQuery.where(whereClause);
     }
-    const result = await rows
+    const result = await rowsQuery
       .orderBy(sql`${topUpsTable.createdAt} DESC`)
       .limit(limit)
       .offset(offset);
@@ -1484,7 +1484,8 @@ router.post(
   requireRole("admin", "event_admin"),
   eventImageUpload.single("image"),
   async (req: Request, res: Response) => {
-    const { eventId, imageType } = req.params;
+    const eventId = req.params.eventId as string;
+    const imageType = req.params.imageType as string;
 
     if (imageType !== "cover" && imageType !== "flyer") {
       res.status(400).json({ error: "imageType must be 'cover' or 'flyer'" });

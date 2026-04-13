@@ -114,6 +114,7 @@ router.post("/whatsapp-templates", requireAuth, requireRole("admin"), async (req
 
 router.patch("/whatsapp-templates/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
+    const id = req.params.id as string;
     const parsed = updateTemplateSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
@@ -121,7 +122,7 @@ router.patch("/whatsapp-templates/:id", requireAuth, requireRole("admin"), async
     }
     const [template] = await db.update(whatsappTemplatesTable)
       .set({ ...parsed.data, updatedAt: new Date() })
-      .where(eq(whatsappTemplatesTable.id, req.params.id))
+      .where(eq(whatsappTemplatesTable.id, id))
       .returning();
     if (!template) {
       res.status(404).json({ error: "Template not found" });
@@ -136,8 +137,9 @@ router.patch("/whatsapp-templates/:id", requireAuth, requireRole("admin"), async
 
 router.delete("/whatsapp-templates/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
+    const id = req.params.id as string;
     const [deleted] = await db.delete(whatsappTemplatesTable)
-      .where(eq(whatsappTemplatesTable.id, req.params.id))
+      .where(eq(whatsappTemplatesTable.id, id))
       .returning();
     if (!deleted) {
       res.status(404).json({ error: "Template not found" });
@@ -192,6 +194,7 @@ router.post("/whatsapp-trigger-mappings", requireAuth, requireRole("admin"), asy
 
 router.patch("/whatsapp-trigger-mappings/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
+    const id = req.params.id as string;
     const parsed = updateMappingSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
@@ -199,7 +202,7 @@ router.patch("/whatsapp-trigger-mappings/:id", requireAuth, requireRole("admin")
     }
     const [mapping] = await db.update(whatsappTriggerMappingsTable)
       .set({ ...parsed.data, updatedAt: new Date() })
-      .where(eq(whatsappTriggerMappingsTable.id, req.params.id))
+      .where(eq(whatsappTriggerMappingsTable.id, id))
       .returning();
     if (!mapping) {
       res.status(404).json({ error: "Mapping not found" });
@@ -214,8 +217,9 @@ router.patch("/whatsapp-trigger-mappings/:id", requireAuth, requireRole("admin")
 
 router.delete("/whatsapp-trigger-mappings/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
+    const id = req.params.id as string;
     const [deleted] = await db.delete(whatsappTriggerMappingsTable)
-      .where(eq(whatsappTriggerMappingsTable.id, req.params.id))
+      .where(eq(whatsappTriggerMappingsTable.id, id))
       .returning();
     if (!deleted) {
       res.status(404).json({ error: "Mapping not found" });
@@ -352,7 +356,7 @@ router.get("/whatsapp-message-log/stats", requireAuth, requireRole("admin"), asy
 
 router.post("/whatsapp-message-log/:id/resend", requireAuth, requireRole("admin"), async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const [message] = await db
       .select()
       .from(whatsappMessageLogTable)
