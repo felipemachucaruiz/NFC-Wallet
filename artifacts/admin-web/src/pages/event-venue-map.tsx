@@ -485,8 +485,21 @@ export default function EventVenueMap() {
 
         <div>
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base">{t("venueMap.sectionsTitle")}</CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => {
+                  drawnRectRef.current = null;
+                  setForm({ name: "", color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length], capacity: "", sectionType: "" });
+                  setDialogOpen(true);
+                }}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                {t("venueMap.addSection", "Nueva Sección")}
+              </Button>
             </CardHeader>
             <CardContent>
               {sections.length === 0 ? (

@@ -963,6 +963,7 @@
     "subtitle": "Upload a venue image and define sections on the map.",
     "uploadImage": "Upload Image",
     "drawSection": "Draw Section",
+    "addSection": "New Section",
     "canvasTitle": "Venue Layout",
     "sectionsTitle": "Sections",
     "noSections": "No sections defined yet.",

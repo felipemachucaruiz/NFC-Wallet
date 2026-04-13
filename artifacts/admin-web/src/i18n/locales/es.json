@@ -963,6 +963,7 @@
     "subtitle": "Sube una imagen del venue y define secciones en el mapa.",
     "uploadImage": "Subir Imagen",
     "drawSection": "Dibujar Sección",
+    "addSection": "Nueva Sección",
     "canvasTitle": "Plano del Venue",
     "sectionsTitle": "Secciones",
     "noSections": "Sin secciones definidas aún.",
