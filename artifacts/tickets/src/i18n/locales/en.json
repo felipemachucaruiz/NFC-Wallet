@@ -109,7 +109,13 @@
     "invalidEmail": "Invalid email",
     "orderSummary": "Order Summary",
     "selectUnit": "Select your {{label}}",
-    "unitIncludes": "Includes {{count}} ticket(s) per unit"
+    "unitIncludes": "Includes {{count}} ticket(s) per unit",
+    "dateOfBirth": "Date of birth",
+    "sex": "Sex",
+    "male": "Male",
+    "female": "Female",
+    "idDocument": "ID number",
+    "yourTicket": "Your ticket"
   },
   "auth": {
     "loginTitle": "Log In",

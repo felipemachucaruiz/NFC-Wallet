@@ -82,6 +82,9 @@ export interface AttendeeInfo {
   name: string;
   email: string;
   phone: string;
+  dateOfBirth: string;
+  sex: "male" | "female" | "";
+  idDocument: string;
 }
 
 export interface OrderTicket {

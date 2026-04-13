@@ -38,7 +38,7 @@ interface CheckoutData {
   validDays: string;
   price: number;
   quantity: number;
-  attendees: { name: string; email: string; phone: string }[];
+  attendees: { name: string; email: string; phone: string; dateOfBirth?: string; sex?: "male" | "female" | ""; idDocument?: string }[];
   subtotal: number;
   serviceFee: number;
   total: number;
@@ -166,6 +166,9 @@ export default function Checkout() {
           name: a.name,
           email: a.email,
           phone: a.phone || undefined,
+          dateOfBirth: a.dateOfBirth || undefined,
+          sex: (a.sex as "male" | "female") || undefined,
+          idDocument: a.idDocument || undefined,
           ticketTypeId: data.ticketTypeId,
         })),
         unitSelections: data.unitSelections,
@@ -246,6 +249,9 @@ export default function Checkout() {
           name: a.name,
           email: a.email,
           phone: a.phone || undefined,
+          dateOfBirth: a.dateOfBirth || undefined,
+          sex: (a.sex as "male" | "female") || undefined,
+          idDocument: a.idDocument || undefined,
           ticketTypeId: data.ticketTypeId,
         })),
         unitSelections: data.unitSelections,

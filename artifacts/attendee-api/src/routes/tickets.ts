@@ -70,6 +70,9 @@ const attendeeDataSchema = z.object({
   name: z.string().min(1).max(255),
   email: z.string().email(),
   phone: z.string().max(30).optional(),
+  dateOfBirth: z.string().max(10).optional(),
+  sex: z.enum(["male", "female"]).optional(),
+  idDocument: z.string().max(50).optional(),
   ticketTypeId: z.string().min(1),
 });
 
@@ -386,6 +389,9 @@ router.post(
             attendeeName: attendee.name,
             attendeeEmail: normalizedEmail,
             attendeePhone: attendee.phone ?? null,
+            attendeeDateOfBirth: attendee.dateOfBirth ?? null,
+            attendeeSex: attendee.sex ?? null,
+            attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId,
             status: "valid",
           });
@@ -574,6 +580,9 @@ router.post(
           attendeeName: attendee.name,
           attendeeEmail: normalizedEmail,
           attendeePhone: attendee.phone ?? null,
+          attendeeDateOfBirth: attendee.dateOfBirth ?? null,
+          attendeeSex: attendee.sex ?? null,
+          attendeeIdDocument: attendee.idDocument ?? null,
           attendeeUserId: attendeeUserId,
           status: "valid",
         });

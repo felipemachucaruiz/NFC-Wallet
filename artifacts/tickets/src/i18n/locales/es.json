@@ -109,7 +109,13 @@
     "invalidEmail": "Correo inválido",
     "orderSummary": "Resumen de la orden",
     "selectUnit": "Selecciona tu {{label}}",
-    "unitIncludes": "Incluye {{count}} boleta(s) por unidad"
+    "unitIncludes": "Incluye {{count}} boleta(s) por unidad",
+    "dateOfBirth": "Fecha de nacimiento",
+    "sex": "Género",
+    "male": "Masculino",
+    "female": "Femenino",
+    "idDocument": "Núm. de identificación",
+    "yourTicket": "Tu entrada"
   },
   "auth": {
     "loginTitle": "Iniciar sesión",

@@ -327,6 +327,9 @@ export function usePurchaseTickets() {
           name: tk.attendee.name,
           email: tk.attendee.email,
           phone: tk.attendee.phone,
+          dateOfBirth: tk.attendee.dateOfBirth || undefined,
+          sex: (tk.attendee.sex as "male" | "female") || undefined,
+          idDocument: tk.attendee.idDocument || undefined,
         })),
       };
       return apiFetch<TicketPurchaseResult>(

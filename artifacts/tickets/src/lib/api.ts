@@ -216,7 +216,7 @@ export async function logoutApi(): Promise<void> {
 
 export interface PurchaseRequest {
   eventId: string;
-  attendees: { name: string; email: string; phone?: string; ticketTypeId: string }[];
+  attendees: { name: string; email: string; phone?: string; dateOfBirth?: string; sex?: "male" | "female"; idDocument?: string; ticketTypeId: string }[];
   unitSelections?: { ticketTypeId: string; unitId: string }[];
   paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "free";
   phoneNumber?: string;

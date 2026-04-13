@@ -77,6 +77,9 @@ export default function AttendeeFormScreen() {
       name: i === 0 ? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() : "",
       email: i === 0 ? user?.email ?? "" : "",
       phone: i === 0 && user?.phone ? user.phone : "",
+      dateOfBirth: "",
+      sex: "",
+      idDocument: "",
     })),
   );
 
@@ -122,6 +125,9 @@ export default function AttendeeFormScreen() {
       if (!a.email.trim()) newErrors[`${i}_email`] = t("tickets.required");
       else if (!isValidEmail(a.email)) newErrors[`${i}_email`] = t("tickets.invalidEmail");
       if (!phoneLocals[i]?.trim()) newErrors[`${i}_phone`] = t("tickets.required");
+      if (!a.dateOfBirth.trim()) newErrors[`${i}_dateOfBirth`] = t("tickets.required");
+      if (!a.sex) newErrors[`${i}_sex`] = t("tickets.required");
+      if (!a.idDocument.trim()) newErrors[`${i}_idDocument`] = t("tickets.required");
     });
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
@@ -298,6 +304,88 @@ export default function AttendeeFormScreen() {
                       {errors[`${index}_phone`]}
                     </Text>
                   )}
+
+                  <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
+                    {t("tickets.dateOfBirth", "Fecha de nacimiento")} *
+                  </Text>
+                  <TextInput
+                    style={inputStyle(`${index}_dateOfBirth`)}
+                    placeholder="DD/MM/AAAA"
+                    placeholderTextColor={C.textMuted}
+                    value={attendees[index]?.dateOfBirth ?? ""}
+                    onChangeText={(v) => {
+                      const digits = v.replace(/\D/g, "").slice(0, 8);
+                      let formatted = digits;
+                      if (digits.length > 4) formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+                      else if (digits.length > 2) formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+                      updateAttendee(index, "dateOfBirth", formatted);
+                    }}
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                  {errors[`${index}_dateOfBirth`] && (
+                    <Text style={[styles.errorText, { color: C.danger }]}>
+                      {errors[`${index}_dateOfBirth`]}
+                    </Text>
+                  )}
+
+                  <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
+                    {t("tickets.sex", "Género")} *
+                  </Text>
+                  <View style={styles.sexRow}>
+                    <Pressable
+                      style={[
+                        styles.sexBtn,
+                        {
+                          borderColor: attendees[index]?.sex === "male" ? C.primary : C.border,
+                          backgroundColor: attendees[index]?.sex === "male" ? C.primaryLight : C.inputBg,
+                        },
+                      ]}
+                      onPress={() => updateAttendee(index, "sex", "male")}
+                    >
+                      <Feather name="user" size={14} color={attendees[index]?.sex === "male" ? C.primary : C.textSecondary} />
+                      <Text style={[styles.sexBtnText, { color: attendees[index]?.sex === "male" ? C.primary : C.textSecondary }]}>
+                        {t("tickets.male", "Masculino")}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.sexBtn,
+                        {
+                          borderColor: attendees[index]?.sex === "female" ? C.primary : C.border,
+                          backgroundColor: attendees[index]?.sex === "female" ? C.primaryLight : C.inputBg,
+                        },
+                      ]}
+                      onPress={() => updateAttendee(index, "sex", "female")}
+                    >
+                      <Feather name="user" size={14} color={attendees[index]?.sex === "female" ? C.primary : C.textSecondary} />
+                      <Text style={[styles.sexBtnText, { color: attendees[index]?.sex === "female" ? C.primary : C.textSecondary }]}>
+                        {t("tickets.female", "Femenino")}
+                      </Text>
+                    </Pressable>
+                  </View>
+                  {errors[`${index}_sex`] && (
+                    <Text style={[styles.errorText, { color: C.danger }]}>
+                      {errors[`${index}_sex`]}
+                    </Text>
+                  )}
+
+                  <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
+                    {t("tickets.idDocument", "Núm. de identificación")} *
+                  </Text>
+                  <TextInput
+                    style={inputStyle(`${index}_idDocument`)}
+                    placeholder="1234567890"
+                    placeholderTextColor={C.textMuted}
+                    value={attendees[index]?.idDocument ?? ""}
+                    onChangeText={(v) => updateAttendee(index, "idDocument", v.replace(/\D/g, ""))}
+                    keyboardType="numeric"
+                  />
+                  {errors[`${index}_idDocument`] && (
+                    <Text style={[styles.errorText, { color: C.danger }]}>
+                      {errors[`${index}_idDocument`]}
+                    </Text>
+                  )}
                 </View>
               )}
             </Card>
@@ -425,5 +513,23 @@ const styles = StyleSheet.create({
   orderPrice: {
     fontSize: 14,
     fontFamily: "Inter_700Bold",
+  },
+  sexRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  sexBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  sexBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
   },
 });
