@@ -58,6 +58,7 @@ export default function AttendeeFormScreen() {
     eventName: string;
     sectionName: string;
     validDays: string;
+    unitSelections: string;
   }>();
 
   const quantity = parseInt(params.quantity ?? "1", 10);
@@ -136,6 +137,11 @@ export default function AttendeeFormScreen() {
   const total = subtotal + totalFees;
   const isFree = total === 0;
 
+  const unitSelections: Array<{ ticketTypeId: string; unitId: string }> = (() => {
+    if (!params.unitSelections) return [];
+    try { return JSON.parse(params.unitSelections) as Array<{ ticketTypeId: string; unitId: string }>; } catch { return []; }
+  })();
+
   const handleContinue = () => {
     if (!validateAll()) return;
 
@@ -157,6 +163,7 @@ export default function AttendeeFormScreen() {
             ticketTypeId: tk.ticketTypeId,
             attendee: tk.attendee,
           })),
+          unitSelections: unitSelections.length > 0 ? unitSelections : undefined,
           paymentMethod: "free",
         },
         {
@@ -183,6 +190,7 @@ export default function AttendeeFormScreen() {
         subtotal: String(subtotal),
         totalServiceFees: String(totalFees),
         total: String(total),
+        unitSelections: params.unitSelections ?? "",
       },
     });
   };

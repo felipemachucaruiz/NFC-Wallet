@@ -236,6 +236,10 @@ export default function VenueMapScreen() {
         eventName: event.name,
         sectionName: section.name,
         validDays: tt.validDays ? JSON.stringify(tt.validDays) : "",
+        isNumberedUnits: tt.isNumberedUnits ? "1" : "0",
+        ticketsPerUnit: String(tt.ticketsPerUnit ?? 1),
+        unitLabel: tt.unitLabel ?? "",
+        units: tt.units ? JSON.stringify(tt.units) : "[]",
       },
     });
   };

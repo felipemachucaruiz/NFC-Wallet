@@ -66,6 +66,7 @@ export default function TicketCheckoutScreen() {
     subtotal: string;
     totalServiceFees: string;
     total: string;
+    unitSelections: string;
   }>();
 
   const tickets: OrderTicket[] = safeParseJson<OrderTicket[]>(params.tickets, []);
@@ -105,6 +106,8 @@ export default function TicketCheckoutScreen() {
     return false;
   };
 
+  const unitSelections: Array<{ ticketTypeId: string; unitId: string }> = safeParseJson(params.unitSelections, []);
+
   const handleConfirm = async () => {
     if (!canSubmit()) return;
 
@@ -114,6 +117,7 @@ export default function TicketCheckoutScreen() {
         ticketTypeId: tk.ticketTypeId,
         attendee: tk.attendee,
       })),
+      unitSelections: unitSelections.length > 0 ? unitSelections : undefined,
       paymentMethod: method,
     };
 

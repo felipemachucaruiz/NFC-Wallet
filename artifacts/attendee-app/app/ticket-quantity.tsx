@@ -16,6 +16,7 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCurrency } from "@/utils/format";
+import type { TicketUnit } from "@/types/events";
 
 export default function TicketQuantityScreen() {
   const { t } = useTranslation();
@@ -35,6 +36,10 @@ export default function TicketQuantityScreen() {
     eventName: string;
     sectionName: string;
     validDays: string;
+    isNumberedUnits: string;
+    ticketsPerUnit: string;
+    unitLabel: string;
+    units: string;
   }>();
 
   const price = parseInt(params.price ?? "0", 10);
@@ -46,13 +51,29 @@ export default function TicketQuantityScreen() {
     try { return JSON.parse(params.validDays) as number[]; } catch { return []; }
   })();
 
-  const [quantity, setQuantity] = useState(1);
+  const isNumberedUnits = params.isNumberedUnits === "1";
+  const ticketsPerUnit = parseInt(params.ticketsPerUnit ?? "1", 10);
+  const unitLabel = params.unitLabel || t("tickets.unit", "Mesa");
+  const units: TicketUnit[] = (() => {
+    if (!params.units) return [];
+    try { return JSON.parse(params.units) as TicketUnit[]; } catch { return []; }
+  })();
 
-  const subtotal = price * quantity;
-  const totalFees = serviceFee * quantity;
+  const [quantity, setQuantity] = useState(1);
+  const [selectedUnit, setSelectedUnit] = useState<TicketUnit | null>(null);
+
+  const effectiveQuantity = isNumberedUnits ? ticketsPerUnit : quantity;
+  const subtotal = price * effectiveQuantity;
+  const totalFees = serviceFee * effectiveQuantity;
   const total = subtotal + totalFees;
 
+  const canContinue = isNumberedUnits ? selectedUnit !== null : true;
+
   const handleContinue = () => {
+    const unitSelections = isNumberedUnits && selectedUnit
+      ? JSON.stringify([{ ticketTypeId: params.ticketTypeId ?? "", unitId: selectedUnit.id }])
+      : "";
+
     router.push({
       pathname: "/attendee-form",
       params: {
@@ -61,11 +82,12 @@ export default function TicketQuantityScreen() {
         ticketTypeName: params.ticketTypeName ?? "",
         price: String(price),
         serviceFee: String(serviceFee),
-        quantity: String(quantity),
+        quantity: String(effectiveQuantity),
         currencyCode,
         eventName: params.eventName ?? "",
         sectionName: params.sectionName ?? "",
         validDays: params.validDays ?? "",
+        unitSelections,
       },
     });
   };
@@ -76,7 +98,9 @@ export default function TicketQuantityScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={C.text} />
         </Pressable>
-        <Text style={[styles.title, { color: C.text }]}>{t("tickets.quantity")}</Text>
+        <Text style={[styles.title, { color: C.text }]}>
+          {isNumberedUnits ? t("tickets.selectUnit", "Seleccionar {{label}}", { label: unitLabel }) : t("tickets.quantity")}
+        </Text>
         <View style={{ width: 30 }} />
       </View>
 
@@ -94,33 +118,86 @@ export default function TicketQuantityScreen() {
           )}
         </Card>
 
-        <Card style={{ gap: 16 }}>
-          <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
-            {t("tickets.howMany").toUpperCase()}
-          </Text>
-          <View style={styles.quantityRow}>
-            <Pressable
-              onPress={() => setQuantity(Math.max(1, quantity - 1))}
-              style={[styles.qtyBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
-              disabled={quantity <= 1}
-            >
-              <Feather name="minus" size={20} color={quantity <= 1 ? C.textMuted : C.text} />
-            </Pressable>
-            <View style={[styles.qtyDisplay, { backgroundColor: C.primaryLight, borderColor: C.primary }]}>
-              <Text style={[styles.qtyText, { color: C.primary }]}>{quantity}</Text>
+        {isNumberedUnits ? (
+          <Card style={{ gap: 12 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              {t("tickets.chooseUnit", "Elige tu {{label}}", { label: unitLabel }).toUpperCase()}
+            </Text>
+            {units.length === 0 ? (
+              <Text style={[styles.emptyText, { color: C.textMuted }]}>
+                {t("tickets.noUnitsAvailable", "No hay {{label}}s disponibles", { label: unitLabel })}
+              </Text>
+            ) : (
+              <View style={styles.unitsGrid}>
+                {units.map((unit) => {
+                  const isSelected = selectedUnit?.id === unit.id;
+                  return (
+                    <Pressable
+                      key={unit.id}
+                      onPress={() => setSelectedUnit(unit)}
+                      style={[
+                        styles.unitCard,
+                        {
+                          backgroundColor: isSelected ? C.primary : C.inputBg,
+                          borderColor: isSelected ? C.primary : C.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.unitNumber, { color: isSelected ? "#000" : C.text }]}>
+                        {unit.unitNumber}
+                      </Text>
+                      {unit.unitLabel ? (
+                        <Text style={[styles.unitLabelText, { color: isSelected ? "#000" : C.textSecondary }]}>
+                          {unit.unitLabel}
+                        </Text>
+                      ) : (
+                        <Text style={[styles.unitLabelText, { color: isSelected ? "#000" : C.textSecondary }]}>
+                          {unitLabel} {unit.unitNumber}
+                        </Text>
+                      )}
+                      {isSelected && (
+                        <Feather name="check-circle" size={16} color="#000" style={{ marginTop: 4 }} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+            {ticketsPerUnit > 1 && (
+              <Text style={[styles.maxHint, { color: C.textMuted }]}>
+                {t("tickets.includedTickets", "Incluye {{n}} entradas", { n: ticketsPerUnit })}
+              </Text>
+            )}
+          </Card>
+        ) : (
+          <Card style={{ gap: 16 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              {t("tickets.howMany").toUpperCase()}
+            </Text>
+            <View style={styles.quantityRow}>
+              <Pressable
+                onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                style={[styles.qtyBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
+                disabled={quantity <= 1}
+              >
+                <Feather name="minus" size={20} color={quantity <= 1 ? C.textMuted : C.text} />
+              </Pressable>
+              <View style={[styles.qtyDisplay, { backgroundColor: C.primaryLight, borderColor: C.primary }]}>
+                <Text style={[styles.qtyText, { color: C.primary }]}>{quantity}</Text>
+              </View>
+              <Pressable
+                onPress={() => setQuantity(Math.min(maxPerOrder, quantity + 1))}
+                style={[styles.qtyBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
+                disabled={quantity >= maxPerOrder}
+              >
+                <Feather name="plus" size={20} color={quantity >= maxPerOrder ? C.textMuted : C.text} />
+              </Pressable>
             </View>
-            <Pressable
-              onPress={() => setQuantity(Math.min(maxPerOrder, quantity + 1))}
-              style={[styles.qtyBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
-              disabled={quantity >= maxPerOrder}
-            >
-              <Feather name="plus" size={20} color={quantity >= maxPerOrder ? C.textMuted : C.text} />
-            </Pressable>
-          </View>
-          <Text style={[styles.maxHint, { color: C.textMuted }]}>
-            {t("tickets.maxPerOrder", { max: maxPerOrder })}
-          </Text>
-        </Card>
+            <Text style={[styles.maxHint, { color: C.textMuted }]}>
+              {t("tickets.maxPerOrder", { max: maxPerOrder })}
+            </Text>
+          </Card>
+        )}
 
         <Card style={{ gap: 10 }}>
           <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
@@ -128,7 +205,9 @@ export default function TicketQuantityScreen() {
           </Text>
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryLabel, { color: C.textSecondary }]}>
-              {params.ticketTypeName} × {quantity}
+              {isNumberedUnits
+                ? `${params.ticketTypeName}${selectedUnit ? ` · ${unitLabel} ${selectedUnit.unitNumber}` : ""}`
+                : `${params.ticketTypeName} × ${quantity}`}
             </Text>
             <Text style={[styles.summaryValue, { color: C.text }]}>
               {formatCurrency(subtotal, currencyCode)}
@@ -136,7 +215,8 @@ export default function TicketQuantityScreen() {
           </View>
           <View style={styles.summaryRow}>
             <Text style={[styles.summaryLabel, { color: C.textSecondary }]}>
-              {t("tickets.serviceFee")} × {quantity}
+              {t("tickets.serviceFee")}
+              {!isNumberedUnits && ` × ${quantity}`}
             </Text>
             <Text style={[styles.summaryValue, { color: C.text }]}>
               {formatCurrency(totalFees, currencyCode)}
@@ -156,6 +236,7 @@ export default function TicketQuantityScreen() {
           variant="primary"
           fullWidth
           size="lg"
+          disabled={!canContinue}
         />
       </ScrollView>
     </View>
@@ -182,6 +263,36 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     textTransform: "uppercase",
     letterSpacing: 0.8,
+  },
+  unitsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  unitCard: {
+    width: "29%",
+    minWidth: 80,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  unitNumber: {
+    fontSize: 22,
+    fontFamily: "Inter_700Bold",
+  },
+  unitLabelText: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+  },
+  emptyText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    paddingVertical: 12,
   },
   quantityRow: {
     flexDirection: "row",
@@ -222,6 +333,8 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: 14,
     fontFamily: "Inter_400Regular",
+    flex: 1,
+    paddingRight: 8,
   },
   summaryValue: {
     fontSize: 14,

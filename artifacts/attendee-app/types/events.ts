@@ -10,6 +10,12 @@ export interface EventDay {
   date: string;
 }
 
+export interface TicketUnit {
+  id: string;
+  unitNumber: number;
+  unitLabel?: string;
+}
+
 export interface TicketType {
   id: string;
   name: string;
@@ -20,6 +26,10 @@ export interface TicketType {
   validDays?: number[];
   sectionId?: string;
   sectionName?: string;
+  isNumberedUnits?: boolean;
+  unitLabel?: string;
+  ticketsPerUnit?: number;
+  units?: TicketUnit[];
 }
 
 export interface VenueSection {

@@ -308,6 +308,10 @@ export function usePurchaseTickets() {
         ticketTypeId: string;
         attendee: AttendeeInfo;
       }>;
+      unitSelections?: Array<{
+        ticketTypeId: string;
+        unitId: string;
+      }>;
       paymentMethod: PaymentMethod;
       phoneNumber?: string;
       bankCode?: string;
