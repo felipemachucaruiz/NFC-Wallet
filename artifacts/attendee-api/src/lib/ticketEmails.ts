@@ -285,7 +285,7 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
       </div>
     </div>
 
-    ${data.hasAccount ? `<div style="text-align:center;margin:24px 0 8px;">
+    <div style="text-align:center;margin:24px 0 8px;">
       <p class="wallet-text" style="color:#71717a;font-size:13px;margin:0 0 12px;">${isEs ? "Agrega a tu billetera" : "Add to your wallet"}</p>
       ${appleWalletBadgeBase64
         ? `<a href="${appleWalletUrl}" style="display:inline-block;margin:4px;text-decoration:none;"><img src="cid:apple-wallet-badge.png" alt="Añadir a Apple Wallet" width="180" style="display:inline-block;border:0;" /></a>`
@@ -293,9 +293,7 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
       ${googleWalletBadgeBase64
         ? `<a href="${googleWalletUrl}" style="display:inline-block;margin:4px;text-decoration:none;"><img src="cid:google-wallet-badge.png" alt="Añadir a Google Wallet" width="180" style="display:inline-block;border:0;" /></a>`
         : `<a href="${googleWalletUrl}" style="display:inline-block;background-color:#4285f4;color:#ffffff;font-weight:bold;font-size:14px;padding:10px 20px;border-radius:8px;text-decoration:none;margin:4px;">&#x1F4F1; Google Wallet</a>`}
-    </div>` : `<div style="text-align:center;margin:24px 0 8px;">
-      <p class="wallet-text" style="color:#71717a;font-size:13px;margin:0;">${isEs ? "Descarga la app de Tapee para agregar tu entrada a Apple Wallet o Google Wallet." : "Download the Tapee app to add your ticket to Apple Wallet or Google Wallet."}</p>
-    </div>`}
+    </div>
   `;
 
   const htmlContent = ticketEmailWrapper(body);
