@@ -149,13 +149,23 @@ async function resolveTicketFromDb(ticketId: string, eventId: string): Promise<T
   };
 }
 
-async function resolveQrToken(qrToken: string, eventHmacSecret: string, eventId: string): Promise<TicketPayload | null> {
+const TICKET_NOT_FOUND_SENTINEL = "TICKET_NOT_FOUND_IN_DB";
+
+async function resolveQrToken(
+  qrToken: string,
+  eventHmacSecret: string,
+  eventId: string,
+): Promise<TicketPayload | null | typeof TICKET_NOT_FOUND_SENTINEL> {
+  const tokenPrefix = qrToken.slice(0, 40);
+  console.log("[resolveQrToken] Resolving token. eventId=%s tokenPrefix=%s tokenLen=%d", eventId, tokenPrefix, qrToken.length);
+
   // 1. Try gate HMAC format (fastest, bracelet-linked or gate-generated QR)
   const gateResult = verifyTicketToken(qrToken, eventHmacSecret);
   if (gateResult) {
-    console.log("[resolveQrToken] Resolved via gate HMAC for event", eventId);
+    console.log("[resolveQrToken] Resolved via gate HMAC. tid=%s", gateResult.tid);
     return gateResult;
   }
+  console.log("[resolveQrToken] Path1 (gate HMAC) failed - sig length or HMAC mismatch. hmacSecretSet=%s", !!eventHmacSecret);
 
   // 2. Try direct DB lookup by qrCodeToken (most robust — works even if HMAC secrets differ between services)
   const [ticketByToken] = await db
@@ -163,16 +173,18 @@ async function resolveQrToken(qrToken: string, eventHmacSecret: string, eventId:
     .from(ticketsTable)
     .where(eq(ticketsTable.qrCodeToken, qrToken));
   if (ticketByToken) {
-    console.log("[resolveQrToken] Resolved via direct DB qrCodeToken lookup for event", eventId);
+    console.log("[resolveQrToken] Resolved via direct DB qrCodeToken lookup. tid=%s", ticketByToken.id);
     return resolveTicketFromDb(ticketByToken.id, eventId);
   }
+  console.log("[resolveQrToken] Path2 (DB qrCodeToken lookup) found no matching token");
 
   // 3. Try attendee HMAC format (catches valid tokens whose value may differ from stored qrCodeToken due to regeneration)
   const attendeeResult = verifyAttendeeQrToken(qrToken);
   if (attendeeResult) {
-    console.log("[resolveQrToken] Resolved via attendee HMAC for event", eventId);
+    console.log("[resolveQrToken] Resolved via attendee HMAC. tid=%s", attendeeResult.ticketId);
     return resolveTicketFromDb(attendeeResult.ticketId, eventId);
   }
+  console.log("[resolveQrToken] Path3 (attendee HMAC) failed");
 
   // 4. Fallback: decode base64url payload and extract ticket ID without HMAC verification.
   //    Handles HMAC secret mismatch between api-server and attendee-api.
@@ -180,23 +192,27 @@ async function resolveQrToken(qrToken: string, eventHmacSecret: string, eventId:
   try {
     const firstPart = qrToken.split(".")[0];
     if (firstPart) {
-      const parsed = JSON.parse(Buffer.from(firstPart, "base64url").toString("utf8"));
+      const decoded = Buffer.from(firstPart, "base64url").toString("utf8");
+      const parsed = JSON.parse(decoded);
+      console.log("[resolveQrToken] Path4 decoded payload keys=%s tid=%s", Object.keys(parsed).join(","), parsed.tid);
       if (parsed && typeof parsed.tid === "string" && parsed.tid) {
         const [foundTicket] = await db
-          .select({ id: ticketsTable.id })
+          .select({ id: ticketsTable.id, status: ticketsTable.status })
           .from(ticketsTable)
           .where(eq(ticketsTable.id, parsed.tid));
         if (foundTicket) {
-          console.log("[resolveQrToken] Resolved via ticket ID extraction (HMAC bypass fallback) for event", eventId);
+          console.log("[resolveQrToken] Path4 found ticket by ID. tid=%s status=%s", foundTicket.id, foundTicket.status);
           return resolveTicketFromDb(foundTicket.id, eventId);
         }
+        console.warn("[resolveQrToken] Path4 decoded tid=%s but ticket NOT found in DB for eventId=%s", parsed.tid, eventId);
+        return TICKET_NOT_FOUND_SENTINEL;
       }
     }
-  } catch {
-    // ignore parse errors
+  } catch (err) {
+    console.warn("[resolveQrToken] Path4 parse error: %s", String(err));
   }
 
-  console.warn("[resolveQrToken] All resolution paths failed. eventId=%s qrTokenPrefix=%s", eventId, qrToken.slice(0, 20));
+  console.warn("[resolveQrToken] All resolution paths failed. eventId=%s tokenPrefix=%s", eventId, tokenPrefix);
   return null;
 }
 
@@ -264,6 +280,10 @@ router.post(
     const ticket = await resolveQrToken(qrToken, event.hmacSecret ?? "", effectiveEventId);
     if (!ticket) {
       res.status(400).json({ error: "INVALID_TICKET", message: "Invalid or tampered ticket QR code" });
+      return;
+    }
+    if (ticket === TICKET_NOT_FOUND_SENTINEL) {
+      res.status(400).json({ error: "TICKET_NOT_FOUND", message: "Ticket ID decoded from QR but not found in this event database" });
       return;
     }
 
@@ -514,6 +534,10 @@ router.post(
       res.status(400).json({ error: "INVALID_TICKET", message: "Invalid or tampered ticket QR code" });
       return;
     }
+    if (ticket === TICKET_NOT_FOUND_SENTINEL) {
+      res.status(400).json({ error: "TICKET_NOT_FOUND", message: "Ticket ID decoded from QR but not found in this event database" });
+      return;
+    }
 
     if (ticket.eid !== effectiveEventId) {
       res.status(400).json({ error: "WRONG_EVENT", message: "This ticket is for a different event" });
@@ -685,6 +709,10 @@ router.post(
     const ticket = await resolveQrToken(qrToken, event.hmacSecret ?? "", effectiveEventId);
     if (!ticket) {
       res.status(400).json({ error: "INVALID_TICKET", message: "Invalid or tampered ticket QR code" });
+      return;
+    }
+    if (ticket === TICKET_NOT_FOUND_SENTINEL) {
+      res.status(400).json({ error: "TICKET_NOT_FOUND", message: "Ticket ID decoded from QR but not found in this event database" });
       return;
     }
     if (ticket.eid !== effectiveEventId) {

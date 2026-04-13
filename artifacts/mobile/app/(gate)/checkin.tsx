@@ -319,7 +319,10 @@ export default function EntranceCheckinScreen() {
           const errCode = payload.error as string;
           let errTitle = t("gate.ticketInvalid");
           let errHint = t("gate.ticketInvalidHint");
-          if (errCode === "WRONG_EVENT") {
+          if (errCode === "TICKET_NOT_FOUND") {
+            errTitle = t("gate.ticketNotFound");
+            errHint = t("gate.ticketNotFoundHint");
+          } else if (errCode === "WRONG_EVENT") {
             errTitle = t("gate.ticketWrongEvent");
             errHint = t("gate.ticketWrongEventHint");
           } else if (errCode === "ATTENDEE_NOT_FOUND") {
