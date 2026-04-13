@@ -68,7 +68,7 @@ function ticketEmailWrapper(body: string): string {
 </head>
 <body class="email-body" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f4f4f5; color: #1a1a1a; margin: 0; padding: 0;">
   <div style="max-width: 480px; margin: 32px auto; padding: 0 16px;">
-    <div style="text-align: center; padding: 24px 0 16px;">
+    <div style="background: linear-gradient(135deg, #0a0a0a, #111827); padding: 28px 32px 20px; text-align: center; border-radius: 12px 12px 0 0;">
       ${getLogoImg()}
     </div>
     ${body}
