@@ -62,8 +62,6 @@ export default function EventGuestLists() {
     enabled: !!resolvedEventId,
   });
 
-  const hiddenTicketTypes = allTicketTypes.filter((tt) => tt.isHidden);
-
   const { data: entries = [], isLoading: entriesLoading } = useQuery({
     queryKey: ["guest-list-entries", resolvedEventId, expandedListId],
     queryFn: () => apiFetchGuestListEntries(resolvedEventId, expandedListId!),
@@ -342,7 +340,7 @@ export default function EventGuestLists() {
                 onChange={(e) => setFormMaxGuests(e.target.value)}
               />
             </div>
-            {hiddenTicketTypes.length > 0 && (
+            {allTicketTypes.length > 0 && (
               <div className="space-y-1">
                 <Label>{t("guestLists.zoneLabel")}</Label>
                 <Select value={formTicketTypeId} onValueChange={setFormTicketTypeId}>
@@ -351,7 +349,7 @@ export default function EventGuestLists() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">{t("guestLists.noZone")}</SelectItem>
-                    {hiddenTicketTypes.map((tt) => (
+                    {allTicketTypes.map((tt) => (
                       <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>
                     ))}
                   </SelectContent>
