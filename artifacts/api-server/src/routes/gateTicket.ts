@@ -17,6 +17,7 @@ interface TicketPayload {
   typ: string;
   days: number[];
   dayLabels: string[];
+  sectionId?: string;
 }
 
 function verifyTicketToken(token: string, hmacSecret: string): TicketPayload | null {
@@ -51,6 +52,7 @@ function verifyTicketToken(token: string, hmacSecret: string): TicketPayload | n
       typ: payload.typ ?? "",
       days: payload.days.filter((d: unknown) => typeof d === "number" && d >= 0),
       dayLabels: Array.isArray(payload.dayLabels) ? payload.dayLabels : [],
+      sectionId: typeof payload.sectionId === "string" ? payload.sectionId : undefined,
     };
   } catch {
     return null;
@@ -102,11 +104,13 @@ async function resolveTicketFromDb(ticketId: string, eventId: string): Promise<T
   let zid = "";
   let typ = "";
   let sec = "";
+  let sectionId = "";
   let validDayIds: string[] = [];
   if (ticket.ticketTypeId) {
     const [tt] = await db
       .select({
         name: ticketTypesTable.name,
+        sectionId: ticketTypesTable.sectionId,
         sectionName: venueSectionsTable.name,
         validEventDayIds: ticketTypesTable.validEventDayIds,
       })
@@ -117,6 +121,9 @@ async function resolveTicketFromDb(ticketId: string, eventId: string): Promise<T
     if (tt) {
       typ = tt.name ?? "";
       validDayIds = tt.validEventDayIds ?? [];
+      if (tt.sectionId) {
+        sectionId = tt.sectionId;
+      }
       if (tt.sectionName) {
         sec = tt.sectionName;
       }
@@ -148,6 +155,7 @@ async function resolveTicketFromDb(ticketId: string, eventId: string): Promise<T
     typ,
     days,
     dayLabels,
+    sectionId: sectionId || undefined,
   };
 }
 
@@ -330,6 +338,23 @@ router.post(
       return;
     }
 
+    let resolvedSectionId = ticket.sectionId;
+    if (!resolvedSectionId && ticket.tid) {
+      const [ticketRow] = await db
+        .select({ ticketTypeId: ticketsTable.ticketTypeId })
+        .from(ticketsTable)
+        .where(eq(ticketsTable.id, ticket.tid));
+      if (ticketRow?.ticketTypeId) {
+        const [ttRow] = await db
+          .select({ sectionId: ticketTypesTable.sectionId })
+          .from(ticketTypesTable)
+          .where(eq(ticketTypesTable.id, ticketRow.ticketTypeId));
+        if (ttRow?.sectionId) {
+          resolvedSectionId = ttRow.sectionId;
+        }
+      }
+    }
+
     let zone = null;
     if (ticket.zid) {
       const [z] = await db
@@ -340,6 +365,28 @@ router.post(
     }
 
     const accessZoneIds: string[] = zone ? [zone.id] : [];
+
+    if (resolvedSectionId) {
+      const [sectionZone] = await db
+        .select({ id: accessZonesTable.id })
+        .from(accessZonesTable)
+        .where(
+          and(
+            eq(accessZonesTable.eventId, effectiveEventId),
+            eq(accessZonesTable.sourceSectionId, resolvedSectionId),
+          ),
+        );
+      if (sectionZone && !accessZoneIds.includes(sectionZone.id)) {
+        accessZoneIds.push(sectionZone.id);
+        if (!zone) {
+          const [fullZone] = await db
+            .select()
+            .from(accessZonesTable)
+            .where(eq(accessZonesTable.id, sectionZone.id));
+          zone = fullZone ?? null;
+        }
+      }
+    }
 
     const [actingUser] = await db
       .select({ gateZoneId: usersTable.gateZoneId })

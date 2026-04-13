@@ -139,6 +139,7 @@ import type {
   SuccessEnvelope,
   SuccessResponse,
   SuspendUser200,
+  SyncAccessZonesFromVenueMap200,
   SyncTransactionsBody,
   SyncTransactionsResult,
   TamperReportBody,
@@ -10158,6 +10159,108 @@ export const useDeleteAccessZone = <
   TContext
 > => {
   return useMutation(getDeleteAccessZoneMutationOptions(options));
+};
+
+/**
+ * @summary Populate access zones from venue map sections
+ */
+export const getSyncAccessZonesFromVenueMapUrl = (eventId: string) => {
+  return `/api/events/${eventId}/access-zones/sync-from-venue-map`;
+};
+
+export const syncAccessZonesFromVenueMap = async (
+  eventId: string,
+  options?: RequestInit,
+): Promise<SyncAccessZonesFromVenueMap200> => {
+  return customFetch<SyncAccessZonesFromVenueMap200>(
+    getSyncAccessZonesFromVenueMapUrl(eventId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getSyncAccessZonesFromVenueMapMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncAccessZonesFromVenueMap>>,
+    TError,
+    { eventId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncAccessZonesFromVenueMap>>,
+  TError,
+  { eventId: string },
+  TContext
+> => {
+  const mutationKey = ["syncAccessZonesFromVenueMap"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncAccessZonesFromVenueMap>>,
+    { eventId: string }
+  > = (props) => {
+    const { eventId } = props ?? {};
+
+    return syncAccessZonesFromVenueMap(eventId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncAccessZonesFromVenueMapMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncAccessZonesFromVenueMap>>
+>;
+
+export type SyncAccessZonesFromVenueMapMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | NotFoundResponse
+>;
+
+/**
+ * @summary Populate access zones from venue map sections
+ */
+export const useSyncAccessZonesFromVenueMap = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncAccessZonesFromVenueMap>>,
+    TError,
+    { eventId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncAccessZonesFromVenueMap>>,
+  TError,
+  { eventId: string },
+  TContext
+> => {
+  return useMutation(getSyncAccessZonesFromVenueMapMutationOptions(options));
 };
 
 /**

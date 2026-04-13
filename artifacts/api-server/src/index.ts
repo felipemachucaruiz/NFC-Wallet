@@ -502,6 +502,17 @@ async function runStartupMigrations(): Promise<void> {
       -- ── ticket_type_units: map position columns ───────────────────────────
       ALTER TABLE ticket_type_units ADD COLUMN IF NOT EXISTS map_x NUMERIC(6,2);
       ALTER TABLE ticket_type_units ADD COLUMN IF NOT EXISTS map_y NUMERIC(6,2);
+
+      -- ── access_zones: source_section_id for venue map sync ─────────────────
+      ALTER TABLE access_zones ADD COLUMN IF NOT EXISTS source_section_id VARCHAR;
+      DO $$ BEGIN
+        ALTER TABLE access_zones
+          ADD CONSTRAINT access_zones_source_section_id_fk
+          FOREIGN KEY (source_section_id) REFERENCES venue_sections(id);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_access_zones_event_source_section
+        ON access_zones (event_id, source_section_id)
+        WHERE source_section_id IS NOT NULL;
     `);
 
     logger.info("Startup migrations complete.");

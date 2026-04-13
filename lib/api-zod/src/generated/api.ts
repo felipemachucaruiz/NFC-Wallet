@@ -2698,6 +2698,7 @@ export const ListAccessZonesResponse = zod.object({
       colorHex: zod.string().nullish(),
       rank: zod.number(),
       upgradePrice: zod.number().nullish(),
+      sourceSectionId: zod.string().nullish(),
       createdAt: zod.date(),
       updatedAt: zod.date().optional(),
     }),
@@ -2747,6 +2748,7 @@ export const UpdateAccessZoneResponse = zod.object({
   colorHex: zod.string().nullish(),
   rank: zod.number(),
   upgradePrice: zod.number().nullish(),
+  sourceSectionId: zod.string().nullish(),
   createdAt: zod.date(),
   updatedAt: zod.date().optional(),
 });
@@ -2761,6 +2763,18 @@ export const DeleteAccessZoneParams = zod.object({
 
 export const DeleteAccessZoneResponse = zod.object({
   success: zod.boolean(),
+});
+
+/**
+ * @summary Populate access zones from venue map sections
+ */
+export const SyncAccessZonesFromVenueMapParams = zod.object({
+  eventId: zod.coerce.string(),
+});
+
+export const SyncAccessZonesFromVenueMapResponse = zod.object({
+  created: zod.number(),
+  alreadyExisted: zod.number(),
 });
 
 /**

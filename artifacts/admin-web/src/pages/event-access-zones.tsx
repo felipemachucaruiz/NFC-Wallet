@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   useGetCurrentAuthUser,
   useGetEvent,
@@ -7,18 +7,21 @@ import {
   useCreateAccessZone,
   useUpdateAccessZone,
   useDeleteAccessZone,
+  useSyncAccessZonesFromVenueMap,
   getListAccessZonesQueryKey,
+  customFetch,
 } from "@workspace/api-client-react";
 import type { AccessZone } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 
@@ -32,7 +35,29 @@ export default function EventAccessZones() {
   const { data: auth } = useGetCurrentAuthUser();
   const eventId = auth?.user?.eventId ?? "";
   const { data: eventData } = useGetEvent(eventId || "");
-  const currency = (eventData as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
+  const eventRecord = eventData as Record<string, unknown> | undefined;
+  const currency = (eventRecord?.currencyCode as string) ?? "COP";
+  const ticketingEnabled = eventRecord?.ticketingEnabled === true;
+  const nfcBraceletsEnabled = eventRecord?.nfcBraceletsEnabled === true;
+  const bothFeaturesEnabled = ticketingEnabled && nfcBraceletsEnabled;
+
+  const { data: venuesData } = useQuery({
+    queryKey: ["venues-for-sync", eventId],
+    enabled: !!eventId && bothFeaturesEnabled,
+    queryFn: async () => {
+      const res = await customFetch(`/api/events/${eventId}/venues`, { method: "GET" });
+      const venues = (res as { venues: Array<{ id: string }> }).venues ?? [];
+      let sectionCount = 0;
+      for (const venue of venues) {
+        const secRes = await customFetch(`/api/events/${eventId}/venues/${venue.id}/sections`, { method: "GET" });
+        const sections = (secRes as { sections: Array<{ id: string }> }).sections ?? [];
+        sectionCount += sections.length;
+        if (sectionCount > 0) break;
+      }
+      return { hasSections: sectionCount > 0 };
+    },
+  });
+  const showSyncButton = bothFeaturesEnabled && (venuesData?.hasSections ?? false);
 
   const { data, isLoading } = useListAccessZones(eventId, { query: { enabled: !!eventId, queryKey: getListAccessZonesQueryKey(eventId) } });
   const zones = data?.zones ?? [];
@@ -46,6 +71,27 @@ export default function EventAccessZones() {
   const createZone = useCreateAccessZone();
   const updateZone = useUpdateAccessZone();
   const deleteZone = useDeleteAccessZone();
+  const syncFromMap = useSyncAccessZonesFromVenueMap();
+
+  const handleSyncFromMap = () => {
+    if (!eventId) return;
+    syncFromMap.mutate(
+      { eventId },
+      {
+        onSuccess: (data) => {
+          const result = data as { created: number; alreadyExisted: number };
+          toast({
+            title: t("accessZones.syncComplete"),
+            description: t("accessZones.syncSummary", { created: result.created, existed: result.alreadyExisted }),
+          });
+          invalidate();
+        },
+        onError: (e: unknown) => {
+          toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" });
+        },
+      },
+    );
+  };
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListAccessZonesQueryKey(eventId) });
 
@@ -156,9 +202,22 @@ export default function EventAccessZones() {
           <h1 className="text-3xl font-bold tracking-tight">{t("accessZones.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("accessZones.subtitle")}</p>
         </div>
-        <Button data-testid="button-create-zone" onClick={() => { setForm(emptyForm); setCreateOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> {t("accessZones.addZone")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {showSyncButton && (
+            <Button
+              variant="outline"
+              data-testid="button-sync-from-map"
+              onClick={handleSyncFromMap}
+              disabled={syncFromMap.isPending}
+            >
+              <MapPin className="w-4 h-4 mr-2" />
+              {syncFromMap.isPending ? t("common.loading") : t("accessZones.populateFromMap")}
+            </Button>
+          )}
+          <Button data-testid="button-create-zone" onClick={() => { setForm(emptyForm); setCreateOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> {t("accessZones.addZone")}
+          </Button>
+        </div>
       </div>
 
       <div className="border border-border rounded-lg bg-card">
@@ -188,6 +247,12 @@ export default function EventAccessZones() {
                         <div className="w-4 h-4 rounded-full border border-border flex-shrink-0" style={{ backgroundColor: zone.colorHex }} />
                       )}
                       <span className="font-medium">{zone.name}</span>
+                      {zone.sourceSectionId && (
+                        <Badge variant="outline" className="text-xs gap-1 font-normal">
+                          <MapPin className="w-3 h-3" />
+                          {t("accessZones.fromMap")}
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-sm">{zone.rank}</TableCell>

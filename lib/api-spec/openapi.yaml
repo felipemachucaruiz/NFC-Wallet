@@ -3064,6 +3064,39 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  /events/{eventId}/access-zones/sync-from-venue-map:
+    post:
+      tags: [AccessZones]
+      operationId: syncAccessZonesFromVenueMap
+      summary: Populate access zones from venue map sections
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync result with counts of created and already-existing zones.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [created, alreadyExisted]
+                properties:
+                  created:
+                    type: integer
+                  alreadyExisted:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ── Push Tokens ───────────────────────────────────────────────────────────────
   /push-token:
     post:
@@ -5233,6 +5266,8 @@ components:
           type: integer
         upgradePrice:
           type: [integer, 'null']
+        sourceSectionId:
+          type: [string, 'null']
         createdAt:
           type: string
           format: date-time

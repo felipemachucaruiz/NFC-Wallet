@@ -1488,6 +1488,8 @@ export interface AccessZone {
   rank: number;
   /** @nullable */
   upgradePrice?: number | null;
+  /** @nullable */
+  sourceSectionId?: string | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -1875,6 +1877,11 @@ export type AssignUserToPromoterCompanyBody = {
 
 export type ListAccessZones200 = {
   zones: AccessZone[];
+};
+
+export type SyncAccessZonesFromVenueMap200 = {
+  created: number;
+  alreadyExisted: number;
 };
 
 export type RegisterPushToken200 = {

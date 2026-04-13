@@ -664,7 +664,11 @@
     "deleting": "Eliminando...",
     "created": "Zona creada",
     "updated": "Zona actualizada",
-    "deleted": "Zona eliminada"
+    "deleted": "Zona eliminada",
+    "populateFromMap": "Poblar desde Mapa del Venue",
+    "fromMap": "Desde mapa",
+    "syncComplete": "Sincronización de mapa completa",
+    "syncSummary": "{{created}} zonas creadas, {{existed}} ya existían"
   },
   "eventInventory": {
     "title": "Inventario",

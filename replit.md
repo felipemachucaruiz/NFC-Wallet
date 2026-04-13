@@ -41,6 +41,7 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - **Web Admin:** Dark theme with Tapee cyan accents, sidebar navigation, and role-based routing.
 
 **Technical Implementations:**
+- **Venue Map → NFC Access Zone Sync:** Access zones can be auto-populated from venue map sections when both `ticketingEnabled` and `nfcBraceletsEnabled` are true. `POST /api/events/:eventId/access-zones/sync-from-venue-map` creates one zone per section (with `sourceSectionId` FK link). During gate check-in, tickets with a section-linked zone are auto-granted that zone on the bracelet. Admin UI shows a "Populate from Venue Map" button and "From map" badge on synced zones.
 - **NFC Security:** HMAC-SHA256 for securing NFC bracelet payloads to prevent rollback attacks.
 - **QR Ticket + NFC Gate Registration:** Atomic database transactions for validating QR tickets, showing attendee profiles, and linking NFC bracelets. Supports multi-day passes. Gate has two distinct flows: (1) "Entrance Check-in" — barcode/QR scan → validate ticket → record entry without bracelet (`POST /api/gate/ticket-checkin-only`); (2) "Register Bracelet" — barcode/QR scan → validate ticket → NFC bracelet tap → check-in + bracelet link (`POST /api/gate/ticket-checkin`). Primary input is hardware barcode scanner (PDA TextInput), camera as fallback.
 - **Monetary Values:** Multi-currency support for Latin America with configurable event currencies (e.g., COP, MXN). Exchange rates cached via exchangerate-api.com.

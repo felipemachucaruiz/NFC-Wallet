@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { eventsTable } from "./events";
 import { usersTable } from "./auth";
 import { braceletsTable } from "./bracelets";
+import { venueSectionsTable } from "./ticketing";
 
 export const accessZonesTable = pgTable(
   "access_zones",
@@ -14,6 +15,7 @@ export const accessZonesTable = pgTable(
     colorHex: varchar("color_hex", { length: 9 }).default("#6366F1"),
     rank: integer("rank").notNull(),
     upgradePrice: integer("upgrade_price"),
+    sourceSectionId: varchar("source_section_id").references(() => venueSectionsTable.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },

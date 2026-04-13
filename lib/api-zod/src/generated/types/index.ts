@@ -176,6 +176,7 @@ export * from "./stockMovementMovementType";
 export * from "./successEnvelope";
 export * from "./successResponse";
 export * from "./suspendUser200";
+export * from "./syncAccessZonesFromVenueMap200";
 export * from "./syncTransactionsBody";
 export * from "./syncTransactionsResult";
 export * from "./syncTransactionsResultResultsItem";

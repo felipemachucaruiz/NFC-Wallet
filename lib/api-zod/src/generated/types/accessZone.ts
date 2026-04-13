@@ -17,6 +17,8 @@ export interface AccessZone {
   rank: number;
   /** @nullable */
   upgradePrice?: number | null;
+  /** @nullable */
+  sourceSectionId?: string | null;
   createdAt: Date;
   updatedAt?: Date;
 }

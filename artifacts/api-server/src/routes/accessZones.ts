@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, accessZonesTable, accessUpgradesTable, braceletsTable, usersTable, eventsTable } from "@workspace/db";
+import { db, accessZonesTable, accessUpgradesTable, braceletsTable, usersTable, eventsTable, venuesTable, venueSectionsTable } from "@workspace/db";
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -404,6 +404,110 @@ router.delete(
 
     await db.delete(accessZonesTable).where(eq(accessZonesTable.id, id));
     res.json({ success: true });
+  },
+);
+
+router.post(
+  "/events/:eventId/access-zones/sync-from-venue-map",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId } = req.params as { eventId: string };
+
+    if (!canAccessEvent(req, eventId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const [event] = await db
+      .select({
+        ticketingEnabled: eventsTable.ticketingEnabled,
+        nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled,
+      })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId));
+
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+
+    if (!event.ticketingEnabled || !event.nfcBraceletsEnabled) {
+      res.status(400).json({ error: "Both ticketing and NFC bracelets must be enabled for this event" });
+      return;
+    }
+
+    const venues = await db
+      .select({ id: venuesTable.id })
+      .from(venuesTable)
+      .where(eq(venuesTable.eventId, eventId));
+
+    if (venues.length === 0) {
+      res.status(400).json({ error: "No venues found for this event" });
+      return;
+    }
+
+    const venueIds = venues.map((v) => v.id);
+    const sections = await db
+      .select()
+      .from(venueSectionsTable)
+      .where(inArray(venueSectionsTable.venueId, venueIds))
+      .orderBy(asc(venueSectionsTable.displayOrder));
+
+    if (sections.length === 0) {
+      res.status(400).json({ error: "No venue sections found" });
+      return;
+    }
+
+    const existingZones = await db
+      .select()
+      .from(accessZonesTable)
+      .where(eq(accessZonesTable.eventId, eventId));
+
+    const linkedSectionIds = new Set(
+      existingZones
+        .filter((z) => z.sourceSectionId)
+        .map((z) => z.sourceSectionId!),
+    );
+
+    const existingRanks = new Set(existingZones.map((z) => z.rank));
+    let maxRank = existingZones.length > 0 ? Math.max(...existingZones.map((z) => z.rank)) : -1;
+
+    let created = 0;
+    let alreadyExisted = 0;
+
+    for (const section of sections) {
+      if (linkedSectionIds.has(section.id)) {
+        alreadyExisted++;
+        continue;
+      }
+
+      let rank = section.displayOrder;
+      while (existingRanks.has(rank)) {
+        maxRank = maxRank + 1;
+        rank = maxRank;
+      }
+      maxRank = Math.max(maxRank, rank);
+      existingRanks.add(rank);
+
+      try {
+        await db.insert(accessZonesTable).values({
+          eventId,
+          name: section.name,
+          colorHex: section.colorHex ?? "#6366F1",
+          rank,
+          sourceSectionId: section.id,
+        });
+        created++;
+      } catch (insertErr: any) {
+        if (insertErr?.code === "23505") {
+          alreadyExisted++;
+        } else {
+          throw insertErr;
+        }
+      }
+    }
+
+    res.json({ created, alreadyExisted });
   },
 );
 
