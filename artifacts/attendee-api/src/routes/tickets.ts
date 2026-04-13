@@ -731,8 +731,10 @@ function verifyPdfToken(token: string, expectedId: string): boolean {
   try {
     const decoded = Buffer.from(token, "base64url").toString("utf8");
     const parts = decoded.split(":");
-    if (parts.length !== 3) return false;
-    const [tid, expStr, sig] = parts;
+    if (parts.length < 3) return false;
+    const sig = parts[parts.length - 1];
+    const expStr = parts[parts.length - 2];
+    const tid = parts.slice(0, parts.length - 2).join(":");
     if (tid !== expectedId) return false;
     const exp = parseInt(expStr);
     if (isNaN(exp) || exp < Math.floor(Date.now() / 1000)) return false;
