@@ -1272,6 +1272,8 @@
     "ticketInvalidHint": "This QR code is not a valid ticket or has been tampered with.",
     "ticketWrongEvent": "Wrong Event",
     "ticketWrongEventHint": "This ticket belongs to a different event.",
+    "ticketEventNotStarted": "Event Not Started Yet",
+    "ticketEventNotStartedHint": "This event has not started yet. This ticket is only valid from the first day of the event.",
     "ticketWrongDay": "Not Valid Today",
     "ticketWrongDayHint": "This ticket is not valid for today's event day.",
     "ticketAlreadyUsed": "Already Checked In",

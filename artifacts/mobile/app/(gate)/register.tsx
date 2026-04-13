@@ -256,6 +256,12 @@ export default function RegisterBraceletScreen() {
         triggerHaptic("error");
         return;
       }
+      if (resolved.todayDayIndex < 0) {
+        setErrorMsg(`${t("gate.ticketEventNotStarted")}\n${t("gate.ticketEventNotStartedHint")}`);
+        setPageState("ticket_error");
+        triggerHaptic("error");
+        return;
+      }
       const todayCheckin = resolved.checkins.find(c => c.eventDayIndex === resolved.todayDayIndex);
       if (todayCheckin) {
         const checkedTime = formatTime(todayCheckin.checkedInAt, locale);
@@ -320,6 +326,9 @@ export default function RegisterBraceletScreen() {
           } else if (errCode === "ATTENDEE_NOT_FOUND") {
             errTitle = t("gate.ticketAttendeeNotFound");
             errHint = t("gate.ticketAttendeeNotFoundHint");
+          } else if (errCode === "EVENT_NOT_STARTED") {
+            errTitle = t("gate.ticketEventNotStarted");
+            errHint = t("gate.ticketEventNotStartedHint");
           } else if (errCode === "WRONG_DAY") {
             errTitle = t("gate.ticketWrongDay");
             errHint = t("gate.ticketWrongDayHint");
@@ -419,6 +428,10 @@ export default function RegisterBraceletScreen() {
           );
         } else if (errCode === "BRACELET_WRONG_EVENT") {
           setErrorMsg(t("gate.ticketBraceletWrongEvent"));
+        } else if (errCode === "EVENT_NOT_STARTED") {
+          setErrorMsg(`${t("gate.ticketEventNotStarted")}\n${t("gate.ticketEventNotStartedHint")}`);
+        } else if (errCode === "WRONG_DAY") {
+          setErrorMsg(`${t("gate.ticketWrongDay")}\n${t("gate.ticketWrongDayHint")}`);
         } else {
           setErrorMsg(payload.message ?? t("gate.ticketError"));
         }

@@ -276,7 +276,7 @@ router.post(
     const todayDayIndex = getEventDayIndex(event, now);
 
     if (todayDayIndex < 0) {
-      res.status(400).json({ error: "WRONG_DAY", message: "Event has not started yet" });
+      res.status(400).json({ error: "EVENT_NOT_STARTED", message: "Event has not started yet" });
       return;
     }
 
@@ -524,7 +524,7 @@ router.post(
     const todayDayIndex = getEventDayIndex(event, now);
 
     if (todayDayIndex < 0) {
-      res.status(400).json({ error: "WRONG_DAY", message: "Event has not started yet" });
+      res.status(400).json({ error: "EVENT_NOT_STARTED", message: "Event has not started yet" });
       return;
     }
 
@@ -694,6 +694,11 @@ router.post(
 
     const now = new Date();
     const todayDayIndex = getEventDayIndex(event, now);
+
+    if (todayDayIndex < 0) {
+      res.status(400).json({ error: "EVENT_NOT_STARTED", message: "Event has not started yet" });
+      return;
+    }
 
     const [attendee] = await db
       .select({

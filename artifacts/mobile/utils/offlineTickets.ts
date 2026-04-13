@@ -131,7 +131,22 @@ export function verifyQrTokenOffline(
     if (ticket && ticket.eventId === eventData.event.id) {
       return { ticketId: ticket.id, attendeeUserId: ticket.attendeeUserId ?? "" };
     }
-    return null;
+  }
+
+  try {
+    const firstPart = qrToken.split(".")[0];
+    if (firstPart) {
+      const decoded = base64urlDecode(firstPart);
+      const parsed = JSON.parse(decoded);
+      if (parsed && typeof parsed.tid === "string" && parsed.tid) {
+        const ticket = eventData.tickets.find(t => t.id === parsed.tid && t.eventId === eventData.event.id);
+        if (ticket) {
+          return { ticketId: ticket.id, attendeeUserId: ticket.attendeeUserId ?? "" };
+        }
+      }
+    }
+  } catch {
+    // ignore parse errors
   }
 
   return null;

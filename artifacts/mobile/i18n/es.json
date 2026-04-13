@@ -1261,6 +1261,8 @@
     "ticketInvalidHint": "Este código QR no es un ticket válido o ha sido alterado.",
     "ticketWrongEvent": "Evento Incorrecto",
     "ticketWrongEventHint": "Este ticket pertenece a un evento diferente.",
+    "ticketEventNotStarted": "Evento No Comenzado",
+    "ticketEventNotStartedHint": "El evento aún no ha comenzado. Este ticket solo es válido a partir del primer día del evento.",
     "ticketWrongDay": "No Válido Hoy",
     "ticketWrongDayHint": "Este ticket no es válido para el día de hoy del evento.",
     "ticketAlreadyUsed": "Ya Registrado Hoy",
