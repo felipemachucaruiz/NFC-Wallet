@@ -46,14 +46,32 @@ function extractCerts(): { signerCert: string; signerKey: string } {
   const p12Path = path.join(tmpDir, "cert.p12");
   try {
     fs.writeFileSync(p12Path, Buffer.from(CERT_P12_B64, "base64"));
-    const cert = execSync(
-      `openssl pkcs12 -nokeys -clcerts -passin pass: -legacy -in "${p12Path}" 2>/dev/null`,
-      { encoding: "utf8" }
-    );
-    const key = execSync(
-      `openssl pkcs12 -nocerts -nodes -passin pass: -legacy -in "${p12Path}" 2>/dev/null`,
-      { encoding: "utf8" }
-    );
+
+    // Try with -legacy first (OpenSSL 3.x), fall back without it (OpenSSL 1.x)
+    let cert: string;
+    let key: string;
+    try {
+      cert = execSync(
+        `openssl pkcs12 -nokeys -clcerts -passin pass: -legacy -in "${p12Path}"`,
+        { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+      );
+      key = execSync(
+        `openssl pkcs12 -nocerts -nodes -passin pass: -legacy -in "${p12Path}"`,
+        { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+      );
+    } catch {
+      console.log("[appleWallet] -legacy flag failed, retrying without it");
+      cert = execSync(
+        `openssl pkcs12 -nokeys -clcerts -passin pass: -in "${p12Path}"`,
+        { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+      );
+      key = execSync(
+        `openssl pkcs12 -nocerts -nodes -passin pass: -in "${p12Path}"`,
+        { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+      );
+    }
+
+    if (!cert || !key) throw new Error("OpenSSL returned empty cert or key");
     _cachedCerts = { signerCert: cert, signerKey: key };
     return _cachedCerts;
   } finally {
@@ -211,11 +229,14 @@ router.get(
         buffers["logo@2x.png"] = _cachedLogo;
       }
 
+      if (!_cachedWwdr) {
+        throw new Error("WWDR certificate not loaded from assets");
+      }
+
       const pass = new PKPass(buffers, {
-        wwdr: _cachedWwdr!,
+        wwdr: _cachedWwdr,
         signerCert,
         signerKey,
-        signerKeyPassphrase: "",
       });
 
       const pkpassBuffer = pass.getAsBuffer();
@@ -224,8 +245,9 @@ router.get(
       res.setHeader("Content-Disposition", `attachment; filename="${ticket.id}.pkpass"`);
       res.send(pkpassBuffer);
     } catch (err) {
-      console.error("[appleWallet] Error generating pass:", err);
-      res.status(500).json({ error: "Error al generar el pase de Apple Wallet" });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error("[appleWallet] Error generating pass:", errMsg, err);
+      res.status(500).json({ error: `Error al generar el pase de Apple Wallet: ${errMsg}` });
     }
   },
 );
