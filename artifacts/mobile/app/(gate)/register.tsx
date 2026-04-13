@@ -125,6 +125,7 @@ export default function RegisterBraceletScreen() {
   const [ticketSuccessBraceletUid, setTicketSuccessBraceletUid] = useState("");
   const [sessionHistory, setSessionHistory] = useState<CheckinHistoryListItem[]>([]);
   const [showQrScanner, setShowQrScanner] = useState(false);
+  const [nfcRetryError, setNfcRetryError] = useState<string | null>(null);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const scanningRef = useRef(false);
@@ -392,10 +393,13 @@ export default function RegisterBraceletScreen() {
   const handleTicketNfcTap = useCallback(async () => {
     if (scanningRef.current) return;
     scanningRef.current = true;
+    setNfcRetryError(null);
     setPageState("ticket_nfc_scanning");
 
+    let nfcDone = false;
     try {
       const result = await scanBracelet();
+      nfcDone = true;
       const uid = result.payload.uid;
       if (!uid) {
         setPageState("ticket_confirmed");
@@ -460,15 +464,26 @@ export default function RegisterBraceletScreen() {
       };
       setSessionHistory((prev) => [historyItem, ...prev]);
 
+      setNfcRetryError(null);
       triggerHaptic("success");
       setPageState("ticket_success");
     } catch (err: unknown) {
       const msg = extractErrorMessage(err, "");
       if (msg === "NFC_CANCELLED" || msg === "USER_CANCELLED") {
         setPageState("ticket_confirmed");
-      } else {
+      } else if (nfcDone) {
+        // NFC read succeeded but network request failed — show error state (real issue)
         setErrorMsg(t("gate.scanFailed"));
         setPageState("ticket_error");
+        triggerHaptic("error");
+      } else {
+        // NFC read itself failed (tag lost, connection issue, etc.) — let user retry
+        const isTagLost = msg.toLowerCase().includes("tag") || msg.toLowerCase().includes("lost") || msg.toLowerCase().includes("connection");
+        const retryMsg = isTagLost
+          ? t("gate.nfcTagLost")
+          : t("gate.nfcScanRetry");
+        setNfcRetryError(retryMsg);
+        setPageState("ticket_confirmed");
         triggerHaptic("error");
       }
     } finally {
@@ -478,6 +493,7 @@ export default function RegisterBraceletScreen() {
 
   const resetForNext = () => {
     setErrorMsg("");
+    setNfcRetryError(null);
     setTicketAttendee(null);
     setTicketInfo(null);
     setTicketZone(null);
@@ -645,6 +661,7 @@ export default function RegisterBraceletScreen() {
                 pageState === "ticket_nfc_scanning" ||
                 pageState === "ticket_registering"
               }
+              nfcError={nfcRetryError}
             />
           )}
 

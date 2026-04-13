@@ -156,6 +156,7 @@ export default function EntranceCheckinScreen() {
   const [successZone, setSuccessZone] = useState("");
   const [sessionHistory, setSessionHistory] = useState<CheckinHistoryListItem[]>([]);
   const [showQrScanner, setShowQrScanner] = useState(false);
+  const [braceletNfcError, setBraceletNfcError] = useState<string | null>(null);
 
   const barcodeInputRef = useRef<TextInput>(null);
   const barcodePausedRef = useRef(false);
@@ -488,10 +489,13 @@ export default function EntranceCheckinScreen() {
   const handleBraceletCheckin = useCallback(async () => {
     if (braceletScanningRef.current || !qrToken) return;
     braceletScanningRef.current = true;
+    setBraceletNfcError(null);
     setPageState("bracelet_scanning");
 
+    let nfcDone = false;
     try {
       const result = await scanBracelet();
+      nfcDone = true;
       const uid = result.payload.uid;
       if (!uid) {
         setPageState("confirmed");
@@ -549,23 +553,33 @@ export default function EntranceCheckinScreen() {
       };
       setSessionHistory((prev) => [historyItem, ...prev]);
 
+      setBraceletNfcError(null);
       triggerHaptic("success");
       setPageState("success");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === "NFC_CANCELLED" || msg === "USER_CANCELLED") {
         setPageState("confirmed");
-      } else {
+      } else if (nfcDone) {
+        // NFC read succeeded but network request failed — show full error state
         setErrorMsg(t("gate.scanFailed"));
         setPageState("error");
         triggerHaptic("error");
+      } else {
+        // NFC read itself failed (tag lost, etc.) — let user retry from confirmed state
+        const isTagLost = msg.toLowerCase().includes("tag") || msg.toLowerCase().includes("lost") || msg.toLowerCase().includes("connection");
+        setBraceletNfcError(isTagLost ? t("gate.nfcTagLost") : t("gate.nfcScanRetry"));
+        setPageState("confirmed");
+        triggerHaptic("error");
       }
+    } finally {
       braceletScanningRef.current = false;
     }
   }, [qrToken, token, t, locale]);
 
   const resetForNext = () => {
     setErrorMsg("");
+    setBraceletNfcError(null);
     setTicketAttendee(null);
     setTicketInfo(null);
     setTicketZone(null);
@@ -820,20 +834,28 @@ export default function EntranceCheckinScreen() {
             </Pressable>
 
             {isNfcSupported() && (
-              <Pressable
-                style={[styles.checkinBtn, { backgroundColor: "#0369a1" }]}
-                onPress={handleBraceletCheckin}
-              >
-                <Feather name="radio" size={24} color="#fff" />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.checkinBtnText, { color: "#fff" }]}>
-                    {t("gate.registerBracelet")}
-                  </Text>
-                  <Text style={[styles.checkinBtnSub, { color: "rgba(255,255,255,0.75)" }]}>
-                    {t("gate.ticketTapBraceletHint")}
-                  </Text>
-                </View>
-              </Pressable>
+              <>
+                <Pressable
+                  style={[styles.checkinBtn, { backgroundColor: "#0369a1" }]}
+                  onPress={handleBraceletCheckin}
+                >
+                  <Feather name="radio" size={24} color="#fff" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.checkinBtnText, { color: "#fff" }]}>
+                      {t("gate.registerBracelet")}
+                    </Text>
+                    <Text style={[styles.checkinBtnSub, { color: "rgba(255,255,255,0.75)" }]}>
+                      {t("gate.ticketTapBraceletHint")}
+                    </Text>
+                  </View>
+                </Pressable>
+                {braceletNfcError ? (
+                  <View style={styles.nfcErrorBanner}>
+                    <Feather name="alert-triangle" size={16} color="#b45309" />
+                    <Text style={styles.nfcErrorText}>{braceletNfcError}</Text>
+                  </View>
+                ) : null}
+              </>
             )}
           </>
         )}
@@ -1303,5 +1325,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Inter_500Medium",
     marginLeft: 4,
+  },
+  nfcErrorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fef3c7",
+    borderColor: "#f59e0b",
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  nfcErrorText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    color: "#92400e",
   },
 });

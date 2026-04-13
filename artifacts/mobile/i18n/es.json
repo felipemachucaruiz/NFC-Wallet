@@ -1231,6 +1231,8 @@
     "registerNext": "Reiniciando en",
     "registerNextNow": "Registrar otra ahora",
     "scanFailed": "El escaneo NFC falló. Por favor intenta de nuevo.",
+    "nfcTagLost": "Pulsera no detectada. Acerca la pulsera y mantén estable.",
+    "nfcScanRetry": "Escaneo fallido. Toca de nuevo la pulsera para intentar.",
     "yourZone": "Tu Zona",
     "noZoneWarning": "Sin zona asignada. Contacta al administrador del evento.",
     "securityCheck": "Verificación de Acceso",

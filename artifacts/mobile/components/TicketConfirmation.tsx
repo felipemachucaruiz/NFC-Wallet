@@ -50,6 +50,7 @@ interface TicketConfirmationProps {
   checkinHistory: CheckinHistoryEntry[];
   onTapBracelet: () => void;
   isRegistering: boolean;
+  nfcError?: string | null;
 }
 
 export function TicketConfirmation({
@@ -60,6 +61,7 @@ export function TicketConfirmation({
   checkinHistory,
   onTapBracelet,
   isRegistering,
+  nfcError,
 }: TicketConfirmationProps) {
   const { t } = useTranslation();
   const scheme = useColorScheme();
@@ -209,6 +211,13 @@ export function TicketConfirmation({
           </>
         )}
       </Pressable>
+
+      {nfcError ? (
+        <View style={styles.nfcErrorBanner}>
+          <Feather name="alert-triangle" size={16} color="#b45309" />
+          <Text style={styles.nfcErrorText}>{nfcError}</Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -474,5 +483,23 @@ const styles = StyleSheet.create({
   historyTime: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
+  },
+  nfcErrorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fef3c7",
+    borderColor: "#f59e0b",
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  nfcErrorText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    color: "#92400e",
   },
 });

@@ -1242,6 +1242,8 @@
     "registerNext": "Resetting in",
     "registerNextNow": "Register another now",
     "scanFailed": "NFC scan failed. Please try again.",
+    "nfcTagLost": "Bracelet not detected. Hold the bracelet steady against the phone.",
+    "nfcScanRetry": "Scan failed. Tap the bracelet again to retry.",
     "yourZone": "Your Zone",
     "noZoneWarning": "No zone assigned. Contact your event admin.",
     "securityCheck": "Access Check",
