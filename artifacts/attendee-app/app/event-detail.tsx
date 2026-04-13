@@ -173,6 +173,10 @@ export default function EventDetailScreen() {
                   style={styles.flyerThumb}
                   resizeMode="cover"
                 />
+                <LinearGradient
+                  colors={["transparent", C.background]}
+                  style={styles.flyerGradient}
+                />
                 <View style={styles.flyerOverlay}>
                   <Feather name="maximize-2" size={16} color="#fff" />
                   <Text style={styles.flyerOverlayText}>{t("events.viewFlyer")}</Text>
@@ -475,6 +479,13 @@ const styles = StyleSheet.create({
   flyerThumb: {
     width: "100%",
     height: 200,
+  },
+  flyerGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
   },
   flyerOverlay: {
     position: "absolute",

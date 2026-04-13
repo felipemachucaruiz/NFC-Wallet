@@ -273,7 +273,7 @@ export default function EventDetail() {
           </div>
           {event.flyerImage && (
             <div
-              className="hidden md:block flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+              className="hidden md:block flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity relative"
               onClick={() => setShowFlyer(true)}
             >
               <img
@@ -282,6 +282,7 @@ export default function EventDetail() {
                 className="h-[280px] lg:h-[340px] w-auto rounded-xl shadow-2xl shadow-black/50 object-contain border border-white/10"
                 loading="eager"
               />
+              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent rounded-b-xl pointer-events-none" />
             </div>
           )}
         </div>
@@ -361,10 +362,11 @@ export default function EventDetail() {
           <div className="lg:col-span-2 space-y-8">
             {event.flyerImage && (
               <div
-                className="md:hidden w-full rounded-lg overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                className="md:hidden w-full rounded-lg overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity relative"
                 onClick={() => setShowFlyer(true)}
               >
                 <img src={event.flyerImage} alt="Flyer" className="w-full max-h-64 object-contain" loading="lazy" />
+                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-background to-transparent pointer-events-none" />
               </div>
             )}
 
