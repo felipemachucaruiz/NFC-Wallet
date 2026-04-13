@@ -75,6 +75,10 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Mount WhatsApp webhook BEFORE rate limiters so Gupshup is never rate-blocked
+app.use("/api", whatsappWebhookRouter);
+app.use("/attendee-api/api", whatsappWebhookRouter);
+
 app.use(generalLimiter);
 
 const RATE_LIMITED_PATHS = [
@@ -100,9 +104,6 @@ app.use(
 
 app.use("/api", staticRouter);
 app.use("/attendee-api/api", staticRouter);
-
-app.use("/api", whatsappWebhookRouter);
-app.use("/attendee-api/api", whatsappWebhookRouter);
 
 app.use(authMiddleware);
 
