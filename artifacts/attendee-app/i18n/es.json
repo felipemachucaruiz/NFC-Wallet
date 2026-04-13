@@ -282,7 +282,21 @@
     "logout": "Cerrar sesión",
     "language": "Idioma",
     "spanish": "Español",
-    "english": "English"
+    "english": "English",
+    "editProfile": "Editar perfil",
+    "save": "Guardar",
+    "saveError": "Error al guardar el perfil. Intenta de nuevo.",
+    "firstName": "Nombre",
+    "firstNamePlaceholder": "Tu nombre",
+    "lastName": "Apellido",
+    "lastNamePlaceholder": "Tu apellido",
+    "phone": "Número celular",
+    "phonePlaceholder": "300 000 0000",
+    "dateOfBirth": "Fecha de nacimiento",
+    "sex": "Género",
+    "male": "Masculino",
+    "female": "Femenino",
+    "idDocument": "Núm. de identificación"
   },
   "events": {
     "tab": "Eventos",

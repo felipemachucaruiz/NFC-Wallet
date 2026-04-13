@@ -3,11 +3,13 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,7 +19,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CopAmount } from "@/components/CopAmount";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyRefundRequests } from "@/hooks/useAttendeeApi";
+import { useMyRefundRequests, useUpdateProfile } from "@/hooks/useAttendeeApi";
 import { setStoredLanguage } from "@/i18n";
 import i18n from "@/i18n";
 import { formatDate } from "@/utils/format";
@@ -38,7 +40,7 @@ export default function ProfileScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
 
   const { data: refundsData } = useMyRefundRequests();
   const refunds = ((refundsData as { refundRequests?: RefundRequest[] } | undefined)?.refundRequests ?? []);
@@ -46,6 +48,19 @@ export default function ProfileScreen() {
   const [currentLang, setCurrentLang] = useState(i18n.language);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [firstName, setFirstName] = useState(user?.firstName ?? "");
+  const [lastName, setLastName] = useState(user?.lastName ?? "");
+  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth ?? "");
+  const [sex, setSex] = useState<"male" | "female" | "">(
+    (user?.sex as "male" | "female") ?? ""
+  );
+  const [idDocument, setIdDocument] = useState(user?.idDocument ?? "");
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const updateProfile = useUpdateProfile();
 
   const handleLanguage = async (lang: string) => {
     await setStoredLanguage(lang);
@@ -57,6 +72,40 @@ export default function ProfileScreen() {
     setLoggingOut(true);
     await logout();
     router.replace("/login");
+  };
+
+  const startEditing = () => {
+    setFirstName(user?.firstName ?? "");
+    setLastName(user?.lastName ?? "");
+    setPhone(user?.phone ?? "");
+    setDateOfBirth(user?.dateOfBirth ?? "");
+    setSex((user?.sex as "male" | "female") ?? "");
+    setIdDocument(user?.idDocument ?? "");
+    setSaveError(null);
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setSaveError(null);
+  };
+
+  const handleSave = async () => {
+    setSaveError(null);
+    try {
+      await updateProfile.mutateAsync({
+        firstName: firstName.trim() || undefined,
+        lastName: lastName.trim() || undefined,
+        phone: phone.trim() || null,
+        dateOfBirth: dateOfBirth.trim() || null,
+        sex: sex || null,
+        idDocument: idDocument.trim() || null,
+      });
+      await refreshUser();
+      setIsEditing(false);
+    } catch {
+      setSaveError(t("profile.saveError") || "Error al guardar el perfil.");
+    }
   };
 
   const statusVariant = (r: RefundRequest): "success" | "warning" | "danger" | "muted" => {
@@ -86,19 +135,171 @@ export default function ProfileScreen() {
       <Text style={[styles.pageTitle, { color: C.text }]}>{t("profile.title")}</Text>
 
       <Card>
-        <View style={styles.avatarRow}>
-          <View style={[styles.avatar, { backgroundColor: C.primaryLight }]}>
-            <Feather name="user" size={28} color={C.primary} />
+        {!isEditing ? (
+          <>
+            <View style={styles.avatarRow}>
+              <View style={[styles.avatar, { backgroundColor: C.primaryLight }]}>
+                <Feather name="user" size={28} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.userName, { color: C.text }]}>
+                  {[user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Asistente"}
+                </Text>
+                <Text style={[styles.userEmail, { color: C.textSecondary }]}>
+                  {user?.email ?? ""}
+                </Text>
+              </View>
+              <Pressable
+                onPress={startEditing}
+                style={[styles.editBtn, { backgroundColor: C.primaryLight }]}
+              >
+                <Feather name="edit-2" size={16} color={C.primary} />
+              </Pressable>
+            </View>
+
+            {(user?.phone || user?.dateOfBirth || user?.sex || user?.idDocument) ? (
+              <View style={[styles.extraInfo, { borderTopColor: C.border }]}>
+                {user?.phone ? (
+                  <View style={styles.infoRow}>
+                    <Feather name="phone" size={14} color={C.textMuted} />
+                    <Text style={[styles.infoText, { color: C.textSecondary }]}>{user.phone}</Text>
+                  </View>
+                ) : null}
+                {user?.dateOfBirth ? (
+                  <View style={styles.infoRow}>
+                    <Feather name="calendar" size={14} color={C.textMuted} />
+                    <Text style={[styles.infoText, { color: C.textSecondary }]}>{user.dateOfBirth}</Text>
+                  </View>
+                ) : null}
+                {user?.sex ? (
+                  <View style={styles.infoRow}>
+                    <Feather name="users" size={14} color={C.textMuted} />
+                    <Text style={[styles.infoText, { color: C.textSecondary }]}>
+                      {user.sex === "male" ? t("profile.male") : t("profile.female")}
+                    </Text>
+                  </View>
+                ) : null}
+                {user?.idDocument ? (
+                  <View style={styles.infoRow}>
+                    <Feather name="credit-card" size={14} color={C.textMuted} />
+                    <Text style={[styles.infoText, { color: C.textSecondary }]}>{user.idDocument}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <View style={{ gap: 14 }}>
+            <View style={styles.editHeader}>
+              <Text style={[styles.sectionTitle, { color: C.textSecondary, marginBottom: 0 }]}>
+                {t("profile.editProfile") || "Editar perfil"}
+              </Text>
+              <Pressable onPress={cancelEditing}>
+                <Feather name="x" size={20} color={C.textMuted} />
+              </Pressable>
+            </View>
+
+            <View style={{ gap: 10 }}>
+              <View style={{ gap: 4 }}>
+                <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.firstName")}</Text>
+                <TextInput
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  placeholder={t("profile.firstNamePlaceholder")}
+                  placeholderTextColor={C.textMuted}
+                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                />
+              </View>
+
+              <View style={{ gap: 4 }}>
+                <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.lastName")}</Text>
+                <TextInput
+                  value={lastName}
+                  onChangeText={setLastName}
+                  placeholder={t("profile.lastNamePlaceholder")}
+                  placeholderTextColor={C.textMuted}
+                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                />
+              </View>
+
+              <View style={{ gap: 4 }}>
+                <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.phone")}</Text>
+                <TextInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder={t("profile.phonePlaceholder")}
+                  placeholderTextColor={C.textMuted}
+                  keyboardType="phone-pad"
+                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                />
+              </View>
+
+              <View style={{ gap: 4 }}>
+                <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.dateOfBirth")}</Text>
+                <TextInput
+                  value={dateOfBirth}
+                  onChangeText={setDateOfBirth}
+                  placeholder="DD/MM/AAAA"
+                  placeholderTextColor={C.textMuted}
+                  keyboardType="numeric"
+                  maxLength={10}
+                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                />
+              </View>
+
+              <View style={{ gap: 4 }}>
+                <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.sex")}</Text>
+                <View style={styles.sexRow}>
+                  {(["male", "female"] as const).map((s) => (
+                    <Pressable
+                      key={s}
+                      onPress={() => setSex(sex === s ? "" : s)}
+                      style={[
+                        styles.sexBtn,
+                        {
+                          backgroundColor: sex === s ? C.primaryLight : C.surface ?? C.card,
+                          borderColor: sex === s ? C.primary : C.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.sexBtnText, { color: sex === s ? C.primary : C.textSecondary }]}>
+                        {s === "male" ? t("profile.male") : t("profile.female")}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              <View style={{ gap: 4 }}>
+                <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.idDocument")}</Text>
+                <TextInput
+                  value={idDocument}
+                  onChangeText={setIdDocument}
+                  placeholder="123456789"
+                  placeholderTextColor={C.textMuted}
+                  keyboardType="numeric"
+                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                />
+              </View>
+            </View>
+
+            {saveError ? (
+              <Text style={{ color: C.danger, fontSize: 13, fontFamily: "Inter_400Regular" }}>{saveError}</Text>
+            ) : null}
+
+            <Pressable
+              onPress={handleSave}
+              disabled={updateProfile.isPending}
+              style={[styles.saveBtn, { backgroundColor: C.primary, opacity: updateProfile.isPending ? 0.7 : 1 }]}
+            >
+              {updateProfile.isPending ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.saveBtnText}>{t("profile.save")}</Text>
+              )}
+            </Pressable>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.userName, { color: C.text }]}>
-              {[user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Asistente"}
-            </Text>
-            <Text style={[styles.userEmail, { color: C.textSecondary }]}>
-              {user?.email ?? ""}
-            </Text>
-          </View>
-        </View>
+        )}
       </Card>
 
       <View>
@@ -210,6 +411,31 @@ const styles = StyleSheet.create({
   avatar: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   userName: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   userEmail: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  editBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  extraInfo: { borderTopWidth: 1, marginTop: 14, paddingTop: 14, gap: 8 },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  infoText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  editHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  input: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  sexRow: { flexDirection: "row", gap: 10 },
+  sexBtn: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 12, borderWidth: 1.5 },
+  sexBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  saveBtn: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  saveBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
   sectionTitle: {
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",

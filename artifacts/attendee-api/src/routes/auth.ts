@@ -145,16 +145,22 @@ router.get("/auth/user", async (req: Request, res: Response) => {
     // Non-fatal: names are display-only
   }
 
-  // Fetch emailVerified for this user
+  // Fetch emailVerified and profile extras for this user
   let emailVerified = false;
   let userPhone: string | null = null;
+  let userDateOfBirth: string | null = null;
+  let userSex: string | null = null;
+  let userIdDocument: string | null = null;
   try {
     const [dbUser] = await db
-      .select({ emailVerified: usersTable.emailVerified, phone: usersTable.phone })
+      .select({ emailVerified: usersTable.emailVerified, phone: usersTable.phone, dateOfBirth: usersTable.dateOfBirth, sex: usersTable.sex, idDocument: usersTable.idDocument })
       .from(usersTable)
       .where(eq(usersTable.id, u.id));
     emailVerified = dbUser?.emailVerified ?? false;
     userPhone = dbUser?.phone ?? null;
+    userDateOfBirth = dbUser?.dateOfBirth ?? null;
+    userSex = dbUser?.sex ?? null;
+    userIdDocument = dbUser?.idDocument ?? null;
   } catch {
     // Non-fatal
   }
@@ -169,6 +175,9 @@ router.get("/auth/user", async (req: Request, res: Response) => {
       gateZoneId: (u as unknown as { gateZoneId?: string | null }).gateZoneId ?? null,
       emailVerified,
       phone: userPhone,
+      dateOfBirth: userDateOfBirth,
+      sex: userSex,
+      idDocument: userIdDocument,
     },
   });
 });
@@ -177,6 +186,9 @@ const UpdateProfileBody = z.object({
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
   phone: z.string().max(30).nullable().optional(),
+  dateOfBirth: z.string().max(10).nullable().optional(),
+  sex: z.enum(["male", "female"]).nullable().optional(),
+  idDocument: z.string().max(50).nullable().optional(),
 });
 
 router.patch("/auth/profile", requireAuth, async (req: Request, res: Response) => {
@@ -186,7 +198,7 @@ router.patch("/auth/profile", requireAuth, async (req: Request, res: Response) =
     return;
   }
 
-  const { firstName, lastName, phone } = parsed.data;
+  const { firstName, lastName, phone, dateOfBirth, sex, idDocument } = parsed.data;
   const userId = req.user!.id;
 
   try {
@@ -205,6 +217,9 @@ router.patch("/auth/profile", requireAuth, async (req: Request, res: Response) =
     if (firstName !== undefined) updates.firstName = firstName;
     if (lastName !== undefined) updates.lastName = lastName;
     if (phone !== undefined) updates.phone = phone;
+    if (dateOfBirth !== undefined) updates.dateOfBirth = dateOfBirth;
+    if (sex !== undefined) updates.sex = sex;
+    if (idDocument !== undefined) updates.idDocument = idDocument;
 
     const [updated] = await db
       .update(usersTable)
@@ -216,6 +231,9 @@ router.patch("/auth/profile", requireAuth, async (req: Request, res: Response) =
         lastName: usersTable.lastName,
         phone: usersTable.phone,
         email: usersTable.email,
+        dateOfBirth: usersTable.dateOfBirth,
+        sex: usersTable.sex,
+        idDocument: usersTable.idDocument,
       });
 
     res.json({ user: updated });

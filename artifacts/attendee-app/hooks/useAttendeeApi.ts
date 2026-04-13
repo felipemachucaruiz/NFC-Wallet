@@ -231,3 +231,23 @@ export function usePseBanks() {
     retry: 2,
   });
 }
+
+
+export function useUpdateProfile() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useMutation({
+    mutationFn: (data: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string | null;
+      dateOfBirth?: string | null;
+      sex?: string | null;
+      idDocument?: string | null;
+    }) =>
+      apiFetch<{ user: Record<string, unknown> }>(`${API_BASE_URL}/auth/profile`, headers, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+  });
+}

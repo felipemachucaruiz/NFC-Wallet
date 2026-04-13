@@ -283,7 +283,21 @@
     "logout": "Sign out",
     "language": "Language",
     "spanish": "Español",
-    "english": "English"
+    "english": "English",
+    "editProfile": "Edit profile",
+    "save": "Save",
+    "saveError": "Failed to save profile. Please try again.",
+    "firstName": "First name",
+    "firstNamePlaceholder": "Your first name",
+    "lastName": "Last name",
+    "lastNamePlaceholder": "Your last name",
+    "phone": "Phone number",
+    "phonePlaceholder": "300 000 0000",
+    "dateOfBirth": "Date of birth",
+    "sex": "Gender",
+    "male": "Male",
+    "female": "Female",
+    "idDocument": "ID number"
   },
   "events": {
     "tab": "Events",

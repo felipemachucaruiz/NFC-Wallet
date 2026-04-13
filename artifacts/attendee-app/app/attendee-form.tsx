@@ -77,9 +77,9 @@ export default function AttendeeFormScreen() {
       name: i === 0 ? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() : "",
       email: i === 0 ? user?.email ?? "" : "",
       phone: i === 0 && user?.phone ? user.phone : "",
-      dateOfBirth: "",
-      sex: "",
-      idDocument: "",
+      dateOfBirth: i === 0 ? user?.dateOfBirth ?? "" : "",
+      sex: i === 0 ? user?.sex ?? "" : "",
+      idDocument: i === 0 ? user?.idDocument ?? "" : "",
     })),
   );
 

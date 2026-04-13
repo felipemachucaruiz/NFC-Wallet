@@ -30,6 +30,9 @@ export interface AuthUser {
   role: string;
   merchantId: string | null;
   emailVerified?: boolean;
+  dateOfBirth?: string | null;
+  sex?: string | null;
+  idDocument?: string | null;
 }
 
 interface AuthContextValue {

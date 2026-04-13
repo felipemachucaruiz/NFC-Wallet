@@ -37,6 +37,9 @@ export const usersTable = pgTable("users", {
   promoterCompanyId: varchar("promoter_company_id"),
   expoPushToken: varchar("expo_push_token"),
   phone: varchar("phone", { length: 30 }),
+  dateOfBirth: varchar("date_of_birth", { length: 10 }),
+  sex: varchar("sex", { length: 10 }),
+  idDocument: varchar("id_document", { length: 50 }),
   /**
    * Gate/wristband staff: nullable FK to access_zones.id.
    * The DB-level FK constraint (users_gate_zone_id_fk) is created directly via SQL migration
