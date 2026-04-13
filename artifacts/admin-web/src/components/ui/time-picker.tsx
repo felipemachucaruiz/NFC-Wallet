@@ -4,7 +4,6 @@ import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TimePickerProps {
   value: string;
@@ -19,6 +18,8 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 export function TimePicker({ value, onChange, placeholder, className, minuteStep = 15 }: TimePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [selectedHour, setSelectedHour] = React.useState<number | null>(null);
+  const hourRef = React.useRef<HTMLDivElement>(null);
+  const minuteRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (value) {
@@ -26,6 +27,13 @@ export function TimePicker({ value, onChange, placeholder, className, minuteStep
       setSelectedHour(parseInt(h, 10));
     }
   }, [value]);
+
+  React.useEffect(() => {
+    if (open && hourRef.current && selectedHour !== null) {
+      const btn = hourRef.current.querySelector<HTMLElement>(`[data-hour="${selectedHour}"]`);
+      btn?.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+  }, [open, selectedHour]);
 
   const minutes = React.useMemo(() => {
     const m: number[] = [];
@@ -35,6 +43,12 @@ export function TimePicker({ value, onChange, placeholder, className, minuteStep
 
   const formatHour = (h: number) => String(h).padStart(2, "0");
   const formatMinute = (m: number) => String(m).padStart(2, "0");
+
+  const selectedMinute = React.useMemo(() => {
+    if (!value) return null;
+    const [, m] = value.split(":");
+    return m ? parseInt(m, 10) : null;
+  }, [value]);
 
   const handleSelect = (h: number, m: number) => {
     onChange(`${formatHour(h)}:${formatMinute(m)}`);
@@ -58,12 +72,17 @@ export function TimePicker({ value, onChange, placeholder, className, minuteStep
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <div className="flex">
-          <ScrollArea className="h-56 w-16 border-r">
+          <div
+            ref={hourRef}
+            className="h-56 w-16 overflow-y-auto border-r"
+            style={{ scrollbarWidth: "none" }}
+          >
             <div className="p-1">
               {HOURS.map((h) => (
                 <button
                   key={h}
                   type="button"
+                  data-hour={h}
                   onClick={() => setSelectedHour(h)}
                   className={cn(
                     "w-full rounded-md px-2 py-1.5 text-sm text-center transition-colors",
@@ -76,8 +95,12 @@ export function TimePicker({ value, onChange, placeholder, className, minuteStep
                 </button>
               ))}
             </div>
-          </ScrollArea>
-          <ScrollArea className="h-56 w-16">
+          </div>
+          <div
+            ref={minuteRef}
+            className="h-56 w-16 overflow-y-auto"
+            style={{ scrollbarWidth: "none" }}
+          >
             <div className="p-1">
               {selectedHour !== null ? (
                 minutes.map((m) => (
@@ -87,7 +110,7 @@ export function TimePicker({ value, onChange, placeholder, className, minuteStep
                     onClick={() => handleSelect(selectedHour, m)}
                     className={cn(
                       "w-full rounded-md px-2 py-1.5 text-sm text-center transition-colors",
-                      value === `${formatHour(selectedHour)}:${formatMinute(m)}`
+                      selectedMinute === m && value?.startsWith(formatHour(selectedHour))
                         ? "bg-primary text-primary-foreground"
                         : "hover:bg-accent"
                     )}
@@ -101,7 +124,7 @@ export function TimePicker({ value, onChange, placeholder, className, minuteStep
                 </p>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
