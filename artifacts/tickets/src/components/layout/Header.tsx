@@ -34,7 +34,7 @@ export function Header() {
               <img
                 src={`${import.meta.env.BASE_URL}tapee-logo.png`}
                 alt="Tapee"
-                className="h-9"
+                className="h-12"
               />
             </Link>
 
