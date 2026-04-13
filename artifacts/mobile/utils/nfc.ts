@@ -1030,8 +1030,15 @@ export async function scanAndWriteBracelet(
       for (let i = 0; i < pageCount; i++) {
         await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + i, padded.slice(i * MFU_PAGE_SIZE, (i + 1) * MFU_PAGE_SIZE));
       }
+      // Terminator page: marks end of data for the reader. Non-fatal if it fails —
+      // the last data page already contains null-byte padding that serves as a
+      // natural terminator, so the chip is effectively correct even without it.
       if (pageCount < maxDataPages) {
-        await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + pageCount, [0, 0, 0, 0]);
+        try {
+          await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + pageCount, [0, 0, 0, 0]);
+        } catch {
+          console.warn("[NFC] Terminator page write failed after data write — data pages intact, ignoring");
+        }
       }
       return { payload, tagInfo, written: true };
     }

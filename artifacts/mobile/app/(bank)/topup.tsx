@@ -313,10 +313,19 @@ export default function TopUpScreen() {
     let aborted = false;
 
     const doScanAndWrite = async (): Promise<boolean> => {
-      try {
-        let writtenHmac = "";
+      // writeAttempted: set true (inside onRead callback) once the chip is verified
+      // and the new payload is about to be written. If an error occurs after this
+      // point on non-DESFire chips, the physical write likely already succeeded
+      // (Android NFC sometimes drops the session right after the last byte is
+      // committed to EEPROM), so we should still record the top-up.
+      let writeAttempted = false;
+      let writtenHmac = "";
 
+      try {
         if (nfcChipType === "desfire_ev3") {
+          // DESFire uses an atomic CREDIT + WRITE + COMMIT transaction.
+          // If COMMIT fails the chip is NOT written, so we don't set writeAttempted
+          // here — a genuine retry is needed.
           await scanAndWriteDesfireBracelet(async (payload) => {
             if (payload.uid !== uid) {
               aborted = true;
@@ -336,6 +345,11 @@ export default function TopUpScreen() {
             }
             setStep("writing");
             writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
+            // Mark write as started BEFORE returning the new payload to the writer.
+            // From this point on, the chip write is about to begin (or may already
+            // be happening). Any error after this mark likely means the data was
+            // physically committed to the chip but the NFC session dropped.
+            writeAttempted = true;
             return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
           }, {
             expectedChipType: chipHint,
@@ -364,6 +378,36 @@ export default function TopUpScreen() {
       } catch (e: unknown) {
         const errMsg = e instanceof Error ? e.message : String(e);
         console.error("[TopUp] scanAndWrite error:", errMsg);
+
+        // If the write was already started for a non-DESFire chip and we didn't
+        // abort, the chip very likely has the new balance (the NFC session just
+        // dropped right at the end). Record the top-up with a warning so the
+        // server stays in sync instead of silently losing the transaction.
+        if (writeAttempted && !aborted && !cancelledRef.current) {
+          console.warn("[TopUp] Error after write started — recording top-up with write warning. err:", errMsg);
+          try {
+            writingRef.current = false;
+            writeRetryRef.current = 0;
+            setWriteRetryCount(0);
+            setIsRetrying(false);
+            await enqueueTopUp({
+              nfcUid: uid,
+              amount: amount,
+              paymentMethod,
+              newBalance,
+              newCounter,
+              hmac: writtenHmac,
+            });
+            submittingRef.current = false;
+            void syncToServer(true);
+            setWriteWarning(true);
+            setStep("success");
+            return true;
+          } catch (enqueueErr) {
+            console.error("[TopUp] enqueueTopUp also failed after write error:", enqueueErr);
+          }
+        }
+
         return false;
       }
     };
