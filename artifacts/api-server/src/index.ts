@@ -390,6 +390,25 @@ async function runStartupMigrations(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_guest_list_entries_guest_list_id ON guest_list_entries (guest_list_id);
       CREATE INDEX IF NOT EXISTS idx_guest_list_entries_email ON guest_list_entries (email);
 
+      -- ── ticket_checkins table ─────────────────────────────────────────
+      CREATE TABLE IF NOT EXISTS ticket_checkins (
+        id                    varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        ticket_id             varchar(255) NOT NULL,
+        event_id              varchar NOT NULL REFERENCES events(id),
+        event_day_index       integer NOT NULL,
+        attendee_user_id      varchar NOT NULL REFERENCES users(id),
+        bracelet_id           varchar REFERENCES bracelets(id),
+        bracelet_nfc_uid      varchar(64),
+        access_zone_id        varchar,
+        section               varchar(255),
+        ticket_type           varchar(100),
+        checked_in_by_user_id varchar NOT NULL REFERENCES users(id),
+        checked_in_at         timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT ticket_checkins_event_ticket_day_unique UNIQUE (event_id, ticket_id, event_day_index)
+      );
+      CREATE INDEX IF NOT EXISTS idx_ticket_checkins_ticket_id ON ticket_checkins (ticket_id);
+      CREATE INDEX IF NOT EXISTS idx_ticket_checkins_event_id ON ticket_checkins (event_id);
+
       -- (no additional seeding required)
     `);
 
