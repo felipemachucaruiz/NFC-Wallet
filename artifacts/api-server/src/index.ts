@@ -409,6 +409,13 @@ async function runStartupMigrations(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_ticket_checkins_ticket_id ON ticket_checkins (ticket_id);
       CREATE INDEX IF NOT EXISTS idx_ticket_checkins_event_id ON ticket_checkins (event_id);
 
+      -- ── Performance indexes for transaction queries ───────────────────────
+      CREATE INDEX IF NOT EXISTS idx_transaction_logs_created_at ON transaction_logs (created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_transaction_logs_event_id ON transaction_logs (event_id);
+      CREATE INDEX IF NOT EXISTS idx_transaction_line_items_transaction_log_id ON transaction_line_items (transaction_log_id);
+      CREATE INDEX IF NOT EXISTS idx_top_ups_created_at ON top_ups (created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_top_ups_bracelet_uid ON top_ups (bracelet_uid);
+
       -- (no additional seeding required)
     `);
 

@@ -793,31 +793,16 @@ router.get(
     const search = req.query.search as string | undefined;
     const offset = (page - 1) * limit;
 
-    const conditions: any[] = [];
-    if (search) {
-      conditions.push(
-        or(
+    const whereClause = search
+      ? or(
           ilike(transactionLogsTable.braceletUid, `%${search}%`),
           ilike(merchantsTable.name, `%${search}%`),
-        )!
-      );
-    }
+        )
+      : undefined;
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-    const countQuery = db
-      .select({ total: count() })
-      .from(transactionLogsTable);
-    if (search) {
-      countQuery.leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id));
-    }
-    if (whereClause) countQuery.where(whereClause);
-    const [totalRow] = await countQuery;
-
-    const txQuery = db
+    const baseQuery = db
       .select({
         id: transactionLogsTable.id,
-        idempotencyKey: transactionLogsTable.idempotencyKey,
         braceletUid: transactionLogsTable.braceletUid,
         locationId: transactionLogsTable.locationId,
         merchantId: transactionLogsTable.merchantId,
@@ -840,11 +825,22 @@ router.get(
       .leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id))
       .leftJoin(locationsTable, eq(transactionLogsTable.locationId, locationsTable.id))
       .leftJoin(eventsTable, eq(transactionLogsTable.eventId, eventsTable.id));
-    if (whereClause) txQuery.where(whereClause);
-    const txRows = await txQuery
-      .orderBy(sql`${transactionLogsTable.createdAt} DESC`)
-      .limit(limit)
-      .offset(offset);
+
+    const countBase = db
+      .select({ total: count() })
+      .from(transactionLogsTable)
+      .leftJoin(merchantsTable, eq(transactionLogsTable.merchantId, merchantsTable.id));
+
+    const [txRowsResult, totalRowResult] = await Promise.all([
+      (whereClause ? baseQuery.where(whereClause) : baseQuery)
+        .orderBy(sql`${transactionLogsTable.createdAt} DESC`)
+        .limit(limit)
+        .offset(offset),
+      whereClause ? countBase.where(whereClause) : db.select({ total: count() }).from(transactionLogsTable),
+    ]);
+
+    const txRows = txRowsResult;
+    const [totalRow] = totalRowResult;
 
     const txIds = txRows.map((r) => r.id);
     const lineItemsMap = new Map<string, { id: string; productId: string | null; productName: string | null; unitPrice: number; quantity: number; ivaAmount: number }[]>();
@@ -860,7 +856,7 @@ router.get(
           ivaAmount: transactionLineItemsTable.ivaAmount,
         })
         .from(transactionLineItemsTable)
-        .where(sql`${transactionLineItemsTable.transactionLogId} = ANY(ARRAY[${sql.join(txIds.map(id => sql`${id}`), sql`, `)}]::text[])`);
+        .where(inArray(transactionLineItemsTable.transactionLogId, txIds));
       for (const li of lineItems) {
         if (!lineItemsMap.has(li.transactionLogId)) {
           lineItemsMap.set(li.transactionLogId, []);
@@ -894,20 +890,9 @@ router.get(
     const search = req.query.search as string | undefined;
     const offset = (page - 1) * limit;
 
-    const conditions: any[] = [];
-    if (search) {
-      conditions.push(ilike(topUpsTable.braceletUid, `%${search}%`));
-    }
+    const whereClause = search ? ilike(topUpsTable.braceletUid, `%${search}%`) : undefined;
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-    const countQuery = db
-      .select({ total: count() })
-      .from(topUpsTable);
-    if (whereClause) countQuery.where(whereClause);
-    const [totalRow] = await countQuery;
-
-    const rowsQuery = db
+    const baseQuery = db
       .select({
         id: topUpsTable.id,
         braceletUid: topUpsTable.braceletUid,
@@ -922,18 +907,23 @@ router.get(
         eventName: eventsTable.name,
       })
       .from(topUpsTable)
-      .innerJoin(braceletsTable, eq(topUpsTable.braceletUid, braceletsTable.nfcUid))
+      .leftJoin(braceletsTable, eq(topUpsTable.braceletUid, braceletsTable.nfcUid))
       .leftJoin(eventsTable, eq(braceletsTable.eventId, eventsTable.id))
       .leftJoin(usersTable, eq(topUpsTable.performedByUserId, usersTable.id));
-    if (whereClause) {
-      rowsQuery.where(whereClause);
-    }
-    const result = await rowsQuery
-      .orderBy(sql`${topUpsTable.createdAt} DESC`)
-      .limit(limit)
-      .offset(offset);
 
-    res.json({ topUps: result, total: totalRow?.total ?? 0, page, limit });
+    const [rowsResult, totalRowResult] = await Promise.all([
+      (whereClause ? baseQuery.where(whereClause) : baseQuery)
+        .orderBy(sql`${topUpsTable.createdAt} DESC`)
+        .limit(limit)
+        .offset(offset),
+      whereClause
+        ? db.select({ total: count() }).from(topUpsTable).where(whereClause)
+        : db.select({ total: count() }).from(topUpsTable),
+    ]);
+
+    const [totalRow] = totalRowResult;
+
+    res.json({ topUps: rowsResult, total: totalRow?.total ?? 0, page, limit });
   }
 );
 
