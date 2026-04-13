@@ -6,6 +6,7 @@ const warning = "#fbbf24";
 const danger = "#ef4444";
 
 export default {
+  danger,
   light: {
     background: "#F0F4F8",
     card: "#FFFFFF",

@@ -7,13 +7,14 @@ import { Button } from "./Button";
 
 interface EmptyProps {
   icon?: keyof typeof Feather.glyphMap;
-  title: string;
+  title?: string;
+  message?: string;
   subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-export function Empty({ icon = "inbox", title, subtitle, actionLabel, onAction }: EmptyProps) {
+export function Empty({ icon = "inbox", title, message, subtitle, actionLabel, onAction }: EmptyProps) {
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
@@ -22,7 +23,7 @@ export function Empty({ icon = "inbox", title, subtitle, actionLabel, onAction }
       <View style={[styles.iconBox, { backgroundColor: C.inputBg }]}>
         <Feather name={icon} size={32} color={C.textMuted} />
       </View>
-      <Text style={[styles.title, { color: C.text }]}>{title}</Text>
+      <Text style={[styles.title, { color: C.text }]}>{title ?? message}</Text>
       {subtitle ? (
         <Text style={[styles.subtitle, { color: C.textSecondary }]}>{subtitle}</Text>
       ) : null}

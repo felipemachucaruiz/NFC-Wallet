@@ -13,6 +13,7 @@ export type AlertButtonVariant = "primary" | "danger" | "cancel";
 export interface AlertButton {
   text: string;
   variant?: AlertButtonVariant;
+  style?: "cancel" | "destructive" | "default";
   onPress?: () => void;
 }
 
@@ -90,7 +91,12 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
 
             <View style={[styles.buttonRow, buttons.length === 1 && styles.singleButton]}>
               {buttons.map((btn, i) => {
-                const variant = btn.variant ?? "primary";
+                const styleToVariant = (s?: string): AlertButtonVariant => {
+                  if (s === "cancel") return "cancel";
+                  if (s === "destructive") return "danger";
+                  return "primary";
+                };
+                const variant = btn.variant ?? (btn.style ? styleToVariant(btn.style) : "primary");
                 return (
                   <Pressable
                     key={i}

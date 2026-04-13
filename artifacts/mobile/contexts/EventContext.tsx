@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export type NfcChipType = "ntag_21x" | "mifare_classic" | "desfire_ev3" | "mifare_ultralight_c";
 
 interface EventContextValue {
+  eventId: string | null | undefined;
   inventoryMode: InventoryMode;
   nfcChipType: NfcChipType;
   allowedNfcTypes: NfcChipType[];
@@ -18,6 +19,7 @@ interface EventContextValue {
 }
 
 const EventContext = createContext<EventContextValue>({
+  eventId: undefined,
   inventoryMode: "location_based",
   nfcChipType: "ntag_21x",
   allowedNfcTypes: ["ntag_21x"],
@@ -59,7 +61,7 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     (event.active === false || (!!eventEndsAt && new Date(eventEndsAt) < new Date()));
 
   return (
-    <EventContext.Provider value={{ inventoryMode, nfcChipType, allowedNfcTypes, isLoading, isEventEnded, eventName, eventEndsAt, currencyCode, refetch }}>
+    <EventContext.Provider value={{ eventId: user?.eventId, inventoryMode, nfcChipType, allowedNfcTypes, isLoading, isEventEnded, eventName, eventEndsAt, currencyCode, refetch }}>
       {children}
     </EventContext.Provider>
   );
