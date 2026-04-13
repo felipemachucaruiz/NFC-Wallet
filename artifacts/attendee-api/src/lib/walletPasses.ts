@@ -17,6 +17,7 @@ export interface WalletPassData {
   attendeeName: string;
   qrCodeToken: string;
   validDays: string[];
+  flyerUrl?: string | null;
 }
 
 let _cachedCerts: { signerCert: string; signerKey: string } | null = null;
@@ -141,6 +142,44 @@ export async function generateAppleWalletPass(data: WalletPassData): Promise<Buf
     if (_cachedLogo) {
       buffers["logo.png"] = _cachedLogo;
       buffers["logo@2x.png"] = _cachedLogo;
+    }
+
+    // Strip image: event flyer with gradient overlay
+    if (data.flyerUrl) {
+      try {
+        const res = await fetch(data.flyerUrl, { signal: AbortSignal.timeout(8000) });
+        if (res.ok) {
+          const flyerBuf = Buffer.from(await res.arrayBuffer());
+          const { default: sharp } = await import("sharp");
+
+          // Apple Wallet strip image: 375×123 pt @1x, 750×246 @2x
+          const makeStrip = async (w: number, h: number) => {
+            const gradientSvg = Buffer.from(
+              `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+                <defs>
+                  <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#0a0a0a" stop-opacity="0.35"/>
+                    <stop offset="60%" stop-color="#0a0a0a" stop-opacity="0.55"/>
+                    <stop offset="100%" stop-color="#0a0a0a" stop-opacity="0.88"/>
+                  </linearGradient>
+                </defs>
+                <rect width="${w}" height="${h}" fill="url(#g)"/>
+              </svg>`
+            );
+            return sharp(flyerBuf)
+              .resize(w, h, { fit: "cover", position: "center" })
+              .composite([{ input: gradientSvg, blend: "over" }])
+              .png()
+              .toBuffer();
+          };
+
+          buffers["strip.png"] = await makeStrip(375, 123);
+          buffers["strip@2x.png"] = await makeStrip(750, 246);
+          buffers["strip@3x.png"] = await makeStrip(1125, 369);
+        }
+      } catch (err) {
+        logger.warn({ err }, "[walletPasses] Skipping flyer strip — fetch/process failed");
+      }
     }
 
     const pass = new PKPass(buffers, {

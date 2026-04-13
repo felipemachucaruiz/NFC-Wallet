@@ -954,7 +954,7 @@ router.get(
     const { generateAppleWalletPass } = await import("../lib/walletPasses");
 
     const [event] = await db
-      .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, venueAddress: eventsTable.venueAddress })
+      .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, venueAddress: eventsTable.venueAddress, flyerImageUrl: eventsTable.flyerImageUrl })
       .from(eventsTable)
       .where(eq(eventsTable.id, ticket.eventId));
 
@@ -988,6 +988,7 @@ router.get(
       attendeeName: ticket.attendeeName,
       qrCodeToken: ticket.qrCodeToken,
       validDays,
+      flyerUrl: event?.flyerImageUrl ?? null,
     });
 
     if (!passBuffer) {
