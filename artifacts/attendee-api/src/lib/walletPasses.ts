@@ -184,7 +184,7 @@ export function generateGoogleWalletSaveLink(data: WalletPassData): string | nul
   const eventTicketClass = {
     id: classId,
     issuerName: "Tapee",
-    reviewStatus: "underReview",
+    reviewStatus: "UNDER_REVIEW",
     eventName: {
       defaultValue: { language: "es", value: "Evento Tapee" },
     },
