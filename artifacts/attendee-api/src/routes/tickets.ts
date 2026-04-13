@@ -777,11 +777,13 @@ router.get(
     let sectionName = "General";
     let ticketTypeName = "";
     let validDays: string[] = [];
+    let ticketPrice = 0;
 
     if (ticket.ticketTypeId) {
       const [ticketType] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
       if (ticketType) {
         ticketTypeName = ticketType.name;
+        ticketPrice = ticketType.price ? Number(ticketType.price) : 0;
         if (ticketType.sectionId) {
           const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
           if (sec) sectionName = sec.name;
@@ -794,6 +796,10 @@ router.get(
       }
     }
 
+    const eventDateStr = event?.startsAt
+      ? new Date(event.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })
+      : null;
+
     const apiBase = process.env.APP_URL || "https://attendee.tapee.app";
     const rawFlyer = (event as any)?.flyerImageUrl ?? null;
     const flyerImageUrl = rawFlyer && !rawFlyer.startsWith("http") ? `https://prod.tapee.app${rawFlyer}` : rawFlyer;
@@ -802,11 +808,13 @@ router.get(
       const pdfBuffer = await generateTicketPdf({
         attendeeName: ticket.attendeeName,
         eventName: event?.name ?? "",
-        eventDates: [],
+        eventDates: eventDateStr ? [eventDateStr] : [],
         venueName: event?.venueAddress ?? "",
         venueAddress: event?.venueAddress ?? "",
         sectionName,
         ticketTypeName,
+        price: ticketPrice,
+        currencyCode: event?.currencyCode ?? "COP",
         validDays,
         qrCodeToken: ticket.qrCodeToken,
         ticketId: ticket.id,
@@ -856,15 +864,21 @@ router.get(
     try {
       const ticketDataList: TicketPdfData[] = [];
 
+      const orderEventDateStr = event?.startsAt
+        ? new Date(event.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })
+        : null;
+
       for (const ticket of orderTickets) {
         let sectionName = "General";
         let ticketTypeName = "";
         let validDays: string[] = [];
+        let ticketPrice = 0;
 
         if (ticket.ticketTypeId) {
           const [ticketType] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
           if (ticketType) {
             ticketTypeName = ticketType.name;
+            ticketPrice = ticketType.price ? Number(ticketType.price) : 0;
             if (ticketType.sectionId) {
               const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
               if (sec) sectionName = sec.name;
@@ -880,7 +894,7 @@ router.get(
         ticketDataList.push({
           attendeeName: ticket.attendeeName,
           eventName: event?.name ?? "",
-          eventDates: [],
+          eventDates: orderEventDateStr ? [orderEventDateStr] : [],
           venueName: event?.venueAddress ?? "",
           venueAddress: event?.venueAddress ?? "",
           sectionName,
@@ -891,6 +905,8 @@ router.get(
           orderId,
           purchasedAt: ticket.createdAt,
           flyerImageUrl,
+          price: ticketPrice,
+          currencyCode: event?.currencyCode ?? "COP",
         });
       }
 
@@ -1259,15 +1275,21 @@ export async function generateOrderPdfBuffer(orderId: string): Promise<Buffer | 
 
     const ticketDataList: TicketPdfData[] = [];
 
+    const bufEventDateStr = event?.startsAt
+      ? new Date(event.startsAt).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" })
+      : null;
+
     for (const ticket of orderTickets) {
       let sectionName = "General";
       let ticketTypeName = "";
       let validDays: string[] = [];
+      let ticketPrice = 0;
 
       if (ticket.ticketTypeId) {
         const [ticketType] = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId));
         if (ticketType) {
           ticketTypeName = ticketType.name;
+          ticketPrice = ticketType.price ? Number(ticketType.price) : 0;
           if (ticketType.sectionId) {
             const [sec] = await db.select({ name: venueSectionsTable.name }).from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId));
             if (sec) sectionName = sec.name;
@@ -1283,7 +1305,7 @@ export async function generateOrderPdfBuffer(orderId: string): Promise<Buffer | 
       ticketDataList.push({
         attendeeName: ticket.attendeeName,
         eventName: event?.name ?? "",
-        eventDates: [],
+        eventDates: bufEventDateStr ? [bufEventDateStr] : [],
         venueName: event?.venueAddress ?? "",
         venueAddress: event?.venueAddress ?? "",
         sectionName,
@@ -1294,6 +1316,8 @@ export async function generateOrderPdfBuffer(orderId: string): Promise<Buffer | 
         orderId,
         purchasedAt: ticket.createdAt,
         flyerImageUrl,
+        price: ticketPrice,
+        currencyCode: event?.currencyCode ?? "COP",
       });
     }
 

@@ -27,6 +27,15 @@ import PDFDocument from "pdfkit";
     return date.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
   }
 
+  function formatPrice(price: number | null | undefined, currencyCode?: string | null): string {
+    if (!price || price === 0) return "Gratis";
+    const currency = currencyCode ?? "COP";
+    if (currency === "COP") {
+      return `COP ${price.toLocaleString("es-CO")}`;
+    }
+    return `${currency} ${price.toFixed(2)}`;
+  }
+
   export interface TicketPdfData {
     attendeeName: string;
     eventName: string;
@@ -41,6 +50,8 @@ import PDFDocument from "pdfkit";
     orderId: string;
     purchasedAt?: Date | string | null;
     flyerImageUrl?: string | null;
+    price?: number | null;
+    currencyCode?: string | null;
   }
 
   // Draw the ticket clip path: rounded rect with two semicircle notch cutouts on sides
@@ -151,6 +162,14 @@ import PDFDocument from "pdfkit";
         doc.fontSize(10).font("Helvetica").fillColor("#8b949e")
           .text("Eventos Cashless", TX, TY + FLYER_H / 2 + 12, { width: TW, align: "center" });
       }
+
+      // Gradient overlay: fade from transparent to ticket body color at bottom of flyer
+      const GRAD_H = 90;
+      const grad = doc.linearGradient(0, NOTCH_Y - GRAD_H, 0, NOTCH_Y);
+      grad.stop(0, "#131313", 0);
+      grad.stop(1, "#131313", 1);
+      doc.rect(TX, NOTCH_Y - GRAD_H, TW, GRAD_H).fill(grad);
+
       doc.restore();
     }
 
@@ -206,7 +225,7 @@ import PDFDocument from "pdfkit";
 
     // Venue
     doc.fontSize(9).font("Helvetica").fillColor("#666666")
-      .text(`\u25CF  ${data.venueName}`, INFO_X, y, { width: INFO_W, align: "center" });
+      .text(data.venueName, INFO_X, y, { width: INFO_W, align: "center" });
     y += 14;
 
     // Divider
@@ -229,13 +248,12 @@ import PDFDocument from "pdfkit";
     };
 
     const dateStr = data.eventDates[0] ?? "—";
+    const priceStr = formatPrice(data.price, data.currencyCode);
+    const validStr = data.validDays.length > 0 ? data.validDays.join(", ") : "Todos";
+    const hasSection = !!(data.sectionName && data.sectionName !== "General" && data.sectionName !== "—");
+
     drawRow("FECHA", dateStr, "TIPO", data.ticketTypeName);
-
-    if (data.sectionName && data.sectionName !== "General" && data.sectionName !== "—") {
-      const validStr = data.validDays.length > 0 ? data.validDays.join(", ") : "Todos";
-      drawRow("SECCI\u00D3N", data.sectionName, "D\u00CDAS", validStr);
-    }
-
+    drawRow("PRECIO", priceStr, hasSection ? "SECCI\u00D3N" : "D\u00CDAS", hasSection ? data.sectionName : validStr);
     drawRow("COMPRADO", formatPurchaseDate(data.purchasedAt), "ORDEN", data.orderId.slice(0, 8).toUpperCase());
 
     // ── Bottom of ticket: Tapee logo + attendee name + badge ─────────────────────
