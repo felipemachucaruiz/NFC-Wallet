@@ -56,6 +56,8 @@ export interface AuthUser {
   merchantType?: string | null;
   eventName?: string | null;
   gateZoneId?: string | null;
+  ticketingEnabled?: boolean | null;
+  nfcBraceletsEnabled?: boolean | null;
 }
 
 interface AuthContextValue {

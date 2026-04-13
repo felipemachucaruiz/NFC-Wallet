@@ -127,6 +127,8 @@ router.get("/auth/user", async (req: Request, res: Response) => {
   let merchantName: string | null = null;
   let merchantType: string | null = null;
   let eventName: string | null = null;
+  let ticketingEnabled: boolean | null = null;
+  let nfcBraceletsEnabled: boolean | null = null;
 
   try {
     if (u.merchantId) {
@@ -139,10 +141,12 @@ router.get("/auth/user", async (req: Request, res: Response) => {
     }
     if (u.eventId) {
       const [event] = await db
-        .select({ name: eventsTable.name })
+        .select({ name: eventsTable.name, ticketingEnabled: eventsTable.ticketingEnabled, nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled })
         .from(eventsTable)
         .where(eq(eventsTable.id, u.eventId));
       eventName = event?.name ?? null;
+      ticketingEnabled = event?.ticketingEnabled ?? null;
+      nfcBraceletsEnabled = event?.nfcBraceletsEnabled ?? null;
     }
   } catch {
     // Non-fatal: names are display-only
@@ -156,6 +160,8 @@ router.get("/auth/user", async (req: Request, res: Response) => {
       merchantType,
       eventName,
       gateZoneId: (u as unknown as { gateZoneId?: string | null }).gateZoneId ?? null,
+      ticketingEnabled,
+      nfcBraceletsEnabled,
     },
   });
 });

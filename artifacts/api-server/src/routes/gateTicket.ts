@@ -1131,4 +1131,114 @@ router.post(
   },
 );
 
+/**
+ * POST /gate/bracelet-register
+ * NFC-only bracelet registration (no ticket QR required).
+ * Used when an event has NFC bracelets enabled but ticketing disabled —
+ * staff simply taps the bracelet to register it to the event.
+ * The bracelet is optionally granted access to the gate user's assigned zone.
+ */
+const braceletRegisterSchema = z.object({
+  braceletNfcUid: z.string().min(1),
+});
+
+router.post(
+  "/gate/bracelet-register",
+  requireRole("gate", "admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const parsed = braceletRegisterSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "braceletNfcUid is required" });
+      return;
+    }
+
+    const { braceletNfcUid } = parsed.data;
+    const gateUser = req.user!;
+    const eventId = gateUser.eventId;
+    if (!eventId) {
+      res.status(403).json({ error: "Gate user is not assigned to an event" });
+      return;
+    }
+
+    const [event] = await db
+      .select({ id: eventsTable.id, hmacSecret: eventsTable.hmacSecret, nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId));
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+    if (!event.nfcBraceletsEnabled) {
+      res.status(403).json({ error: "NFC bracelets are not enabled for this event" });
+      return;
+    }
+
+    // Check if bracelet already registered to a different event
+    const [existing] = await db
+      .select({ id: braceletsTable.id, eventId: braceletsTable.eventId })
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, braceletNfcUid));
+
+    if (existing && existing.eventId && existing.eventId !== eventId) {
+      res.status(409).json({ error: "BRACELET_WRONG_EVENT", message: "This bracelet belongs to a different event" });
+      return;
+    }
+
+    const gateZoneId = (gateUser as unknown as { gateZoneId?: string | null }).gateZoneId ?? null;
+
+    // Upsert bracelet record
+    let bracelet;
+    if (existing) {
+      [bracelet] = await db
+        .update(braceletsTable)
+        .set({
+          eventId,
+          registeredByUserId: gateUser.id,
+        })
+        .where(eq(braceletsTable.id, existing.id))
+        .returning();
+    } else {
+      [bracelet] = await db
+        .insert(braceletsTable)
+        .values({
+          nfcUid: braceletNfcUid,
+          eventId,
+          registeredByUserId: gateUser.id,
+        })
+        .returning();
+    }
+
+    // Grant access to gate zone if the user has one assigned.
+    // Access zones are stored as an array on the bracelet row itself.
+    let zoneGranted = false;
+    if (gateZoneId && bracelet) {
+      try {
+        const [zone] = await db
+          .select({ id: accessZonesTable.id, eventId: accessZonesTable.eventId })
+          .from(accessZonesTable)
+          .where(eq(accessZonesTable.id, gateZoneId));
+        if (zone && zone.eventId === eventId) {
+          const currentZones: string[] = (bracelet as any).accessZoneIds ?? [];
+          if (!currentZones.includes(gateZoneId)) {
+            await db
+              .update(braceletsTable)
+              .set({ accessZoneIds: [...currentZones, gateZoneId] })
+              .where(eq(braceletsTable.id, bracelet.id));
+          }
+          zoneGranted = true;
+        }
+      } catch {
+        // Zone grant is best-effort — bracelet is registered regardless
+      }
+    }
+
+    res.json({
+      ok: true,
+      braceletId: bracelet?.id ?? null,
+      braceletNfcUid,
+      zoneGranted,
+    });
+  },
+);
+
 export default router;
