@@ -271,6 +271,14 @@
     "phoneLabel": "Phone (optional)",
     "phonePlaceholder": "+1 234 567 8900",
     "signUp": "Sign Up - Free Entry",
-    "freeEntry": "No payment required. You'll receive a free ticket with QR code."
+    "freeEntry": "No payment required. You'll receive a free ticket with QR code.",
+    "idDocumentLabel": "ID Number",
+    "dateOfBirthLabel": "Date of Birth",
+    "sexLabel": "Sex",
+    "male": "Male",
+    "female": "Female",
+    "required": "This field is required",
+    "invalidEmail": "Invalid email address",
+    "prefilled": "Your details have been pre-filled from your profile."
   }
 }

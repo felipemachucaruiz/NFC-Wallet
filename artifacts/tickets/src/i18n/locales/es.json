@@ -271,6 +271,14 @@
     "phoneLabel": "Teléfono (opcional)",
     "phonePlaceholder": "+57 300 123 4567",
     "signUp": "Registrarse - Entrada Gratis",
-    "freeEntry": "No se requiere pago. Recibirás una entrada gratuita con código QR."
+    "freeEntry": "No se requiere pago. Recibirás una entrada gratuita con código QR.",
+    "idDocumentLabel": "Número de Identificación",
+    "dateOfBirthLabel": "Fecha de Nacimiento",
+    "sexLabel": "Género",
+    "male": "Masculino",
+    "female": "Femenino",
+    "required": "Este campo es requerido",
+    "invalidEmail": "Correo electrónico inválido",
+    "prefilled": "Tus datos han sido prellenados desde tu perfil."
   }
 }

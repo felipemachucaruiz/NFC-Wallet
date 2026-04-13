@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, MapPin, Users, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { Calendar, MapPin, Users, CheckCircle, Loader2, AlertCircle, CreditCard as IdCard } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { resolveImageUrl } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 const PROD_ORIGIN = "https://attendee.tapee.app";
 const API_BASE = import.meta.env.PROD
@@ -25,7 +27,16 @@ async function fetchGuestListInfo(slug: string) {
   return res.json();
 }
 
-async function submitGuestListSignup(slug: string, body: { name: string; email: string; phone?: string }) {
+interface SignupBody {
+  name: string;
+  email: string;
+  phone?: string;
+  idDocument?: string;
+  dateOfBirth?: string;
+  sex?: "male" | "female";
+}
+
+async function submitGuestListSignup(slug: string, body: SignupBody) {
   const res = await fetch(`${API_BASE}/guest-list/${slug}/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -40,11 +51,27 @@ export default function GuestListPage() {
   const { t } = useTranslation();
   const [, params] = useRoute("/guest-list/:slug");
   const slug = params?.slug || "";
+  const { user, isAuthenticated } = useAuth();
 
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
+  const [formIdDocument, setFormIdDocument] = useState("");
+  const [formDateOfBirth, setFormDateOfBirth] = useState("");
+  const [formSex, setFormSex] = useState<"male" | "female" | "">("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [signupResult, setSignupResult] = useState<{ ticket: { id: string; qrCodeToken: string }; event: { name: string; venueAddress: string; startsAt: string } } | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setFormName(`${user.firstName} ${user.lastName}`.trim());
+      setFormEmail(user.email || "");
+      setFormPhone(user.phone || "");
+      setFormIdDocument(user.idDocument || "");
+      setFormDateOfBirth(user.dateOfBirth || "");
+      if (user.sex === "male" || user.sex === "female") setFormSex(user.sex);
+    }
+  }, [isAuthenticated, user]);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["guest-list", slug],
@@ -57,17 +84,34 @@ export default function GuestListPage() {
       name: formName.trim(),
       email: formEmail.trim(),
       phone: formPhone.trim() || undefined,
+      idDocument: formIdDocument.trim() || undefined,
+      dateOfBirth: formDateOfBirth.trim() || undefined,
+      sex: formSex || undefined,
     }),
     onSuccess: (result) => {
       setSignupResult(result);
     },
   });
 
+  function validate(): boolean {
+    const newErrors: Record<string, string> = {};
+    if (!formName.trim()) newErrors.name = t("guestList.required");
+    if (!formEmail.trim()) newErrors.email = t("guestList.required");
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) newErrors.email = t("guestList.invalidEmail");
+    if (!formIdDocument.trim()) newErrors.idDocument = t("guestList.required");
+    if (!formDateOfBirth.trim()) newErrors.dateOfBirth = t("guestList.required");
+    if (!formSex) newErrors.sex = t("guestList.required");
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!formName.trim() || !formEmail.trim()) return;
+    if (!validate()) return;
     signupMutation.mutate();
   }
+
+  const isLoggedIn = isAuthenticated && !!user;
 
   if (isLoading) {
     return (
@@ -195,33 +239,101 @@ export default function GuestListPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                {isLoggedIn && (
+                  <p className="text-xs text-cyan-400 bg-cyan-950/40 border border-cyan-800/50 rounded-lg px-3 py-2">
+                    {t("guestList.prefilled")}
+                  </p>
+                )}
+
                 <div>
-                  <Label className="text-gray-300">{t("guestList.nameLabel")}</Label>
+                  <Label className="text-gray-300">{t("guestList.nameLabel")} *</Label>
                   <Input
                     value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
+                    onChange={(e) => { setFormName(e.target.value); setErrors((p) => { const n = {...p}; delete n.name; return n; }); }}
                     placeholder={t("guestList.namePlaceholder")}
-                    required
-                    className="bg-gray-800 border-gray-700 text-white"
+                    className={`bg-gray-800 border-gray-700 text-white mt-1 ${errors.name ? "border-destructive" : ""} ${isLoggedIn && formName ? "opacity-70" : ""}`}
+                    readOnly={isLoggedIn && !!formName}
                   />
+                  {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
                 </div>
+
                 <div>
-                  <Label className="text-gray-300">{t("guestList.emailLabel")}</Label>
+                  <Label className="text-gray-300">{t("guestList.emailLabel")} *</Label>
                   <Input
                     type="email"
                     value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
+                    onChange={(e) => { setFormEmail(e.target.value); setErrors((p) => { const n = {...p}; delete n.email; return n; }); }}
                     placeholder={t("guestList.emailPlaceholder")}
-                    required
-                    className="bg-gray-800 border-gray-700 text-white"
+                    className={`bg-gray-800 border-gray-700 text-white mt-1 ${errors.email ? "border-destructive" : ""} ${isLoggedIn && formEmail ? "opacity-70" : ""}`}
+                    readOnly={isLoggedIn && !!formEmail}
                   />
+                  {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
                 </div>
+
                 <div>
                   <Label className="text-gray-300">{t("guestList.phoneLabel")}</Label>
-                  <PhoneField
-                    value={formPhone}
-                    onChange={setFormPhone}
+                  <div className={`mt-1 ${isLoggedIn && formPhone ? "opacity-70 pointer-events-none" : ""}`}>
+                    <PhoneField
+                      value={formPhone}
+                      onChange={setFormPhone}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-gray-300 flex items-center gap-1">
+                    <IdCard className="w-3.5 h-3.5" />
+                    {t("guestList.idDocumentLabel")} *
+                  </Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={formIdDocument}
+                    onChange={(e) => { setFormIdDocument(e.target.value.replace(/\D/g, "")); setErrors((p) => { const n = {...p}; delete n.idDocument; return n; }); }}
+                    placeholder="1234567890"
+                    className={`bg-gray-800 border-gray-700 text-white mt-1 ${errors.idDocument ? "border-destructive" : ""} ${isLoggedIn && formIdDocument ? "opacity-70" : ""}`}
+                    readOnly={isLoggedIn && !!formIdDocument}
                   />
+                  {errors.idDocument && <p className="text-xs text-destructive mt-1">{errors.idDocument}</p>}
+                </div>
+
+                <div>
+                  <Label className="text-gray-300 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" />
+                    {t("guestList.dateOfBirthLabel")} *
+                  </Label>
+                  <div className={`mt-1 ${isLoggedIn && formDateOfBirth ? "opacity-70 pointer-events-none" : ""}`}>
+                    <DatePickerField
+                      value={formDateOfBirth}
+                      onChange={(v) => { setFormDateOfBirth(v); setErrors((p) => { const n = {...p}; delete n.dateOfBirth; return n; }); }}
+                      hasError={!!errors.dateOfBirth}
+                    />
+                  </div>
+                  {errors.dateOfBirth && <p className="text-xs text-destructive mt-1">{errors.dateOfBirth}</p>}
+                </div>
+
+                <div>
+                  <Label className="text-gray-300 flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5" />
+                    {t("guestList.sexLabel")} *
+                  </Label>
+                  <div className={`flex gap-2 mt-1 ${isLoggedIn && formSex ? "opacity-70 pointer-events-none" : ""}`}>
+                    <button
+                      type="button"
+                      onClick={() => { setFormSex("male"); setErrors((p) => { const n = {...p}; delete n.sex; return n; }); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${formSex === "male" ? "border-cyan-500 bg-cyan-500/10 text-cyan-400" : "border-gray-700 text-gray-400 hover:border-cyan-700"}`}
+                    >
+                      {t("guestList.male")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setFormSex("female"); setErrors((p) => { const n = {...p}; delete n.sex; return n; }); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${formSex === "female" ? "border-cyan-500 bg-cyan-500/10 text-cyan-400" : "border-gray-700 text-gray-400 hover:border-cyan-700"}`}
+                    >
+                      {t("guestList.female")}
+                    </button>
+                  </div>
+                  {errors.sex && <p className="text-xs text-destructive mt-1">{errors.sex}</p>}
                 </div>
 
                 {signupMutation.isError && (

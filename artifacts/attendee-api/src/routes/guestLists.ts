@@ -83,6 +83,9 @@ const signupSchema = z.object({
   name: z.string().min(1).max(255),
   email: z.string().email().max(320),
   phone: z.string().max(30).optional(),
+  idDocument: z.string().max(50).optional(),
+  dateOfBirth: z.string().max(10).optional(),
+  sex: z.enum(["male", "female"]).optional(),
 });
 
 router.post(
@@ -96,7 +99,7 @@ router.post(
       return;
     }
 
-    const { name, email, phone } = parsed.data;
+    const { name, email, phone, idDocument, dateOfBirth, sex } = parsed.data;
     const normalizedEmail = email.toLowerCase();
 
     try {
@@ -164,6 +167,9 @@ router.post(
             attendeeName: name,
             attendeeEmail: normalizedEmail,
             attendeePhone: phone || null,
+            attendeeIdDocument: idDocument || null,
+            attendeeDateOfBirth: dateOfBirth || null,
+            attendeeSex: sex || null,
             qrCodeToken: qrToken,
             status: "valid",
           })
