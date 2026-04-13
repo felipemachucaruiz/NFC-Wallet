@@ -383,7 +383,11 @@ export default function TopUpScreen() {
         // abort, the chip very likely has the new balance (the NFC session just
         // dropped right at the end). Record the top-up with a warning so the
         // server stays in sync instead of silently losing the transaction.
-        if (writeAttempted && !aborted && !cancelledRef.current) {
+        // NOTE: We intentionally do NOT check cancelledRef.current here —
+        // on Android the NFC subsystem briefly steals app focus during the write
+        // which triggers useFocusEffect cleanup and sets cancelledRef = true,
+        // even though the write genuinely happened. We must always record it.
+        if (writeAttempted && !aborted) {
           console.warn("[TopUp] Error after write started — recording top-up with write warning. err:", errMsg);
           try {
             writingRef.current = false;
