@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { updateProfile } from "@/lib/api";
 
@@ -21,6 +22,9 @@ export default function Account() {
     lastName: "",
     email: "",
     phone: "",
+    dateOfBirth: "",
+    sex: "",
+    idDocument: "",
   });
 
   useEffect(() => {
@@ -35,6 +39,9 @@ export default function Account() {
         lastName: user.lastName,
         email: user.email,
         phone: user.phone,
+        dateOfBirth: user.dateOfBirth || "",
+        sex: user.sex || "",
+        idDocument: user.idDocument || "",
       });
     }
   }, [isAuthenticated, user, navigate]);
@@ -50,6 +57,9 @@ export default function Account() {
         firstName: form.firstName,
         lastName: form.lastName,
         phone: form.phone || null,
+        dateOfBirth: form.dateOfBirth || null,
+        sex: form.sex || null,
+        idDocument: form.idDocument || null,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -61,6 +71,11 @@ export default function Account() {
       setSaving(false);
     }
   };
+
+  const sexOptions = [
+    { value: "male", label: t("tickets.male") },
+    { value: "female", label: t("tickets.female") },
+  ];
 
   return (
     <div className="min-h-screen">
@@ -88,10 +103,12 @@ export default function Account() {
                 />
               </div>
             </div>
+
             <div>
               <Label>{t("auth.email")}</Label>
               <Input type="email" value={form.email} disabled className="mt-1 opacity-60" />
             </div>
+
             <div>
               <Label>{t("auth.phone")}</Label>
               <PhoneField
@@ -100,6 +117,51 @@ export default function Account() {
                 className="mt-1"
               />
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>{t("tickets.dateOfBirth")}</Label>
+                <Input
+                  value={form.dateOfBirth}
+                  onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                  placeholder="DD/MM/AAAA"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>{t("tickets.idDocument")}</Label>
+                <Input
+                  value={form.idDocument}
+                  onChange={(e) => setForm((f) => ({ ...f, idDocument: e.target.value }))}
+                  placeholder="123456789"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>{t("tickets.sex")}</Label>
+              <div className="flex gap-2 mt-1">
+                {sexOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({ ...f, sex: f.sex === opt.value ? "" : opt.value }))
+                    }
+                    className={cn(
+                      "flex-1 rounded-lg border px-4 py-2 text-sm font-medium transition-colors",
+                      form.sex === opt.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {saveError && (
               <p className="text-sm text-destructive">{saveError}</p>
             )}

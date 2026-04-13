@@ -133,4 +133,7 @@ export interface User {
   firstName: string;
   lastName: string;
   phone: string;
+  dateOfBirth: string;
+  sex: string;
+  idDocument: string;
 }

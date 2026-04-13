@@ -161,6 +161,9 @@ export interface ApiUser {
   profileImageUrl: string | null;
   role: string;
   phone?: string | null;
+  dateOfBirth?: string | null;
+  sex?: string | null;
+  idDocument?: string | null;
 }
 
 export async function fetchAuthProviders(): Promise<{ providers: { google?: string } }> {
@@ -202,6 +205,9 @@ export async function updateProfile(data: {
   firstName?: string;
   lastName?: string;
   phone?: string | null;
+  dateOfBirth?: string | null;
+  sex?: string | null;
+  idDocument?: string | null;
 }): Promise<{ user: ApiUser }> {
   return apiFetch("/auth/profile", {
     method: "PATCH",

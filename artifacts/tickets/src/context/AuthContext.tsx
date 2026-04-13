@@ -59,6 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             firstName: res.user.firstName || "",
             lastName: res.user.lastName || "",
             phone: res.user.phone || "",
+            dateOfBirth: res.user.dateOfBirth || "",
+            sex: res.user.sex || "",
+            idDocument: res.user.idDocument || "",
           });
         } else {
           setAuthToken(null);
@@ -82,6 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firstName: userRes.user.firstName || "",
         lastName: userRes.user.lastName || "",
         phone: userRes.user.phone || "",
+        dateOfBirth: userRes.user.dateOfBirth || "",
+        sex: userRes.user.sex || "",
+        idDocument: userRes.user.idDocument || "",
       });
       setShowAuthModal(false);
       return true;
@@ -101,6 +107,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firstName: userRes.user.firstName || "",
         lastName: userRes.user.lastName || "",
         phone: userRes.user.phone || "",
+        dateOfBirth: userRes.user.dateOfBirth || "",
+        sex: userRes.user.sex || "",
+        idDocument: userRes.user.idDocument || "",
       });
       setShowAuthModal(false);
       return true;
@@ -118,6 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firstName: userRes.user.firstName || "",
         lastName: userRes.user.lastName || "",
         phone: userRes.user.phone || "",
+        dateOfBirth: userRes.user.dateOfBirth || "",
+        sex: userRes.user.sex || "",
+        idDocument: userRes.user.idDocument || "",
       });
       setShowAuthModal(false);
       return true;
@@ -145,6 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firstName: userRes.user.firstName || "",
         lastName: userRes.user.lastName || "",
         phone: data.phone,
+        dateOfBirth: "",
+        sex: "",
+        idDocument: "",
       });
       setShowAuthModal(false);
       return true;
