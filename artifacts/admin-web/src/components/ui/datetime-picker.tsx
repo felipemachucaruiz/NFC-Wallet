@@ -79,8 +79,9 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <div className="flex">
-          <div className="p-0">
+        <div className="flex divide-x divide-border">
+          {/* Calendar side */}
+          <div className="p-3">
             <Calendar
               mode="single"
               selected={validDate}
@@ -93,13 +94,30 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
               locale={locale}
             />
           </div>
-          <div className="border-l flex flex-col">
-            <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground text-center border-b flex items-center gap-1 justify-center">
-              <Clock className="w-3 h-3" /> Hora
+
+          {/* Time picker side */}
+          <div className="flex flex-col min-w-[130px]">
+            {/* Header */}
+            <div className="flex items-center justify-center gap-1.5 px-3 py-2.5 border-b">
+              <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Hora</span>
             </div>
+
+            {/* Column headers */}
+            <div className="flex border-b">
+              <div className="flex-1 text-center py-1.5 text-[11px] font-medium text-muted-foreground border-r">
+                HH
+              </div>
+              <div className="flex-1 text-center py-1.5 text-[11px] font-medium text-muted-foreground">
+                MM
+              </div>
+            </div>
+
+            {/* Scroll columns */}
             <div className="flex flex-1">
-              <ScrollArea className="h-56 w-12">
-                <div className="p-0.5">
+              {/* Hours */}
+              <ScrollArea className="h-60 flex-1 border-r">
+                <div className="py-1 px-1">
                   {HOURS.map((h) => (
                     <button
                       key={h}
@@ -110,10 +128,10 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
                         emitValue(datePart, newTime);
                       }}
                       className={cn(
-                        "w-full rounded-md px-1.5 py-1 text-xs text-center transition-colors",
+                        "w-full rounded-md py-1.5 text-sm text-center font-mono transition-colors",
                         selectedHour === h
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-accent"
+                          ? "bg-primary text-primary-foreground font-medium"
+                          : "hover:bg-accent text-foreground"
                       )}
                     >
                       {pad(h)}
@@ -121,8 +139,10 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
                   ))}
                 </div>
               </ScrollArea>
-              <ScrollArea className="h-56 w-12 border-l">
-                <div className="p-0.5">
+
+              {/* Minutes */}
+              <ScrollArea className="h-60 flex-1">
+                <div className="py-1 px-1">
                   {MINUTES.map((m) => (
                     <button
                       key={m}
@@ -134,10 +154,10 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
                         if (datePart) setOpen(false);
                       }}
                       className={cn(
-                        "w-full rounded-md px-1.5 py-1 text-xs text-center transition-colors",
-                        selectedMinute === m && selectedHour !== null
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-accent"
+                        "w-full rounded-md py-1.5 text-sm text-center font-mono transition-colors",
+                        selectedMinute === m
+                          ? "bg-primary text-primary-foreground font-medium"
+                          : "hover:bg-accent text-foreground"
                       )}
                     >
                       {pad(m)}
