@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { updateProfile } from "@/lib/api";
@@ -121,12 +122,12 @@ export default function Account() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>{t("tickets.dateOfBirth")}</Label>
-                <Input
-                  value={form.dateOfBirth}
-                  onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
-                  placeholder="DD/MM/AAAA"
-                  className="mt-1"
-                />
+                <div className="mt-1">
+                  <DatePickerField
+                    value={form.dateOfBirth}
+                    onChange={(v) => setForm((f) => ({ ...f, dateOfBirth: v }))}
+                  />
+                </div>
               </div>
               <div>
                 <Label>{t("tickets.idDocument")}</Label>

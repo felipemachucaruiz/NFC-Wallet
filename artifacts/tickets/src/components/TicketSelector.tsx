@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
 import { Badge } from "@/components/ui/badge";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/context/AuthContext";
@@ -314,13 +315,13 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         <Calendar className="w-3 h-3" />
                         {t("ticketSelection.dateOfBirth", "Fecha de nacimiento")} *
                       </Label>
-                      <Input
-                        type="date"
-                        value={attendee.dateOfBirth}
-                        onChange={(e) => updateAttendee(index, "dateOfBirth", e.target.value)}
-                        className={`mt-1 ${errors[`${index}-dateOfBirth`] ? "border-destructive" : ""}`}
-                        max={new Date().toISOString().split("T")[0]}
-                      />
+                      <div className="mt-1">
+                        <DatePickerField
+                          value={attendee.dateOfBirth}
+                          onChange={(v) => updateAttendee(index, "dateOfBirth", v)}
+                          hasError={!!errors[`${index}-dateOfBirth`]}
+                        />
+                      </div>
                       {errors[`${index}-dateOfBirth`] && (
                         <p className="text-xs text-destructive mt-1">{errors[`${index}-dateOfBirth`]}</p>
                       )}
