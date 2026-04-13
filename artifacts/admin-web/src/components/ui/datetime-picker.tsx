@@ -74,6 +74,14 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
     }
   }, [timePart]);
 
+  const yearsRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (view === "years" && yearsRef.current) {
+      const sel = yearsRef.current.querySelector<HTMLElement>('[data-selected="true"]');
+      sel?.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+  }, [view]);
+
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear + 5 - 1930 + 1 }, (_, i) => currentYear + 5 - i);
   const months = isEs ? MONTHS_ES : MONTHS_EN;
@@ -232,11 +240,12 @@ export function DateTimePicker({ value, onChange, placeholder, className, "data-
 
             {/* Years view */}
             {view === "years" && (
-              <div className="grid grid-cols-3 gap-1.5 w-[220px] max-h-[210px] overflow-y-auto pr-1">
+              <div ref={yearsRef} className="grid grid-cols-3 gap-1.5 w-[220px] h-[210px] overflow-y-auto pr-1">
                 {years.map(y => (
                   <button
                     key={y}
                     type="button"
+                    data-selected={getYear(displayMonth) === y}
                     onClick={() => handleYearSelect(y)}
                     className={cn(
                       "py-2 rounded-lg text-sm font-medium transition-colors",

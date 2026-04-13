@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   format, parse, isValid, addMonths, subMonths,
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -52,6 +52,14 @@ export function DatePickerField({
   const [displayMonth, setDisplayMonth] = useState<Date>(
     () => selected ?? new Date(new Date().getFullYear() - 25, 0, 1)
   );
+
+  const yearsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (view === "years" && yearsRef.current) {
+      const sel = yearsRef.current.querySelector<HTMLElement>('[data-selected="true"]');
+      sel?.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+  }, [view]);
 
   const today = new Date();
   const currentYear = today.getFullYear();
@@ -207,11 +215,12 @@ export function DatePickerField({
 
         {/* Years view */}
         {view === "years" && (
-          <div className="grid grid-cols-3 gap-1.5 max-h-[210px] overflow-y-auto pr-1">
+          <div ref={yearsRef} className="grid grid-cols-3 gap-1.5 h-[210px] overflow-y-auto pr-1">
             {years.map(y => (
               <button
                 key={y}
                 type="button"
+                data-selected={getYear(displayMonth) === y}
                 onClick={() => handleYearSelect(y)}
                 className={cn(
                   "py-2 rounded-lg text-sm font-medium transition-colors",

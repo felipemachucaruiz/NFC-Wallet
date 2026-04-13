@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   format, parse, isValid, addMonths, subMonths,
   startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -53,6 +53,14 @@ export function DatePicker({
   const [displayMonth, setDisplayMonth] = useState<Date>(
     () => selected ?? new Date()
   );
+
+  const yearsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (view === "years" && yearsRef.current) {
+      const sel = yearsRef.current.querySelector<HTMLElement>('[data-selected="true"]');
+      sel?.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+  }, [view]);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear + 5 - 1930 + 1 }, (_, i) => currentYear + 5 - i);
@@ -202,11 +210,12 @@ export function DatePicker({
 
         {/* Years view */}
         {view === "years" && (
-          <div className="grid grid-cols-3 gap-1.5 max-h-[210px] overflow-y-auto pr-1">
+          <div ref={yearsRef} className="grid grid-cols-3 gap-1.5 h-[210px] overflow-y-auto pr-1">
             {years.map(y => (
               <button
                 key={y}
                 type="button"
+                data-selected={getYear(displayMonth) === y}
                 onClick={() => handleYearSelect(y)}
                 className={cn(
                   "py-2 rounded-lg text-sm font-medium transition-colors",
