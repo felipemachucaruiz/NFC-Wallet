@@ -24,40 +24,85 @@ function isTicketDocumentRequest(body: Record<string, unknown>): boolean {
   if (msgType === "button_reply" || msgType === "quick_reply") {
     const title = (inner?.title as string || "").toLowerCase().trim();
     if (title.includes("env") && title.includes("aqu")) return true;
+    // Accept any button reply as a trigger — some Gupshup versions omit the title
+    return true;
   }
 
   if (msgType === "text") {
     const text = (inner?.text as string || inner as unknown as string || "").toLowerCase().trim();
     if (text.includes("env") && text.includes("aqu")) return true;
+    if (text.includes("ticket") || text.includes("entrada")) return true;
   }
 
   return false;
 }
 
+function extractSenderPhone(body: Record<string, unknown>): string | undefined {
+  const payload = body?.payload as Record<string, unknown> | undefined;
+  if (!payload) return undefined;
+
+  // Gupshup "message" type
+  const source = payload.source as string | undefined;
+  if (source) return source;
+
+  // Nested sender object
+  const sender = payload.sender as Record<string, unknown> | undefined;
+  if (sender?.phone) return sender.phone as string;
+  if (sender?.id) return sender.id as string;
+
+  // Some Gupshup formats put it at top level
+  const topSource = body.source as string | undefined;
+  if (topSource) return topSource;
+
+  return undefined;
+}
+
+// GET handler — Gupshup and other webhook providers may send a GET to verify the endpoint
+router.get("/whatsapp/webhook", (req: Request, res: Response) => {
+  logger.info({ query: req.query }, "WhatsApp webhook GET verification request received");
+  // Return 200 with any challenge parameter if present
+  const challenge = req.query.challenge || req.query["hub.challenge"];
+  if (challenge) {
+    res.status(200).send(String(challenge));
+  } else {
+    res.status(200).json({ status: "ok", service: "tapee-whatsapp-webhook" });
+  }
+});
+
+// POST handler — receives inbound WhatsApp messages from Gupshup
 router.post("/whatsapp/webhook", async (req: Request, res: Response) => {
+  // Always respond 200 immediately so Gupshup doesn't retry
   res.status(200).json({ status: "ok" });
 
   try {
     const body = req.body;
-    logger.info({ webhookBody: JSON.stringify(body).slice(0, 1000) }, "Raw WhatsApp webhook payload");
+    // Log the FULL payload so we can debug what Gupshup is sending
+    logger.info({ webhookBody: JSON.stringify(body) }, "WhatsApp webhook POST received");
 
-    const type = body?.type;
+    const type = body?.type as string | undefined;
 
-    if (type !== "message" && type !== "message-event") return;
-
-    let senderPhone: string | undefined;
-
-    if (type === "message") {
-      senderPhone = body?.payload?.source || body?.payload?.sender?.phone;
+    if (!type) {
+      logger.warn("WhatsApp webhook: no 'type' field in body — ignoring");
+      return;
     }
 
-    if (!senderPhone) return;
+    if (type !== "message" && type !== "message-event") {
+      logger.info({ type }, "WhatsApp webhook: ignoring non-message event type");
+      return;
+    }
+
+    const senderPhone = extractSenderPhone(body);
+
+    if (!senderPhone) {
+      logger.warn({ body: JSON.stringify(body).slice(0, 500) }, "WhatsApp webhook: could not extract sender phone");
+      return;
+    }
 
     const normalized = normalizePhone(senderPhone);
-    logger.info({ phone: normalized, isDocRequest: isTicketDocumentRequest(body) }, "Inbound WhatsApp message received");
+    logger.info({ phone: normalized, type, isDocRequest: isTicketDocumentRequest(body) }, "Inbound WhatsApp message");
 
     if (!isTicketDocumentRequest(body)) {
-      logger.info({ phone: normalized }, "Message is not a ticket document request — ignoring");
+      logger.info({ phone: normalized, type, msgType: (body?.payload as Record<string, unknown>)?.type }, "Message is not a ticket document request — ignoring");
       return;
     }
 
