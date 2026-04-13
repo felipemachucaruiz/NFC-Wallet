@@ -71,7 +71,9 @@ function ticketEmailWrapper(body: string): string {
     <div style="background: linear-gradient(135deg, #0a0a0a, #111827); padding: 28px 32px 20px; text-align: center; border-radius: 12px 12px 0 0;">
       ${getLogoImg()}
     </div>
+    <div style="padding-top: 24px;">
     ${body}
+    </div>
     <div class="footer-bg" style="padding: 16px; text-align: center; margin-top: 16px;">
       <p class="footer-text" style="color: #71717a; font-size: 12px; margin: 0;">&copy; Tapee &middot; Eventos</p>
     </div>
@@ -151,7 +153,7 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
       width: 280,
       margin: 2,
       color: { dark: "#000000", light: "#ffffff" },
-      errorCorrectionLevel: "M",
+      errorCorrectionLevel: "H",
       type: "png",
     });
     qrBase64 = qrBuffer.toString("base64");
@@ -159,6 +161,9 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
   } catch (err) {
     logger.error({ err }, "Failed to generate QR code for email");
   }
+
+  const tapeeIconBase64 = readAssetBase64("wallet-icon.png");
+  if (tapeeIconBase64) inlineImages.push({ name: "tapee-icon.png", content: tapeeIconBase64 });
 
   const appleWalletBadgeBase64 = readAssetBase64("apple-wallet-badge.png");
   const googleWalletBadgeBase64 = readAssetBase64("google-wallet-badge.png");
@@ -170,7 +175,10 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
     : (isEs ? "Todos los dias" : "All days");
 
   const qrImageHtml = qrBase64
-    ? `<img src="cid:qrcode.png" alt="QR Code" width="220" height="220" style="display:block;margin:0 auto;border-radius:12px;" />`
+    ? `<div style="display:inline-block;position:relative;">
+        <img src="cid:qrcode.png" alt="QR Code" width="220" height="220" style="display:block;border-radius:12px;" />
+        ${tapeeIconBase64 ? `<img src="cid:tapee-icon.png" alt="Tapee" width="44" height="44" style="position:absolute;top:88px;left:88px;border-radius:8px;background:#ffffff;padding:4px;" />` : ""}
+       </div>`
     : `<p style="color: #ef4444; font-size: 14px; margin: 0;">${isEs ? "No se pudo generar el QR. Usa la app de Tapee." : "QR code could not be generated. Use the Tapee app."}</p>`;
 
   let flyerUrl = "";
