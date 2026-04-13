@@ -29,6 +29,9 @@ import { useAlert } from "@/components/CustomAlert";
 import { Linking } from "react-native";
 import type { MyTicket } from "@/types/events";
 
+const appleWalletBadge = require("@/assets/images/apple-wallet-badge.png");
+const googleWalletBadge = require("@/assets/images/google-wallet-badge.png");
+
 function statusVariant(status: string): "success" | "warning" | "danger" | "muted" {
   if (status === "valid" || status === "active") return "success";
   if (status === "used") return "muted";
@@ -317,19 +320,20 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                 </View>
               </View>
 
-              {!showTransfer && (
+              {!showTransfer && Platform.OS !== "web" && (
                 <Pressable
                   onPress={handleAddToWallet}
                   disabled={walletLoading}
-                  style={styles.walletBtn}
+                  style={styles.walletBadgeBtn}
                 >
                   {walletLoading ? (
-                    <ActivityIndicator color="#000" size="small" />
+                    <ActivityIndicator color="#fff" size="small" />
                   ) : (
-                    <>
-                      <Feather name="smartphone" size={15} color="#000" />
-                      <Text style={styles.walletBtnText}>{walletLabel}</Text>
-                    </>
+                    <Image
+                      source={isIOS ? appleWalletBadge : googleWalletBadge}
+                      style={styles.walletBadgeImg}
+                      resizeMode="contain"
+                    />
                   )}
                 </Pressable>
               )}
@@ -526,8 +530,8 @@ const styles = StyleSheet.create({
   statusBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#fff" },
   attendeeName: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.3)", textAlign: "center", marginTop: 4 },
 
-  walletBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 12, paddingVertical: 14, borderRadius: 12, backgroundColor: "#00f1ff" },
-  walletBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#000" },
+  walletBadgeBtn: { alignItems: "center", justifyContent: "center", marginHorizontal: 16, marginTop: 12, minHeight: 50 },
+  walletBadgeImg: { width: 190, height: 50 },
   transferBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 12, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
   transferBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.8)" },
 

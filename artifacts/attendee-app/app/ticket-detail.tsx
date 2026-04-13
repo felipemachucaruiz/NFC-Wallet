@@ -27,6 +27,9 @@ import { useAddToWallet, useTicketDetail, useTransferTicket } from "@/hooks/useE
 import { Loading } from "@/components/ui/Loading";
 import type { MyTicket } from "@/types/events";
 
+const appleWalletBadge = require("@/assets/images/apple-wallet-badge.png");
+const googleWalletBadge = require("@/assets/images/google-wallet-badge.png");
+
 function safeParseJson<T>(json: string | undefined): T | null {
   if (!json) return null;
   try {
@@ -363,14 +366,21 @@ export default function TicketDetailScreen() {
         </View>
 
         {Platform.OS !== "web" && (
-          <Button
-            title={walletLabel}
+          <Pressable
             onPress={handleAddToWallet}
-            loading={walletLoading}
-            variant="secondary"
-            fullWidth
-            icon={isIOS ? "smartphone" : "smartphone"}
-          />
+            disabled={walletLoading}
+            style={styles.walletBadgeBtn}
+          >
+            {walletLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Image
+                source={isIOS ? appleWalletBadge : googleWalletBadge}
+                style={styles.walletBadgeImg}
+                resizeMode="contain"
+              />
+            )}
+          </Pressable>
         )}
 
         {ticket.status === "active" && (
@@ -671,6 +681,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     gap: 8,
+  },
+  walletBadgeBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 50,
+    marginTop: 8,
+  },
+  walletBadgeImg: {
+    width: 200,
+    height: 52,
   },
   transferBtn: {
     flexDirection: "row",
