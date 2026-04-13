@@ -47,8 +47,9 @@ export function Footer() {
           />
         </div>
 
-        <div className="border-t border-border mt-6 pt-5 text-center text-sm text-muted-foreground">
-          © {year} Tapee. {t("footer.rights")}.
+        <div className="border-t border-border mt-6 pt-5 text-center text-sm text-muted-foreground space-y-1">
+          <p>© {year} Tapee. {t("footer.rights")}.</p>
+          <p>INVERSIONES JUDIMAC S.A.S · NIT: 901890734-3</p>
         </div>
       </div>
     </footer>
