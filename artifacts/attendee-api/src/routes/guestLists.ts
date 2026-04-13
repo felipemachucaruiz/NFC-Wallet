@@ -189,8 +189,8 @@ router.post(
         return { success: true, entry, ticket: { id: ticket.id, qrCodeToken: qrToken }, event, order, listName: list.name } as const;
       });
 
-      if ("error" in result) {
-        res.status(result.status).json({ error: result.error });
+      if ("error" in result && "status" in result) {
+        res.status(result.status as number).json({ error: result.error });
         return;
       }
 

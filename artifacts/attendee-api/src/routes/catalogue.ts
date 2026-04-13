@@ -402,7 +402,7 @@ router.get(
         promoterCompany,
       });
     } catch (err) {
-      logger.error({ err, eventId }, "Failed to fetch event detail");
+      logger.error({ err, eventIdOrSlug }, "Failed to fetch event detail");
       res.status(500).json({ error: "Internal server error" });
     }
   },

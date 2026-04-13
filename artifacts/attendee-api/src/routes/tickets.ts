@@ -1055,7 +1055,7 @@ router.post(
   "/tickets/resend-whatsapp/:orderId",
   requireRole("admin"),
   async (req: Request, res: Response) => {
-    const { orderId } = req.params;
+    const orderId = req.params.orderId as string;
 
     const [order] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, orderId));
     if (!order || order.paymentStatus !== "confirmed") {
@@ -1079,7 +1079,9 @@ router.post(
     for (const ticket of orderTickets) {
       if (!ticket.attendeePhone) continue;
 
-      const ticketType = await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId)).then(r => r[0]);
+      const ticketType = ticket.ticketTypeId
+        ? await db.select().from(ticketTypesTable).where(eq(ticketTypesTable.id, ticket.ticketTypeId)).then(r => r[0])
+        : undefined;
       const section = ticketType?.sectionId
         ? await db.select().from(venueSectionsTable).where(eq(venueSectionsTable.id, ticketType.sectionId)).then(r => r[0])
         : null;
@@ -1618,7 +1620,7 @@ async function cancelTicketOrder(orderId: string) {
     .from(ticketsTable)
     .where(eq(ticketsTable.orderId, orderId));
 
-  const ticketTypeIds = [...new Set(tickets.map((t) => t.ticketTypeId))];
+  const ticketTypeIds = [...new Set(tickets.map((t) => t.ticketTypeId).filter((id): id is string => id != null))];
   const ttRows = ticketTypeIds.length > 0
     ? await db.select().from(ticketTypesTable).where(inArray(ticketTypesTable.id, ticketTypeIds))
     : [];
@@ -1626,6 +1628,7 @@ async function cancelTicketOrder(orderId: string) {
 
   const quantityByType = new Map<string, number>();
   for (const t of tickets) {
+    if (!t.ticketTypeId) continue;
     quantityByType.set(t.ticketTypeId, (quantityByType.get(t.ticketTypeId) || 0) + 1);
   }
 
@@ -1703,7 +1706,12 @@ router.post(
   "/tickets/:ticketId/transfer",
   requireRole("attendee"),
   async (req: Request, res: Response) => {
-    const { ticketId } = req.params;
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const ticketId = req.params.ticketId as string;
     const parsed = transferSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
@@ -1797,7 +1805,7 @@ router.post(
         senderName,
         eventName: event.name,
       };
-      const waLogContext = {
+      const waLogContext: import("../lib/whatsapp").MessageLogContext = {
         triggerType: "ticket_transfer",
         ticketId,
         eventId: event.id,

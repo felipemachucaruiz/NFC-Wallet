@@ -45,7 +45,7 @@ import PDFDocument from "pdfkit";
 
   // Draw the ticket clip path: rounded rect with two semicircle notch cutouts on sides
   function ticketPath(
-    doc: PDFKit.PDFDocument,
+    doc: InstanceType<typeof import("pdfkit")>,
     x: number, y: number, w: number, h: number,
     r: number,          // corner radius
     notchY: number,     // Y position of the notch (absolute)
@@ -77,7 +77,7 @@ import PDFDocument from "pdfkit";
     ).clip();
   }
 
-  async function renderTicketPage(doc: PDFKit.PDFDocument, data: TicketPdfData): Promise<void> {
+  async function renderTicketPage(doc: InstanceType<typeof import("pdfkit")>, data: TicketPdfData): Promise<void> {
     const PAGE_W = 396;
     const PAGE_H = 612;
 
