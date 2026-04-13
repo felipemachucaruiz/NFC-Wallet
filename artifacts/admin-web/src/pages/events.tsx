@@ -29,6 +29,12 @@ import { LocationMapPicker } from "@/components/LocationMapPicker";
 import { apiUploadEventImage } from "@/lib/api";
 import { useEventContext } from "@/contexts/event-context";
 
+function toLocalDatetimeInput(utcString: string): string {
+  const d = new Date(utcString);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 type EventAdminForm = {
   email: string;
   password: string;
@@ -638,9 +644,9 @@ export default function Events() {
       description: event.description ?? "",
       venueAddress: event.venueAddress ?? "",
       capacity: raw.capacity != null ? String(raw.capacity) : "",
-      startsAt: event.startsAt ? event.startsAt.slice(0, 16) : "",
-      endsAt: event.endsAt ? event.endsAt.slice(0, 16) : "",
-      refundDeadline: event.refundDeadline ? event.refundDeadline.slice(0, 16) : "",
+      startsAt: event.startsAt ? toLocalDatetimeInput(event.startsAt) : "",
+      endsAt: event.endsAt ? toLocalDatetimeInput(event.endsAt) : "",
+      refundDeadline: event.refundDeadline ? toLocalDatetimeInput(event.refundDeadline) : "",
       latitude: raw.latitude ? parseFloat(raw.latitude) : null,
       longitude: raw.longitude ? parseFloat(raw.longitude) : null,
       commissionRate: raw.platformCommissionRate ?? "",
@@ -676,9 +682,9 @@ export default function Events() {
       name: form.name,
       description: form.description || undefined,
       venueAddress: form.venueAddress || undefined,
-      startsAt: form.startsAt || undefined,
-      endsAt: form.endsAt || undefined,
-      refundDeadline: form.refundDeadline || undefined,
+      startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : undefined,
+      endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : undefined,
+      refundDeadline: form.refundDeadline ? new Date(form.refundDeadline).toISOString() : undefined,
       capacity: capNum && capNum > 0 ? capNum : undefined,
       minAge: minAgeNum != null && minAgeNum >= 0 ? minAgeNum : undefined,
       latitude: form.latitude ?? undefined,
@@ -732,9 +738,9 @@ export default function Events() {
       name: form.name,
       description: form.description || undefined,
       venueAddress: form.venueAddress || undefined,
-      startsAt: form.startsAt || undefined,
-      endsAt: form.endsAt || undefined,
-      refundDeadline: form.refundDeadline || null,
+      startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : undefined,
+      endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : undefined,
+      refundDeadline: form.refundDeadline ? new Date(form.refundDeadline).toISOString() : null,
       capacity: capNum && capNum > 0 ? capNum : null,
       minAge: minAgeNum != null && minAgeNum >= 0 ? minAgeNum : null,
       latitude: form.latitude ?? undefined,

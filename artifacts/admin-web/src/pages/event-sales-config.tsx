@@ -36,11 +36,13 @@ export default function EventSalesConfig() {
     setDoorSales(channel === "door" || channel === "both");
     if (event.saleStartsAt) {
       const d = new Date(event.saleStartsAt as string);
-      setSaleStartsAt(d.toISOString().slice(0, 16));
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setSaleStartsAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
     }
     if (event.saleEndsAt) {
       const d = new Date(event.saleEndsAt as string);
-      setSaleEndsAt(d.toISOString().slice(0, 16));
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setSaleEndsAt(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
     }
   }, [event]);
 

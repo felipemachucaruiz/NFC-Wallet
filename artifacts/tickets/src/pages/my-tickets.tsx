@@ -201,7 +201,7 @@ function ETicketCard({ ticket, onExpand, archived }: { ticket: ApiTicket; onExpa
           <p className="text-xs text-zinc-400 truncate">{ticket.ticketTypeName}</p>
           {ticket.eventStartsAt && (
             <p className="text-xs text-zinc-500 mt-0.5">
-              {new Date(ticket.eventStartsAt).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
+              {new Date(ticket.eventStartsAt).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Bogota" })}
             </p>
           )}
         </div>
@@ -349,13 +349,13 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
             <div>
               <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium">{t("myTickets.date")}</p>
               <p className="text-sm text-white font-medium">
-                {startDate.toLocaleDateString("es-CO", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                {startDate.toLocaleDateString("es-CO", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "America/Bogota" })}
               </p>
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-white/50 font-medium">{t("myTickets.time")}</p>
               <p className="text-sm text-white font-medium">
-                {startDate.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
+                {startDate.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" })}
               </p>
             </div>
           </div>

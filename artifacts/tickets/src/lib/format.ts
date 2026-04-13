@@ -7,13 +7,16 @@ export function formatPrice(amount: number, currency: string = "COP"): string {
   }).format(amount);
 }
 
+const TZ = "America/Bogota";
+
 export function formatDateRange(startsAt: string, endsAt: string, isMultiDay: boolean): string {
   const start = new Date(startsAt);
   const end = new Date(endsAt);
-  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
+  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", timeZone: TZ };
 
   if (isMultiDay) {
-    return `${start.toLocaleDateString("es-CO", opts)} - ${end.toLocaleDateString("es-CO", opts)}, ${start.getFullYear()}`;
+    const year = new Intl.DateTimeFormat("es-CO", { year: "numeric", timeZone: TZ }).format(start);
+    return `${start.toLocaleDateString("es-CO", opts)} - ${end.toLocaleDateString("es-CO", opts)}, ${year}`;
   }
 
   return start.toLocaleDateString("es-CO", {
@@ -21,6 +24,7 @@ export function formatDateRange(startsAt: string, endsAt: string, isMultiDay: bo
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: TZ,
   });
 }
 
@@ -33,6 +37,6 @@ export function formatFullDate(dateStr: string, locale?: string): string {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    timeZoneName: "short",
+    timeZone: TZ,
   });
 }

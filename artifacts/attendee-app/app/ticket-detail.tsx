@@ -274,6 +274,7 @@ export default function TicketDetailScreen() {
                     month: "short",
                     day: "numeric",
                     year: "numeric",
+                    timeZone: "America/Bogota",
                   })}
                 </Text>
               </View>
@@ -283,6 +284,7 @@ export default function TicketDetailScreen() {
                   {startDate.toLocaleTimeString(locale, {
                     hour: "2-digit",
                     minute: "2-digit",
+                    timeZone: "America/Bogota",
                   })}
                 </Text>
               </View>

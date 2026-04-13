@@ -167,7 +167,7 @@ export default function GuestListPage() {
               {event?.startsAt && (
                 <span className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  {new Date(event.startsAt).toLocaleDateString()}
+                  {new Date(event.startsAt).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Bogota" })}
                 </span>
               )}
               {event?.venueAddress && (
