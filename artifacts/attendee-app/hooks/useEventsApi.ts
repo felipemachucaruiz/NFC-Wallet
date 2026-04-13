@@ -318,12 +318,23 @@ export function usePurchaseTickets() {
       userLegalIdType?: string;
       userLegalId?: string;
       cardToken?: string;
-    }) =>
-      apiFetch<TicketPurchaseResult>(
+    }) => {
+      const { tickets, ...rest } = data;
+      const body = {
+        ...rest,
+        attendees: tickets.map((tk) => ({
+          ticketTypeId: tk.ticketTypeId,
+          name: tk.attendee.name,
+          email: tk.attendee.email,
+          phone: tk.attendee.phone,
+        })),
+      };
+      return apiFetch<TicketPurchaseResult>(
         `${API_BASE_URL}/api/tickets/purchase`,
         headers,
-        { method: "POST", body: JSON.stringify(data) },
-      ),
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["tickets", "my"] });
     },
