@@ -21,7 +21,7 @@ export default function EventSalesConfig() {
   const { eventId: ctxEventId } = useEventContext();
   const resolvedEventId = auth?.user?.role === "admin" ? ctxEventId : (auth?.user?.eventId ?? "");
 
-  const { data: eventData, isLoading } = useGetEvent(resolvedEventId, { enabled: !!resolvedEventId });
+  const { data: eventData, isLoading } = useGetEvent(resolvedEventId);
   const event = (eventData as { event?: Record<string, unknown> })?.event;
 
   const [onlineSales, setOnlineSales] = useState(true);

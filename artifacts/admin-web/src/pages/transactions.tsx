@@ -70,8 +70,8 @@ export default function Transactions() {
     { query: { enabled: !isAllEvents && !!eventId && showSales, queryKey: getListEventTransactionsQueryKey(eventId, txParams) } }
   );
   const { data: topUpsData, isLoading: topUpsLoading } = useListEventTopUps(
-    eventId, txParams,
-    { query: { enabled: !isAllEvents && !!eventId && showTopUps } }
+    !isAllEvents && !!eventId && showTopUps ? eventId : "",
+    txParams
   );
 
   const { data: allSalesData, isLoading: allSalesLoading } = useQuery({

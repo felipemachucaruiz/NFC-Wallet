@@ -305,7 +305,6 @@ export default function EventVenueMap() {
       capacity: cap || undefined,
       totalTickets: cap,
       colorHex: form.color,
-      sectionType: form.sectionType || undefined,
       svgPathData,
     });
   };

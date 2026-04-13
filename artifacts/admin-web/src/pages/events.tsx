@@ -114,6 +114,7 @@ type RawEvent = Event & {
   nfcChipType?: string | null;
   currencyCode?: string | null;
   refundDeadline?: string | null;
+  minAge?: number | null;
   ticketingEnabled?: boolean;
   nfcBraceletsEnabled?: boolean;
   coverImageUrl?: string | null;
