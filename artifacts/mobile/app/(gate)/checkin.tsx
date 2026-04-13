@@ -19,7 +19,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
-import { cancelNfc } from "@/utils/nfc";
+import { cancelNfc, scanBracelet, isNfcSupported } from "@/utils/nfc";
 import { useOfflineGate } from "@/hooks/useOfflineGate";
 import {
   verifyQrTokenOffline,
@@ -68,6 +68,8 @@ type PageState =
   | "validating"
   | "confirmed"
   | "submitting"
+  | "bracelet_scanning"
+  | "bracelet_registering"
   | "success"
   | "error";
 
@@ -159,6 +161,7 @@ export default function EntranceCheckinScreen() {
   const barcodePausedRef = useRef(false);
   const refocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qrProcessedRef = useRef(false);
+  const braceletScanningRef = useRef(false);
   const REFOCUS_DELAY_MS = 4000;
 
   const cameraPermissionHook = useCameraPermissions ? useCameraPermissions() : null;
@@ -482,6 +485,85 @@ export default function EntranceCheckinScreen() {
     }
   }, [t, token, qrToken, locale, isOnline, confirmCheckinOffline]);
 
+  const handleBraceletCheckin = useCallback(async () => {
+    if (braceletScanningRef.current || !qrToken) return;
+    braceletScanningRef.current = true;
+    setPageState("bracelet_scanning");
+
+    try {
+      const result = await scanBracelet();
+      const uid = result.payload.uid;
+      if (!uid) {
+        setPageState("confirmed");
+        braceletScanningRef.current = false;
+        return;
+      }
+
+      setPageState("bracelet_registering");
+
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/gate/ticket-checkin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ qrToken, braceletNfcUid: uid }),
+      }, 8000);
+
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const errCode = payload.error as string;
+        if (errCode === "ALREADY_CHECKED_IN") {
+          const checkedTime = formatTime(payload.checkedInAt, locale);
+          setErrorMsg(`${t("gate.ticketAlreadyUsed")}\n${t("gate.ticketAlreadyUsedHint", { time: checkedTime })}`);
+        } else if (errCode === "BRACELET_WRONG_EVENT") {
+          setErrorMsg(t("gate.ticketBraceletWrongEvent"));
+        } else if (errCode === "EVENT_NOT_STARTED") {
+          setErrorMsg(`${t("gate.ticketEventNotStarted")}\n${t("gate.ticketEventNotStartedHint")}`);
+        } else if (errCode === "WRONG_DAY") {
+          setErrorMsg(`${t("gate.ticketWrongDay")}\n${t("gate.ticketWrongDayHint")}`);
+        } else {
+          setErrorMsg(payload.message ?? t("gate.ticketError"));
+        }
+        setPageState("error");
+        triggerHaptic("error");
+        braceletScanningRef.current = false;
+        return;
+      }
+
+      const attendeeName = payload.attendee?.fullName ?? "";
+      const zoneName = payload.zone?.name ?? "";
+      setSuccessName(attendeeName);
+      setSuccessZone(zoneName);
+
+      const historyItem: CheckinHistoryListItem = {
+        id: payload.checkin?.id ?? Date.now().toString(),
+        ticketId: payload.ticket?.ticketId ?? "",
+        attendeeName,
+        section: payload.ticket?.section ?? null,
+        ticketType: payload.ticket?.ticketType ?? null,
+        braceletNfcUid: uid,
+        eventDayIndex: payload.todayDayIndex ?? 0,
+        checkedInAt: payload.checkin?.checkedInAt ?? new Date().toISOString(),
+      };
+      setSessionHistory((prev) => [historyItem, ...prev]);
+
+      triggerHaptic("success");
+      setPageState("success");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === "NFC_CANCELLED" || msg === "USER_CANCELLED") {
+        setPageState("confirmed");
+      } else {
+        setErrorMsg(t("gate.scanFailed"));
+        setPageState("error");
+        triggerHaptic("error");
+      }
+      braceletScanningRef.current = false;
+    }
+  }, [qrToken, token, t, locale]);
+
   const resetForNext = () => {
     setErrorMsg("");
     setTicketAttendee(null);
@@ -491,6 +573,7 @@ export default function EntranceCheckinScreen() {
     setSuccessName("");
     setSuccessZone("");
     qrProcessedRef.current = false;
+    braceletScanningRef.current = false;
     setPageState("ready");
     setShowQrScanner(false);
     setBarcodeInput("");
@@ -670,7 +753,7 @@ export default function EntranceCheckinScreen() {
               <InfoRow
                 icon="tag"
                 label={t("gate.ticketType")}
-                value={isMultiDay ? t("gate.ticketAbono") : t("gate.ticketSingle")}
+                value={ticketInfo.ticketType || (isMultiDay ? t("gate.ticketAbono") : t("gate.ticketSingle"))}
                 C={C}
               />
               {isMultiDay && ticketInfo.dayLabels.length > 0 ? (
@@ -735,7 +818,52 @@ export default function EntranceCheckinScreen() {
                 </Text>
               </View>
             </Pressable>
+
+            {isNfcSupported() && (
+              <Pressable
+                style={[styles.checkinBtn, { backgroundColor: "#0369a1" }]}
+                onPress={handleBraceletCheckin}
+              >
+                <Feather name="radio" size={24} color="#fff" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.checkinBtnText, { color: "#fff" }]}>
+                    {t("gate.registerBracelet")}
+                  </Text>
+                  <Text style={[styles.checkinBtnSub, { color: "rgba(255,255,255,0.75)" }]}>
+                    {t("gate.ticketTapBraceletHint")}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
           </>
+        )}
+
+        {(pageState === "bracelet_scanning" || pageState === "bracelet_registering") && (
+          <View style={[styles.loadingCard, { backgroundColor: C.card, borderColor: "#0369a1" }]}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: "#0369a122", alignItems: "center", justifyContent: "center" }}>
+              <Feather name="radio" size={36} color="#0369a1" />
+            </View>
+            <Text style={[styles.loadingText, { color: C.text }]}>
+              {pageState === "bracelet_scanning"
+                ? t("gate.scanningWristband")
+                : t("gate.ticketRegistering")}
+            </Text>
+            <Text style={[styles.resultSub, { color: C.textSecondary }]}>
+              {t("gate.scanningHint")}
+            </Text>
+            {pageState === "bracelet_scanning" && (
+              <Button
+                title={t("common.cancel")}
+                onPress={() => {
+                  void cancelNfc().catch(() => {});
+                  braceletScanningRef.current = false;
+                  setPageState("confirmed");
+                }}
+                variant="secondary"
+                style={{ marginTop: 8, width: "100%" }}
+              />
+            )}
+          </View>
         )}
 
         {pageState === "qr_scanning" && showQrScanner && CameraView && (

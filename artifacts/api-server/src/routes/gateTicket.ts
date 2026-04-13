@@ -107,16 +107,18 @@ async function resolveTicketFromDb(ticketId: string, eventId: string): Promise<T
     const [tt] = await db
       .select({
         name: ticketTypesTable.name,
-        sectionId: ticketTypesTable.sectionId,
+        sectionName: venueSectionsTable.name,
         validEventDayIds: ticketTypesTable.validEventDayIds,
       })
       .from(ticketTypesTable)
-      .where(eq(ticketTypesTable.id, ticket.ticketTypeId));
+      .leftJoin(venueSectionsTable, eq(venueSectionsTable.id, ticketTypesTable.sectionId))
+      .where(eq(ticketTypesTable.id, ticket.ticketTypeId))
+      .limit(1);
     if (tt) {
       typ = tt.name ?? "";
       validDayIds = tt.validEventDayIds ?? [];
-      if (tt.sectionId) {
-        sec = tt.sectionId;
+      if (tt.sectionName) {
+        sec = tt.sectionName;
       }
     }
   }
