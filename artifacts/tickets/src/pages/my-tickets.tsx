@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
-import { Ticket, Calendar, MapPin, QrCode, Apple, Smartphone, Loader2, ArrowLeft, Clock, Tag, User, Mail, Phone, Send, X } from "lucide-react";
+import { Ticket, MapPin, QrCode, Loader2, Tag, Send, X, Archive, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +10,16 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import { fetchMyTickets, resolveImageUrl, transferTicket, addTicketToWallet, type ApiTicket } from "@/lib/api";
 
+function isArchivedTicket(ticket: ApiTicket) {
+  return ticket.status === "used" || ticket.status === "cancelled";
+}
 
 export default function MyTickets() {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading, openAuthModal } = useAuth();
   const [, navigate] = useLocation();
   const [selectedTicket, setSelectedTicket] = useState<ApiTicket | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["my-tickets"],
@@ -43,7 +47,9 @@ export default function MyTickets() {
     return null;
   }
 
-  const tickets = data?.tickets ?? [];
+  const allTickets = data?.tickets ?? [];
+  const activeTickets = allTickets.filter((t) => !isArchivedTicket(t));
+  const archivedTickets = allTickets.filter((t) => isArchivedTicket(t));
 
   if (isLoading) {
     return (
@@ -58,7 +64,7 @@ export default function MyTickets() {
       <div className="max-w-lg mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">{t("myTickets.title")}</h1>
 
-        {tickets.length === 0 ? (
+        {allTickets.length === 0 ? (
           <div className="text-center py-16">
             <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">{t("myTickets.noTickets")}</h2>
@@ -68,10 +74,60 @@ export default function MyTickets() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            {tickets.map((ticket) => (
-              <ETicketCard key={ticket.id} ticket={ticket} onExpand={() => setSelectedTicket(ticket)} />
-            ))}
+          <div className="space-y-6">
+            {/* Active tickets */}
+            {activeTickets.length > 0 && (
+              <div className="space-y-4">
+                {activeTickets.map((ticket) => (
+                  <ETicketCard key={ticket.id} ticket={ticket} onExpand={() => setSelectedTicket(ticket)} />
+                ))}
+              </div>
+            )}
+
+            {activeTickets.length === 0 && archivedTickets.length > 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Ticket className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                <p className="text-sm">{t("myTickets.noActiveTickets", "No tienes boletas activas")}</p>
+              </div>
+            )}
+
+            {/* Archived tickets section */}
+            {archivedTickets.length > 0 && (
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowArchived((v) => !v)}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Archive className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold text-muted-foreground">
+                      {t("myTickets.archivedEvents", "Eventos archivados")}
+                    </span>
+                    <span className="text-xs font-semibold bg-muted text-muted-foreground rounded-full px-2 py-0.5">
+                      {archivedTickets.length}
+                    </span>
+                  </div>
+                  {showArchived ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </button>
+
+                {showArchived && (
+                  <div className="space-y-4">
+                    {archivedTickets.map((ticket) => (
+                      <ETicketCard
+                        key={ticket.id}
+                        ticket={ticket}
+                        onExpand={() => setSelectedTicket(ticket)}
+                        archived
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -85,14 +141,14 @@ export default function MyTickets() {
   );
 }
 
-function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => void }) {
+function ETicketCard({ ticket, onExpand, archived }: { ticket: ApiTicket; onExpand: () => void; archived?: boolean }) {
   const { t } = useTranslation();
   const imageUrl = resolveImageUrl(ticket.eventCoverImage);
   const isValid = ticket.status === "valid";
 
   return (
     <div
-      className="rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.01] active:scale-[0.99] bg-zinc-900 border border-zinc-800"
+      className={`rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.01] active:scale-[0.99] bg-zinc-900 border border-zinc-800 ${archived ? "opacity-60" : ""}`}
       onClick={onExpand}
     >
       <div className="relative w-full aspect-square overflow-hidden bg-zinc-800">
@@ -104,11 +160,26 @@ function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => 
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30" />
-        <Badge
-          className={`absolute top-3 right-3 ${isValid ? "bg-emerald-600/90 text-white border-emerald-500/50" : "bg-gray-600/90 text-gray-200 border-gray-500/50"}`}
-        >
-          {isValid ? t("myTickets.valid") : t("myTickets.used")}
-        </Badge>
+
+        {archived ? (
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/60 rounded-full px-2.5 py-1">
+            <CheckCircle className="w-3.5 h-3.5 text-white/70" />
+            <span className="text-xs font-semibold text-white/70">{t("myTickets.used", "Usada")}</span>
+          </div>
+        ) : (
+          <Badge
+            className={`absolute top-3 right-3 ${isValid ? "bg-emerald-600/90 text-white border-emerald-500/50" : "bg-gray-600/90 text-gray-200 border-gray-500/50"}`}
+          >
+            {isValid ? t("myTickets.valid") : t("myTickets.used")}
+          </Badge>
+        )}
+
+        {archived && (
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1.5 bg-black/50 py-1.5">
+            <Archive className="w-3.5 h-3.5 text-white/50" />
+            <span className="text-xs text-white/50">{t("myTickets.archivedEvent", "Evento archivado")}</span>
+          </div>
+        )}
       </div>
 
       <div className="px-4 py-3 flex items-center gap-3 bg-zinc-900">
@@ -117,7 +188,7 @@ function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => 
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(ticket.qrCodeToken)}`}
               alt="QR"
-              className="w-10 h-10"
+              className={`w-10 h-10 ${archived ? "opacity-40 grayscale" : ""}`}
             />
           ) : (
             <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
@@ -126,7 +197,7 @@ function ETicketCard({ ticket, onExpand }: { ticket: ApiTicket; onExpand: () => 
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-white text-sm truncate">{ticket.eventName || "Event"}</h3>
+          <h3 className={`font-bold text-sm truncate ${archived ? "text-white/50" : "text-white"}`}>{ticket.eventName || "Event"}</h3>
           <p className="text-xs text-zinc-400 truncate">{ticket.ticketTypeName}</p>
           {ticket.eventStartsAt && (
             <p className="text-xs text-zinc-500 mt-0.5">
@@ -154,6 +225,7 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
   const [walletLoading, setWalletLoading] = useState<"apple" | "google" | null>(null);
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isAndroid = /android/i.test(navigator.userAgent);
+  const archived = isArchivedTicket(ticket);
 
   const handleAddToWallet = async (platform: "apple" | "google") => {
     setWalletLoading(platform);
@@ -211,10 +283,19 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent from-40% via-zinc-900/60 via-70% to-zinc-900" />
+
+        {archived && (
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-2 bg-black/60 py-2">
+            <Archive className="w-4 h-4 text-white/70" />
+            <span className="text-sm font-semibold text-white/70">
+              {t("myTickets.archivedEvent", "Evento archivado")}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col items-center -mt-16 relative z-10 pb-4">
-        <div className="bg-white rounded-2xl p-4 shadow-2xl">
+        <div className={`bg-white rounded-2xl p-4 shadow-2xl ${archived ? "opacity-40 grayscale" : ""}`}>
           {ticket.qrCodeToken ? (
             <QRCodeSVG
               value={ticket.qrCodeToken}
@@ -235,6 +316,12 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
             </div>
           )}
         </div>
+        {archived && (
+          <div className="flex items-center gap-1.5 mt-3">
+            <CheckCircle className="w-3.5 h-3.5 text-white/40" />
+            <span className="text-xs text-white/40">{t("myTickets.used", "Usada")}</span>
+          </div>
+        )}
       </div>
 
       <div className="relative mx-0 h-6 flex items-center">
@@ -275,7 +362,10 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
             <Tag className="w-3.5 h-3.5 text-primary" />
             <span className="text-sm text-primary font-semibold">{ticket.ticketTypeName}</span>
           </div>
-          <Badge className={isValid ? "bg-emerald-600/20 text-emerald-400 border-emerald-600/30" : "bg-gray-600/20 text-gray-400 border-gray-600/30"}>
+          <Badge className={isValid
+            ? "bg-emerald-600/20 text-emerald-400 border-emerald-600/30"
+            : "bg-gray-600/20 text-gray-400 border-gray-600/30"
+          }>
             {isValid ? t("myTickets.valid") : t("myTickets.used")}
           </Badge>
         </div>
@@ -299,7 +389,7 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
           )}
         </div>
 
-        {isValid && isIOS && !showTransfer && (
+        {!archived && isValid && isIOS && !showTransfer && (
           <button
             onClick={() => handleAddToWallet("apple")}
             disabled={!!walletLoading}
@@ -316,7 +406,7 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
           </button>
         )}
 
-        {isValid && (isAndroid || !isIOS) && !showTransfer && (
+        {!archived && isValid && (isAndroid || !isIOS) && !showTransfer && (
           <button
             onClick={() => handleAddToWallet("google")}
             disabled={!!walletLoading}
@@ -333,7 +423,7 @@ function ETicketFull({ ticket }: { ticket: ApiTicket }) {
           </button>
         )}
 
-        {isValid && !showTransfer && (
+        {!archived && isValid && !showTransfer && (
           <button
             onClick={() => setShowTransfer(true)}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-white/15 text-white/70 text-sm font-medium hover:bg-white/5 transition-colors mt-2"

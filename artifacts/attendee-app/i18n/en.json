@@ -384,6 +384,8 @@
     "status_valid": "Valid",
     "status_active": "Active",
     "status_used": "Used",
+    "archivedEvents": "Archived events",
+    "archivedEvent": "Archived event",
     "status_cancelled": "Cancelled",
     "status_expired": "Expired",
     "purchaseNotification": "Purchase confirmed! Your tickets for {{event}} are ready."

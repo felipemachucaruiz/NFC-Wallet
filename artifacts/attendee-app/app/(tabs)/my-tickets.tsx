@@ -32,6 +32,10 @@ import type { MyTicket } from "@/types/events";
 const appleWalletBadge = require("@/assets/images/apple-wallet-badge.png");
 const googleWalletBadge = require("@/assets/images/google-wallet-badge.png");
 
+function isArchivedTicket(ticket: MyTicket) {
+  return ticket.status === "used" || ticket.status === "cancelled";
+}
+
 function statusVariant(status: string): "success" | "warning" | "danger" | "muted" {
   if (status === "valid" || status === "active") return "success";
   if (status === "used") return "muted";
@@ -48,7 +52,7 @@ function shortVenue(venueName: string): string {
   return venueName.split(",")[0].trim();
 }
 
-function TicketCard({ ticket, onPress }: { ticket: MyTicket; onPress: () => void }) {
+function TicketCard({ ticket, onPress, archived }: { ticket: MyTicket; onPress: () => void; archived?: boolean }) {
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const { t, i18n } = useTranslation();
@@ -59,7 +63,11 @@ function TicketCard({ ticket, onPress }: { ticket: MyTicket; onPress: () => void
 
   return (
     <Pressable
-      style={[styles.ticketCard, { backgroundColor: C.card, borderColor: C.border }]}
+      style={[
+        styles.ticketCard,
+        { backgroundColor: C.card, borderColor: C.border },
+        archived && { opacity: 0.6 },
+      ]}
       onPress={onPress}
     >
       <View style={styles.ticketImageWrap}>
@@ -73,13 +81,21 @@ function TicketCard({ ticket, onPress }: { ticket: MyTicket; onPress: () => void
         <View style={styles.ticketBadgeOverlay}>
           <Badge label={t(`tickets.status_${ticket.status}`, ticket.status)} variant={statusVariant(ticket.status)} size="sm" />
         </View>
+        {archived && (
+          <View style={styles.usedStampOverlay}>
+            <View style={styles.usedStamp}>
+              <Feather name="check-circle" size={14} color="#fff" />
+              <Text style={styles.usedStampText}>{t("tickets.status_used", "Usada")}</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={styles.ticketInfo}>
-        <Text style={[styles.ticketEventName, { color: C.text }]} numberOfLines={1}>
+        <Text style={[styles.ticketEventName, { color: archived ? C.textMuted : C.text }]} numberOfLines={1}>
           {ticket.eventName}
         </Text>
-        <Text style={[styles.ticketTypeName, { color: C.primary }]} numberOfLines={1}>
+        <Text style={[styles.ticketTypeName, { color: archived ? C.textMuted : C.primary }]} numberOfLines={1}>
           {ticket.ticketTypeName}
           {ticket.sectionName ? ` · ${ticket.sectionName}` : ""}
         </Text>
@@ -209,6 +225,7 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
   const isValidDate = startDate && !isNaN(startDate.getTime());
   const venue = shortVenue(ticket.venueName);
   const isTransferable = ticket.status === "valid" || ticket.status === "active";
+  const archived = isArchivedTicket(ticket);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
@@ -246,11 +263,17 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                     </View>
                   )}
                   <View style={styles.flyerOverlay} />
+                  {archived && (
+                    <View style={styles.modalArchivedBanner}>
+                      <Feather name="archive" size={14} color="#fff" />
+                      <Text style={styles.modalArchivedBannerText}>{t("tickets.archivedEvent", "Evento archivado")}</Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.qrWrap}>
                   {ticket.qrCode ? (
-                    <View style={{ backgroundColor: "#fff", padding: 8, borderRadius: 8 }}>
+                    <View style={[{ backgroundColor: "#fff", padding: 8, borderRadius: 8 }, archived && { opacity: 0.4 }]}>
                       <QRCode
                         value={ticket.qrCode}
                         size={180}
@@ -265,6 +288,12 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                   ) : (
                     <View style={[styles.qrImage, { alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }]}>
                       <Feather name="alert-circle" size={32} color="#ccc" />
+                    </View>
+                  )}
+                  {archived && (
+                    <View style={styles.qrUsedLabel}>
+                      <Feather name="check-circle" size={13} color="rgba(255,255,255,0.5)" />
+                      <Text style={styles.qrUsedLabelText}>{t("tickets.status_used", "Usada")}</Text>
                     </View>
                   )}
                 </View>
@@ -320,7 +349,7 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                 </View>
               </View>
 
-              {!showTransfer && Platform.OS !== "web" && (
+              {!archived && !showTransfer && Platform.OS !== "web" && (
                 <Pressable
                   onPress={handleAddToWallet}
                   disabled={walletLoading}
@@ -422,10 +451,14 @@ export default function MyTicketsScreen() {
   const isWeb = Platform.OS === "web";
 
   const { data, isPending, refetch } = useMyTickets();
-  const tickets = (data as { tickets?: MyTicket[] } | undefined)?.tickets ?? [];
+  const allTickets = (data as { tickets?: MyTicket[] } | undefined)?.tickets ?? [];
+
+  const activeTickets = allTickets.filter((t) => !isArchivedTicket(t));
+  const archivedTickets = allTickets.filter((t) => isArchivedTicket(t));
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<MyTicket | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -439,7 +472,18 @@ export default function MyTicketsScreen() {
     [],
   );
 
+  const renderArchivedItem = useCallback(
+    ({ item }: { item: MyTicket }) => (
+      <TicketCard ticket={item} onPress={() => setSelectedTicket(item)} archived />
+    ),
+    [],
+  );
+
   if (isPending) return <Loading label={t("common.loading")} />;
+
+  const listData = showArchived
+    ? [...activeTickets, { _type: "archiveHeader" as const }, ...archivedTickets]
+    : activeTickets;
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -448,13 +492,28 @@ export default function MyTicketsScreen() {
       </View>
 
       <FlatList
-        data={tickets}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        data={listData}
+        keyExtractor={(item, index) =>
+          "_type" in item ? "archive-header" : item.id
+        }
+        renderItem={({ item }) => {
+          if ("_type" in item && item._type === "archiveHeader") {
+            return null;
+          }
+          const ticket = item as MyTicket;
+          const archived = isArchivedTicket(ticket);
+          return (
+            <TicketCard
+              ticket={ticket}
+              onPress={() => setSelectedTicket(ticket)}
+              archived={archived}
+            />
+          );
+        }}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: isWeb ? 34 : insets.bottom + 24 },
-          tickets.length === 0 && { flex: 1 },
+          allTickets.length === 0 && { flex: 1 },
         ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />
@@ -467,6 +526,46 @@ export default function MyTicketsScreen() {
             actionLabel={t("tickets.browseEvents")}
             onAction={() => router.replace("/(tabs)/events")}
           />
+        }
+        ListFooterComponent={
+          archivedTickets.length > 0 ? (
+            <View style={styles.archiveSection}>
+              <Pressable
+                style={[styles.archiveToggle, { borderColor: C.border, backgroundColor: C.card }]}
+                onPress={() => setShowArchived((v) => !v)}
+              >
+                <View style={styles.archiveToggleLeft}>
+                  <Feather name="archive" size={16} color={C.textSecondary} />
+                  <Text style={[styles.archiveToggleLabel, { color: C.textSecondary }]}>
+                    {t("tickets.archivedEvents", "Eventos archivados")}
+                  </Text>
+                  <View style={[styles.archiveCountBadge, { backgroundColor: C.inputBg }]}>
+                    <Text style={[styles.archiveCountText, { color: C.textMuted }]}>
+                      {archivedTickets.length}
+                    </Text>
+                  </View>
+                </View>
+                <Feather
+                  name={showArchived ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color={C.textMuted}
+                />
+              </Pressable>
+
+              {showArchived && (
+                <View style={styles.archivedList}>
+                  {archivedTickets.map((ticket) => (
+                    <TicketCard
+                      key={ticket.id}
+                      ticket={ticket}
+                      onPress={() => setSelectedTicket(ticket)}
+                      archived
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : null
         }
       />
 
@@ -497,6 +596,35 @@ const styles = StyleSheet.create({
   dayChip: { flexDirection: "row", alignItems: "center", gap: 3, borderWidth: 1, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   dayChipText: { fontSize: 10, fontFamily: "Inter_500Medium" },
 
+  usedStampOverlay: { position: "absolute", bottom: 10, left: 10 },
+  usedStamp: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  usedStampText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#fff" },
+
+  archiveSection: { marginTop: 8, gap: 0 },
+  archiveToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  archiveToggleLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  archiveToggleLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  archiveCountBadge: { borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  archiveCountText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  archivedList: { gap: 12 },
+
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "flex-end" },
   modalSheet: { backgroundColor: "#0a0a0a", borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: "92%", paddingTop: 12 },
   modalHandle: { width: 40, height: 4, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 2, alignSelf: "center", marginBottom: 16 },
@@ -506,8 +634,24 @@ const styles = StyleSheet.create({
   flyerImage: { width: "100%", height: "100%" },
   flyerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.1)" },
 
-  qrWrap: { alignItems: "center", marginTop: -55, zIndex: 5, paddingBottom: 12 },
+  modalArchivedBanner: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingVertical: 6,
+  },
+  modalArchivedBannerText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" },
+
+  qrWrap: { alignItems: "center", marginTop: -55, zIndex: 5, paddingBottom: 4 },
   qrImage: { width: 170, height: 170, borderRadius: 16, backgroundColor: "#fff", shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 16, elevation: 12 },
+  qrUsedLabel: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6, marginBottom: 4 },
+  qrUsedLabelText: { fontSize: 11, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.4)" },
 
   perforationRow: { flexDirection: "row", alignItems: "center", height: 24, position: "relative" },
   perfCircle: { width: 24, height: 24, borderRadius: 12, position: "absolute", zIndex: 2 },
@@ -532,22 +676,23 @@ const styles = StyleSheet.create({
 
   walletBadgeBtn: { alignItems: "center", justifyContent: "center", marginHorizontal: 16, marginTop: 12, minHeight: 50 },
   walletBadgeImg: { width: 190, height: 50 },
-  transferBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 12, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-  transferBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.8)" },
 
-  transferForm: { marginHorizontal: 16, marginTop: 12, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, padding: 16, gap: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  transferHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
-  transferTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
-  transferDesc: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.5)", marginBottom: 8 },
-  inputLabel: { fontSize: 11, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5 },
-  input: { borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular", color: "#fff", backgroundColor: "rgba(255,255,255,0.05)", marginBottom: 8 },
-  transferConfirmBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#00f1ff", borderRadius: 12, paddingVertical: 14, marginTop: 4 },
-  transferConfirmText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#000" },
+  transferBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginTop: 10, paddingVertical: 13, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
+  transferBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.7)" },
 
-  successCard: { alignItems: "center", paddingHorizontal: 24, paddingVertical: 40, gap: 12 },
-  successIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(34,197,94,0.12)", alignItems: "center", justifyContent: "center" },
-  successTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
-  successMsg: { fontSize: 14, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.55)", textAlign: "center" },
-  closeDoneBtn: { marginTop: 8, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, backgroundColor: "#00f1ff" },
-  closeDoneBtnText: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#000" },
+  transferForm: { marginHorizontal: 16, marginTop: 12, marginBottom: 8, padding: 16, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 16, gap: 10 },
+  transferHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  transferTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
+  transferDesc: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.5)" },
+  inputLabel: { fontSize: 12, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.5)" },
+  input: { height: 42, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.05)", paddingHorizontal: 12, fontSize: 14, fontFamily: "Inter_400Regular", color: "#fff" },
+  transferConfirmBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 44, borderRadius: 12, backgroundColor: "#00f1ff" },
+  transferConfirmText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#000" },
+
+  successCard: { margin: 16, padding: 24, alignItems: "center", gap: 12 },
+  successIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: "rgba(34,197,94,0.15)", alignItems: "center", justifyContent: "center" },
+  successTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff" },
+  successMsg: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.5)", textAlign: "center" },
+  closeDoneBtn: { marginTop: 8, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  closeDoneBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "rgba(255,255,255,0.7)" },
 });

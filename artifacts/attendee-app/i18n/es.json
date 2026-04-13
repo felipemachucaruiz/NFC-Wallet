@@ -383,6 +383,8 @@
     "status_valid": "Válida",
     "status_active": "Activa",
     "status_used": "Usada",
+    "archivedEvents": "Eventos archivados",
+    "archivedEvent": "Evento archivado",
     "status_cancelled": "Cancelada",
     "status_expired": "Expirada",
     "purchaseNotification": "¡Compra confirmada! Tus boletas para {{event}} están listas."
