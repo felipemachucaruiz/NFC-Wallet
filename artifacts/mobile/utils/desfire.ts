@@ -483,7 +483,14 @@ export async function formatDesfireBracelet(aesKeyHex: string): Promise<string> 
 
 export async function scanAndWriteDesfireBracelet(
   onRead: (payload: BraceletPayload & { transactionMac?: string }, tagInfo: DesfireTagInfo) => Promise<(BraceletPayload & { transactionMac?: string }) | null>,
-  aesKeyHex: string
+  aesKeyHex: string,
+  opts?: {
+    /** Called just before the COMMIT command is sent to the chip.
+     *  Use this to set a "write attempted" flag — the COMMIT is atomic, so
+     *  once this fires the chip will very likely end up committed even if the
+     *  NFC session drops before the acknowledgment is received. */
+    onBeforeCommit?: () => void;
+  }
 ): Promise<{ payload: BraceletPayload & { transactionMac?: string }; tagInfo: DesfireTagInfo; written: boolean }> {
   if (!NfcManager || !NfcTech) throw new Error("NFC_NOT_AVAILABLE");
 
@@ -552,6 +559,12 @@ export async function scanAndWriteDesfireBracelet(
     const writeDataCmd = buildApdu(DESFIRE_CMD_WRITE_DATA, [0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, ...counterBytes]);
     const writeResp = await isoDepHandler.transceive(writeDataCmd);
     checkStatus(writeResp);
+
+    // Signal "write attempted" before sending COMMIT. DESFire COMMIT is atomic:
+    // once the chip receives it the transaction is durable. If the NFC session
+    // drops before the ACK reaches us, the chip is still committed. The caller
+    // uses this callback to record the top-up so the server stays in sync.
+    opts?.onBeforeCommit?.();
 
     const commitCmd = buildApdu(DESFIRE_CMD_COMMIT, []);
     const commitResp = await isoDepHandler.transceive(commitCmd);

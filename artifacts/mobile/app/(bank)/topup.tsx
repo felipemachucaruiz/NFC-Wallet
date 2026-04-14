@@ -193,6 +193,11 @@ export default function TopUpScreen() {
   const writingRef = useRef(false);
   const cancelledRef = useRef(false);
   const writeRetryRef = useRef(0);
+  // writeAttemptedRef: true once the physical NFC write has been initiated
+  // (Ultralight: just before write pages; DeSFire: just before COMMIT).
+  // Survives the doScanAndWrite closure so handleCancelWriting can check it
+  // and avoid overriding the success state set by the catch-block recovery path.
+  const writeAttemptedRef = useRef(false);
   // txActiveRef: true from the moment the user confirms a top-up until the transaction
   // reaches a terminal state (success, write_failed, or explicit cancel/skip).
   // Used to distinguish "Android NFC briefly stole app focus mid-write" from
@@ -382,6 +387,7 @@ export default function TopUpScreen() {
   const handleStartWrite = async () => {
     if (writingRef.current) return;
     writingRef.current = true;
+    writeAttemptedRef.current = false; // Reset for this write session
     setWriteError(null);
     stepRef.current = "writing";
     setStep("writing");
@@ -390,19 +396,17 @@ export default function TopUpScreen() {
     let aborted = false;
 
     const doScanAndWrite = async (): Promise<boolean> => {
-      // writeAttempted: set true (inside onRead callback) once the chip is verified
-      // and the new payload is about to be written. If an error occurs after this
-      // point on non-DESFire chips, the physical write likely already succeeded
-      // (Android NFC sometimes drops the session right after the last byte is
-      // committed to EEPROM), so we should still record the top-up.
+      // writeAttempted: set true once the physical write is imminent.
+      // - Ultralight path: set in onRead, right before returning the new payload.
+      // - DESFire path: set via onBeforeCommit, right before sending COMMIT.
+      // If an NFC error occurs after this point the chip likely has the new balance
+      // (Android drops the session after the last byte; DESFire ACK can be lost).
+      // In that case we must still record the top-up so the server stays in sync.
       let writeAttempted = false;
       let writtenHmac = "";
 
       try {
         if (nfcChipType === "desfire_ev3") {
-          // DESFire uses an atomic CREDIT + WRITE + COMMIT transaction.
-          // If COMMIT fails the chip is NOT written, so we don't set writeAttempted
-          // here — a genuine retry is needed.
           await scanAndWriteDesfireBracelet(async (payload) => {
             if (payload.uid !== uid) {
               aborted = true;
@@ -411,7 +415,15 @@ export default function TopUpScreen() {
             }
             writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
             return { uid, balance: newBalance, counter: newCounter, hmac: "" };
-          }, desfireAesKey);
+          }, desfireAesKey, {
+            // DESFire COMMIT is atomic: once this fires the chip will be committed
+            // even if the NFC ACK is lost. Mark the write as attempted so the
+            // catch-block records the top-up instead of retrying (double charge).
+            onBeforeCommit: () => {
+              writeAttempted = true;
+              writeAttemptedRef.current = true;
+            },
+          });
         } else {
           const chipHint: NfcChipTypeHint | undefined =
             tagInfoFromParams?.type === "MIFARE_CLASSIC" ? "mifare_classic" : undefined;
@@ -444,6 +456,7 @@ export default function TopUpScreen() {
             // be happening). Any error after this mark likely means the data was
             // physically committed to the chip but the NFC session dropped.
             writeAttempted = true;
+            writeAttemptedRef.current = true; // Also update component-level ref
             return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
           }, {
             expectedChipType: chipHint,
@@ -522,33 +535,74 @@ export default function TopUpScreen() {
 
     let success = await doScanAndWrite();
 
-    while (!success && !aborted && !cancelledRef.current && writeRetryRef.current < MAX_WRITE_RETRIES) {
+    // Stop retrying once writeAttemptedRef is true — the chip was committed
+    // (or is very likely committed for DeSFire). Retrying would double-charge.
+    while (!success && !aborted && !cancelledRef.current && !writeAttemptedRef.current && writeRetryRef.current < MAX_WRITE_RETRIES) {
       writeRetryRef.current += 1;
       setWriteRetryCount(writeRetryRef.current);
       setIsRetrying(true);
       await new Promise<void>((resolve) => setTimeout(resolve, 500));
-      if (!cancelledRef.current) {
+      if (!cancelledRef.current && !writeAttemptedRef.current) {
         success = await doScanAndWrite();
       }
     }
 
-    if (!success && !aborted && !cancelledRef.current) {
-      console.error("[TopUp] NFC write failed — all retries exhausted", {
-        nfcUid: uid,
-        amount: amount,
-        newBalance,
-        timestamp: new Date().toISOString(),
-      });
-      writingRef.current = false;
-      // Set stepRef BEFORE clearing txActiveRef — same race-condition guard.
-      stepRef.current = "write_failed";
-      txActiveRef.current = false; // Transaction ended (failed)
-      setIsRetrying(false);
-      setWriteRetryCount(0);
-      writeRetryRef.current = 0;
-      setWriteError(t("bank.writeError"));
-      setStep("write_failed");
+    // ─── Terminal state cleanup ───────────────────────────────────────────────
+    writingRef.current = false;
+
+    if (success) {
+      // Already handled inside doScanAndWrite — step is "success".
+      return;
     }
+
+    if (aborted) {
+      // Wrong bracelet / chip-type mismatch — alert was already shown.
+      // Return to the form so the staff member can try again.
+      txActiveRef.current = false;
+      stepRef.current = "form";
+      setStep("form");
+      return;
+    }
+
+    if (writeAttemptedRef.current) {
+      // Write was started but doScanAndWrite returned false — this means the
+      // catch-block's enqueueTopUp call threw (the normal writeAttempted path
+      // returns true). The chip very likely has the new balance but the server
+      // hasn't been updated yet. Show success-with-warning so the sync-issues
+      // screen surfaces the pending record.
+      console.warn("[TopUp] writeAttempted but doScanAndWrite returned false — forcing success-with-warning");
+      stepRef.current = "success";
+      txActiveRef.current = false;
+      void syncToServer(true);
+      setWriteWarning(true);
+      setStep("success");
+      return;
+    }
+
+    if (cancelledRef.current) {
+      // User cancelled before any write was started — return to form.
+      // handleCancelWriting may have already done this; this ensures cleanup
+      // even if the race fires after handleStartWrite resolves.
+      txActiveRef.current = false;
+      stepRef.current = "form";
+      setStep("form");
+      return;
+    }
+
+    // Retries exhausted, no cancel, no write started → write_failed
+    console.error("[TopUp] NFC write failed — all retries exhausted", {
+      nfcUid: uid,
+      amount: amount,
+      newBalance,
+      timestamp: new Date().toISOString(),
+    });
+    stepRef.current = "write_failed";
+    txActiveRef.current = false;
+    setIsRetrying(false);
+    setWriteRetryCount(0);
+    writeRetryRef.current = 0;
+    setWriteError(t("bank.writeError"));
+    setStep("write_failed");
   };
 
   // ─── Auto-start NFC write when tap_write step is entered ────────────────────
@@ -606,8 +660,18 @@ export default function TopUpScreen() {
 
   const handleCancelWriting = async () => {
     cancelledRef.current = true;
-    txActiveRef.current = false; // User explicitly cancelled — transaction done
     await cancelNfc().catch(() => {});
+
+    if (writeAttemptedRef.current) {
+      // The write was already started (or DeSFire COMMIT was sent). The
+      // doScanAndWrite catch-block will handle recording the top-up and
+      // setting the terminal state (success-with-warning). Do NOT override
+      // that state here — that would lose the transaction record.
+      return;
+    }
+
+    // No write was started — safe to cancel immediately and return to form.
+    txActiveRef.current = false;
     writingRef.current = false;
     submittingRef.current = false;
     stepRef.current = "form";
