@@ -74,8 +74,8 @@ export default function Account() {
   };
 
   const sexOptions = [
-    { value: "male", label: t("tickets.male") },
-    { value: "female", label: t("tickets.female") },
+    { value: "male", label: t("ticketSelection.male") },
+    { value: "female", label: t("ticketSelection.female") },
   ];
 
   return (
@@ -121,7 +121,7 @@ export default function Account() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label>{t("tickets.dateOfBirth")}</Label>
+                <Label>{t("ticketSelection.dateOfBirth")}</Label>
                 <div className="mt-1">
                   <DatePickerField
                     value={form.dateOfBirth}
@@ -130,7 +130,7 @@ export default function Account() {
                 </div>
               </div>
               <div>
-                <Label>{t("tickets.idDocument")}</Label>
+                <Label>{t("ticketSelection.idDocument")}</Label>
                 <Input
                   value={form.idDocument}
                   onChange={(e) => setForm((f) => ({ ...f, idDocument: e.target.value }))}
@@ -141,7 +141,7 @@ export default function Account() {
             </div>
 
             <div>
-              <Label>{t("tickets.sex")}</Label>
+              <Label>{t("ticketSelection.sex")}</Label>
               <div className="flex gap-2 mt-1">
                 {sexOptions.map((opt) => (
                   <button
