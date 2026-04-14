@@ -60,6 +60,12 @@ module.exports = {
         },
       ],
     ],
+    runtimeVersion: {
+      policy: "appVersion",
+    },
+    updates: {
+      url: "https://u.expo.dev/47da8b6a-72b7-4bc9-af31-c34ee51a0441",
+    },
     experiments: {
       typedRoutes: true,
     },

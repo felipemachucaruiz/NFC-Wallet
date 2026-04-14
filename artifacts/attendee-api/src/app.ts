@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import compression from "compression";
 import cors from "cors";
@@ -10,6 +11,13 @@ import whatsappWebhookRouter from "./routes/whatsappWebhook";
 import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import { generalLimiter, authLimiter, braceletLookupLimiter } from "./middlewares/rateLimiter";
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV ?? "development",
+  tracesSampleRate: 0.1,
+  enabled: process.env.NODE_ENV === "production" && !!process.env.SENTRY_DSN,
+});
 
 const app: Express = express();
 
@@ -125,6 +133,8 @@ app.use("/api", router);
 app.use("/attendee-api/api", router);
 app.use("/api", notificationsRouter);
 app.use("/attendee-api/api", notificationsRouter);
+
+Sentry.setupExpressErrorHandler(app);
 
 // Global error handler — catches any unhandled async route errors and returns
 // a clean JSON 500 instead of hanging the request or crashing the process.

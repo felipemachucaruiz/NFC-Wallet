@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import compression from "compression";
 import cors from "cors";
@@ -8,6 +9,13 @@ import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import { ipAllowlistMiddleware } from "./middlewares/ipAllowlist";
 import { authLimiter } from "./middlewares/rateLimiter";
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV ?? "development",
+  tracesSampleRate: 0.1,
+  enabled: process.env.NODE_ENV === "production" && !!process.env.SENTRY_DSN,
+});
 
 const app: Express = express();
 app.use(compression());
@@ -77,6 +85,8 @@ app.use(AUTH_RATE_LIMITED_PATHS, authLimiter);
 app.use(authMiddleware);
 
 app.use("/api", router);
+
+Sentry.setupExpressErrorHandler(app);
 
 // Global error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

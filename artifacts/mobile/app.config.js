@@ -87,6 +87,12 @@ module.exports = {
       ],
       "./plugins/withGoogleMapsManifest",
     ],
+    runtimeVersion: {
+      policy: "appVersion",
+    },
+    updates: {
+      url: "https://u.expo.dev/26d76893-d65f-457a-b2eb-7fa177110638",
+    },
     experiments: {
       typedRoutes: true,
     },

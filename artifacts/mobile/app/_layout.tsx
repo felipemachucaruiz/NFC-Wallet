@@ -33,6 +33,15 @@ import { fetchWithTimeout } from "@/utils/fetchWithTimeout";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
 import { useTranslation } from "react-i18next";
+import * as Sentry from "@sentry/react-native";
+
+Sentry.init({
+  dsn: "https://a71b8e6557d05050c2224e571b2a576f@o4511219507265536.ingest.us.sentry.io/4511219524435968",
+  environment: __DEV__ ? "development" : "production",
+  enabled: !__DEV__,
+  tracesSampleRate: 0.2,
+  attachStacktrace: true,
+});
 
 // Safe import: if react-native-keyboard-controller is not in the native binary
 // the app will still start without keyboard handling rather than crashing.

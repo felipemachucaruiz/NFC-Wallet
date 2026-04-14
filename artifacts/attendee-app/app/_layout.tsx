@@ -22,6 +22,15 @@ import { initI18n } from "@/i18n";
 import { initNfc } from "@/utils/nfc";
 import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
+import * as Sentry from "@sentry/react-native";
+
+Sentry.init({
+  dsn: "https://c5d3633ad0e750cef208c52abbe581a2@o4511219507265536.ingest.us.sentry.io/4511219532627968",
+  environment: __DEV__ ? "development" : "production",
+  enabled: !__DEV__,
+  tracesSampleRate: 0.2,
+  attachStacktrace: true,
+});
 
 // Safe import: if react-native-keyboard-controller is not in the native binary
 // the app will still start without keyboard handling rather than crashing.

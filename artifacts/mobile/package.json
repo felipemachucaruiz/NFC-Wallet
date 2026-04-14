@@ -74,6 +74,7 @@
   "dependencies": {
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/netinfo": "^12.0.1",
+    "@sentry/react-native": "^8.7.0",
     "crypto-js": "^4.2.0",
     "expo-auth-session": "^7.0.10",
     "expo-camera": "^17.0.10",
@@ -82,6 +83,7 @@
     "expo-notifications": "^0.32.16",
     "expo-secure-store": "^15.0.8",
     "expo-sqlite": "~16.0.10",
+    "expo-updates": "^55.0.20",
     "expo-video": "~3.0.16",
     "i18next": "^25.10.9",
     "react-i18next": "^16.6.5",

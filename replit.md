@@ -19,7 +19,7 @@ This project delivers a contactless, cashless event payment system specifically 
 - EAS CLI commands (build, update) need `timeout 90` wrapper (first try) or `timeout 120` and 120000ms tool timeout.
 - **CRITICAL — EAS Build Profiles:** ALWAYS use `production-apk` profile for both mobile apps. NEVER use `preview` or `development` profiles — they produce APKs that crash on launch. The correct command is: `eas build --platform android --profile production-apk --non-interactive --no-wait`
 - **CRITICAL — Build Numbers:** Staff app (`artifacts/mobile`) buildNumber is currently `"7"`. Attendee app (`artifacts/attendee-app`) buildNumber is currently `"9"`. Increment before each new build.
-- **CRITICAL — No expo-updates:** Both mobile apps had `expo-updates` removed entirely. Do NOT re-add it. No `runtimeVersion`, no `UpdateBanner`, no OTA updates.
+- **expo-updates (OTA):** Both mobile apps now have `expo-updates` re-enabled with `runtimeVersion: { policy: "appVersion" }`. This ensures OTA JS bundles only apply to matching native binary versions, preventing the crashes that occurred with the old configuration. Update URL: staff=`https://u.expo.dev/26d76893-d65f-457a-b2eb-7fa177110638`, attendee=`https://u.expo.dev/47da8b6a-72b7-4bc9-af31-c34ee51a0441`. Channel for production builds: `production-apk`.
 - **CRITICAL — No SSL Pinning:** No `<pin-set>` blocks in NSC config. `withNetworkSecurityConfig.js` was deleted from both apps. Do NOT re-add.
 
 # System Architecture
@@ -61,7 +61,8 @@ The project is a pnpm monorepo using TypeScript (v5.9) and Node.js (v24). It fea
 - **Validation:** Zod v3 integrated with `drizzle-zod`.
 - **Cost of Goods Sold (COGS) Tracking:** `unit_cost_snapshot` on line items and `price_cop`/`cost_cop` on products.
 - **Deployment Strategy:** Critical separation of `master` (API services) and `main` (Web Admin) branches for Railway deployments. Pushing to the wrong branch causes production downtime.
-- **Mobile App Updates:** Distributed via APK builds only (OTA updates removed).
+- **Mobile App Updates:** Distributed via APK builds. OTA updates re-enabled using `expo-updates` with `runtimeVersion: { policy: "appVersion" }` for both staff and attendee apps.
+- **Error Monitoring (Sentry):** Integrated in all 6 services. Staff DSN: `https://a71b8e6557d05050c2224e571b2a576f@...` (tapee-staff project). Attendee DSN: `https://c5d3633ad0e750cef208c52abbe581a2@...` (tapee-attendee project). Backends/web share backend DSN set in env vars `SENTRY_DSN` and `VITE_SENTRY_DSN`. Only enabled in production (`!__DEV__` / `NODE_ENV === "production"` / `import.meta.env.PROD`). `@opentelemetry/*` deps are bundled into the backend ESM bundles (not external) to satisfy `@sentry/node` requirements.
 
 # Railway (Production Hosting)
 
