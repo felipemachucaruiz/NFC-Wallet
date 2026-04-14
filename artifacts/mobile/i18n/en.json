@@ -277,6 +277,7 @@
     "writeRetryHint": "Write failed. Make sure the card is flat against the phone and try again.",
     "retryingWrite": "Trying again...",
     "keepSteadyRetry": "Keep bracelet steady, trying again…",
+    "wrongChipType": "Unauthorized chip for this event. Expected: {{expected}}. Detected: {{detected}}.",
     "allRetriesExhausted": "Unable to write bracelet",
     "allRetriesExhaustedDetail": "The top-up could NOT be written to the wristband chip after 3 attempts. If you skip, the transaction will be queued for server sync — but the chip will remain out of date until the attendee brings the wristband back.",
     "tryAgainWrite": "Try Again",

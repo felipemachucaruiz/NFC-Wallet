@@ -277,6 +277,7 @@
     "writeRetryHint": "No se pudo escribir. Asegúrate de que la tarjeta esté plana contra el teléfono e intenta de nuevo.",
     "retryingWrite": "Intentando de nuevo...",
     "keepSteadyRetry": "Mantén la pulsera firme, intentando de nuevo…",
+    "wrongChipType": "Chip no autorizado para este evento. Tipo esperado: {{expected}}. Detectado: {{detected}}.",
     "allRetriesExhausted": "No se pudo escribir la pulsera",
     "allRetriesExhaustedDetail": "La recarga NO pudo escribirse en el chip de la pulsera después de 3 intentos. Si omites, la transacción se pondrá en cola para sincronizar con el servidor, pero el chip quedará desactualizado hasta que el asistente traiga la pulsera de vuelta.",
     "tryAgainWrite": "Intentar de nuevo",

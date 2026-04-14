@@ -118,6 +118,34 @@ const tagBadgeStyles = StyleSheet.create({
 
 type Step = "form" | "tap_write" | "writing" | "write_failed" | "saving" | "success";
 
+// Maps the event's configured chip type to allowed physical chip types detected
+// during the NFC write phase. Returns true if the detected tag is compatible.
+function isChipCompatible(detectedType: TagType, eventChipType: string): boolean {
+  switch (eventChipType) {
+    case "ntag_21x":
+      // NTAG213/215/216 chips may also be detected as generic MIFARE_ULTRALIGHT
+      return detectedType === "NTAG213" || detectedType === "NTAG215" || detectedType === "NTAG216" || detectedType === "MIFARE_ULTRALIGHT";
+    case "mifare_classic":
+      return detectedType === "MIFARE_CLASSIC";
+    case "mifare_ultralight_c":
+      return detectedType === "MIFARE_ULTRALIGHT_C";
+    case "desfire_ev3":
+      return detectedType === "DESFIRE_EV3";
+    default:
+      return true; // No config or unknown → allow (graceful degradation)
+  }
+}
+
+function chipTypeLabel(eventChipType: string): string {
+  switch (eventChipType) {
+    case "ntag_21x": return "NTAG 21x";
+    case "mifare_classic": return "MIFARE Classic";
+    case "mifare_ultralight_c": return "MIFARE Ultralight C";
+    case "desfire_ev3": return "DESFire EV3";
+    default: return eventChipType;
+  }
+}
+
 export default function TopUpScreen() {
   const { t } = useTranslation();
   const { show: showAlert } = useAlert();
@@ -391,6 +419,21 @@ export default function TopUpScreen() {
             if (payload.uid !== uid) {
               aborted = true;
               showAlert(t("common.error"), t("bank.wrongBracelet"));
+              return null;
+            }
+            // Chip type safeguard: reject if the physical chip type doesn't match
+            // what the event is configured to use. This is a defense-in-depth check —
+            // the initial scan already validates this, but re-checking here prevents
+            // writing to a wrong chip if the bracelet was swapped between scan and write.
+            if (nfcChipType && !isChipCompatible(detectedTagInfo.type, nfcChipType)) {
+              aborted = true;
+              showAlert(
+                t("common.error"),
+                t("bank.wrongChipType", {
+                  expected: chipTypeLabel(nfcChipType),
+                  detected: detectedTagInfo.label,
+                })
+              );
               return null;
             }
             stepRef.current = "writing";
