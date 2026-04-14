@@ -149,12 +149,6 @@ export default function ProfileScreen() {
                   {user?.email ?? ""}
                 </Text>
               </View>
-              <Pressable
-                onPress={startEditing}
-                style={[styles.editBtn, { backgroundColor: C.primaryLight }]}
-              >
-                <Feather name="edit-2" size={16} color={C.primary} />
-              </Pressable>
             </View>
 
             {(user?.phone || user?.dateOfBirth || user?.sex || user?.idDocument) ? (
@@ -187,6 +181,16 @@ export default function ProfileScreen() {
                 ) : null}
               </View>
             ) : null}
+
+            <Pressable
+              onPress={startEditing}
+              style={[styles.editProfileBtn, { backgroundColor: C.primaryLight, borderColor: C.primary }]}
+            >
+              <Feather name="edit-2" size={15} color={C.primary} />
+              <Text style={[styles.editProfileBtnText, { color: C.primary }]}>
+                {t("profile.editProfile") || "Editar perfil"}
+              </Text>
+            </Pressable>
           </>
         ) : (
           <View style={{ gap: 14 }}>
@@ -412,6 +416,17 @@ const styles = StyleSheet.create({
   userName: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   userEmail: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   editBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  editProfileBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginTop: 12,
+  },
+  editProfileBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   extraInfo: { borderTopWidth: 1, marginTop: 14, paddingTop: 14, gap: 8 },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   infoText: { fontSize: 14, fontFamily: "Inter_400Regular" },
