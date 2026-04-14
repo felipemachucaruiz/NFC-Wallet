@@ -40,8 +40,12 @@ export default function Login() {
     await queryClient.invalidateQueries({ queryKey: getGetCurrentAuthUserQueryKey() });
     const authData = await queryClient.fetchQuery(getGetCurrentAuthUserQueryOptions());
     const role = (authData as { user?: { role?: string } } | null)?.user?.role;
-    if (role === "admin" || role === "event_admin") {
-      setLocation(role === "event_admin" ? "/event-dashboard" : "/dashboard");
+    if (role === "admin") {
+      setLocation("/dashboard");
+    } else if (role === "event_admin") {
+      setLocation("/event-dashboard");
+    } else if (role === "ticketing_auditor") {
+      setLocation("/auditor-ticket-sales");
     } else {
       localStorage.removeItem(AUTH_TOKEN_KEY);
       setAuthTokenGetter(null);

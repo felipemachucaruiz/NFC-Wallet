@@ -41,6 +41,7 @@ export const GetCurrentAuthUserResponse = zod.object({
         "warehouse_admin",
         "event_admin",
         "admin",
+        "ticketing_auditor",
       ]),
       merchantId: zod
         .string()
@@ -174,6 +175,7 @@ export const ListUsersResponse = zod.object({
         "warehouse_admin",
         "event_admin",
         "admin",
+        "ticketing_auditor",
       ]),
       eventId: zod.string().nullish(),
       merchantId: zod.string().nullish(),
@@ -204,6 +206,7 @@ export const UpdateUserRoleBody = zod.object({
     "warehouse_admin",
     "event_admin",
     "admin",
+    "ticketing_auditor",
   ]),
 });
 
@@ -223,6 +226,7 @@ export const UpdateUserRoleResponse = zod.object({
     "warehouse_admin",
     "event_admin",
     "admin",
+    "ticketing_auditor",
   ]),
   eventId: zod.string().nullish(),
   merchantId: zod.string().nullish(),
@@ -255,6 +259,7 @@ export const ListMerchantStaffResponse = zod.object({
         "warehouse_admin",
         "event_admin",
         "admin",
+        "ticketing_auditor",
       ]),
       eventId: zod.string().nullish(),
       merchantId: zod.string().nullish(),
@@ -2626,6 +2631,7 @@ export const AssignUserToEventResponse = zod.object({
     "warehouse_admin",
     "event_admin",
     "admin",
+    "ticketing_auditor",
   ]),
   eventId: zod.string().nullish(),
   merchantId: zod.string().nullish(),
@@ -2675,6 +2681,7 @@ export const CreateAccountBody = zod.object({
     "warehouse_admin",
     "event_admin",
     "admin",
+    "ticketing_auditor",
   ]),
   eventId: zod.string().optional(),
   gateZoneId: zod.string().nullish(),

@@ -172,7 +172,7 @@ const StaffLoginBody = z.object({
   password: z.string().min(1),
 });
 
-const STAFF_ROLES = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"] as const;
+const STAFF_ROLES = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin", "ticketing_auditor"] as const;
 
 router.post("/auth/login", async (req: Request, res: Response) => {
   const parsed = StaffLoginBody.safeParse(req.body);
@@ -218,8 +218,23 @@ router.post("/auth/login", async (req: Request, res: Response) => {
     return;
   }
 
-  // If this user has 2FA enabled, issue a short-lived partial session instead
-  if (user.totpEnabled && user.totpSecret) {
+  // ticketing_auditor accounts MUST have a TOTP secret provisioned before they
+  // can log in. The secret is provisioned by an admin via /auditors/:id/setup-totp.
+  // If totpSecret exists but totpEnabled is false, we allow the 2FA challenge so
+  // the auditor can confirm their code (which activates TOTP on success).
+  if (user.role === "ticketing_auditor" && !user.totpSecret) {
+    res.status(403).json({ error: "TOTP_SETUP_REQUIRED: Tu cuenta de auditor requiere configurar autenticación de dos factores (2FA) antes de poder iniciar sesión. Contacta al administrador." });
+    return;
+  }
+
+  // ticketing_auditor accounts always require a TOTP challenge when a secret exists
+  // (including unconfirmed secrets, to support first-time activation).
+  // Other staff roles: only challenge when totpEnabled is fully active.
+  const requiresTotpChallenge =
+    user.role === "ticketing_auditor"
+      ? !!user.totpSecret
+      : user.totpEnabled && !!user.totpSecret;
+  if (requiresTotpChallenge) {
     const partialToken = await createPartialSession(user.id);
     res.json({ requires_2fa: true, partial_token: partialToken });
     return;
@@ -259,7 +274,7 @@ const StaffForgotPasswordBody = z.object({
   email: z.string().email(),
 });
 
-const STAFF_ROLES_FOR_RESET = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"] as const;
+const STAFF_ROLES_FOR_RESET = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin", "ticketing_auditor"] as const;
 
 router.post("/auth/forgot-password", async (req: Request, res: Response) => {
   const parsed = StaffForgotPasswordBody.safeParse(req.body);

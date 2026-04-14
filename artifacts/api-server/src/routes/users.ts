@@ -1,13 +1,15 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { hashPassword } from "../lib/bcryptWorker";
-import { db, usersTable, merchantsTable, accessZonesTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, usersTable, merchantsTable, accessZonesTable, auditorLoginActivityTable, auditorCsvDownloadsTable } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { z } from "zod";
+import * as OTPAuth from "otpauth";
+import QRCode from "qrcode";
 
 const router: IRouter = Router();
 
-const userRoles = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"] as const;
+const userRoles = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin", "ticketing_auditor"] as const;
 const eventAdminAllowedRoles = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin"] as const;
 
 // ── Self-service profile update ──────────────────────────────────────────────
@@ -640,7 +642,7 @@ router.post(
         email: z.string().email().optional(),
         username: z.string().min(3).optional(),
         password: z.string().min(6),
-        role: z.enum(["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin"]),
+        role: z.enum(["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin", "ticketing_auditor"]),
         eventId: z.string().optional(),
         gateZoneId: z.string().nullable().optional(),
         merchantId: z.string().nullable().optional(),
@@ -727,6 +729,120 @@ router.post(
       });
 
     res.status(201).json(newUser);
+  },
+);
+
+/**
+ * GET /auditors/:userId/login-activity
+ * Returns login activity log for a ticketing_auditor account. Admin only.
+ */
+router.get(
+  "/auditors/:userId/login-activity",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const { userId } = req.params as { userId: string };
+    const [target] = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId));
+    if (!target) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (target.role !== "ticketing_auditor") {
+      res.status(400).json({ error: "User is not a ticketing auditor" });
+      return;
+    }
+    const activity = await db
+      .select()
+      .from(auditorLoginActivityTable)
+      .where(eq(auditorLoginActivityTable.userId, userId))
+      .orderBy(desc(auditorLoginActivityTable.loggedInAt))
+      .limit(100);
+    res.json({ activity });
+  },
+);
+
+/**
+ * GET /auditors/:userId/csv-downloads
+ * Returns CSV download history for a ticketing_auditor account. Admin only.
+ */
+router.get(
+  "/auditors/:userId/csv-downloads",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const { userId } = req.params as { userId: string };
+    const [target] = await db.select({ id: usersTable.id, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId));
+    if (!target) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (target.role !== "ticketing_auditor") {
+      res.status(400).json({ error: "User is not a ticketing auditor" });
+      return;
+    }
+    const downloads = await db
+      .select()
+      .from(auditorCsvDownloadsTable)
+      .where(eq(auditorCsvDownloadsTable.userId, userId))
+      .orderBy(desc(auditorCsvDownloadsTable.downloadedAt))
+      .limit(100);
+    res.json({ downloads });
+  },
+);
+
+const TOTP_ISSUER = process.env.TOTP_ISSUER ?? "Tapee";
+
+/**
+ * POST /auditors/:userId/setup-totp
+ * Admin-initiated TOTP setup for a ticketing_auditor account.
+ * Generates a new TOTP secret + QR code and stores the (unconfirmed) secret.
+ * The admin shares the QR code with the auditor so they can scan it in their
+ * authenticator app. The auditor must then log in and confirm the code once
+ * via the normal 2FA enroll+confirm flow.
+ * Admin only.
+ */
+router.post(
+  "/auditors/:userId/setup-totp",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const { userId } = req.params;
+
+    const [target] = await db
+      .select({ id: usersTable.id, role: usersTable.role, email: usersTable.email, totpEnabled: usersTable.totpEnabled })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId as string));
+
+    if (!target) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if (target.role !== "ticketing_auditor") {
+      res.status(400).json({ error: "User is not a ticketing auditor" });
+      return;
+    }
+
+    const secret = new OTPAuth.Secret({ size: 20 });
+    const totp = new OTPAuth.TOTP({
+      issuer: TOTP_ISSUER,
+      label: target.email ?? target.id,
+      algorithm: "SHA1",
+      digits: 6,
+      period: 30,
+      secret,
+    });
+
+    const otpauthUrl = totp.toString();
+    const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
+
+    await db
+      .update(usersTable)
+      .set({ totpSecret: secret.base32, totpEnabled: false, updatedAt: new Date() })
+      .where(eq(usersTable.id, target.id));
+
+    res.json({
+      secret: secret.base32,
+      otpauthUrl,
+      qrDataUrl,
+    });
   },
 );
 

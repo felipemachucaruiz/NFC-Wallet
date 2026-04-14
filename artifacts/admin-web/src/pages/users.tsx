@@ -1,6 +1,6 @@
 import { fmtDate } from "@/lib/date";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   useListUsers,
   useCreateAccount,
@@ -13,6 +13,7 @@ import {
   useListEvents,
   useAssignUserToEvent,
   getListUsersQueryKey,
+  customFetch,
 } from "@workspace/api-client-react";
 import type { UserProfile as User, UserRole } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -25,8 +26,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, MoreHorizontal } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Activity, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+type AuditorLoginEntry = { id: string; userId: string; loggedInAt: string; ipAddress: string | null };
+type AuditorCsvEntry = { id: string; userId: string; downloadedAt: string; filters: Record<string, string> };
+type TotpSetupResult = { secret: string; otpauthUrl: string; qrDataUrl: string };
 
 type UserForm = {
   firstName: string;
@@ -39,7 +44,7 @@ type UserForm = {
 };
 const emptyForm: UserForm = { firstName: "", lastName: "", email: "", username: "", password: "", role: "event_admin", eventId: "" };
 
-const ROLES = ["admin", "event_admin", "cashier", "security"];
+const ROLES = ["admin", "event_admin", "merchant_admin", "merchant_staff", "bank", "gate", "warehouse_admin", "ticketing_auditor"];
 
 function UserStatusBadge({ user, t }: { user: User; t: (key: string) => string }) {
   if (user.isBlocked) return <Badge variant="destructive" className="text-xs">{t("users.statusBlocked")}</Badge>;
@@ -62,11 +67,27 @@ export default function Users() {
   const [resetPwOpen, setResetPwOpen] = useState(false);
   const [assignEventOpen, setAssignEventOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [auditorActivityOpen, setAuditorActivityOpen] = useState(false);
+  const [totpSetupOpen, setTotpSetupOpen] = useState(false);
+  const [totpSetupResult, setTotpSetupResult] = useState<TotpSetupResult | null>(null);
+  const [totpSetupLoading, setTotpSetupLoading] = useState(false);
   const [selected, setSelected] = useState<User | null>(null);
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [newRole, setNewRole] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newEventId, setNewEventId] = useState("");
+
+  const { data: auditorLoginData } = useQuery<{ activity: AuditorLoginEntry[] }>({
+    queryKey: ["auditor-login-activity", selected?.id],
+    queryFn: () => customFetch<{ activity: AuditorLoginEntry[] }>(`/api/auditors/${selected!.id}/login-activity`),
+    enabled: auditorActivityOpen && !!selected && selected.role === "ticketing_auditor",
+  });
+
+  const { data: auditorCsvData } = useQuery<{ downloads: AuditorCsvEntry[] }>({
+    queryKey: ["auditor-csv-downloads", selected?.id],
+    queryFn: () => customFetch<{ downloads: AuditorCsvEntry[] }>(`/api/auditors/${selected!.id}/csv-downloads`),
+    enabled: auditorActivityOpen && !!selected && selected.role === "ticketing_auditor",
+  });
 
   const createAccount = useCreateAccount();
   const updateRole = useUpdateUserRole();
@@ -153,6 +174,31 @@ export default function Users() {
                         }
                         <DropdownMenuItem onClick={() => { setSelected(user); setNewPassword(""); setResetPwOpen(true); }}>{t("users.resetPassword")}</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { setSelected(user); setNewEventId(user.eventId ?? ""); setAssignEventOpen(true); }}>{t("users.assignEvent")}</DropdownMenuItem>
+                        {user.role === "ticketing_auditor" && (
+                          <>
+                            <DropdownMenuItem onClick={() => { setSelected(user); setAuditorActivityOpen(true); }}>
+                              <Activity className="w-4 h-4 mr-2" />
+                              Ver Actividad Auditor
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={async () => {
+                              setSelected(user);
+                              setTotpSetupResult(null);
+                              setTotpSetupLoading(true);
+                              setTotpSetupOpen(true);
+                              try {
+                                const result = await customFetch<TotpSetupResult>(`/api/auditors/${user.id}/setup-totp`, { method: "POST" });
+                                setTotpSetupResult(result);
+                              } catch {
+                                toast({ title: "Error", description: "No se pudo configurar el 2FA.", variant: "destructive" });
+                                setTotpSetupOpen(false);
+                              } finally {
+                                setTotpSetupLoading(false);
+                              }
+                            }}>
+                              Configurar 2FA
+                            </DropdownMenuItem>
+                          </>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => { setSelected(user); setDeleteOpen(true); }}>{t("common.delete")}</DropdownMenuItem>
                       </DropdownMenuContent>
@@ -276,6 +322,106 @@ export default function Users() {
             }} disabled={assignEvent.isPending}>
               {assignEvent.isPending ? t("users.saving") : t("common.save")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auditor Activity Dialog */}
+      <Dialog open={auditorActivityOpen} onOpenChange={setAuditorActivityOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Actividad del Auditor — {selected?.firstName} {selected?.lastName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                <Activity className="w-4 h-4" /> Historial de Inicio de Sesión
+              </h3>
+              <div className="border border-border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha y Hora</TableHead>
+                      <TableHead>Dirección IP</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(auditorLoginData?.activity ?? []).length === 0 ? (
+                      <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-sm">Sin inicios de sesión registrados</TableCell></TableRow>
+                    ) : (auditorLoginData?.activity ?? []).map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="text-sm">{new Date(entry.loggedInAt).toLocaleString("es-CO")}</TableCell>
+                        <TableCell className="text-sm font-mono text-muted-foreground">{entry.ipAddress ?? "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                <Download className="w-4 h-4" /> Historial de Exportaciones CSV
+              </h3>
+              <div className="border border-border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha y Hora</TableHead>
+                      <TableHead>Filtros Aplicados</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(auditorCsvData?.downloads ?? []).length === 0 ? (
+                      <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-sm">Sin exportaciones registradas</TableCell></TableRow>
+                    ) : (auditorCsvData?.downloads ?? []).map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="text-sm">{new Date(entry.downloadedAt).toLocaleString("es-CO")}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground font-mono">{JSON.stringify(entry.filters)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAuditorActivityOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* TOTP Setup Dialog for Auditors */}
+      <Dialog open={totpSetupOpen} onOpenChange={setTotpSetupOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Configurar 2FA — {selected?.firstName} {selected?.lastName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {totpSetupLoading && (
+              <div className="text-center py-6 text-muted-foreground text-sm">Generando código QR...</div>
+            )}
+            {totpSetupResult && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Pida al auditor que escanee este código QR con su aplicación autenticadora (Google Authenticator, Authy, etc.). Después de escanear, el auditor podrá iniciar sesión usando el código de 6 dígitos.
+                </p>
+                <div className="flex justify-center">
+                  <img src={totpSetupResult.qrDataUrl} alt="QR Code 2FA" className="w-48 h-48" />
+                </div>
+                <div className="bg-muted rounded-md p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Clave secreta manual:</p>
+                  <p className="font-mono text-sm break-all">{totpSetupResult.secret}</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Nota: El auditor deberá confirmar el código la primera vez que inicie sesión para activar su 2FA.
+                </p>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTotpSetupOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import * as OTPAuth from "otpauth";
 import QRCode from "qrcode";
-import { db, usersTable, partialSessionsTable } from "@workspace/db";
+import { db, usersTable, partialSessionsTable, auditorLoginActivityTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import {
   createSession,
@@ -18,7 +18,7 @@ const router: IRouter = Router();
 const TOTP_ISSUER = process.env.TOTP_ISSUER ?? "Tapee";
 const PARTIAL_SESSION_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-const TOTP_ELIGIBLE_ROLES = ["admin", "merchant_admin"] as const;
+const TOTP_ELIGIBLE_ROLES = ["admin", "merchant_admin", "ticketing_auditor"] as const;
 type TotpRole = typeof TOTP_ELIGIBLE_ROLES[number];
 
 function isTotpEligible(role: string): role is TotpRole {
@@ -34,7 +34,7 @@ router.post("/auth/2fa/enroll", async (req: Request, res: Response) => {
   }
 
   if (!isTotpEligible(req.user.role)) {
-    res.status(403).json({ error: "2FA is only available for admin and merchant-admin accounts" });
+    res.status(403).json({ error: "2FA is only available for admin, merchant-admin, and ticketing-auditor accounts" });
     return;
   }
 
@@ -90,7 +90,7 @@ router.post("/auth/2fa/confirm", async (req: Request, res: Response) => {
   }
 
   if (!isTotpEligible(req.user.role)) {
-    res.status(403).json({ error: "2FA is only available for admin and merchant-admin accounts" });
+    res.status(403).json({ error: "2FA is only available for admin, merchant-admin, and ticketing-auditor accounts" });
     return;
   }
 
@@ -216,7 +216,7 @@ router.post("/auth/2fa/verify", async (req: Request, res: Response) => {
     .from(usersTable)
     .where(eq(usersTable.id, partialSession.userId));
 
-  if (!user || !user.totpSecret || !user.totpEnabled) {
+  if (!user || !user.totpSecret) {
     res.status(400).json({ error: "User 2FA state is invalid" });
     return;
   }
@@ -239,6 +239,30 @@ router.post("/auth/2fa/verify", async (req: Request, res: Response) => {
   await db
     .delete(partialSessionsTable)
     .where(eq(partialSessionsTable.sid, partial_token));
+
+  // If totpEnabled was false (first login confirmation), activate 2FA now
+  if (!user.totpEnabled) {
+    await db
+      .update(usersTable)
+      .set({ totpEnabled: true, updatedAt: new Date() })
+      .where(eq(usersTable.id, user.id));
+  }
+
+  // Log login activity for ticketing_auditor accounts
+  if (user.role === "ticketing_auditor") {
+    const forwarded = req.headers["x-forwarded-for"];
+    const ipAddress = forwarded
+      ? (Array.isArray(forwarded) ? forwarded[0] : forwarded.split(",")[0])?.trim() ?? null
+      : (req.socket?.remoteAddress ?? null);
+    try {
+      await db.insert(auditorLoginActivityTable).values({
+        userId: user.id,
+        ipAddress,
+      });
+    } catch {
+      // Non-fatal
+    }
+  }
 
   // Issue full session
   const sessionData = {

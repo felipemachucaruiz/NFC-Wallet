@@ -34,6 +34,7 @@ export const UserRole = {
   warehouse_admin: "warehouse_admin",
   event_admin: "event_admin",
   admin: "admin",
+  ticketing_auditor: "ticketing_auditor",
 } as const;
 
 export interface AuthUser {

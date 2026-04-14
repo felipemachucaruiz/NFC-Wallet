@@ -10,6 +10,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "event_admin",
   "gate",
   "admin",
+  "ticketing_auditor",
 ]);
 
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
@@ -92,7 +93,37 @@ export const partialSessionsTable = pgTable(
   },
 );
 
+export const auditorLoginActivityTable = pgTable(
+  "auditor_login_activity",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    loggedInAt: timestamp("logged_in_at", { withTimezone: true }).notNull().defaultNow(),
+    ipAddress: varchar("ip_address", { length: 45 }),
+  },
+  (table) => [
+    index("idx_auditor_login_activity_user_id").on(table.userId),
+    index("idx_auditor_login_activity_logged_in_at").on(table.loggedInAt),
+  ],
+);
+
+export const auditorCsvDownloadsTable = pgTable(
+  "auditor_csv_downloads",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+    downloadedAt: timestamp("downloaded_at", { withTimezone: true }).notNull().defaultNow(),
+    filters: jsonb("filters").notNull().default(sql`'{}'::jsonb`),
+  },
+  (table) => [
+    index("idx_auditor_csv_downloads_user_id").on(table.userId),
+    index("idx_auditor_csv_downloads_downloaded_at").on(table.downloadedAt),
+  ],
+);
+
 export type UpsertUser = typeof usersTable.$inferInsert;
 export type User = typeof usersTable.$inferSelect;
 export type PasswordResetToken = typeof passwordResetTokensTable.$inferSelect;
 export type EmailVerificationToken = typeof emailVerificationTokensTable.$inferSelect;
+export type AuditorLoginActivity = typeof auditorLoginActivityTable.$inferSelect;
+export type AuditorCsvDownload = typeof auditorCsvDownloadsTable.$inferSelect;

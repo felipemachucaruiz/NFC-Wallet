@@ -92,6 +92,7 @@ import EventOrders from "@/pages/event-orders";
 import EventCheckins from "@/pages/event-checkins";
 import EventGuestLists from "@/pages/event-guest-lists";
 import WhatsAppTemplates from "@/pages/whatsapp-templates";
+import AuditorTicketSales from "@/pages/auditor-ticket-sales";
 
 const queryClient = new QueryClient();
 
@@ -107,7 +108,9 @@ function ProtectedRoute({ component: Component, allowedRoles }: { component: Rea
   }
 
   if (!allowedRoles.includes(user.user.role)) {
-    return <Redirect to={user.user.role === "admin" ? "/dashboard" : "/event-dashboard"} />;
+    if (user.user.role === "admin") return <Redirect to="/dashboard" />;
+    if (user.user.role === "ticketing_auditor") return <Redirect to="/auditor-ticket-sales" />;
+    return <Redirect to="/event-dashboard" />;
   }
 
   return (
@@ -165,7 +168,9 @@ function Router() {
       <Route path="/reset-password" component={ResetPassword} />
       
       <Route path="/">
-        {isLoading ? null : user?.user ? <Redirect to={user.user.role === "admin" ? "/dashboard" : "/event-dashboard"} /> : <Redirect to="/login" />}
+        {isLoading ? null : user?.user
+          ? (user.user.role === "admin" ? <Redirect to="/dashboard" /> : user.user.role === "ticketing_auditor" ? <Redirect to="/auditor-ticket-sales" /> : <Redirect to="/event-dashboard" />)
+          : <Redirect to="/login" />}
       </Route>
 
       <Route path="/dashboard">
@@ -279,6 +284,11 @@ function Router() {
       </Route>
       <Route path="/event-guest-lists">
         <ModuleGatedRoute component={EventGuestLists} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
+      </Route>
+
+      {/* Auditor Routes */}
+      <Route path="/auditor-ticket-sales">
+        <ProtectedRoute component={AuditorTicketSales} allowedRoles={["admin", "ticketing_auditor"]} />
       </Route>
 
       <Route component={NotFound} />
