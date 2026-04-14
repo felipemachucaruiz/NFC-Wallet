@@ -10,11 +10,35 @@ import { authMiddleware } from "./middlewares/authMiddleware";
 import { ipAllowlistMiddleware } from "./middlewares/ipAllowlist";
 import { authLimiter } from "./middlewares/rateLimiter";
 
+const SENSITIVE_KEYS = /^(password|token|authorization|cookie|secret|card.?number|cvv)$/i;
+
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment: process.env.NODE_ENV ?? "development",
   tracesSampleRate: 0.1,
+  profilesSampleRate: 0.1,
+  attachStacktrace: true,
   enabled: process.env.NODE_ENV === "production" && !!process.env.SENTRY_DSN,
+  beforeSend(event, hint) {
+    if (event.request?.data && typeof event.request.data === "object") {
+      const data = event.request.data as Record<string, unknown>;
+      for (const key of Object.keys(data)) {
+        if (SENSITIVE_KEYS.test(key)) data[key] = "[Filtered]";
+      }
+    }
+    if (event.request?.headers) {
+      for (const key of Object.keys(event.request.headers)) {
+        if (SENSITIVE_KEYS.test(key)) event.request.headers[key] = "[Filtered]";
+      }
+    }
+    if (hint?.data && typeof hint.data === "object") {
+      const hintData = hint.data as Record<string, unknown>;
+      for (const key of Object.keys(hintData)) {
+        if (SENSITIVE_KEYS.test(key)) hintData[key] = "[Filtered]";
+      }
+    }
+    return event;
+  },
 });
 
 const app: Express = express();

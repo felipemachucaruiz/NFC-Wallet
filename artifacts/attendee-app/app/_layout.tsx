@@ -24,12 +24,44 @@ import { I18nextProvider } from "react-i18next";
 import i18n from "@/i18n";
 import * as Sentry from "@sentry/react-native";
 
+const SENSITIVE_KEYS = /password|token|authorization|card.?number|cvv|secret/i;
+
 Sentry.init({
   dsn: "https://c5d3633ad0e750cef208c52abbe581a2@o4511219507265536.ingest.us.sentry.io/4511219532627968",
   environment: __DEV__ ? "development" : "production",
   enabled: !__DEV__,
   tracesSampleRate: 0.2,
+  profilesSampleRate: 0.2,
   attachStacktrace: true,
+  beforeSend(event, hint) {
+    if (event.request?.data && typeof event.request.data === "object") {
+      const data = event.request.data as Record<string, unknown>;
+      for (const key of Object.keys(data)) {
+        if (SENSITIVE_KEYS.test(key)) data[key] = "[Filtered]";
+      }
+    }
+    if (event.request?.headers) {
+      for (const key of Object.keys(event.request.headers)) {
+        if (SENSITIVE_KEYS.test(key)) event.request.headers[key] = "[Filtered]";
+      }
+    }
+    if (Array.isArray(event.breadcrumbs)) {
+      for (const crumb of event.breadcrumbs as Sentry.Breadcrumb[]) {
+        if (crumb.data && typeof crumb.data === "object") {
+          for (const key of Object.keys(crumb.data)) {
+            if (SENSITIVE_KEYS.test(key)) crumb.data[key] = "[Filtered]";
+          }
+        }
+      }
+    }
+    if (hint?.data && typeof hint.data === "object") {
+      const hintData = hint.data as Record<string, unknown>;
+      for (const key of Object.keys(hintData)) {
+        if (SENSITIVE_KEYS.test(key)) hintData[key] = "[Filtered]";
+      }
+    }
+    return event;
+  },
 });
 
 // Safe import: if react-native-keyboard-controller is not in the native binary
