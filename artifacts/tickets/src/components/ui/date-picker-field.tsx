@@ -101,7 +101,7 @@ export function DatePickerField({
         <button
           type="button"
           className={cn(
-            "flex h-9 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-1 text-left text-sm shadow-xs transition-colors",
+            "flex h-9 w-full items-center gap-2 rounded-md border border-input bg-transparent px-3 py-1 text-left text-sm shadow-xs transition-colors",
             "hover:border-primary/50 focus:outline-none focus:border-ring focus:ring-ring/50 focus:ring-[3px]",
             !displayValue && "text-muted-foreground",
             hasError && "border-destructive",
