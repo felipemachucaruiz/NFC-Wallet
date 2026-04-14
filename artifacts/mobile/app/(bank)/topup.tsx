@@ -165,6 +165,12 @@ export default function TopUpScreen() {
   const writingRef = useRef(false);
   const cancelledRef = useRef(false);
   const writeRetryRef = useRef(0);
+  // txActiveRef: true from the moment the user confirms a top-up until the transaction
+  // reaches a terminal state (success, write_failed, or explicit cancel/skip).
+  // Used to distinguish "Android NFC briefly stole app focus mid-write" from
+  // "user navigated away from the screen". When true, useFocusEffect must NOT reset
+  // any state or cancel the NFC session.
+  const txActiveRef = useRef(false);
 
   const [attendeeName, setAttendeeName] = useState(params.attendeeName ?? "");
   const [phoneCountry, setPhoneCountry] = useState<CountryCode>(() => parsePhoneParam(params.phone).country);
@@ -190,6 +196,25 @@ export default function TopUpScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (txActiveRef.current) {
+        // A top-up transaction is in progress. Android NFC temporarily steals
+        // app focus when a tag is detected, which re-fires useFocusEffect.
+        // We must NOT reset any state or cancel the NFC session here — doing so
+        // would reset the retry counter to 0 (infinite retries) and kill the
+        // in-flight NFC write. Just clear the cancelled flag so the retry loop
+        // can continue uninterrupted after focus returns.
+        cancelledRef.current = false;
+        return () => {
+          // Keep cancelledRef true so any pending await can check it, but do NOT
+          // call cancelNfc() — the NFC write must be allowed to finish.
+          cancelledRef.current = true;
+          writingRef.current = false;
+          submittingRef.current = false;
+        };
+      }
+
+      // Normal navigation to this screen — reset everything.
+      txActiveRef.current = false;
       setAmountText("");
       setPaymentMethod("cash");
       setStep("form");
@@ -276,6 +301,7 @@ export default function TopUpScreen() {
           await updateCachedHmacSecret(freshSecret);
           // Key retrieved — continue with the confirmed amount
           if (isNfcSupported()) {
+            txActiveRef.current = true; // Transaction begins — guard useFocusEffect resets
             setStep("tap_write");
           } else {
             showAlert(t("common.error"), t("bank.nfcRequired"));
@@ -292,6 +318,7 @@ export default function TopUpScreen() {
     }
 
     if (isNfcSupported()) {
+      txActiveRef.current = true; // Transaction begins — guard useFocusEffect resets
       setStep("tap_write");
     } else {
       // NFC unavailable: cannot write bracelet → block the top-up
@@ -373,6 +400,7 @@ export default function TopUpScreen() {
           hmac: writtenHmac,
         });
         submittingRef.current = false;
+        txActiveRef.current = false; // Transaction complete
         void syncToServer(true);
         setStep("success");
         return true;
@@ -404,6 +432,7 @@ export default function TopUpScreen() {
               hmac: writtenHmac,
             });
             submittingRef.current = false;
+            txActiveRef.current = false; // Transaction complete (with warning)
             void syncToServer(true);
             setWriteWarning(true);
             setStep("success");
@@ -437,6 +466,7 @@ export default function TopUpScreen() {
         timestamp: new Date().toISOString(),
       });
       writingRef.current = false;
+      txActiveRef.current = false; // Transaction ended (failed)
       setIsRetrying(false);
       setWriteRetryCount(0);
       writeRetryRef.current = 0;
@@ -459,6 +489,7 @@ export default function TopUpScreen() {
   const handleConfirmSkip = async () => {
     setShowSkipConfirm(false);
     cancelledRef.current = true;
+    txActiveRef.current = false; // User skipped write — transaction done
     await cancelNfc().catch(() => {});
     writingRef.current = false;
     submittingRef.current = false;
@@ -488,6 +519,7 @@ export default function TopUpScreen() {
 
   const handleRetryFromFailed = async () => {
     cancelledRef.current = false;
+    txActiveRef.current = true; // Restarting transaction — re-arm focus guard
     writeRetryRef.current = 0;
     setWriteRetryCount(0);
     setWriteError(null);
@@ -496,6 +528,7 @@ export default function TopUpScreen() {
 
   const handleCancelWriting = async () => {
     cancelledRef.current = true;
+    txActiveRef.current = false; // User explicitly cancelled — transaction done
     await cancelNfc().catch(() => {});
     writingRef.current = false;
     submittingRef.current = false;
