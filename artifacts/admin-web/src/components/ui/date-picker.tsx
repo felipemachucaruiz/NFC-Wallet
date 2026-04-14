@@ -101,7 +101,7 @@ export function DatePicker({
           variant="outline"
           data-testid={testId}
           className={cn(
-            "w-full justify-start text-left font-normal h-9",
+            "w-full justify-start text-left font-normal h-9 bg-transparent",
             !value && "text-muted-foreground",
             className
           )}
