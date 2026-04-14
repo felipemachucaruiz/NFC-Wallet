@@ -119,6 +119,7 @@ export const ticketOrdersTable = pgTable("ticket_orders", {
   paymentMethod: varchar("payment_method", { length: 50 }),
   wompiTransactionId: varchar("wompi_transaction_id"),
   wompiReference: varchar("wompi_reference"),
+  attendeesJson: jsonb("attendees_json"),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

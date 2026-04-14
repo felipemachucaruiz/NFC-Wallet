@@ -336,6 +336,7 @@ router.post(
           ticketCount: attendees.length,
           paymentStatus: "pending",
           paymentMethod,
+          attendeesJson: attendees as unknown as Record<string, unknown>[],
           expiresAt: new Date(Date.now() + 30 * 60 * 1000),
         })
         .returning();
@@ -559,48 +560,66 @@ router.post(
       return;
     }
 
-    await db
-      .update(ticketOrdersTable)
-      .set({ wompiTransactionId, wompiReference: reference, updatedAt: new Date() })
-      .where(eq(ticketOrdersTable.id, order.id));
-
-    await db
-      .insert(wompiPaymentIntentsTable)
-      .values({
-        amount: totalAmount,
-        paymentMethod,
-        wompiTransactionId,
-        wompiReference: reference,
-        status: "pending",
-        performedByUserId: buyerUserId,
-        ticketOrderId: order.id,
-        purposeType: "ticket",
-      });
-
-    for (const attendee of attendees) {
-      const normalizedEmail = attendee.email.toLowerCase().trim();
-      const { userId: attendeeUserId } = await findOrCreateAttendeeAccount(
-        normalizedEmail,
-        attendee.name,
-        attendee.phone,
-      );
+    try {
+      await db
+        .update(ticketOrdersTable)
+        .set({ wompiTransactionId, wompiReference: reference, updatedAt: new Date() })
+        .where(eq(ticketOrdersTable.id, order.id));
 
       await db
-        .insert(ticketsTable)
+        .insert(wompiPaymentIntentsTable)
         .values({
-          orderId: order.id,
-          ticketTypeId: attendee.ticketTypeId,
-          eventId,
-          unitId: unitSelMap.get(attendee.ticketTypeId) ?? null,
-          attendeeName: attendee.name,
-          attendeeEmail: normalizedEmail,
-          attendeePhone: attendee.phone ?? null,
-          attendeeDateOfBirth: attendee.dateOfBirth ?? null,
-          attendeeSex: attendee.sex ?? null,
-          attendeeIdDocument: attendee.idDocument ?? null,
-          attendeeUserId: attendeeUserId,
-          status: "valid",
+          amount: totalAmount,
+          paymentMethod,
+          wompiTransactionId,
+          wompiReference: reference,
+          status: "pending",
+          performedByUserId: buyerUserId,
+          ticketOrderId: order.id,
+          purposeType: "ticket",
         });
+
+      for (const attendee of attendees) {
+        const normalizedEmail = attendee.email.toLowerCase().trim();
+        const { userId: attendeeUserId } = await findOrCreateAttendeeAccount(
+          normalizedEmail,
+          attendee.name,
+          attendee.phone,
+        );
+
+        await db
+          .insert(ticketsTable)
+          .values({
+            orderId: order.id,
+            ticketTypeId: attendee.ticketTypeId,
+            eventId,
+            unitId: unitSelMap.get(attendee.ticketTypeId) ?? null,
+            attendeeName: attendee.name,
+            attendeeEmail: normalizedEmail,
+            attendeePhone: attendee.phone ?? null,
+            attendeeDateOfBirth: attendee.dateOfBirth ?? null,
+            attendeeSex: attendee.sex ?? null,
+            attendeeIdDocument: attendee.idDocument ?? null,
+            attendeeUserId: attendeeUserId,
+            status: "valid",
+          });
+      }
+    } catch (postWompiErr) {
+      logger.error(
+        { postWompiErr, orderId: order.id, wompiTransactionId, eventId },
+        "Post-Wompi DB operation failed — payment was captured by Wompi but order records are incomplete. Manual recovery required.",
+      );
+      res.status(201).json({
+        orderId: order.id,
+        totalAmount,
+        ticketCount: attendees.length,
+        paymentMethod,
+        wompiTransactionId,
+        redirectUrl: redirectUrl ?? null,
+        status: "pending",
+        warning: "Tu pago fue procesado pero hubo un error al confirmar tu orden. Por favor revisa el estado de tu orden.",
+      });
+      return;
     }
 
     res.status(201).json({
@@ -1385,6 +1404,49 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
   const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, order.eventId));
 
   const existingTickets = await db.select().from(ticketsTable).where(eq(ticketsTable.orderId, orderId));
+
+  if (existingTickets.length === 0 && order.attendeesJson) {
+    try {
+      const storedAttendees = order.attendeesJson as Array<{
+        name: string;
+        email: string;
+        phone?: string;
+        dateOfBirth?: string;
+        sex?: string;
+        idDocument?: string;
+        ticketTypeId: string;
+      }>;
+      for (const attendee of storedAttendees) {
+        const normalizedEmail = attendee.email.toLowerCase().trim();
+        const { userId: attendeeUserId } = await findOrCreateAttendeeAccount(
+          normalizedEmail,
+          attendee.name,
+          attendee.phone,
+        );
+        const [ticket] = await db
+          .insert(ticketsTable)
+          .values({
+            orderId: order.id,
+            ticketTypeId: attendee.ticketTypeId,
+            eventId: order.eventId,
+            unitId: null,
+            attendeeName: attendee.name,
+            attendeeEmail: normalizedEmail,
+            attendeePhone: attendee.phone ?? null,
+            attendeeDateOfBirth: attendee.dateOfBirth ?? null,
+            attendeeSex: attendee.sex ?? null,
+            attendeeIdDocument: attendee.idDocument ?? null,
+            attendeeUserId: attendeeUserId,
+            status: "valid",
+          })
+          .returning();
+        existingTickets.push(ticket);
+      }
+      logger.info({ orderId, ticketCount: existingTickets.length }, "Recovered tickets from attendeesJson after partial checkout failure");
+    } catch (recoveryErr) {
+      logger.error({ recoveryErr, orderId }, "Failed to recover tickets from attendeesJson");
+    }
+  }
 
   const whatsAppPhones = new Map<string, { attendeeName: string; ticketCount: number }>();
 

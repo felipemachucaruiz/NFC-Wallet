@@ -512,6 +512,19 @@ router.post(
           .where(eq(wompiPaymentIntentsTable.wompiTransactionId, txData.id));
 
         if (!intent) {
+          const [orphanOrder] = await db
+            .select()
+            .from(ticketOrdersTable)
+            .where(
+              and(
+                eq(ticketOrdersTable.wompiTransactionId, txData.id),
+                eq(ticketOrdersTable.paymentStatus, "pending"),
+              ),
+            );
+          if (orphanOrder) {
+            console.info({ orderId: orphanOrder.id, wompiTransactionId: txData.id }, "Recovering orphan ticket order from Wompi webhook — no payment intent found");
+            await processTicketOrderPayment(orphanOrder.id, txData.id);
+          }
           res.json({ success: true });
           return;
         }
