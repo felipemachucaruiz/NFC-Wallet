@@ -192,7 +192,7 @@ const syncTopUpSchema = z.object({
   newBalance: z.number().int().min(0),
   newCounter: z.number().int().min(1),
   offlineCreatedAt: z.string().optional(),
-  hmac: z.string().optional(),
+  hmac: z.string().min(1),
 });
 
 router.post(
@@ -210,7 +210,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { id, nfcUid, amount, paymentMethod, newBalance, newCounter, offlineCreatedAt } = parsed.data;
+    const { id, nfcUid, amount, paymentMethod, newBalance, newCounter, offlineCreatedAt, hmac: clientHmac } = parsed.data;
 
     // Idempotency: check if already processed (use id as idempotency key)
     const existing = await db
@@ -284,26 +284,17 @@ router.post(
       return;
     }
 
-    // Server-side HMAC verification for synced top-ups
+    // Server-side HMAC verification for synced top-ups — enforced unconditionally
     // The client wrote a new HMAC to the bracelet offline; we verify it matches what we'd have computed
     const effectiveSyncEventId = bracelet.eventId ?? syncBankEventId;
     try {
-      const { candidateKeys, useKdf } = await resolveHmacKey(effectiveSyncEventId);
-      const clientHmac = parsed.data.hmac;
-
-      if (useKdf && !clientHmac) {
-        res.status(400).json({ error: "HMAC_REQUIRED: Bracelet signature required for this event" });
+      const { candidateKeys } = await resolveHmacKey(effectiveSyncEventId);
+      // Verify against all candidate keys: derived key first, then pre-KDF legacy keys,
+      // so bracelets written before KDF was enabled continue to sync successfully
+      const { valid } = verifyBraceletHmac(newBalance, newCounter, clientHmac, candidateKeys, nfcUid);
+      if (!valid) {
+        res.status(400).json({ error: "HMAC_UID_MISMATCH: Top-up signature invalid — possible clone or tamper detected" });
         return;
-      }
-
-      if (clientHmac && candidateKeys.length > 0) {
-        // Verify against all candidate keys: derived key first, then pre-KDF legacy keys,
-        // so bracelets written before KDF was enabled continue to sync successfully
-        const { valid } = verifyBraceletHmac(newBalance, newCounter, clientHmac, candidateKeys, nfcUid);
-        if (!valid) {
-          res.status(400).json({ error: "HMAC_UID_MISMATCH: Top-up signature invalid — possible clone or tamper detected" });
-          return;
-        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "HMAC configuration error";

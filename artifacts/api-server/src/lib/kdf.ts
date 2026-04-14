@@ -34,6 +34,17 @@ export function computeBraceletHmac(
  *         { valid: true, wasLegacy: true }  for legacy match (old format, no UID),
  *         { valid: false }                   on failure against all candidate keys.
  */
+function timingSafeHmacEqual(a: string, b: string): boolean {
+  try {
+    const bufA = Buffer.from(a, "hex");
+    const bufB = Buffer.from(b, "hex");
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+  } catch {
+    return false;
+  }
+}
+
 export function verifyBraceletHmac(
   balance: number,
   counter: number,
@@ -46,10 +57,10 @@ export function verifyBraceletHmac(
   for (const key of keys) {
     if (uid) {
       const kdfSig = computeBraceletHmac(balance, counter, key, uid);
-      if (kdfSig === hmac) return { valid: true, wasLegacy: false };
+      if (timingSafeHmacEqual(kdfSig, hmac)) return { valid: true, wasLegacy: false };
     }
     const legacySig = computeBraceletHmac(balance, counter, key);
-    if (legacySig === hmac) return { valid: true, wasLegacy: true };
+    if (timingSafeHmacEqual(legacySig, hmac)) return { valid: true, wasLegacy: true };
   }
 
   return { valid: false, wasLegacy: false };

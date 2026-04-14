@@ -241,7 +241,17 @@ router.post(
 
     for (const [typeId, qty] of quantityByType) {
       const tt = ticketTypeMap.get(typeId)!;
-      if (!tt.isNumberedUnits) {
+      if (tt.isNumberedUnits) {
+        // Numbered-unit types represent a single purchasable unit (e.g. a table).
+        // Attendee count must equal ticketsPerUnit exactly so pricing is unambiguous.
+        const expectedQty = Number(tt.ticketsPerUnit) || 1;
+        if (qty !== expectedQty) {
+          res.status(400).json({
+            error: `${tt.name} requires exactly ${expectedQty} attendee(s) per unit`,
+          });
+          return;
+        }
+      } else {
         if (tt.quantity - tt.soldCount < qty) {
           res.status(409).json({ error: `Not enough tickets available for ${tt.name}. Available: ${tt.quantity - tt.soldCount}` });
           return;
@@ -250,13 +260,18 @@ router.post(
     }
 
     let totalAmount = 0;
-    for (const a of attendees) {
-      const tt = ticketTypeMap.get(a.ticketTypeId)!;
-      if (tt.isNumberedUnits) {
-        totalAmount += Number(tt.price) / (Number(tt.ticketsPerUnit) || 1);
-      } else {
-        totalAmount += Number(tt.price);
-      }
+    for (const [typeId, qty] of quantityByType) {
+      const tt = ticketTypeMap.get(typeId)!;
+      // Subtotal per type: numbered units have a single per-unit price; non-numbered multiply by quantity
+      const subtotal = tt.isNumberedUnits ? Number(tt.price) : Number(tt.price) * qty;
+      const serviceFee = Number(tt.serviceFee ?? 0);
+      // Mirror storefront (TicketSelector.tsx): percentage rounds on aggregate subtotal;
+      // fixed fee applies once per unit for numbered types, once per ticket for non-numbered
+      const feeAmount =
+        tt.serviceFeeType === "percentage"
+          ? Math.round(subtotal * serviceFee / 100)
+          : serviceFee * (tt.isNumberedUnits ? 1 : qty);
+      totalAmount += subtotal + feeAmount;
     }
 
     if (paymentMethod === "free" && totalAmount !== 0) {
