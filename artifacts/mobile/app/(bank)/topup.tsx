@@ -171,6 +171,12 @@ export default function TopUpScreen() {
   // "user navigated away from the screen". When true, useFocusEffect must NOT reset
   // any state or cancel the NFC session.
   const txActiveRef = useRef(false);
+  // stepRef: mirrors the `step` state synchronously (updated before the React
+  // setState call). Used in useFocusEffect to guard against a race condition where
+  // the NFC subsystem returns focus AFTER txActiveRef is cleared but BEFORE React
+  // re-renders the success/write_failed screen — which would cause useFocusEffect
+  // to reset the form, overriding the success state update.
+  const stepRef = useRef<Step>("form");
 
   const [attendeeName, setAttendeeName] = useState(params.attendeeName ?? "");
   const [phoneCountry, setPhoneCountry] = useState<CountryCode>(() => parsePhoneParam(params.phone).country);
@@ -212,7 +218,19 @@ export default function TopUpScreen() {
         };
       }
 
+      // Guard: stepRef is "success" or "write_failed" means the write just reached
+      // a terminal state. txActiveRef was cleared synchronously before this
+      // useFocusEffect fired, but the React setStep("success") update hasn't
+      // rendered yet. Skip the form reset so the success/error screen can render.
+      // The cleanup resets stepRef so a genuine re-navigation later shows the form.
+      if (stepRef.current === "success" || stepRef.current === "write_failed") {
+        return () => {
+          stepRef.current = "form";
+        };
+      }
+
       // Normal navigation to this screen — reset everything.
+      stepRef.current = "form";
       txActiveRef.current = false;
       setAmountText("");
       setPaymentMethod("cash");
@@ -265,6 +283,7 @@ export default function TopUpScreen() {
       return;
     }
 
+    stepRef.current = "saving";
     setStep("saving");
     try {
       const contactUpdates: { attendeeName?: string; phone?: string; email?: string } = {};
@@ -276,6 +295,7 @@ export default function TopUpScreen() {
       }
     } catch {
     }
+    stepRef.current = "success";
     setStep("success");
   };
 
@@ -301,6 +321,7 @@ export default function TopUpScreen() {
           // Key retrieved — continue with the confirmed amount
           if (isNfcSupported()) {
             txActiveRef.current = true; // Transaction begins — guard useFocusEffect resets
+            stepRef.current = "tap_write";
             setStep("tap_write");
           } else {
             showAlert(t("common.error"), t("bank.nfcRequired"));
@@ -318,6 +339,7 @@ export default function TopUpScreen() {
 
     if (isNfcSupported()) {
       txActiveRef.current = true; // Transaction begins — guard useFocusEffect resets
+      stepRef.current = "tap_write";
       setStep("tap_write");
     } else {
       // NFC unavailable: cannot write bracelet → block the top-up
@@ -333,6 +355,7 @@ export default function TopUpScreen() {
     if (writingRef.current) return;
     writingRef.current = true;
     setWriteError(null);
+    stepRef.current = "writing";
     setStep("writing");
     setIsRetrying(false);
 
@@ -370,6 +393,7 @@ export default function TopUpScreen() {
               showAlert(t("common.error"), t("bank.wrongBracelet"));
               return null;
             }
+            stepRef.current = "writing";
             setStep("writing");
             writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
             // Mark write as started BEFORE returning the new payload to the writer.
@@ -399,6 +423,9 @@ export default function TopUpScreen() {
           hmac: writtenHmac,
         });
         submittingRef.current = false;
+        // Set stepRef BEFORE clearing txActiveRef so that if useFocusEffect fires
+        // between txActiveRef=false and the React re-render, the guard catches it.
+        stepRef.current = "success";
         txActiveRef.current = false; // Transaction complete
         void syncToServer(true);
         setStep("success");
@@ -431,6 +458,9 @@ export default function TopUpScreen() {
               hmac: writtenHmac,
             });
             submittingRef.current = false;
+            // Set stepRef BEFORE clearing txActiveRef — same race-condition guard
+            // as the normal success path (see comment above).
+            stepRef.current = "success";
             txActiveRef.current = false; // Transaction complete (with warning)
             void syncToServer(true);
             setWriteWarning(true);
@@ -465,6 +495,8 @@ export default function TopUpScreen() {
         timestamp: new Date().toISOString(),
       });
       writingRef.current = false;
+      // Set stepRef BEFORE clearing txActiveRef — same race-condition guard.
+      stepRef.current = "write_failed";
       txActiveRef.current = false; // Transaction ended (failed)
       setIsRetrying(false);
       setWriteRetryCount(0);
@@ -512,6 +544,7 @@ export default function TopUpScreen() {
       void syncNow().catch(() => {});
     } catch {
     }
+    stepRef.current = "form";
     setStep("form");
     showAlert(t("common.error"), t("bank.nfcWriteWarning"));
   };
@@ -522,6 +555,7 @@ export default function TopUpScreen() {
     writeRetryRef.current = 0;
     setWriteRetryCount(0);
     setWriteError(null);
+    stepRef.current = "tap_write";
     setStep("tap_write");
   };
 
@@ -531,6 +565,7 @@ export default function TopUpScreen() {
     await cancelNfc().catch(() => {});
     writingRef.current = false;
     submittingRef.current = false;
+    stepRef.current = "form";
     setStep("form");
   };
 
