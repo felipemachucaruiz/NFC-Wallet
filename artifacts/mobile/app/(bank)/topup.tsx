@@ -205,11 +205,10 @@ export default function TopUpScreen() {
         // can continue uninterrupted after focus returns.
         cancelledRef.current = false;
         return () => {
-          // Keep cancelledRef true so any pending await can check it, but do NOT
-          // call cancelNfc() — the NFC write must be allowed to finish.
+          // Signal that focus was lost, but do NOT call cancelNfc() — the NFC
+          // write must be allowed to finish. Also do NOT reset writingRef so
+          // the handleStartWrite guard keeps the loop from restarting.
           cancelledRef.current = true;
-          writingRef.current = false;
-          submittingRef.current = false;
         };
       }
 
