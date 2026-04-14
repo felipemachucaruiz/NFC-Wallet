@@ -138,6 +138,144 @@ function computeTransactionMac(
   return mac.slice(0, 16);
 }
 
+// ---------------------------------------------------------------------------
+// AES-128 CBC helpers for DESFire EV3 mutual authentication
+// ---------------------------------------------------------------------------
+
+function uint8ArrayToWordArray(u8: Uint8Array): CryptoJS.lib.WordArray {
+  const words: number[] = [];
+  for (let i = 0; i < u8.length; i += 4) {
+    words.push(
+      ((((u8[i] ?? 0) << 24) | ((u8[i + 1] ?? 0) << 16) | ((u8[i + 2] ?? 0) << 8) | (u8[i + 3] ?? 0)) >>> 0)
+    );
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return CryptoJS.lib.WordArray.create(words as any, u8.length);
+}
+
+function wordArrayToUint8Array(wa: CryptoJS.lib.WordArray): Uint8Array {
+  const bytes = new Uint8Array(wa.sigBytes);
+  for (let i = 0; i < wa.sigBytes; i++) {
+    const word = wa.words[Math.floor(i / 4)] ?? 0;
+    bytes[i] = (word >>> (24 - (i % 4) * 8)) & 0xff;
+  }
+  return bytes;
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  return new Uint8Array((hex.match(/.{1,2}/g) ?? []).map((b) => parseInt(b, 16)));
+}
+
+function aesEncryptCBC(data: Uint8Array, key: Uint8Array, iv: Uint8Array): Uint8Array {
+  const encrypted = CryptoJS.AES.encrypt(uint8ArrayToWordArray(data), uint8ArrayToWordArray(key), {
+    iv: uint8ArrayToWordArray(iv),
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.NoPadding,
+  });
+  return wordArrayToUint8Array(encrypted.ciphertext);
+}
+
+function aesDecryptCBC(data: Uint8Array, key: Uint8Array, iv: Uint8Array): Uint8Array {
+  const decrypted = CryptoJS.AES.decrypt(
+    CryptoJS.lib.CipherParams.create({ ciphertext: uint8ArrayToWordArray(data) }),
+    uint8ArrayToWordArray(key),
+    {
+      iv: uint8ArrayToWordArray(iv),
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.NoPadding,
+    }
+  );
+  return wordArrayToUint8Array(decrypted);
+}
+
+/**
+ * DESFire EV3 AES-128 mutual authentication (ISO-wrapped native mode).
+ *
+ * Protocol (NXP AN10922 / MF3ICD40 docs):
+ *   1. CMD 0xAA keyNo  → chip returns 91AF + ekRndB (16 bytes, AES encrypted, IV=0)
+ *   2. Decrypt ekRndB → RndB, rotate left 1 byte → RndB'
+ *   3. Generate RndA (16 random bytes)
+ *   4. Encrypt [RndA | RndB'] with AES-CBC (IV = ekRndB) → 32 bytes
+ *   5. CMD 0xAF [32 bytes] → chip returns 9100 + ekRndA' (16 bytes)
+ *   6. Decrypt ekRndA' (IV = last 16 bytes of step-4 ciphertext) → RndA'
+ *   7. Verify RndA' == rotate_left(RndA)
+ *
+ * After success the chip grants the access rights of keyNo for this session.
+ * This function works for CommMode.PLAIN operations (no session-key MAC needed).
+ */
+async function authenticateDesfireAes(
+  isoDepHandler: IsoDepHandler,
+  keyHex: string,
+  keyNo: number = 0x00
+): Promise<void> {
+  if (!/^[0-9a-fA-F]{32}$/.test(keyHex)) {
+    throw new Error("DESFIRE_AES_AUTH_INVALID_KEY");
+  }
+  const key = hexToBytes(keyHex);
+
+  // Step 1: AuthenticateAES
+  const auth1Cmd = buildApdu(0xAA, [keyNo]);
+  const auth1Resp = await isoDepHandler.transceive(auth1Cmd);
+  // Expected: 16 bytes ekRndB + 91 AF
+  if (auth1Resp.length < 18) throw new Error("DESFIRE_AES_AUTH_STEP1_LEN");
+  const sw1a = auth1Resp[auth1Resp.length - 2];
+  const sw2a = auth1Resp[auth1Resp.length - 1];
+  if (sw1a !== 0x91 || sw2a !== 0xAF) {
+    throw new Error(
+      `DESFIRE_AES_AUTH_STEP1_${(sw1a ?? 0).toString(16).toUpperCase().padStart(2, "0")}${(sw2a ?? 0).toString(16).toUpperCase().padStart(2, "0")}`
+    );
+  }
+  const ekRndB = new Uint8Array(auth1Resp.slice(0, 16));
+
+  // Step 2: Decrypt RndB
+  const rndB = aesDecryptCBC(ekRndB, key, new Uint8Array(16));
+
+  // Step 3: Rotate RndB left 1 byte
+  const rndBPrime = new Uint8Array(16);
+  for (let i = 0; i < 15; i++) rndBPrime[i] = rndB[i + 1] ?? 0;
+  rndBPrime[15] = rndB[0] ?? 0;
+
+  // Step 4: Generate RndA
+  const rndA = new Uint8Array(16);
+  crypto.getRandomValues(rndA);
+
+  // Step 5: Encrypt [RndA | RndB'] → 32 bytes, IV = ekRndB
+  const plaintext = new Uint8Array(32);
+  plaintext.set(rndA, 0);
+  plaintext.set(rndBPrime, 16);
+  const cipher = aesEncryptCBC(plaintext, key, ekRndB);
+
+  // Step 6: Send AUTH2 (0xAF) with 32-byte ciphertext
+  const auth2Cmd = buildApdu(0xAF, Array.from(cipher));
+  const auth2Resp = await isoDepHandler.transceive(auth2Cmd);
+  // Expected: 16 bytes ekRndA' + 91 00
+  if (auth2Resp.length < 18) throw new Error("DESFIRE_AES_AUTH_STEP2_LEN");
+  const sw1b = auth2Resp[auth2Resp.length - 2];
+  const sw2b = auth2Resp[auth2Resp.length - 1];
+  if (sw1b !== 0x91 || sw2b !== 0x00) {
+    throw new Error(
+      `DESFIRE_AES_AUTH_STEP2_${(sw1b ?? 0).toString(16).toUpperCase().padStart(2, "0")}${(sw2b ?? 0).toString(16).toUpperCase().padStart(2, "0")}`
+    );
+  }
+  const ekRndAPrime = new Uint8Array(auth2Resp.slice(0, 16));
+
+  // Step 7: Decrypt RndA', IV = last 16 bytes of the ciphertext we sent
+  const ivForDecrypt = cipher.slice(16, 32);
+  const rndAPrime = aesDecryptCBC(ekRndAPrime, key, ivForDecrypt);
+
+  // Step 8: Verify RndA' == rotate_left(RndA)
+  const expectedRndAPrime = new Uint8Array(16);
+  for (let i = 0; i < 15; i++) expectedRndAPrime[i] = rndA[i + 1] ?? 0;
+  expectedRndAPrime[15] = rndA[0] ?? 0;
+
+  for (let i = 0; i < 16; i++) {
+    if (rndAPrime[i] !== expectedRndAPrime[i]) {
+      throw new Error("DESFIRE_AES_AUTH_RNDA_MISMATCH");
+    }
+  }
+  // Authentication successful — chip grants access rights for keyNo this session
+}
+
 export async function readDesfireBracelet(aesKeyHex: string): Promise<BraceletPayload & { transactionMac?: string }> {
   if (!NfcManager || !NfcTech) throw new Error("NFC_NOT_AVAILABLE");
 
@@ -398,6 +536,12 @@ export async function scanAndWriteDesfireBracelet(
 
     const newPayload = await onRead(payload, tagInfo);
     if (!newPayload) return { payload, tagInfo, written: false };
+
+    // Authenticate before write operations if a key is configured.
+    // DESFire chips typically require AES mutual auth before CREDIT/WRITE_DATA.
+    if (aesKeyHex && /^[0-9a-fA-F]{32}$/.test(aesKeyHex)) {
+      await authenticateDesfireAes(isoDepHandler, aesKeyHex, 0x00);
+    }
 
     const balanceBytes = writeInt32LE(newPayload.balance);
     const creditCmd = buildApdu(DESFIRE_CMD_CREDIT, [0x01, ...balanceBytes]);

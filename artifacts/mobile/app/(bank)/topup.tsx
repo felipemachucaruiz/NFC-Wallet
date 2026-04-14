@@ -433,6 +433,8 @@ export default function TopUpScreen() {
       } catch (e: unknown) {
         const errMsg = e instanceof Error ? e.message : String(e);
         console.error("[TopUp] scanAndWrite error:", errMsg);
+        // Store the latest error code so it can be shown in the failed modal.
+        setWriteError(errMsg);
 
         // If the write was already started for a non-DESFire chip and we didn't
         // abort, the chip very likely has the new balance (the NFC session just
@@ -823,6 +825,11 @@ export default function TopUpScreen() {
               <Text style={[styles.failedDetailText, { color: C.danger ?? "#991B1B" }]}>
                 {t("bank.allRetriesExhaustedDetail")}
               </Text>
+              {writeError ? (
+                <Text style={[styles.errorCode, { color: C.danger ?? "#991B1B", marginTop: 6, fontFamily: "monospace" }]}>
+                  {writeError}
+                </Text>
+              ) : null}
             </View>
             <Button
               title={t("bank.tryAgainWrite")}
