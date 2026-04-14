@@ -332,6 +332,7 @@ export default function TopUpScreen() {
               showAlert(t("common.error"), t("bank.wrongBracelet"));
               return null;
             }
+            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
             return { uid, balance: newBalance, counter: newCounter, hmac: "" };
           }, desfireAesKey);
         } else {
@@ -469,13 +470,14 @@ export default function TopUpScreen() {
       savedAt: new Date().toISOString(),
     });
     try {
+      const skipHmac = hmacSecret ? await computeHmac(newBalance, newCounter, hmacSecret, uid) : "";
       await enqueueTopUp({
         nfcUid: uid,
         amount: amount,
         paymentMethod,
         newBalance,
         newCounter,
-        hmac: "",
+        hmac: skipHmac,
       });
       void syncNow().catch(() => {});
     } catch {
