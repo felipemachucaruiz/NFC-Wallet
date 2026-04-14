@@ -550,7 +550,16 @@ export async function scanAndWriteDesfireBracelet(
       await authenticateDesfireAes(isoDepHandler, aesKeyHex, 0x00);
     }
 
-    const balanceBytes = writeInt32LE(newPayload.balance);
+    // DeSFire CREDIT adds a DELTA to the current value-file balance, it does NOT
+    // set an absolute value. payload.balance is what the chip has RIGHT NOW (read
+    // a few lines above via GET_VALUE). newPayload.balance is the desired target.
+    // We must credit the difference, not the target, or the chip will accumulate
+    // too much: e.g. chip=100 000, topup=50 000, CREDIT(150 000) → 250 000 ❌
+    const creditDelta = newPayload.balance - payload.balance;
+    if (creditDelta <= 0) {
+      throw new Error(`DESFIRE_CREDIT_NOT_POSITIVE: delta=${creditDelta} (chip=${payload.balance} target=${newPayload.balance})`);
+    }
+    const balanceBytes = writeInt32LE(creditDelta);
     const creditCmd = buildApdu(DESFIRE_CMD_CREDIT, [0x01, ...balanceBytes]);
     const creditResp = await isoDepHandler.transceive(creditCmd);
     checkStatus(creditResp);
