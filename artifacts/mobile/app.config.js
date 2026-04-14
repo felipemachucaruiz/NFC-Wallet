@@ -86,6 +86,7 @@ module.exports = {
         },
       ],
       "./plugins/withGoogleMapsManifest",
+      "expo-updates",
     ],
     runtimeVersion: {
       policy: "appVersion",

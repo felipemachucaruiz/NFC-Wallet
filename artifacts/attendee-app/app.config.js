@@ -59,6 +59,7 @@ module.exports = {
           androidMode: "default",
         },
       ],
+      "expo-updates",
     ],
     runtimeVersion: {
       policy: "appVersion",
