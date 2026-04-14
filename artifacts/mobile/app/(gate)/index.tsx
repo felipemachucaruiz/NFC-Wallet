@@ -24,16 +24,11 @@ export default function GateHomeScreen() {
   const hasTicketing = user?.ticketingEnabled !== false;
   const hasNfc = user?.nfcBraceletsEnabled !== false;
 
-  // "Registrar Pulsera" goes to:
-  //   - /register (scan QR → link NFC) when both ticketing + NFC enabled
-  //   - /(gate)/register-direct (direct NFC tap) when NFC only, no ticketing
-  const braceletRoute = hasTicketing
-    ? ("/register" as never)
-    : ("/(gate)/register-direct" as never);
-
-  const braceletHint = hasTicketing
-    ? t("gate.registerBraceletHint")
-    : t("gate.registerBraceletDirectHint");
+  // When BOTH ticketing + NFC are enabled, show two independent bracelet flows:
+  //   1. /register          — scan QR ticket first, then link NFC bracelet
+  //   2. /(gate)/register-direct — link NFC bracelet directly, no QR required
+  // When NFC only (no ticketing), just show the direct flow.
+  const showBothBraceletFlows = hasTicketing && hasNfc;
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -107,20 +102,50 @@ export default function GateHomeScreen() {
           </Pressable>
         )}
 
-        {/* Register bracelet button — only when NFC is enabled */}
-        {hasNfc && (
+        {/* Register bracelet — QR ticket + NFC (when ticketing enabled) */}
+        {hasNfc && hasTicketing && (
           <Pressable
             style={[styles.ctaBtn, { backgroundColor: C.primary }]}
-            onPress={() => router.push(braceletRoute)}
+            onPress={() => router.push("/register" as never)}
           >
             <View style={styles.ctaBtnInner}>
               <View style={[styles.ctaIconWrap, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
                 <Feather name="wifi" size={36} color={C.primaryText} />
               </View>
-              <Text style={[styles.ctaBtnTitle, { color: C.primaryText }]}>{t("gate.registerBracelet")}</Text>
-              <Text style={[styles.ctaBtnSub, { color: C.primaryText + "99" }]}>{braceletHint}</Text>
+              <Text style={[styles.ctaBtnTitle, { color: C.primaryText }]}>
+                {showBothBraceletFlows ? t("gate.registerBraceletWithTicket") : t("gate.registerBracelet")}
+              </Text>
+              <Text style={[styles.ctaBtnSub, { color: C.primaryText + "99" }]}>
+                {showBothBraceletFlows ? t("gate.registerBraceletWithTicketHint") : t("gate.registerBraceletHint")}
+              </Text>
             </View>
             <Feather name="arrow-right" size={22} color={C.primaryText + "B3"} />
+          </Pressable>
+        )}
+
+        {/* Register bracelet — direct NFC only (no ticket required) */}
+        {hasNfc && (
+          <Pressable
+            style={[
+              styles.ctaBtn,
+              showBothBraceletFlows
+                ? { backgroundColor: "#7c3aed" }
+                : { backgroundColor: C.primary },
+            ]}
+            onPress={() => router.push("/(gate)/register-direct" as never)}
+          >
+            <View style={styles.ctaBtnInner}>
+              <View style={[styles.ctaIconWrap, { backgroundColor: "rgba(0,0,0,0.12)" }]}>
+                <Feather name="zap" size={36} color="#fff" />
+              </View>
+              <Text style={[styles.ctaBtnTitle, { color: "#fff" }]}>
+                {showBothBraceletFlows ? t("gate.registerBraceletOnly") : t("gate.registerBracelet")}
+              </Text>
+              <Text style={[styles.ctaBtnSub, { color: "rgba(255,255,255,0.75)" }]}>
+                {showBothBraceletFlows ? t("gate.registerBraceletOnlyHint") : t("gate.registerBraceletDirectHint")}
+              </Text>
+            </View>
+            <Feather name="arrow-right" size={22} color="rgba(255,255,255,0.7)" />
           </Pressable>
         )}
 
