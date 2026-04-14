@@ -86,6 +86,10 @@ app.use(authMiddleware);
 
 app.use("/api", router);
 
+app.get("/debug-sentry", (_req, _res) => {
+  throw new Error("My first Sentry error!");
+});
+
 Sentry.setupExpressErrorHandler(app);
 
 // Global error handler
