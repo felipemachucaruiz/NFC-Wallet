@@ -1557,5 +1557,8 @@
     "generalAdmission": "General",
     "recentOrders": "Órdenes Recientes",
     "noOrders": "Aún no hay órdenes."
+  },
+  "nfc": {
+    "tagLost": "Pulsera alejada muy rápido. Mantén la pulsera quieta e intenta de nuevo."
   }
 }

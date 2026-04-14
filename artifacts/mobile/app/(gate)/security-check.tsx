@@ -149,6 +149,9 @@ export default function SecurityCheckScreen() {
       const msg = extractErrorMessage(e, "");
       if (msg === "NFC_CANCELLED" || msg === "USER_CANCELLED" || msg.includes("cancel")) {
         setScanState("zone-select");
+      } else if (msg.includes("TAG_LOST") || msg.includes("tag_lost")) {
+        setErrorMsg(t("nfc.tagLost"));
+        setScanState("error");
       } else {
         setErrorMsg(msg || t("common.unknownError"));
         setScanState("error");
@@ -236,7 +239,9 @@ export default function SecurityCheckScreen() {
               color="#fff"
             />
             <Text style={styles.resultStatusText}>
-              {result.granted ? t("gate.accessGranted") : t("gate.accessDenied")}
+              {result.granted
+                ? t("gate.accessGranted", { zone: selectedZone?.name ?? "" })
+                : t("gate.accessDenied")}
             </Text>
 
             {result.attendeeName ? (

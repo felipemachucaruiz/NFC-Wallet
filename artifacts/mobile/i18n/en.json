@@ -1567,5 +1567,8 @@
     "generalAdmission": "General",
     "recentOrders": "Recent Orders",
     "noOrders": "No orders yet."
+  },
+  "nfc": {
+    "tagLost": "Wristband moved away too quickly. Hold it steady and try again."
   }
 }
