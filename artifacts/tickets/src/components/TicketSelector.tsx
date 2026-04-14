@@ -49,7 +49,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
     const count = isNumbered ? (ticketType.ticketsPerUnit || 1) : quantity;
     const initial: AttendeeData[] = Array.from({ length: count }, (_, i) => {
       if (i === 0 && user) {
-        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: "", sex: "", idDocument: "" };
+        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: user.sex || "", idDocument: user.idDocument || "" };
       }
       return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocument: "" };
     });

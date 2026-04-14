@@ -2,6 +2,19 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import type { User } from "@/data/types";
 import { loginApi, loginWithGoogleApi, createAccountApi, fetchCurrentUser, logoutApi, setAuthToken, getAuthToken } from "@/lib/api";
 
+function mapUser(u: Record<string, unknown>): User {
+  return {
+    id: u.id as string,
+    email: (u.email as string) || "",
+    firstName: (u.firstName as string) || "",
+    lastName: (u.lastName as string) || "",
+    phone: (u.phone as string) || "",
+    dateOfBirth: (u.dateOfBirth as string) || "",
+    sex: (u.sex as string) || "",
+    idDocument: (u.idDocument as string) || "",
+  };
+}
+
 type AuthModalView = "login" | "register" | "forgot";
 
 interface AuthContextType {
@@ -13,6 +26,7 @@ interface AuthContextType {
   loginWithToken: (token: string) => Promise<boolean>;
   register: (data: { email: string; password: string; firstName: string; lastName: string; phone: string }) => Promise<boolean>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   showAuthModal: boolean;
   authModalView: AuthModalView;
   authRedirect: string | null;
@@ -46,6 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthModalView(view);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const res = await fetchCurrentUser();
+    if (res.user) {
+      setUser(mapUser(res.user as Record<string, unknown>));
+    }
+  }, []);
+
   useEffect(() => {
     const token = getAuthToken();
     if (!token) return;
@@ -53,16 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchCurrentUser()
       .then((res) => {
         if (res.user) {
-          setUser({
-            id: res.user.id,
-            email: res.user.email || "",
-            firstName: res.user.firstName || "",
-            lastName: res.user.lastName || "",
-            phone: res.user.phone || "",
-            dateOfBirth: res.user.dateOfBirth || "",
-            sex: res.user.sex || "",
-            idDocument: res.user.idDocument || "",
-          });
+          setUser(mapUser(res.user as Record<string, unknown>));
         } else {
           setAuthToken(null);
         }
@@ -76,19 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const res = await loginApi(email, password);
     setAuthToken(res.token);
-
     const userRes = await fetchCurrentUser();
     if (userRes.user) {
-      setUser({
-        id: userRes.user.id,
-        email: userRes.user.email || "",
-        firstName: userRes.user.firstName || "",
-        lastName: userRes.user.lastName || "",
-        phone: userRes.user.phone || "",
-        dateOfBirth: userRes.user.dateOfBirth || "",
-        sex: userRes.user.sex || "",
-        idDocument: userRes.user.idDocument || "",
-      });
+      setUser(mapUser(userRes.user as Record<string, unknown>));
       setShowAuthModal(false);
       return true;
     }
@@ -98,19 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = useCallback(async (credential: string) => {
     const res = await loginWithGoogleApi(credential);
     setAuthToken(res.token);
-
     const userRes = await fetchCurrentUser();
     if (userRes.user) {
-      setUser({
-        id: userRes.user.id,
-        email: userRes.user.email || "",
-        firstName: userRes.user.firstName || "",
-        lastName: userRes.user.lastName || "",
-        phone: userRes.user.phone || "",
-        dateOfBirth: userRes.user.dateOfBirth || "",
-        sex: userRes.user.sex || "",
-        idDocument: userRes.user.idDocument || "",
-      });
+      setUser(mapUser(userRes.user as Record<string, unknown>));
       setShowAuthModal(false);
       return true;
     }
@@ -121,16 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthToken(token);
     const userRes = await fetchCurrentUser();
     if (userRes.user) {
-      setUser({
-        id: userRes.user.id,
-        email: userRes.user.email || "",
-        firstName: userRes.user.firstName || "",
-        lastName: userRes.user.lastName || "",
-        phone: userRes.user.phone || "",
-        dateOfBirth: userRes.user.dateOfBirth || "",
-        sex: userRes.user.sex || "",
-        idDocument: userRes.user.idDocument || "",
-      });
+      setUser(mapUser(userRes.user as Record<string, unknown>));
       setShowAuthModal(false);
       return true;
     }
@@ -145,22 +128,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastName: data.lastName,
       phone: data.phone,
     });
-
     const loginRes = await loginApi(data.email, data.password);
     setAuthToken(loginRes.token);
-
     const userRes = await fetchCurrentUser();
     if (userRes.user) {
-      setUser({
-        id: userRes.user.id,
-        email: userRes.user.email || "",
-        firstName: userRes.user.firstName || "",
-        lastName: userRes.user.lastName || "",
-        phone: data.phone,
-        dateOfBirth: "",
-        sex: "",
-        idDocument: "",
-      });
+      setUser(mapUser(userRes.user as Record<string, unknown>));
       setShowAuthModal(false);
       return true;
     }
@@ -178,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, isAuthenticated: !!user, loading, login, loginWithGoogle, loginWithToken, register, logout,
+      user, isAuthenticated: !!user, loading, login, loginWithGoogle, loginWithToken, register, logout, refreshUser,
       showAuthModal, authModalView, authRedirect,
       openAuthModal, closeAuthModal, switchAuthView,
     }}>

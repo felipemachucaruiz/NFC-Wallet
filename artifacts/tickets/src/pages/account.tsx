@@ -13,7 +13,7 @@ import { updateProfile } from "@/lib/api";
 
 export default function Account() {
   const { t } = useTranslation();
-  const { user, isAuthenticated, openAuthModal } = useAuth();
+  const { user, isAuthenticated, openAuthModal, refreshUser } = useAuth();
   const [, navigate] = useLocation();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -62,6 +62,7 @@ export default function Account() {
         sex: form.sex || null,
         idDocument: form.idDocument || null,
       });
+      await refreshUser();
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err: unknown) {
