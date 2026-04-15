@@ -104,25 +104,70 @@ async function readUltralightCCByte(): Promise<number | null> {
   }
 }
 
-async function detectUltralightSubtype(mfuHandler: MfuHandler | null): Promise<TagInfo> {
-  if (mfuHandler?.mifareUltralightReadPages) {
-    try {
-      const page3Data = await mfuHandler.mifareUltralightReadPages(3);
-      const ccByte = (page3Data[2] ?? null);
-      if (ccByte !== null) {
-        const normalized = ccByte & 0xff;
-        const ntag = NTAG_CC_MAP[normalized];
-        if (ntag) return ntag;
-      }
-    } catch {}
+// GET_VERSION response byte 6 → chip storage size → NTAG type mapping.
+// NTAG213=0x0F, NTAG215=0x11, NTAG216=0x13. Ultralight C does NOT support GET_VERSION.
+const NTAG_VERSION_SIZE_MAP: Record<number, TagInfo> = {
+  0x0f: { type: "NTAG213", label: "NTAG213", memoryBytes: 144 },
+  0x11: { type: "NTAG215", label: "NTAG215", memoryBytes: 504 },
+  0x13: { type: "NTAG216", label: "NTAG216", memoryBytes: 888 },
+};
 
-    // No known NTAG CC byte — try to read page 40 to distinguish Ultralight C (48 pages) from standard Ultralight (16 pages)
-    try {
-      await mfuHandler.mifareUltralightReadPages(40);
-      // If read succeeds, tag has more than 16 pages → Ultralight C
-      return { type: "MIFARE_ULTRALIGHT_C", label: "MIFARE Ultralight C", memoryBytes: 144 };
-    } catch {}
+async function detectUltralightSubtype(mfuHandler: MfuHandler | null): Promise<TagInfo> {
+  if (!mfuHandler?.mifareUltralightReadPages) {
+    return { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight", memoryBytes: 64 };
   }
+
+  // Step 1: CC byte from page 3 — fastest and most reliable for initialized NTAG chips.
+  // For NTAG213 CC2=0x12, NTAG215 CC2=0x3E, NTAG216 CC2=0x6D.
+  try {
+    const page3Data = await mfuHandler.mifareUltralightReadPages(3);
+    const ccByte = (page3Data[2] ?? null);
+    if (ccByte !== null) {
+      const ntag = NTAG_CC_MAP[ccByte & 0xff];
+      if (ntag) {
+        console.log("[NFC] Detected via CC byte 0x" + (ccByte & 0xff).toString(16) + ":", ntag.type);
+        return ntag;
+      }
+    }
+  } catch {}
+
+  // Step 2: GET_VERSION command (0x60). NTAG213/215/216 respond with 8 bytes
+  // where byte 6 encodes the storage size. Ultralight C and basic Ultralight
+  // do NOT support this command and return a NACK / error.
+  // This is the authoritative way to tell NTAG from Ultralight C.
+  if (mfuHandler.transceive) {
+    try {
+      const ver = await mfuHandler.transceive([0x60]);
+      if (ver.length >= 8) {
+        const ntag = NTAG_VERSION_SIZE_MAP[ver[6] & 0xff];
+        if (ntag) {
+          console.log("[NFC] Detected via GET_VERSION byte[6]=0x" + (ver[6] & 0xff).toString(16) + ":", ntag.type);
+          return ntag;
+        }
+      }
+      // Unexpected GET_VERSION response length but command succeeded — likely an NTAG variant.
+      // Treat as NTAG213 (most common bracelet chip, 144 bytes).
+      console.log("[NFC] GET_VERSION succeeded but unknown response, treating as NTAG213");
+      return { type: "NTAG213", label: "NTAG213", memoryBytes: 144 };
+    } catch {
+      // GET_VERSION failed → Ultralight C or basic Ultralight. Fall through.
+      console.log("[NFC] GET_VERSION not supported — likely Ultralight C or basic Ultralight");
+    }
+  }
+
+  // Step 3: Try reading page 40. MIFARE Ultralight C has 48 pages (0-47) so
+  // page 40 is valid. Basic Ultralight has only 16 pages — reading page 40 fails.
+  // NOTE: NTAG213 also has pages up to 44, but we should have identified it via
+  // CC byte or GET_VERSION above; reaching here means CC and GET_VERSION both
+  // failed, which is unusual for a well-formed NTAG chip.
+  try {
+    await mfuHandler.mifareUltralightReadPages(40);
+    console.log("[NFC] Page 40 readable — detected as MIFARE_ULTRALIGHT_C");
+    return { type: "MIFARE_ULTRALIGHT_C", label: "MIFARE Ultralight C", memoryBytes: 144 };
+  } catch {}
+
+  // Final fallback: basic MIFARE Ultralight (16 pages, 64 bytes total user memory).
+  console.log("[NFC] Falling back to basic MIFARE_ULTRALIGHT");
   return { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight", memoryBytes: 64 };
 }
 

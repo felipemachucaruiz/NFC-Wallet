@@ -535,11 +535,33 @@ export default function TopUpScreen() {
       }
     };
 
+    // Errors that will never succeed on retry — skip straight to write_failed.
+    // TAG_LOST / transient IO errors are retryable; structural errors are not.
+    const NON_RETRYABLE = [
+      "PAYLOAD_TOO_LARGE_FOR_ULTRALIGHT",
+      "ULTRALIGHT_C_AUTH_FAILED",
+      "ULTRALIGHT_HANDLER_UNAVAILABLE",
+      "MIFARE_CLASSIC_HANDLER_UNAVAILABLE",
+      "NFC_NOT_AVAILABLE",
+      "NFC_NO_TAG",
+    ];
+    const isNonRetryable = (err: string | null) =>
+      !!err && NON_RETRYABLE.some((code) => err.startsWith(code));
+
     let success = await doScanAndWrite();
 
     // Stop retrying once writeAttemptedRef is true — the chip was committed
     // (or is very likely committed for DeSFire). Retrying would double-charge.
-    while (!success && !aborted && !cancelledRef.current && !writeAttemptedRef.current && writeRetryRef.current < MAX_WRITE_RETRIES) {
+    // Also stop on non-retryable errors — they indicate a structural problem
+    // that will never be resolved by holding the bracelet again.
+    while (
+      !success &&
+      !aborted &&
+      !cancelledRef.current &&
+      !writeAttemptedRef.current &&
+      !isNonRetryable(writeError) &&
+      writeRetryRef.current < MAX_WRITE_RETRIES
+    ) {
       writeRetryRef.current += 1;
       setWriteRetryCount(writeRetryRef.current);
       setIsRetrying(true);
