@@ -27,7 +27,7 @@ import * as Sentry from "@sentry/react-native";
 const SENSITIVE_KEYS = /password|token|authorization|card.?number|cvv|secret/i;
 
 Sentry.init({
-  dsn: "https://c5d3633ad0e750cef208c52abbe581a2@o4511219507265536.ingest.us.sentry.io/4511219532627968",
+  dsn: "https://d3bff6b9eb2c975f13e05eae9ec4e157@o4511219507265536.ingest.us.sentry.io/4511219551240192",
   environment: __DEV__ ? "development" : "production",
   enabled: !__DEV__,
   tracesSampleRate: 0.2,

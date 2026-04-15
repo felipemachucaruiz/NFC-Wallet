@@ -13,7 +13,7 @@ import { authLimiter } from "./middlewares/rateLimiter";
 const SENSITIVE_KEYS = /^(password|token|authorization|cookie|secret|card.?number|cvv)$/i;
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: process.env.SENTRY_DSN ?? "https://268ea43667b8ae4ce31e982fe22c870b@o4511219507265536.ingest.us.sentry.io/4511219527909376",
   environment: process.env.NODE_ENV ?? "development",
   tracesSampleRate: 0.1,
   profilesSampleRate: 0.1,

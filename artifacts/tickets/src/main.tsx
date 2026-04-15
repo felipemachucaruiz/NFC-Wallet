@@ -7,7 +7,7 @@ import App from "./App";
 const SENSITIVE_KEYS = /password|token|authorization|card.?number|cvv|secret/i;
 
 Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN as string | undefined,
+  dsn: "https://4730c7036d662c2078ad9e0293962feb@o4511219507265536.ingest.us.sentry.io/4511219595149312",
   environment: import.meta.env.PROD ? "production" : "development",
   integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
   tracesSampleRate: 0.1,

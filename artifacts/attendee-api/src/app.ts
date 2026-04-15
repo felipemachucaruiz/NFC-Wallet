@@ -15,7 +15,7 @@ import { generalLimiter, authLimiter, braceletLookupLimiter } from "./middleware
 const SENSITIVE_KEYS = /^(password|token|authorization|cookie|secret|card.?number|cvv)$/i;
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: process.env.SENTRY_DSN ?? "https://d3bff6b9eb2c975f13e05eae9ec4e157@o4511219507265536.ingest.us.sentry.io/4511219551240192",
   environment: process.env.NODE_ENV ?? "development",
   tracesSampleRate: 0.1,
   profilesSampleRate: 0.1,
