@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import type { BraceletPayload } from "./hmac";
 import CryptoJS from "crypto-js";
+import * as ExpoCrypto from "expo-crypto";
 
 let NfcManager: typeof import("react-native-nfc-manager").default | null = null;
 let NfcTech: typeof import("react-native-nfc-manager").NfcTech | null = null;
@@ -639,9 +640,9 @@ async function authenticateUltralightC(transceiveFn: TransceiveFn, keyHex: strin
   rndBPrime[7] = rndB[0];
 
   // Step 4: Generate random RndA (8 bytes)
-  // crypto.getRandomValues() is not available in React Native / Hermes.
-  // CryptoJS.lib.WordArray.random() works correctly in this environment.
-  const rndA = wordArrayToUint8Array(CryptoJS.lib.WordArray.random(8));
+  // Neither crypto.getRandomValues() (Web Crypto) nor CryptoJS.lib.WordArray.random()
+  // work on Hermes/React Native. expo-crypto provides a proper native entropy source.
+  const rndA = await ExpoCrypto.getRandomBytesAsync(8);
 
   // Step 5: Encrypt [RndA | RndB'] with 3DES CBC, IV = last block of encRndB
   const plaintext = new Uint8Array(16);
