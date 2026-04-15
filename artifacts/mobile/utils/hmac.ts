@@ -1,4 +1,5 @@
 import CryptoJS from "crypto-js";
+import * as ExpoCrypto from "expo-crypto";
 
 export interface BraceletPayload {
   uid: string;
@@ -63,13 +64,8 @@ export async function verifyHmac(
 }
 
 export function generateId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
-  }
-  throw new Error("Secure crypto primitives are not available in this environment.");
+  // Web Crypto API (crypto.randomUUID / crypto.getRandomValues) is not available
+  // in React Native / Hermes. Use expo-crypto's synchronous native implementation.
+  const bytes = ExpoCrypto.getRandomBytes(16);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
