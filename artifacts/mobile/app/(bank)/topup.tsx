@@ -18,6 +18,7 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type TagInfo, type TagType, type NfcChipTypeHint } from "@/utils/nfc";
 import { scanAndWriteDesfireBracelet } from "@/utils/desfire";
 import { computeHmac } from "@/utils/hmac";
+import * as Sentry from "@sentry/react-native";
 import { formatCurrency, parseCOPInput } from "@/utils/format";
 import { useEventContext } from "@/contexts/EventContext";
 import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
@@ -500,6 +501,14 @@ export default function TopUpScreen() {
         // `writeError` state in the while-loop condition.
         lastWriteError = errMsg;
         setWriteError(errMsg);
+        // Report non-retryable errors to Sentry immediately — they will not be retried
+        // so this is their only chance to be captured.
+        if (NON_RETRYABLE.some((code) => errMsg.startsWith(code))) {
+          Sentry.captureException(e instanceof Error ? e : new Error(errMsg), {
+            tags: { screen: "topup", errorCode: errMsg.split(":")[0], nfcChipType },
+            extra: { nfcUid: uid, amount, newBalance, retryCount: writeRetryRef.current },
+          });
+        }
 
         // If the write was already started for a non-DESFire chip and we didn't
         // abort, the chip very likely has the new balance (the NFC session just
@@ -638,6 +647,18 @@ export default function TopUpScreen() {
     if (lastWriteError) {
       setWriteError(lastWriteError);
     }
+    // Report all-retries-exhausted failures to Sentry with full context.
+    // This is the most actionable event — the NFC write definitively failed.
+    Sentry.captureException(new Error(`NFC write failed after retries: ${lastWriteError ?? "unknown"}`), {
+      tags: { screen: "topup", errorCode: (lastWriteError ?? "").split(":")[0] || "unknown", nfcChipType },
+      extra: {
+        nfcUid: uid,
+        amount,
+        newBalance,
+        retriesAttempted: writeRetryRef.current,
+        lastError: lastWriteError,
+      },
+    });
     setStep("write_failed");
   };
 

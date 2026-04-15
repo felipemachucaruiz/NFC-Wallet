@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { extractErrorMessage } from "@/utils/errorMessage";
 import { useAlert } from "@/components/CustomAlert";
 import { useEventContext, type NfcChipType } from "@/contexts/EventContext";
+import * as Sentry from "@sentry/react-native";
 
 type ChargeStep =
   | "tip_selection"
@@ -339,8 +340,13 @@ export default function ChargeScreen() {
           setStep("writing");
           return { uid, balance: newBalance, counter: newCounter, hmac: payload.hmac };
         }, desfireAesKey);
-      } catch {
+      } catch (e: unknown) {
         if (!aborted && !cancelledRef.current) {
+          const errMsg = e instanceof Error ? e.message : String(e ?? "unknown");
+          Sentry.captureException(e instanceof Error ? e : new Error(errMsg), {
+            tags: { screen: "charge", errorCode: errMsg.split(":")[0] || "unknown", chipVariant: "desfire" },
+            extra: { nfcUid: uid, amount: chargeTotal },
+          });
           scanningRef.current = false;
           setNfcModalVisible(false);
           setNfcWriteRetrying(false);
@@ -354,6 +360,7 @@ export default function ChargeScreen() {
       // Track whether the NFC read succeeded but the write failed
       // so we can distinguish write errors from read errors for retry logic.
       let readSucceeded = false;
+      let lastScanError: unknown = null;
 
       const doScan = async (): Promise<boolean> => {
         try {
@@ -420,7 +427,8 @@ export default function ChargeScreen() {
             ultralightCKeyHex: ultralightCDesKey || undefined,
           });
           return true;
-        } catch {
+        } catch (e: unknown) {
+          lastScanError = e;
           return false;
         }
       };
@@ -440,6 +448,12 @@ export default function ChargeScreen() {
       }
 
       if (!success && !aborted && !cancelledRef.current) {
+        // Report terminal NFC write failure to Sentry with context.
+        const errMsg = lastScanError instanceof Error ? lastScanError.message : String(lastScanError ?? "unknown");
+        Sentry.captureException(lastScanError instanceof Error ? lastScanError : new Error(errMsg), {
+          tags: { screen: "charge", errorCode: errMsg.split(":")[0] || "unknown" },
+          extra: { nfcUid: uid, amount: chargeTotal, retriesAttempted: writeRetryRef.current, readSucceeded },
+        });
         scanningRef.current = false;
         setNfcModalVisible(false);
         setNfcWriteRetrying(false);
