@@ -103,7 +103,14 @@ export default function ChargeScreen() {
     query: { enabled: !!user?.eventId },
   });
   const eventTyped = eventData as { nfcChipType?: NfcChipType; allowedNfcTypes?: NfcChipType[] } | undefined;
-  const configuredAllowedTypes: NfcChipType[] = eventTyped?.allowedNfcTypes ?? [eventTyped?.nfcChipType ?? "ntag_21x"];
+  const primaryChipType: NfcChipType = eventTyped?.nfcChipType ?? "ntag_21x";
+  const configuredAllowedTypes: NfcChipType[] = (() => {
+    const base = eventTyped?.allowedNfcTypes;
+    if (!base || base.length === 0) return [primaryChipType];
+    // Always include the primary nfcChipType even if allowedNfcTypes was saved before the field existed
+    if (!base.includes(primaryChipType)) return [...base, primaryChipType];
+    return base;
+  })();
 
   const params = useLocalSearchParams<{ locationId: string }>();
   const locationId = params.locationId ?? "";
@@ -423,7 +430,11 @@ export default function ChargeScreen() {
             writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
             return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
           }, {
-            expectedChipType: configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x",
+            expectedChipType: configuredAllowedTypes.includes("mifare_classic") && !configuredAllowedTypes.includes("mifare_ultralight_c")
+              ? "mifare_classic"
+              : configuredAllowedTypes.includes("mifare_ultralight_c") && !configuredAllowedTypes.includes("mifare_classic")
+              ? "mifare_ultralight_c"
+              : "ntag_21x",
             ultralightCKeyHex: ultralightCDesKey || undefined,
           });
           return true;
