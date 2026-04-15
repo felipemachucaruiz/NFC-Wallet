@@ -98,8 +98,10 @@ export default function TopUpScreen() {
   const [braceletUid, setBraceletUid] = useState(params.braceletUid ?? "");
 
   const { data } = useMyBracelets();
-  type Bracelet = { uid: string; balance: number; flagged: boolean; event?: { name: string } | null };
-  const bracelets = ((data as { bracelets?: Bracelet[] } | undefined)?.bracelets ?? []);
+  type Bracelet = { uid: string; balance: number; flagged: boolean; pendingRefund?: boolean; refundStatus?: string | null; event?: { name: string } | null };
+  const allBracelets = ((data as { bracelets?: Bracelet[] } | undefined)?.bracelets ?? []);
+  const bracelets = allBracelets; // show all, but disable ones with pending refund
+  const isSelectedFromList = braceletUid.length > 0 && allBracelets.some((b) => b.uid === braceletUid && !b.pendingRefund);
 
   const [nfcAvailable, setNfcAvailable] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -231,29 +233,44 @@ export default function TopUpScreen() {
             {t("topUp.selectBracelet").toUpperCase()}
           </Text>
           {bracelets.length > 0 ? (
-            bracelets.map((b) => (
-              <Pressable
-                key={b.uid}
-                onPress={() => setBraceletUid(b.uid)}
-                style={[
-                  styles.braceletOption,
-                  {
-                    backgroundColor: braceletUid === b.uid ? C.primaryLight : C.inputBg,
-                    borderColor: braceletUid === b.uid ? C.primary : C.border,
-                  },
-                ]}
-              >
-                <Feather name="wifi" size={16} color={braceletUid === b.uid ? C.primary : C.textSecondary} />
-                <Text style={[styles.braceletOptionText, { color: braceletUid === b.uid ? C.primary : C.text }]}>
-                  {b.uid}
-                </Text>
-                {b.event && (
-                  <Text style={[styles.braceletEventText, { color: C.textMuted }]}>
-                    {b.event.name}
-                  </Text>
-                )}
-              </Pressable>
-            ))
+            bracelets.map((b) => {
+              const isRefunded = !!b.pendingRefund;
+              const isSelected = braceletUid === b.uid && !isRefunded;
+              return (
+                <Pressable
+                  key={b.uid}
+                  onPress={() => { if (!isRefunded) setBraceletUid(b.uid); }}
+                  disabled={isRefunded}
+                  style={[
+                    styles.braceletOption,
+                    {
+                      backgroundColor: isSelected ? C.primaryLight : isRefunded ? (C.inputBg + "80") : C.inputBg,
+                      borderColor: isSelected ? C.primary : C.border,
+                      opacity: isRefunded ? 0.55 : 1,
+                    },
+                  ]}
+                >
+                  <Feather name="wifi" size={16} color={isSelected ? C.primary : C.textSecondary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.braceletOptionText, { color: isSelected ? C.primary : C.text }]}>
+                      {b.event?.name ?? b.uid}
+                    </Text>
+                    {b.event && (
+                      <Text style={[styles.braceletEventText, { color: C.textMuted }]}>
+                        {b.uid}
+                      </Text>
+                    )}
+                  </View>
+                  {isRefunded && (
+                    <View style={[styles.refundBadge, { backgroundColor: C.dangerLight ?? "#FEE2E2" }]}>
+                      <Text style={[styles.refundBadgeText, { color: C.danger }]}>
+                        {t("topUp.refundPending")}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })
           ) : (
             <Text style={[styles.hintText, { color: C.textMuted }]}>{t("topUp.noBracelet")}</Text>
           )}
@@ -269,29 +286,33 @@ export default function TopUpScreen() {
               </Text>
             </Pressable>
           )}
-          <View style={styles.manualRow}>
-            <View style={[styles.manualInputWrap, { backgroundColor: C.inputBg, borderColor: braceletUid && !bracelets.find(b => b.uid === braceletUid) ? C.primary : C.border }]}>
-              <Feather name="hash" size={15} color={C.textMuted} style={{ marginRight: 6 }} />
-              <TextInput
-                style={[styles.manualInput, { color: C.text }]}
-                placeholder={t("topUp.uidPlaceholder")}
-                placeholderTextColor={C.textMuted}
-                value={braceletUid}
-                onChangeText={(v) => setBraceletUid(normalizeUid(v))}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                maxLength={11}
-              />
-              {braceletUid.length > 0 && (
-                <Pressable onPress={() => setBraceletUid("")}>
-                  <Feather name="x" size={16} color={C.textMuted} />
-                </Pressable>
-              )}
-            </View>
-          </View>
-          <Text style={[styles.uidHint, { color: C.textMuted }]}>
-            {t("topUp.uidHint")}
-          </Text>
+          {!isSelectedFromList && (
+            <>
+              <View style={styles.manualRow}>
+                <View style={[styles.manualInputWrap, { backgroundColor: C.inputBg, borderColor: braceletUid ? C.primary : C.border }]}>
+                  <Feather name="hash" size={15} color={C.textMuted} style={{ marginRight: 6 }} />
+                  <TextInput
+                    style={[styles.manualInput, { color: C.text }]}
+                    placeholder={t("topUp.uidPlaceholder")}
+                    placeholderTextColor={C.textMuted}
+                    value={braceletUid}
+                    onChangeText={(v) => setBraceletUid(normalizeUid(v))}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    maxLength={11}
+                  />
+                  {braceletUid.length > 0 && (
+                    <Pressable onPress={() => setBraceletUid("")}>
+                      <Feather name="x" size={16} color={C.textMuted} />
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+              <Text style={[styles.uidHint, { color: C.textMuted }]}>
+                {t("topUp.uidHint")}
+              </Text>
+            </>
+          )}
         </Card>
 
         <Card style={{ gap: 12 }}>
@@ -616,8 +637,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
   },
-  braceletOptionText: { fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 },
+  braceletOptionText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   braceletEventText: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  refundBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  refundBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   nfcBtn: {
     flexDirection: "row",
     alignItems: "center",
