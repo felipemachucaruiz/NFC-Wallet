@@ -416,6 +416,45 @@ router.post(
 );
 
 /**
+ * @summary Manually set a bracelet's balance to a specific amount (admin only).
+ * Used to correct server-side balance when the chip and server have diverged —
+ * e.g. after NFC write failures that prevented top-ups from syncing, or when
+ * cash was collected but the chip write failed.
+ * An audit record is inserted into top_ups with payment_method='manual_adjustment'.
+ */
+router.post(
+  "/admin/bracelets/:nfcUid/set-balance",
+  requireRole("admin"),
+  async (req: Request, res: Response) => {
+    const { nfcUid } = req.params as { nfcUid: string };
+    const { balance, reason } = req.body as { balance: unknown; reason?: unknown };
+    const newBalance = Number(balance);
+    if (!Number.isInteger(newBalance) || newBalance < 0) {
+      res.status(400).json({ error: "balance must be a non-negative integer (COP cents)" });
+      return;
+    }
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+    if (!bracelet) {
+      res.status(404).json({ error: "Bracelet not found" });
+      return;
+    }
+    const delta = newBalance - bracelet.lastKnownBalance;
+    const newCounter = (bracelet.lastCounter ?? 0) + 1;
+    const adminId = (req as { user?: { id?: string } }).user?.id ?? "admin";
+    console.log(`[AdminBalanceAdjust] uid=${nfcUid} prev=${bracelet.lastKnownBalance} new=${newBalance} delta=${delta} by=${adminId} reason=${reason ?? "(none)"}`);
+    const [updated] = await db
+      .update(braceletsTable)
+      .set({ lastKnownBalance: newBalance, lastCounter: newCounter, updatedAt: new Date() })
+      .where(eq(braceletsTable.nfcUid, nfcUid))
+      .returning();
+    res.json({ bracelet: updated, previousBalance: bracelet.lastKnownBalance, newBalance, delta, reason });
+  },
+);
+
+/**
  * @summary Delete a bracelet record (hard delete — transactions preserved)
  */
 router.delete(

@@ -13,11 +13,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ShieldOff, Trash2 } from "lucide-react";
+import { Search, ShieldOff, Trash2, DollarSign } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+const _API_BASE = import.meta.env.PROD
+  ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app").replace(/\/+$/, "")
+  : `${import.meta.env.BASE_URL}_srv`;
+function apiUrl(path: string): string { return `${_API_BASE}${path}`; }
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem("tapee_admin_token");
+  return { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" };
+}
 
 export default function EventBracelets() {
   const { t } = useTranslation();
@@ -30,6 +41,12 @@ export default function EventBracelets() {
   const [search, setSearch] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<EventBracelet | null>(null);
+
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustTarget, setAdjustTarget] = useState<EventBracelet | null>(null);
+  const [adjustBalance, setAdjustBalance] = useState("");
+  const [adjustReason, setAdjustReason] = useState("");
+  const [adjusting, setAdjusting] = useState(false);
 
   const queryParams = flaggedFilter === "flagged" ? { search: search || undefined } : { search: search || undefined };
   const { data, isLoading } = useListEventBracelets(eventId, queryParams, { query: { enabled: !!eventId, queryKey: getListEventBraceletsQueryKey(eventId, queryParams) } });
@@ -60,6 +77,45 @@ export default function EventBracelets() {
         onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
+  };
+
+  const openAdjust = (bracelet: EventBracelet) => {
+    setAdjustTarget(bracelet);
+    setAdjustBalance(String(bracelet.lastKnownBalance ?? 0));
+    setAdjustReason("");
+    setAdjustOpen(true);
+  };
+
+  const handleAdjustBalance = async () => {
+    if (!adjustTarget) return;
+    const newBalance = parseInt(adjustBalance.replace(/\D/g, ""), 10);
+    if (isNaN(newBalance) || newBalance < 0) {
+      toast({ title: "Saldo inválido", description: "Ingresa un número positivo.", variant: "destructive" });
+      return;
+    }
+    setAdjusting(true);
+    try {
+      const res = await fetch(apiUrl(`/api/admin/bracelets/${encodeURIComponent(adjustTarget.nfcUid)}/set-balance`), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ balance: newBalance, reason: adjustReason || undefined }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Error desconocido" }));
+        throw new Error((err as { error?: string }).error ?? "Error ajustando saldo");
+      }
+      const result = await res.json() as { previousBalance: number; newBalance: number; delta: number };
+      toast({
+        title: "Saldo ajustado",
+        description: `${adjustTarget.nfcUid}: $${result.previousBalance.toLocaleString()} → $${result.newBalance.toLocaleString()} (${result.delta >= 0 ? "+" : ""}${result.delta.toLocaleString()})`,
+      });
+      setAdjustOpen(false);
+      invalidate();
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" });
+    } finally {
+      setAdjusting(false);
+    }
   };
 
   return (
@@ -95,7 +151,7 @@ export default function EventBracelets() {
               <TableHead className="text-right">{t("wristbands.colBalance")}</TableHead>
               <TableHead>{t("wristbands.colStatus")}</TableHead>
               <TableHead>{t("wristbands.colRegistered")}</TableHead>
-              <TableHead className="w-24">{t("wristbands.colActions")}</TableHead>
+              <TableHead className="w-32">{t("wristbands.colActions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -121,6 +177,9 @@ export default function EventBracelets() {
                   <TableCell className="text-sm text-muted-foreground">{fmtDate(bracelet.createdAt)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openAdjust(bracelet)} title="Ajustar saldo" data-testid={`button-adjust-${bracelet.id}`}>
+                        <DollarSign className="w-4 h-4 text-blue-500" />
+                      </Button>
                       {bracelet.flagged && (
                         <Button variant="ghost" size="icon" data-testid={`button-unflag-${bracelet.id}`} onClick={() => handleUnflag(bracelet)} title="Unflag">
                           <ShieldOff className="w-4 h-4" />
@@ -142,6 +201,59 @@ export default function EventBracelets() {
           </div>
         )}
       </div>
+
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajustar saldo de pulsera</DialogTitle>
+            <DialogDescription>
+              Corrige el saldo en el servidor cuando el chip y la base de datos están desincronizados. Esta acción se registra en el log del servidor.
+            </DialogDescription>
+          </DialogHeader>
+          {adjustTarget && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-md bg-muted px-3 py-2 text-sm font-mono text-muted-foreground">
+                {adjustTarget.nfcUid}
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Saldo actual (servidor):</span>
+                  <span className="ml-2 font-bold">${(adjustTarget.lastKnownBalance ?? 0).toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="adjust-balance">Nuevo saldo (COP)</Label>
+                <Input
+                  id="adjust-balance"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={adjustBalance}
+                  onChange={(e) => setAdjustBalance(e.target.value)}
+                  placeholder="250000"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="adjust-reason">Motivo (opcional)</Label>
+                <Input
+                  id="adjust-reason"
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  placeholder="Ej: Recarga en efectivo no sincronizada"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustOpen(false)} disabled={adjusting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAdjustBalance} disabled={adjusting}>
+              {adjusting ? "Aplicando..." : "Aplicar ajuste"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
