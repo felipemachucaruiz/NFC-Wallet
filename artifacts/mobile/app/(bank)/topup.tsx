@@ -394,6 +394,10 @@ export default function TopUpScreen() {
     setIsRetrying(false);
 
     let aborted = false;
+    // lastWriteError: updated synchronously inside doScanAndWrite so the while-loop
+    // non-retryable check sees the current error immediately (setWriteError is async
+    // React state — reading `writeError` in the closure would always see the stale value).
+    let lastWriteError: string | null = null;
 
     const doScanAndWrite = async (): Promise<boolean> => {
       // writeAttempted: set true once the physical write is imminent.
@@ -491,7 +495,10 @@ export default function TopUpScreen() {
       } catch (e: unknown) {
         const errMsg = e instanceof Error ? e.message : String(e);
         console.error("[TopUp] scanAndWrite error:", errMsg);
-        // Store the latest error code so it can be shown in the failed modal.
+        // Update both the sync ref (for the while-loop non-retryable check) and
+        // the React state (for the UI). setWriteError is async — do NOT use
+        // `writeError` state in the while-loop condition.
+        lastWriteError = errMsg;
         setWriteError(errMsg);
 
         // If the write was already started for a non-DESFire chip and we didn't
@@ -559,7 +566,7 @@ export default function TopUpScreen() {
       !aborted &&
       !cancelledRef.current &&
       !writeAttemptedRef.current &&
-      !isNonRetryable(writeError) &&
+      !isNonRetryable(lastWriteError) &&
       writeRetryRef.current < MAX_WRITE_RETRIES
     ) {
       writeRetryRef.current += 1;
