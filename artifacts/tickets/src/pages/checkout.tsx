@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, Link } from "wouter";
-import { Building2, Check, AlertCircle, Ticket, CreditCard } from "lucide-react";
+import { Building2, Check, AlertCircle, Ticket, CreditCard, Star } from "lucide-react";
 
 function NequiIcon({ className }: { className?: string }) {
   return (
@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatPrice } from "@/lib/format";
-import { purchaseTickets, getAuthToken, getWompiConfig } from "@/lib/api";
+import { purchaseTickets, getAuthToken, getWompiConfig, fetchSavedCards, saveCard, type SavedCard } from "@/lib/api";
 import { Turnstile } from "@/components/Turnstile";
 
 interface CheckoutData {
@@ -92,15 +92,33 @@ const CARD_LOGOS: Record<NonNullable<CardBrand>, string> = {
   amex: `${import.meta.env.BASE_URL}card-amex.png`,
 };
 
-function CardBrandLogo({ brand }: { brand: CardBrand }) {
+function CardBrandLogo({ brand, className }: { brand: CardBrand; className?: string }) {
   if (!brand) return null;
   return (
     <img
       src={CARD_LOGOS[brand]}
       alt={brand}
-      className="h-7 w-auto object-contain shrink-0 drop-shadow-sm"
+      className={className ?? "h-7 w-auto object-contain shrink-0 drop-shadow-sm"}
     />
   );
+}
+
+function brandLabel(brand: string): string {
+  switch (brand.toLowerCase()) {
+    case "visa": return "Visa";
+    case "mastercard": return "Mastercard";
+    case "amex": return "American Express";
+    default: return brand;
+  }
+}
+
+interface PendingCardSave {
+  wompiToken: string;
+  brand: string;
+  lastFour: string;
+  cardHolderName: string;
+  expiryMonth: string;
+  expiryYear: string;
 }
 
 export default function Checkout() {
@@ -125,6 +143,15 @@ export default function Checkout() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const isGuest = !getAuthToken();
 
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [selectedSavedCardId, setSelectedSavedCardId] = useState<string | null>(null);
+  const [showNewCardForm, setShowNewCardForm] = useState(false);
+
+  const [pendingCardSave, setPendingCardSave] = useState<PendingCardSave | null>(null);
+  const [saveAlias, setSaveAlias] = useState("");
+  const [savingCard, setSavingCard] = useState(false);
+  const pendingNavRef = useRef<string | null>(null);
+
   useEffect(() => {
     const raw = sessionStorage.getItem("tapee_checkout");
     if (!raw) {
@@ -138,8 +165,23 @@ export default function Checkout() {
     }
   }, [navigate]);
 
-  // Handle Chrome/browser autofill — fires 'change' (not React's synthetic 'input')
-  // on the raw DOM element, bypassing our onChange handler.
+  useEffect(() => {
+    if (isGuest) return;
+    fetchSavedCards().then((res) => {
+      setSavedCards(res.cards);
+    }).catch(() => {});
+  }, [isGuest]);
+
+  useEffect(() => {
+    if (paymentMethod === "card" && savedCards.length > 0 && selectedSavedCardId === null && !showNewCardForm) {
+      setSelectedSavedCardId(savedCards[0].id);
+    }
+    if (paymentMethod !== "card") {
+      setSelectedSavedCardId(null);
+      setShowNewCardForm(false);
+    }
+  }, [paymentMethod]);
+
   useEffect(() => {
     const el = cardInputRef.current;
     if (!el) return;
@@ -229,10 +271,15 @@ export default function Checkout() {
     );
   }
 
+  const usingNewCard = paymentMethod === "card" && (savedCards.length === 0 || showNewCardForm || selectedSavedCardId === null);
+
   const isPaymentValid = () => {
     if (paymentMethod === "nequi") return /^\d{10}$/.test(nequiPhone.replace(/\s/g, ""));
     if (paymentMethod === "pse") return pseBank.length > 0 && pseLegalId.length > 0;
-    if (paymentMethod === "card") return cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0;
+    if (paymentMethod === "card") {
+      if (selectedSavedCardId && !showNewCardForm) return true;
+      return cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0;
+    }
     if (paymentMethod === "bancolombia_transfer") return true;
     return false;
   };
@@ -266,25 +313,42 @@ export default function Checkout() {
         purchaseData.userLegalId = pseLegalId;
         purchaseData.userLegalIdType = pseLegalIdType;
       } else if (paymentMethod === "card") {
-        const wompiConfig = await getWompiConfig();
-        const [expMonth, expYear] = cardExpiry.split("/");
-        const tokenRes = await fetch(`${wompiConfig.baseUrl}/tokens/cards`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${wompiConfig.publicKey}` },
-          body: JSON.stringify({
-            number: cardNumber.replace(/\s/g, ""),
-            cvc: cardCvc,
-            exp_month: expMonth?.trim() ?? "",
-            exp_year: expYear?.trim() ?? "",
-            card_holder: cardHolder.trim(),
-          }),
-        });
-        const tokenData = await tokenRes.json() as { data?: { id?: string }; status?: string };
-        if (!tokenRes.ok || !tokenData.data?.id) {
-          throw new Error(t("checkout.errorCardTokenize"));
+        if (selectedSavedCardId && !showNewCardForm) {
+          purchaseData.savedCardId = selectedSavedCardId;
+          purchaseData.installments = 1;
+        } else {
+          const wompiConfig = await getWompiConfig();
+          const [expMonth, expYear] = cardExpiry.split("/");
+          const tokenRes = await fetch(`${wompiConfig.baseUrl}/tokens/cards`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${wompiConfig.publicKey}` },
+            body: JSON.stringify({
+              number: cardNumber.replace(/\s/g, ""),
+              cvc: cardCvc,
+              exp_month: expMonth?.trim() ?? "",
+              exp_year: expYear?.trim() ?? "",
+              card_holder: cardHolder.trim(),
+            }),
+          });
+          const tokenData = await tokenRes.json() as { data?: { id?: string; brand?: string; last_four?: string; card_holder?: string; exp_month?: string; exp_year?: string }; status?: string };
+          if (!tokenRes.ok || !tokenData.data?.id) {
+            throw new Error(t("checkout.errorCardTokenize"));
+          }
+          purchaseData.cardToken = tokenData.data.id;
+          purchaseData.installments = 1;
+
+          const brand = detectCardBrand(cardNumber) ?? (tokenData.data.brand?.toLowerCase() ?? "");
+          if (!isGuest && tokenData.data.id) {
+            setPendingCardSave({
+              wompiToken: tokenData.data.id,
+              brand,
+              lastFour: cardNumber.replace(/\s/g, "").slice(-4),
+              cardHolderName: cardHolder.trim(),
+              expiryMonth: expMonth?.trim() ?? "",
+              expiryYear: expYear?.trim() ?? "",
+            });
+          }
         }
-        purchaseData.cardToken = tokenData.data.id;
-        purchaseData.installments = 1;
       }
 
       const result = await purchaseTickets(purchaseData);
@@ -298,12 +362,83 @@ export default function Checkout() {
         return;
       }
 
+      if (pendingCardSave || (!isGuest && paymentMethod === "card" && usingNewCard)) {
+        pendingNavRef.current = "/payment-status";
+        setProcessing(false);
+        return;
+      }
+
       navigate("/payment-status");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("checkout.errorProcessing"));
       setProcessing(false);
     }
   };
+
+  const handleSaveCard = async () => {
+    if (!pendingCardSave) {
+      navigate(pendingNavRef.current ?? "/payment-status");
+      return;
+    }
+    setSavingCard(true);
+    try {
+      await saveCard({ ...pendingCardSave, alias: saveAlias.trim() || undefined });
+    } catch {
+    }
+    setSavingCard(false);
+    setPendingCardSave(null);
+    navigate(pendingNavRef.current ?? "/payment-status");
+  };
+
+  const handleSkipSave = () => {
+    setPendingCardSave(null);
+    navigate(pendingNavRef.current ?? "/payment-status");
+  };
+
+  if (pendingCardSave) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Star className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-base">Guardar tarjeta</h2>
+              <p className="text-xs text-muted-foreground">Para futuros pagos</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-lg">
+            <CardBrandLogo brand={pendingCardSave.brand as CardBrand} className="h-6 w-auto" />
+            <span className="text-sm font-medium">
+              {brandLabel(pendingCardSave.brand)} •••• {pendingCardSave.lastFour}
+            </span>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-sm">Alias (opcional)</Label>
+            <Input
+              value={saveAlias}
+              onChange={(e) => setSaveAlias(e.target.value)}
+              placeholder="Ej: Mi Visa personal"
+              maxLength={100}
+              disabled={savingCard}
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={handleSkipSave} disabled={savingCard}>
+              Omitir
+            </Button>
+            <Button className="flex-1" onClick={handleSaveCard} disabled={savingCard}>
+              {savingCard ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const methods = [
     { id: "nequi" as const, icon: null, label: t("checkout.nequi") },
@@ -349,6 +484,44 @@ export default function Checkout() {
 
             <div className="bg-card rounded-xl border border-border p-5">
               <h2 className="font-semibold mb-4">{t("checkout.paymentMethod")}</h2>
+
+              {!isGuest && savedCards.length > 0 && paymentMethod === "card" && (
+                <div className="mb-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tarjetas guardadas</p>
+                  {savedCards.map((card) => (
+                    <button
+                      key={card.id}
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                        selectedSavedCardId === card.id && !showNewCardForm
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                      onClick={() => { setSelectedSavedCardId(card.id); setShowNewCardForm(false); }}
+                      disabled={processing}
+                    >
+                      <CardBrandLogo brand={card.brand as CardBrand} className="h-6 w-auto" />
+                      <span className="text-sm font-medium flex-1">
+                        {card.alias ? `${card.alias} · ` : ""}{brandLabel(card.brand)} •••• {card.lastFour}
+                      </span>
+                      {selectedSavedCardId === card.id && !showNewCardForm && (
+                        <Check className="w-4 h-4 text-primary shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                  <button
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                      showNewCardForm ? "border-primary bg-primary/5" : "border-dashed border-border hover:border-primary/50"
+                    }`}
+                    onClick={() => { setShowNewCardForm(true); setSelectedSavedCardId(null); }}
+                    disabled={processing}
+                  >
+                    <CreditCard className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">Usar nueva tarjeta</span>
+                    {showNewCardForm && <Check className="w-4 h-4 text-primary ml-auto" />}
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-2 mb-4">
                 {methods.map((m) => (
                   <button
@@ -427,7 +600,7 @@ export default function Checkout() {
                 </div>
               )}
 
-              {paymentMethod === "card" && (
+              {paymentMethod === "card" && usingNewCard && (
                 <div className="space-y-3">
                   <div>
                     <Label>Número de tarjeta</Label>
@@ -461,9 +634,7 @@ export default function Checkout() {
                         value={cardExpiry}
                         onChange={(e) => {
                           let v = e.target.value.replace(/[^\d/]/g, "");
-                          // Auto-insert slash after 2 digits
                           if (v.length === 2 && !v.includes("/") && cardExpiry.length === 1) v = v + "/";
-                          // Normalize 4-digit year autofill (12/2028 → 12/28)
                           const parts = v.split("/");
                           if (parts[1] && parts[1].length === 4) v = parts[0] + "/" + parts[1].slice(2);
                           setCardExpiry(v.slice(0, 5));

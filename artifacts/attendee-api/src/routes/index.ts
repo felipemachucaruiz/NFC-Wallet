@@ -9,6 +9,7 @@ import catalogueRouter from "./catalogue";
 import ticketsRouter from "./tickets";
 import guestListsRouter from "./guestLists";
 import appleWalletRouter from "./appleWallet";
+import cardsRouter from "./cards";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(catalogueRouter);
 router.use(ticketsRouter);
 router.use(guestListsRouter);
 router.use(appleWalletRouter);
+router.use(cardsRouter);
 
 export default router;

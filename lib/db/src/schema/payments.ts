@@ -39,3 +39,20 @@ export const wompiPaymentIntentsTable = pgTable("wompi_payment_intents", {
 
 export type WompiPaymentIntent = typeof wompiPaymentIntentsTable.$inferSelect;
 export type InsertWompiPaymentIntent = typeof wompiPaymentIntentsTable.$inferInsert;
+
+export const savedCardsTable = pgTable("saved_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  wompiToken: varchar("wompi_token", { length: 256 }).notNull(),
+  brand: varchar("brand", { length: 30 }).notNull(),
+  lastFour: varchar("last_four", { length: 4 }).notNull(),
+  cardHolderName: varchar("card_holder_name", { length: 255 }).notNull(),
+  expiryMonth: varchar("expiry_month", { length: 2 }).notNull(),
+  expiryYear: varchar("expiry_year", { length: 4 }).notNull(),
+  alias: varchar("alias", { length: 100 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export type SavedCard = typeof savedCardsTable.$inferSelect;
+export type InsertSavedCard = typeof savedCardsTable.$inferInsert;

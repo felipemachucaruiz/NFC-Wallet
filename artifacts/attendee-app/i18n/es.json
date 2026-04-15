@@ -297,7 +297,8 @@
     "sex": "Género",
     "male": "Masculino",
     "female": "Femenino",
-    "idDocument": "Núm. de identificación"
+    "idDocument": "Núm. de identificación",
+    "savedCards": "Tarjetas guardadas"
   },
   "events": {
     "tab": "Eventos",

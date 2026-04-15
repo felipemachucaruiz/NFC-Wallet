@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
 import * as Sentry from "@sentry/node";
-import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable, eventsTable, ticketOrdersTable, ticketTypesTable, ticketsTable } from "@workspace/db";
+import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable, eventsTable, ticketOrdersTable, ticketTypesTable, ticketsTable, savedCardsTable } from "@workspace/db";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -58,6 +58,7 @@ const initiatePaymentSchema = z.object({
   userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
   userLegalId: z.string().max(20).optional(),
   cardToken: z.string().optional(),
+  savedCardId: z.string().optional(),
   installments: z.number().int().min(1).max(36).optional(),
 });
 
@@ -80,7 +81,8 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { braceletUid, amount, paymentMethod, phoneNumber, bankCode, userLegalIdType, userLegalId, cardToken, installments } = parsed.data;
+    const { braceletUid, amount, paymentMethod, phoneNumber, bankCode, userLegalIdType, userLegalId, savedCardId, installments } = parsed.data;
+    let { cardToken } = parsed.data;
 
     if (paymentMethod === "nequi" && !phoneNumber) {
       res.status(400).json({ error: "phoneNumber is required for Nequi payments" });
@@ -94,9 +96,22 @@ router.post(
       res.status(400).json({ error: "userLegalId is required for PSE payments" });
       return;
     }
-    if (paymentMethod === "card" && !cardToken) {
-      res.status(400).json({ error: "cardToken is required for card payments" });
-      return;
+    if (paymentMethod === "card") {
+      if (savedCardId) {
+        const [savedCard] = await db
+          .select({ wompiToken: savedCardsTable.wompiToken })
+          .from(savedCardsTable)
+          .where(and(eq(savedCardsTable.id, savedCardId), eq(savedCardsTable.userId, req.user.id)));
+        if (!savedCard) {
+          res.status(404).json({ error: "Saved card not found" });
+          return;
+        }
+        cardToken = savedCard.wompiToken;
+      }
+      if (!cardToken) {
+        res.status(400).json({ error: "cardToken or savedCardId is required for card payments" });
+        return;
+      }
     }
 
     const [bracelet] = await db

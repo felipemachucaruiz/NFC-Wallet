@@ -220,6 +220,47 @@ export async function logoutApi(): Promise<void> {
   await apiFetch("/auth/logout", { method: "POST" });
 }
 
+export interface SavedCard {
+  id: string;
+  brand: string;
+  lastFour: string;
+  cardHolderName: string;
+  expiryMonth: string;
+  expiryYear: string;
+  alias: string | null;
+  createdAt: string;
+}
+
+export async function fetchSavedCards(): Promise<{ cards: SavedCard[] }> {
+  return apiFetch("/cards");
+}
+
+export async function saveCard(data: {
+  wompiToken: string;
+  brand: string;
+  lastFour: string;
+  cardHolderName: string;
+  expiryMonth: string;
+  expiryYear: string;
+  alias?: string;
+}): Promise<{ card: SavedCard }> {
+  return apiFetch("/cards", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateCardAlias(id: string, alias: string | null): Promise<{ card: Partial<SavedCard> }> {
+  return apiFetch(`/cards/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ alias }),
+  });
+}
+
+export async function deleteCard(id: string): Promise<{ success: boolean }> {
+  return apiFetch(`/cards/${id}`, { method: "DELETE" });
+}
+
 export interface PurchaseRequest {
   eventId: string;
   attendees: { name: string; email: string; phone?: string; dateOfBirth?: string; sex?: "male" | "female"; idDocument?: string; ticketTypeId: string }[];
@@ -230,6 +271,7 @@ export interface PurchaseRequest {
   userLegalIdType?: "CC" | "CE" | "NIT" | "PP" | "TI";
   userLegalId?: string;
   cardToken?: string;
+  savedCardId?: string;
   installments?: number;
   turnstileToken?: string;
 }

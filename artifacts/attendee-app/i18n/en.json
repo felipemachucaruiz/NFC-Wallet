@@ -298,7 +298,8 @@
     "sex": "Gender",
     "male": "Male",
     "female": "Female",
-    "idDocument": "ID number"
+    "idDocument": "ID number",
+    "savedCards": "Saved cards"
   },
   "events": {
     "tab": "Events",

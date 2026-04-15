@@ -18,7 +18,7 @@ import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
-import { useInitiateTopUp, useMyBracelets, usePseBanks } from "@/hooks/useAttendeeApi";
+import { useInitiateTopUp, useMyBracelets, usePseBanks, useSavedCards, useSaveCard, type SavedCard } from "@/hooks/useAttendeeApi";
 import { useTokenizeCard } from "@/hooks/useEventsApi";
 
 type DigitalMethod = "nequi" | "pse" | "card" | "bancolombia_transfer";
@@ -131,6 +131,19 @@ export default function TopUpScreen() {
   const { mutate: initiatePayment, isPending } = useInitiateTopUp();
   const { mutateAsync: tokenizeCard, isPending: isTokenizing } = useTokenizeCard();
 
+  const { data: savedCardsData } = useSavedCards();
+  const savedCards = savedCardsData?.cards ?? [];
+  const { mutateAsync: saveCardMutation } = useSaveCard();
+
+  const [selectedSavedCardId, setSelectedSavedCardId] = useState<string | null>(null);
+  const [showNewCardForm, setShowNewCardForm] = useState(false);
+  const [pendingCardSave, setPendingCardSave] = useState<{
+    wompiToken: string; brand: string; lastFour: string; cardHolderName: string; expiryMonth: string; expiryYear: string;
+  } | null>(null);
+  const [saveAlias, setSaveAlias] = useState("");
+  const [savingCard, setSavingCard] = useState(false);
+  const [pendingRoute, setPendingRoute] = useState<{ pathname: string; params: Record<string, string> } | null>(null);
+
   useEffect(() => {
     setNfcAvailable(isNfcSupported());
   }, []);
@@ -148,6 +161,8 @@ export default function TopUpScreen() {
 
   const effectiveAmount = selectedAmount ?? (customAmount ? parseInt(customAmount.replace(/\D/g, ""), 10) : 0);
 
+  const usingNewCard = method === "card" && (savedCards.length === 0 || showNewCardForm || selectedSavedCardId === null);
+
   const canSubmit =
     effectiveAmount >= 1000 &&
     braceletUid.length > 0 &&
@@ -156,7 +171,7 @@ export default function TopUpScreen() {
       : method === "pse"
       ? selectedBank !== null && legalId.trim().length >= 5
       : method === "card"
-      ? cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= (detectCardBrand(cardNumber) === "amex" ? 4 : 3) && cardHolder.trim().length > 0
+      ? (selectedSavedCardId !== null && !showNewCardForm) || (cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= (detectCardBrand(cardNumber) === "amex" ? 4 : 3) && cardHolder.trim().length > 0)
       : true);
 
   const handleSubmit = async () => {
@@ -166,6 +181,9 @@ export default function TopUpScreen() {
       amount: effectiveAmount,
       paymentMethod: method,
     };
+
+    let newCardData: typeof pendingCardSave = null;
+
     if (method === "nequi") {
       body.phoneNumber = phoneNumber.replace(/\D/g, "");
     } else if (method === "pse") {
@@ -173,34 +191,55 @@ export default function TopUpScreen() {
       body.userLegalIdType = legalIdType;
       body.userLegalId = legalId.trim();
     } else if (method === "card") {
-      try {
-        const [expMonth, expYear] = cardExpiry.split("/");
-        const tokenResult = await tokenizeCard({
-          number: cardNumber.replace(/\s/g, ""),
-          cvc: cardCvc,
-          expMonth: expMonth?.trim() ?? "",
-          expYear: expYear?.trim() ?? "",
-          cardHolder: cardHolder.trim(),
-        });
-        body.cardToken = tokenResult;
+      if (selectedSavedCardId && !showNewCardForm) {
+        body.savedCardId = selectedSavedCardId;
         body.installments = 1;
-      } catch (err) {
-        const msg = (err as { message?: string }).message ?? t("common.unknownError");
-        showAlert(t("common.error"), msg);
-        return;
+      } else {
+        try {
+          const [expMonth, expYear] = cardExpiry.split("/");
+          const tokenResult = await tokenizeCard({
+            number: cardNumber.replace(/\s/g, ""),
+            cvc: cardCvc,
+            expMonth: expMonth?.trim() ?? "",
+            expYear: expYear?.trim() ?? "",
+            cardHolder: cardHolder.trim(),
+          });
+          body.cardToken = tokenResult;
+          body.installments = 1;
+          const brand = detectCardBrand(cardNumber) ?? "card";
+          newCardData = {
+            wompiToken: tokenResult,
+            brand: brand ?? "card",
+            lastFour: cardNumber.replace(/\s/g, "").slice(-4),
+            cardHolderName: cardHolder.trim(),
+            expiryMonth: expMonth?.trim() ?? "",
+            expiryYear: expYear?.trim() ?? "",
+          };
+        } catch (err) {
+          const msg = (err as { message?: string }).message ?? t("common.unknownError");
+          showAlert(t("common.error"), msg);
+          return;
+        }
       }
     }
 
     initiatePayment(body, {
       onSuccess: (result) => {
-        router.push({
-          pathname: "/payment-status/[id]",
+        const targetRoute = {
+          pathname: "/payment-status/[id]" as const,
           params: {
             id: result.intentId,
             redirectUrl: result.redirectUrl ?? "",
             paymentMethod: method,
           },
-        });
+        };
+        if (newCardData) {
+          setPendingCardSave(newCardData);
+          setSaveAlias("");
+          setPendingRoute(targetRoute);
+        } else {
+          router.push(targetRoute);
+        }
       },
       onError: (err: unknown) => {
         const msg = (err as { message?: string }).message ?? t("common.unknownError");
@@ -208,6 +247,86 @@ export default function TopUpScreen() {
       },
     });
   };
+
+  const handleSaveCard = async () => {
+    if (pendingCardSave) {
+      setSavingCard(true);
+      try {
+        await saveCardMutation({ ...pendingCardSave, alias: saveAlias.trim() || undefined });
+      } catch {
+      }
+      setSavingCard(false);
+    }
+    setPendingCardSave(null);
+    if (pendingRoute) {
+      router.push(pendingRoute);
+    }
+  };
+
+  const handleSkipSave = () => {
+    setPendingCardSave(null);
+    if (pendingRoute) {
+      router.push(pendingRoute);
+    }
+  };
+
+  if (pendingCardSave) {
+    return (
+      <View style={[{ flex: 1, backgroundColor: C.background, alignItems: "center", justifyContent: "center", padding: 24 }]}>
+        <View style={[{ width: "100%", maxWidth: 360, backgroundColor: C.card, borderRadius: 20, padding: 24, gap: 16 }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: C.primaryLight, alignItems: "center", justifyContent: "center" }}>
+              <Feather name="star" size={20} color={C.primary} />
+            </View>
+            <View>
+              <Text style={{ color: C.text, fontSize: 16, fontFamily: "Inter_700Bold" }}>Guardar tarjeta</Text>
+              <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: "Inter_400Regular" }}>Para futuros pagos</Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.inputBg, borderRadius: 12, padding: 14 }}>
+            <Feather name="credit-card" size={20} color={C.primary} />
+            <Text style={{ color: C.text, fontFamily: "Inter_600SemiBold", fontSize: 14 }}>
+              {pendingCardSave.brand.toUpperCase()} •••• {pendingCardSave.lastFour}
+            </Text>
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: "Inter_500Medium" }}>Alias (opcional)</Text>
+            <TextInput
+              value={saveAlias}
+              onChangeText={setSaveAlias}
+              placeholder="Ej: Mi Visa personal"
+              placeholderTextColor={C.textMuted}
+              maxLength={100}
+              style={{ borderWidth: 1.5, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: "Inter_400Regular", color: C.text, backgroundColor: C.inputBg }}
+            />
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Pressable
+              onPress={handleSkipSave}
+              disabled={savingCard}
+              style={{ flex: 1, backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border, paddingVertical: 14, borderRadius: 12, alignItems: "center" }}
+            >
+              <Text style={{ color: C.textSecondary, fontFamily: "Inter_600SemiBold", fontSize: 14 }}>Omitir</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleSaveCard}
+              disabled={savingCard}
+              style={{ flex: 1, backgroundColor: C.primary, paddingVertical: 14, borderRadius: 12, alignItems: "center", opacity: savingCard ? 0.7 : 1 }}
+            >
+              {savingCard ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 14 }}>Guardar</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   const inputStyle = [
     styles.input,
@@ -531,7 +650,53 @@ export default function TopUpScreen() {
           </Card>
         )}
 
-        {method === "card" && (
+        {method === "card" && savedCards.length > 0 && (
+          <Card style={{ gap: 10 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              TARJETAS GUARDADAS
+            </Text>
+            {savedCards.map((card: SavedCard) => (
+              <Pressable
+                key={card.id}
+                onPress={() => { setSelectedSavedCardId(card.id); setShowNewCardForm(false); }}
+                style={[
+                  styles.savedCardBtn,
+                  {
+                    backgroundColor: selectedSavedCardId === card.id && !showNewCardForm ? C.primaryLight : C.inputBg,
+                    borderColor: selectedSavedCardId === card.id && !showNewCardForm ? C.primary : C.border,
+                  },
+                ]}
+              >
+                <Feather name="credit-card" size={18} color={selectedSavedCardId === card.id && !showNewCardForm ? C.primary : C.textSecondary} />
+                <Text style={[styles.savedCardText, { color: selectedSavedCardId === card.id && !showNewCardForm ? C.primary : C.text }]}>
+                  {card.alias ? `${card.alias} · ` : ""}{card.brand.toUpperCase()} •••• {card.lastFour}
+                </Text>
+                {selectedSavedCardId === card.id && !showNewCardForm && (
+                  <Feather name="check" size={16} color={C.primary} />
+                )}
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={() => { setShowNewCardForm(true); setSelectedSavedCardId(null); }}
+              style={[
+                styles.savedCardBtn,
+                {
+                  backgroundColor: showNewCardForm ? C.primaryLight : "transparent",
+                  borderColor: showNewCardForm ? C.primary : C.border,
+                  borderStyle: showNewCardForm ? "solid" : "dashed",
+                },
+              ]}
+            >
+              <Feather name="plus" size={16} color={showNewCardForm ? C.primary : C.textSecondary} />
+              <Text style={[styles.savedCardText, { color: showNewCardForm ? C.primary : C.textSecondary }]}>
+                Usar nueva tarjeta
+              </Text>
+              {showNewCardForm && <Feather name="check" size={16} color={C.primary} />}
+            </Pressable>
+          </Card>
+        )}
+
+        {method === "card" && usingNewCard && (
           <Card style={{ gap: 10 }}>
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
               {t("tickets.cardDetails").toUpperCase()}
@@ -701,6 +866,15 @@ const styles = StyleSheet.create({
     width: "48%",
   },
   methodLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  savedCardBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+  },
+  savedCardText: { flex: 1, fontSize: 13, fontFamily: "Inter_600SemiBold" },
   cardRow: { flexDirection: "row", gap: 10 },
   hintText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   bankSelector: {

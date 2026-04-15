@@ -184,6 +184,7 @@ export function useInitiateTopUp() {
       userLegalIdType?: string;
       userLegalId?: string;
       cardToken?: string;
+      savedCardId?: string;
       installments?: number;
     }) =>
       apiFetch<{ intentId: string; status: string; redirectUrl?: string | null }>(
@@ -249,5 +250,82 @@ export function useUpdateProfile() {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
+  });
+}
+
+export type SavedCard = {
+  id: string;
+  brand: string;
+  lastFour: string;
+  cardHolderName: string;
+  expiryMonth: string;
+  expiryYear: string;
+  alias: string | null;
+  createdAt: string;
+};
+
+export function useSavedCards() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useQuery<{ cards: SavedCard[] }>({
+    queryKey: ["savedCards"],
+    queryFn: () => apiFetch(`${API_BASE_URL}/api/cards`, headers),
+    enabled: !!headers.Authorization,
+    staleTime: 30_000,
+  });
+}
+
+export function useSaveCard() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: {
+      wompiToken: string;
+      brand: string;
+      lastFour: string;
+      cardHolderName: string;
+      expiryMonth: string;
+      expiryYear: string;
+      alias?: string;
+    }) =>
+      apiFetch<{ card: SavedCard }>(`${API_BASE_URL}/api/cards`, headers, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["savedCards"] });
+    },
+  });
+}
+
+export function useUpdateCardAlias() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, alias }: { id: string; alias: string | null }) =>
+      apiFetch<{ card: Partial<SavedCard> }>(`${API_BASE_URL}/api/cards/${id}`, headers, {
+        method: "PATCH",
+        body: JSON.stringify({ alias }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["savedCards"] });
+    },
+  });
+}
+
+export function useDeleteCard() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ success: boolean }>(`${API_BASE_URL}/api/cards/${id}`, headers, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["savedCards"] });
+    },
   });
 }

@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable, pendingWhatsappDocumentsTable } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable, pendingWhatsappDocumentsTable, savedCardsTable } from "@workspace/db";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -86,6 +86,7 @@ const createOrderSchema = z.object({
   })).optional(),
   paymentMethod: z.enum(["card", "nequi", "pse", "bancolombia_transfer", "free"]),
   cardToken: z.string().optional(),
+  savedCardId: z.string().optional(),
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
   userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
@@ -104,7 +105,8 @@ router.post(
       return;
     }
 
-    const { eventId, attendees, unitSelections, paymentMethod, cardToken, phoneNumber, bankCode, userLegalIdType, userLegalId, installments, turnstileToken } = parsed.data;
+    const { eventId, attendees, unitSelections, paymentMethod, savedCardId, phoneNumber, bankCode, userLegalIdType, userLegalId, installments, turnstileToken } = parsed.data;
+    let { cardToken } = parsed.data;
 
     if (!req.isAuthenticated()) {
       if (!turnstileToken) {
@@ -146,9 +148,22 @@ router.post(
         res.status(503).json({ error: "Payment gateway not configured" });
         return;
       }
-      if (paymentMethod === "card" && !cardToken) {
-        res.status(400).json({ error: "cardToken is required for card payments" });
-        return;
+      if (paymentMethod === "card") {
+        if (savedCardId && req.isAuthenticated()) {
+          const [savedCard] = await db
+            .select({ wompiToken: savedCardsTable.wompiToken })
+            .from(savedCardsTable)
+            .where(and(eq(savedCardsTable.id, savedCardId), eq(savedCardsTable.userId, req.user!.id)));
+          if (!savedCard) {
+            res.status(404).json({ error: "Saved card not found" });
+            return;
+          }
+          cardToken = savedCard.wompiToken;
+        }
+        if (!cardToken) {
+          res.status(400).json({ error: "cardToken or savedCardId is required for card payments" });
+          return;
+        }
       }
       if (paymentMethod === "nequi" && !phoneNumber) {
         res.status(400).json({ error: "phoneNumber is required for Nequi payments" });

@@ -370,6 +370,15 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      <Pressable
+        onPress={() => router.push("/saved-cards")}
+        style={[styles.navLink, { backgroundColor: C.card, borderColor: C.border }]}
+      >
+        <Feather name="credit-card" size={18} color={C.primary} />
+        <Text style={[styles.navLinkText, { color: C.text }]}>{t("profile.savedCards")}</Text>
+        <Feather name="chevron-right" size={16} color={C.textMuted} />
+      </Pressable>
+
       {!showLogoutConfirm ? (
         <Pressable
           onPress={() => setShowLogoutConfirm(true)}
@@ -416,6 +425,16 @@ const styles = StyleSheet.create({
   userName: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   userEmail: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   editBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  navLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  navLinkText: { flex: 1, fontSize: 14, fontFamily: "Inter_600SemiBold" },
   editProfileBtn: {
     flexDirection: "row",
     alignItems: "center",
