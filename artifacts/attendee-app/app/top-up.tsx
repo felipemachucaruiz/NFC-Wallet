@@ -9,15 +9,6 @@ const bancolombiaXml = (color: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110.54 110.83"><path fill="${color}" d="M82.66.03c-21.47,2.65-42.21,6.56-63,12.59-2.71.85-4.37,3.88-3.69,6.57,1.52,5.99,2.29,8.99,3.83,15,.65,2.54,3.21,3.84,5.8,2.98,21.24-6.54,42.53-11.01,64.51-14.27,2.52-.34,3.89-2.94,2.97-5.55-1.95-5.51-2.93-8.25-4.92-13.73-.86-2.32-3.15-3.85-5.5-3.59ZM100.62,33.37c-33.61,4.29-66.35,12.6-97.39,26.34-2.26,1.07-3.62,3.92-3.14,6.43,1.22,6.42,1.83,9.64,3.07,16.07.53,2.75,3.1,4.02,5.63,2.78,31.53-14.45,64.84-23.64,99.01-29.12,2.17-.36,3.28-2.85,2.45-5.41-1.72-5.32-2.59-7.98-4.37-13.27-.81-2.46-3.04-4.11-5.26-3.82ZM100.22,69.19c-20.99,4.56-41.51,10.05-61.83,17.03-2.58.95-4.03,3.66-3.35,6.17,1.62,5.96,2.42,8.95,4.06,14.93.77,2.81,3.93,4.25,6.83,3.14,20.31-7.28,40.83-13.63,61.79-18.73,2.01-.49,3-2.85,2.26-5.28-1.65-5.37-2.48-8.05-4.18-13.39-.83-2.63-3.27-4.35-5.58-3.87Z"/></svg>`;
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -32,6 +23,52 @@ import { useTokenizeCard } from "@/hooks/useEventsApi";
 
 type DigitalMethod = "nequi" | "pse" | "card" | "bancolombia_transfer";
 type LegalIdType = "CC" | "CE" | "NIT" | "PP" | "TI";
+
+type CardBrand = "visa" | "mastercard" | "amex" | null;
+
+function detectCardBrand(raw: string): CardBrand {
+  const n = raw.replace(/\D/g, "");
+  if (/^4/.test(n)) return "visa";
+  if (/^(5[1-5]|2[2-7]\d{2})/.test(n)) return "mastercard";
+  if (/^3[47]/.test(n)) return "amex";
+  return null;
+}
+
+function formatCardNumber(raw: string, brand: CardBrand): string {
+  const digits = raw.replace(/\D/g, "");
+  if (brand === "amex") {
+    const p1 = digits.slice(0, 4);
+    const p2 = digits.slice(4, 10);
+    const p3 = digits.slice(10, 15);
+    return [p1, p2, p3].filter(Boolean).join(" ");
+  }
+  return (digits.match(/.{1,4}/g) ?? []).join(" ").slice(0, 19);
+}
+
+function handleExpiryChange(value: string, prev: string): string {
+  let v = value.replace(/[^\d/]/g, "");
+  if (v.length === 2 && !v.includes("/") && prev.length === 1) v = v + "/";
+  const parts = v.split("/");
+  if (parts[1] && parts[1].length === 4) v = parts[0] + "/" + parts[1].slice(2);
+  return v.slice(0, 5);
+}
+
+const CARD_LOGOS: Record<NonNullable<CardBrand>, ReturnType<typeof require>> = {
+  visa: require("@/assets/images/card-visa.png"),
+  mastercard: require("@/assets/images/card-mastercard.png"),
+  amex: require("@/assets/images/card-amex.png"),
+};
+
+function CardBrandLogo({ brand }: { brand: CardBrand }) {
+  if (!brand) return null;
+  return (
+    <Image
+      source={CARD_LOGOS[brand]}
+      style={{ width: 44, height: 28 }}
+      resizeMode="contain"
+    />
+  );
+}
 
 const LEGAL_ID_TYPES: { code: LegalIdType; label: string }[] = [
   { code: "CC", label: "Cédula de Ciudadanía" },
@@ -117,7 +154,7 @@ export default function TopUpScreen() {
       : method === "pse"
       ? selectedBank !== null && legalId.trim().length >= 5
       : method === "card"
-      ? cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0
+      ? cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= (detectCardBrand(cardNumber) === "amex" ? 4 : 3) && cardHolder.trim().length > 0
       : true);
 
   const handleSubmit = async () => {
@@ -478,22 +515,30 @@ export default function TopUpScreen() {
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
               {t("tickets.cardDetails").toUpperCase()}
             </Text>
-            <TextInput
-              style={inputStyle}
-              placeholder={t("tickets.cardNumber")}
-              placeholderTextColor={C.textMuted}
-              value={cardNumber}
-              onChangeText={setCardNumber}
-              keyboardType="numeric"
-              maxLength={19}
-            />
+            <View style={{ position: "relative" }}>
+              <TextInput
+                style={[inputStyle, { paddingRight: 56, fontVariant: ["tabular-nums"] }]}
+                placeholder="1234 5678 9012 3456"
+                placeholderTextColor={C.textMuted}
+                value={cardNumber}
+                onChangeText={(raw) => {
+                  const brand = detectCardBrand(raw);
+                  setCardNumber(formatCardNumber(raw, brand));
+                }}
+                keyboardType="numeric"
+                maxLength={detectCardBrand(cardNumber) === "amex" ? 17 : 19}
+              />
+              <View style={{ position: "absolute", right: 10, top: 0, bottom: 0, justifyContent: "center", pointerEvents: "none" }}>
+                <CardBrandLogo brand={detectCardBrand(cardNumber)} />
+              </View>
+            </View>
             <View style={styles.cardRow}>
               <TextInput
                 style={[inputStyle, { flex: 1 }]}
                 placeholder="MM/AA"
                 placeholderTextColor={C.textMuted}
                 value={cardExpiry}
-                onChangeText={setCardExpiry}
+                onChangeText={(v) => setCardExpiry(handleExpiryChange(v, cardExpiry))}
                 keyboardType="numeric"
                 maxLength={5}
               />
@@ -502,9 +547,9 @@ export default function TopUpScreen() {
                 placeholder="CVC"
                 placeholderTextColor={C.textMuted}
                 value={cardCvc}
-                onChangeText={setCardCvc}
+                onChangeText={(v) => setCardCvc(v.replace(/\D/g, "").slice(0, detectCardBrand(cardNumber) === "amex" ? 4 : 3))}
                 keyboardType="numeric"
-                maxLength={4}
+                maxLength={detectCardBrand(cardNumber) === "amex" ? 4 : 3}
                 secureTextEntry
               />
             </View>
