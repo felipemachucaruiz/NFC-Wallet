@@ -104,6 +104,54 @@ async function readUltralightCCByte(): Promise<number | null> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Compact binary format for basic MIFARE Ultralight (16 pages, 44 usable bytes).
+// JSON payload with full HMAC is ~100 bytes — too large. This format fits 20 bytes.
+//
+// Layout (20 bytes = 5 pages, written starting at page 4):
+//   Byte  0   : 0xBF  — magic marker (never valid JSON: JSON starts with 0x7B '{')
+//   Bytes 1-4 : balance  — uint32 big-endian (max ~4.29 B COP)
+//   Bytes 5-8 : counter  — uint32 big-endian
+//   Bytes 9-16: HMAC[0..7] — first 8 raw bytes of HMAC-SHA256 (= 16 hex chars)
+//   Bytes 17-19: 0x00 padding
+// ---------------------------------------------------------------------------
+const COMPACT_BINARY_MAGIC = 0xbf;
+const COMPACT_BINARY_PAGES = 5; // 20 bytes
+
+function encodeBraceletCompact(payload: BraceletPayload): number[] {
+  const out = new Array(COMPACT_BINARY_PAGES * MFU_PAGE_SIZE).fill(0);
+  out[0] = COMPACT_BINARY_MAGIC;
+  // Balance — uint32 big-endian
+  const bal = Math.max(0, Math.floor(payload.balance)) >>> 0;
+  out[1] = (bal >>> 24) & 0xff;
+  out[2] = (bal >>> 16) & 0xff;
+  out[3] = (bal >>> 8) & 0xff;
+  out[4] = bal & 0xff;
+  // Counter — uint32 big-endian
+  const ctr = Math.max(0, Math.floor(payload.counter)) >>> 0;
+  out[5] = (ctr >>> 24) & 0xff;
+  out[6] = (ctr >>> 16) & 0xff;
+  out[7] = (ctr >>> 8) & 0xff;
+  out[8] = ctr & 0xff;
+  // HMAC — first 8 bytes (16 hex chars) of the full 64-char HMAC
+  const hmacHex = (payload.hmac || "").slice(0, 16).padEnd(16, "0");
+  for (let i = 0; i < 8; i++) {
+    out[9 + i] = parseInt(hmacHex.slice(i * 2, i * 2 + 2), 16) || 0;
+  }
+  return out;
+}
+
+function decodeBraceletCompact(bytes: Uint8Array, uid: string): BraceletPayload {
+  if (bytes.length < 17 || bytes[0] !== COMPACT_BINARY_MAGIC) {
+    return { uid, balance: 0, counter: 0, hmac: "" };
+  }
+  const balance = ((bytes[1] << 24) | (bytes[2] << 16) | (bytes[3] << 8) | bytes[4]) >>> 0;
+  const counter = ((bytes[5] << 24) | (bytes[6] << 16) | (bytes[7] << 8) | bytes[8]) >>> 0;
+  const hmacBytes = bytes.slice(9, 17);
+  const hmac = Array.from(hmacBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return { uid, balance, counter, hmac };
+}
+
 // GET_VERSION response byte 6 → chip storage size → NTAG type mapping.
 // NTAG213=0x0F, NTAG215=0x11, NTAG216=0x13. Ultralight C does NOT support GET_VERSION.
 const NTAG_VERSION_SIZE_MAP: Record<number, TagInfo> = {
@@ -1062,18 +1110,24 @@ export async function scanAndWriteBracelet(
         throw e;
       }
       const allBytes = new Uint8Array(rawBytes);
-      const jsonStart = allBytes.indexOf(0x7b);
       let payload: BraceletPayload;
-      if (jsonStart === -1) {
-        payload = { uid, balance: 0, counter: 0, hmac: "" };
+      if (allBytes.length > 0 && allBytes[0] === COMPACT_BINARY_MAGIC) {
+        // Compact binary format (basic MIFARE Ultralight)
+        payload = decodeBraceletCompact(allBytes, uid);
+        console.log("[NFC] Read compact binary — balance:", payload.balance, "counter:", payload.counter);
       } else {
-        let jsonEnd = allBytes.length;
-        for (let i = jsonStart; i < allBytes.length; i++) {
-          if (allBytes[i] === 0) { jsonEnd = i; break; }
+        const jsonStart = allBytes.indexOf(0x7b);
+        if (jsonStart === -1) {
+          payload = { uid, balance: 0, counter: 0, hmac: "" };
+        } else {
+          let jsonEnd = allBytes.length;
+          for (let i = jsonStart; i < allBytes.length; i++) {
+            if (allBytes[i] === 0) { jsonEnd = i; break; }
+          }
+          payload = parsePayloadJson(new TextDecoder().decode(allBytes.slice(jsonStart, jsonEnd)), uid);
         }
-        payload = parsePayloadJson(new TextDecoder().decode(allBytes.slice(jsonStart, jsonEnd)), uid);
+        console.log("[NFC] Read JSON payload balance:", payload.balance, "uid:", uid.slice(-6));
       }
-      console.log("[NFC] Read payload balance:", payload.balance, "uid:", uid.slice(-6));
 
       const newPayload = await onRead(payload, tagInfo);
       if (!newPayload) return { payload, tagInfo, written: false };
@@ -1105,25 +1159,39 @@ export async function scanAndWriteBracelet(
       // triggers the "charge recorded with warning" path, while a failure on
       // page 1 (e.g. write-protection or immediate TAG_LOST) leaves writeAttempted=false
       // and the topup is NOT recorded — chip definitely unchanged.
-      const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });
-      const dataBytes = Array.from(new TextEncoder().encode(data));
-      const maxDataPages = endPage - MFU_PAYLOAD_START_PAGE;
-      const pageCount = Math.ceil((dataBytes.length + 1) / MFU_PAGE_SIZE);
-      if (pageCount > maxDataPages) throw new Error("PAYLOAD_TOO_LARGE_FOR_ULTRALIGHT");
-      const padded = new Array(pageCount * MFU_PAGE_SIZE).fill(0);
-      for (let i = 0; i < dataBytes.length; i++) padded[i] = dataBytes[i];
-      for (let i = 0; i < pageCount; i++) {
-        await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + i, padded.slice(i * MFU_PAGE_SIZE, (i + 1) * MFU_PAGE_SIZE));
+      //
+      // Basic MIFARE Ultralight has only 44 usable bytes — too small for the full
+      // JSON payload (~100 bytes with 64-char HMAC). Use compact binary format instead.
+      let writePages: number[];
+      if (tagInfo.type === "MIFARE_ULTRALIGHT") {
+        writePages = encodeBraceletCompact(newPayload);
+        console.log("[NFC] Writing compact binary format (basic MFU)");
+      } else {
+        const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });
+        const dataBytes = Array.from(new TextEncoder().encode(data));
+        const maxDataPages = endPage - MFU_PAYLOAD_START_PAGE;
+        const pageCount = Math.ceil((dataBytes.length + 1) / MFU_PAGE_SIZE);
+        if (pageCount > maxDataPages) throw new Error("PAYLOAD_TOO_LARGE_FOR_ULTRALIGHT");
+        const padded = new Array(pageCount * MFU_PAGE_SIZE).fill(0);
+        for (let i = 0; i < dataBytes.length; i++) padded[i] = dataBytes[i];
+        writePages = padded;
+      }
+      const totalPages = Math.ceil(writePages.length / MFU_PAGE_SIZE);
+      for (let i = 0; i < totalPages; i++) {
+        await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + i, writePages.slice(i * MFU_PAGE_SIZE, (i + 1) * MFU_PAGE_SIZE));
         if (i === 0) opts?.onBeforeFirstWrite?.();
       }
-      // Terminator page: marks end of data for the reader. Non-fatal if it fails —
-      // the last data page already contains null-byte padding that serves as a
-      // natural terminator, so the chip is effectively correct even without it.
-      if (pageCount < maxDataPages) {
-        try {
-          await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + pageCount, [0, 0, 0, 0]);
-        } catch {
-          console.warn("[NFC] Terminator page write failed after data write — data pages intact, ignoring");
+      // For non-compact (JSON) format: write a terminator page if there's room.
+      // Not needed for compact binary — it always fills exactly 5 pages, no ambiguity.
+      if (tagInfo.type !== "MIFARE_ULTRALIGHT") {
+        const writtenDataPages = Math.ceil(writePages.length / MFU_PAGE_SIZE);
+        const maxDataPages = endPage - MFU_PAYLOAD_START_PAGE;
+        if (writtenDataPages < maxDataPages) {
+          try {
+            await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + writtenDataPages, [0, 0, 0, 0]);
+          } catch {
+            console.warn("[NFC] Terminator page write failed after data write — data pages intact, ignoring");
+          }
         }
       }
       return { payload, tagInfo, written: true };

@@ -44,13 +44,17 @@ export async function verifyHmac(
     const primaryKeys = Array.isArray(secret) ? secret : [secret];
     const allKeys = [...primaryKeys, ...(legacySecrets ?? [])];
 
+    // Compact binary format (basic MIFARE Ultralight) stores only the first 8 bytes
+    // of the HMAC (= 16 hex chars). Accept a prefix match when stored hmac is 16 chars.
+    const isCompact = hmac.length === 16;
+
     for (const key of allKeys) {
       if (uid) {
         const kdfExpected = await computeHmac(balance, counter, key, uid);
-        if (kdfExpected === hmac) return true;
+        if (isCompact ? kdfExpected.slice(0, 16) === hmac : kdfExpected === hmac) return true;
       }
       const legacyExpected = await computeHmac(balance, counter, key);
-      if (legacyExpected === hmac) return true;
+      if (isCompact ? legacyExpected.slice(0, 16) === hmac : legacyExpected === hmac) return true;
     }
     return false;
   } catch {
