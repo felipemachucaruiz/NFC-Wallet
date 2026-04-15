@@ -273,36 +273,54 @@ router.post(
 
     // Counter must be strictly increasing
     if (bracelet.lastCounter !== null && newCounter <= bracelet.lastCounter) {
-      res.status(400).json({ error: `Counter replay detected: submitted ${newCounter} ≤ stored ${bracelet.lastCounter}` });
-      return;
-    }
-
-    // Balance consistency: newBalance must equal stored balance + amount
-    const expectedBalance = bracelet.lastKnownBalance + amount;
-    if (newBalance !== expectedBalance) {
       res.status(400).json({
-        error: `Balance mismatch: expected ${expectedBalance} (${bracelet.lastKnownBalance} + ${amount}), got ${newBalance}`,
+        error: `COUNTER_REPLAY: El contador de la pulsera (${newCounter}) no puede ser igual o menor al registrado (${bracelet.lastCounter}). Posible repetición de transacción.`,
       });
       return;
     }
 
-    // Server-side HMAC verification for synced top-ups — enforced unconditionally
-    // The client wrote a new HMAC to the bracelet offline; we verify it matches what we'd have computed
+    // ── HMAC verification FIRST ─────────────────────────────────────────────
+    // The chip's HMAC is the cryptographic source of truth for offline systems.
+    // Verify it before balance checks so that legitimate offline catch-up topups
+    // (where the server is behind due to previous unsynced topups) are accepted.
     const effectiveSyncEventId = bracelet.eventId ?? syncBankEventId;
     try {
       const { candidateKeys } = await resolveHmacKey(effectiveSyncEventId);
-      // Verify against all candidate keys: derived key first, then pre-KDF legacy keys,
-      // so bracelets written before KDF was enabled continue to sync successfully
       const { valid } = verifyBraceletHmac(newBalance, newCounter, clientHmac, candidateKeys, nfcUid);
       if (!valid) {
-        res.status(400).json({ error: "HMAC_UID_MISMATCH: Top-up signature invalid — possible clone or tamper detected" });
+        res.status(400).json({ error: "HMAC_UID_MISMATCH: Firma de recarga inválida — posible clonación o manipulación detectada" });
         return;
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "HMAC configuration error";
+      const msg = err instanceof Error ? err.message : "Error de configuración HMAC";
       captureError(err, { route: "topups/sync", extra: { nfcUid } });
       res.status(500).json({ error: msg });
       return;
+    }
+
+    // ── Balance consistency (after HMAC is confirmed valid) ──────────────────
+    // Normal case: newBalance == lastKnownBalance + amount
+    // Catch-up case: newBalance > lastKnownBalance + amount → the server is behind
+    //   because prior offline topups were never received. The valid HMAC proves the
+    //   chip balance is genuine, so we accept and update the server to the real value.
+    // Suspicious case: newBalance < lastKnownBalance + amount → balance lower than
+    //   expected even with a valid HMAC (e.g. stale queued topup after a server refund).
+    //   Reject to prevent double-spending of a refunded balance.
+    const expectedBalance = bracelet.lastKnownBalance + amount;
+    if (newBalance < expectedBalance) {
+      res.status(400).json({
+        error: `BALANCE_BELOW_EXPECTED: El nuevo saldo (${(newBalance / 100).toFixed(0)} COP) es menor al esperado (${(expectedBalance / 100).toFixed(0)} COP). Posible recarga duplicada después de una devolución. Contacta a un supervisor.`,
+      });
+      return;
+    }
+    const isOfflineCatchUp = newBalance > expectedBalance;
+    if (isOfflineCatchUp) {
+      // Log for audit — not an error, just a reconciliation event
+      console.warn(
+        `[topups/sync] Offline catch-up for ${nfcUid}: server had ${bracelet.lastKnownBalance}, ` +
+        `client newBalance=${newBalance} (amount=${amount}). ` +
+        `${newBalance - expectedBalance} COP reconciled from unsynced prior topups.`
+      );
     }
 
     const [topUp] = await db
