@@ -606,11 +606,9 @@ export async function writeBraceletUltralight(
   }
 }
 
-async function authenticateUltralightC(mfuHandler: MfuHandler, keyHex: string): Promise<void> {
-  if (!mfuHandler.transceive) {
-    throw new Error("ULTRALIGHT_C_TRANSCEIVE_UNAVAILABLE");
-  }
+type TransceiveFn = (data: number[]) => Promise<number[]>;
 
+async function authenticateUltralightC(transceiveFn: TransceiveFn, keyHex: string): Promise<void> {
   if (!/^[0-9a-fA-F]{32}$/.test(keyHex)) {
     throw new Error("ULTRALIGHT_C_INVALID_KEY_FORMAT");
   }
@@ -622,7 +620,7 @@ async function authenticateUltralightC(mfuHandler: MfuHandler, keyHex: string): 
   }
 
   // Step 1: Send AUTH1 command (0x1A 0x00) to get RndB encrypted
-  const auth1Response = await mfuHandler.transceive([0x1a, 0x00]);
+  const auth1Response = await transceiveFn([0x1a, 0x00]);
   if (!auth1Response || auth1Response.length < 9) {
     throw new Error("ULTRALIGHT_C_AUTH_FAILED_STEP1");
   }
@@ -652,7 +650,7 @@ async function authenticateUltralightC(mfuHandler: MfuHandler, keyHex: string): 
 
   // Step 6: Send AUTH2 command: 0xAF + 16 bytes ciphertext
   const auth2Cmd = [0xaf, ...Array.from(encPayload)];
-  const auth2Response = await mfuHandler.transceive(auth2Cmd);
+  const auth2Response = await transceiveFn(auth2Cmd);
   if (!auth2Response || auth2Response.length < 9) {
     throw new Error("ULTRALIGHT_C_AUTH_FAILED_STEP2");
   }
@@ -755,9 +753,16 @@ export async function writeBraceletUltralightC(
     const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
     if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
 
-    // Authenticate before writing if a key is provided — hard failure if auth fails
+    // Authenticate before writing if a key is provided — hard failure if auth fails.
+    // MifareUltralightHandlerAndroid does NOT expose transceive; use nfcAHandler instead.
     if (keyHex && Platform.OS === "android") {
-      await authenticateUltralightC(mfuHandler, keyHex);
+      const mgr2 = NfcManager as unknown as AnyRecord;
+      const nfcAHandler2 = mgr2["nfcAHandler"] as { transceive?: TransceiveFn } | null;
+      const transceiveFn2: TransceiveFn | undefined =
+        (nfcAHandler2?.transceive ? nfcAHandler2.transceive.bind(nfcAHandler2) : undefined) ??
+        (typeof mgr2["transceive"] === "function" ? (mgr2["transceive"] as TransceiveFn).bind(mgr2) : undefined);
+      if (!transceiveFn2) throw new Error("ULTRALIGHT_C_AUTH_FAILED: ULTRALIGHT_C_TRANSCEIVE_UNAVAILABLE");
+      await authenticateUltralightC(transceiveFn2, keyHex);
     }
 
     const data = JSON.stringify({
@@ -1149,9 +1154,21 @@ export async function scanAndWriteBracelet(
       if (tagInfo.type === "MIFARE_ULTRALIGHT_C") {
         const usingCustomKey = !!opts?.ultralightCKeyHex;
         const authKey = opts?.ultralightCKeyHex || ULTRALIGHT_C_FACTORY_KEY;
+        // MifareUltralightHandlerAndroid does NOT expose transceive in react-native-nfc-manager v3.x.
+        // Raw transceive is available via NfcManager.nfcAHandler.transceive (cross-platform)
+        // or directly on NfcManagerAndroid.transceive. MIFARE Ultralight C IS an NFC-A tag,
+        // so the NfcA transceive channel works for the 3DES AUTH1/AUTH2 commands.
+        const mgr = NfcManager as unknown as AnyRecord;
+        const nfcAHandler = mgr["nfcAHandler"] as { transceive?: TransceiveFn } | null;
+        const transceiveFn: TransceiveFn | undefined =
+          (nfcAHandler?.transceive ? nfcAHandler.transceive.bind(nfcAHandler) : undefined) ??
+          (typeof mgr["transceive"] === "function" ? (mgr["transceive"] as TransceiveFn).bind(mgr) : undefined);
+        if (!transceiveFn) {
+          throw new Error("ULTRALIGHT_C_AUTH_FAILED: ULTRALIGHT_C_TRANSCEIVE_UNAVAILABLE");
+        }
         console.log("[NFC] Ultralight C — authenticating with", usingCustomKey ? "custom key" : "factory default key");
         try {
-          await authenticateUltralightC(mfuHandler, authKey);
+          await authenticateUltralightC(transceiveFn, authKey);
           console.log("[NFC] Ultralight C auth OK");
         } catch (authErr) {
           console.error("[NFC] Ultralight C auth FAILED:", authErr instanceof Error ? authErr.message : String(authErr));
