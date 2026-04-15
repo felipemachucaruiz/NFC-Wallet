@@ -869,7 +869,7 @@ export async function cancelNfc(): Promise<void> {
  */
 export async function scanAndWriteBracelet(
   onRead: (payload: BraceletPayload, tagInfo: TagInfo) => Promise<BraceletPayload | null>,
-  opts?: { expectedChipType?: NfcChipTypeHint; ultralightCKeyHex?: string }
+  opts?: { expectedChipType?: NfcChipTypeHint; ultralightCKeyHex?: string; onBeforeFirstWrite?: () => void }
 ): Promise<{ payload: BraceletPayload; tagInfo: TagInfo; written: boolean }> {
   if (!NfcManager || !NfcTech || !Ndef) {
     throw new Error("NFC_NOT_AVAILABLE");
@@ -968,6 +968,7 @@ export async function scanAndWriteBracelet(
       const padded = new Array(maxCapacity).fill(0);
       for (let i = 0; i < dataBytes.length; i++) padded[i] = dataBytes[i];
 
+      opts?.onBeforeFirstWrite?.();
       let byteOffset = 0;
       for (const sector of MFC_PAYLOAD_SECTORS) {
         await mfcHandler.mifareClassicAuthenticateA(sector, MFC_KEY_A);
@@ -1018,6 +1019,11 @@ export async function scanAndWriteBracelet(
       if (tagInfo.type === "MIFARE_ULTRALIGHT_C" && opts?.ultralightCKeyHex) {
         await authenticateUltralightC(mfuHandler, opts.ultralightCKeyHex);
       }
+
+      // Signal that the physical write is about to begin (auth passed, first page next).
+      // This lets the caller set writeAttempted AFTER auth succeeds — not before — so
+      // an auth failure doesn't falsely trigger a "charge recorded" warning.
+      opts?.onBeforeFirstWrite?.();
 
       // Write pages in the same session
       const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });

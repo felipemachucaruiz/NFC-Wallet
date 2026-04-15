@@ -451,16 +451,18 @@ export default function TopUpScreen() {
             stepRef.current = "writing";
             setStep("writing");
             writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
-            // Mark write as started BEFORE returning the new payload to the writer.
-            // From this point on, the chip write is about to begin (or may already
-            // be happening). Any error after this mark likely means the data was
-            // physically committed to the chip but the NFC session dropped.
-            writeAttempted = true;
-            writeAttemptedRef.current = true; // Also update component-level ref
             return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
           }, {
             expectedChipType: chipHint,
             ultralightCKeyHex: ultralightCDesKey || undefined,
+            // onBeforeFirstWrite fires AFTER authentication (if any) and right
+            // before the first page is physically written. Only at this point can
+            // we be sure the write is truly imminent — marking writeAttempted here
+            // prevents false "charge recorded" warnings on auth-only failures.
+            onBeforeFirstWrite: () => {
+              writeAttempted = true;
+              writeAttemptedRef.current = true;
+            },
           });
         }
 

@@ -272,7 +272,7 @@
     "nfcWriteWarning": "Top-up saved. Could not write to bracelet — hold it close to sync on the next charge.",
     "skipWrite": "Skip — finish without writing card",
     "savedOk": "Top-up saved",
-    "tapToWriteHint": "Hold the bracelet flat against the back of the phone — it will write automatically.",
+    "tapToWriteHint": "Hold the bracelet flat against the back of the phone for 2-3 seconds. Do not remove it until you hear the confirmation.",
     "tapNow": "Tap card now",
     "writeRetryHint": "Write failed. Make sure the card is flat against the phone and try again.",
     "retryingWrite": "Trying again...",
