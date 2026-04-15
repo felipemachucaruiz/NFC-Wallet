@@ -639,8 +639,9 @@ async function authenticateUltralightC(transceiveFn: TransceiveFn, keyHex: strin
   rndBPrime[7] = rndB[0];
 
   // Step 4: Generate random RndA (8 bytes)
-  const rndA = new Uint8Array(8);
-  crypto.getRandomValues(rndA);
+  // crypto.getRandomValues() is not available in React Native / Hermes.
+  // CryptoJS.lib.WordArray.random() works correctly in this environment.
+  const rndA = wordArrayToUint8Array(CryptoJS.lib.WordArray.random(8));
 
   // Step 5: Encrypt [RndA | RndB'] with 3DES CBC, IV = last block of encRndB
   const plaintext = new Uint8Array(16);
