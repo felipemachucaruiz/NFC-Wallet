@@ -16,6 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AlertProvider } from "@/components/CustomAlert";
+import { UpdateBanner } from "@/components/UpdateBanner";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { initI18n } from "@/i18n";
@@ -233,6 +234,7 @@ function AppInner() {
     <>
       <RootLayoutNav />
       <SessionExpiredOverlay />
+      <UpdateBanner />
     </>
   );
 }
