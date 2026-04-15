@@ -5,7 +5,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
@@ -80,7 +80,32 @@ if (Platform.OS !== "web") {
 
 SplashScreen.preventAutoHideAsync();
 
+const EXPECTED_ERRORS = /NFC_CANCELLED|TAG_LOST|USER_CANCELLED|AbortError|NetworkError/;
+
+function reportToSentry(error: unknown, context?: Record<string, unknown>) {
+  if (!error) return;
+  const msg = error instanceof Error ? error.message : String(error);
+  if (EXPECTED_ERRORS.test(msg)) return;
+  Sentry.captureException(error instanceof Error ? error : new Error(msg), {
+    extra: context,
+  });
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      reportToSentry(error, { queryKey: JSON.stringify(query.queryKey) });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      reportToSentry(error, {
+        mutationKey: mutation.options.mutationKey
+          ? JSON.stringify(mutation.options.mutationKey)
+          : undefined,
+      });
+    },
+  }),
   defaultOptions: {
     queries: { retry: 1, staleTime: 30_000 },
   },

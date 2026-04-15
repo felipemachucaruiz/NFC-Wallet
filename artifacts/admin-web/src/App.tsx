@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
+import * as Sentry from "@sentry/react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
@@ -7,6 +8,17 @@ import { useGetCurrentAuthUser, useGetEvent, setAuthTokenGetter, setBaseUrl } fr
 import { AUTH_TOKEN_KEY } from "@/pages/login";
 import { EventProvider, useEventContext } from "@/contexts/event-context";
 import React from "react";
+
+const EXPECTED_ERRORS = /AbortError|NetworkError|cancelled|user denied/i;
+
+function reportToSentry(error: unknown, context?: Record<string, unknown>) {
+  if (!error) return;
+  const msg = error instanceof Error ? error.message : String(error);
+  if (EXPECTED_ERRORS.test(msg)) return;
+  Sentry.captureException(error instanceof Error ? error : new Error(msg), {
+    extra: context,
+  });
+}
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -21,6 +33,10 @@ class ErrorBoundary extends React.Component<
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("ErrorBoundary caught:", error, info.componentStack);
+    Sentry.captureException(error, {
+      extra: { componentStack: info.componentStack?.split("\n").slice(0, 15).join("\n") },
+      tags: { errorSource: "ErrorBoundary" },
+    });
   }
   render() {
     if (this.state.hasError) {
@@ -94,7 +110,22 @@ import EventGuestLists from "@/pages/event-guest-lists";
 import WhatsAppTemplates from "@/pages/whatsapp-templates";
 import AuditorTicketSales from "@/pages/auditor-ticket-sales";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      reportToSentry(error, { queryKey: JSON.stringify(query.queryKey) });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      reportToSentry(error, {
+        mutationKey: mutation.options.mutationKey
+          ? JSON.stringify(mutation.options.mutationKey)
+          : undefined,
+      });
+    },
+  }),
+});
 
 function ProtectedRoute({ component: Component, allowedRoles }: { component: React.ElementType, allowedRoles: string[] }) {
   const { data: user, isLoading } = useGetCurrentAuthUser();

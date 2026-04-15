@@ -5,6 +5,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { requireAttestation } from "../middlewares/requireAttestation";
 import { z } from "zod";
 import { deriveEventKey, computeBraceletHmac, verifyBraceletHmac } from "../lib/kdf";
+import { captureError } from "../lib/captureError";
 
 const router: IRouter = Router();
 
@@ -146,6 +147,7 @@ router.post(
       hmac = computeBraceletHmac(newBalance, newCounter, primaryKey, nfcUid);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "HMAC configuration error";
+      captureError(err, { route: "topups/create", extra: { nfcUid, amount } });
       res.status(500).json({ error: msg });
       return;
     }
@@ -298,6 +300,7 @@ router.post(
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "HMAC configuration error";
+      captureError(err, { route: "topups/sync", extra: { nfcUid } });
       res.status(500).json({ error: msg });
       return;
     }

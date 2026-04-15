@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
+import * as Sentry from "@sentry/node";
 import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable, eventsTable, ticketOrdersTable, ticketTypesTable, ticketsTable } from "@workspace/db";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
@@ -262,6 +263,10 @@ router.post(
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.error("Wompi API error:", errMsg, "| WOMPI_BASE_URL:", WOMPI_BASE_URL);
+      Sentry.captureException(err instanceof Error ? err : new Error(errMsg), {
+        tags: { route: "payments/initiate", paymentMethod },
+        extra: { reference, amountCentavos, WOMPI_BASE_URL },
+      });
       res.status(502).json({ error: `Payment gateway error: ${errMsg}` });
       return;
     }
@@ -347,6 +352,10 @@ router.get(
         }
       } catch (err) {
         console.error("Wompi status poll error:", err);
+        Sentry.captureException(err instanceof Error ? err : new Error(String(err)), {
+          tags: { route: "payments/status-poll" },
+          extra: { intentId: id, wompiTransactionId: intent.wompiTransactionId },
+        });
       }
     }
 
@@ -618,6 +627,9 @@ router.get(
       pseBanksCache = { data: parsed.data.data, fetchedAt: Date.now() };
       res.json({ data: parsed.data.data });
     } catch (err) {
+      Sentry.captureException(err instanceof Error ? err : new Error(String(err)), {
+        tags: { route: "payments/pse-banks" },
+      });
       res.status(502).json({ error: "Failed to fetch PSE banks" });
     }
   },

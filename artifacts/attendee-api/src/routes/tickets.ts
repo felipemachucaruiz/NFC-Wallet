@@ -12,6 +12,7 @@ import { verifyTurnstileToken } from "../lib/turnstile";
 import { generateTicketPdf, generateMultiTicketPdf, type TicketPdfData } from "../lib/ticketPdf";
 import { sendWhatsAppDocument, sendWhatsAppText, isWhatsAppConfigured } from "../lib/whatsapp";
 import { logger } from "../lib/logger";
+import { captureError } from "../lib/captureError";
 
 const router: IRouter = Router();
 
@@ -555,6 +556,7 @@ router.post(
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       logger.error({ err, errMsg, wompiBaseUrl: WOMPI_BASE_URL }, "Wompi API error during ticket purchase");
+      captureError(err, { route: "tickets/purchase/wompi-initiate", extra: { orderId: order.id } });
       await rollbackOrderInventory(order.id, quantityByType, ticketTypeMap, unitSelMap);
       res.status(502).json({ error: `Payment gateway error: ${errMsg}` });
       return;
@@ -609,6 +611,11 @@ router.post(
         { postWompiErr, orderId: order.id, wompiTransactionId, eventId },
         "Post-Wompi DB operation failed — payment was captured by Wompi but order records are incomplete. Manual recovery required.",
       );
+      captureError(postWompiErr, {
+        route: "tickets/purchase/post-wompi-db",
+        tags: { severity: "critical" },
+        extra: { orderId: order.id, wompiTransactionId, eventId },
+      });
       res.status(201).json({
         orderId: order.id,
         totalAmount,
@@ -633,6 +640,7 @@ router.post(
     });
     } catch (err) {
       logger.error({ err }, "Unhandled error in ticket purchase");
+      captureError(err, { route: "tickets/purchase/unhandled" });
       if (!res.headersSent) {
         res.status(500).json({ error: "Internal server error processing purchase" });
       }

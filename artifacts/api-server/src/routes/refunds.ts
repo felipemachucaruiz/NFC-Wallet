@@ -5,6 +5,7 @@ import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { notifyRefundRequestApproved, notifyRefundRequestRejected } from "../lib/pushNotifications";
 import { initiateWompiDisbursement, type DisbursementTarget } from "../lib/wompiDisbursement";
+import { captureError } from "../lib/captureError";
 
 const router: IRouter = Router();
 
@@ -101,6 +102,7 @@ router.post(
           ? "Balance has already been refunded by a concurrent operation"
           : message });
       } else {
+        captureError(e, { route: "refunds/create" });
         res.status(status >= 400 && status < 600 ? status : 500).json({ error: "Refund failed" });
       }
     }
@@ -421,6 +423,7 @@ router.post(
       if (knownErrors.has(err.message ?? "")) {
         res.status(status).json({ error: err.message });
       } else {
+        captureError(e, { route: "refunds/approve" });
         res.status(500).json({ error: "Failed to approve refund request" });
       }
     }

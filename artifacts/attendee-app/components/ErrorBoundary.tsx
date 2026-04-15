@@ -1,5 +1,6 @@
 import React, { Component, ReactNode } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import * as Sentry from "@sentry/react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface ErrorBoundaryState {
@@ -39,6 +40,10 @@ export class ErrorBoundary extends Component<
     if (__DEV__) {
       console.error("ErrorBoundary caught:", error, info);
     }
+    Sentry.captureException(error, {
+      extra: { componentStack: info.componentStack?.split("\n").slice(0, 15).join("\n") },
+      tags: { errorSource: "ErrorBoundary" },
+    });
   }
 
   render() {
