@@ -990,18 +990,31 @@ export async function scanAndWriteBracelet(
       const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
       if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
 
-      const tagInfo: TagInfo = await detectUltralightSubtype(mfuHandler);
+      console.log("[NFC] Ultralight path — detecting subtype...");
+      let tagInfo: TagInfo;
+      try {
+        tagInfo = await detectUltralightSubtype(mfuHandler);
+      } catch (e) {
+        console.error("[NFC] detectUltralightSubtype failed:", e instanceof Error ? e.message : String(e));
+        throw e;
+      }
+      console.log("[NFC] Chip type:", tagInfo.type, tagInfo.label, "endPage:", getMfuEndPage(tagInfo.type));
       const endPage = getMfuEndPage(tagInfo.type);
 
       // Read pages
       const rawBytes: number[] = [];
       let foundEnd = false;
-      for (let page = MFU_PAYLOAD_START_PAGE; page < endPage && !foundEnd; page += 4) {
-        const pageData = await mfuHandler.mifareUltralightReadPages(page);
-        rawBytes.push(...pageData);
-        for (let i = 0; i < pageData.length; i++) {
-          if (pageData[i] === 0) { foundEnd = true; break; }
+      try {
+        for (let page = MFU_PAYLOAD_START_PAGE; page < endPage && !foundEnd; page += 4) {
+          const pageData = await mfuHandler.mifareUltralightReadPages(page);
+          rawBytes.push(...pageData);
+          for (let i = 0; i < pageData.length; i++) {
+            if (pageData[i] === 0) { foundEnd = true; break; }
+          }
         }
+      } catch (e) {
+        console.error("[NFC] Read pages failed:", e instanceof Error ? e.message : String(e));
+        throw e;
       }
       const allBytes = new Uint8Array(rawBytes);
       const jsonStart = allBytes.indexOf(0x7b);
@@ -1015,6 +1028,7 @@ export async function scanAndWriteBracelet(
         }
         payload = parsePayloadJson(new TextDecoder().decode(allBytes.slice(jsonStart, jsonEnd)), uid);
       }
+      console.log("[NFC] Read payload balance:", payload.balance, "uid:", uid.slice(-6));
 
       const newPayload = await onRead(payload, tagInfo);
       if (!newPayload) return { payload, tagInfo, written: false };
@@ -1027,8 +1041,16 @@ export async function scanAndWriteBracelet(
       // If auth fails with the chosen key, we propagate the error so the caller
       // does NOT record a topup (writeAttempted stays false — chip unchanged).
       if (tagInfo.type === "MIFARE_ULTRALIGHT_C") {
+        const usingCustomKey = !!opts?.ultralightCKeyHex;
         const authKey = opts?.ultralightCKeyHex || ULTRALIGHT_C_FACTORY_KEY;
-        await authenticateUltralightC(mfuHandler, authKey);
+        console.log("[NFC] Ultralight C — authenticating with", usingCustomKey ? "custom key" : "factory default key");
+        try {
+          await authenticateUltralightC(mfuHandler, authKey);
+          console.log("[NFC] Ultralight C auth OK");
+        } catch (authErr) {
+          console.error("[NFC] Ultralight C auth FAILED:", authErr instanceof Error ? authErr.message : String(authErr));
+          throw new Error(`ULTRALIGHT_C_AUTH_FAILED: ${authErr instanceof Error ? authErr.message : String(authErr)}`);
+        }
       }
 
       // Write pages in the same session.

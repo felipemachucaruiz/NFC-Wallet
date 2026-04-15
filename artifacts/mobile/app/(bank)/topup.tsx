@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -942,9 +942,20 @@ export default function TopUpScreen() {
                 {t("bank.allRetriesExhaustedDetail")}
               </Text>
               {writeError ? (
-                <Text style={[styles.errorCode, { color: C.danger ?? "#991B1B", marginTop: 6, fontFamily: "monospace" }]}>
-                  {writeError}
-                </Text>
+                <>
+                  <Text style={[styles.errorCode, { color: C.danger ?? "#991B1B", marginTop: 6, fontFamily: "monospace" }]}>
+                    {writeError}
+                  </Text>
+                  <Pressable
+                    onPress={() => Share.share({ message: `[Tapee NFC Error]\nUID: ${uid}\n${writeError}` })}
+                    style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 4 }}
+                  >
+                    <Feather name="share-2" size={12} color={C.danger ?? "#991B1B"} />
+                    <Text style={{ color: C.danger ?? "#991B1B", fontSize: 11 }}>
+                      Compartir código de error
+                    </Text>
+                  </Pressable>
+                </>
               ) : null}
             </View>
             <Button
