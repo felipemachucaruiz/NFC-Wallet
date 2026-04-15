@@ -1146,7 +1146,7 @@ const styles = StyleSheet.create({
   amountLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
   divider: { height: 1 },
   writeWarnBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginTop: -4, width: "100%" },
-  writeWarnText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  writeWarnText: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 },
   pageTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
   braceletSummary: { flexDirection: "row", alignItems: "center", gap: 12 },
