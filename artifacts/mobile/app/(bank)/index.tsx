@@ -234,6 +234,12 @@ export default function BankLookupScreen() {
       : (apiRecord?.lastKnownBalance ?? apiRecord?.balance ?? bracelet.balance);
   };
 
+  // Pending NFC writes for the currently scanned bracelet (local queue on this device).
+  const localPendingForUid = bracelet
+    ? pendingNfcWrites.filter((pw) => pw.nfcUid === bracelet.uid)
+    : [];
+  const hasLocalPendingWrites = localPendingForUid.length > 0;
+
   const handleTopUp = () => {
     if (!bracelet) return;
     const startBalance = resolveStartBalance();
@@ -250,6 +256,25 @@ export default function BankLookupScreen() {
         attendeeName: apiRecord?.attendeeName ?? "",
         phone: apiRecord?.phone ?? "",
         email: apiRecord?.email ?? "",
+      },
+    });
+  };
+
+  const handleSyncChip = () => {
+    if (!bracelet) return;
+    // Use server's lastKnownBalance as the target — it already includes all pending topups.
+    const targetBalance = serverBalance ?? apiRecord?.lastKnownBalance ?? apiRecord?.balance ?? bracelet.balance;
+    router.push({
+      pathname: "/(bank)/topup",
+      params: {
+        uid: bracelet.uid,
+        balance: String(targetBalance),
+        counter: String(bracelet.counter),
+        hmac: bracelet.hmac,
+        tagType: tagInfo?.type ?? "",
+        tagLabel: tagInfo?.label ?? "",
+        tagMemoryBytes: String(tagInfo?.memoryBytes ?? 0),
+        syncChip: "true",
       },
     });
   };
@@ -276,11 +301,12 @@ export default function BankLookupScreen() {
 
   // When pendingSync=true use server balance as display so operator sees correct balance.
   // Otherwise trust the NFC chip (scanned) or fall back to server (manual entry).
-  const displayBalance = hasPendingSync && serverBalance !== undefined
-    ? serverBalance
-    : tagInfo
-      ? (bracelet?.balance ?? 0)
-      : (apiRecord?.lastKnownBalance ?? apiRecord?.balance ?? bracelet?.balance ?? 0);
+  const displayBalance =
+    (hasPendingSync || hasLocalPendingWrites) && serverBalance !== undefined
+      ? serverBalance
+      : tagInfo
+        ? (bracelet?.balance ?? 0)
+        : (apiRecord?.lastKnownBalance ?? apiRecord?.balance ?? bracelet?.balance ?? 0);
   const isFlagged = apiRecord?.isFlagged ?? false;
   const isWrongEvent = !!apiRecord && !!apiRecord.eventId && !!user?.eventId && apiRecord.eventId !== user.eventId;
   const currentZones = getZonesByIds(apiRecord?.accessZoneIds ?? []);
@@ -402,18 +428,44 @@ export default function BankLookupScreen() {
                 </View>
               ) : (
                 <>
-                  <View style={styles.actionButtons}>
-                    <View style={{ flex: 1 }}>
-                      <Button
-                        title={t("bank.confirmTopUp")}
-                        onPress={handleTopUp}
-                        variant="success"
-                        size="lg"
-                        fullWidth
-                        testID="bank-topup-btn"
-                      />
+                  {hasLocalPendingWrites && (
+                    <View style={[styles.alertBox, { backgroundColor: C.dangerLight ?? "#FEE2E2", borderColor: C.danger ?? "#EF4444" }]}>
+                      <Feather name="alert-octagon" size={15} color={C.danger ?? "#EF4444"} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.alertText, { color: C.danger ?? "#EF4444", fontFamily: "Inter_600SemiBold" }]}>
+                          Chip desactualizado — {localPendingForUid.length} recarga(s) sin escribir
+                        </Text>
+                        <Text style={[styles.alertText, { color: C.danger ?? "#EF4444", fontSize: 12, marginTop: 2 }]}>
+                          El saldo mostrado es el del servidor. Toca "Sincronizar chip" para actualizarlo.
+                        </Text>
+                      </View>
                     </View>
-                    {displayBalance > 0 && (
+                  )}
+                  <View style={styles.actionButtons}>
+                    {hasLocalPendingWrites ? (
+                      <View style={{ flex: 1 }}>
+                        <Button
+                          title="Sincronizar chip"
+                          onPress={handleSyncChip}
+                          variant="primary"
+                          size="lg"
+                          fullWidth
+                          icon="refresh-cw"
+                        />
+                      </View>
+                    ) : (
+                      <View style={{ flex: 1 }}>
+                        <Button
+                          title={t("bank.confirmTopUp")}
+                          onPress={handleTopUp}
+                          variant="success"
+                          size="lg"
+                          fullWidth
+                          testID="bank-topup-btn"
+                        />
+                      </View>
+                    )}
+                    {!hasLocalPendingWrites && displayBalance > 0 && (
                       <View style={{ flex: 1 }}>
                         <Button
                           title={t("bank.issueRefund")}
@@ -426,6 +478,16 @@ export default function BankLookupScreen() {
                       </View>
                     )}
                   </View>
+                  {hasLocalPendingWrites && (
+                    <Button
+                      title={t("bank.confirmTopUp")}
+                      onPress={handleTopUp}
+                      variant="ghost"
+                      size="md"
+                      fullWidth
+                      icon="plus-circle"
+                    />
+                  )}
 
                   {/* Current Access Zones card */}
                   {apiRecord && (

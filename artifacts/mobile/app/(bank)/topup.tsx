@@ -168,10 +168,13 @@ export default function TopUpScreen() {
     attendeeName?: string;
     phone?: string;
     email?: string;
+    syncChip?: string;
   }>();
   const uid = params.uid ?? "";
   const currentBalance = parseInt(params.balance ?? "0", 10);
   const currentCounter = parseInt(params.counter ?? "0", 10);
+  // Sync mode: write the correct server balance to a stale chip — no new topup charged.
+  const isSyncMode = params.syncChip === "true";
 
   const tagInfoFromParams: TagInfo | null =
     params.tagType
@@ -292,7 +295,9 @@ export default function TopUpScreen() {
     }, [params.attendeeName, params.phone, params.email])
   );
 
-  const amount = parseCOPInput(amountText);
+  // In sync mode amount is always 0 — we're writing the server's correct balance
+  // to a stale chip without charging any new funds.
+  const amount = isSyncMode ? 0 : parseCOPInput(amountText);
   const newBalance = currentBalance + amount;
   const newCounter = currentCounter + 1;
 
@@ -477,20 +482,28 @@ export default function TopUpScreen() {
         setIsRetrying(false);
         setWriteRetryCount(0);
         writeRetryRef.current = 0;
-        await enqueueTopUp({
-          nfcUid: uid,
-          amount: amount,
-          paymentMethod,
-          newBalance,
-          newCounter,
-          hmac: writtenHmac,
-        });
+        if (isSyncMode) {
+          // Sync mode: server already has the correct balance — just clear local queue.
+          const allPending = await getPendingNfcWrites();
+          for (const pw of allPending.filter((p) => p.nfcUid === uid)) {
+            await removePendingNfcWrite(pw.id);
+          }
+        } else {
+          await enqueueTopUp({
+            nfcUid: uid,
+            amount: amount,
+            paymentMethod,
+            newBalance,
+            newCounter,
+            hmac: writtenHmac,
+          });
+          void syncToServer(true);
+        }
         submittingRef.current = false;
         // Set stepRef BEFORE clearing txActiveRef so that if useFocusEffect fires
         // between txActiveRef=false and the React re-render, the guard catches it.
         stepRef.current = "success";
         txActiveRef.current = false; // Transaction complete
-        void syncToServer(true);
         setStep("success");
         return true;
       } catch (e: unknown) {
@@ -525,21 +538,28 @@ export default function TopUpScreen() {
             writeRetryRef.current = 0;
             setWriteRetryCount(0);
             setIsRetrying(false);
-            await enqueueTopUp({
-              nfcUid: uid,
-              amount: amount,
-              paymentMethod,
-              newBalance,
-              newCounter,
-              hmac: writtenHmac,
-            });
+            if (isSyncMode) {
+              const allPending = await getPendingNfcWrites();
+              for (const pw of allPending.filter((p) => p.nfcUid === uid)) {
+                await removePendingNfcWrite(pw.id);
+              }
+            } else {
+              await enqueueTopUp({
+                nfcUid: uid,
+                amount: amount,
+                paymentMethod,
+                newBalance,
+                newCounter,
+                hmac: writtenHmac,
+              });
+              void syncToServer(true);
+            }
             submittingRef.current = false;
             // Set stepRef BEFORE clearing txActiveRef — same race-condition guard
             // as the normal success path (see comment above).
             stepRef.current = "success";
             txActiveRef.current = false; // Transaction complete (with warning)
-            void syncToServer(true);
-            setWriteWarning(true);
+            setWriteWarning(!isSyncMode);
             setStep("success");
             return true;
           } catch (enqueueErr) {
@@ -669,6 +689,16 @@ export default function TopUpScreen() {
     }
   }, [step]);
 
+  // ─── Sync mode: auto-proceed to write as soon as HMAC secret is ready ───────
+  const syncAutoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!isSyncMode || syncAutoStartedRef.current || !hmacSecret) return;
+    syncAutoStartedRef.current = true;
+    txActiveRef.current = true;
+    stepRef.current = "tap_write";
+    setStep("tap_write");
+  }, [isSyncMode, hmacSecret]);
+
   const handleSkipWrite = () => {
     setShowSkipConfirm(true);
   };
@@ -753,19 +783,30 @@ export default function TopUpScreen() {
       <View style={[styles.center, { backgroundColor: C.background }]}>
         <OfflineBanner syncIssuesRoute={"/(bank)/sync-issues"} />
         <View style={[styles.successIcon, { backgroundColor: C.successLight }]}>
-          <Feather name="check-circle" size={52} color={C.success} />
+          <Feather name={isSyncMode ? "refresh-cw" : "check-circle"} size={52} color={C.success} />
         </View>
-        <Text style={[styles.successTitle, { color: C.text }]}>{t("bank.topUpSuccess")}</Text>
+        <Text style={[styles.successTitle, { color: C.text }]}>
+          {isSyncMode ? "Chip sincronizado" : t("bank.topUpSuccess")}
+        </Text>
         <View style={[styles.successAmounts, { backgroundColor: C.card, borderColor: C.border }]}>
-          <View style={styles.amountRow}>
-            <Text style={[styles.amountLabel, { color: C.textSecondary }]}>{t("bank.topUpLabel")}</Text>
-            <CopAmount amount={amount} positive />
-          </View>
-          <View style={[styles.divider, { backgroundColor: C.separator }]} />
+          {!isSyncMode && (
+            <>
+              <View style={styles.amountRow}>
+                <Text style={[styles.amountLabel, { color: C.textSecondary }]}>{t("bank.topUpLabel")}</Text>
+                <CopAmount amount={amount} positive />
+              </View>
+              <View style={[styles.divider, { backgroundColor: C.separator }]} />
+            </>
+          )}
           <View style={styles.amountRow}>
             <Text style={[styles.amountLabel, { color: C.textSecondary }]}>{t("bank.newBalance")}</Text>
             <CopAmount amount={newBalance} />
           </View>
+          {isSyncMode && (
+            <Text style={[styles.amountLabel, { color: C.textMuted, fontSize: 11, marginTop: 2 }]}>
+              Recargas pendientes escritas al chip
+            </Text>
+          )}
         </View>
         {tagInfoFromParams && <TagBadge tagInfo={tagInfoFromParams} colors={C} />}
         {writeWarning && (
@@ -784,6 +825,21 @@ export default function TopUpScreen() {
           </View>
         )}
         <Button title={t("bank.lookup")} onPress={() => router.back()} variant="primary" size="lg" fullWidth />
+      </View>
+    );
+  }
+
+  // ─── Sync mode loading (waiting for HMAC key before auto-starting write) ──────
+  if (isSyncMode && step === "form") {
+    return (
+      <View style={[styles.center, { backgroundColor: C.background }]}>
+        <View style={[styles.iconBox, { backgroundColor: C.primaryLight }]}>
+          <Feather name="refresh-cw" size={40} color={C.primary} />
+        </View>
+        <Text style={[styles.stepTitle, { color: C.text }]}>Preparando sincronización…</Text>
+        <Text style={[styles.stepSubtitle, { color: C.textSecondary }]}>
+          Acerca la pulsera para actualizar el chip
+        </Text>
       </View>
     );
   }
@@ -1068,6 +1124,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 20, paddingHorizontal: 28 },
   iconBox: { width: 100, height: 100, borderRadius: 28, alignItems: "center", justifyContent: "center" },
   stepTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  stepSubtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 6, paddingHorizontal: 24 },
   successIcon: { width: 100, height: 100, borderRadius: 28, alignItems: "center", justifyContent: "center" },
   successTitle: { fontSize: 22, fontFamily: "Inter_700Bold" },
   successAmounts: { width: "100%", borderWidth: 1, borderRadius: 16, padding: 20, gap: 16 },
