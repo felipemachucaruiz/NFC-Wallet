@@ -581,12 +581,32 @@ router.post(
   },
 );
 
+// financial_institution_code comes back as either a string or number depending on Wompi env
 const pseBankSchema = z.object({
-  financial_institution_code: z.string(),
+  financial_institution_code: z.coerce.string(),
   financial_institution_name: z.string(),
 });
 const pseBanksResponseSchema = z.object({ data: z.array(pseBankSchema) });
 type PseBank = z.infer<typeof pseBankSchema>;
+
+// Known Colombian banks — used as fallback if the Wompi API is unavailable
+const PSE_BANKS_FALLBACK: PseBank[] = [
+  { financial_institution_code: "1007", financial_institution_name: "Bancolombia" },
+  { financial_institution_code: "1009", financial_institution_name: "Citibank" },
+  { financial_institution_code: "1013", financial_institution_name: "BBVA Colombia" },
+  { financial_institution_code: "1019", financial_institution_name: "Scotiabank Colpatria" },
+  { financial_institution_code: "1023", financial_institution_name: "Banco de Occidente" },
+  { financial_institution_code: "1032", financial_institution_name: "Banco Caja Social" },
+  { financial_institution_code: "1040", financial_institution_name: "Banco Agrario" },
+  { financial_institution_code: "1051", financial_institution_name: "Davivienda" },
+  { financial_institution_code: "1052", financial_institution_name: "AV Villas" },
+  { financial_institution_code: "1062", financial_institution_name: "Banco Falabella" },
+  { financial_institution_code: "1063", financial_institution_name: "Banco Finandina" },
+  { financial_institution_code: "1065", financial_institution_name: "Banco Santander de Negocios" },
+  { financial_institution_code: "1066", financial_institution_name: "Banco Cooperativo Coopcentral" },
+  { financial_institution_code: "1151", financial_institution_name: "Rappipay" },
+  { financial_institution_code: "1507", financial_institution_name: "Nequi" },
+];
 
 let pseBanksCache: { data: PseBank[]; fetchedAt: number } | null = null;
 const PSE_BANKS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -600,13 +620,14 @@ router.get(
       return;
     }
 
-    if (!WOMPI_PUBLIC_KEY) {
-      res.status(503).json({ error: "Payment gateway not configured" });
+    if (pseBanksCache && Date.now() - pseBanksCache.fetchedAt < PSE_BANKS_CACHE_TTL_MS) {
+      res.json({ data: pseBanksCache.data });
       return;
     }
 
-    if (pseBanksCache && Date.now() - pseBanksCache.fetchedAt < PSE_BANKS_CACHE_TTL_MS) {
-      res.json({ data: pseBanksCache.data });
+    if (!WOMPI_PUBLIC_KEY) {
+      // No Wompi key — serve the known fallback list so the UI still works
+      res.json({ data: PSE_BANKS_FALLBACK });
       return;
     }
 
@@ -615,13 +636,15 @@ router.get(
         `${WOMPI_BASE_URL}/pse/financial_institutions?public_key=${encodeURIComponent(WOMPI_PUBLIC_KEY)}`
       );
       if (!wompiRes.ok) {
-        res.status(502).json({ error: "Failed to fetch PSE banks from payment gateway" });
+        logger.warn({ status: wompiRes.status }, "Wompi PSE banks non-OK, serving fallback");
+        res.json({ data: PSE_BANKS_FALLBACK });
         return;
       }
       const raw = await wompiRes.json();
       const parsed = pseBanksResponseSchema.safeParse(raw);
       if (!parsed.success) {
-        res.status(502).json({ error: "Unexpected response format from payment gateway" });
+        logger.warn({ zodError: parsed.error.message }, "Wompi PSE banks schema mismatch, serving fallback");
+        res.json({ data: PSE_BANKS_FALLBACK });
         return;
       }
       pseBanksCache = { data: parsed.data.data, fetchedAt: Date.now() };
@@ -630,7 +653,8 @@ router.get(
       Sentry.captureException(err instanceof Error ? err : new Error(String(err)), {
         tags: { route: "payments/pse-banks" },
       });
-      res.status(502).json({ error: "Failed to fetch PSE banks" });
+      // Network error — serve fallback so the UI still works
+      res.json({ data: PSE_BANKS_FALLBACK });
     }
   },
 );
