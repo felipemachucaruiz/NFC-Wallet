@@ -211,7 +211,7 @@ export default function ProfileScreen() {
                   onChangeText={setFirstName}
                   placeholder={t("profile.firstNamePlaceholder")}
                   placeholderTextColor={C.textMuted}
-                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                  style={[styles.input, { backgroundColor: C.card, borderColor: C.border, color: C.text }]}
                 />
               </View>
 
@@ -222,7 +222,7 @@ export default function ProfileScreen() {
                   onChangeText={setLastName}
                   placeholder={t("profile.lastNamePlaceholder")}
                   placeholderTextColor={C.textMuted}
-                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                  style={[styles.input, { backgroundColor: C.card, borderColor: C.border, color: C.text }]}
                 />
               </View>
 
@@ -234,7 +234,7 @@ export default function ProfileScreen() {
                   placeholder={t("profile.phonePlaceholder")}
                   placeholderTextColor={C.textMuted}
                   keyboardType="phone-pad"
-                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                  style={[styles.input, { backgroundColor: C.card, borderColor: C.border, color: C.text }]}
                 />
               </View>
 
@@ -247,7 +247,7 @@ export default function ProfileScreen() {
                   placeholderTextColor={C.textMuted}
                   keyboardType="numeric"
                   maxLength={10}
-                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                  style={[styles.input, { backgroundColor: C.card, borderColor: C.border, color: C.text }]}
                 />
               </View>
 
@@ -261,7 +261,7 @@ export default function ProfileScreen() {
                       style={[
                         styles.sexBtn,
                         {
-                          backgroundColor: sex === s ? C.primaryLight : C.surface ?? C.card,
+                          backgroundColor: sex === s ? C.primaryLight : C.card,
                           borderColor: sex === s ? C.primary : C.border,
                         },
                       ]}
@@ -282,7 +282,7 @@ export default function ProfileScreen() {
                   placeholder="123456789"
                   placeholderTextColor={C.textMuted}
                   keyboardType="numeric"
-                  style={[styles.input, { backgroundColor: C.surface ?? C.card, borderColor: C.border, color: C.text }]}
+                  style={[styles.input, { backgroundColor: C.card, borderColor: C.border, color: C.text }]}
                 />
               </View>
             </View>
@@ -371,7 +371,7 @@ export default function ProfileScreen() {
       </View>
 
       <Pressable
-        onPress={() => router.push("/saved-cards")}
+        onPress={() => router.push("/saved-cards" as never)}
         style={[styles.navLink, { backgroundColor: C.card, borderColor: C.border }]}
       >
         <Feather name="credit-card" size={18} color={C.primary} />

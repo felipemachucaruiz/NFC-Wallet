@@ -22,7 +22,8 @@ import { useSavedCards, useUpdateCardAlias, useDeleteCard, type SavedCard } from
 
 type CardBrand = "visa" | "mastercard" | "amex" | null;
 
-const CARD_LOGOS: Record<NonNullable<CardBrand>, ReturnType<typeof require>> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CARD_LOGOS: Record<NonNullable<CardBrand>, any> = {
   visa: require("@/assets/images/card-visa.png"),
   mastercard: require("@/assets/images/card-mastercard.png"),
   amex: require("@/assets/images/card-amex.png"),
