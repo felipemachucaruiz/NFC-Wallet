@@ -51,6 +51,67 @@ type RefundRequest = {
 
 type NfcStep = "idle" | "tap" | "writing" | "error" | "done";
 
+// Parses "Key: Value | Key: Value | ..." into labeled rows.
+// Falls back to a plain wrapped text block if no ": " separators are found.
+function AccountDetailsBlock({
+  details,
+  colors: C,
+}: {
+  details: string;
+  colors: typeof Colors.dark;
+}) {
+  const parts = details.split(" | ").map((s) => s.trim()).filter(Boolean);
+  const hasPairs = parts.some((p) => p.includes(": "));
+
+  if (!hasPairs) {
+    return (
+      <View style={{ gap: 2 }}>
+        <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: C.textSecondary }}>
+          Datos bancarios
+        </Text>
+        <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: C.text }}>
+          {details}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ gap: 4 }}>
+      <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: C.textSecondary, marginBottom: 2 }}>
+        Datos bancarios
+      </Text>
+      {parts.map((part, i) => {
+        const colonIdx = part.indexOf(": ");
+        if (colonIdx === -1) {
+          return (
+            <Text key={i} style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: C.text }}>
+              {part}
+            </Text>
+          );
+        }
+        const label = part.slice(0, colonIdx);
+        const value = part.slice(colonIdx + 2);
+        return (
+          <View
+            key={i}
+            style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}
+          >
+            <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: C.textMuted, flexShrink: 1 }}>
+              {label}
+            </Text>
+            <Text
+              style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: C.text, flexShrink: 1, textAlign: "right" }}
+            >
+              {value}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 const METHOD_LABELS: Record<string, string> = {
   cash: "Cash",
   nequi: "Nequi",
@@ -395,13 +456,10 @@ export default function BankRefundRequestsScreen() {
                 <Text style={[styles.detailValue, { color: C.text }]}>{METHOD_LABELS[item.refundMethod] ?? item.refundMethod}</Text>
               </View>
               {item.accountDetails ? (
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: C.textSecondary }]}>{t("bankRefundRequests.accountDetails")}</Text>
-                  <Text style={[styles.detailValue, { color: C.text }]}>{item.accountDetails}</Text>
-                </View>
+                <AccountDetailsBlock details={item.accountDetails} colors={C} />
               ) : null}
               {item.notes ? (
-                <View style={styles.detailRow}>
+                <View style={{ gap: 2 }}>
                   <Text style={[styles.detailLabel, { color: C.textSecondary }]}>{t("common.notes")}</Text>
                   <Text style={[styles.detailValue, { color: C.text }]}>{item.notes}</Text>
                 </View>
