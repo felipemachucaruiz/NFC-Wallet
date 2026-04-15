@@ -29,6 +29,35 @@ interface EditState {
   rawAmount: string;
 }
 
+// Translate legacy English server errors (stored in queue before i18n fix) to Spanish.
+function friendlyError(raw: string): string {
+  // "Balance mismatch: expected X (Y + Z), got W"
+  const mismatch = raw.match(/balance mismatch:\s*expected\s*(\d+)\s*\((\d+)\s*\+\s*(\d+)\),\s*got\s*(\d+)/i);
+  if (mismatch) {
+    const [, expected, serverBalance, topupAmount, chipBalance] = mismatch;
+    return (
+      `Desajuste de saldo: el servidor esperaba $${Number(expected).toLocaleString("es-CO")} ` +
+      `(saldo servidor $${Number(serverBalance).toLocaleString("es-CO")} + ` +
+      `recarga $${Number(topupAmount).toLocaleString("es-CO")}), ` +
+      `pero el chip tiene $${Number(chipBalance).toLocaleString("es-CO")}. ` +
+      `Usa "Editar y Reintentar" para corregir el saldo inicial.`
+    );
+  }
+  // "Counter replay detected: submitted X ≤ stored Y"
+  if (/counter replay/i.test(raw)) {
+    return "Transacción duplicada detectada: el contador de la pulsera ya fue registrado. Descarta esta entrada.";
+  }
+  // "Secure crypto primitives are not available in this environment."
+  if (/secure crypto/i.test(raw) || /crypto primitives/i.test(raw)) {
+    return "Error interno de cifrado (versión anterior de la app). Intenta de nuevo — ya fue corregido.";
+  }
+  // "Duplicate top-up (already synced)"
+  if (/already synced/i.test(raw) || /duplicate top-up/i.test(raw)) {
+    return "Recarga duplicada: esta transacción ya fue sincronizada. Puedes descartarla.";
+  }
+  return raw;
+}
+
 export default function SyncIssuesScreen() {
   const { t } = useTranslation();
   const { show: showAlert } = useAlert();
@@ -187,8 +216,8 @@ export default function SyncIssuesScreen() {
               {item.failReason && (
                 <View style={[styles.errorBox, { backgroundColor: C.dangerLight ?? "#FEE2E2" }]}>
                   <Feather name="alert-triangle" size={12} color={C.danger} />
-                  <Text style={[styles.errorText, { color: C.danger }]} numberOfLines={2}>
-                    {item.failReason}
+                  <Text style={[styles.errorText, { color: C.danger }]} numberOfLines={3}>
+                    {friendlyError(item.failReason)}
                   </Text>
                 </View>
               )}
@@ -343,7 +372,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 8,
   },
-  errorText: { flex: 1, fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
+  errorText: { fontSize: 11, fontFamily: "Inter_400Regular", lineHeight: 16 },
   itemFooter: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   dateText: { fontSize: 11, fontFamily: "Inter_400Regular" },
   failCount: { fontSize: 11, fontFamily: "Inter_400Regular" },
