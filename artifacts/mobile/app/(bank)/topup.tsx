@@ -716,9 +716,16 @@ export default function TopUpScreen() {
         {writeWarning && (
           <View style={[styles.writeWarnBox, { backgroundColor: C.warningLight ?? "#FFF3CD", borderColor: C.warning ?? "#F59E0B" }]}>
             <Feather name="alert-circle" size={15} color={C.warning ?? "#F59E0B"} />
-            <Text style={[styles.writeWarnText, { color: C.warning ?? "#92400E" }]}>
-              {t("bank.nfcWriteWarning")}
-            </Text>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.writeWarnText, { color: C.warning ?? "#92400E" }]}>
+                {t("bank.nfcWriteWarning")}
+              </Text>
+              {writeError ? (
+                <Text style={[styles.writeWarnText, { color: C.warning ?? "#92400E", fontSize: 11, opacity: 0.7 }]}>
+                  {writeError}
+                </Text>
+              ) : null}
+            </View>
           </View>
         )}
         <Button title={t("bank.lookup")} onPress={() => router.back()} variant="primary" size="lg" fullWidth />

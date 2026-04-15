@@ -378,6 +378,9 @@ export async function writeBraceletMifareClassic(payload: BraceletPayload): Prom
 
 const MFU_PAGE_SIZE = 4;
 const MFU_PAYLOAD_START_PAGE = 4;
+// NXP factory-default 3DES key for MIFARE Ultralight C (AUTH0=0x30 out of box).
+// Used as a fallback when no custom key is configured for the event.
+const ULTRALIGHT_C_FACTORY_KEY = "49454d4b41455242214e4143554f5946";
 
 function getMfuEndPage(tagType: TagType): number {
   return NTAG_USER_MEMORY_END_PAGE[tagType] ?? 15;
@@ -968,13 +971,14 @@ export async function scanAndWriteBracelet(
       const padded = new Array(maxCapacity).fill(0);
       for (let i = 0; i < dataBytes.length; i++) padded[i] = dataBytes[i];
 
-      opts?.onBeforeFirstWrite?.();
+      let firstBlockWritten = false;
       let byteOffset = 0;
       for (const sector of MFC_PAYLOAD_SECTORS) {
         await mfcHandler.mifareClassicAuthenticateA(sector, MFC_KEY_A);
         const sectorFirstBlock = await mfcHandler.mifareClassicSectorToBlock(sector);
         for (let i = 0; i < MFC_DATA_BLOCKS_IN_SECTOR; i++) {
           await mfcHandler.mifareClassicWriteBlock(sectorFirstBlock + i, padded.slice(byteOffset, byteOffset + MIFARE_BLOCK_SIZE));
+          if (!firstBlockWritten) { firstBlockWritten = true; opts?.onBeforeFirstWrite?.(); }
           byteOffset += MIFARE_BLOCK_SIZE;
         }
       }
@@ -1015,17 +1019,25 @@ export async function scanAndWriteBracelet(
       const newPayload = await onRead(payload, tagInfo);
       if (!newPayload) return { payload, tagInfo, written: false };
 
-      // For Ultralight C: authenticate before writing if a key is provided — hard failure if auth fails
-      if (tagInfo.type === "MIFARE_ULTRALIGHT_C" && opts?.ultralightCKeyHex) {
-        await authenticateUltralightC(mfuHandler, opts.ultralightCKeyHex);
+      // For Ultralight C: always attempt 3DES authentication before writing.
+      // Use the configured key if provided; fall back to the NXP factory default.
+      // This covers chips where write-protection is enabled (AUTH0 set) but no
+      // custom key has been configured in the event — the factory default key
+      // is the most common case for unmodified NXP bracelets.
+      // If auth fails with the chosen key, we propagate the error so the caller
+      // does NOT record a topup (writeAttempted stays false — chip unchanged).
+      if (tagInfo.type === "MIFARE_ULTRALIGHT_C") {
+        const authKey = opts?.ultralightCKeyHex || ULTRALIGHT_C_FACTORY_KEY;
+        await authenticateUltralightC(mfuHandler, authKey);
       }
 
-      // Signal that the physical write is about to begin (auth passed, first page next).
-      // This lets the caller set writeAttempted AFTER auth succeeds — not before — so
-      // an auth failure doesn't falsely trigger a "charge recorded" warning.
-      opts?.onBeforeFirstWrite?.();
-
-      // Write pages in the same session
+      // Write pages in the same session.
+      // onBeforeFirstWrite fires AFTER the first page is physically confirmed written —
+      // this is the earliest moment we know data actually landed on the chip.
+      // Callers use it to set writeAttempted=true so that a failure on page 2+
+      // triggers the "charge recorded with warning" path, while a failure on
+      // page 1 (e.g. write-protection or immediate TAG_LOST) leaves writeAttempted=false
+      // and the topup is NOT recorded — chip definitely unchanged.
       const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });
       const dataBytes = Array.from(new TextEncoder().encode(data));
       const maxDataPages = endPage - MFU_PAYLOAD_START_PAGE;
@@ -1035,6 +1047,7 @@ export async function scanAndWriteBracelet(
       for (let i = 0; i < dataBytes.length; i++) padded[i] = dataBytes[i];
       for (let i = 0; i < pageCount; i++) {
         await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + i, padded.slice(i * MFU_PAGE_SIZE, (i + 1) * MFU_PAGE_SIZE));
+        if (i === 0) opts?.onBeforeFirstWrite?.();
       }
       // Terminator page: marks end of data for the reader. Non-fatal if it fails —
       // the last data page already contains null-byte padding that serves as a
