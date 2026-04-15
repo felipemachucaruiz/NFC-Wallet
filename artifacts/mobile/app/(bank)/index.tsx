@@ -262,8 +262,21 @@ export default function BankLookupScreen() {
 
   const handleSyncChip = () => {
     if (!bracelet) return;
-    // Use server's lastKnownBalance as the target — it already includes all pending topups.
-    const targetBalance = serverBalance ?? apiRecord?.lastKnownBalance ?? apiRecord?.balance ?? bracelet.balance;
+    // Pick the pending write with the highest newBalance — that's the cumulative
+    // total including all successive top-ups (pendingNfcWrites are top-up-only).
+    const latestLocalPending = localPendingForUid.reduce<PendingNfcWrite | null>(
+      (best, pw) => (!best || pw.newBalance > best.newBalance ? pw : best),
+      null
+    );
+    const targetBalance =
+      latestLocalPending?.newBalance ??
+      serverBalance ??
+      apiRecord?.lastKnownBalance ??
+      apiRecord?.balance ??
+      bracelet.balance;
+    // Pass the chip's actual current counter so topup.tsx can compute newCounter = chip+1.
+    // If the latest pending write already has newCounter N, the chip is still at N-1,
+    // so bracelet.counter (read from the physical chip) is the correct starting point.
     router.push({
       pathname: "/(bank)/topup",
       params: {

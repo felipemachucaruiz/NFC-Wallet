@@ -706,10 +706,24 @@ export default function TopUpScreen() {
   const handleConfirmSkip = async () => {
     setShowSkipConfirm(false);
     cancelledRef.current = true;
-    txActiveRef.current = false; // User skipped write — transaction done
+    txActiveRef.current = false;
     await cancelNfc().catch(() => {});
     writingRef.current = false;
     submittingRef.current = false;
+
+    if (isSyncMode) {
+      // In sync mode there is no new money to record — the real pending writes are
+      // already in the queue. Do NOT create a $0 pending write or enqueue a $0 topup.
+      // Simply navigate back so the operator can try again later.
+      stepRef.current = "form";
+      setStep("form");
+      showAlert(
+        "Chip sin actualizar",
+        "El chip quedó desactualizado. Puedes intentar de nuevo cuando la pulsera esté cerca."
+      );
+      return;
+    }
+
     await addPendingNfcWrite({
       id: `${uid}_${Date.now()}`,
       nfcUid: uid,
