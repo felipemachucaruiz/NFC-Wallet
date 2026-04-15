@@ -5,7 +5,7 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
@@ -113,12 +113,41 @@ try {
         });
         AsyncStorage.setItem(CRASH_LOG_KEY, entry).catch(() => {});
       } catch {}
+      Sentry.captureException(error, { tags: { isFatal: String(!!isFatal), errorSource: "GlobalHandler" } });
       if (typeof prevHandler === "function") prevHandler(error, isFatal);
     });
   }
 } catch {}
 
+
+// Errors to ignore globally — expected business-logic rejections that are
+// deliberately handled as specific UI states in individual screens.
+const EXPECTED_ERRORS = /NFC_CANCELLED|TAG_LOST|USER_CANCELLED|SCAN_CANCELLED/;
+
+function reportToSentry(error: unknown, context?: Record<string, unknown>) {
+  if (!error) return;
+  const msg = error instanceof Error ? error.message : String(error);
+  if (EXPECTED_ERRORS.test(msg)) return;
+  Sentry.captureException(error instanceof Error ? error : new Error(msg), {
+    extra: context,
+  });
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      reportToSentry(error, { queryKey: JSON.stringify(query.queryKey) });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      reportToSentry(error, {
+        mutationKey: mutation.options.mutationKey
+          ? JSON.stringify(mutation.options.mutationKey)
+          : undefined,
+      });
+    },
+  }),
   defaultOptions: {
     queries: { retry: 1, staleTime: 30_000 },
   },

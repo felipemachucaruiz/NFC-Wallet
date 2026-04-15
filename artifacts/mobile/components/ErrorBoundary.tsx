@@ -1,5 +1,6 @@
 import React, { Component, ComponentType, PropsWithChildren } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Sentry from "@sentry/react-native";
 
 import { ErrorFallback, ErrorFallbackProps } from "@/components/ErrorFallback";
 
@@ -36,6 +37,10 @@ export class ErrorBoundary extends Component<
     if (typeof this.props.onError === "function") {
       this.props.onError(error, info.componentStack);
     }
+    Sentry.captureException(error, {
+      extra: { componentStack: info.componentStack?.split("\n").slice(0, 15).join("\n") },
+      tags: { errorSource: "ErrorBoundary" },
+    });
     const msg = error?.message ?? "unknown render error";
     const stack = (error?.stack ?? info.componentStack ?? "").split("\n").slice(0, 10).join("\n");
     const entry = JSON.stringify({
