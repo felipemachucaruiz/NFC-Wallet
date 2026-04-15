@@ -625,6 +625,7 @@ export default function TopUpScreen() {
       nfcUid: uid,
       amount: amount,
       newBalance,
+      lastError: lastWriteError,
       timestamp: new Date().toISOString(),
     });
     stepRef.current = "write_failed";
@@ -632,7 +633,11 @@ export default function TopUpScreen() {
     setIsRetrying(false);
     setWriteRetryCount(0);
     writeRetryRef.current = 0;
-    setWriteError(t("bank.writeError"));
+    // Preserve the actual technical error code (set synchronously inside doScanAndWrite)
+    // so the user/support can see exactly what went wrong and share it.
+    if (lastWriteError) {
+      setWriteError(lastWriteError);
+    }
     setStep("write_failed");
   };
 

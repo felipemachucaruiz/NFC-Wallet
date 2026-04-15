@@ -192,11 +192,18 @@ async function detectUltralightSubtype(mfuHandler: MfuHandler | null): Promise<T
           console.log("[NFC] Detected via GET_VERSION byte[6]=0x" + (ver[6] & 0xff).toString(16) + ":", ntag.type);
           return ntag;
         }
+        // byte[6] not in NTAG map — chip responded to GET_VERSION but is NOT an NTAG21x.
+        // Most likely MIFARE Ultralight EV1 (MF0UL11: byte[6]=0x0B, MF0UL21: byte[6]=0x0E).
+        // EV1 has limited user pages (MF0UL11: pages 4-15, MF0UL21: pages 4-35).
+        // Treating as NTAG213 (endPage=40) would attempt writes beyond the chip's
+        // physical page count → TAG_LOST / NACK failures.
+        // Use MIFARE_ULTRALIGHT → compact binary format (5 pages = 20 bytes), safe for all EV1 variants.
+        console.log("[NFC] GET_VERSION byte[6]=0x" + (ver[6] & 0xff).toString(16) + " — Ultralight EV1 or unknown, using compact format");
+        return { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight EV1", memoryBytes: 64 };
       }
-      // Unexpected GET_VERSION response length but command succeeded — likely an NTAG variant.
-      // Treat as NTAG213 (most common bracelet chip, 144 bytes).
-      console.log("[NFC] GET_VERSION succeeded but unknown response, treating as NTAG213");
-      return { type: "NTAG213", label: "NTAG213", memoryBytes: 144 };
+      // GET_VERSION returned fewer than 8 bytes — unusual, treat as MIFARE_ULTRALIGHT.
+      console.log("[NFC] GET_VERSION short response — treating as MIFARE_ULTRALIGHT");
+      return { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight", memoryBytes: 64 };
     } catch {
       // GET_VERSION failed → Ultralight C or basic Ultralight. Fall through.
       console.log("[NFC] GET_VERSION not supported — likely Ultralight C or basic Ultralight");
