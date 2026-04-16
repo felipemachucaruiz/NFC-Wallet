@@ -1260,6 +1260,7 @@
     "field_orderId": "Order ID",
     "field_otpCode": "OTP code",
     "field_eventDate": "Event date",
+    "field_daysRemainingText": "Days remaining (TODAY / in N days)",
     "field_refundAmount": "Refund amount",
     "field_recipientName": "Recipient name",
     "field_senderName": "Sender name"

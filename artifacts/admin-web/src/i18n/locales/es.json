@@ -1260,6 +1260,7 @@
     "field_orderId": "ID de orden",
     "field_otpCode": "Código OTP",
     "field_eventDate": "Fecha del evento",
+    "field_daysRemainingText": "Días restantes (HOY / en N días)",
     "field_refundAmount": "Monto de reembolso",
     "field_recipientName": "Nombre del destinatario",
     "field_senderName": "Nombre del remitente"
