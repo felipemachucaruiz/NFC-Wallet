@@ -1,5 +1,5 @@
 // gate role added to UserRole enum — force rebuild
-import { db, sessionsTable, wompiPaymentIntentsTable } from "@workspace/db";
+import { db, pool, sessionsTable, wompiPaymentIntentsTable } from "@workspace/db";
 import { lt, eq, and } from "drizzle-orm";
 import app from "./app";
 import { logger } from "./lib/logger";
@@ -16,6 +16,29 @@ const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+async function runStartupMigrations(): Promise<void> {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS saved_cards (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        wompi_token VARCHAR(256) NOT NULL,
+        brand VARCHAR(30) NOT NULL,
+        last_four VARCHAR(4) NOT NULL,
+        card_holder_name VARCHAR(255) NOT NULL,
+        expiry_month VARCHAR(2) NOT NULL,
+        expiry_year VARCHAR(4) NOT NULL,
+        alias VARCHAR(100),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+    logger.info("Startup migrations completed");
+  } catch (err) {
+    logger.error({ err }, "Startup migrations failed");
+  }
 }
 
 const PAYMENT_INTENT_EXPIRY_MS = Number(process.env.PAYMENT_INTENT_EXPIRY_MINUTES ?? "30") * 60 * 1000;
@@ -61,16 +84,18 @@ function startSessionCleanupJob(): void {
   logger.info("Session cleanup job scheduled (every 1 hour)");
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
-  startSessionCleanupJob();
-  logger.info({ port }, "Attendee API server listening");
+runStartupMigrations().then(() => {
+  app.listen(port, (err) => {
+    if (err) {
+      logger.error({ err }, "Error listening on port");
+      process.exit(1);
+    }
+    startSessionCleanupJob();
+    logger.info({ port }, "Attendee API server listening");
 
-  expireStalePaymentIntents().catch(() => {});
-  setInterval(() => {
     expireStalePaymentIntents().catch(() => {});
-  }, PAYMENT_INTENT_CLEANUP_INTERVAL_MS);
+    setInterval(() => {
+      expireStalePaymentIntents().catch(() => {});
+    }, PAYMENT_INTENT_CLEANUP_INTERVAL_MS);
+  });
 });

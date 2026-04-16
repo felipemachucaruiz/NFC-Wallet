@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
 import * as Sentry from "@sentry/node";
+import { logger } from "../lib/logger";
 import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable, eventsTable, ticketOrdersTable, ticketTypesTable, ticketsTable, savedCardsTable } from "@workspace/db";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
