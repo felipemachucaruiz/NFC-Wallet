@@ -137,7 +137,7 @@ export default function EventDaysScreen() {
       <FlatList
         data={days}
         keyExtractor={item => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: isWeb ? 34 : insets.bottom + 100 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: isWeb ? 34 : insets.bottom + 80 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={<Empty message={t("eventDays.empty")} />}
         renderItem={({ item }) => (

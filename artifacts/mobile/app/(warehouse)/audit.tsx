@@ -129,7 +129,7 @@ export default function WarehouseAuditScreen() {
           flex: 1,
           backgroundColor: C.background,
           paddingTop: isWeb ? 67 : insets.top + 32,
-          paddingBottom: isWeb ? 34 : insets.bottom + 100,
+          paddingBottom: isWeb ? 34 : insets.bottom + 80,
           paddingHorizontal: 28,
           alignItems: "center",
           justifyContent: "center",
@@ -153,7 +153,7 @@ export default function WarehouseAuditScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
           paddingTop: isWeb ? 67 : insets.top + 16,
-          paddingBottom: isWeb ? 34 : insets.bottom + 100,
+          paddingBottom: isWeb ? 34 : insets.bottom + 80,
           paddingHorizontal: 20,
           gap: 10,
         }}

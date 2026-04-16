@@ -136,7 +136,7 @@ export default function TicketOrdersScreen() {
       <FlatList
         data={filtered}
         keyExtractor={item => item.id}
-        contentContainerStyle={[styles.list, { paddingBottom: isWeb ? 34 : insets.bottom + 100 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: isWeb ? 34 : insets.bottom + 80 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={<Empty message={t("ticketOrders.empty")} />}
         renderItem={({ item }) => (

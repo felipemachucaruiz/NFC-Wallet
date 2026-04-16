@@ -130,7 +130,7 @@ export default function SalesDashboardScreen() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: C.background }]}
-      contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 34 : insets.bottom + 100 }]}
+      contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 34 : insets.bottom + 80 }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 16 }]}>

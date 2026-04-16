@@ -47,7 +47,7 @@ export default function AttendeeHomeScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
-        paddingBottom: isWeb ? 34 : insets.bottom + 100,
+        paddingBottom: isWeb ? 34 : insets.bottom + 80,
       }}
       refreshControl={
         <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={C.primary} />

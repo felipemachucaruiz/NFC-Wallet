@@ -205,7 +205,7 @@ export default function TransactionsScreen() {
           renderItem={renderTransaction}
           contentContainerStyle={[
             styles.list,
-            { paddingBottom: isWeb ? 34 : insets.bottom + 100 },
+            { paddingBottom: isWeb ? 34 : insets.bottom + 80 },
           ]}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           ListFooterComponent={

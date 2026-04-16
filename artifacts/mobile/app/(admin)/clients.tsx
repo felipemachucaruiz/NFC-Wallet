@@ -273,7 +273,7 @@ export default function ClientsScreen() {
   if (loading && clients.length === 0) return <Loading label={t("common.loading")} />;
 
   const paddingTop = isWeb ? 67 : insets.top + 16;
-  const paddingBottom = isWeb ? 34 : insets.bottom + 100;
+  const paddingBottom = isWeb ? 34 : insets.bottom + 80;
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>

@@ -3,7 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -177,6 +177,8 @@ export default function LoginScreen() {
   };
 
   const busy = isLoading || submitting;
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   // ── Passcode setup screens ─────────────────────────────────────────────────
   if (setupStep === "enter") {
@@ -237,16 +239,24 @@ export default function LoginScreen() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
-          contentContainerStyle={[styles.inner, { paddingBottom: isWeb ? 34 : insets.bottom + 20 }]}
+          contentContainerStyle={[
+            styles.inner,
+            { paddingBottom: isWeb ? 34 : insets.bottom + 20 },
+            isLandscape && styles.innerLandscape,
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.logoSection}>
-            <Image source={require("@/assets/images/tapee-logo.png")} style={styles.logoImage} resizeMode="contain" />
+          <View style={[styles.logoSection, isLandscape && styles.logoSectionLandscape]}>
+            <Image
+              source={require("@/assets/images/tapee-logo.png")}
+              style={[styles.logoImage, isLandscape && styles.logoImageLandscape]}
+              resizeMode="contain"
+            />
             <Text style={[styles.subtitle, { color: "rgba(255,255,255,0.65)" }]}>{t("auth.subtitle")}</Text>
           </View>
 
-          <View style={styles.form}>
+          <View style={[styles.form, isLandscape && styles.formLandscape]}>
             <Input
               label={t("auth.identifier")}
               value={identifier}
@@ -313,8 +323,8 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          {/* Passcode setup prompt */}
-          {setupStep === "prompt" && (
+          {/* Passcode setup prompt — shown below form in portrait, hidden in landscape */}
+          {setupStep === "prompt" && !isLandscape && (
             <View style={[styles.promptBox, { backgroundColor: "rgba(17,17,17,0.9)", borderColor: "rgba(255,255,255,0.1)" }]}>
               <View style={[styles.promptIcon, { backgroundColor: C.primaryLight }]}>
                 <Feather name="shield" size={22} color={C.primary} />
@@ -342,7 +352,9 @@ export default function LoginScreen() {
             </View>
           )}
 
-          <Text style={[styles.disclaimer, { color: "rgba(255,255,255,0.35)" }]}>{t("auth.disclaimer")}</Text>
+          {!isLandscape && (
+            <Text style={[styles.disclaimer, { color: "rgba(255,255,255,0.35)" }]}>{t("auth.disclaimer")}</Text>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -480,8 +492,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.82)",
   },
   inner: { flexGrow: 1, paddingHorizontal: 28, paddingVertical: 20, gap: 20, justifyContent: "center" },
+  innerLandscape: { flexDirection: "row", alignItems: "center", gap: 24, paddingVertical: 12 },
   logoSection: { alignItems: "center", gap: 8 },
+  logoSectionLandscape: { width: "38%", alignItems: "center", justifyContent: "center", gap: 6 },
   logoImage: { width: "78%", maxWidth: 300, aspectRatio: 1199 / 435 },
+  logoImageLandscape: { width: "85%", maxWidth: 200 },
+  formLandscape: { flex: 1 },
   subtitle: { fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center" },
   form: { gap: 12 },
   rememberRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 2 },

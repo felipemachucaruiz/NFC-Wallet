@@ -373,7 +373,7 @@ export default function BankRefundRequestsScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
           paddingTop: isWeb ? 67 : insets.top + 8,
-          paddingBottom: isWeb ? 34 : insets.bottom + 100,
+          paddingBottom: isWeb ? 34 : insets.bottom + 80,
           paddingHorizontal: 16,
           gap: 12,
         }}

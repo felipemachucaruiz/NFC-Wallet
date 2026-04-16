@@ -84,7 +84,7 @@ export default function SalesConfigScreen() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: C.background }]}
-      contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 34 : insets.bottom + 100 }]}
+      contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 34 : insets.bottom + 80 }]}
       keyboardShouldPersistTaps="handled"
     >
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 16 }]}>

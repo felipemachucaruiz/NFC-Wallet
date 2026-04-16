@@ -242,7 +242,7 @@ export default function MerchantStaffScreen() {
           styles.content,
           {
             paddingTop: isWeb ? 24 : insets.top + 16,
-            paddingBottom: insets.bottom + 100,
+            paddingBottom: insets.bottom + 80,
           },
         ]}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={C.primary} />}

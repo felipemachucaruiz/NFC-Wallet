@@ -279,7 +279,7 @@ export default function MerchantPosScreen() {
               data={filtered}
               keyExtractor={(item) => item.product.id}
               numColumns={2}
-              contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: isWeb ? 34 : insets.bottom + 100 }}
+              contentContainerStyle={{ padding: 12, gap: 10, paddingBottom: isWeb ? 34 : insets.bottom + 80 }}
               columnWrapperStyle={{ gap: 10 }}
               scrollEnabled={!!filtered.length}
               keyboardDismissMode="on-drag"
@@ -379,7 +379,7 @@ export default function MerchantPosScreen() {
           {cartItems.length === 0 ? (
             <Empty icon="shopping-cart" title={t("pos.emptyCart")} />
           ) : (
-            <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: isWeb ? 34 : insets.bottom + 120 }}>
+            <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: isWeb ? 34 : insets.bottom + 80 }}>
               {cartItems.map((item) => (
                 <View key={item.productId} style={[styles.cartItem, { backgroundColor: C.card, borderColor: C.border }]}>
                   <View style={{ flex: 1 }}>

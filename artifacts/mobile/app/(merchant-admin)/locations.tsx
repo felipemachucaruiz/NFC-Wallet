@@ -107,7 +107,7 @@ export default function MerchantLocationsScreen() {
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
         paddingTop: isWeb ? 67 : insets.top + 16,
-        paddingBottom: isWeb ? 34 : insets.bottom + 100,
+        paddingBottom: isWeb ? 34 : insets.bottom + 80,
         paddingHorizontal: 20,
         gap: 20,
       }}

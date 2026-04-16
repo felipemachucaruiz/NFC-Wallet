@@ -106,7 +106,7 @@ export default function AuditHistoryScreen() {
           flex: 1,
           backgroundColor: C.background,
           paddingTop: isWeb ? 67 : insets.top + 32,
-          paddingBottom: isWeb ? 34 : insets.bottom + 100,
+          paddingBottom: isWeb ? 34 : insets.bottom + 80,
           paddingHorizontal: 28,
           alignItems: "center",
           justifyContent: "center",
@@ -187,7 +187,7 @@ export default function AuditHistoryScreen() {
         contentInsetAdjustmentBehavior="automatic"
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor={C.primary} />}
       >
-        <View style={{ paddingTop: isWeb ? 67 : insets.top + 16, paddingBottom: isWeb ? 34 : insets.bottom + 100, paddingHorizontal: 20, gap: 12 }}>
+        <View style={{ paddingTop: isWeb ? 67 : insets.top + 16, paddingBottom: isWeb ? 34 : insets.bottom + 80, paddingHorizontal: 20, gap: 12 }}>
           <Text style={[styles.title, { color: C.text }]}>{t("warehouse.auditHistory")}</Text>
 
           {warehouses.length > 1 && (
