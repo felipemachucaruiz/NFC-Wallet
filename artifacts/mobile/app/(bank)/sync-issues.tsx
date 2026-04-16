@@ -55,6 +55,10 @@ function friendlyError(raw: string): string {
   if (/already synced/i.test(raw) || /duplicate top-up/i.test(raw)) {
     return "Recarga duplicada: esta transacción ya fue sincronizada. Puedes descartarla.";
   }
+  // "device attestation required / not trusted / attestation token"
+  if (/attestation/i.test(raw) || /not trusted/i.test(raw)) {
+    return "Error de verificación de dispositivo (se perdió la sesión del servidor). Toca 'Reintentar todo' — se reconectará automáticamente.";
+  }
   return raw;
 }
 

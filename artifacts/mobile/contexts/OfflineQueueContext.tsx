@@ -12,6 +12,7 @@ import { customFetch } from "@workspace/api-client-react";
 import { generateId } from "@/utils/hmac";
 import { cacheSigningKey, getCachedSigningKey } from "@/utils/signingKeyCache";
 import { extractErrorMessage } from "@/utils/errorMessage";
+import { useAttestationContext } from "@/contexts/AttestationContext";
 
 const QUEUE_KEY = "@offline_queue";
 const TOPUP_QUEUE_KEY = "@offline_topup_queue";
@@ -163,6 +164,10 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
   const queueRef = useRef<QueuedTransaction[]>([]);
   const topUpQueueRef = useRef<QueuedTopUp[]>([]);
   const unsyncedSpendRef = useRef<number>(0);
+
+  const { retryAttestation } = useAttestationContext();
+  const retryAttestationRef = useRef(retryAttestation);
+  useEffect(() => { retryAttestationRef.current = retryAttestation; }, [retryAttestation]);
 
   useEffect(() => {
     loadQueue().then((q) => {
@@ -354,8 +359,38 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           await updateQueue(q);
           anySuccess = true;
         } catch (err: unknown) {
-          anyError = true;
           const httpErr = err as { status?: number };
+          // 403 attestation error → re-attest and retry once before giving up
+          if (httpErr.status === 403) {
+            try {
+              await retryAttestationRef.current();
+              await syncTransactions({
+                transactions: [
+                  {
+                    idempotencyKey: item.id,
+                    nfcUid: item.nfcUid,
+                    locationId: item.locationId,
+                    newBalance: item.newBalance,
+                    counter: item.counter,
+                    lineItems: item.lineItems.map((li) => ({
+                      productId: li.productId,
+                      quantity: li.quantity,
+                    })),
+                    ...(item.tipAmount ? { tipAmount: item.tipAmount } : {}),
+                    offlineCreatedAt: item.createdAt,
+                    ...(item.hmac ? { hmac: item.hmac } : {}),
+                  },
+                ],
+              });
+              q = queueRef.current.filter((t) => t.id !== item.id);
+              await updateQueue(q);
+              anySuccess = true;
+              continue;
+            } catch {
+              // fall through to normal error handling below
+            }
+          }
+          anyError = true;
           if (!httpErr.status) hasNetworkError = true;
           const msg = extractErrorMessage(err, "Network error");
           q = queueRef.current.map((t) =>
@@ -391,6 +426,31 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           anySuccess = true;
         } catch (err: unknown) {
           const httpErr = err as { status?: number; data?: { error?: string } };
+          // 403 attestation error → re-attest and retry once before giving up
+          if (httpErr.status === 403) {
+            try {
+              await retryAttestationRef.current();
+              await customFetch("/api/topups/sync", {
+                method: "POST",
+                body: JSON.stringify({
+                  id: item.id,
+                  nfcUid: item.nfcUid,
+                  amount: item.amount,
+                  paymentMethod: item.paymentMethod,
+                  newBalance: item.newBalance,
+                  newCounter: item.newCounter,
+                  offlineCreatedAt: item.createdAt,
+                  ...(item.hmac ? { hmac: item.hmac } : {}),
+                }),
+              });
+              tq = topUpQueueRef.current.filter((t) => t.id !== item.id);
+              await updateTopUpQueue(tq);
+              anySuccess = true;
+              continue;
+            } catch {
+              // fall through to normal error handling below
+            }
+          }
           const msg = extractErrorMessage(err, "Network error");
           const reason = (httpErr.data?.error ?? msg).toLowerCase();
           const isTopUpPermanent =
