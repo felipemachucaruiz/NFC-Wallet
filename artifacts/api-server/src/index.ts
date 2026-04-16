@@ -510,6 +510,20 @@ async function runStartupMigrations(): Promise<void> {
       ALTER TABLE ticket_type_units ADD COLUMN IF NOT EXISTS map_x NUMERIC(6,2);
       ALTER TABLE ticket_type_units ADD COLUMN IF NOT EXISTS map_y NUMERIC(6,2);
 
+      -- ── event_reminder_schedules table ───────────────────────────────────
+      CREATE TABLE IF NOT EXISTS event_reminder_schedules (
+        id                  varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id            varchar NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        days_before         integer NOT NULL,
+        template_mapping_id varchar REFERENCES whatsapp_trigger_mappings(id) ON DELETE SET NULL,
+        enabled             boolean NOT NULL DEFAULT true,
+        sent_at             timestamptz,
+        created_at          timestamptz NOT NULL DEFAULT now(),
+        updated_at          timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (event_id, days_before)
+      );
+      CREATE INDEX IF NOT EXISTS idx_event_reminder_schedules_event_id ON event_reminder_schedules (event_id);
+
       -- ── access_zones: source_section_id for venue map sync ─────────────────
       ALTER TABLE access_zones ADD COLUMN IF NOT EXISTS source_section_id VARCHAR;
       DO $$ BEGIN
@@ -546,9 +560,179 @@ function startSessionCleanupJob(): void {
   logger.info("Session cleanup job scheduled (every 1 hour)");
 }
 
+function startEventReminderJob(): void {
+  const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+
+  const runReminders = async () => {
+    const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
+    const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
+    const GUPSHUP_SOURCE = process.env.GUPSHUP_SOURCE_NUMBER;
+    if (!GUPSHUP_API_KEY || !GUPSHUP_APP_NAME || !GUPSHUP_SOURCE) return;
+
+    try {
+      // Find schedules due today: event starts in exactly days_before days, not yet sent
+      const { rows: dueSchedules } = await pool.query<{
+        id: string;
+        event_id: string;
+        days_before: number;
+        template_mapping_id: string | null;
+        event_name: string;
+        event_starts_at: string;
+        venue_address: string | null;
+      }>(`
+        SELECT s.id, s.event_id, s.days_before, s.template_mapping_id,
+               e.name AS event_name, e.starts_at AS event_starts_at, e.venue_address
+        FROM event_reminder_schedules s
+        JOIN events e ON e.id = s.event_id
+        WHERE s.enabled = true
+          AND s.sent_at IS NULL
+          AND (e.starts_at AT TIME ZONE 'America/Bogota')::date
+              = (NOW() AT TIME ZONE 'America/Bogota')::date + s.days_before * INTERVAL '1 day'
+      `);
+
+      if (dueSchedules.length === 0) return;
+      logger.info({ count: dueSchedules.length }, "Event reminder job: schedules due today");
+
+      for (const schedule of dueSchedules) {
+        try {
+          // Resolve template mapping
+          let gupshupTemplateId: string | null = null;
+          let paramMappings: Array<{ position: number; field: string }> = [];
+
+          if (schedule.template_mapping_id) {
+            const { rows: mappingRows } = await pool.query<{
+              gupshup_template_id: string;
+              parameter_mappings: Array<{ position: number; field: string }>;
+            }>(`
+              SELECT t.gupshup_template_id, m.parameter_mappings
+              FROM whatsapp_trigger_mappings m
+              JOIN whatsapp_templates t ON t.id = m.template_id
+              WHERE m.id = $1 AND m.active = true AND t.status = 'active'
+            `, [schedule.template_mapping_id]);
+            if (mappingRows[0]) {
+              gupshupTemplateId = mappingRows[0].gupshup_template_id;
+              paramMappings = mappingRows[0].parameter_mappings ?? [];
+            }
+          }
+
+          // Get all valid ticket holders for this event
+          const { rows: attendees } = await pool.query<{
+            attendee_name: string;
+            attendee_phone: string;
+            ticket_id: string;
+            order_id: string;
+          }>(`
+            SELECT t.attendee_name, t.attendee_phone, t.id AS ticket_id, t.order_id
+            FROM tickets t
+            JOIN ticket_orders o ON o.id = t.order_id
+            WHERE t.event_id = $1
+              AND t.status = 'valid'
+              AND o.payment_status = 'confirmed'
+              AND t.attendee_phone IS NOT NULL
+              AND t.attendee_phone <> ''
+          `, [schedule.event_id]);
+
+          const eventDate = new Date(schedule.event_starts_at).toLocaleDateString("es-CO", {
+            weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota",
+          });
+
+          let sent = 0;
+          let failed = 0;
+
+          for (const attendee of attendees) {
+            if (!gupshupTemplateId) continue;
+
+            // Build params from mapping fields
+            const context: Record<string, string> = {
+              attendeeName: attendee.attendee_name,
+              eventName: schedule.event_name,
+              venueName: schedule.venue_address ?? "",
+              eventDate,
+            };
+            const maxPos = paramMappings.length > 0
+              ? Math.max(...paramMappings.map((m) => m.position))
+              : 0;
+            const params: string[] = Array(maxPos).fill("");
+            for (const mapping of paramMappings) {
+              params[mapping.position - 1] = context[mapping.field] ?? "";
+            }
+
+            // Normalize phone
+            let phone = attendee.attendee_phone.replace(/[\s\-()]/g, "");
+            if (/^\d{10}$/.test(phone)) phone = `57${phone}`;
+            phone = phone.replace(/^\+/, "");
+
+            // Log the message attempt
+            const { rows: logRows } = await pool.query<{ id: string }>(`
+              INSERT INTO whatsapp_message_log (destination, message_type, template_id, trigger_type, status, payload, event_id, ticket_id, order_id, attendee_name)
+              VALUES ($1, 'template', $2, 'event_reminder', 'pending', $3, $4, $5, $6, $7)
+              RETURNING id
+            `, [
+              phone,
+              schedule.template_mapping_id,
+              JSON.stringify({ templateId: gupshupTemplateId, params }),
+              schedule.event_id,
+              attendee.ticket_id,
+              attendee.order_id,
+              attendee.attendee_name,
+            ]);
+            const logId = logRows[0]?.id;
+
+            // Send via Gupshup
+            const formBody = new URLSearchParams();
+            formBody.append("channel", "whatsapp");
+            formBody.append("source", GUPSHUP_SOURCE);
+            formBody.append("destination", phone);
+            formBody.append("src.name", GUPSHUP_APP_NAME);
+            formBody.append("template", JSON.stringify({ id: gupshupTemplateId, params }));
+
+            const gupshupRes = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded", apikey: GUPSHUP_API_KEY },
+              body: formBody.toString(),
+            });
+            const responseText = await gupshupRes.text();
+            let parsed: Record<string, unknown> = {};
+            try { parsed = JSON.parse(responseText); } catch {}
+            const success = gupshupRes.ok && parsed.status !== "error";
+
+            if (logId) {
+              await pool.query(`
+                UPDATE whatsapp_message_log
+                SET status = $1, error_message = $2, gupshup_message_id = $3, updated_at = now()
+                WHERE id = $4
+              `, [
+                success ? "sent" : "failed",
+                success ? null : (parsed.message as string || responseText),
+                success ? (parsed.messageId as string || null) : null,
+                logId,
+              ]);
+            }
+
+            if (success) sent++; else failed++;
+          }
+
+          // Mark schedule as sent
+          await pool.query(`UPDATE event_reminder_schedules SET sent_at = now(), updated_at = now() WHERE id = $1`, [schedule.id]);
+          logger.info({ scheduleId: schedule.id, eventId: schedule.event_id, daysBefore: schedule.days_before, sent, failed }, "Event reminder batch complete");
+        } catch (err) {
+          logger.error({ err, scheduleId: schedule.id }, "Event reminder schedule failed");
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, "Event reminder job failed");
+    }
+  };
+
+  setTimeout(runReminders, 15000);
+  setInterval(runReminders, SIX_HOURS_MS);
+  logger.info("Event reminder job scheduled (every 6 hours)");
+}
+
 runStartupMigrations()
   .then(() => {
     startSessionCleanupJob();
+    startEventReminderJob();
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { whatsappTemplatesTable, whatsappTriggerMappingsTable, whatsappMessageLogTable } from "@workspace/db/schema";
 import { eq, and, desc, asc, isNull, sql, like, or } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
@@ -432,6 +432,79 @@ router.post("/whatsapp-message-log/:id/resend", requireAuth, requireRole("admin"
     console.error("Failed to resend message:", err);
     res.status(500).json({ error: "Failed to resend message" });
   }
+});
+
+// ── Event Reminder Schedules ──────────────────────────────────────────────────
+
+router.get("/whatsapp-reminder-schedules", requireAuth, requireRole("admin"), async (req, res) => {
+  const { eventId } = req.query as { eventId?: string };
+  if (!eventId) {
+    res.status(400).json({ error: "eventId query param required" });
+    return;
+  }
+  const { rows } = await pool.query<{
+    id: string; event_id: string; days_before: number; template_mapping_id: string | null;
+    enabled: boolean; sent_at: string | null; created_at: string; updated_at: string;
+    template_name: string | null; gupshup_template_id: string | null;
+  }>(`
+    SELECT s.*, t.name AS template_name, t.gupshup_template_id
+    FROM event_reminder_schedules s
+    LEFT JOIN whatsapp_trigger_mappings m ON m.id = s.template_mapping_id
+    LEFT JOIN whatsapp_templates t ON t.id = m.template_id
+    WHERE s.event_id = $1
+    ORDER BY s.days_before ASC
+  `, [eventId]);
+  res.json({ schedules: rows });
+});
+
+const upsertScheduleSchema = z.object({
+  eventId: z.string().min(1),
+  daysBefore: z.number().int().min(0).max(30),
+  templateMappingId: z.string().nullable().optional(),
+  enabled: z.boolean().optional(),
+});
+
+router.post("/whatsapp-reminder-schedules", requireAuth, requireRole("admin"), async (req, res) => {
+  const parsed = upsertScheduleSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const { eventId, daysBefore, templateMappingId, enabled } = parsed.data;
+  const { rows } = await pool.query<{ id: string }>(`
+    INSERT INTO event_reminder_schedules (event_id, days_before, template_mapping_id, enabled)
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (event_id, days_before) DO UPDATE SET
+      template_mapping_id = EXCLUDED.template_mapping_id,
+      enabled = EXCLUDED.enabled,
+      sent_at = NULL,
+      updated_at = now()
+    RETURNING id
+  `, [eventId, daysBefore, templateMappingId ?? null, enabled ?? true]);
+  res.json({ id: rows[0]?.id });
+});
+
+router.patch("/whatsapp-reminder-schedules/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  const { id } = req.params as { id: string };
+  const schema = z.object({
+    templateMappingId: z.string().nullable().optional(),
+    enabled: z.boolean().optional(),
+    resetSentAt: z.boolean().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const { templateMappingId, enabled, resetSentAt } = parsed.data;
+  const setClauses: string[] = ["updated_at = now()"];
+  const values: unknown[] = [];
+  if (templateMappingId !== undefined) { values.push(templateMappingId); setClauses.push(`template_mapping_id = $${values.length}`); }
+  if (enabled !== undefined) { values.push(enabled); setClauses.push(`enabled = $${values.length}`); }
+  if (resetSentAt) setClauses.push("sent_at = NULL");
+  values.push(id);
+  await pool.query(`UPDATE event_reminder_schedules SET ${setClauses.join(", ")} WHERE id = $${values.length}`, values);
+  res.json({ ok: true });
+});
+
+router.delete("/whatsapp-reminder-schedules/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  const { id } = req.params as { id: string };
+  await pool.query(`DELETE FROM event_reminder_schedules WHERE id = $1`, [id]);
+  res.json({ ok: true });
 });
 
 export default router;

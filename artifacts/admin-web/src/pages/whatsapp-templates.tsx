@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil, MessageCircle, Zap, X, Download, RefreshCw, Clock, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight, RotateCw, FileText } from "lucide-react";
+import { Plus, Trash2, Pencil, MessageCircle, Zap, X, Download, RefreshCw, Clock, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight, RotateCw, FileText, Bell, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   apiFetchWhatsAppTemplates,
@@ -28,10 +28,15 @@ import {
   apiFetchMessageLog,
   apiFetchMessageLogStats,
   apiResendMessage,
+  apiFetchReminderSchedules,
+  apiUpsertReminderSchedule,
+  apiUpdateReminderSchedule,
+  apiDeleteReminderSchedule,
   type WhatsAppTemplate,
   type WhatsAppTriggerMapping,
   type GupshupTemplate,
   type WhatsAppMessageLog,
+  type ReminderSchedule,
 } from "@/lib/api";
 
 const TRIGGER_TYPES = ["ticket_purchased", "otp_verification", "event_reminder", "ticket_refund", "welcome_message", "ticket_transfer", "custom"] as const;
@@ -94,6 +99,7 @@ export default function WhatsAppTemplates() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: "template" | "mapping"; id: string } | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedGupshupId, setSelectedGupshupId] = useState("");
+  const [reminderEventId, setReminderEventId] = useState("");
 
   const [tplForm, setTplForm] = useState({
     name: "",
@@ -163,6 +169,31 @@ export default function WhatsAppTemplates() {
 
   const { data: eventsData } = useListEvents();
   const events = (eventsData as any)?.events ?? (Array.isArray(eventsData) ? eventsData : []);
+
+  const { data: reminderSchedules = [], refetch: refetchReminders } = useQuery({
+    queryKey: ["reminder-schedules", reminderEventId],
+    queryFn: () => apiFetchReminderSchedules(reminderEventId),
+    enabled: !!reminderEventId && activeTab === "reminders",
+  });
+
+  const upsertReminderMut = useMutation({
+    mutationFn: apiUpsertReminderSchedule,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["reminder-schedules"] }); },
+    onError: (err: Error) => toast({ title: t("common.error"), description: err.message, variant: "destructive" }),
+  });
+
+  const updateReminderMut = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Parameters<typeof apiUpdateReminderSchedule>[1] }) =>
+      apiUpdateReminderSchedule(id, body),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["reminder-schedules"] }); },
+    onError: (err: Error) => toast({ title: t("common.error"), description: err.message, variant: "destructive" }),
+  });
+
+  const deleteReminderMut = useMutation({
+    mutationFn: apiDeleteReminderSchedule,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["reminder-schedules"] }); },
+    onError: (err: Error) => toast({ title: t("common.error"), description: err.message, variant: "destructive" }),
+  });
 
   const createTemplateMut = useMutation({
     mutationFn: apiCreateWhatsAppTemplate,
@@ -389,6 +420,10 @@ export default function WhatsAppTemplates() {
           <TabsTrigger value="log">
             <FileText className="h-4 w-4 mr-2" />
             {t("whatsapp.messageLogTab", "Registro de Mensajes")}
+          </TabsTrigger>
+          <TabsTrigger value="reminders">
+            <Bell className="h-4 w-4 mr-2" />
+            Recordatorios
           </TabsTrigger>
         </TabsList>
 
@@ -709,6 +744,151 @@ export default function WhatsAppTemplates() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="reminders" className="mt-4">
+          <Card>
+            <CardContent className="p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold mb-1">Recordatorios automáticos</h2>
+                <p className="text-sm text-muted-foreground">
+                  Configura qué días antes del evento se envía un recordatorio por WhatsApp a todos los asistentes con boletas válidas. El sistema revisa automáticamente cada 6 horas.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Label className="shrink-0">Evento</Label>
+                <Select value={reminderEventId} onValueChange={setReminderEventId}>
+                  <SelectTrigger className="w-80">
+                    <SelectValue placeholder="Selecciona un evento..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {events.map((e: { id: string; name: string }) => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {reminderEventId && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {reminderSchedules.length === 0
+                        ? "No hay recordatorios configurados para este evento."
+                        : `${reminderSchedules.length} recordatorio(s) configurado(s).`}
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const days = window.prompt("¿Cuántos días antes del evento? (0 = mismo día)");
+                        if (days === null) return;
+                        const n = parseInt(days, 10);
+                        if (isNaN(n) || n < 0) return;
+                        upsertReminderMut.mutate({ eventId: reminderEventId, daysBefore: n, enabled: true });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Agregar día
+                    </Button>
+                  </div>
+
+                  {reminderSchedules.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Días antes</TableHead>
+                          <TableHead>Template asignado</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead>Enviado</TableHead>
+                          <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(reminderSchedules as ReminderSchedule[]).map((sched) => (
+                          <TableRow key={sched.id}>
+                            <TableCell className="font-medium">
+                              {sched.days_before === 0
+                                ? "Mismo día"
+                                : `${sched.days_before} día${sched.days_before > 1 ? "s" : ""} antes`}
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={sched.template_mapping_id ?? "__none__"}
+                                onValueChange={(v) =>
+                                  updateReminderMut.mutate({
+                                    id: sched.id,
+                                    body: { templateMappingId: v === "__none__" ? null : v },
+                                  })
+                                }
+                              >
+                                <SelectTrigger className="w-56 h-8 text-sm">
+                                  <SelectValue placeholder="Sin template" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">Sin template</SelectItem>
+                                  {(mappings as WhatsAppTriggerMapping[])
+                                    .filter((m) => m.triggerType === "event_reminder" && m.active)
+                                    .map((m) => {
+                                      const tpl = (templates as WhatsAppTemplate[]).find((t) => t.id === m.templateId);
+                                      return (
+                                        <SelectItem key={m.id} value={m.id}>
+                                          {tpl?.name ?? m.id.slice(0, 8)}
+                                        </SelectItem>
+                                      );
+                                    })}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Switch
+                                checked={sched.enabled}
+                                onCheckedChange={(v) =>
+                                  updateReminderMut.mutate({ id: sched.id, body: { enabled: v } })
+                                }
+                              />
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {sched.sent_at ? (
+                                <div className="flex items-center gap-1.5">
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                  <span className="text-muted-foreground">
+                                    {new Date(sched.sent_at).toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}
+                                  </span>
+                                  <button
+                                    title="Reactivar (volver a enviar)"
+                                    onClick={() => updateReminderMut.mutate({ id: sched.id, body: { resetSentAt: true } })}
+                                    className="ml-1 text-muted-foreground hover:text-foreground"
+                                  >
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">Pendiente</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  if (confirm(`¿Eliminar el recordatorio de ${sched.days_before} días antes?`)) {
+                                    deleteReminderMut.mutate(sched.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

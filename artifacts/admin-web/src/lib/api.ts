@@ -212,6 +212,28 @@ export async function apiFetchTicketOrders(eventId: string) {
   return data.orders as Array<{ id: string; buyerEmail: string; buyerName: string | null; totalAmount: number; ticketCount: number; paymentStatus: string; createdAt: string }>;
 }
 
+export interface AdminTicket {
+  id: string;
+  orderId: string;
+  ticketTypeId: string | null;
+  attendeeName: string;
+  attendeeEmail: string;
+  attendeePhone: string | null;
+  attendeeDateOfBirth: string | null;
+  attendeeSex: string | null;
+  attendeeIdDocument: string | null;
+  attendeeUserId: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export async function apiFetchTickets(eventId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/tickets`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch tickets");
+  return data.tickets as AdminTicket[];
+}
+
 export async function apiFetchCheckinStats(eventId: string) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/checkin-stats`), { headers: authHeaders() });
   const data = await res.json();
@@ -478,6 +500,43 @@ export async function apiFetchMessageLogStats(): Promise<Record<string, number>>
 export async function apiResendMessage(id: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const res = await fetch(apiUrl(`/api/whatsapp-message-log/${id}/resend`), { method: "POST", headers: authHeaders() });
   return res.json();
+}
+
+export interface ReminderSchedule {
+  id: string;
+  event_id: string;
+  days_before: number;
+  template_mapping_id: string | null;
+  enabled: boolean;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+  template_name: string | null;
+  gupshup_template_id: string | null;
+}
+
+export async function apiFetchReminderSchedules(eventId: string): Promise<ReminderSchedule[]> {
+  const res = await fetch(apiUrl(`/api/whatsapp-reminder-schedules?eventId=${encodeURIComponent(eventId)}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch schedules");
+  return data.schedules;
+}
+
+export async function apiUpsertReminderSchedule(body: { eventId: string; daysBefore: number; templateMappingId?: string | null; enabled?: boolean }): Promise<{ id: string }> {
+  const res = await fetch(apiUrl("/api/whatsapp-reminder-schedules"), { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to save schedule");
+  return data;
+}
+
+export async function apiUpdateReminderSchedule(id: string, body: { templateMappingId?: string | null; enabled?: boolean; resetSentAt?: boolean }): Promise<void> {
+  const res = await fetch(apiUrl(`/api/whatsapp-reminder-schedules/${id}`), { method: "PATCH", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to update schedule"); }
+}
+
+export async function apiDeleteReminderSchedule(id: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/whatsapp-reminder-schedules/${id}`), { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to delete schedule"); }
 }
 
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
