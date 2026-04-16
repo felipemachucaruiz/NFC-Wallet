@@ -103,7 +103,7 @@ export default function EventMerchants() {
     );
   };
 
-  const FormFields = () => (
+  const merchantFormFields = (
     <div className="space-y-3">
       <div className="space-y-1">
         <Label>{t("merchants.merchantName")}</Label>
@@ -197,7 +197,7 @@ export default function EventMerchants() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("merchants.addMerchantTitle")}</DialogTitle></DialogHeader>
-          <FormFields />
+          {merchantFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-merchant" onClick={handleCreate} disabled={createMerchant.isPending || !form.name}>
@@ -210,7 +210,7 @@ export default function EventMerchants() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("merchants.editTitle")} — {selected?.name}</DialogTitle></DialogHeader>
-          <FormFields />
+          {merchantFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-edit-merchant" onClick={handleUpdate} disabled={updateMerchant.isPending || !form.name}>

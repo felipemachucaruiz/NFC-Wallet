@@ -151,7 +151,7 @@ export default function EventProducts() {
     );
   };
 
-  const FormFields = () => (
+  const productFormFields = (
     <div className="space-y-3">
       <div className="space-y-1">
         <Label>{t("products.productName")}</Label>
@@ -288,7 +288,7 @@ export default function EventProducts() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("products.addProductTitle")}</DialogTitle></DialogHeader>
-          <FormFields />
+          {productFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-product" onClick={handleCreate} disabled={createProduct.isPending || !form.name || !form.price || !form.merchantId}>
@@ -301,7 +301,7 @@ export default function EventProducts() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("products.editTitle")} — {selected?.name}</DialogTitle></DialogHeader>
-          <FormFields />
+          {productFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-edit-product" onClick={handleUpdate} disabled={updateProduct.isPending || !form.name || !form.price}>

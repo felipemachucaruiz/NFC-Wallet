@@ -86,29 +86,29 @@ export default function Promoters() {
     );
   };
 
-  const FormFields = ({ f, setF }: { f: CompanyForm; setF: (u: (prev: CompanyForm) => CompanyForm) => void }) => (
+  const companyFormFields = (
     <div className="space-y-3">
       <div className="space-y-1">
         <Label>{t("promoters.companyName")}</Label>
-        <Input data-testid="input-company-name" value={f.companyName} onChange={(e) => setF((p) => ({ ...p, companyName: e.target.value }))} />
+        <Input data-testid="input-company-name" value={form.companyName} onChange={(e) => setForm((p) => ({ ...p, companyName: e.target.value }))} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>{t("promoters.nit")}</Label>
-          <Input data-testid="input-company-nit" value={f.nit} onChange={(e) => setF((p) => ({ ...p, nit: e.target.value }))} />
+          <Input data-testid="input-company-nit" value={form.nit} onChange={(e) => setForm((p) => ({ ...p, nit: e.target.value }))} />
         </div>
         <div className="space-y-1">
           <Label>{t("promoters.phone")}</Label>
-          <Input data-testid="input-company-phone" value={f.phone} onChange={(e) => setF((p) => ({ ...p, phone: e.target.value }))} />
+          <Input data-testid="input-company-phone" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
         </div>
       </div>
       <div className="space-y-1">
         <Label>{t("promoters.email")}</Label>
-        <Input data-testid="input-company-email" type="email" value={f.email} onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))} />
+        <Input data-testid="input-company-email" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
       </div>
       <div className="space-y-1">
         <Label>{t("promoters.address")}</Label>
-        <Input data-testid="input-company-address" value={f.address} onChange={(e) => setF((p) => ({ ...p, address: e.target.value }))} />
+        <Input data-testid="input-company-address" value={form.address} onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))} />
       </div>
     </div>
   );
@@ -181,7 +181,7 @@ export default function Promoters() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("promoters.createTitle")}</DialogTitle></DialogHeader>
-          <FormFields f={form} setF={setForm} />
+          {companyFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-promoter" onClick={handleCreate} disabled={createCompany.isPending || !form.companyName}>
@@ -194,7 +194,7 @@ export default function Promoters() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("promoters.editTitle")} — {selected?.companyName}</DialogTitle></DialogHeader>
-          <FormFields f={form} setF={setForm} />
+          {companyFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-edit-promoter" onClick={handleUpdate} disabled={updateCompany.isPending || !form.companyName}>
