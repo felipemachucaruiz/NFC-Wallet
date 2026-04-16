@@ -291,6 +291,16 @@ export default function TopUpScreen() {
         cancelNfc().catch(() => {});
         writingRef.current = false;
         submittingRef.current = false;
+        // If the screen is being blurred while showing a terminal state (success /
+        // write_failed) AND Android NFC never stole focus (so the tx-guard /
+        // success-guard never ran), this is the only cleanup that fires.
+        // Reset step now so re-navigation shows a fresh form instead of the old
+        // result screen. The Tabs navigator keeps this component alive, so without
+        // this reset the stale "success" React state persists to the next visit.
+        if (stepRef.current === "success" || stepRef.current === "write_failed") {
+          stepRef.current = "form";
+          setStep("form");
+        }
       };
     }, [params.attendeeName, params.phone, params.email])
   );
