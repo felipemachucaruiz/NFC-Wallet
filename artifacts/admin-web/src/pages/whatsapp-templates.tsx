@@ -62,6 +62,7 @@ const TRIGGER_AVAILABLE_FIELDS: Record<string, Array<{ field: string; labelKey: 
     { field: "eventName", labelKey: "whatsapp.field_eventName" },
     { field: "venueName", labelKey: "whatsapp.field_venueName" },
     { field: "eventDate", labelKey: "whatsapp.field_eventDate" },
+    { field: "daysRemainingText", labelKey: "whatsapp.field_daysRemainingText" },
   ],
   ticket_refund: [
     { field: "attendeeName", labelKey: "whatsapp.field_attendeeName" },

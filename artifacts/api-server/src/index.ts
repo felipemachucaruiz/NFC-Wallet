@@ -643,11 +643,15 @@ function startEventReminderJob(): void {
             if (!gupshupTemplateId) continue;
 
             // Build params from mapping fields
+            const daysRemainingText = schedule.days_before === 0
+              ? "HOY"
+              : `en ${schedule.days_before} día${schedule.days_before > 1 ? "s" : ""}`;
             const context: Record<string, string> = {
               attendeeName: attendee.attendee_name,
               eventName: schedule.event_name,
               venueName: schedule.venue_address ?? "",
               eventDate,
+              daysRemainingText,
             };
             const maxPos = paramMappings.length > 0
               ? Math.max(...paramMappings.map((m) => m.position))
