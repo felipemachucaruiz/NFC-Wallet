@@ -159,7 +159,7 @@ export default function EventAccessZones() {
     );
   };
 
-  const FormFields = () => (
+  const zoneFormFields = (
     <div className="space-y-3">
       <div className="space-y-1">
         <Label>{t("accessZones.zoneName")}</Label>
@@ -284,7 +284,7 @@ export default function EventAccessZones() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{t("accessZones.addZoneTitle")}</DialogTitle></DialogHeader>
-          <FormFields />
+          {zoneFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-zone" onClick={handleCreate} disabled={createZone.isPending || !form.name}>
@@ -297,7 +297,7 @@ export default function EventAccessZones() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{t("accessZones.editZoneTitle")} — {selected?.name}</DialogTitle></DialogHeader>
-          <FormFields />
+          {zoneFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-edit-zone" onClick={handleUpdate} disabled={updateZone.isPending || !form.name}>
