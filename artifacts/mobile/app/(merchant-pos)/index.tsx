@@ -52,8 +52,10 @@ export default function MerchantPosScreen() {
   const barcodeInputRef = useRef<TextInput>(null);
   const barcodePausedRef = useRef(false);
   const refocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const barcodeScanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const REFOCUS_DELAY_MS = 4000;
+  const BARCODE_SCAN_TIMEOUT_MS = 120;
 
   const [activeTab, setActiveTab] = useState<"catalog" | "cart">("catalog");
   const [search, setSearch] = useState("");
@@ -120,8 +122,20 @@ export default function MerchantPosScreen() {
   useEffect(() => {
     return () => {
       if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current);
+      if (barcodeScanTimerRef.current) clearTimeout(barcodeScanTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!barcodeInput || barcodeInput.length < 4) return;
+    if (barcodeScanTimerRef.current) clearTimeout(barcodeScanTimerRef.current);
+    barcodeScanTimerRef.current = setTimeout(() => {
+      handleBarcodeScan(barcodeInput);
+    }, BARCODE_SCAN_TIMEOUT_MS);
+    return () => {
+      if (barcodeScanTimerRef.current) clearTimeout(barcodeScanTimerRef.current);
+    };
+  }, [barcodeInput]);
 
   const handleBarcodeScan = async (barcode: string) => {
     const trimmed = barcode.trim();
@@ -216,7 +230,7 @@ export default function MerchantPosScreen() {
           placeholderTextColor={C.textMuted}
           value={barcodeInput}
           onChangeText={setBarcodeInput}
-          onSubmitEditing={() => handleBarcodeScan(barcodeInput)}
+          onSubmitEditing={() => { if (barcodeScanTimerRef.current) clearTimeout(barcodeScanTimerRef.current); handleBarcodeScan(barcodeInput); }}
           onBlur={refocusBarcodeInput}
           returnKeyType="done"
           autoFocus
