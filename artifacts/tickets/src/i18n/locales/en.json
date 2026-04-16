@@ -3,6 +3,7 @@
     "home": "Eventos",
     "events": "Events",
     "myTickets": "My Tickets",
+    "myOrders": "My Orders",
     "login": "Log In",
     "register": "Sign Up",
     "logout": "Log Out",
@@ -223,6 +224,19 @@
     "recipientEmail": "Email",
     "recipientPhone": "Phone (WhatsApp)",
     "confirmTransfer": "Transfer"
+  },
+  "myOrders": {
+    "title": "My Orders",
+    "noOrders": "No purchases yet",
+    "noOrdersDesc": "Browse events and purchase your tickets",
+    "orderNumber": "Order number",
+    "paymentMethod": "Payment method",
+    "wompiReference": "Wompi reference",
+    "transactionId": "Transaction ID",
+    "orderDate": "Purchase date",
+    "total": "Total paid",
+    "tickets": "Tickets",
+    "downloadTickets": "Download tickets (PDF)"
   },
   "account": {
     "title": "My Account",

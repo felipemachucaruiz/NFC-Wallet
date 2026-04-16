@@ -14,6 +14,7 @@ import Checkout from "@/pages/checkout";
 import PaymentStatus from "@/pages/payment-status";
 import PaymentReturn from "@/pages/payment-return";
 import MyTickets from "@/pages/my-tickets";
+import MyOrders from "@/pages/my-orders";
 import Account from "@/pages/account";
 import NotFound from "@/pages/not-found";
 import GuestListPage from "@/pages/guest-list";
@@ -58,6 +59,7 @@ function Router() {
           <Route path="/payment-status" component={PaymentStatus} />
           <Route path="/payment-return" component={PaymentReturn} />
           <Route path="/my-tickets" component={MyTickets} />
+          <Route path="/my-orders" component={MyOrders} />
           <Route path="/account" component={Account} />
           <Route path="/guest-list/:slug" component={GuestListPage} />
           <Route component={NotFound} />

@@ -332,6 +332,38 @@ export async function fetchMyTickets(): Promise<{ tickets: ApiTicket[] }> {
   return apiFetch("/tickets/my-tickets");
 }
 
+export interface ApiOrderTicket {
+  id: string;
+  attendeeName: string;
+  ticketTypeId: string | null;
+  ticketTypeName: string | null;
+  status: string;
+}
+
+export interface ApiOrder {
+  id: string;
+  eventId: string;
+  eventName: string | null;
+  eventCoverImage: string | null;
+  currencyCode: string;
+  totalAmount: number;
+  ticketCount: number;
+  paymentStatus: string;
+  paymentMethod: string;
+  wompiTransactionId: string | null;
+  wompiReference: string | null;
+  createdAt: string;
+  tickets: ApiOrderTicket[];
+}
+
+export async function fetchMyOrders(): Promise<{ orders: ApiOrder[] }> {
+  return apiFetch("/tickets/my-orders");
+}
+
+export async function fetchOrderDownloadLink(orderId: string): Promise<{ url: string }> {
+  return apiFetch(`/tickets/orders/${orderId}/download-link`);
+}
+
 export async function transferTicket(ticketId: string, data: {
   recipientName: string;
   recipientEmail: string;

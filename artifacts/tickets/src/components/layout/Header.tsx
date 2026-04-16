@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Globe, User, Ticket, LogOut } from "lucide-react";
+import { Menu, X, Globe, User, Ticket, LogOut, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -83,6 +83,10 @@ export function Header() {
                     <Ticket className="w-4 h-4 mr-2" />
                     {t("nav.myTickets")}
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/my-orders")}>
+                    <ShoppingBag className="w-4 h-4 mr-2" />
+                    {t("nav.myOrders")}
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/account")}>
                     <User className="w-4 h-4 mr-2" />
                     {t("nav.account")}
@@ -125,6 +129,9 @@ export function Header() {
                 <>
                   <Link href="/my-tickets" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.myTickets")}</Button>
+                  </Link>
+                  <Link href="/my-orders" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.myOrders")}</Button>
                   </Link>
                   <Link href="/account" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.account")}</Button>

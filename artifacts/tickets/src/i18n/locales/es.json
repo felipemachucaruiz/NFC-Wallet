@@ -3,6 +3,7 @@
     "home": "Eventos",
     "events": "Eventos",
     "myTickets": "Mis Boletas",
+    "myOrders": "Mis Órdenes",
     "login": "Iniciar sesión",
     "register": "Registrarse",
     "logout": "Cerrar sesión",
@@ -223,6 +224,19 @@
     "recipientEmail": "Correo electrónico",
     "recipientPhone": "Teléfono (WhatsApp)",
     "confirmTransfer": "Transferir"
+  },
+  "myOrders": {
+    "title": "Mis Órdenes",
+    "noOrders": "No tienes compras",
+    "noOrdersDesc": "Explora eventos y compra tus boletas",
+    "orderNumber": "Número de orden",
+    "paymentMethod": "Método de pago",
+    "wompiReference": "Referencia Wompi",
+    "transactionId": "ID transacción",
+    "orderDate": "Fecha de compra",
+    "total": "Total pagado",
+    "tickets": "Boletas",
+    "downloadTickets": "Descargar boletas (PDF)"
   },
   "account": {
     "title": "Mi Cuenta",

@@ -1978,6 +1978,101 @@ router.post(
   },
 );
 
+router.get(
+  "/tickets/orders/:orderId/download-link",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const { orderId } = req.params as { orderId: string };
+    const [order] = await db
+      .select({ id: ticketOrdersTable.id, buyerUserId: ticketOrdersTable.buyerUserId })
+      .from(ticketOrdersTable)
+      .where(eq(ticketOrdersTable.id, orderId));
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+    if (order.buyerUserId !== req.user.id) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    const token = generatePdfToken(`order:${orderId}`);
+    const appUrl = process.env.APP_URL || "https://attendee.tapee.app";
+    res.json({ url: `${appUrl}/attendee-api/api/orders/${orderId}/pdf?token=${token}` });
+  },
+);
+
+router.get(
+  "/tickets/my-orders",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const orders = await db
+      .select({
+        id: ticketOrdersTable.id,
+        eventId: ticketOrdersTable.eventId,
+        totalAmount: ticketOrdersTable.totalAmount,
+        ticketCount: ticketOrdersTable.ticketCount,
+        paymentStatus: ticketOrdersTable.paymentStatus,
+        paymentMethod: ticketOrdersTable.paymentMethod,
+        wompiTransactionId: ticketOrdersTable.wompiTransactionId,
+        wompiReference: ticketOrdersTable.wompiReference,
+        createdAt: ticketOrdersTable.createdAt,
+      })
+      .from(ticketOrdersTable)
+      .where(eq(ticketOrdersTable.buyerUserId, req.user.id))
+      .orderBy(sql`${ticketOrdersTable.createdAt} DESC`);
+
+    const enriched = await Promise.all(
+      orders.map(async (order) => {
+        const [event] = await db
+          .select({ name: eventsTable.name, coverImageUrl: eventsTable.coverImageUrl, flyerImageUrl: eventsTable.flyerImageUrl, currencyCode: eventsTable.currencyCode })
+          .from(eventsTable)
+          .where(eq(eventsTable.id, order.eventId));
+
+        const tickets = await db
+          .select({
+            id: ticketsTable.id,
+            attendeeName: ticketsTable.attendeeName,
+            ticketTypeId: ticketsTable.ticketTypeId,
+            status: ticketsTable.status,
+          })
+          .from(ticketsTable)
+          .where(eq(ticketsTable.orderId, order.id));
+
+        const ticketTypeIds = [...new Set(tickets.map((t) => t.ticketTypeId).filter(Boolean))] as string[];
+        const ticketTypes = ticketTypeIds.length
+          ? await db
+              .select({ id: ticketTypesTable.id, name: ticketTypesTable.name })
+              .from(ticketTypesTable)
+              .where(inArray(ticketTypesTable.id, ticketTypeIds))
+          : [];
+        const typeMap = Object.fromEntries(ticketTypes.map((tt) => [tt.id, tt.name]));
+
+        return {
+          ...order,
+          eventName: event?.name ?? null,
+          eventCoverImage: event?.flyerImageUrl ?? event?.coverImageUrl ?? null,
+          currencyCode: event?.currencyCode ?? "COP",
+          tickets: tickets.map((t) => ({
+            ...t,
+            ticketTypeName: t.ticketTypeId ? (typeMap[t.ticketTypeId] ?? null) : null,
+          })),
+        };
+      }),
+    );
+
+    res.json({ orders: enriched });
+  },
+);
+
 export { cancelTicketOrder };
 
 export default router;
