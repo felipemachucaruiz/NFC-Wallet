@@ -139,6 +139,13 @@ async function cleanupTestData(runId: string) {
   await pool.query(`DELETE FROM bracelets WHERE nfc_uid LIKE $1`, [prefix]);
 }
 
+async function cleanupTestDataByUids(uids: string[]) {
+  if (!uids.length) return;
+  await pool.query(`DELETE FROM transaction_logs WHERE bracelet_uid = ANY($1::text[])`, [uids]);
+  await pool.query(`DELETE FROM top_ups WHERE nfc_uid = ANY($1::text[])`, [uids]);
+  await pool.query(`DELETE FROM bracelets WHERE nfc_uid = ANY($1::text[])`, [uids]);
+}
+
 // ── Single simulated charge (bypasses NFC/HMAC for load testing) ──────────────
 
 async function simulateCharge(braceletUid: string, amountCents: number, eventId: string): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
@@ -246,10 +253,7 @@ async function runLoadTest(res: Response, runId: string, eventId: string, concur
   const errorRate = errorCount / Math.max(1, txCount);
   const score = calcScore(p50, p95, errorRate);
 
-  sseWrite(res, "progress", { phase: "cleanup", message: "Limpiando datos de prueba...", progress: 95 });
-  await cleanupTestData(runId);
-
-  return { txCount, successCount, errorCount, throughput, p50, p95, p99, errorRate, score, recommendations: recommendations(p50, p95, errorRate, throughput) };
+  return { txCount, successCount, errorCount, throughput, p50, p95, p99, errorRate, score, recommendations: recommendations(p50, p95, errorRate, throughput), _uids: uids };
 }
 
 async function runBalanceIntegrity(res: Response, runId: string, eventId: string, concurrency: number) {
@@ -288,9 +292,6 @@ async function runBalanceIntegrity(res: Response, runId: string, eventId: string
   const expectedFinal = INITIAL_BALANCE - totalDeducted;
   const balanceMatch = finalBalance === expectedFinal;
 
-  sseWrite(res, "progress", { phase: "cleanup", message: "Limpiando...", progress: 97 });
-  await cleanupTestData(runId);
-
   const p50 = percentile(latencies, 50);
   const p95 = percentile(latencies, 95);
   const errorRate = errorCount / Math.max(1, successCount + errorCount);
@@ -301,7 +302,7 @@ async function runBalanceIntegrity(res: Response, runId: string, eventId: string
   if (!balanceMatch) recs.unshift(`❌ INTEGRIDAD FALLIDA — saldo esperado: ${expectedFinal}, real: ${finalBalance}. Posible race condition.`);
   else recs.unshift("✅ Integridad de saldo confirmada — no se detectaron race conditions.");
 
-  return { successCount, errorCount, p50, p95, errorRate, balanceMatch, expectedFinal, finalBalance, score, recommendations: recs };
+  return { successCount, errorCount, p50, p95, errorRate, balanceMatch, expectedFinal, finalBalance, score, recommendations: recs, _uids: [uid] };
 }
 
 async function runBreakingPoint(res: Response, runId: string, eventId: string) {
@@ -339,7 +340,7 @@ async function runBreakingPoint(res: Response, runId: string, eventId: string) {
     stepsData.push({ concurrency, throughput, p50, p95, errorRate });
 
     sseWrite(res, "metric", { concurrency, throughput: throughput.toFixed(1), p50, p95, errorRate: (errorRate * 100).toFixed(1) });
-    await cleanupTestData(`${runId}_bp${concurrency}`);
+    await cleanupTestDataByUids(uids);
 
     if ((p95 > P95_THRESHOLD || errorRate > ERROR_RATE_THRESHOLD) && !breakingPoint) {
       breakingPoint = concurrency;
@@ -504,6 +505,7 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
     Sentry.setMeasurement("load_test.error_rate", errorRate, "ratio");
     Sentry.setMeasurement("load_test.replicas", liveReplicas, "none");
 
+    delete results._uids;
     sseWrite(res, "complete", { runId, score, results });
     logger.info({ runId, testType, score, liveReplicas }, "Load test completed");
   } catch (err) {
@@ -514,6 +516,8 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
   } finally {
     sentryTx.end();
     res.end();
+    // Cleanup in background — never blocks the SSE response
+    cleanupTestData(runId).catch((e) => logger.warn({ e, runId }, "load-test cleanup failed"));
   }
 });
 
