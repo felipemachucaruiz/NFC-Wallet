@@ -1,4 +1,5 @@
 import { fmtDate, fmtDateTime } from "@/lib/date";
+import { formatCurrency } from "@/lib/currency";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,6 +14,8 @@ import {
   useGetInventoryReport,
   useListInventoryAudits,
   useListDamagedGoods,
+  useGetLocationInventory,
+  useUpdateLocationInventoryItem,
   getListWarehousesQueryKey,
   getListStockMovementsQueryKey,
 } from "@workspace/api-client-react";
@@ -50,6 +53,8 @@ export default function EventInventory() {
   const audits = auditsData?.audits ?? [];
   const { data: damagedData } = useListDamagedGoods();
   const damaged = damagedData?.entries ?? [];
+
+  const [selectedLocationId, setSelectedLocationId] = useState("");
 
   const [createWhOpen, setCreateWhOpen] = useState(false);
   const [dispatchOpen, setDispatchOpen] = useState(false);
@@ -132,6 +137,7 @@ export default function EventInventory() {
           <TabsTrigger value="audits">{t("eventInventory.tabAudits")}</TabsTrigger>
           <TabsTrigger value="damaged">{t("eventInventory.tabDamaged")}</TabsTrigger>
           <TabsTrigger value="report">{t("eventInventory.tabReport")}</TabsTrigger>
+          <TabsTrigger value="locations-stock">{t("eventInventory.tabLocationsStock")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="warehouses" className="mt-4">
@@ -306,6 +312,33 @@ export default function EventInventory() {
             <p className="text-muted-foreground text-center py-8">{t("eventInventory.noInventory")}</p>
           )}
         </TabsContent>
+
+        <TabsContent value="locations-stock" className="mt-4">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-muted-foreground">{t("eventInventory.locationLabel")}</span>
+              <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder={t("eventInventory.selectLocation")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedLocationId ? (
+              <LocationStockPanel
+                locationId={selectedLocationId}
+                locations={locations}
+                products={products}
+              />
+            ) : (
+              <p className="text-muted-foreground text-center py-8">{t("eventInventory.selectLocationHint")}</p>
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
 
       <Dialog open={createWhOpen} onOpenChange={setCreateWhOpen}>
@@ -419,6 +452,138 @@ export default function EventInventory() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ── LocationStockPanel ─────────────────────────────────────────────────────────
+// Rendered inside the "Stock en Ubicaciones" tab. Fetches the current inventory
+// for a specific location and lets the admin directly assign quantities to any
+// product that belongs to the location's merchant.
+
+type LocationRow = { id: string; merchantId: string; name: string };
+type ProductRow = { id: string; merchantId: string; name: string; category?: string | null; price: number };
+
+function LocationStockPanel({
+  locationId,
+  locations,
+  products,
+}: {
+  locationId: string;
+  locations: LocationRow[];
+  products: ProductRow[];
+}) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+
+  const location = locations.find((l) => l.id === locationId);
+  const merchantProducts = products.filter((p) => p.merchantId === location?.merchantId);
+
+  const { data: invData, refetch: refetchInv } = useGetLocationInventory(locationId);
+  const inventory = invData?.inventory ?? [];
+
+  const updateItem = useUpdateLocationInventoryItem();
+
+  const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const currentQty = (productId: string): number | null => {
+    const item = inventory.find((i) => i.productId === productId);
+    return item ? (item.quantityOnHand ?? 0) : null;
+  };
+
+  const handleAssign = async (productId: string) => {
+    const rawQty = quantities[productId] ?? "";
+    const newQty = parseInt(rawQty, 10);
+    if (isNaN(newQty) || newQty < 0) {
+      toast({ title: t("common.error"), description: t("eventInventory.invalidQty"), variant: "destructive" });
+      return;
+    }
+    const current = currentQty(productId);
+    const adjustment = current !== null ? newQty - current : newQty;
+
+    setSaving(productId);
+    try {
+      await updateItem.mutateAsync({ locationId, data: { productId, quantityAdjustment: adjustment } });
+      await refetchInv();
+      setQuantities((prev) => ({ ...prev, [productId]: "" }));
+      toast({ title: t("eventInventory.stockAssigned") });
+    } catch (err: unknown) {
+      toast({
+        title: t("common.error"),
+        description: (err as { message?: string }).message ?? "Error",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  if (!location) return null;
+
+  if (merchantProducts.length === 0) {
+    return <p className="text-muted-foreground text-center py-8">{t("eventInventory.noMerchantProducts")}</p>;
+  }
+
+  return (
+    <div className="border border-border rounded-lg bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t("eventInventory.colProduct")}</TableHead>
+            <TableHead className="text-right">{t("eventInventory.colPrice")}</TableHead>
+            <TableHead className="text-right">{t("eventInventory.colOnHand")}</TableHead>
+            <TableHead className="w-28">{t("eventInventory.colNewQty")}</TableHead>
+            <TableHead className="w-24"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {merchantProducts.map((p) => {
+            const qty = currentQty(p.id);
+            const inputVal = quantities[p.id] ?? "";
+            return (
+              <TableRow key={p.id}>
+                <TableCell>
+                  <p className="text-sm font-semibold">{p.name}</p>
+                  {p.category && <p className="text-xs text-muted-foreground">{p.category}</p>}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrency(p.price)}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {qty === null ? (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      {t("eventInventory.notAssigned")}
+                    </Badge>
+                  ) : (
+                    <span className={qty === 0 ? "text-destructive font-semibold" : ""}>{qty}</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Input
+                    type="number"
+                    min="0"
+                    className="h-8 text-sm"
+                    placeholder="0"
+                    value={inputVal}
+                    onChange={(e) => setQuantities((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={saving === p.id || !inputVal}
+                    onClick={() => handleAssign(p.id)}
+                  >
+                    {saving === p.id ? t("common.saving") : t("eventInventory.assign")}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }

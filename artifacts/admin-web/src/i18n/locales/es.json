@@ -726,7 +726,17 @@
     "transferring": "Transfiriendo...",
     "warehouseCreated": "Bodega creada",
     "dispatched": "Despachado exitosamente",
-    "transferred": "Transferencia completada"
+    "transferred": "Transferencia completada",
+    "tabLocationsStock": "Stock en Ubicaciones",
+    "locationLabel": "Ubicación",
+    "selectLocationHint": "Selecciona una ubicación para gestionar su stock.",
+    "notAssigned": "Sin asignar",
+    "noMerchantProducts": "Este comercio no tiene productos creados aún.",
+    "colPrice": "Precio",
+    "colNewQty": "Nueva cantidad",
+    "invalidQty": "Ingresa una cantidad válida (≥ 0).",
+    "stockAssigned": "Stock actualizado correctamente.",
+    "assign": "Asignar"
   },
   "locations": {
     "title": "Ubicaciones",

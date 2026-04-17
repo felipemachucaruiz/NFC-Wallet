@@ -726,7 +726,17 @@
     "transferring": "Transferring...",
     "warehouseCreated": "Warehouse created",
     "dispatched": "Dispatched successfully",
-    "transferred": "Transfer completed"
+    "transferred": "Transfer completed",
+    "tabLocationsStock": "Location Stock",
+    "locationLabel": "Location",
+    "selectLocationHint": "Select a location to manage its stock.",
+    "notAssigned": "Not assigned",
+    "noMerchantProducts": "This merchant has no products yet.",
+    "colPrice": "Price",
+    "colNewQty": "New qty",
+    "invalidQty": "Enter a valid quantity (≥ 0).",
+    "stockAssigned": "Stock updated successfully.",
+    "assign": "Assign"
   },
   "locations": {
     "title": "Locations",
