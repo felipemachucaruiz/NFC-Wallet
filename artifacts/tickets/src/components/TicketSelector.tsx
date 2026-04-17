@@ -82,10 +82,13 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
   const validateAttendees = (): boolean => {
     const newErrors: Record<string, string> = {};
     attendees.forEach((a, i) => {
-      if (!a.name.trim()) newErrors[`${i}-name`] = t("ticketSelection.required");
-      if (!a.email.trim()) newErrors[`${i}-email`] = t("ticketSelection.required");
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email)) newErrors[`${i}-email`] = t("ticketSelection.invalidEmail");
-      if (!a.phone.trim()) newErrors[`${i}-phone`] = t("ticketSelection.required");
+      const isPrimaryBuyer = i === 0 && isAuthenticated && !!user;
+      if (!isPrimaryBuyer) {
+        if (!a.name.trim()) newErrors[`${i}-name`] = t("ticketSelection.required");
+        if (!a.email.trim()) newErrors[`${i}-email`] = t("ticketSelection.required");
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email)) newErrors[`${i}-email`] = t("ticketSelection.invalidEmail");
+        if (!a.phone.trim()) newErrors[`${i}-phone`] = t("ticketSelection.required");
+      }
       if (!a.dateOfBirth.trim()) newErrors[`${i}-dateOfBirth`] = t("ticketSelection.required");
       if (!a.sex) newErrors[`${i}-sex`] = t("ticketSelection.required");
       if (!a.idDocument.trim()) newErrors[`${i}-idDocument`] = t("ticketSelection.required");
@@ -264,52 +267,75 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
               <p className="text-sm text-muted-foreground">{t("ticketSelection.attendeeInfo")}</p>
 
               {attendees.map((attendee, index) => {
-                const isLockedByAuth = index === 0 && isAuthenticated && !!user && !!attendee.name && !!attendee.email;
+                const isPrimaryBuyer = index === 0 && isAuthenticated && !!user;
                 return (
                 <div key={index} className="bg-card rounded-lg border border-border p-4">
                   <p className="font-medium text-sm mb-3">
                     {t("ticketSelection.ticket")} {index + 1}
-                    {isLockedByAuth && (
+                    {isPrimaryBuyer && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal">({t("ticketSelection.yourTicket", "Tu entrada")})</span>
                     )}
                   </p>
                   <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs">{t("ticketSelection.name")}</Label>
-                      <Input
-                        value={attendee.name}
-                        onChange={(e) => updateAttendee(index, "name", e.target.value)}
-                        className={`${errors[`${index}-name`] ? "border-destructive" : ""} ${isLockedByAuth ? "opacity-60" : ""}`}
-                        disabled={isLockedByAuth}
-                      />
-                      {errors[`${index}-name`] && (
-                        <p className="text-xs text-destructive mt-1">{errors[`${index}-name`]}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-xs">{t("ticketSelection.email")}</Label>
-                      <Input
-                        type="email"
-                        value={attendee.email}
-                        onChange={(e) => updateAttendee(index, "email", e.target.value)}
-                        className={`${errors[`${index}-email`] ? "border-destructive" : ""} ${isLockedByAuth ? "opacity-60" : ""}`}
-                        disabled={isLockedByAuth}
-                      />
-                      {errors[`${index}-email`] && (
-                        <p className="text-xs text-destructive mt-1">{errors[`${index}-email`]}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-xs">{t("ticketSelection.phone")}</Label>
-                      <PhoneField
-                        value={attendee.phone}
-                        onChange={(v) => updateAttendee(index, "phone", v)}
-                        className={`${errors[`${index}-phone`] ? "[&_div]:border-destructive" : ""} ${isLockedByAuth && !!attendee.phone ? "opacity-60 pointer-events-none" : ""}`}
-                      />
-                      {errors[`${index}-phone`] && (
-                        <p className="text-xs text-destructive mt-1">{errors[`${index}-phone`]}</p>
-                      )}
-                    </div>
+                    {isPrimaryBuyer ? (
+                      <>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">{t("ticketSelection.name")}</Label>
+                          <div className="mt-1 h-9 px-3 flex items-center rounded-md border border-border bg-muted/40 text-sm text-foreground/70">
+                            {attendee.name}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">{t("ticketSelection.email")}</Label>
+                          <div className="mt-1 h-9 px-3 flex items-center rounded-md border border-border bg-muted/40 text-sm text-foreground/70">
+                            {attendee.email}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">{t("ticketSelection.phone")}</Label>
+                          <div className="mt-1 h-9 px-3 flex items-center rounded-md border border-border bg-muted/40 text-sm text-foreground/70">
+                            {attendee.phone || "—"}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <Label className="text-xs">{t("ticketSelection.name")}</Label>
+                          <Input
+                            value={attendee.name}
+                            onChange={(e) => updateAttendee(index, "name", e.target.value)}
+                            className={errors[`${index}-name`] ? "border-destructive" : ""}
+                          />
+                          {errors[`${index}-name`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-name`]}</p>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs">{t("ticketSelection.email")}</Label>
+                          <Input
+                            type="email"
+                            value={attendee.email}
+                            onChange={(e) => updateAttendee(index, "email", e.target.value)}
+                            className={errors[`${index}-email`] ? "border-destructive" : ""}
+                          />
+                          {errors[`${index}-email`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-email`]}</p>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs">{t("ticketSelection.phone")}</Label>
+                          <PhoneField
+                            value={attendee.phone}
+                            onChange={(v) => updateAttendee(index, "phone", v)}
+                            className={errors[`${index}-phone`] ? "[&_div]:border-destructive" : ""}
+                          />
+                          {errors[`${index}-phone`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-phone`]}</p>
+                          )}
+                        </div>
+                      </>
+                    )}
                     <div>
                       <Label className="text-xs flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
