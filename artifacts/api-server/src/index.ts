@@ -531,6 +531,26 @@ async function runStartupMigrations(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS idx_attestation_tokens_expires_at ON attestation_tokens (expires_at);
 
+      -- ── device_sync_issues: permanently-blocked POS offline queue items ──────
+      CREATE TABLE IF NOT EXISTS device_sync_issues (
+        id                    varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        local_id              varchar NOT NULL,
+        user_id               varchar NOT NULL REFERENCES users(id),
+        nfc_uid               varchar(64) NOT NULL,
+        type                  varchar(10) NOT NULL,
+        amount                integer NOT NULL,
+        fail_reason           varchar,
+        fail_count            integer NOT NULL DEFAULT 1,
+        occurred_at           timestamptz,
+        reported_at           timestamptz NOT NULL DEFAULT now(),
+        updated_at            timestamptz NOT NULL DEFAULT now(),
+        dismissed_at          timestamptz,
+        dismissed_by_user_id  varchar REFERENCES users(id),
+        UNIQUE (user_id, local_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_device_sync_issues_user_id ON device_sync_issues (user_id);
+      CREATE INDEX IF NOT EXISTS idx_device_sync_issues_dismissed ON device_sync_issues (dismissed_at) WHERE dismissed_at IS NULL;
+
       -- ── access_zones: source_section_id for venue map sync ─────────────────
       ALTER TABLE access_zones ADD COLUMN IF NOT EXISTS source_section_id VARCHAR;
       DO $$ BEGIN

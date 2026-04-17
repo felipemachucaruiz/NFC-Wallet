@@ -35,6 +35,7 @@ import {
   MessageCircle,
   Contact,
   Tablet,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -109,6 +110,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/reports" icon={FileText} label={t("nav.reports")} />
               <NavItem href="/whatsapp-templates" icon={MessageCircle} label={t("nav.whatsappTemplates", "WhatsApp")} />
               <NavItem href="/devices" icon={Tablet} label={t("nav.devices")} />
+              <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />
             </>
           )}
 
@@ -183,6 +185,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </>
               )}
 
+              <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />
               <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />
               <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
               <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
