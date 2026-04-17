@@ -563,7 +563,6 @@ router.post(
 router.post(
   "/transactions/sync",
   requireRole("merchant_staff", "merchant_admin", "admin"),
-  requireAttestation,
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });

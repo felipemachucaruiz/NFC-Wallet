@@ -200,7 +200,6 @@ const syncTopUpSchema = z.object({
 router.post(
   "/topups/sync",
   requireRole("bank", "admin"),
-  requireAttestation,
   async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       res.status(401).json({ error: "Unauthorized" });

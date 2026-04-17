@@ -455,7 +455,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
             t.id === item.id
               ? {
                   ...t,
-                  status: "pending" as const,
+                  status: "failed" as const,
                   failCount: t.failCount + 1,
                   failReason: msg,
                 }
