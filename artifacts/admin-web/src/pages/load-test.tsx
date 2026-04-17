@@ -33,26 +33,27 @@ async function apiFetch(path: string, init?: RequestInit) {
 
 // ── Phase 1: Event Profile Statistical Model ──────────────────────────────────
 
+// avgTxPerAttendee: expected purchases per person over the whole event
 const EVENT_PROFILES = {
-  festival:   { label: "Festival",           avgTxPerAttendee: 4.0, peakWindowRatio: 0.30, peakTxRatio: 0.70 },
-  concert:    { label: "Concierto",          avgTxPerAttendee: 2.5, peakWindowRatio: 0.15, peakTxRatio: 0.80 },
-  nightclub:  { label: "Rumba / Discoteca",  avgTxPerAttendee: 5.0, peakWindowRatio: 0.35, peakTxRatio: 0.65 },
-  corporate:  { label: "Corporativo",        avgTxPerAttendee: 2.0, peakWindowRatio: 0.40, peakTxRatio: 0.60 },
-  sports:     { label: "Deportivo",          avgTxPerAttendee: 3.0, peakWindowRatio: 0.25, peakTxRatio: 0.75 },
+  festival:   { label: "Festival",          avgTxPerAttendee: 4.0 },
+  concert:    { label: "Concierto",         avgTxPerAttendee: 2.5 },
+  nightclub:  { label: "Rumba / Discoteca", avgTxPerAttendee: 5.0 },
+  corporate:  { label: "Corporativo",       avgTxPerAttendee: 2.0 },
+  sports:     { label: "Deportivo",         avgTxPerAttendee: 3.0 },
 } as const;
 
 type ProfileType = keyof typeof EVENT_PROFILES;
 
-function calcEventProfile(attendees: number, eventHours: number, merchants: number, type: ProfileType) {
+// A POS cashier physically serves ~1 customer per minute (approach → tap → confirm).
+const POS_CYCLE_SECS = 60;
+
+function calcEventProfile(attendees: number, _eventHours: number, merchants: number, type: ProfileType) {
   const p = EVENT_PROFILES[type];
   const totalTx = Math.round(attendees * p.avgTxPerAttendee);
-  const peakWindowSecs = eventHours * 3600 * p.peakWindowRatio;
-  const peakTPS = (totalTx * p.peakTxRatio) / Math.max(1, peakWindowSecs);
-  // Little's Law: concurrency = TPS × avg_latency (estimate 250ms per tx)
-  const suggestedConcurrency = Math.min(Math.max(1, Math.ceil(peakTPS * 0.25)), merchants, 20);
-  // Test 5% of peak window, capped 20–120s
-  const suggestedDuration = Math.min(120, Math.max(20, Math.round(peakWindowSecs * 0.05)));
-  return { totalTx, peakTPS: Math.round(peakTPS * 10) / 10, suggestedConcurrency, suggestedDuration };
+  // Realistic peak: every POS is busy, each serving 1 customer/minute
+  const peakTPS = Math.round((merchants / POS_CYCLE_SECS) * 100) / 100;
+  const suggestedConcurrency = Math.min(merchants, 20);
+  return { totalTx, peakTPS, suggestedConcurrency, suggestedDuration: 120 };
 }
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -104,7 +105,7 @@ export default function LoadTestPage() {
 
   // Phase 1 — event profile
   const [attendees,     setAttendees]     = useState(2000);
-  const [eventHours,    setEventHours]    = useState(6);
+  const [eventHours] = useState(6);
   const [numMerchants,  setNumMerchants]  = useState(10);
   const [profileType,   setProfileType]   = useState<ProfileType>("festival");
   const profile = useMemo(
@@ -265,15 +266,11 @@ export default function LoadTestPage() {
                       <Input type="number" min={100} max={100000} value={attendees} onChange={(e) => setAttendees(Number(e.target.value))} />
                     </div>
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Duración (h)</label>
-                      <Input type="number" min={1} max={24} value={eventHours} onChange={(e) => setEventHours(Number(e.target.value))} />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Comerciantes</label>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">POS / Comerciantes</label>
                       <Input type="number" min={1} max={100} value={numMerchants} onChange={(e) => setNumMerchants(Number(e.target.value))} />
                     </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo</label>
+                    <div className="col-span-2">
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo de evento</label>
                       <Select value={profileType} onValueChange={(v) => setProfileType(v as ProfileType)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -289,14 +286,14 @@ export default function LoadTestPage() {
                   <div className="rounded-lg bg-muted/40 border border-border p-3 space-y-1.5">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Estimación</p>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                      <span className="text-muted-foreground">Total tx:</span>
+                      <span className="text-muted-foreground">Total tx evento:</span>
                       <span className="font-semibold">{profile.totalTx.toLocaleString()}</span>
-                      <span className="text-muted-foreground">Pico TPS:</span>
-                      <span className="font-semibold">{profile.peakTPS}</span>
-                      <span className="text-muted-foreground flex items-center gap-1"><Timer className="h-3 w-3" />Duración sugerida:</span>
-                      <span className="font-semibold">{profile.suggestedDuration}s</span>
-                      <span className="text-muted-foreground">Concurrencia:</span>
-                      <span className="font-semibold">{profile.suggestedConcurrency} cajeros</span>
+                      <span className="text-muted-foreground">Carga pico real:</span>
+                      <span className="font-semibold">{Math.round(numMerchants)} cobros/min ({profile.peakTPS} tx/s)</span>
+                      <span className="text-muted-foreground">POS simultáneos:</span>
+                      <span className="font-semibold">{profile.suggestedConcurrency}</span>
+                      <span className="text-muted-foreground flex items-center gap-1"><Timer className="h-3 w-3" />Tx en prueba (120s):</span>
+                      <span className="font-semibold">~{profile.suggestedConcurrency * 2} transacciones</span>
                     </div>
                   </div>
 
