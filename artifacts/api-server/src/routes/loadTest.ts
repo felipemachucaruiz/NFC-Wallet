@@ -166,7 +166,7 @@ async function simulateCharge(braceletUid: string, amountCents: number, eventId:
     );
     await pool.query(
       `INSERT INTO transaction_logs (bracelet_uid, event_id, gross_amount, net_amount, new_balance, counter, performed_by_user_id)
-       VALUES ($1, $2, $3, $3, $4, $5, 'LOADTEST')`,
+       VALUES ($1, $2, $3, $3, $4, $5, NULL)`,
       [braceletUid, eventId, amountCents, newBalance, newCounter],
     );
     return { ok: true, latencyMs: Date.now() - t0 };
