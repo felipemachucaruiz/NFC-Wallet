@@ -77,9 +77,22 @@ const attendeeDataSchema = z.object({
   ticketTypeId: z.string().min(1),
 });
 
+const legacyTicketSchema = z.object({
+  ticketTypeId: z.string().min(1),
+  attendee: z.object({
+    name: z.string().min(1).max(255),
+    email: z.string().email(),
+    phone: z.string().max(30).optional(),
+    dateOfBirth: z.string().max(10).optional(),
+    sex: z.enum(["male", "female"]).optional(),
+    idDocument: z.string().max(50).optional(),
+  }),
+});
+
 const createOrderSchema = z.object({
   eventId: z.string().min(1),
-  attendees: z.array(attendeeDataSchema).min(1).max(50),
+  attendees: z.array(attendeeDataSchema).min(1).max(50).optional(),
+  tickets: z.array(legacyTicketSchema).min(1).max(50).optional(),
   unitSelections: z.array(z.object({
     ticketTypeId: z.string().min(1),
     unitId: z.string().min(1),
@@ -93,6 +106,9 @@ const createOrderSchema = z.object({
   userLegalId: z.string().max(20).optional(),
   installments: z.number().int().min(1).max(36).optional(),
   turnstileToken: z.string().optional(),
+}).refine((d) => (d.attendees && d.attendees.length > 0) || (d.tickets && d.tickets.length > 0), {
+  message: "Either attendees or tickets must be provided",
+  path: ["attendees"],
 });
 
 router.post(
@@ -105,8 +121,19 @@ router.post(
       return;
     }
 
-    const { eventId, attendees, unitSelections, paymentMethod, savedCardId, phoneNumber, bankCode, userLegalIdType, userLegalId, installments, turnstileToken } = parsed.data;
+    const { eventId, unitSelections, paymentMethod, savedCardId, phoneNumber, bankCode, userLegalIdType, userLegalId, installments, turnstileToken } = parsed.data;
     let { cardToken } = parsed.data;
+
+    // Normalize legacy `tickets` format (old app versions) → `attendees` format
+    const attendees = parsed.data.attendees ?? (parsed.data.tickets ?? []).map((tk) => ({
+      ticketTypeId: tk.ticketTypeId,
+      name: tk.attendee.name,
+      email: tk.attendee.email,
+      phone: tk.attendee.phone,
+      dateOfBirth: tk.attendee.dateOfBirth,
+      sex: tk.attendee.sex,
+      idDocument: tk.attendee.idDocument,
+    }));
 
     if (!req.isAuthenticated()) {
       if (!turnstileToken) {
