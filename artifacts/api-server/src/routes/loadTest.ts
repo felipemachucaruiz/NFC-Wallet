@@ -566,7 +566,7 @@ router.post("/load-test/device-test/start", requireAuth, requireRole("admin"), a
       [eventId, group.role, group.count],
     );
 
-    const tokens = users.map((u) => u.expo_push_token).filter(Boolean);
+    const tokens = users.map((u: { expo_push_token?: string }) => u.expo_push_token).filter((t: string | undefined): t is string => !!t);
     if (!tokens.length) continue;
 
     const pushData = {
