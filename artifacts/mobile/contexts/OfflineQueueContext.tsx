@@ -18,6 +18,7 @@ const QUEUE_KEY = "@offline_queue";
 const TOPUP_QUEUE_KEY = "@offline_topup_queue";
 const UNSYNC_SPEND_KEY = "@unsync_spend_cop";
 const SYNC_INTERVAL = 30_000;
+const DISMISSED_POLL_INTERVAL = 120_000; // 2 minutes
 
 const DEFAULT_OFFLINE_SYNC_LIMIT = 500_000;
 
@@ -268,6 +269,56 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     [updateTopUpQueue]
   );
 
+  // Fire-and-forget: report all forbidden-blocked items to the server so admins can see them
+  const reportBlockedItems = useCallback(async () => {
+    const blocked = [
+      ...queueRef.current.filter(isForbiddenBlocked),
+      ...topUpQueueRef.current.filter(isForbiddenBlocked),
+    ];
+    if (blocked.length === 0) return;
+    for (const item of blocked) {
+      try {
+        await customFetch("/api/sync-issues", {
+          method: "POST",
+          body: JSON.stringify({
+            localId: item.id,
+            nfcUid: item.nfcUid,
+            type: item.type,
+            amount: item.type === "charge" ? item.grossAmount : item.amount,
+            failReason: item.failReason,
+            failCount: item.failCount,
+            occurredAt: item.createdAt,
+          }),
+        });
+      } catch {
+        // Non-critical: ignore report failures silently
+      }
+    }
+  }, []);
+
+  // Poll for items dismissed by an admin and auto-remove them from the local queue
+  const pollDismissedItems = useCallback(async () => {
+    try {
+      const data = await customFetch<{ localIds: string[] }>("/api/sync-issues/my-dismissed");
+      const dismissedIds = new Set(data.localIds ?? []);
+      if (dismissedIds.size === 0) return;
+
+      const hasChargeMatch = queueRef.current.some((t) => dismissedIds.has(t.id));
+      const hasTopUpMatch = topUpQueueRef.current.some((t) => dismissedIds.has(t.id));
+
+      if (hasChargeMatch) {
+        const updated = queueRef.current.filter((t) => !dismissedIds.has(t.id));
+        await updateQueue(updated);
+      }
+      if (hasTopUpMatch) {
+        const updated = topUpQueueRef.current.filter((t) => !dismissedIds.has(t.id));
+        await updateTopUpQueue(updated);
+      }
+    } catch {
+      // Non-critical: ignore poll failures silently
+    }
+  }, [updateQueue, updateTopUpQueue]);
+
   const syncNow = useCallback(async () => {
     const eligibleCharges = queueRef.current.filter(
       (t) => t.status === "pending" || (t.status === "failed" && !isForbiddenBlocked(t))
@@ -501,12 +552,22 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
     }
 
     setIsSyncing(false);
-  }, [updateQueue, updateTopUpQueue, updateUnsyncedSpend]);
+
+    // Report any forbidden-blocked items to the server (fire-and-forget)
+    void reportBlockedItems();
+  }, [updateQueue, updateTopUpQueue, updateUnsyncedSpend, reportBlockedItems]);
 
   useEffect(() => {
     const interval = setInterval(syncNow, SYNC_INTERVAL);
     return () => clearInterval(interval);
   }, [syncNow]);
+
+  // Poll for admin-dismissed items every 2 minutes
+  useEffect(() => {
+    void pollDismissedItems();
+    const interval = setInterval(pollDismissedItems, DISMISSED_POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [pollDismissedItems]);
 
   const dismissFailedItem = useCallback(
     async (id: string, itemType: "charge" | "topup") => {
