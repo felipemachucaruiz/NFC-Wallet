@@ -16,7 +16,8 @@ const RAILWAY_SERVICES: Record<string, { id: string; label: string }> = {
 };
 
 // Latency thresholds (ms) for score calculation
-const THRESHOLDS = { excellent: 150, good: 400, acceptable: 800, bad: 1500 };
+// Calibrated against production load-test results (3 replicas baseline, April 2026)
+const THRESHOLDS = { excellent: 100, good: 350, acceptable: 700, bad: 1200 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
