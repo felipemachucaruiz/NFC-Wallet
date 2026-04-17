@@ -20,20 +20,21 @@ const THRESHOLDS = { excellent: 150, good: 400, acceptable: 800, bad: 1500 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function railwayGql(query: string) {
+async function railwayGql(query: string): Promise<{ data?: Record<string, unknown> }> {
   const res = await fetch(RAILWAY_GQL, {
     method: "POST",
     headers: { "Authorization": `Bearer ${RAILWAY_TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ query }),
   });
-  return res.json();
+  return res.json() as Promise<{ data?: Record<string, unknown> }>;
 }
 
 async function getRailwayReplicas(serviceId: string): Promise<number> {
   const data = await railwayGql(
     `{ serviceInstance(environmentId: "${RAILWAY_ENV_ID}", serviceId: "${serviceId}") { numReplicas } }`
   );
-  return data?.data?.serviceInstance?.numReplicas ?? 1;
+  const inst = data?.data?.serviceInstance as { numReplicas?: number } | undefined;
+  return inst?.numReplicas ?? 1;
 }
 
 async function setRailwayReplicas(serviceId: string, n: number): Promise<boolean> {
@@ -64,7 +65,7 @@ function calcScore(p50: number, p95: number, errorRate: number): number {
   return Math.max(0, score);
 }
 
-function recommendations(p50: number, p95: number, errorRate: number, throughput: number, breakingPoint?: number): string[] {
+function recommendations(p50: number, p95: number, errorRate: number, _throughput: number, breakingPoint?: number): string[] {
   const recs: string[] = [];
   if (errorRate > 0.05)  recs.push("❌ Tasa de error >5% — revisar logs del servidor para errores de DB o timeout.");
   if (p95 > THRESHOLDS.bad) recs.push("❌ P95 muy alto — considerar escalar réplicas del API antes del evento.");
@@ -134,7 +135,7 @@ async function simulateCharge(braceletUid: string, amountCents: number, eventId:
 
 // ── Test runners ──────────────────────────────────────────────────────────────
 
-async function runHealthCheck(res: Response, runId: string, eventId: string) {
+async function runHealthCheck(res: Response, _runId: string, eventId: string) {
   const apiBase = process.env.API_SELF_URL ?? "http://localhost:3000";
   const endpoints = [
     { name: "health",      url: `${apiBase}/api/health` },
@@ -334,6 +335,28 @@ async function runBreakingPoint(res: Response, runId: string, eventId: string) {
   return { breakingPoint, steps: stepsData, maxThroughput, recommendedReplicas, p50, p95, errorRate, score, recommendations: recs };
 }
 
+// ── Expo Push helper ──────────────────────────────────────────────────────────
+
+async function sendExpoPush(tokens: string[], data: Record<string, unknown>, body: string) {
+  if (tokens.length === 0) return;
+  const messages = tokens.map((to) => ({
+    to, sound: "default" as const, title: "🧪 Prueba de dispositivo",
+    body, data, priority: "high" as const,
+  }));
+  try {
+    await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/vnd.expo.itunes-receipt+json" },
+      body: JSON.stringify(messages),
+    });
+  } catch (err) {
+    logger.warn({ err }, "Expo push send failed");
+  }
+}
+
+// In-memory map for long-poll waiters: userId → resolve callback
+const pendingPolls = new Map<string, (run: Record<string, unknown>) => void>();
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 // GET /load-test/runs — list historical runs
@@ -437,6 +460,165 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
     sentryTx.end();
     res.end();
   }
+});
+
+// ── Device Test Routes ────────────────────────────────────────────────────────
+
+// POST /load-test/device-test/start — admin triggers test, push sent to devices
+router.post("/load-test/device-test/start", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
+  const { eventId, numCharges = 10, chargeAmountCents = 5000 } = req.body as {
+    eventId: string; numCharges?: number; chargeAmountCents?: number;
+  };
+  if (!eventId) { res.status(400).json({ error: "eventId required" }); return; }
+
+  const { rows: runRows } = await pool.query<{ id: string }>(
+    `INSERT INTO device_test_runs (event_id, status, config) VALUES ($1, 'pending', $2) RETURNING id`,
+    [eventId, JSON.stringify({ numCharges, chargeAmountCents })],
+  );
+  const runId = runRows[0].id;
+
+  // Pre-create a test bracelet with enough balance for all devices
+  const braceletUid = `DEVTEST_${runId}`;
+  await pool.query(
+    `INSERT INTO bracelets (nfc_uid, event_id, last_known_balance, last_counter)
+     VALUES ($1, $2, $3, 0)
+     ON CONFLICT (nfc_uid) DO UPDATE SET last_known_balance = $3, last_counter = 0`,
+    [braceletUid, eventId, numCharges * chargeAmountCents * 100],
+  );
+
+  const { rows: users } = await pool.query<{ id: string; expo_push_token: string }>(
+    `SELECT id, expo_push_token FROM users
+     WHERE event_id = $1 AND expo_push_token IS NOT NULL
+       AND role IN ('bank', 'event_admin', 'merchant_staff')`,
+    [eventId],
+  );
+
+  const tokens = users.map((u) => u.expo_push_token).filter(Boolean);
+  const pushData = { type: "device_test", runId, eventId, braceletUid, numCharges, chargeAmountCents };
+  await sendExpoPush(tokens, pushData, `${numCharges} cobros de prueba listos. Abre la app para ejecutar.`);
+
+  // Wake any waiting long-poll listeners
+  for (const [uid, resolve] of pendingPolls.entries()) {
+    resolve({ id: runId, config: pushData });
+    pendingPolls.delete(uid);
+  }
+
+  logger.info({ runId, eventId, devicesNotified: tokens.length }, "Device test started");
+  res.json({ runId, devicesNotified: tokens.length, braceletUid });
+});
+
+// GET /load-test/device-test/pending — long poll fallback (45 s max)
+router.get("/load-test/device-test/pending", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as Request & { user?: { id: string; eventId?: string } }).user!;
+
+  const { rows } = await pool.query<{ id: string; config: unknown }>(
+    `SELECT id, config FROM device_test_runs
+     WHERE status = 'pending' AND event_id = $1
+       AND created_at > NOW() - INTERVAL '5 minutes'
+     ORDER BY created_at DESC LIMIT 1`,
+    [user.eventId ?? ""],
+  );
+  if (rows[0]) { res.json({ run: rows[0] }); return; }
+
+  const timer = setTimeout(() => {
+    pendingPolls.delete(user.id);
+    res.status(204).end();
+  }, 45_000);
+
+  pendingPolls.set(user.id, (run) => {
+    clearTimeout(timer);
+    res.json({ run });
+  });
+
+  req.on("close", () => {
+    clearTimeout(timer);
+    pendingPolls.delete(user.id);
+  });
+});
+
+// POST /load-test/device-test/fire-charge — one charge fired by a real device
+router.post("/load-test/device-test/fire-charge", requireAuth, async (req: Request, res: Response) => {
+  const { braceletUid, amountCents, eventId } = req.body as {
+    braceletUid: string; amountCents: number; eventId: string;
+  };
+  if (!braceletUid?.startsWith("DEVTEST_")) {
+    res.status(400).json({ error: "Invalid bracelet for device test" }); return;
+  }
+  const result = await simulateCharge(braceletUid, amountCents, eventId);
+  res.json(result);
+});
+
+// POST /load-test/device-test/results — device reports aggregated results
+router.post("/load-test/device-test/results", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as Request & { user?: { id: string } }).user!;
+  const { runId, deviceName, latencies, successCount, errorCount } = req.body as {
+    runId: string; deviceName: string; latencies: number[];
+    successCount: number; errorCount: number;
+  };
+
+  const p50 = percentile(latencies, 50);
+  const p95 = percentile(latencies, 95);
+
+  await pool.query(
+    `INSERT INTO device_test_results
+       (run_id, user_id, device_name, latencies, success_count, error_count, p50, p95)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (run_id, user_id) DO UPDATE
+       SET latencies = $4, success_count = $5, error_count = $6, p50 = $7, p95 = $8,
+           completed_at = NOW()`,
+    [runId, user.id, deviceName, JSON.stringify(latencies), successCount, errorCount, p50, p95],
+  );
+
+  await pool.query(
+    `UPDATE device_test_runs SET status = 'running' WHERE id = $1 AND status = 'pending'`,
+    [runId],
+  );
+
+  res.json({ ok: true, p50, p95 });
+});
+
+// POST /load-test/device-test/complete — device signals it finished
+router.post("/load-test/device-test/complete", requireAuth, async (req: Request, res: Response) => {
+  const { runId } = req.body as { runId: string };
+  const { rows } = await pool.query<{ cnt: string }>(
+    `SELECT COUNT(*) AS cnt FROM device_test_results WHERE run_id = $1`, [runId],
+  );
+  if (Number(rows[0]?.cnt) > 0) {
+    await pool.query(
+      `UPDATE device_test_runs SET status = 'completed', completed_at = NOW() WHERE id = $1`,
+      [runId],
+    );
+    await pool.query(
+      `DELETE FROM transaction_logs WHERE bracelet_uid = $1`, [`DEVTEST_${runId}`],
+    );
+    await pool.query(`DELETE FROM bracelets WHERE nfc_uid = $1`, [`DEVTEST_${runId}`]);
+  }
+  res.json({ ok: true });
+});
+
+// GET /load-test/device-test/runs — list runs with per-device results
+router.get("/load-test/device-test/runs", requireAuth, requireRole("admin"), async (_req: Request, res: Response) => {
+  const { rows } = await pool.query(
+    `SELECT r.id, r.event_id, r.status, r.config, r.created_at, r.completed_at,
+            e.name AS event_name,
+            COALESCE(
+              json_agg(
+                json_build_object(
+                  'userId', dr.user_id, 'deviceName', dr.device_name,
+                  'p50', dr.p50, 'p95', dr.p95,
+                  'successCount', dr.success_count, 'errorCount', dr.error_count,
+                  'completedAt', dr.completed_at
+                ) ORDER BY dr.completed_at
+              ) FILTER (WHERE dr.id IS NOT NULL),
+              '[]'
+            ) AS device_results
+     FROM device_test_runs r
+     LEFT JOIN events e ON e.id = r.event_id
+     LEFT JOIN device_test_results dr ON dr.run_id = r.id
+     GROUP BY r.id, e.name
+     ORDER BY r.created_at DESC LIMIT 20`,
+  );
+  res.json({ runs: rows });
 });
 
 export default router;

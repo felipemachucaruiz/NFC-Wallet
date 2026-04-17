@@ -195,6 +195,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(event-admin)" />
       <Stack.Screen name="(box-office)" />
       <Stack.Screen name="(admin)" />
+      <Stack.Screen name="device-test" />
     </Stack>
   );
 }
@@ -227,6 +228,34 @@ function LockOverlay() {
 function AppWithPasscode({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   usePushNotifications(isAuthenticated);
+
+  useEffect(() => {
+    let sub: { remove: () => void } | undefined;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Notifications = require("expo-notifications");
+      const { router } = require("expo-router");
+      sub = Notifications.addNotificationResponseReceivedListener((response: {
+        notification: { request: { content: { data: Record<string, unknown> } } };
+      }) => {
+        const data = response?.notification?.request?.content?.data;
+        if (data?.type === "device_test") {
+          router.push({
+            pathname: "/device-test",
+            params: {
+              runId: String(data.runId ?? ""),
+              eventId: String(data.eventId ?? ""),
+              braceletUid: String(data.braceletUid ?? ""),
+              numCharges: String(data.numCharges ?? 10),
+              chargeAmountCents: String(data.chargeAmountCents ?? 5000),
+            },
+          });
+        }
+      });
+    } catch {}
+    return () => { sub?.remove(); };
+  }, []);
+
   return (
     <PasscodeProvider isAuthenticated={isAuthenticated}>
       {children}

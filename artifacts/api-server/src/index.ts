@@ -576,6 +576,48 @@ async function runStartupMigrations(): Promise<void> {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_access_zones_event_source_section
         ON access_zones (event_id, source_section_id)
         WHERE source_section_id IS NOT NULL;
+
+      -- ── load_test_runs: pre-event simulator runs ──────────────────────────────
+      CREATE TABLE IF NOT EXISTS load_test_runs (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id      varchar REFERENCES events(id) ON DELETE SET NULL,
+        test_type     varchar NOT NULL,
+        config        jsonb NOT NULL DEFAULT '{}',
+        status        varchar NOT NULL DEFAULT 'pending',
+        score         integer,
+        results       jsonb,
+        sentry_trace_id varchar,
+        started_at    timestamptz,
+        completed_at  timestamptz,
+        created_at    timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_load_test_runs_event ON load_test_runs (event_id);
+      CREATE INDEX IF NOT EXISTS idx_load_test_runs_created ON load_test_runs (created_at DESC);
+
+      -- ── device_test_runs: real-device load test orchestration ─────────────────
+      CREATE TABLE IF NOT EXISTS device_test_runs (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id      varchar REFERENCES events(id) ON DELETE SET NULL,
+        status        varchar NOT NULL DEFAULT 'pending',
+        config        jsonb NOT NULL DEFAULT '{}',
+        created_at    timestamptz NOT NULL DEFAULT now(),
+        completed_at  timestamptz
+      );
+      CREATE INDEX IF NOT EXISTS idx_device_test_runs_event ON device_test_runs (event_id);
+
+      CREATE TABLE IF NOT EXISTS device_test_results (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        run_id        varchar REFERENCES device_test_runs(id) ON DELETE CASCADE,
+        user_id       varchar,
+        device_name   varchar,
+        latencies     jsonb NOT NULL DEFAULT '[]',
+        success_count int  NOT NULL DEFAULT 0,
+        error_count   int  NOT NULL DEFAULT 0,
+        p50           float,
+        p95           float,
+        completed_at  timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (run_id, user_id)
+      );
     `);
 
     logger.info("Startup migrations complete.");
