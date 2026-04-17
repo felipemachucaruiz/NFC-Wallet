@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db, pool } from "@workspace/db";
 import { whatsappTemplatesTable, whatsappTriggerMappingsTable, whatsappMessageLogTable } from "@workspace/db/schema";
-import { eq, and, desc, asc, isNull, sql, like, or } from "drizzle-orm";
+import { eq, and, desc, asc, sql, like, or } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 
 const router = Router();
@@ -439,62 +439,77 @@ router.post("/whatsapp-message-log/:id/resend", requireAuth, requireRole("admin"
 
 router.get("/whatsapp-reminder-schedules", requireAuth, requireRole("admin"), async (req, res) => {
   const { eventId } = req.query as { eventId?: string };
-  if (!eventId) {
-    res.status(400).json({ error: "eventId query param required" });
-    return;
-  }
-  const { rows } = await pool.query<{
-    id: string; event_id: string; days_before: number; template_mapping_id: string | null;
-    enabled: boolean; sent_at: string | null; created_at: string; updated_at: string;
-    template_name: string | null; gupshup_template_id: string | null;
-  }>(`
-    SELECT s.*, t.name AS template_name, t.gupshup_template_id
+  if (!eventId) { res.status(400).json({ error: "eventId query param required" }); return; }
+  const isGlobal = eventId === "global";
+  const { rows } = await pool.query(`
+    SELECT s.id, s.event_id, s.days_before, s.template_mapping_id, s.template_id,
+           s.param_mappings, s.enabled, s.sent_at, s.created_at, s.updated_at,
+           COALESCE(t2.name, t1.name) AS template_name,
+           COALESCE(t2.gupshup_template_id, t1.gupshup_template_id) AS gupshup_template_id
     FROM event_reminder_schedules s
     LEFT JOIN whatsapp_trigger_mappings m ON m.id = s.template_mapping_id
-    LEFT JOIN whatsapp_templates t ON t.id = m.template_id
-    WHERE s.event_id = $1
+    LEFT JOIN whatsapp_templates t1 ON t1.id = m.template_id
+    LEFT JOIN whatsapp_templates t2 ON t2.id = s.template_id
+    WHERE ${isGlobal ? "s.event_id IS NULL" : "s.event_id = $1"}
     ORDER BY s.days_before ASC
-  `, [eventId]);
+  `, isGlobal ? [] : [eventId]);
   res.json({ schedules: rows });
 });
 
+const paramMappingSchema = z.array(z.object({ position: z.number().int().min(1), field: z.string().min(1) }));
+
 const upsertScheduleSchema = z.object({
-  eventId: z.string().min(1),
-  daysBefore: z.number().int().min(0).max(30),
-  templateMappingId: z.string().nullable().optional(),
+  eventId: z.string().nullable().optional(),
+  daysBefore: z.number().int().min(0).max(365),
+  templateId: z.string().nullable().optional(),
+  paramMappings: paramMappingSchema.nullable().optional(),
   enabled: z.boolean().optional(),
 });
 
 router.post("/whatsapp-reminder-schedules", requireAuth, requireRole("admin"), async (req, res) => {
   const parsed = upsertScheduleSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const { eventId, daysBefore, templateMappingId, enabled } = parsed.data;
+  const { eventId, daysBefore, templateId, paramMappings, enabled } = parsed.data;
+  const resolvedEventId = (!eventId || eventId === "global") ? null : eventId;
   const { rows } = await pool.query<{ id: string }>(`
-    INSERT INTO event_reminder_schedules (event_id, days_before, template_mapping_id, enabled)
-    VALUES ($1, $2, $3, $4)
-    ON CONFLICT (event_id, days_before) DO UPDATE SET
-      template_mapping_id = EXCLUDED.template_mapping_id,
-      enabled = EXCLUDED.enabled,
-      sent_at = NULL,
-      updated_at = now()
+    WITH upd AS (
+      UPDATE event_reminder_schedules
+      SET template_id = $3, param_mappings = $4, enabled = $5, sent_at = NULL, updated_at = now()
+      WHERE event_id IS NOT DISTINCT FROM $1 AND days_before = $2
+      RETURNING id
+    )
+    INSERT INTO event_reminder_schedules (event_id, days_before, template_id, param_mappings, enabled)
+    SELECT $1, $2, $3, $4, $5
+    WHERE NOT EXISTS (SELECT 1 FROM upd)
     RETURNING id
-  `, [eventId, daysBefore, templateMappingId ?? null, enabled ?? true]);
-  res.json({ id: rows[0]?.id });
+  `, [resolvedEventId, daysBefore, templateId ?? null, paramMappings ? JSON.stringify(paramMappings) : null, enabled ?? true]);
+  // If update returned rows, fetch that id
+  if (!rows[0]) {
+    const { rows: existing } = await pool.query<{ id: string }>(
+      `SELECT id FROM event_reminder_schedules WHERE event_id IS NOT DISTINCT FROM $1 AND days_before = $2`,
+      [resolvedEventId, daysBefore],
+    );
+    res.json({ id: existing[0]?.id });
+  } else {
+    res.json({ id: rows[0].id });
+  }
 });
 
 router.patch("/whatsapp-reminder-schedules/:id", requireAuth, requireRole("admin"), async (req, res) => {
   const { id } = req.params as { id: string };
   const schema = z.object({
-    templateMappingId: z.string().nullable().optional(),
+    templateId: z.string().nullable().optional(),
+    paramMappings: paramMappingSchema.nullable().optional(),
     enabled: z.boolean().optional(),
     resetSentAt: z.boolean().optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const { templateMappingId, enabled, resetSentAt } = parsed.data;
+  const { templateId, paramMappings, enabled, resetSentAt } = parsed.data;
   const setClauses: string[] = ["updated_at = now()"];
   const values: unknown[] = [];
-  if (templateMappingId !== undefined) { values.push(templateMappingId); setClauses.push(`template_mapping_id = $${values.length}`); }
+  if (templateId !== undefined) { values.push(templateId); setClauses.push(`template_id = $${values.length}`); }
+  if (paramMappings !== undefined) { values.push(paramMappings ? JSON.stringify(paramMappings) : null); setClauses.push(`param_mappings = $${values.length}`); }
   if (enabled !== undefined) { values.push(enabled); setClauses.push(`enabled = $${values.length}`); }
   if (resetSentAt) setClauses.push("sent_at = NULL");
   values.push(id);

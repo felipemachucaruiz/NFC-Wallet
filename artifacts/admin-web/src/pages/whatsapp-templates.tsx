@@ -35,7 +35,6 @@ import {
   type WhatsAppTemplate,
   type WhatsAppTriggerMapping,
   type GupshupTemplate,
-  type WhatsAppMessageLog,
   type ReminderSchedule,
 } from "@/lib/api";
 
@@ -101,6 +100,11 @@ export default function WhatsAppTemplates() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedGupshupId, setSelectedGupshupId] = useState("");
   const [reminderEventId, setReminderEventId] = useState("");
+  const [showAddDayDialog, setShowAddDayDialog] = useState(false);
+  const [newDaysBefore, setNewDaysBefore] = useState("");
+  const [showParamMappingDialog, setShowParamMappingDialog] = useState(false);
+  const [paramMappingScheduleId, setParamMappingScheduleId] = useState<string | null>(null);
+  const [draftParamMappings, setDraftParamMappings] = useState<Array<{ position: number; field: string }>>([]);
 
   const [tplForm, setTplForm] = useState({
     name: "",
@@ -152,7 +156,7 @@ export default function WhatsAppTemplates() {
 
   const resendMut = useMutation({
     mutationFn: apiResendMessage,
-    onSuccess: (data, id) => {
+    onSuccess: (data, _id) => {
       if (data.success) {
         toast({ title: t("whatsapp.messageResent", "Mensaje reenviado exitosamente") });
         queryClient.invalidateQueries({ queryKey: ["whatsapp-message-log"] });
@@ -171,7 +175,7 @@ export default function WhatsAppTemplates() {
   const { data: eventsData } = useListEvents();
   const events = (eventsData as any)?.events ?? (Array.isArray(eventsData) ? eventsData : []);
 
-  const { data: reminderSchedules = [], refetch: refetchReminders } = useQuery({
+  const { data: reminderSchedules = [] } = useQuery({
     queryKey: ["reminder-schedules", reminderEventId],
     queryFn: () => apiFetchReminderSchedules(reminderEventId),
     enabled: !!reminderEventId && activeTab === "reminders",
@@ -758,12 +762,13 @@ export default function WhatsAppTemplates() {
               </div>
 
               <div className="flex items-center gap-3">
-                <Label className="shrink-0">Evento</Label>
+                <Label className="shrink-0">Alcance</Label>
                 <Select value={reminderEventId} onValueChange={setReminderEventId}>
                   <SelectTrigger className="w-80">
                     <SelectValue placeholder="Selecciona un evento..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="global">🌐 Global (todos los eventos)</SelectItem>
                     {events.map((e: { id: string; name: string }) => (
                       <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                     ))}
@@ -776,19 +781,10 @@ export default function WhatsAppTemplates() {
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
                       {reminderSchedules.length === 0
-                        ? "No hay recordatorios configurados para este evento."
+                        ? "No hay recordatorios configurados."
                         : `${reminderSchedules.length} recordatorio(s) configurado(s).`}
                     </p>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        const days = window.prompt("¿Cuántos días antes del evento? (0 = mismo día)");
-                        if (days === null) return;
-                        const n = parseInt(days, 10);
-                        if (isNaN(n) || n < 0) return;
-                        upsertReminderMut.mutate({ eventId: reminderEventId, daysBefore: n, enabled: true });
-                      }}
-                    >
+                    <Button size="sm" onClick={() => { setNewDaysBefore(""); setShowAddDayDialog(true); }}>
                       <Plus className="h-4 w-4 mr-2" />
                       Agregar día
                     </Button>
@@ -800,89 +796,108 @@ export default function WhatsAppTemplates() {
                         <TableRow>
                           <TableHead>Días antes</TableHead>
                           <TableHead>Template asignado</TableHead>
+                          <TableHead>Parámetros</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead>Enviado</TableHead>
                           <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {(reminderSchedules as ReminderSchedule[]).map((sched) => (
-                          <TableRow key={sched.id}>
-                            <TableCell className="font-medium">
-                              {sched.days_before === 0
-                                ? "Mismo día"
-                                : `${sched.days_before} día${sched.days_before > 1 ? "s" : ""} antes`}
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={sched.template_mapping_id ?? "__none__"}
-                                onValueChange={(v) =>
-                                  updateReminderMut.mutate({
-                                    id: sched.id,
-                                    body: { templateMappingId: v === "__none__" ? null : v },
-                                  })
-                                }
-                              >
-                                <SelectTrigger className="w-56 h-8 text-sm">
-                                  <SelectValue placeholder="Sin template" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="__none__">Sin template</SelectItem>
-                                  {(mappings as WhatsAppTriggerMapping[])
-                                    .filter((m) => m.triggerType === "event_reminder" && m.active)
-                                    .map((m) => {
-                                      const tpl = (templates as WhatsAppTemplate[]).find((t) => t.id === m.templateId);
-                                      return (
-                                        <SelectItem key={m.id} value={m.id}>
-                                          {tpl?.name ?? m.id.slice(0, 8)}
-                                        </SelectItem>
-                                      );
-                                    })}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Switch
-                                checked={sched.enabled}
-                                onCheckedChange={(v) =>
-                                  updateReminderMut.mutate({ id: sched.id, body: { enabled: v } })
-                                }
-                              />
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {sched.sent_at ? (
-                                <div className="flex items-center gap-1.5">
-                                  <CheckCircle className="h-4 w-4 text-green-500" />
-                                  <span className="text-muted-foreground">
-                                    {new Date(sched.sent_at).toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}
-                                  </span>
-                                  <button
-                                    title="Reactivar (volver a enviar)"
-                                    onClick={() => updateReminderMut.mutate({ id: sched.id, body: { resetSentAt: true } })}
-                                    className="ml-1 text-muted-foreground hover:text-foreground"
-                                  >
-                                    <RotateCcw className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground text-xs">Pendiente</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  if (confirm(`¿Eliminar el recordatorio de ${sched.days_before} días antes?`)) {
-                                    deleteReminderMut.mutate(sched.id);
+                        {(reminderSchedules as ReminderSchedule[]).map((sched) => {
+                          const selectedTpl = (templates as WhatsAppTemplate[]).find((t) => t.id === sched.template_id);
+                          return (
+                            <TableRow key={sched.id}>
+                              <TableCell className="font-medium">
+                                {sched.days_before === 0
+                                  ? "Mismo día"
+                                  : `${sched.days_before} día${sched.days_before > 1 ? "s" : ""} antes`}
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={sched.template_id ?? "__none__"}
+                                  onValueChange={(v) =>
+                                    updateReminderMut.mutate({
+                                      id: sched.id,
+                                      body: { templateId: v === "__none__" ? null : v, paramMappings: null },
+                                    })
                                   }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                                >
+                                  <SelectTrigger className="w-56 h-8 text-sm">
+                                    <SelectValue placeholder="Sin template" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="__none__">Sin template</SelectItem>
+                                    {(templates as WhatsAppTemplate[])
+                                      .filter((t) => t.status === "active")
+                                      .map((t) => (
+                                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                {selectedTpl ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs gap-1"
+                                    onClick={() => {
+                                      setParamMappingScheduleId(sched.id);
+                                      setDraftParamMappings(
+                                        selectedTpl.parameters.map((_, i) => {
+                                          const existing = (sched as any).param_mappings?.find((m: any) => m.position === i + 1);
+                                          return { position: i + 1, field: existing?.field ?? "" };
+                                        })
+                                      );
+                                      setShowParamMappingDialog(true);
+                                    }}
+                                  >
+                                    <Zap className="h-3 w-3" />
+                                    {selectedTpl.parameters.length} param{selectedTpl.parameters.length !== 1 ? "s" : ""}
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Switch
+                                  checked={sched.enabled}
+                                  onCheckedChange={(v) =>
+                                    updateReminderMut.mutate({ id: sched.id, body: { enabled: v } })
+                                  }
+                                />
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {sched.sent_at ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                    <span className="text-muted-foreground">
+                                      {new Date(sched.sent_at).toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}
+                                    </span>
+                                    <button
+                                      title="Reactivar (volver a enviar)"
+                                      onClick={() => updateReminderMut.mutate({ id: sched.id, body: { resetSentAt: true } })}
+                                      className="ml-1 text-muted-foreground hover:text-foreground"
+                                    >
+                                      <RotateCcw className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">Pendiente</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteReminderMut.mutate(sched.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   )}
@@ -892,6 +907,110 @@ export default function WhatsAppTemplates() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ── Agregar día de recordatorio ── */}
+      <Dialog open={showAddDayDialog} onOpenChange={setShowAddDayDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Agregar recordatorio</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label>¿Cuántos días antes del evento? (0 = mismo día)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={365}
+              value={newDaysBefore}
+              onChange={(e) => setNewDaysBefore(e.target.value)}
+              placeholder="Ej: 3"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const n = parseInt(newDaysBefore, 10);
+                  if (!isNaN(n) && n >= 0) {
+                    upsertReminderMut.mutate({ eventId: reminderEventId === "global" ? null : reminderEventId, daysBefore: n, enabled: true });
+                    setShowAddDayDialog(false);
+                  }
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDayDialog(false)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                const n = parseInt(newDaysBefore, 10);
+                if (!isNaN(n) && n >= 0) {
+                  upsertReminderMut.mutate({ eventId: reminderEventId === "global" ? null : reminderEventId, daysBefore: n, enabled: true });
+                  setShowAddDayDialog(false);
+                }
+              }}
+            >
+              Agregar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Mapeo de parámetros del template ── */}
+      {(() => {
+        const sched = (reminderSchedules as ReminderSchedule[]).find((s) => s.id === paramMappingScheduleId);
+        const tpl = sched ? (templates as WhatsAppTemplate[]).find((t) => t.id === sched.template_id) : null;
+        const reminderFields = TRIGGER_AVAILABLE_FIELDS.event_reminder;
+        return (
+          <Dialog open={showParamMappingDialog} onOpenChange={setShowParamMappingDialog}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Mapeo de parámetros — {tpl?.name}</DialogTitle>
+              </DialogHeader>
+              {tpl && (
+                <div className="space-y-4 py-2">
+                  {tpl.bodyPreview && (
+                    <p className="text-xs text-muted-foreground bg-muted rounded p-2 font-mono">{tpl.bodyPreview}</p>
+                  )}
+                  <div className="space-y-3">
+                    {draftParamMappings.map((pm, idx) => (
+                      <div key={pm.position} className="flex items-center gap-3">
+                        <span className="text-sm font-mono w-12 shrink-0 text-muted-foreground">{`{{${pm.position}}}`}</span>
+                        <Select
+                          value={pm.field || "__none__"}
+                          onValueChange={(v) =>
+                            setDraftParamMappings((prev) =>
+                              prev.map((x, i) => i === idx ? { ...x, field: v === "__none__" ? "" : v } : x)
+                            )
+                          }
+                        >
+                          <SelectTrigger className="flex-1 h-8 text-sm">
+                            <SelectValue placeholder="Sin asignar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Sin asignar</SelectItem>
+                            {reminderFields.map((f) => (
+                              <SelectItem key={f.field} value={f.field}>{t(f.labelKey, f.field)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowParamMappingDialog(false)}>Cancelar</Button>
+                <Button
+                  onClick={() => {
+                    if (!paramMappingScheduleId) return;
+                    const mappings = draftParamMappings.filter((m) => m.field);
+                    updateReminderMut.mutate({ id: paramMappingScheduleId, body: { paramMappings: mappings } });
+                    setShowParamMappingDialog(false);
+                  }}
+                >
+                  Guardar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       <Dialog open={showTemplateDialog} onOpenChange={(open) => { if (!open) closeTemplateDialog(); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1077,8 +1196,6 @@ export default function WhatsAppTemplates() {
               const paramCount = tplParams.length || 0;
 
               if (paramCount === 0 && availableFields.length === 0) return null;
-
-              const displayCount = paramCount > 0 ? paramCount : Math.max(...mapForm.parameterMappings.map(m => m.position), 0);
 
               return (
                 <div>

@@ -16,7 +16,7 @@ const reportSchema = z.object({
 });
 
 // Mobile: report a permanently-blocked item
-router.post("/api/sync-issues", async (req: Request, res: Response) => {
+router.post("/sync-issues", async (req: Request, res: Response) => {
   if (!req.user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
   const parsed = reportSchema.safeParse(req.body);
@@ -41,7 +41,7 @@ router.post("/api/sync-issues", async (req: Request, res: Response) => {
 });
 
 // Mobile: poll which of my local items were dismissed by an admin
-router.get("/api/sync-issues/my-dismissed", async (req: Request, res: Response) => {
+router.get("/sync-issues/my-dismissed", async (req: Request, res: Response) => {
   if (!req.user) { res.status(401).json({ error: "Unauthorized" }); return; }
   try {
     const { rows } = await pool.query<{ local_id: string }>(
@@ -56,7 +56,7 @@ router.get("/api/sync-issues/my-dismissed", async (req: Request, res: Response) 
 });
 
 // Admin / event_admin: list all active issues with user info
-router.get("/api/sync-issues/admin", async (req: Request, res: Response) => {
+router.get("/sync-issues/admin", async (req: Request, res: Response) => {
   if (!req.user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const role = req.user.role as string;
   if (role !== "admin" && role !== "event_admin") {
@@ -107,7 +107,7 @@ router.get("/api/sync-issues/admin", async (req: Request, res: Response) => {
 });
 
 // Admin / event_admin: dismiss a single issue
-router.patch("/api/sync-issues/:id/dismiss", async (req: Request, res: Response) => {
+router.patch("/sync-issues/:id/dismiss", async (req: Request, res: Response) => {
   if (!req.user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const role = req.user.role as string;
   if (role !== "admin" && role !== "event_admin") {
@@ -131,7 +131,7 @@ router.patch("/api/sync-issues/:id/dismiss", async (req: Request, res: Response)
 });
 
 // Admin / event_admin: dismiss ALL active issues in scope
-router.post("/api/sync-issues/dismiss-all", async (req: Request, res: Response) => {
+router.post("/sync-issues/dismiss-all", async (req: Request, res: Response) => {
   if (!req.user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const role = req.user.role as string;
   if (role !== "admin" && role !== "event_admin") {

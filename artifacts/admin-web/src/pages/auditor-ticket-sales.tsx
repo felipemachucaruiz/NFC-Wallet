@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { customFetch } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -165,22 +165,12 @@ export default function AuditorTicketSales() {
 
           <div className="space-y-1">
             <Label>Fecha desde</Label>
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              data-testid="input-date-from"
-            />
+            <DatePicker value={dateFrom} onChange={(v) => setDateFrom(v ?? "")} />
           </div>
 
           <div className="space-y-1">
             <Label>Fecha hasta</Label>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              data-testid="input-date-to"
-            />
+            <DatePicker value={dateTo} onChange={(v) => setDateTo(v ?? "")} />
           </div>
         </div>
 

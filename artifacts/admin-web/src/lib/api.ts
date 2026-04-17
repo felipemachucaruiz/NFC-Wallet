@@ -504,8 +504,9 @@ export async function apiResendMessage(id: string): Promise<{ success: boolean; 
 
 export interface ReminderSchedule {
   id: string;
-  event_id: string;
+  event_id: string | null;
   days_before: number;
+  template_id: string | null;
   template_mapping_id: string | null;
   enabled: boolean;
   sent_at: string | null;
@@ -522,14 +523,14 @@ export async function apiFetchReminderSchedules(eventId: string): Promise<Remind
   return data.schedules;
 }
 
-export async function apiUpsertReminderSchedule(body: { eventId: string; daysBefore: number; templateMappingId?: string | null; enabled?: boolean }): Promise<{ id: string }> {
+export async function apiUpsertReminderSchedule(body: { eventId?: string | null; daysBefore: number; templateId?: string | null; enabled?: boolean }): Promise<{ id: string }> {
   const res = await fetch(apiUrl("/api/whatsapp-reminder-schedules"), { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to save schedule");
   return data;
 }
 
-export async function apiUpdateReminderSchedule(id: string, body: { templateMappingId?: string | null; enabled?: boolean; resetSentAt?: boolean }): Promise<void> {
+export async function apiUpdateReminderSchedule(id: string, body: { templateId?: string | null; paramMappings?: Array<{ position: number; field: string }> | null; enabled?: boolean; resetSentAt?: boolean }): Promise<void> {
   const res = await fetch(apiUrl(`/api/whatsapp-reminder-schedules/${id}`), { method: "PATCH", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to update schedule"); }
 }

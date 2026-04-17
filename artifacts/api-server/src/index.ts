@@ -524,6 +524,21 @@ async function runStartupMigrations(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS idx_event_reminder_schedules_event_id ON event_reminder_schedules (event_id);
 
+      -- ── event_reminder_schedules: allow global (event_id nullable) + direct template ref ──
+      ALTER TABLE event_reminder_schedules ALTER COLUMN event_id DROP NOT NULL;
+      ALTER TABLE event_reminder_schedules ADD COLUMN IF NOT EXISTS template_id varchar REFERENCES whatsapp_templates(id) ON DELETE SET NULL;
+      ALTER TABLE event_reminder_schedules ADD COLUMN IF NOT EXISTS param_mappings jsonb;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_schedules_global_days ON event_reminder_schedules (days_before) WHERE event_id IS NULL;
+
+      -- ── event_reminder_runs: per-event tracking for global schedules ─────────
+      CREATE TABLE IF NOT EXISTS event_reminder_runs (
+        id          varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        schedule_id varchar NOT NULL REFERENCES event_reminder_schedules(id) ON DELETE CASCADE,
+        event_id    varchar NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        sent_at     timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (schedule_id, event_id)
+      );
+
       -- ── attestation_tokens: persisted device attestation cache ──────────────
       CREATE TABLE IF NOT EXISTS attestation_tokens (
         token_hash TEXT PRIMARY KEY,
@@ -613,17 +628,21 @@ function startEventReminderJob(): void {
     if (!GUPSHUP_API_KEY || !GUPSHUP_APP_NAME || !GUPSHUP_SOURCE) return;
 
     try {
-      // Find schedules due today: event starts in exactly days_before days, not yet sent
-      const { rows: dueSchedules } = await pool.query<{
+      type DueSchedule = {
         id: string;
         event_id: string;
         days_before: number;
         template_mapping_id: string | null;
+        template_id: string | null;
+        param_mappings: Array<{ position: number; field: string }> | null;
         event_name: string;
         event_starts_at: string;
         venue_address: string | null;
-      }>(`
-        SELECT s.id, s.event_id, s.days_before, s.template_mapping_id,
+      };
+
+      // Per-event schedules due today (not yet sent)
+      const { rows: perEventSchedules } = await pool.query<DueSchedule>(`
+        SELECT s.id, s.event_id, s.days_before, s.template_mapping_id, s.template_id, s.param_mappings,
                e.name AS event_name, e.starts_at AS event_starts_at, e.venue_address
         FROM event_reminder_schedules s
         JOIN events e ON e.id = s.event_id
@@ -633,16 +652,40 @@ function startEventReminderJob(): void {
               = (NOW() AT TIME ZONE 'America/Bogota')::date + s.days_before * INTERVAL '1 day'
       `);
 
+      // Global schedules (event_id IS NULL) matched against any event starting today
+      const { rows: globalSchedules } = await pool.query<DueSchedule>(`
+        SELECT s.id, s.days_before, s.template_mapping_id, s.template_id, s.param_mappings,
+               e.id AS event_id, e.name AS event_name, e.starts_at AS event_starts_at, e.venue_address
+        FROM event_reminder_schedules s
+        CROSS JOIN events e
+        WHERE s.event_id IS NULL AND s.enabled = true
+          AND (e.starts_at AT TIME ZONE 'America/Bogota')::date
+              = (NOW() AT TIME ZONE 'America/Bogota')::date + s.days_before * INTERVAL '1 day'
+          AND NOT EXISTS (
+            SELECT 1 FROM event_reminder_runs r WHERE r.schedule_id = s.id AND r.event_id = e.id
+          )
+      `);
+
+      const dueSchedules = [...perEventSchedules, ...globalSchedules];
       if (dueSchedules.length === 0) return;
       logger.info({ count: dueSchedules.length }, "Event reminder job: schedules due today");
 
       for (const schedule of dueSchedules) {
         try {
-          // Resolve template mapping
+          // Resolve template: prefer template_id (direct), fall back to template_mapping_id
           let gupshupTemplateId: string | null = null;
           let paramMappings: Array<{ position: number; field: string }> = [];
 
-          if (schedule.template_mapping_id) {
+          if (schedule.template_id) {
+            const { rows: tplRows } = await pool.query<{ gupshup_template_id: string }>(
+              `SELECT gupshup_template_id FROM whatsapp_templates WHERE id = $1 AND status = 'active'`,
+              [schedule.template_id],
+            );
+            if (tplRows[0]) {
+              gupshupTemplateId = tplRows[0].gupshup_template_id;
+              paramMappings = schedule.param_mappings ?? [];
+            }
+          } else if (schedule.template_mapping_id) {
             const { rows: mappingRows } = await pool.query<{
               gupshup_template_id: string;
               parameter_mappings: Array<{ position: number; field: string }>;
@@ -759,8 +802,15 @@ function startEventReminderJob(): void {
             if (success) sent++; else failed++;
           }
 
-          // Mark schedule as sent
-          await pool.query(`UPDATE event_reminder_schedules SET sent_at = now(), updated_at = now() WHERE id = $1`, [schedule.id]);
+          // Mark schedule as sent (per-event schedules use sent_at; global schedules use event_reminder_runs)
+          if (schedule.event_id && !globalSchedules.find((g) => g.id === schedule.id)) {
+            await pool.query(`UPDATE event_reminder_schedules SET sent_at = now(), updated_at = now() WHERE id = $1`, [schedule.id]);
+          } else {
+            await pool.query(
+              `INSERT INTO event_reminder_runs (schedule_id, event_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [schedule.id, schedule.event_id],
+            );
+          }
           logger.info({ scheduleId: schedule.id, eventId: schedule.event_id, daysBefore: schedule.days_before, sent, failed }, "Event reminder batch complete");
         } catch (err) {
           logger.error({ err, scheduleId: schedule.id }, "Event reminder schedule failed");

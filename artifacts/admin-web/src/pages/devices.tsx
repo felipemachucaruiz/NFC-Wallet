@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch, ApiError } from "@workspace/api-client-react";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -337,11 +337,9 @@ function DeviceMap({ devices }: { devices: Device[] }) {
       {selectedId && (
         <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30 text-sm text-muted-foreground">
           <span>{t("devices.locationHistoryDate", "Historial:")}</span>
-          <Input
-            type="date"
+          <DatePicker
             value={historyDate}
-            onChange={(e) => setHistoryDate(e.target.value)}
-            className="h-7 w-36 text-xs"
+            onChange={(v) => setHistoryDate(v ?? "")}
           />
           <span className="text-xs">({trail.length} {t("devices.locationPoints", "puntos")})</span>
         </div>
