@@ -120,10 +120,27 @@ export default function LoadTestPage() {
   const [sseError,      setSseError]      = useState<string | null>(null);
   const sseRef = useRef<AbortController | null>(null);
 
-  // Phase 2 — device test config
-  const [dtNumCharges,   setDtNumCharges]   = useState(10);
-  const [dtChargeAmount, setDtChargeAmount] = useState(5000);
-  const [dtStarting,     setDtStarting]     = useState(false);
+  // Phase 2 — device groups config
+  const [dtStarting, setDtStarting] = useState(false);
+
+  type DeviceGroup = {
+    role: "bank" | "merchant_staff" | "event_admin" | "gate";
+    label: string;
+    count: number;
+    numCharges: number;
+    amountCents: number;
+    enabled: boolean;
+  };
+  const [deviceGroups, setDeviceGroups] = useState<DeviceGroup[]>([
+    { role: "bank",           label: "Cajeros recarga",    count: 5,  numCharges: 10, amountCents: 50000, enabled: true  },
+    { role: "merchant_staff", label: "POS Comerciantes",   count: 10, numCharges: 15, amountCents: 10000, enabled: true  },
+    { role: "event_admin",    label: "Admin evento",        count: 2,  numCharges: 5,  amountCents: 5000,  enabled: false },
+    { role: "gate",           label: "Portería / Acceso",  count: 3,  numCharges: 5,  amountCents: 1000,  enabled: false },
+  ]);
+
+  function updateGroup(idx: number, patch: Partial<DeviceGroup>) {
+    setDeviceGroups((prev) => prev.map((g, i) => i === idx ? { ...g, ...patch } : g));
+  }
 
   const { data: runsData,    refetch: refetchRuns }    = useQuery<{ runs: RunRow[] }>({
     queryKey: ["load-test-runs"],
@@ -204,9 +221,9 @@ export default function LoadTestPage() {
     try {
       const result = await apiFetch("/load-test/device-test/start", {
         method: "POST",
-        body: JSON.stringify({ eventId, numCharges: dtNumCharges, chargeAmountCents: dtChargeAmount }),
-      }) as { runId: string; devicesNotified: number };
-      toast({ title: `Prueba iniciada`, description: `${result.devicesNotified} dispositivo(s) notificado(s)` });
+        body: JSON.stringify({ eventId, deviceGroups: deviceGroups.filter((g) => g.enabled) }),
+      }) as { runId: string; devicesNotified: number; groups: number };
+      toast({ title: `Prueba iniciada`, description: `${result.devicesNotified} dispositivo(s) en ${result.groups} grupo(s)` });
       refetchDeviceRuns();
     } catch (e) {
       toast({ title: "Error al iniciar", description: String(e), variant: "destructive" });
@@ -424,15 +441,56 @@ export default function LoadTestPage() {
                       <SelectContent>{eventsData?.events?.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Cobros por device</label>
-                      <Input type="number" min={1} max={50} value={dtNumCharges} onChange={(e) => setDtNumCharges(Number(e.target.value))} />
+                  {/* Device groups table */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Grupos de dispositivos</p>
+                    <div className="rounded-md border border-border overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/40">
+                          <tr>
+                            <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Tipo</th>
+                            <th className="text-center px-2 py-1.5 font-medium text-muted-foreground w-14">Cant.</th>
+                            <th className="text-center px-2 py-1.5 font-medium text-muted-foreground w-14">Cobros</th>
+                            <th className="text-center px-2 py-1.5 font-medium text-muted-foreground w-20">COP ¢</th>
+                            <th className="w-8" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {deviceGroups.map((g, i) => (
+                            <tr key={g.role} className={`border-t border-border ${!g.enabled ? "opacity-40" : ""}`}>
+                              <td className="px-2 py-1.5 font-medium">{g.label}</td>
+                              <td className="px-1 py-1">
+                                <Input type="number" min={0} max={50} value={g.count}
+                                  onChange={(e) => updateGroup(i, { count: Number(e.target.value) })}
+                                  disabled={!g.enabled}
+                                  className="h-6 text-xs text-center px-1" />
+                              </td>
+                              <td className="px-1 py-1">
+                                <Input type="number" min={1} max={50} value={g.numCharges}
+                                  onChange={(e) => updateGroup(i, { numCharges: Number(e.target.value) })}
+                                  disabled={!g.enabled}
+                                  className="h-6 text-xs text-center px-1" />
+                              </td>
+                              <td className="px-1 py-1">
+                                <Input type="number" min={0} value={g.amountCents}
+                                  onChange={(e) => updateGroup(i, { amountCents: Number(e.target.value) })}
+                                  disabled={!g.enabled}
+                                  className="h-6 text-xs text-center px-1" />
+                              </td>
+                              <td className="px-2 text-center">
+                                <input type="checkbox" checked={g.enabled}
+                                  onChange={(e) => updateGroup(i, { enabled: e.target.checked })}
+                                  className="accent-primary" />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Monto (COP cents)</label>
-                      <Input type="number" min={100} value={dtChargeAmount} onChange={(e) => setDtChargeAmount(Number(e.target.value))} />
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Total estimado: {deviceGroups.filter(g => g.enabled).reduce((s, g) => s + g.count * g.numCharges, 0)} cobros
+                      · {deviceGroups.filter(g => g.enabled).reduce((s, g) => s + g.count, 0)} dispositivos
+                    </p>
                   </div>
                   <Button className="w-full" onClick={startDeviceTest} disabled={dtStarting}>
                     <Play className="mr-2 h-4 w-4" />Iniciar prueba en dispositivos

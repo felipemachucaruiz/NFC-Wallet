@@ -519,47 +519,77 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
 
 // ── Device Test Routes ────────────────────────────────────────────────────────
 
+type DeviceGroup = {
+  role: "bank" | "merchant_staff" | "event_admin" | "gate";
+  label: string;
+  count: number;          // max devices to include (0 = skip)
+  numCharges: number;     // charges per device
+  amountCents: number;    // charge amount
+};
+
 // POST /load-test/device-test/start — admin triggers test, push sent to devices
 router.post("/load-test/device-test/start", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
-  const { eventId, numCharges = 10, chargeAmountCents = 5000 } = req.body as {
-    eventId: string; numCharges?: number; chargeAmountCents?: number;
+  const { eventId, deviceGroups } = req.body as {
+    eventId: string;
+    deviceGroups: DeviceGroup[];
   };
   if (!eventId) { res.status(400).json({ error: "eventId required" }); return; }
+  if (!deviceGroups?.length) { res.status(400).json({ error: "deviceGroups required" }); return; }
+
+  const activeGroups = deviceGroups.filter((g) => g.count > 0 && g.numCharges > 0);
+  if (!activeGroups.length) { res.status(400).json({ error: "At least one active device group required" }); return; }
 
   const { rows: runRows } = await pool.query<{ id: string }>(
     `INSERT INTO device_test_runs (event_id, status, config) VALUES ($1, 'pending', $2) RETURNING id`,
-    [eventId, JSON.stringify({ numCharges, chargeAmountCents })],
+    [eventId, JSON.stringify({ deviceGroups })],
   );
   const runId = runRows[0].id;
 
-  // Pre-create a test bracelet with enough balance for all devices
+  // Pre-create one shared bracelet with enough balance for all groups combined
   const braceletUid = `DEVTEST_${runId}`;
+  const totalCharges = activeGroups.reduce((sum, g) => sum + g.count * g.numCharges, 0);
+  const maxAmount = Math.max(...activeGroups.map((g) => g.amountCents));
   await pool.query(
     `INSERT INTO bracelets (nfc_uid, event_id, last_known_balance, last_counter)
      VALUES ($1, $2, $3, 0)
      ON CONFLICT (nfc_uid) DO UPDATE SET last_known_balance = $3, last_counter = 0`,
-    [braceletUid, eventId, numCharges * chargeAmountCents * 100],
+    [braceletUid, eventId, totalCharges * maxAmount * 2],
   );
 
-  const { rows: users } = await pool.query<{ id: string; expo_push_token: string }>(
-    `SELECT id, expo_push_token FROM users
-     WHERE event_id = $1 AND expo_push_token IS NOT NULL
-       AND role IN ('bank', 'event_admin', 'merchant_staff')`,
-    [eventId],
-  );
+  let totalNotified = 0;
 
-  const tokens = users.map((u) => u.expo_push_token).filter(Boolean);
-  const pushData = { type: "device_test", runId, eventId, braceletUid, numCharges, chargeAmountCents };
-  await sendExpoPush(tokens, pushData, `${numCharges} cobros de prueba listos. Abre la app para ejecutar.`);
+  for (const group of activeGroups) {
+    const { rows: users } = await pool.query<{ id: string; expo_push_token: string }>(
+      `SELECT id, expo_push_token FROM users
+       WHERE event_id = $1 AND expo_push_token IS NOT NULL AND role = $2
+       LIMIT $3`,
+      [eventId, group.role, group.count],
+    );
 
-  // Wake any waiting long-poll listeners
+    const tokens = users.map((u) => u.expo_push_token).filter(Boolean);
+    if (!tokens.length) continue;
+
+    const pushData = {
+      type: "device_test",
+      runId, eventId, braceletUid,
+      numCharges: group.numCharges,
+      chargeAmountCents: group.amountCents,
+      deviceRole: group.role,
+      deviceLabel: group.label,
+    };
+    await sendExpoPush(tokens, pushData, `Prueba ${group.label}: ${group.numCharges} cobros de ${(group.amountCents / 100).toFixed(0)} COP.`);
+    totalNotified += tokens.length;
+  }
+
+  // Wake any waiting long-poll listeners (send generic config for fallback)
+  const fallbackConfig = { type: "device_test", runId, eventId, braceletUid, numCharges: activeGroups[0].numCharges, chargeAmountCents: activeGroups[0].amountCents };
   for (const [uid, resolve] of pendingPolls.entries()) {
-    resolve({ id: runId, config: pushData });
+    resolve({ id: runId, config: fallbackConfig });
     pendingPolls.delete(uid);
   }
 
-  logger.info({ runId, eventId, devicesNotified: tokens.length }, "Device test started");
-  res.json({ runId, devicesNotified: tokens.length, braceletUid });
+  logger.info({ runId, eventId, totalNotified, groups: activeGroups.length }, "Device test started");
+  res.json({ runId, devicesNotified: totalNotified, braceletUid, groups: activeGroups.length });
 });
 
 // GET /load-test/device-test/pending — long poll fallback (45 s max)
