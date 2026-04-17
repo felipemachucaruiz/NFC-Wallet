@@ -9,8 +9,8 @@ import QRCode from "qrcode";
 
 const router: IRouter = Router();
 
-const userRoles = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin", "ticketing_auditor"] as const;
-const eventAdminAllowedRoles = ["attendee", "bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin"] as const;
+const userRoles = ["attendee", "bank", "gate", "box_office", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin", "ticketing_auditor"] as const;
+const eventAdminAllowedRoles = ["attendee", "bank", "gate", "box_office", "merchant_staff", "merchant_admin", "warehouse_admin"] as const;
 
 // ── Self-service profile update ──────────────────────────────────────────────
 

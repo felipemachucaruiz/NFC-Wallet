@@ -49,7 +49,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { eventId: ctxEventId, setEventId } = useEventContext();
   const role = user?.user?.role;
   const eventId = role === "admin" ? ctxEventId : (user?.user?.eventId ?? "");
-  const { data: eventData } = useGetEvent(eventId || "skip");
+  const { data: eventData } = useGetEvent(eventId || "", { query: { enabled: !!eventId } });
   const eventRecord = eventData as Record<string, unknown> | undefined;
   const ticketingEnabled = eventRecord?.ticketingEnabled === true;
   const nfcBraceletsEnabled = eventRecord?.nfcBraceletsEnabled !== false;

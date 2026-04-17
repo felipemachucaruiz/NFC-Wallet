@@ -211,7 +211,7 @@ router.post(
         eq(ticketTypesTable.isActive, true),
       ));
 
-    const ticketTypeMap = new Map(ticketTypes.map((tt) => [tt.id, tt]));
+    const ticketTypeMap = new Map<string, (typeof ticketTypes)[0]>(ticketTypes.map((tt) => [tt.id, tt]));
 
     for (const attendee of attendees) {
       const tt = ticketTypeMap.get(attendee.ticketTypeId);

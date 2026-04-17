@@ -31,6 +31,7 @@ import guestListsRouter from "./guestLists";
 import whatsappTemplatesRouter from "./whatsappTemplates";
 import auditorRouter from "./auditor";
 import devicesRouter from "./devices";
+import boxOfficeSaleRouter from "./boxOfficeSale";
 
 const router: IRouter = Router();
 
@@ -66,5 +67,6 @@ router.use(guestListsRouter);
 router.use(whatsappTemplatesRouter);
 router.use(auditorRouter);
 router.use(devicesRouter);
+router.use(boxOfficeSaleRouter);
 
 export default router;

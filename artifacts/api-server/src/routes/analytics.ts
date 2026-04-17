@@ -174,14 +174,8 @@ router.get(
       })
       .from(transactionLogsTable)
       .where(txConditions.length > 0 ? and(...txConditions) : undefined)
-      .groupBy(
-        sql`EXTRACT(HOUR FROM ${localTs})`,
-        sql`DATE(${localTs})`,
-      )
-      .orderBy(
-        sql`DATE(${localTs})`,
-        sql`EXTRACT(HOUR FROM ${localTs})`,
-      );
+      .groupBy(sql`1`, sql`2`)
+      .orderBy(sql`2`, sql`1`);
 
     const salesByHour = rows.map((r) => ({
       hour: Number(r.hour),
@@ -458,15 +452,8 @@ router.get(
       })
       .from(transactionLogsTable)
       .where(txConditions.length > 0 ? and(...txConditions) : undefined)
-      .groupBy(
-        sql`EXTRACT(HOUR FROM ${localTs})`,
-        sql`TO_CHAR(${localTs}, 'Dy')`,
-        sql`EXTRACT(DOW FROM ${localTs})`,
-      )
-      .orderBy(
-        sql`EXTRACT(DOW FROM ${localTs})`,
-        sql`EXTRACT(HOUR FROM ${localTs})`,
-      );
+      .groupBy(sql`1`, sql`2`, sql`3`)
+      .orderBy(sql`3`, sql`1`);
 
     const heatmap = rows.map((r) => ({
       hour: Number(r.hour),

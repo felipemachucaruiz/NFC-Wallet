@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch, ApiError } from "@workspace/api-client-react";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,22 +17,43 @@ interface Device {
   name: string;
   status: string;
   batteryLevel: number | null;
+  batteryCharging: boolean;
+  batteryHealth: string | null;
+  batteryTempCelsius: number | null;
   lastSeenAt: string | null;
   model: string | null;
   osVersion: string | null;
   serialNumber: string | null;
+  locked: boolean;
+  licenseStatus: string | null;
+  simNetwork: string | null;
+  sim1NetworkType: string | null;
+  ipAddress: string | null;
+  ramUsagePct: number | null;
   lat: number | null;
   lng: number | null;
+  locationAddress: string | null;
 }
 
 function isOnline(status: string): boolean {
   return status === "online";
 }
 
-function BatteryDisplay({ level }: { level: number | null }) {
+function BatteryDisplay({ level, charging, health, tempC }: { level: number | null; charging?: boolean; health?: string | null; tempC?: number | null }) {
   if (level === null || level === undefined) return <span className="text-muted-foreground text-sm">—</span>;
   const color = level > 50 ? "text-green-600" : level > 20 ? "text-yellow-600" : "text-red-600";
-  return <span className={`text-sm font-medium ${color}`}>{level}%</span>;
+  return (
+    <div className="space-y-0.5">
+      <span className={`text-sm font-medium ${color}`}>
+        {level}%{charging ? " ⚡" : ""}
+      </span>
+      {(health || tempC !== null && tempC !== undefined) && (
+        <p className="text-xs text-muted-foreground">
+          {health}{health && tempC != null ? " · " : ""}{tempC != null ? `${tempC}°C` : ""}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function fmtLastSeen(ts: string | null): string {
@@ -43,6 +65,18 @@ function fmtLastSeen(ts: string | null): string {
   }
 }
 
+interface LocationPoint {
+  lat: number | null;
+  lng: number | null;
+  address: string | null;
+  accuracy: number | null;
+  timestamp: string | null;
+}
+
+function todayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function DeviceMap({ devices }: { devices: Device[] }) {
   const { t } = useTranslation();
   const { isLoaded } = useJsApiLoader({
@@ -51,8 +85,16 @@ function DeviceMap({ devices }: { devices: Device[] }) {
   });
 
   const [selectedId, setSelectedId] = useState<string | number | null>(null);
+  const [historyDate, setHistoryDate] = useState<string>(todayDate());
 
   const locatedDevices = devices.filter((d) => d.lat !== null && d.lng !== null);
+
+  const { data: historyData } = useQuery<{ locations: LocationPoint[] }>({
+    queryKey: ["device-locations", selectedId, historyDate],
+    queryFn: () => customFetch<{ locations: LocationPoint[] }>(`/api/devices/${selectedId}/locations?date=${historyDate}`),
+    enabled: !!selectedId,
+  });
+  const trail = (historyData?.locations ?? []).filter((p) => p.lat !== null && p.lng !== null);
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     if (locatedDevices.length === 0) return;
@@ -78,6 +120,18 @@ function DeviceMap({ devices }: { devices: Device[] }) {
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
+      {selectedId && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30 text-sm text-muted-foreground">
+          <span>{t("devices.locationHistoryDate", "Historial:")}</span>
+          <Input
+            type="date"
+            value={historyDate}
+            onChange={(e) => setHistoryDate(e.target.value)}
+            className="h-7 w-36 text-xs"
+          />
+          <span className="text-xs">({trail.length} {t("devices.locationPoints", "puntos")})</span>
+        </div>
+      )}
       <div className="relative">
         <GoogleMap
           mapContainerStyle={{ width: "100%", height: "500px" }}
@@ -105,6 +159,22 @@ function DeviceMap({ devices }: { devices: Device[] }) {
                 strokeWeight: 2,
               }}
               onClick={() => setSelectedId(device.id)}
+            />
+          ))}
+
+          {trail.map((p, i) => (
+            <Marker
+              key={i}
+              position={{ lat: p.lat!, lng: p.lng! }}
+              title={p.timestamp ? new Date(p.timestamp).toLocaleTimeString() : undefined}
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: i === trail.length - 1 ? 7 : 4,
+                fillColor: i === trail.length - 1 ? "#3b82f6" : "#93c5fd",
+                fillOpacity: 0.85,
+                strokeColor: "#ffffff",
+                strokeWeight: 1.5,
+              }}
             />
           ))}
 
@@ -312,16 +382,31 @@ export default function Devices() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <BatteryDisplay level={device.batteryLevel} />
+                        <BatteryDisplay
+                          level={device.batteryLevel}
+                          charging={device.batteryCharging}
+                          health={device.batteryHealth}
+                          tempC={device.batteryTempCelsius}
+                        />
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {fmtLastSeen(device.lastSeenAt)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {device.model ?? "—"}
-                        {device.osVersion && (
-                          <span className="block text-xs text-muted-foreground/70">{device.osVersion}</span>
-                        )}
+                        <div>
+                          {device.model ?? "—"}
+                          {device.osVersion && (
+                            <span className="block text-xs text-muted-foreground/70">Android {device.osVersion}</span>
+                          )}
+                          {device.simNetwork && (
+                            <span className="block text-xs text-muted-foreground/70">
+                              {device.simNetwork}{device.sim1NetworkType ? ` · ${device.sim1NetworkType}` : ""}
+                            </span>
+                          )}
+                          {device.ramUsagePct !== null && (
+                            <span className="block text-xs text-muted-foreground/70">RAM {device.ramUsagePct}%</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">

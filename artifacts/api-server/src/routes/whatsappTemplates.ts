@@ -254,9 +254,10 @@ router.get("/whatsapp-trigger-mappings/resolve/:triggerType", requireAuth, async
       .where(and(...conditions))
       .orderBy(desc(whatsappTriggerMappingsTable.priority));
 
-    let resolved = allMappings.find(m => eventId && m.mapping.eventId === eventId);
+    type MappingRow = (typeof allMappings)[0];
+    let resolved = allMappings.find((m: MappingRow) => eventId && m.mapping.eventId === eventId);
     if (!resolved) {
-      resolved = allMappings.find(m => !m.mapping.eventId);
+      resolved = allMappings.find((m: MappingRow) => !m.mapping.eventId);
     }
 
     if (!resolved) {

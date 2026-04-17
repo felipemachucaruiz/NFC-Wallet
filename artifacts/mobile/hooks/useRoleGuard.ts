@@ -6,6 +6,7 @@ const ROLE_HOME: Record<string, string> = {
   attendee: "/(attendee)/",
   bank: "/(bank)/",
   gate: "/(gate)/",
+  box_office: "/(box-office)/",
   merchant_staff: "/(merchant-pos)/",
   merchant_admin: "/(merchant-admin)/",
   warehouse_admin: "/(warehouse)/",

@@ -157,7 +157,7 @@ function ModuleGatedRoute({ component: Component, allowedRoles, requiredModule }
   const { data: user, isLoading } = useGetCurrentAuthUser();
   const { eventId: ctxEventId } = useEventContext();
   const eventId = user?.user?.role === "admin" ? ctxEventId : (user?.user?.eventId ?? "");
-  const { data: eventData, isLoading: eventLoading } = useGetEvent(eventId || "skip");
+  const { data: eventData, isLoading: eventLoading } = useGetEvent(eventId || "", { query: { enabled: !!eventId } });
 
   if (isLoading || (eventId && eventLoading)) {
     return <div className="min-h-screen flex items-center justify-center bg-background text-foreground">Loading...</div>;

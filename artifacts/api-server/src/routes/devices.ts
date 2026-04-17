@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response as ExpressResponse } from "express";
 import { requireRole } from "../middlewares/requireRole";
 
-const SCALEFUSION_BASE = "https://app.scalefusion.com/api/v1";
+const SCALEFUSION_BASE = "https://api.scalefusion.com";
 
 function scalefusionHeaders(): Record<string, string> {
   const apiKey = process.env.SCALEFUSION_API_KEY ?? "";
@@ -23,29 +23,43 @@ async function scalefusionFetch(path: string, options: RequestInit = {}) {
   });
 }
 
-function normalizeStatus(raw: unknown): "online" | "offline" {
-  if (raw === true || raw === 1 || raw === "1" || raw === "online" || raw === "Online") return "online";
-  return "offline";
-}
-
 function toFloat(val: unknown): number | null {
   if (val === null || val === undefined || val === "") return null;
   const n = parseFloat(String(val));
   return isNaN(n) ? null : n;
 }
 
-function mapDevice(device: Record<string, unknown>) {
+function mapDevice(raw: Record<string, unknown>) {
+  const device = (raw.device ?? raw) as Record<string, unknown>;
+  const location = device.location as Record<string, unknown> | null | undefined;
+  const connStatus = String(device.connection_status ?? "").toLowerCase();
+  const ramUsage = toFloat(device.ram_usage ?? null);
+  const totalRam = toFloat(device.total_ram_size ?? null);
   return {
-    id: device.id ?? device.device_id,
-    name: device.name ?? device.device_name ?? "Unknown",
-    status: normalizeStatus(device.online_status ?? device.status),
-    batteryLevel: device.battery_level ?? device.battery ?? null,
-    lastSeenAt: device.last_seen_at ?? device.last_seen ?? null,
-    model: device.model ?? null,
+    id: device.id,
+    name: device.name ?? "Unknown",
+    status: connStatus === "online" ? "online" : "offline",
+    batteryLevel: device.battery_status ?? null,
+    batteryCharging: device.battery_charging ?? device.charging ?? false,
+    batteryHealth: device.battery_health ?? null,
+    batteryTempCelsius: device.battery_temp_in_celsius ?? null,
+    lastSeenAt: device.last_connected_at ?? device.last_seen_on ?? null,
+    model: device.model_name ?? device.model ?? null,
     osVersion: device.os_version ?? null,
-    serialNumber: device.serial_number ?? null,
-    lat: toFloat(device.latitude ?? device.location_latitude ?? device.lat ?? null),
-    lng: toFloat(device.longitude ?? device.location_longitude ?? device.lng ?? null),
+    serialNumber: device.serial_no !== "unknown" ? (device.serial_no ?? null) : null,
+    locked: device.locked ?? false,
+    licenseStatus: device.status ?? null,
+    simNetwork: device.sim_network ?? null,
+    sim1NetworkType: device.sim1_network_type ?? null,
+    ipAddress: device.ip_address ?? null,
+    ramUsageMb: ramUsage,
+    totalRamMb: totalRam,
+    ramUsagePct: ramUsage !== null && totalRam !== null && totalRam > 0
+      ? Math.round((ramUsage / totalRam) * 100)
+      : null,
+    lat: toFloat(location?.lat ?? null),
+    lng: toFloat(location?.lng ?? null),
+    locationAddress: location?.address ?? null,
   };
 }
 
@@ -58,18 +72,24 @@ router.get("/devices", requireRole("admin"), async (_req: Request, res: ExpressR
   }
 
   try {
-    const sfRes = await scalefusionFetch("/devices.json?per_page=500");
+    const sfRes = await scalefusionFetch("/api/v2/devices.json?per_page=500");
     if (!sfRes.ok) {
       const body = await sfRes.text();
       res.status(sfRes.status).json({ error: `Scalefusion error: ${body}` });
       return;
     }
-    const data = await sfRes.json() as { devices?: unknown[]; [key: string]: unknown };
+    const data = await sfRes.json() as { devices?: unknown[]; data?: unknown[]; results?: unknown[]; device_profiles?: unknown[]; [key: string]: unknown };
     const rawDevices: unknown[] = Array.isArray(data.devices)
       ? data.devices
-      : Array.isArray(data)
-        ? (data as unknown as unknown[])
-        : [];
+      : Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data.results)
+          ? data.results
+          : Array.isArray(data.device_profiles)
+            ? data.device_profiles
+            : Array.isArray(data)
+              ? (data as unknown as unknown[])
+              : [];
 
     const devices = rawDevices.map((d) => mapDevice(d as Record<string, unknown>));
     res.json({ devices });
@@ -87,7 +107,7 @@ router.get("/devices/:deviceId", requireRole("admin"), async (req: Request, res:
   const { deviceId } = req.params;
 
   try {
-    const sfRes = await scalefusionFetch(`/devices/${deviceId}.json`);
+    const sfRes = await scalefusionFetch(`/api/v2/devices/${deviceId}.json`);
     if (!sfRes.ok) {
       const body = await sfRes.text();
       res.status(sfRes.status).json({ error: `Scalefusion error: ${body}` });
@@ -101,6 +121,12 @@ router.get("/devices/:deviceId", requireRole("admin"), async (req: Request, res:
   }
 });
 
+const ACTION_TYPE_MAP: Record<string, string> = {
+  lock: "screen_lock",
+  reboot: "reboot",
+  wipe: "factory_reset",
+};
+
 router.post("/devices/:deviceId/actions", requireRole("admin"), async (req: Request, res: ExpressResponse) => {
   if (!process.env.SCALEFUSION_API_KEY) {
     res.status(503).json({ error: "Scalefusion API key not configured" });
@@ -110,15 +136,16 @@ router.post("/devices/:deviceId/actions", requireRole("admin"), async (req: Requ
   const { deviceId } = req.params;
   const { action } = req.body as { action?: string };
 
-  if (!action || !["lock", "reboot", "wipe"].includes(action)) {
+  if (!action || !ACTION_TYPE_MAP[action]) {
     res.status(400).json({ error: "Invalid action. Must be one of: lock, reboot, wipe" });
     return;
   }
 
   try {
-    const sfRes = await scalefusionFetch(`/devices/${deviceId}/${action}.json`, {
+    const sfRes = await scalefusionFetch(`/api/v2/devices/actions.json?device_ids=${encodeURIComponent(deviceId)}`, {
       method: "POST",
-      body: JSON.stringify({}),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ action_type: ACTION_TYPE_MAP[action] }).toString(),
     });
 
     if (!sfRes.ok) {
@@ -127,7 +154,52 @@ router.post("/devices/:deviceId/actions", requireRole("admin"), async (req: Requ
       return;
     }
 
+    const data = await sfRes.json() as { status?: string; not_supported?: number[]; not_supported_message?: string };
+    if (data.not_supported && data.not_supported.length > 0) {
+      res.status(422).json({ error: data.not_supported_message ?? "Device does not support this action" });
+      return;
+    }
+
     res.json({ success: true, action });
+  } catch {
+    res.status(502).json({ error: "Failed to reach Scalefusion API" });
+  }
+});
+
+router.get("/devices/:deviceId/locations", requireRole("admin"), async (req: Request, res: ExpressResponse) => {
+  if (!process.env.SCALEFUSION_API_KEY) {
+    res.status(503).json({ error: "Scalefusion API key not configured" });
+    return;
+  }
+
+  const { deviceId } = req.params;
+  const date = (req.query.date as string | undefined) ?? new Date().toISOString().slice(0, 10);
+
+  try {
+    const sfRes = await scalefusionFetch(`/api/v1/devices/${deviceId}/locations.json?date=${encodeURIComponent(date)}`);
+    if (!sfRes.ok) {
+      const body = await sfRes.text();
+      res.status(sfRes.status).json({ error: `Scalefusion error: ${body}` });
+      return;
+    }
+    const raw = await sfRes.json() as Array<{
+      address?: string;
+      latitude?: number;
+      longitude?: number;
+      accuracy?: number;
+      date_time?: number;
+      created_at_tz?: string;
+      location_id?: number;
+      device_id?: number;
+    }>;
+    const locations = (Array.isArray(raw) ? raw : []).map((p) => ({
+      lat: p.latitude ?? null,
+      lng: p.longitude ?? null,
+      address: p.address ?? null,
+      accuracy: p.accuracy ?? null,
+      timestamp: p.created_at_tz ?? null,
+    }));
+    res.json({ locations });
   } catch {
     res.status(502).json({ error: "Failed to reach Scalefusion API" });
   }
