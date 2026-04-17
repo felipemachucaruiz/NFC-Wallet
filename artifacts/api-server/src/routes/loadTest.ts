@@ -15,9 +15,22 @@ const RAILWAY_SERVICES: Record<string, { id: string; label: string }> = {
   "tapee-attendee": { id: "be3fe07b-32e3-4e6b-a816-f596b8bf7dd6", label: "Tapee Wallet (Attendee API)" },
 };
 
-// Latency thresholds (ms) for score calculation
-// Calibrated against production load-test results (3 replicas baseline, April 2026)
-const THRESHOLDS = { excellent: 100, good: 350, acceptable: 700, bad: 1200 };
+// UX-based baseline thresholds at 1 replica (calibrated April 2026 load tests)
+const BASE_P95_1R = 1000;   // ms — p95 at 100 users, 1 replica
+const BASE_RPS_1R = 35;     // req/s sustainable, 1 replica
+
+type Thresholds = { excellent: number; good: number; acceptable: number; bad: number };
+
+function computeThresholds(replicas: number): Thresholds {
+  // Scale acceptable p95 linearly with replicas, keep UX minimums
+  const acceptable = Math.max(500, Math.round(BASE_P95_1R / Math.max(1, replicas)));
+  return {
+    excellent: Math.round(acceptable / 5),
+    good:      Math.round(acceptable / 2),
+    acceptable,
+    bad:       Math.round(acceptable * 1.5),
+  };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -52,28 +65,49 @@ function percentile(arr: number[], p: number): number {
   return sorted[Math.max(0, idx)];
 }
 
-function calcScore(p50: number, p95: number, errorRate: number): number {
+// Conservative default: 1-replica thresholds used inside runners
+// The handler always overrides with live Railway values after the test finishes.
+const DEFAULT_THRESHOLDS = computeThresholds(1);
+
+function calcScore(p50: number, p95: number, errorRate: number, t: Thresholds = DEFAULT_THRESHOLDS): number {
   let score = 100;
-  // Penalize latency
-  if (p95 > THRESHOLDS.bad)        score -= 40;
-  else if (p95 > THRESHOLDS.acceptable) score -= 25;
-  else if (p95 > THRESHOLDS.good)  score -= 10;
-  // Penalize p50
-  if (p50 > THRESHOLDS.acceptable) score -= 20;
-  else if (p50 > THRESHOLDS.good)  score -= 10;
-  // Penalize errors
+  if (p95 > t.bad)        score -= 40;
+  else if (p95 > t.acceptable) score -= 25;
+  else if (p95 > t.good)  score -= 10;
+  if (p50 > t.acceptable) score -= 20;
+  else if (p50 > t.good)  score -= 10;
   score -= Math.min(40, Math.floor(errorRate * 400));
   return Math.max(0, score);
 }
 
-function recommendations(p50: number, p95: number, errorRate: number, _throughput: number, breakingPoint?: number): string[] {
+function recommendations(
+  p50: number, p95: number, errorRate: number, _throughput: number,
+  currentReplicas = 1, t: Thresholds = DEFAULT_THRESHOLDS, breakingPoint?: number,
+): string[] {
   const recs: string[] = [];
-  if (errorRate > 0.05)  recs.push("❌ Tasa de error >5% — revisar logs del servidor para errores de DB o timeout.");
-  if (p95 > THRESHOLDS.bad) recs.push("❌ P95 muy alto — considerar escalar réplicas del API antes del evento.");
-  else if (p95 > THRESHOLDS.acceptable) recs.push("⚠️  P95 elevado — sistema funcional pero bajo presión; escalar 1 réplica extra recomendado.");
-  if (p50 > THRESHOLDS.good) recs.push("⚠️  Latencia promedio alta — revisar índices en transaction_logs.");
-  if (breakingPoint && breakingPoint < 20) recs.push(`⚠️  Breaking point bajo (${breakingPoint} tx/s) — agregar al menos 1 réplica extra.`);
-  if (errorRate === 0 && p95 < THRESHOLDS.good) recs.push("✅ Sistema en excelente estado para el evento.");
+  const maxRPS = BASE_RPS_1R * currentReplicas;
+
+  if (errorRate > 0.05)
+    recs.push("❌ Tasa de error >5% — revisar logs del servidor para errores de DB o timeout.");
+
+  if (p95 > t.bad) {
+    const neededReplicas = Math.ceil(currentReplicas * (p95 / t.bad));
+    recs.push(`❌ P95 crítico con ${currentReplicas} réplica(s) — escalar a ${neededReplicas} réplicas.`);
+  } else if (p95 > t.acceptable) {
+    recs.push(`⚠️  P95 elevado — sistema bajo presión con ${currentReplicas} réplica(s); agregar 1 réplica extra.`);
+  }
+
+  if (p50 > t.good)
+    recs.push("⚠️  Latencia promedio alta — revisar índices en transaction_logs.");
+
+  if (breakingPoint) {
+    const neededForBP = Math.max(currentReplicas + 1, Math.ceil(breakingPoint / 10));
+    recs.push(`⚠️  Breaking point a ${breakingPoint} cajeros — se recomiendan ${neededForBP} réplicas.`);
+  }
+
+  if (errorRate === 0 && p95 < t.good)
+    recs.push(`✅ Sistema saludable con ${currentReplicas} réplica(s) — capacidad estimada ~${maxRPS} RPS.`);
+
   return recs;
 }
 
@@ -361,7 +395,7 @@ const pendingPolls = new Map<string, (run: Record<string, unknown>) => void>();
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 // GET /load-test/runs — list historical runs
-router.get("/load-test/runs", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
+router.get("/load-test/runs", requireAuth, requireRole("admin"), async (_req: Request, res: Response) => {
   const { rows } = await pool.query(
     `SELECT id, event_id, test_type, status, score, results, created_at, completed_at,
             (SELECT name FROM events WHERE id = event_id) AS event_name
@@ -421,13 +455,19 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
 
   sseWrite(res, "start", { runId, testType, eventId });
 
+  // Fetch live Railway state before running — used for dynamic thresholds
+  sseWrite(res, "progress", { phase: "setup", progress: 0, message: "Consultando estado de Railway..." });
+  const liveReplicas = await getRailwayReplicas(RAILWAY_SERVICES["tapee-staff"].id).catch(() => 1);
+  const liveThresholds = computeThresholds(liveReplicas);
+  sseWrite(res, "infrastructure", { replicas: liveReplicas, thresholds: liveThresholds });
+
   // Sentry transaction
   const sentryTx = Sentry.startInactiveSpan({ name: `load-test:${testType}`, op: "load-test" });
 
   try {
     let results: Record<string, unknown> = {};
 
-    sseWrite(res, "progress", { phase: "setup", progress: 0, message: "Iniciando prueba..." });
+    sseWrite(res, "progress", { phase: "setup", progress: 2, message: `${liveReplicas} réplica(s) activa(s) — iniciando prueba...` });
 
     if (testType === "health_check") {
       results = await runHealthCheck(res, runId, eventId);
@@ -439,7 +479,20 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
       results = await runBreakingPoint(res, runId, eventId);
     }
 
-    const score = (results.score as number) ?? 0;
+    // Override score and recommendations with live Railway context
+    const p50 = (results.p50 as number) ?? 0;
+    const p95 = (results.p95 as number) ?? 0;
+    const errorRate = (results.errorRate as number) ?? 0;
+    const breakingPoint = (results.breakingPoint as number | null) ?? undefined;
+    results.score = calcScore(p50, p95, errorRate, liveThresholds);
+    results.recommendations = [
+      ...(results.recommendations as string[] ?? []).filter((r: string) => r.startsWith("✅ Integridad") || r.startsWith("❌ INTEGRIDAD")),
+      ...recommendations(p50, p95, errorRate, 0, liveReplicas, liveThresholds, breakingPoint),
+    ];
+    results.currentReplicas = liveReplicas;
+    results.thresholds = liveThresholds;
+
+    const score = results.score as number;
 
     await pool.query(
       `UPDATE load_test_runs SET status = 'completed', score = $1, results = $2, completed_at = NOW() WHERE id = $3`,
@@ -447,11 +500,12 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
     );
 
     Sentry.setMeasurement("load_test.score", score, "none");
-    Sentry.setMeasurement("load_test.p95", (results.p95 as number) ?? 0, "millisecond");
-    Sentry.setMeasurement("load_test.error_rate", (results.errorRate as number) ?? 0, "ratio");
+    Sentry.setMeasurement("load_test.p95", p95, "millisecond");
+    Sentry.setMeasurement("load_test.error_rate", errorRate, "ratio");
+    Sentry.setMeasurement("load_test.replicas", liveReplicas, "none");
 
     sseWrite(res, "complete", { runId, score, results });
-    logger.info({ runId, testType, score }, "Load test completed");
+    logger.info({ runId, testType, score, liveReplicas }, "Load test completed");
   } catch (err) {
     logger.error({ err, runId }, "Load test failed");
     Sentry.captureException(err);
