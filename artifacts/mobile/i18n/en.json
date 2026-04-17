@@ -1094,7 +1094,8 @@
       "merchantNotFound": "Merchant not found",
       "productNotFound": "Product not found",
       "networkError": "Network error — check connection",
-      "unknownError": "Unknown error"
+      "unknownError": "Unknown error",
+      "deviceForbidden": "Device not authorized — tap 'Retry all' or contact your administrator"
     }
   },
   "analytics": {

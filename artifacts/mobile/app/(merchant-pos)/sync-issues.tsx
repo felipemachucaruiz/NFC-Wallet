@@ -26,6 +26,7 @@ function translateFailReason(reason: string | undefined, t: (key: string) => str
   if (r.includes("merchant not found")) return t("syncIssues.errors.merchantNotFound");
   if (r.includes("product") && r.includes("not found")) return t("syncIssues.errors.productNotFound");
   if (r.includes("network") || r.includes("fetch") || r.includes("connection")) return t("syncIssues.errors.networkError");
+  if (r === "forbidden") return t("syncIssues.errors.deviceForbidden");
   return reason;
 }
 

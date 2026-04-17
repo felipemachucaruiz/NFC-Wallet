@@ -59,6 +59,9 @@ function friendlyError(raw: string): string {
   if (/attestation/i.test(raw) || /not trusted/i.test(raw)) {
     return "Error de verificación de dispositivo (se perdió la sesión del servidor). Toca 'Reintentar todo' — se reconectará automáticamente.";
   }
+  if (raw === "forbidden") {
+    return "Dispositivo no autorizado — toca 'Reintentar todo' o contacta al administrador.";
+  }
   return raw;
 }
 

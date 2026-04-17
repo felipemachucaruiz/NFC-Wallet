@@ -1083,7 +1083,8 @@
       "merchantNotFound": "Comercio no encontrado",
       "productNotFound": "Producto no encontrado",
       "networkError": "Error de red — verifica la conexión",
-      "unknownError": "Error desconocido"
+      "unknownError": "Error desconocido",
+      "deviceForbidden": "Dispositivo no autorizado — toca 'Reintentar todo' o contacta al administrador"
     }
   },
   "analytics": {

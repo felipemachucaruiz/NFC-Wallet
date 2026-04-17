@@ -105,6 +105,13 @@ function getCounterForItem(item: QueuedItem): number {
   return item.type === "charge" ? item.counter : item.newCounter;
 }
 
+// Items blocked after repeated attestation failures — stop auto-retrying,
+// require the user to manually retry or dismiss them.
+const MAX_ATTEST_RETRIES = 3;
+function isForbiddenBlocked(item: QueuedItem): boolean {
+  return item.failCount >= MAX_ATTEST_RETRIES && item.failReason === "forbidden";
+}
+
 async function loadQueue(): Promise<QueuedTransaction[]> {
   try {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
@@ -263,10 +270,10 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
 
   const syncNow = useCallback(async () => {
     const eligibleCharges = queueRef.current.filter(
-      (t) => t.status === "pending" || t.status === "failed"
+      (t) => t.status === "pending" || (t.status === "failed" && !isForbiddenBlocked(t))
     );
     const eligibleTopUps = topUpQueueRef.current.filter(
-      (t) => t.status === "pending" || t.status === "failed"
+      (t) => t.status === "pending" || (t.status === "failed" && !isForbiddenBlocked(t))
     );
 
     if (eligibleCharges.length === 0 && eligibleTopUps.length === 0) return;
@@ -360,8 +367,8 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           anySuccess = true;
         } catch (err: unknown) {
           const httpErr = err as { status?: number };
-          // 403 attestation error → re-attest and retry once before giving up
-          if (httpErr.status === 403) {
+          // 403 → re-attest and retry (up to MAX_ATTEST_RETRIES times)
+          if (httpErr.status === 403 && item.failCount < MAX_ATTEST_RETRIES) {
             try {
               await retryAttestationRef.current();
               await syncTransactions({
@@ -392,7 +399,7 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           }
           anyError = true;
           if (!httpErr.status) hasNetworkError = true;
-          const msg = extractErrorMessage(err, "Network error");
+          const msg = httpErr.status === 403 ? "forbidden" : extractErrorMessage(err, "Network error");
           q = queueRef.current.map((t) =>
             t.id === item.id
               ? {
@@ -426,8 +433,8 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
           anySuccess = true;
         } catch (err: unknown) {
           const httpErr = err as { status?: number; data?: { error?: string } };
-          // 403 attestation error → re-attest and retry once before giving up
-          if (httpErr.status === 403) {
+          // 403 → re-attest and retry (up to MAX_ATTEST_RETRIES times)
+          if (httpErr.status === 403 && item.failCount < MAX_ATTEST_RETRIES) {
             try {
               await retryAttestationRef.current();
               await customFetch("/api/topups/sync", {
@@ -451,8 +458,8 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
               // fall through to normal error handling below
             }
           }
-          const msg = extractErrorMessage(err, "Network error");
-          const reason = (httpErr.data?.error ?? msg).toLowerCase();
+          const msg = httpErr.status === 403 ? "forbidden" : extractErrorMessage(err, "Network error");
+          const reason = httpErr.status === 403 ? "forbidden" : (httpErr.data?.error ?? msg).toLowerCase();
           const isTopUpPermanent =
             reason.includes("flagged") ||
             reason.includes("counter replay") ||
