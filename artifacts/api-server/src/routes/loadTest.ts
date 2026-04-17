@@ -119,7 +119,9 @@ function sseWrite(res: Response, event: string, data: unknown) {
 
 // ── Setup / cleanup test data ─────────────────────────────────────────────────
 
-async function setupTestBracelets(runId: string, count: number, eventId: string, balanceCents: number): Promise<string[]> {
+type LoadTestContext = { uids: string[]; merchantId: string | null; locationId: string | null };
+
+async function setupTestBracelets(runId: string, count: number, eventId: string, balanceCents: number): Promise<LoadTestContext> {
   const uids: string[] = Array.from({ length: count }, (_, i) => `LOADTEST_${runId}_${i}`);
   for (const uid of uids) {
     await pool.query(
@@ -129,7 +131,15 @@ async function setupTestBracelets(runId: string, count: number, eventId: string,
       [uid, eventId, balanceCents],
     );
   }
-  return uids;
+  // Fetch a real merchant + location for this event so transaction_logs FKs are satisfied
+  const mRow = await pool.query<{ id: string }>(
+    `SELECT id FROM merchants WHERE event_id = $1 LIMIT 1`, [eventId]
+  );
+  const merchantId = mRow.rows[0]?.id ?? null;
+  const locationId = merchantId
+    ? (await pool.query<{ id: string }>(`SELECT id FROM locations WHERE merchant_id = $1 LIMIT 1`, [merchantId])).rows[0]?.id ?? null
+    : null;
+  return { uids, merchantId, locationId };
 }
 
 async function cleanupTestData(runId: string) {
@@ -148,7 +158,12 @@ async function cleanupTestDataByUids(uids: string[]) {
 
 // ── Single simulated charge (bypasses NFC/HMAC for load testing) ──────────────
 
-async function simulateCharge(braceletUid: string, amountCents: number, eventId: string): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
+async function simulateCharge(
+  braceletUid: string,
+  amountCents: number,
+  eventId: string,
+  ctx: { merchantId: string | null; locationId: string | null },
+): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
   const t0 = Date.now();
   try {
     const { rows } = await pool.query<{ last_known_balance: number; last_counter: number }>(
@@ -164,11 +179,16 @@ async function simulateCharge(braceletUid: string, amountCents: number, eventId:
       `UPDATE bracelets SET last_known_balance = $1, last_counter = $2 WHERE nfc_uid = $3`,
       [newBalance, newCounter, braceletUid],
     );
-    await pool.query(
-      `INSERT INTO transaction_logs (bracelet_uid, event_id, gross_amount, net_amount, new_balance, counter, performed_by_user_id)
-       VALUES ($1, $2, $3, $3, $4, $5, NULL)`,
-      [braceletUid, eventId, amountCents, newBalance, newCounter],
-    );
+    if (ctx.merchantId && ctx.locationId) {
+      await pool.query(
+        `INSERT INTO transaction_logs
+         (bracelet_uid, event_id, merchant_id, location_id, idempotency_key,
+          gross_amount, commission_amount, net_amount, new_balance, counter)
+         VALUES ($1, $2, $3, $4, $5, $6, 0, $6, $7, $8)`,
+        [braceletUid, eventId, ctx.merchantId, ctx.locationId,
+         `LT_${braceletUid}_${newCounter}`, amountCents, newBalance, newCounter],
+      );
+    }
     return { ok: true, latencyMs: Date.now() - t0 };
   } catch (err: unknown) {
     return { ok: false, latencyMs: Date.now() - t0, error: String(err) };
@@ -229,7 +249,8 @@ async function runLoadTest(res: Response, runId: string, eventId: string, concur
   );
 
   sseWrite(res, "progress", { phase: "setup", message: `Creando ${concurrency} pulseras de prueba...`, progress: 5 });
-  const uids = await setupTestBracelets(runId, concurrency, eventId, INITIAL_BALANCE);
+  const { uids, merchantId, locationId } = await setupTestBracelets(runId, concurrency, eventId, INITIAL_BALANCE);
+  const ctx = { merchantId, locationId };
 
   const allLatencies: number[] = [];
   let successCount = 0;
@@ -259,7 +280,7 @@ async function runLoadTest(res: Response, runId: string, eventId: string, concur
   await Promise.all(uids.map(async (uid) => {
     while (Date.now() < endTime) {
       const t0 = Date.now();
-      const r = await simulateCharge(uid, CHARGE_AMOUNT, eventId);
+      const r = await simulateCharge(uid, CHARGE_AMOUNT, eventId, ctx);
       allLatencies.push(r.latencyMs);
       if (r.ok) successCount++; else errorCount++;
       const wait = Math.max(0, pauseMs - (Date.now() - t0));
@@ -287,7 +308,8 @@ async function runBalanceIntegrity(res: Response, runId: string, eventId: string
   const ROUNDS = 30;
 
   sseWrite(res, "progress", { phase: "setup", message: "Creando pulsera de prueba con saldo inicial...", progress: 10 });
-  const [uid] = await setupTestBracelets(runId, 1, eventId, INITIAL_BALANCE);
+  const { uids: [uid], merchantId: bMerchantId, locationId: bLocationId } = await setupTestBracelets(runId, 1, eventId, INITIAL_BALANCE);
+  const bCtx = { merchantId: bMerchantId, locationId: bLocationId };
 
   sseWrite(res, "progress", { phase: "running", message: `Ejecutando ${concurrency} cobros concurrentes × ${ROUNDS} rondas...`, progress: 30 });
 
@@ -297,7 +319,7 @@ async function runBalanceIntegrity(res: Response, runId: string, eventId: string
   const expectedDeductions: number[] = [];
 
   for (let round = 0; round < ROUNDS; round++) {
-    const batch = Array.from({ length: concurrency }, () => simulateCharge(uid, CHARGE_AMOUNT, eventId));
+    const batch = Array.from({ length: concurrency }, () => simulateCharge(uid, CHARGE_AMOUNT, eventId, bCtx));
     const results = await Promise.all(batch);
     for (const r of results) {
       latencies.push(r.latencyMs);
@@ -344,14 +366,15 @@ async function runBreakingPoint(res: Response, runId: string, eventId: string) {
   for (let concurrency = 2; concurrency <= MAX_CONCURRENCY; concurrency += 2) {
     sseWrite(res, "progress", { phase: "ramping", message: `Probando ${concurrency} cajeros simultáneos...`, progress: Math.floor((concurrency / MAX_CONCURRENCY) * 85) });
 
-    const uids = await setupTestBracelets(`${runId}_bp${concurrency}`, concurrency, eventId, INITIAL_BALANCE);
+    const { uids: bpUids, merchantId: bpMId, locationId: bpLId } = await setupTestBracelets(`${runId}_bp${concurrency}`, concurrency, eventId, INITIAL_BALANCE);
+    const bpCtx = { merchantId: bpMId, locationId: bpLId };
     const latencies: number[] = [];
     let successCount = 0;
     let errorCount = 0;
     const stepEnd = Date.now() + STEP_DURATION_MS;
 
     while (Date.now() < stepEnd) {
-      const results = await Promise.all(uids.map((uid) => simulateCharge(uid, CHARGE_AMOUNT, eventId)));
+      const results = await Promise.all(bpUids.map((uid) => simulateCharge(uid, CHARGE_AMOUNT, eventId, bpCtx)));
       for (const r of results) {
         latencies.push(r.latencyMs);
         if (r.ok) successCount++; else errorCount++;
@@ -365,7 +388,7 @@ async function runBreakingPoint(res: Response, runId: string, eventId: string) {
     stepsData.push({ concurrency, throughput, p50, p95, errorRate });
 
     sseWrite(res, "metric", { concurrency, throughput: throughput.toFixed(1), p50, p95, errorRate: (errorRate * 100).toFixed(1) });
-    await cleanupTestDataByUids(uids);
+    await cleanupTestDataByUids(bpUids);
 
     if ((p95 > P95_THRESHOLD || errorRate > ERROR_RATE_THRESHOLD) && !breakingPoint) {
       breakingPoint = concurrency;
@@ -677,7 +700,7 @@ router.post("/load-test/device-test/fire-charge", requireAuth, async (req: Reque
   if (!braceletUid?.startsWith("DEVTEST_")) {
     res.status(400).json({ error: "Invalid bracelet for device test" }); return;
   }
-  const result = await simulateCharge(braceletUid, amountCents, eventId);
+  const result = await simulateCharge(braceletUid, amountCents, eventId, { merchantId: null, locationId: null });
   res.json(result);
 });
 
