@@ -112,6 +112,7 @@ import WhatsAppTemplates from "@/pages/whatsapp-templates";
 import AuditorTicketSales from "@/pages/auditor-ticket-sales";
 import Devices from "@/pages/devices";
 import SyncIssues from "@/pages/sync-issues";
+import LoadTest from "@/pages/load-test";
 
 function handleGlobal401() {
   localStorage.removeItem(AUTH_TOKEN_KEY);
@@ -262,6 +263,9 @@ function Router() {
       </Route>
       <Route path="/sync-issues">
         <ProtectedRoute component={SyncIssues} allowedRoles={["admin", "event_admin"]} />
+      </Route>
+      <Route path="/load-test">
+        <ProtectedRoute component={LoadTest} allowedRoles={["admin"]} />
       </Route>
 
       {/* Event Admin Routes */}

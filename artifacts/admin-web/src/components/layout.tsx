@@ -36,6 +36,7 @@ import {
   Contact,
   Tablet,
   AlertCircle,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -111,6 +112,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/whatsapp-templates" icon={MessageCircle} label={t("nav.whatsappTemplates", "WhatsApp")} />
               <NavItem href="/devices" icon={Tablet} label={t("nav.devices")} />
               <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />
+              <NavItem href="/load-test" icon={FlaskConical} label="Simulador Pre-Evento" />
             </>
           )}
 
