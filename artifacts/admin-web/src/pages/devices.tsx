@@ -1,12 +1,12 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { customFetch } from "@workspace/api-client-react";
+import { customFetch, ApiError } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map } from "lucide-react";
+import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map, AlertTriangle, KeyRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
 import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER, TAPEE_MAP_STYLES } from "@/lib/maps";
@@ -163,11 +163,13 @@ export default function Devices() {
   const [view, setView] = useState<"table" | "map">("table");
   const [wipeTarget, setWipeTarget] = useState<Device | null>(null);
 
-  const { data, isLoading, isError, refetch, isFetching } = useQuery<{ devices: Device[] }>({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<{ devices: Device[] }, ApiError>({
     queryKey: ["devices"],
     queryFn: () => customFetch<{ devices: Device[] }>("/api/devices"),
     refetchInterval: 30_000,
   });
+
+  const errorStatus = isError && error instanceof ApiError ? error.status : null;
 
   const devices = data?.devices ?? [];
 
@@ -243,8 +245,21 @@ export default function Devices() {
       </div>
 
       {isError && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-          {t("devices.fetchError")}
+        <div className={`rounded-md border p-4 flex gap-3 ${errorStatus === 503 ? "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30" : "border-destructive/50 bg-destructive/10"}`}>
+          <div className="shrink-0 mt-0.5">
+            {errorStatus === 503
+              ? <KeyRound className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              : <AlertTriangle className="w-5 h-5 text-destructive" />
+            }
+          </div>
+          <div className="space-y-1">
+            <p className={`text-sm font-medium ${errorStatus === 503 ? "text-amber-800 dark:text-amber-300" : "text-destructive"}`}>
+              {errorStatus === 503 ? t("devices.fetchErrorNoKeyTitle") : t("devices.fetchErrorUnreachableTitle")}
+            </p>
+            <p className={`text-sm ${errorStatus === 503 ? "text-amber-700 dark:text-amber-400" : "text-destructive/80"}`}>
+              {errorStatus === 503 ? t("devices.fetchErrorNoKeyDesc") : t("devices.fetchErrorUnreachableDesc")}
+            </p>
+          </div>
         </div>
       )}
 

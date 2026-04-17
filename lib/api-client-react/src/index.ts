@@ -8,5 +8,6 @@ export {
   setFetchImplementation,
   setDefaultTimeout,
   customFetch,
+  ApiError,
 } from "./custom-fetch";
-export type { AuthTokenGetter, AttestationTokenGetter } from "./custom-fetch";
+export type { AuthTokenGetter, AttestationTokenGetter, ErrorType } from "./custom-fetch";
