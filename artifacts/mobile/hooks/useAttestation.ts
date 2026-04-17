@@ -69,10 +69,12 @@ export function useAttestation() {
 
   /**
    * Verifies the device with the server. Skips if a valid cached token exists.
+   * Pass force=true to bypass the local cache and always re-verify with the server
+   * (needed when the server restarted and wiped its in-memory attestation cache).
    * Returns the attestation token on success, or null if unavailable / failed.
    */
-  const verifyDevice = useCallback(async (): Promise<string | null> => {
-    if (isTokenValid()) {
+  const verifyDevice = useCallback(async (force = false): Promise<string | null> => {
+    if (!force && isTokenValid()) {
       return stateRef.current.token;
     }
 

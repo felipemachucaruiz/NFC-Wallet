@@ -240,7 +240,7 @@ export default function SyncIssuesScreen() {
                   <Pressable
                     onPress={() => handleOpenEdit(item)}
                     disabled={retrying === item.id}
-                    style={[styles.editRetryBtn, { borderColor: C.primary, flex: 1 }]}
+                    style={[styles.editRetryBtn, { borderColor: C.primary, backgroundColor: C.primaryLight, flex: 1 }]}
                   >
                     <Feather name="edit-2" size={14} color={C.primary} />
                     <Text style={[styles.editRetryText, { color: C.primary }]}>

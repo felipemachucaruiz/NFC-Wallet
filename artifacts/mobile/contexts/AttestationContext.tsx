@@ -33,8 +33,8 @@ export function AttestationProvider({ children }: { children: React.ReactNode })
     };
   }, [getAttestationToken]);
 
-  const runAttestation = useCallback(async () => {
-    const token = await verifyDevice();
+  const runAttestation = useCallback(async (force = false) => {
+    const token = await verifyDevice(force);
     setIsAttested(!!token);
   }, [verifyDevice]);
 
@@ -62,7 +62,9 @@ export function AttestationProvider({ children }: { children: React.ReactNode })
   }, [isAuthenticated, runAttestation]);
 
   const retryAttestation = useCallback(async () => {
-    await runAttestation();
+    // Force a fresh server round-trip — bypasses the local cache so we re-register
+    // the token even if the server restarted and wiped its in-memory cache.
+    await runAttestation(true);
   }, [runAttestation]);
 
   return (
