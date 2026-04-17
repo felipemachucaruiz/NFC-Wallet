@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Activity, Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -100,7 +101,7 @@ export default function Users() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
 
-  const filtered = users.filter((u) => {
+  const matchesSearch = (u: User) => {
     const q = search.toLowerCase();
     return (
       (u.firstName ?? "").toLowerCase().includes(q) ||
@@ -108,7 +109,10 @@ export default function Users() {
       (u.email ?? "").toLowerCase().includes(q) ||
       u.role.toLowerCase().includes(q)
     );
-  });
+  };
+
+  const staffUsers = users.filter((u) => u.role !== "attendee" && matchesSearch(u));
+  const attendeeUsers = users.filter((u) => u.role === "attendee" && matchesSearch(u));
 
   return (
     <div className="space-y-6">
@@ -127,89 +131,155 @@ export default function Users() {
         <Input data-testid="input-user-search" placeholder={t("users.searchPlaceholder")} className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      <div className="border border-border rounded-lg bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("users.colUser")}</TableHead>
-              <TableHead>{t("users.colRole")}</TableHead>
-              <TableHead>{t("users.colStatus")}</TableHead>
-              <TableHead>{t("users.colEvent")}</TableHead>
-              <TableHead>{t("users.colJoined")}</TableHead>
-              <TableHead className="w-12"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("users.noUsers")}</TableCell></TableRow>
-            ) : (
-              filtered.map((user) => (
-                <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{user.firstName} {user.lastName}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell><Badge variant="outline" className="text-xs capitalize">{user.role.replace(/_/g, " ")}</Badge></TableCell>
-                  <TableCell><UserStatusBadge user={user} t={t} /></TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{events.find((e) => e.id === user.eventId)?.name ?? "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{fmtDate(user.createdAt)}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" data-testid={`button-user-menu-${user.id}`}><MoreHorizontal className="w-4 h-4" /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { setSelected(user); setNewRole(user.role); setChangeRoleOpen(true); }}>{t("users.changeRole")}</DropdownMenuItem>
-                        {user.isBlocked
-                          ? <DropdownMenuItem onClick={() => { blockUser.mutate({ userId: user.id, data: { isBlocked: false } }, { onSuccess: () => { toast({ title: t("users.unblocked") }); invalidate(); } }); }}>{t("users.unblock")}</DropdownMenuItem>
-                          : <DropdownMenuItem onClick={() => { blockUser.mutate({ userId: user.id, data: { isBlocked: true } }, { onSuccess: () => { toast({ title: t("users.blocked") }); invalidate(); } }); }}>{t("users.block")}</DropdownMenuItem>
-                        }
-                        {user.isSuspended
-                          ? <DropdownMenuItem onClick={() => { unsuspendUser.mutate({ userId: user.id }, { onSuccess: () => { toast({ title: t("users.reactivated") }); invalidate(); } }); }}>{t("users.reactivate")}</DropdownMenuItem>
-                          : <DropdownMenuItem onClick={() => { suspendUser.mutate({ userId: user.id }, { onSuccess: () => { toast({ title: t("users.suspended") }); invalidate(); } }); }}>{t("users.suspend")}</DropdownMenuItem>
-                        }
-                        <DropdownMenuItem onClick={() => { setSelected(user); setNewPassword(""); setResetPwOpen(true); }}>{t("users.resetPassword")}</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setSelected(user); setNewEventId(user.eventId ?? ""); setAssignEventOpen(true); }}>{t("users.assignEvent")}</DropdownMenuItem>
-                        {user.role === "ticketing_auditor" && (
-                          <>
-                            <DropdownMenuItem onClick={() => { setSelected(user); setAuditorActivityOpen(true); }}>
-                              <Activity className="w-4 h-4 mr-2" />
-                              Ver Actividad Auditor
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={async () => {
-                              setSelected(user);
-                              setTotpSetupResult(null);
-                              setTotpSetupLoading(true);
-                              setTotpSetupOpen(true);
-                              try {
-                                const result = await customFetch<TotpSetupResult>(`/api/auditors/${user.id}/setup-totp`, { method: "POST" });
-                                setTotpSetupResult(result);
-                              } catch {
-                                toast({ title: "Error", description: "No se pudo configurar el 2FA.", variant: "destructive" });
-                                setTotpSetupOpen(false);
-                              } finally {
-                                setTotpSetupLoading(false);
-                              }
-                            }}>
-                              Configurar 2FA
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={() => { setSelected(user); setDeleteOpen(true); }}>{t("common.delete")}</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+      <Tabs defaultValue="staff">
+        <TabsList>
+          <TabsTrigger value="staff">Staff Tapee ({isLoading ? "…" : staffUsers.length})</TabsTrigger>
+          <TabsTrigger value="attendees">Asistentes ({isLoading ? "…" : attendeeUsers.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="staff" className="mt-4">
+          <div className="border border-border rounded-lg bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("users.colUser")}</TableHead>
+                  <TableHead>{t("users.colRole")}</TableHead>
+                  <TableHead>{t("users.colStatus")}</TableHead>
+                  <TableHead>{t("users.colEvent")}</TableHead>
+                  <TableHead>{t("users.colJoined")}</TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={6} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
+                ) : staffUsers.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">{t("users.noUsers")}</TableCell></TableRow>
+                ) : (
+                  staffUsers.map((user) => (
+                    <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{user.firstName} {user.lastName}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge variant="outline" className="text-xs capitalize">{user.role.replace(/_/g, " ")}</Badge></TableCell>
+                      <TableCell><UserStatusBadge user={user} t={t} /></TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{events.find((e) => e.id === user.eventId)?.name ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{fmtDate(user.createdAt)}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" data-testid={`button-user-menu-${user.id}`}><MoreHorizontal className="w-4 h-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => { setSelected(user); setNewRole(user.role); setChangeRoleOpen(true); }}>{t("users.changeRole")}</DropdownMenuItem>
+                            {user.isBlocked
+                              ? <DropdownMenuItem onClick={() => { blockUser.mutate({ userId: user.id, data: { isBlocked: false } }, { onSuccess: () => { toast({ title: t("users.unblocked") }); invalidate(); } }); }}>{t("users.unblock")}</DropdownMenuItem>
+                              : <DropdownMenuItem onClick={() => { blockUser.mutate({ userId: user.id, data: { isBlocked: true } }, { onSuccess: () => { toast({ title: t("users.blocked") }); invalidate(); } }); }}>{t("users.block")}</DropdownMenuItem>
+                            }
+                            {user.isSuspended
+                              ? <DropdownMenuItem onClick={() => { unsuspendUser.mutate({ userId: user.id }, { onSuccess: () => { toast({ title: t("users.reactivated") }); invalidate(); } }); }}>{t("users.reactivate")}</DropdownMenuItem>
+                              : <DropdownMenuItem onClick={() => { suspendUser.mutate({ userId: user.id }, { onSuccess: () => { toast({ title: t("users.suspended") }); invalidate(); } }); }}>{t("users.suspend")}</DropdownMenuItem>
+                            }
+                            <DropdownMenuItem onClick={() => { setSelected(user); setNewPassword(""); setResetPwOpen(true); }}>{t("users.resetPassword")}</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setSelected(user); setNewEventId(user.eventId ?? ""); setAssignEventOpen(true); }}>{t("users.assignEvent")}</DropdownMenuItem>
+                            {user.role === "ticketing_auditor" && (
+                              <>
+                                <DropdownMenuItem onClick={() => { setSelected(user); setAuditorActivityOpen(true); }}>
+                                  <Activity className="w-4 h-4 mr-2" />
+                                  Ver Actividad Auditor
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={async () => {
+                                  setSelected(user);
+                                  setTotpSetupResult(null);
+                                  setTotpSetupLoading(true);
+                                  setTotpSetupOpen(true);
+                                  try {
+                                    const result = await customFetch<TotpSetupResult>(`/api/auditors/${user.id}/setup-totp`, { method: "POST" });
+                                    setTotpSetupResult(result);
+                                  } catch {
+                                    toast({ title: "Error", description: "No se pudo configurar el 2FA.", variant: "destructive" });
+                                    setTotpSetupOpen(false);
+                                  } finally {
+                                    setTotpSetupLoading(false);
+                                  }
+                                }}>
+                                  Configurar 2FA
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onClick={() => { setSelected(user); setDeleteOpen(true); }}>{t("common.delete")}</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="attendees" className="mt-4">
+          <div className="border border-border rounded-lg bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("users.colUser")}</TableHead>
+                  <TableHead>{t("users.colStatus")}</TableHead>
+                  <TableHead>{t("users.colEvent")}</TableHead>
+                  <TableHead>{t("users.colJoined")}</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={5} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
+                ) : attendeeUsers.length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">{t("users.noUsers")}</TableCell></TableRow>
+                ) : (
+                  attendeeUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{user.firstName} {user.lastName}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell><UserStatusBadge user={user} t={t} /></TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{events.find((e) => e.id === user.eventId)?.name ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{fmtDate(user.createdAt)}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon"><MoreHorizontal className="w-4 h-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {user.isBlocked
+                              ? <DropdownMenuItem onClick={() => { blockUser.mutate({ userId: user.id, data: { isBlocked: false } }, { onSuccess: () => { toast({ title: t("users.unblocked") }); invalidate(); } }); }}>{t("users.unblock")}</DropdownMenuItem>
+                              : <DropdownMenuItem onClick={() => { blockUser.mutate({ userId: user.id, data: { isBlocked: true } }, { onSuccess: () => { toast({ title: t("users.blocked") }); invalidate(); } }); }}>{t("users.block")}</DropdownMenuItem>
+                            }
+                            {user.isSuspended
+                              ? <DropdownMenuItem onClick={() => { unsuspendUser.mutate({ userId: user.id }, { onSuccess: () => { toast({ title: t("users.reactivated") }); invalidate(); } }); }}>{t("users.reactivate")}</DropdownMenuItem>
+                              : <DropdownMenuItem onClick={() => { suspendUser.mutate({ userId: user.id }, { onSuccess: () => { toast({ title: t("users.suspended") }); invalidate(); } }); }}>{t("users.suspend")}</DropdownMenuItem>
+                            }
+                            <DropdownMenuItem onClick={() => { setSelected(user); setNewPassword(""); setResetPwOpen(true); }}>{t("users.resetPassword")}</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onClick={() => { setSelected(user); setDeleteOpen(true); }}>{t("common.delete")}</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
