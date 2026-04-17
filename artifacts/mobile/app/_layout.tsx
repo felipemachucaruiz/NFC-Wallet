@@ -19,7 +19,7 @@ import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { PasscodeScreen } from "@/components/PasscodeScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { AttestationProvider } from "@/contexts/AttestationContext";
+import { AttestationProvider, useAttestationContext } from "@/contexts/AttestationContext";
 import { PasscodeProvider, usePasscode } from "@/contexts/PasscodeContext";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { CartProvider } from "@/contexts/CartContext";
@@ -133,14 +133,26 @@ function reportToSentry(error: unknown, context?: Record<string, unknown>) {
   });
 }
 
+// Module-level callback registered by AttestationErrorBridge so the QueryClient
+// (created outside the React tree) can trigger re-attestation on 403 responses.
+let _retryAttestation: (() => Promise<void>) | null = null;
+
+function is403Attestation(error: unknown): boolean {
+  const status = (error as { status?: number })?.status;
+  const msg = error instanceof Error ? error.message : String(error ?? "");
+  return status === 403 && /attestation/i.test(msg);
+}
+
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
+      if (is403Attestation(error)) { _retryAttestation?.(); return; }
       reportToSentry(error, { queryKey: JSON.stringify(query.queryKey) });
     },
   }),
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
+      if (is403Attestation(error)) { _retryAttestation?.(); return; }
       reportToSentry(error, {
         mutationKey: mutation.options.mutationKey
           ? JSON.stringify(mutation.options.mutationKey)
@@ -152,6 +164,15 @@ const queryClient = new QueryClient({
     queries: { retry: 1, staleTime: 30_000 },
   },
 });
+
+function AttestationErrorBridge() {
+  const { retryAttestation } = useAttestationContext();
+  useEffect(() => {
+    _retryAttestation = retryAttestation;
+    return () => { _retryAttestation = null; };
+  }, [retryAttestation]);
+  return null;
+}
 
 function RootLayoutNav() {
   return (
@@ -271,6 +292,7 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <AttestationProvider>
+                <AttestationErrorBridge />
                 <AppWithPasscode>
                   <CartProvider>
                     <OfflineQueueProvider>

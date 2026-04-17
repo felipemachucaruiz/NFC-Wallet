@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
-import { useGetCurrentAuthUser, useGetEvent, setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
+import { useGetCurrentAuthUser, useGetEvent, setAuthTokenGetter, setBaseUrl, ApiError } from "@workspace/api-client-react";
 import { AUTH_TOKEN_KEY } from "@/pages/login";
 import { EventProvider, useEventContext } from "@/contexts/event-context";
 import React from "react";
@@ -112,14 +112,22 @@ import WhatsAppTemplates from "@/pages/whatsapp-templates";
 import AuditorTicketSales from "@/pages/auditor-ticket-sales";
 import Devices from "@/pages/devices";
 
+function handleGlobal401() {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  setAuthTokenGetter(null);
+  window.location.replace(`${import.meta.env.BASE_URL}login`);
+}
+
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
+      if (error instanceof ApiError && error.status === 401) { handleGlobal401(); return; }
       reportToSentry(error, { queryKey: JSON.stringify(query.queryKey) });
     },
   }),
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
+      if (error instanceof ApiError && error.status === 401) { handleGlobal401(); return; }
       reportToSentry(error, {
         mutationKey: mutation.options.mutationKey
           ? JSON.stringify(mutation.options.mutationKey)

@@ -6,8 +6,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map, AlertTriangle, KeyRound } from "lucide-react";
+import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map, AlertTriangle, KeyRound, Info, Battery, Cpu, Signal, MapPin, Settings, HardDrive } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
 import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER, TAPEE_MAP_STYLES } from "@/lib/maps";
@@ -22,14 +24,31 @@ interface Device {
   batteryTempCelsius: number | null;
   lastSeenAt: string | null;
   model: string | null;
+  make: string | null;
   osVersion: string | null;
+  buildVersion: string | null;
   serialNumber: string | null;
+  androidId: string | null;
   locked: boolean;
   licenseStatus: string | null;
+  inTrial: boolean;
+  enrollmentDate: string | null;
   simNetwork: string | null;
   sim1NetworkType: string | null;
+  simSignalStrength: number | null;
   ipAddress: string | null;
+  publicIp: string | null;
+  ramUsageMb: number | null;
+  totalRamMb: number | null;
   ramUsagePct: number | null;
+  storageAvailMb: number | null;
+  storageTotalMb: number | null;
+  managementMode: string | null;
+  enrollmentMode: string | null;
+  enrollmentMethod: string | null;
+  managementState: string | null;
+  groupName: string | null;
+  profileName: string | null;
   lat: number | null;
   lng: number | null;
   locationAddress: string | null;
@@ -63,6 +82,196 @@ function fmtLastSeen(ts: string | null): string {
   } catch {
     return ts;
   }
+}
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  if (value === null || value === undefined || value === "") return null;
+  return (
+    <div className="flex items-start justify-between gap-4 py-1.5">
+      <span className="text-xs text-muted-foreground shrink-0 w-36">{label}</span>
+      <span className="text-xs text-right font-medium break-all">{value}</span>
+    </div>
+  );
+}
+
+function SignalDots({ strength }: { strength: number | null }) {
+  if (strength === null) return <span className="text-xs text-muted-foreground">—</span>;
+  return (
+    <span className="flex items-end gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span
+          key={i}
+          className={`inline-block w-1 rounded-sm ${i <= strength ? "bg-green-500" : "bg-muted"}`}
+          style={{ height: `${i * 3 + 4}px` }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function StorageBar({ avail, total }: { avail: number | null; total: number | null }) {
+  if (!avail || !total) return null;
+  const used = total - avail;
+  const pct = Math.round((used / total) * 100);
+  const color = pct > 85 ? "bg-red-500" : pct > 60 ? "bg-yellow-500" : "bg-green-500";
+  return (
+    <div className="space-y-1">
+      <div className="w-full bg-muted rounded-full h-1.5">
+        <div className={`${color} h-1.5 rounded-full`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-muted-foreground">{Math.round(used / 1024)} GB used of {Math.round(total / 1024)} GB</p>
+    </div>
+  );
+}
+
+function DeviceDetailSheet({ deviceId, onClose }: { deviceId: string | number | null; onClose: () => void }) {
+  const { t } = useTranslation();
+  const { data, isLoading } = useQuery<{ device: Device }>({
+    queryKey: ["device-detail", deviceId],
+    queryFn: () => customFetch<{ device: Device }>(`/api/devices/${deviceId}`),
+    enabled: !!deviceId,
+  });
+  const d = data?.device;
+
+  return (
+    <Sheet open={!!deviceId} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent className="w-[420px] sm:w-[480px] overflow-y-auto">
+        <SheetHeader className="pb-4">
+          <SheetTitle className="flex items-center gap-2">
+            {d ? (
+              <>
+                {d.name}
+                <Badge
+                  className={`text-xs ${isOnline(d.status) ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}
+                  variant="secondary"
+                >
+                  {isOnline(d.status) ? t("devices.statusOnline") : t("devices.statusOffline")}
+                </Badge>
+              </>
+            ) : t("common.loading")}
+          </SheetTitle>
+        </SheetHeader>
+
+        {isLoading && (
+          <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
+            {t("common.loading")}
+          </div>
+        )}
+
+        {d && (
+          <div className="space-y-5">
+            {/* Device */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dispositivo</p>
+              </div>
+              <DetailRow label="Modelo" value={d.model} />
+              <DetailRow label="Fabricante" value={d.make} />
+              <DetailRow label="Android" value={d.osVersion ? `Android ${d.osVersion}` : null} />
+              <DetailRow label="Build" value={d.buildVersion} />
+              <DetailRow label="Serial" value={d.serialNumber} />
+              <DetailRow label="Android ID" value={d.androidId} />
+              <DetailRow label="Grupo" value={d.groupName} />
+              <DetailRow label="Perfil" value={d.profileName} />
+            </div>
+
+            <Separator />
+
+            {/* Battery */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Battery className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Batería</p>
+              </div>
+              <DetailRow label="Nivel" value={d.batteryLevel !== null ? `${d.batteryLevel}%` : null} />
+              <DetailRow label="Estado" value={d.batteryCharging ? "⚡ Cargando" : "No cargando"} />
+              <DetailRow label="Salud" value={d.batteryHealth} />
+              <DetailRow label="Temperatura" value={d.batteryTempCelsius !== null ? `${d.batteryTempCelsius}°C` : null} />
+            </div>
+
+            <Separator />
+
+            {/* RAM & Storage */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Memoria</p>
+              </div>
+              {d.ramUsagePct !== null && (
+                <DetailRow
+                  label="RAM"
+                  value={`${d.ramUsagePct}% (${Math.round((d.ramUsageMb ?? 0) / 1024 * 10) / 10} / ${Math.round((d.totalRamMb ?? 0) / 1024 * 10) / 10} GB)`}
+                />
+              )}
+              {d.storageTotalMb && (
+                <div className="py-1.5">
+                  <span className="text-xs text-muted-foreground">Almacenamiento interno</span>
+                  <div className="mt-1.5">
+                    <StorageBar avail={d.storageAvailMb} total={d.storageTotalMb} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Network */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Signal className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Red</p>
+              </div>
+              <DetailRow label="Operador" value={d.simNetwork} />
+              <DetailRow label="Tipo red" value={d.sim1NetworkType} />
+              <DetailRow
+                label="Señal"
+                value={d.simSignalStrength !== null ? <SignalDots strength={d.simSignalStrength} /> : null}
+              />
+              <DetailRow label="IP local" value={d.ipAddress} />
+              <DetailRow label="IP pública" value={d.publicIp} />
+            </div>
+
+            <Separator />
+
+            {/* Location */}
+            {d.locationAddress && (
+              <>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ubicación</p>
+                  </div>
+                  <p className="text-xs leading-relaxed">{d.locationAddress}</p>
+                  {d.lat && d.lng && (
+                    <p className="text-xs text-muted-foreground mt-1">{d.lat.toFixed(6)}, {d.lng.toFixed(6)}</p>
+                  )}
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Management */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <HardDrive className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gestión</p>
+              </div>
+              <DetailRow label="Modo" value={d.managementMode} />
+              <DetailRow label="Tipo inscripción" value={d.enrollmentMode} />
+              <DetailRow label="Método" value={d.enrollmentMethod} />
+              <DetailRow label="Estado" value={d.managementState} />
+              <DetailRow label="Licencia" value={d.licenseStatus} />
+              <DetailRow label="Trial" value={d.inTrial ? "Sí" : "No"} />
+              <DetailRow label="Bloqueado" value={d.locked ? "Sí" : "No"} />
+              <DetailRow label="Fecha inscripción" value={d.enrollmentDate ? fmtLastSeen(String(d.enrollmentDate)) : null} />
+              <DetailRow label="Última conexión" value={fmtLastSeen(d.lastSeenAt)} />
+            </div>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
 }
 
 interface LocationPoint {
@@ -232,6 +441,7 @@ export default function Devices() {
 
   const [view, setView] = useState<"table" | "map">("table");
   const [wipeTarget, setWipeTarget] = useState<Device | null>(null);
+  const [detailDeviceId, setDetailDeviceId] = useState<string | number | null>(null);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<{ devices: Device[] }, ApiError>({
     queryKey: ["devices"],
@@ -413,6 +623,14 @@ export default function Devices() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => setDetailDeviceId(device.id)}
+                            title="Ver detalles"
+                          >
+                            <Info className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleAction(device, "lock")}
                             disabled={actionMutation.isPending}
                             title={t("devices.lockAction")}
@@ -456,6 +674,8 @@ export default function Devices() {
           <DeviceMap devices={devices} />
         )
       )}
+
+      <DeviceDetailSheet deviceId={detailDeviceId} onClose={() => setDetailDeviceId(null)} />
 
       <AlertDialog open={!!wipeTarget} onOpenChange={(open) => { if (!open) setWipeTarget(null); }}>
         <AlertDialogContent>

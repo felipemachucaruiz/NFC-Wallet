@@ -459,12 +459,14 @@ export default function ChargeScreen() {
       }
 
       if (!success && !aborted && !cancelledRef.current) {
-        // Report terminal NFC write failure to Sentry with context.
         const errMsg = lastScanError instanceof Error ? lastScanError.message : String(lastScanError ?? "unknown");
-        Sentry.captureException(lastScanError instanceof Error ? lastScanError : new Error(errMsg), {
-          tags: { screen: "charge", errorCode: errMsg.split(":")[0] || "unknown" },
-          extra: { nfcUid: uid, amount: chargeTotal, retriesAttempted: writeRetryRef.current, readSucceeded },
-        });
+        // TAG_LOST is physical (bracelet moved away) — expected, don't flood Sentry
+        if (!/TAG_LOST|NFC_CANCELLED|USER_CANCELLED/i.test(errMsg)) {
+          Sentry.captureException(lastScanError instanceof Error ? lastScanError : new Error(errMsg), {
+            tags: { screen: "charge", errorCode: errMsg.split(":")[0] || "unknown" },
+            extra: { nfcUid: uid, amount: chargeTotal, retriesAttempted: writeRetryRef.current, readSucceeded },
+          });
+        }
         scanningRef.current = false;
         setNfcModalVisible(false);
         setNfcWriteRetrying(false);

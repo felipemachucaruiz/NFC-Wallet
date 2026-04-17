@@ -29,9 +29,18 @@ function toFloat(val: unknown): number | null {
   return isNaN(n) ? null : n;
 }
 
+function sanitizeUnknown(val: unknown): string | null {
+  if (!val || val === "unknown" || val === "N/A" || val === "Not Available") return null;
+  return String(val);
+}
+
 function mapDevice(raw: Record<string, unknown>) {
   const device = (raw.device ?? raw) as Record<string, unknown>;
   const location = device.location as Record<string, unknown> | null | undefined;
+  const mgmt = device.management_details as Record<string, unknown> | null | undefined;
+  const storage = device.storage_info as Record<string, unknown> | null | undefined;
+  const group = (device.group ?? device.device_group) as Record<string, unknown> | null | undefined;
+  const profile = (device.profile ?? device.device_profile) as Record<string, unknown> | null | undefined;
   const connStatus = String(device.connection_status ?? "").toLowerCase();
   const ramUsage = toFloat(device.ram_usage ?? null);
   const totalRam = toFloat(device.total_ram_size ?? null);
@@ -45,18 +54,33 @@ function mapDevice(raw: Record<string, unknown>) {
     batteryTempCelsius: device.battery_temp_in_celsius ?? null,
     lastSeenAt: device.last_connected_at ?? device.last_seen_on ?? null,
     model: device.model_name ?? device.model ?? null,
+    make: sanitizeUnknown(device.make),
     osVersion: device.os_version ?? null,
+    buildVersion: device.build_version ?? null,
     serialNumber: device.serial_no !== "unknown" ? (device.serial_no ?? null) : null,
+    androidId: sanitizeUnknown(device.android_id),
     locked: device.locked ?? false,
     licenseStatus: device.status ?? null,
+    inTrial: device.in_trial ?? false,
+    enrollmentDate: device.enrollment_date ?? null,
     simNetwork: device.sim_network ?? null,
     sim1NetworkType: device.sim1_network_type ?? null,
-    ipAddress: device.ip_address ?? null,
+    simSignalStrength: device.sim_signal_strength ?? null,
+    ipAddress: sanitizeUnknown(device.ip_address),
+    publicIp: sanitizeUnknown(device.public_ip),
     ramUsageMb: ramUsage,
     totalRamMb: totalRam,
     ramUsagePct: ramUsage !== null && totalRam !== null && totalRam > 0
       ? Math.round((ramUsage / totalRam) * 100)
       : null,
+    storageAvailMb: toFloat(storage?.total_internal_storage_avbl ?? null),
+    storageTotalMb: toFloat(storage?.total_internal_storage ?? null),
+    managementMode: mgmt?.management_mode ?? null,
+    enrollmentMode: mgmt?.enrollment_mode ?? null,
+    enrollmentMethod: mgmt?.enrollment_method ?? null,
+    managementState: mgmt?.management_state ?? null,
+    groupName: group?.name ?? null,
+    profileName: profile?.name ?? null,
     lat: toFloat(location?.lat ?? null),
     lng: toFloat(location?.lng ?? null),
     locationAddress: location?.address ?? null,
