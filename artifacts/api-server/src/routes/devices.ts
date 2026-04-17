@@ -116,6 +116,25 @@ router.get("/devices", requireRole("admin"), async (_req: Request, res: ExpressR
               : [];
 
     const devices = rawDevices.map((d) => mapDevice(d as Record<string, unknown>));
+
+    // The `location` field in the device list is a slow-sync cache that ignores the
+    // MDM location-tracking policy interval. Fetch today's real location history in
+    // parallel for every device and override with the most recent ping.
+    const today = new Date().toISOString().slice(0, 10);
+    await Promise.all(devices.map(async (device) => {
+      try {
+        const locRes = await scalefusionFetch(`/api/v1/devices/${device.id}/locations.json?date=${today}`);
+        if (!locRes.ok) return;
+        const pings = await locRes.json() as Array<{ latitude?: number; longitude?: number; address?: string; accuracy?: number; created_at_tz?: string }>;
+        const latest = Array.isArray(pings) && pings.length > 0 ? pings[pings.length - 1] : null;
+        if (latest) {
+          device.lat = toFloat(latest.latitude ?? null);
+          device.lng = toFloat(latest.longitude ?? null);
+          device.locationAddress = latest.address ?? device.locationAddress;
+        }
+      } catch { /* keep stale location on error */ }
+    }));
+
     res.json({ devices });
   } catch {
     res.status(502).json({ error: "Failed to reach Scalefusion API" });
