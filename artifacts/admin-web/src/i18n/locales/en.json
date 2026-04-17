@@ -68,7 +68,8 @@
     "backToEvents": "Back to Events",
     "manageTicketing": "Manage Ticketing",
     "ticketing": "Ticketing",
-    "whatsappTemplates": "WhatsApp"
+    "whatsappTemplates": "WhatsApp",
+    "devices": "Devices"
   },
   "ticketingHub": {
     "title": "Ticketing",
@@ -1264,5 +1265,28 @@
     "field_refundAmount": "Refund amount",
     "field_recipientName": "Recipient name",
     "field_senderName": "Sender name"
+  },
+  "devices": {
+    "title": "Devices",
+    "subtitle": "View and control enrolled staff devices (tablets, scanners, POS terminals).",
+    "refresh": "Refresh",
+    "colName": "Device",
+    "colStatus": "Status",
+    "colBattery": "Battery",
+    "colLastSeen": "Last Seen",
+    "colModel": "Model",
+    "noDevices": "No enrolled devices found.",
+    "fetchError": "Failed to load devices. Check that the Scalefusion API key is configured.",
+    "statusOnline": "Online",
+    "statusOffline": "Offline",
+    "lockAction": "Lock device",
+    "rebootAction": "Reboot device",
+    "wipeAction": "Wipe device",
+    "locked": "Device locked",
+    "rebooted": "Device rebooted",
+    "wiped": "Device wiped",
+    "wipeTitle": "Wipe Device?",
+    "wipeDesc": "This will factory-reset \"{{name}}\" and erase all data. This action cannot be undone.",
+    "wipeConfirm": "Yes, wipe device"
   }
 }

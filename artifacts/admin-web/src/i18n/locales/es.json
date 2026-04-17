@@ -68,7 +68,8 @@
     "backToEvents": "Volver a Eventos",
     "manageTicketing": "Gestionar Boletería",
     "ticketing": "Boletería",
-    "whatsappTemplates": "WhatsApp"
+    "whatsappTemplates": "WhatsApp",
+    "devices": "Dispositivos"
   },
   "ticketingHub": {
     "title": "Boletería",
@@ -1264,5 +1265,28 @@
     "field_refundAmount": "Monto de reembolso",
     "field_recipientName": "Nombre del destinatario",
     "field_senderName": "Nombre del remitente"
+  },
+  "devices": {
+    "title": "Dispositivos",
+    "subtitle": "Ver y controlar los dispositivos del personal (tablets, escáneres, terminales POS).",
+    "refresh": "Actualizar",
+    "colName": "Dispositivo",
+    "colStatus": "Estado",
+    "colBattery": "Batería",
+    "colLastSeen": "Última Vez Visto",
+    "colModel": "Modelo",
+    "noDevices": "No se encontraron dispositivos registrados.",
+    "fetchError": "Error al cargar dispositivos. Verifica que la clave de API de Scalefusion esté configurada.",
+    "statusOnline": "En línea",
+    "statusOffline": "Fuera de línea",
+    "lockAction": "Bloquear dispositivo",
+    "rebootAction": "Reiniciar dispositivo",
+    "wipeAction": "Borrar dispositivo",
+    "locked": "Dispositivo bloqueado",
+    "rebooted": "Dispositivo reiniciado",
+    "wiped": "Dispositivo borrado",
+    "wipeTitle": "¿Borrar Dispositivo?",
+    "wipeDesc": "Esto restablecerá de fábrica \"{{name}}\" y eliminará todos los datos. Esta acción no se puede deshacer.",
+    "wipeConfirm": "Sí, borrar dispositivo"
   }
 }

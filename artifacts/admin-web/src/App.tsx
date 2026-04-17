@@ -110,6 +110,7 @@ import EventCheckins from "@/pages/event-checkins";
 import EventGuestLists from "@/pages/event-guest-lists";
 import WhatsAppTemplates from "@/pages/whatsapp-templates";
 import AuditorTicketSales from "@/pages/auditor-ticket-sales";
+import Devices from "@/pages/devices";
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -246,6 +247,9 @@ function Router() {
       </Route>
       <Route path="/whatsapp-templates">
         <ProtectedRoute component={WhatsAppTemplates} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/devices">
+        <ProtectedRoute component={Devices} allowedRoles={["admin"]} />
       </Route>
 
       {/* Event Admin Routes */}
