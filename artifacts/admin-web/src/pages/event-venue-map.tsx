@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Pencil, Trash2, Map, Square, Loader2, ImageIcon, MapPin, Save, X } from "lucide-react";
+import { Upload, Pencil, Trash2, Map, Square, Loader2, ImageIcon, MapPin, Save, X, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
 import { apiFetchVenues, apiFetchSections, apiCreateSection, apiUpdateSection, apiDeleteSection, apiCreateVenue, apiUploadVenueFloorplan, apiFetchTicketTypes, apiFetchTicketTypeUnits, apiUpdateUnitPositions } from "@/lib/api";
