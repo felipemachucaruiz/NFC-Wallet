@@ -621,6 +621,24 @@ router.get("/load-test/device-test/pending", requireAuth, async (req: Request, r
   });
 });
 
+// POST /load-test/device-test/fire-topup — bank role: recharge simulation
+router.post("/load-test/device-test/fire-topup", requireAuth, async (req: Request, res: Response) => {
+  const { braceletUid, amountCents } = req.body as { braceletUid: string; amountCents: number };
+  if (!braceletUid?.startsWith("DEVTEST_")) {
+    res.status(400).json({ error: "Invalid bracelet for device test" }); return;
+  }
+  const t0 = Date.now();
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE bracelets SET last_known_balance = last_known_balance + $1 WHERE nfc_uid = $2`,
+      [amountCents, braceletUid],
+    );
+    res.json({ ok: (rowCount ?? 0) > 0, latencyMs: Date.now() - t0 });
+  } catch (err) {
+    res.json({ ok: false, latencyMs: Date.now() - t0, error: String(err) });
+  }
+});
+
 // POST /load-test/device-test/fire-charge — one charge fired by a real device
 router.post("/load-test/device-test/fire-charge", requireAuth, async (req: Request, res: Response) => {
   const { braceletUid, amountCents, eventId } = req.body as {
