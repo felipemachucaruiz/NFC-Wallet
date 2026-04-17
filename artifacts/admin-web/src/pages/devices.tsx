@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customFetch } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
+import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER, TAPEE_MAP_STYLES } from "@/lib/maps";
 
 interface Device {
   id: string | number;
@@ -18,6 +20,8 @@ interface Device {
   model: string | null;
   osVersion: string | null;
   serialNumber: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 function isOnline(status: string): boolean {
@@ -39,11 +43,124 @@ function fmtLastSeen(ts: string | null): string {
   }
 }
 
+function DeviceMap({ devices }: { devices: Device[] }) {
+  const { t } = useTranslation();
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: MAPS_LIBRARIES,
+  });
+
+  const [selectedId, setSelectedId] = useState<string | number | null>(null);
+
+  const locatedDevices = devices.filter((d) => d.lat !== null && d.lng !== null);
+
+  const onMapLoad = useCallback((map: google.maps.Map) => {
+    if (locatedDevices.length === 0) return;
+    if (locatedDevices.length === 1) {
+      map.setCenter({ lat: locatedDevices[0].lat!, lng: locatedDevices[0].lng! });
+      map.setZoom(14);
+      return;
+    }
+    const bounds = new window.google.maps.LatLngBounds();
+    locatedDevices.forEach((d) => bounds.extend({ lat: d.lat!, lng: d.lng! }));
+    map.fitBounds(bounds, 60);
+  }, [locatedDevices]);
+
+  if (!isLoaded) {
+    return (
+      <div className="h-[500px] flex items-center justify-center text-muted-foreground text-sm">
+        {t("common.loading")}
+      </div>
+    );
+  }
+
+  const selectedDevice = locatedDevices.find((d) => d.id === selectedId) ?? null;
+
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      <div className="relative">
+        <GoogleMap
+          mapContainerStyle={{ width: "100%", height: "500px" }}
+          center={locatedDevices.length > 0 ? { lat: locatedDevices[0].lat!, lng: locatedDevices[0].lng! } : DEFAULT_CENTER}
+          zoom={locatedDevices.length > 0 ? 14 : 6}
+          onLoad={onMapLoad}
+          options={{
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: true,
+            styles: TAPEE_MAP_STYLES,
+          }}
+        >
+          {locatedDevices.map((device) => (
+            <Marker
+              key={String(device.id)}
+              position={{ lat: device.lat!, lng: device.lng! }}
+              title={device.name}
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: 9,
+                fillColor: isOnline(device.status) ? "#22c55e" : "#6b7280",
+                fillOpacity: 1,
+                strokeColor: "#ffffff",
+                strokeWeight: 2,
+              }}
+              onClick={() => setSelectedId(device.id)}
+            />
+          ))}
+
+          {selectedDevice && (
+            <InfoWindow
+              position={{ lat: selectedDevice.lat!, lng: selectedDevice.lng! }}
+              onCloseClick={() => setSelectedId(null)}
+            >
+              <div className="text-sm min-w-[160px] space-y-1.5 p-0.5">
+                <p className="font-semibold text-gray-900">{selectedDevice.name}</p>
+                {selectedDevice.serialNumber && (
+                  <p className="text-xs text-gray-500 font-mono">{selectedDevice.serialNumber}</p>
+                )}
+                <div className="flex items-center gap-1.5">
+                  {isOnline(selectedDevice.status) ? (
+                    <span className="inline-flex items-center gap-1 text-green-700 font-medium">
+                      <Wifi className="w-3 h-3" />
+                      {t("devices.statusOnline")}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-gray-500">
+                      <WifiOff className="w-3 h-3" />
+                      {t("devices.statusOffline")}
+                    </span>
+                  )}
+                </div>
+                {selectedDevice.batteryLevel !== null && (
+                  <p className="text-xs text-gray-600">
+                    {t("devices.colBattery")}: {selectedDevice.batteryLevel}%
+                  </p>
+                )}
+                {selectedDevice.lastSeenAt && (
+                  <p className="text-xs text-gray-400">{fmtLastSeen(selectedDevice.lastSeenAt)}</p>
+                )}
+              </div>
+            </InfoWindow>
+          )}
+        </GoogleMap>
+        {locatedDevices.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="bg-card/90 backdrop-blur-sm border border-border rounded-lg px-4 py-3 text-sm text-muted-foreground shadow-lg">
+              {t("devices.mapNoLocation")}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Devices() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const [view, setView] = useState<"table" | "map">("table");
   const [wipeTarget, setWipeTarget] = useState<Device | null>(null);
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery<{ devices: Device[] }>({
@@ -95,10 +212,34 @@ export default function Devices() {
           <h1 className="text-3xl font-bold tracking-tight">{t("devices.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("devices.subtitle")}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-          {t("devices.refresh")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center border border-border rounded-md overflow-hidden">
+            <Button
+              variant={view === "table" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-none border-0"
+              onClick={() => setView("table")}
+              title={t("devices.viewTable")}
+            >
+              <List className="w-4 h-4 mr-1.5" />
+              {t("devices.viewTable")}
+            </Button>
+            <Button
+              variant={view === "map" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-none border-0 border-l border-border"
+              onClick={() => setView("map")}
+              title={t("devices.viewMap")}
+            >
+              <Map className="w-4 h-4 mr-1.5" />
+              {t("devices.viewMap")}
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+            {t("devices.refresh")}
+          </Button>
+        </div>
       </div>
 
       {isError && (
@@ -107,104 +248,114 @@ export default function Devices() {
         </div>
       )}
 
-      <div className="border border-border rounded-lg bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("devices.colName")}</TableHead>
-              <TableHead>{t("devices.colStatus")}</TableHead>
-              <TableHead>{t("devices.colBattery")}</TableHead>
-              <TableHead>{t("devices.colLastSeen")}</TableHead>
-              <TableHead>{t("devices.colModel")}</TableHead>
-              <TableHead className="text-right">{t("common.actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
+      {view === "table" ? (
+        <div className="border border-border rounded-lg bg-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                  {t("common.loading")}
-                </TableCell>
+                <TableHead>{t("devices.colName")}</TableHead>
+                <TableHead>{t("devices.colStatus")}</TableHead>
+                <TableHead>{t("devices.colBattery")}</TableHead>
+                <TableHead>{t("devices.colLastSeen")}</TableHead>
+                <TableHead>{t("devices.colModel")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
               </TableRow>
-            ) : devices.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                  {t("devices.noDevices")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              devices.map((device) => {
-                const online = isOnline(device.status);
-                return (
-                  <TableRow key={String(device.id)}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{device.name}</p>
-                        {device.serialNumber && (
-                          <p className="text-xs text-muted-foreground font-mono">{device.serialNumber}</p>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                    {t("common.loading")}
+                  </TableCell>
+                </TableRow>
+              ) : devices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                    {t("devices.noDevices")}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                devices.map((device) => {
+                  const online = isOnline(device.status);
+                  return (
+                    <TableRow key={String(device.id)}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{device.name}</p>
+                          {device.serialNumber && (
+                            <p className="text-xs text-muted-foreground font-mono">{device.serialNumber}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={online ? "default" : "secondary"}
+                          className={`flex items-center gap-1 w-fit text-xs ${online ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}
+                        >
+                          {online ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                          {online ? t("devices.statusOnline") : t("devices.statusOffline")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <BatteryDisplay level={device.batteryLevel} />
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {fmtLastSeen(device.lastSeenAt)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {device.model ?? "—"}
+                        {device.osVersion && (
+                          <span className="block text-xs text-muted-foreground/70">{device.osVersion}</span>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={online ? "default" : "secondary"}
-                        className={`flex items-center gap-1 w-fit text-xs ${online ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}
-                      >
-                        {online ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-                        {online ? t("devices.statusOnline") : t("devices.statusOffline")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <BatteryDisplay level={device.batteryLevel} />
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {fmtLastSeen(device.lastSeenAt)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {device.model ?? "—"}
-                      {device.osVersion && (
-                        <span className="block text-xs text-muted-foreground/70">{device.osVersion}</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleAction(device, "lock")}
-                          disabled={actionMutation.isPending}
-                          title={t("devices.lockAction")}
-                        >
-                          <Lock className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleAction(device, "reboot")}
-                          disabled={actionMutation.isPending}
-                          title={t("devices.rebootAction")}
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleAction(device, "wipe")}
-                          disabled={actionMutation.isPending}
-                          title={t("devices.wipeAction")}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAction(device, "lock")}
+                            disabled={actionMutation.isPending}
+                            title={t("devices.lockAction")}
+                          >
+                            <Lock className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAction(device, "reboot")}
+                            disabled={actionMutation.isPending}
+                            title={t("devices.rebootAction")}
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleAction(device, "wipe")}
+                            disabled={actionMutation.isPending}
+                            title={t("devices.wipeAction")}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        isLoading ? (
+          <div className="border border-border rounded-lg bg-card h-[500px] flex items-center justify-center text-muted-foreground text-sm">
+            {t("common.loading")}
+          </div>
+        ) : (
+          <DeviceMap devices={devices} />
+        )
+      )}
 
       <AlertDialog open={!!wipeTarget} onOpenChange={(open) => { if (!open) setWipeTarget(null); }}>
         <AlertDialogContent>

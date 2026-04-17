@@ -1287,6 +1287,9 @@
     "wiped": "Device wiped",
     "wipeTitle": "Wipe Device?",
     "wipeDesc": "This will factory-reset \"{{name}}\" and erase all data. This action cannot be undone.",
-    "wipeConfirm": "Yes, wipe device"
+    "wipeConfirm": "Yes, wipe device",
+    "viewTable": "List",
+    "viewMap": "Map",
+    "mapNoLocation": "No GPS data available for enrolled devices."
   }
 }

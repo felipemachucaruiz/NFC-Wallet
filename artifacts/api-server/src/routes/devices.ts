@@ -28,6 +28,12 @@ function normalizeStatus(raw: unknown): "online" | "offline" {
   return "offline";
 }
 
+function toFloat(val: unknown): number | null {
+  if (val === null || val === undefined || val === "") return null;
+  const n = parseFloat(String(val));
+  return isNaN(n) ? null : n;
+}
+
 function mapDevice(device: Record<string, unknown>) {
   return {
     id: device.id ?? device.device_id,
@@ -38,6 +44,8 @@ function mapDevice(device: Record<string, unknown>) {
     model: device.model ?? null,
     osVersion: device.os_version ?? null,
     serialNumber: device.serial_number ?? null,
+    lat: toFloat(device.latitude ?? device.location_latitude ?? device.lat ?? null),
+    lng: toFloat(device.longitude ?? device.location_longitude ?? device.lng ?? null),
   };
 }
 

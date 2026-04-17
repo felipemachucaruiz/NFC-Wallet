@@ -1287,6 +1287,9 @@
     "wiped": "Dispositivo borrado",
     "wipeTitle": "¿Borrar Dispositivo?",
     "wipeDesc": "Esto restablecerá de fábrica \"{{name}}\" y eliminará todos los datos. Esta acción no se puede deshacer.",
-    "wipeConfirm": "Sí, borrar dispositivo"
+    "wipeConfirm": "Sí, borrar dispositivo",
+    "viewTable": "Lista",
+    "viewMap": "Mapa",
+    "mapNoLocation": "No hay datos GPS disponibles para los dispositivos registrados."
   }
 }
