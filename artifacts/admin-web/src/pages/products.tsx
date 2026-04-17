@@ -158,7 +158,13 @@ export default function Products() {
         },
       },
       {
-        onSuccess: () => { toast({ title: t("products.created") }); setCreateOpen(false); setForm(emptyForm); invalidate(); },
+        onSuccess: (data) => {
+          toast({ title: t("products.created") });
+          setCreateOpen(false);
+          setForm(emptyForm);
+          invalidate();
+          if (data?.id) openEdit(data);
+        },
         onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
