@@ -163,7 +163,7 @@ router.post(
       return;
     }
 
-    cacheAttestationToken(token);
+    await cacheAttestationToken(token);
 
     logger.info({ userId, platform }, "attestation_verified");
 

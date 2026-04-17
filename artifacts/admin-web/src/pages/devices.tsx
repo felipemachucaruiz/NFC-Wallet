@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map, AlertTriangle, KeyRound, Info, Battery, Cpu, Signal, MapPin, Settings, HardDrive } from "lucide-react";
@@ -124,7 +125,7 @@ function StorageBar({ avail, total }: { avail: number | null; total: number | nu
   );
 }
 
-function DeviceDetailSheet({ deviceId, onClose }: { deviceId: string | number | null; onClose: () => void }) {
+function DeviceDetailDialog({ deviceId, onClose }: { deviceId: string | number | null; onClose: () => void }) {
   const { t } = useTranslation();
   const { data, isLoading } = useQuery<{ device: Device }>({
     queryKey: ["device-detail", deviceId],
@@ -134,10 +135,10 @@ function DeviceDetailSheet({ deviceId, onClose }: { deviceId: string | number | 
   const d = data?.device;
 
   return (
-    <Sheet open={!!deviceId} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="w-[420px] sm:w-[480px] overflow-y-auto">
-        <SheetHeader className="pb-4">
-          <SheetTitle className="flex items-center gap-2">
+    <Dialog open={!!deviceId} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg w-full p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="flex items-center gap-2">
             {d ? (
               <>
                 {d.name}
@@ -149,128 +150,132 @@ function DeviceDetailSheet({ deviceId, onClose }: { deviceId: string | number | 
                 </Badge>
               </>
             ) : t("common.loading")}
-          </SheetTitle>
-        </SheetHeader>
+          </DialogTitle>
+        </DialogHeader>
 
-        {isLoading && (
-          <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
-            {t("common.loading")}
-          </div>
-        )}
-
-        {d && (
-          <div className="space-y-5">
-            {/* Device */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Settings className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dispositivo</p>
+        <ScrollArea className="max-h-[70vh]">
+          <div className="px-6 py-4">
+            {isLoading && (
+              <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
+                {t("common.loading")}
               </div>
-              <DetailRow label="Modelo" value={d.model} />
-              <DetailRow label="Fabricante" value={d.make} />
-              <DetailRow label="Android" value={d.osVersion ? `Android ${d.osVersion}` : null} />
-              <DetailRow label="Build" value={d.buildVersion} />
-              <DetailRow label="Serial" value={d.serialNumber} />
-              <DetailRow label="Android ID" value={d.androidId} />
-              <DetailRow label="Grupo" value={d.groupName} />
-              <DetailRow label="Perfil" value={d.profileName} />
-            </div>
-
-            <Separator />
-
-            {/* Battery */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Battery className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Batería</p>
-              </div>
-              <DetailRow label="Nivel" value={d.batteryLevel !== null ? `${d.batteryLevel}%` : null} />
-              <DetailRow label="Estado" value={d.batteryCharging ? "⚡ Cargando" : "No cargando"} />
-              <DetailRow label="Salud" value={d.batteryHealth} />
-              <DetailRow label="Temperatura" value={d.batteryTempCelsius !== null ? `${d.batteryTempCelsius}°C` : null} />
-            </div>
-
-            <Separator />
-
-            {/* RAM & Storage */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Memoria</p>
-              </div>
-              {d.ramUsagePct !== null && (
-                <DetailRow
-                  label="RAM"
-                  value={`${d.ramUsagePct}% (${Math.round((d.ramUsageMb ?? 0) / 1024 * 10) / 10} / ${Math.round((d.totalRamMb ?? 0) / 1024 * 10) / 10} GB)`}
-                />
-              )}
-              {d.storageTotalMb && (
-                <div className="py-1.5">
-                  <span className="text-xs text-muted-foreground">Almacenamiento interno</span>
-                  <div className="mt-1.5">
-                    <StorageBar avail={d.storageAvailMb} total={d.storageTotalMb} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Network */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Signal className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Red</p>
-              </div>
-              <DetailRow label="Operador" value={d.simNetwork} />
-              <DetailRow label="Tipo red" value={d.sim1NetworkType} />
-              <DetailRow
-                label="Señal"
-                value={d.simSignalStrength !== null ? <SignalDots strength={d.simSignalStrength} /> : null}
-              />
-              <DetailRow label="IP local" value={d.ipAddress} />
-              <DetailRow label="IP pública" value={d.publicIp} />
-            </div>
-
-            <Separator />
-
-            {/* Location */}
-            {d.locationAddress && (
-              <>
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ubicación</p>
-                  </div>
-                  <p className="text-xs leading-relaxed">{d.locationAddress}</p>
-                  {d.lat && d.lng && (
-                    <p className="text-xs text-muted-foreground mt-1">{d.lat.toFixed(6)}, {d.lng.toFixed(6)}</p>
-                  )}
-                </div>
-                <Separator />
-              </>
             )}
 
-            {/* Management */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <HardDrive className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gestión</p>
+            {d && (
+              <div className="space-y-5">
+                {/* Device */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dispositivo</p>
+                  </div>
+                  <DetailRow label="Modelo" value={d.model} />
+                  <DetailRow label="Fabricante" value={d.make} />
+                  <DetailRow label="Android" value={d.osVersion ? `Android ${d.osVersion}` : null} />
+                  <DetailRow label="Build" value={d.buildVersion} />
+                  <DetailRow label="Serial" value={d.serialNumber} />
+                  <DetailRow label="Android ID" value={d.androidId} />
+                  <DetailRow label="Grupo" value={d.groupName} />
+                  <DetailRow label="Perfil" value={d.profileName} />
+                </div>
+
+                <Separator />
+
+                {/* Battery */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Battery className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Batería</p>
+                  </div>
+                  <DetailRow label="Nivel" value={d.batteryLevel !== null ? `${d.batteryLevel}%` : null} />
+                  <DetailRow label="Estado" value={d.batteryCharging ? "⚡ Cargando" : "No cargando"} />
+                  <DetailRow label="Salud" value={d.batteryHealth} />
+                  <DetailRow label="Temperatura" value={d.batteryTempCelsius !== null ? `${d.batteryTempCelsius}°C` : null} />
+                </div>
+
+                <Separator />
+
+                {/* RAM & Storage */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Memoria</p>
+                  </div>
+                  {d.ramUsagePct !== null && (
+                    <DetailRow
+                      label="RAM"
+                      value={`${d.ramUsagePct}% (${Math.round((d.ramUsageMb ?? 0) / 1024 * 10) / 10} / ${Math.round((d.totalRamMb ?? 0) / 1024 * 10) / 10} GB)`}
+                    />
+                  )}
+                  {d.storageTotalMb && (
+                    <div className="py-1.5">
+                      <span className="text-xs text-muted-foreground">Almacenamiento interno</span>
+                      <div className="mt-1.5">
+                        <StorageBar avail={d.storageAvailMb} total={d.storageTotalMb} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Network */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Signal className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Red</p>
+                  </div>
+                  <DetailRow label="Operador" value={d.simNetwork} />
+                  <DetailRow label="Tipo red" value={d.sim1NetworkType} />
+                  <DetailRow
+                    label="Señal"
+                    value={d.simSignalStrength !== null ? <SignalDots strength={d.simSignalStrength} /> : null}
+                  />
+                  <DetailRow label="IP local" value={d.ipAddress} />
+                  <DetailRow label="IP pública" value={d.publicIp} />
+                </div>
+
+                <Separator />
+
+                {/* Location */}
+                {d.locationAddress && (
+                  <>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ubicación</p>
+                      </div>
+                      <p className="text-xs leading-relaxed">{d.locationAddress}</p>
+                      {d.lat && d.lng && (
+                        <p className="text-xs text-muted-foreground mt-1">{d.lat.toFixed(6)}, {d.lng.toFixed(6)}</p>
+                      )}
+                    </div>
+                    <Separator />
+                  </>
+                )}
+
+                {/* Management */}
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <HardDrive className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gestión</p>
+                  </div>
+                  <DetailRow label="Modo" value={d.managementMode} />
+                  <DetailRow label="Tipo inscripción" value={d.enrollmentMode} />
+                  <DetailRow label="Método" value={d.enrollmentMethod} />
+                  <DetailRow label="Estado" value={d.managementState} />
+                  <DetailRow label="Licencia" value={d.licenseStatus} />
+                  <DetailRow label="Trial" value={d.inTrial ? "Sí" : "No"} />
+                  <DetailRow label="Bloqueado" value={d.locked ? "Sí" : "No"} />
+                  <DetailRow label="Fecha inscripción" value={d.enrollmentDate ? fmtLastSeen(String(d.enrollmentDate)) : null} />
+                  <DetailRow label="Última conexión" value={fmtLastSeen(d.lastSeenAt)} />
+                </div>
               </div>
-              <DetailRow label="Modo" value={d.managementMode} />
-              <DetailRow label="Tipo inscripción" value={d.enrollmentMode} />
-              <DetailRow label="Método" value={d.enrollmentMethod} />
-              <DetailRow label="Estado" value={d.managementState} />
-              <DetailRow label="Licencia" value={d.licenseStatus} />
-              <DetailRow label="Trial" value={d.inTrial ? "Sí" : "No"} />
-              <DetailRow label="Bloqueado" value={d.locked ? "Sí" : "No"} />
-              <DetailRow label="Fecha inscripción" value={d.enrollmentDate ? fmtLastSeen(String(d.enrollmentDate)) : null} />
-              <DetailRow label="Última conexión" value={fmtLastSeen(d.lastSeenAt)} />
-            </div>
+            )}
           </div>
-        )}
-      </SheetContent>
-    </Sheet>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -675,7 +680,7 @@ export default function Devices() {
         )
       )}
 
-      <DeviceDetailSheet deviceId={detailDeviceId} onClose={() => setDetailDeviceId(null)} />
+      <DeviceDetailDialog deviceId={detailDeviceId} onClose={() => setDetailDeviceId(null)} />
 
       <AlertDialog open={!!wipeTarget} onOpenChange={(open) => { if (!open) setWipeTarget(null); }}>
         <AlertDialogContent>

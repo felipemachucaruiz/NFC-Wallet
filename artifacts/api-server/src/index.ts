@@ -524,6 +524,13 @@ async function runStartupMigrations(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS idx_event_reminder_schedules_event_id ON event_reminder_schedules (event_id);
 
+      -- ── attestation_tokens: persisted device attestation cache ──────────────
+      CREATE TABLE IF NOT EXISTS attestation_tokens (
+        token_hash TEXT PRIMARY KEY,
+        expires_at TIMESTAMPTZ NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_attestation_tokens_expires_at ON attestation_tokens (expires_at);
+
       -- ── access_zones: source_section_id for venue map sync ─────────────────
       ALTER TABLE access_zones ADD COLUMN IF NOT EXISTS source_section_id VARCHAR;
       DO $$ BEGIN
@@ -558,6 +565,22 @@ function startSessionCleanupJob(): void {
   setTimeout(runCleanup, 5000);
   setInterval(runCleanup, ONE_HOUR_MS);
   logger.info("Session cleanup job scheduled (every 1 hour)");
+}
+
+function startAttestationCleanupJob(): void {
+  const runCleanup = async () => {
+    try {
+      const { rowCount } = await pool.query(`DELETE FROM attestation_tokens WHERE expires_at <= NOW()`);
+      if ((rowCount ?? 0) > 0) {
+        logger.info({ deleted: rowCount }, "Attestation cleanup: expired tokens removed");
+      }
+    } catch (err) {
+      logger.error({ err }, "Attestation cleanup job failed");
+    }
+  };
+  setTimeout(runCleanup, 10_000);
+  setInterval(runCleanup, 60 * 60 * 1000);
+  logger.info("Attestation cleanup job scheduled (every 1 hour)");
 }
 
 function startEventReminderJob(): void {
@@ -736,6 +759,7 @@ function startEventReminderJob(): void {
 runStartupMigrations()
   .then(() => {
     startSessionCleanupJob();
+    startAttestationCleanupJob();
     startEventReminderJob();
     app.listen(port, (err) => {
       if (err) {
