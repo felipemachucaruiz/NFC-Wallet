@@ -351,14 +351,24 @@ export default function LoadTestPage() {
                   )}
                   {testType === "load_test" && (
                     <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs space-y-0.5">
-                      {targetTPS !== null ? (
-                        <>
-                          <p className="font-medium text-foreground">~{Math.round(targetTPS * duration)} tx esperadas</p>
-                          <p className="text-muted-foreground">{targetTPS} tx/s pico · cada POS espera ~{Math.round((concurrency * 1000) / targetTPS / 1000)}s entre cobros</p>
-                        </>
-                      ) : (
-                        <p className="text-muted-foreground">Sin perfil aplicado — los cajeros operan sin límite de velocidad (no realista).</p>
-                      )}
+                      {(() => {
+                        const minCycleMs = 60_000;
+                        const rawPauseMs = targetTPS && targetTPS > 0
+                          ? Math.round((concurrency * 1000) / targetTPS)
+                          : minCycleMs;
+                        const pauseMs = Math.max(minCycleMs, rawPauseMs);
+                        const cycleS = Math.round(pauseMs / 1000);
+                        const expectedTx = Math.floor(concurrency * (duration * 1000 / pauseMs));
+                        return (
+                          <>
+                            <p className="font-medium text-foreground">~{expectedTx} tx esperadas en {duration}s</p>
+                            <p className="text-muted-foreground">Cada POS: 1 cobro cada {cycleS}s · {concurrency} POS en paralelo</p>
+                            {targetTPS !== null && rawPauseMs < minCycleMs && (
+                              <p className="text-amber-500">Perfil sugiere {targetTPS} tx/s — limitado al mínimo realista (1 tx/min por POS)</p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
                   <div className="flex gap-2 pt-1">

@@ -218,13 +218,15 @@ async function runLoadTest(res: Response, runId: string, eventId: string, concur
   const CHARGE_AMOUNT = 5000;
   const INITIAL_BALANCE = 10_000_000;
 
-  // pauseMs: how long each cashier waits between charges to hit the target aggregate TPS.
-  // Formula: (concurrency × 1000ms) / targetTPS
-  // e.g. 10 cashiers at 2 TPS → each waits 5000ms between charges (realistic POS pace).
-  // Without a targetTPS we default to 500ms per cashier — still paced, not a firehose.
-  const pauseMs = targetTPS && targetTPS > 0
-    ? Math.round((concurrency * 1000) / targetTPS)
-    : 500;
+  // Minimum realistic POS cycle: a cashier serves ~1 customer/minute (approach, tap, confirm).
+  const MIN_POS_CYCLE_MS = 60_000;
+
+  // pauseMs: time each cashier waits between charges to hit the target aggregate TPS.
+  // Always floored at MIN_POS_CYCLE_MS — no POS fires faster than once per minute.
+  const pauseMs = Math.max(
+    MIN_POS_CYCLE_MS,
+    targetTPS && targetTPS > 0 ? Math.round((concurrency * 1000) / targetTPS) : MIN_POS_CYCLE_MS,
+  );
 
   sseWrite(res, "progress", { phase: "setup", message: `Creando ${concurrency} pulseras de prueba...`, progress: 5 });
   const uids = await setupTestBracelets(runId, concurrency, eventId, INITIAL_BALANCE);
@@ -235,8 +237,8 @@ async function runLoadTest(res: Response, runId: string, eventId: string, concur
   const startTime = Date.now();
   const endTime = startTime + durationSeconds * 1000;
 
-  const tpsLabel = targetTPS ? `${targetTPS} tx/s (pico evento)` : "ritmo libre";
-  sseWrite(res, "progress", { phase: "running", message: `${concurrency} cajeros · ${tpsLabel} · ${durationSeconds}s`, progress: 20 });
+  const cycleLabel = `${Math.round(pauseMs / 1000)}s/cobro por POS`;
+  sseWrite(res, "progress", { phase: "running", message: `${concurrency} cajeros · ${cycleLabel} · ${durationSeconds}s`, progress: 20 });
 
   // Progress reporter: sends SSE every 500ms without blocking the cashier loops
   let reporterDone = false;
