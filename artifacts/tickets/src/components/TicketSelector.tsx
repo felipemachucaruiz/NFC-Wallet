@@ -14,6 +14,23 @@ import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/format";
 import type { EventData, TicketType, AttendeeData } from "@/data/types";
 
+function fmtDisplayDate(dateStr: string): string {
+  if (!dateStr) return "—";
+  const [y, m, d] = dateStr.split("-");
+  return d && m && y ? `${d}/${m}/${y}` : dateStr;
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="mt-1 h-9 px-3 flex items-center rounded-md border border-border bg-muted/40 text-sm text-foreground/70">
+        {value || "—"}
+      </div>
+    </div>
+  );
+}
+
 interface TicketSelectorProps {
   event: EventData;
   ticketType: TicketType;
@@ -82,13 +99,11 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
   const validateAttendees = (): boolean => {
     const newErrors: Record<string, string> = {};
     attendees.forEach((a, i) => {
-      const isPrimaryBuyer = i === 0 && isAuthenticated && !!user;
-      if (!isPrimaryBuyer) {
-        if (!a.name.trim()) newErrors[`${i}-name`] = t("ticketSelection.required");
-        if (!a.email.trim()) newErrors[`${i}-email`] = t("ticketSelection.required");
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email)) newErrors[`${i}-email`] = t("ticketSelection.invalidEmail");
-        if (!a.phone.trim()) newErrors[`${i}-phone`] = t("ticketSelection.required");
-      }
+      if (i === 0 && isAuthenticated && !!user) return;
+      if (!a.name.trim()) newErrors[`${i}-name`] = t("ticketSelection.required");
+      if (!a.email.trim()) newErrors[`${i}-email`] = t("ticketSelection.required");
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email)) newErrors[`${i}-email`] = t("ticketSelection.invalidEmail");
+      if (!a.phone.trim()) newErrors[`${i}-phone`] = t("ticketSelection.required");
       if (!a.dateOfBirth.trim()) newErrors[`${i}-dateOfBirth`] = t("ticketSelection.required");
       if (!a.sex) newErrors[`${i}-sex`] = t("ticketSelection.required");
       if (!a.idDocument.trim()) newErrors[`${i}-idDocument`] = t("ticketSelection.required");
@@ -279,24 +294,15 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                   <div className="space-y-3">
                     {isPrimaryBuyer ? (
                       <>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">{t("ticketSelection.name")}</Label>
-                          <div className="mt-1 h-9 px-3 flex items-center rounded-md border border-border bg-muted/40 text-sm text-foreground/70">
-                            {attendee.name}
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">{t("ticketSelection.email")}</Label>
-                          <div className="mt-1 h-9 px-3 flex items-center rounded-md border border-border bg-muted/40 text-sm text-foreground/70">
-                            {attendee.email}
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">{t("ticketSelection.phone")}</Label>
-                          <div className="mt-1 h-9 px-3 flex items-center rounded-md border border-border bg-muted/40 text-sm text-foreground/70">
-                            {attendee.phone || "—"}
-                          </div>
-                        </div>
+                        <ReadOnlyField label={t("ticketSelection.name")} value={attendee.name} />
+                        <ReadOnlyField label={t("ticketSelection.email")} value={attendee.email} />
+                        <ReadOnlyField label={t("ticketSelection.phone")} value={attendee.phone} />
+                        <ReadOnlyField label={t("ticketSelection.dateOfBirth", "Fecha de nacimiento")} value={fmtDisplayDate(attendee.dateOfBirth)} />
+                        <ReadOnlyField
+                          label={t("ticketSelection.sex", "Género")}
+                          value={attendee.sex === "male" ? t("ticketSelection.male", "Masculino") : attendee.sex === "female" ? t("ticketSelection.female", "Femenino") : "—"}
+                        />
+                        <ReadOnlyField label={t("ticketSelection.idDocument", "Núm. de identificación")} value={attendee.idDocument} />
                       </>
                     ) : (
                       <>
@@ -334,66 +340,66 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <p className="text-xs text-destructive mt-1">{errors[`${index}-phone`]}</p>
                           )}
                         </div>
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {t("ticketSelection.dateOfBirth", "Fecha de nacimiento")} *
+                          </Label>
+                          <div className="mt-1">
+                            <DatePickerField
+                              value={attendee.dateOfBirth}
+                              onChange={(v) => updateAttendee(index, "dateOfBirth", v)}
+                              hasError={!!errors[`${index}-dateOfBirth`]}
+                            />
+                          </div>
+                          {errors[`${index}-dateOfBirth`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-dateOfBirth`]}</p>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {t("ticketSelection.sex", "Género")} *
+                          </Label>
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => updateAttendee(index, "sex", "male")}
+                              className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${attendee.sex === "male" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+                            >
+                              {t("ticketSelection.male", "Masculino")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateAttendee(index, "sex", "female")}
+                              className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${attendee.sex === "female" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+                            >
+                              {t("ticketSelection.female", "Femenino")}
+                            </button>
+                          </div>
+                          {errors[`${index}-sex`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-sex`]}</p>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <IdCard className="w-3 h-3" />
+                            {t("ticketSelection.idDocument", "Núm. de identificación")} *
+                          </Label>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            value={attendee.idDocument}
+                            onChange={(e) => updateAttendee(index, "idDocument", e.target.value.replace(/\D/g, ""))}
+                            placeholder="1234567890"
+                            className={`mt-1 ${errors[`${index}-idDocument`] ? "border-destructive" : ""}`}
+                          />
+                          {errors[`${index}-idDocument`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-idDocument`]}</p>
+                          )}
+                        </div>
                       </>
                     )}
-                    <div>
-                      <Label className="text-xs flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {t("ticketSelection.dateOfBirth", "Fecha de nacimiento")} *
-                      </Label>
-                      <div className="mt-1">
-                        <DatePickerField
-                          value={attendee.dateOfBirth}
-                          onChange={(v) => updateAttendee(index, "dateOfBirth", v)}
-                          hasError={!!errors[`${index}-dateOfBirth`]}
-                        />
-                      </div>
-                      {errors[`${index}-dateOfBirth`] && (
-                        <p className="text-xs text-destructive mt-1">{errors[`${index}-dateOfBirth`]}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-xs flex items-center gap-1">
-                        <Users className="w-3 h-3" />
-                        {t("ticketSelection.sex", "Género")} *
-                      </Label>
-                      <div className="flex gap-2 mt-1">
-                        <button
-                          type="button"
-                          onClick={() => updateAttendee(index, "sex", "male")}
-                          className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${attendee.sex === "male" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
-                        >
-                          {t("ticketSelection.male", "Masculino")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateAttendee(index, "sex", "female")}
-                          className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${attendee.sex === "female" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
-                        >
-                          {t("ticketSelection.female", "Femenino")}
-                        </button>
-                      </div>
-                      {errors[`${index}-sex`] && (
-                        <p className="text-xs text-destructive mt-1">{errors[`${index}-sex`]}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-xs flex items-center gap-1">
-                        <IdCard className="w-3 h-3" />
-                        {t("ticketSelection.idDocument", "Núm. de identificación")} *
-                      </Label>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={attendee.idDocument}
-                        onChange={(e) => updateAttendee(index, "idDocument", e.target.value.replace(/\D/g, ""))}
-                        placeholder="1234567890"
-                        className={`mt-1 ${errors[`${index}-idDocument`] ? "border-destructive" : ""}`}
-                      />
-                      {errors[`${index}-idDocument`] && (
-                        <p className="text-xs text-destructive mt-1">{errors[`${index}-idDocument`]}</p>
-                      )}
-                    </div>
                   </div>
                 </div>
                 );
