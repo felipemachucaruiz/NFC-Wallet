@@ -24,7 +24,7 @@ const API_BASE = import.meta.env.PROD
   : `${import.meta.env.BASE_URL}_srv`;
 
 function getToken() {
-  return localStorage.getItem("token") ?? "";
+  return localStorage.getItem("tapee_admin_token") ?? "";
 }
 
 async function fetchAllTransactions(params: { page: number; limit: number; search?: string }) {
