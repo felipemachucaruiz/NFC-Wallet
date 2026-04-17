@@ -214,46 +214,69 @@ async function runHealthCheck(res: Response, _runId: string, eventId: string) {
   return { endpoints: endpointResults, p50: avgP50, p95: avgP95, errorRate, score, recommendations: recommendations(avgP50, avgP95, errorRate, 0) };
 }
 
-async function runLoadTest(res: Response, runId: string, eventId: string, concurrency: number, durationSeconds: number) {
-  const CHARGE_AMOUNT = 5000; // 50 COP per charge
-  const INITIAL_BALANCE = 10_000_000; // 100,000 COP per bracelet
+async function runLoadTest(res: Response, runId: string, eventId: string, concurrency: number, durationSeconds: number, targetTPS?: number) {
+  const CHARGE_AMOUNT = 5000;
+  const INITIAL_BALANCE = 10_000_000;
+
+  // pauseMs: how long each cashier waits between charges to hit the target aggregate TPS.
+  // Formula: (concurrency × 1000ms) / targetTPS
+  // e.g. 10 cashiers at 2 TPS → each waits 5000ms between charges (realistic POS pace).
+  // Without a targetTPS we default to 500ms per cashier — still paced, not a firehose.
+  const pauseMs = targetTPS && targetTPS > 0
+    ? Math.round((concurrency * 1000) / targetTPS)
+    : 500;
 
   sseWrite(res, "progress", { phase: "setup", message: `Creando ${concurrency} pulseras de prueba...`, progress: 5 });
   const uids = await setupTestBracelets(runId, concurrency, eventId, INITIAL_BALANCE);
 
-  const latencies: number[] = [];
+  const allLatencies: number[] = [];
   let successCount = 0;
   let errorCount = 0;
-  const endTime = Date.now() + durationSeconds * 1000;
-  let txCount = 0;
+  const startTime = Date.now();
+  const endTime = startTime + durationSeconds * 1000;
 
-  sseWrite(res, "progress", { phase: "running", message: `Ejecutando ${concurrency} cajeros virtuales por ${durationSeconds}s...`, progress: 20 });
+  const tpsLabel = targetTPS ? `${targetTPS} tx/s (pico evento)` : "ritmo libre";
+  sseWrite(res, "progress", { phase: "running", message: `${concurrency} cajeros · ${tpsLabel} · ${durationSeconds}s`, progress: 20 });
 
-  while (Date.now() < endTime) {
-    const batch = uids.map((uid) => simulateCharge(uid, CHARGE_AMOUNT, eventId));
-    const results = await Promise.all(batch);
-    for (const r of results) {
-      latencies.push(r.latencyMs);
-      if (r.ok) successCount++; else errorCount++;
-      txCount++;
+  // Progress reporter: sends SSE every 500ms without blocking the cashier loops
+  let reporterDone = false;
+  const reporterPromise = (async () => {
+    while (!reporterDone) {
+      await new Promise((r) => setTimeout(r, 500));
+      if (reporterDone) break;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const progress = Math.min(90, 20 + Math.floor((elapsed / durationSeconds) * 70));
+      const txCount = allLatencies.length;
+      const throughput = txCount / Math.max(0.1, elapsed);
+      sseWrite(res, "metric", { txCount, throughput: throughput.toFixed(1), p50: percentile(allLatencies, 50), p95: percentile(allLatencies, 95), errors: errorCount });
+      sseWrite(res, "progress", { phase: "running", progress, message: `${txCount} tx · ${throughput.toFixed(1)} tx/s · p95=${percentile(allLatencies, 95)}ms` });
     }
-    const elapsed = Date.now() - (endTime - durationSeconds * 1000);
-    const progress = Math.min(90, 20 + Math.floor((elapsed / (durationSeconds * 1000)) * 70));
-    const throughput = txCount / (elapsed / 1000);
-    sseWrite(res, "metric", { txCount, throughput: throughput.toFixed(1), p50: percentile(latencies, 50), p95: percentile(latencies, 95), errors: errorCount });
-    sseWrite(res, "progress", { phase: "running", progress, message: `${txCount} tx | ${throughput.toFixed(0)} tx/s | p95=${percentile(latencies, 95)}ms` });
-    await new Promise((r) => setTimeout(r, 100));
-  }
+  })();
 
-  const elapsed = durationSeconds;
-  const throughput = txCount / elapsed;
-  const p50 = percentile(latencies, 50);
-  const p95 = percentile(latencies, 95);
-  const p99 = percentile(latencies, 99);
+  // Each cashier runs independently at its own pace — realistic: one customer at a time
+  await Promise.all(uids.map(async (uid) => {
+    while (Date.now() < endTime) {
+      const t0 = Date.now();
+      const r = await simulateCharge(uid, CHARGE_AMOUNT, eventId);
+      allLatencies.push(r.latencyMs);
+      if (r.ok) successCount++; else errorCount++;
+      const wait = Math.max(0, pauseMs - (Date.now() - t0));
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }));
+
+  reporterDone = true;
+  await reporterPromise;
+
+  const txCount = allLatencies.length;
+  const throughput = txCount / durationSeconds;
+  const p50 = percentile(allLatencies, 50);
+  const p95 = percentile(allLatencies, 95);
+  const p99 = percentile(allLatencies, 99);
   const errorRate = errorCount / Math.max(1, txCount);
   const score = calcScore(p50, p95, errorRate);
 
-  return { txCount, successCount, errorCount, throughput, p50, p95, p99, errorRate, score, recommendations: recommendations(p50, p95, errorRate, throughput), _uids: uids };
+  return { txCount, successCount, errorCount, throughput, p50, p95, p99, errorRate, score, targetTPS: targetTPS ?? null, recommendations: recommendations(p50, p95, errorRate, throughput), _uids: uids };
 }
 
 async function runBalanceIntegrity(res: Response, runId: string, eventId: string, concurrency: number) {
@@ -431,11 +454,12 @@ router.post("/load-test/railway/scale", requireAuth, requireRole("admin"), async
 
 // POST /load-test/runs — start a test run (SSE stream)
 router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
-  const { testType, eventId, concurrency = 5, durationSeconds = 30 } = req.body as {
+  const { testType, eventId, concurrency = 5, durationSeconds = 30, targetTPS } = req.body as {
     testType: "health_check" | "load_test" | "balance_integrity" | "breaking_point";
     eventId: string;
     concurrency?: number;
     durationSeconds?: number;
+    targetTPS?: number;
   };
 
   if (!testType || !eventId) { res.status(400).json({ error: "testType and eventId required" }); return; }
@@ -444,7 +468,7 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
   const { rows } = await pool.query<{ id: string }>(
     `INSERT INTO load_test_runs (event_id, test_type, config, status, started_at)
      VALUES ($1, $2, $3, 'running', NOW()) RETURNING id`,
-    [eventId, testType, JSON.stringify({ concurrency, durationSeconds })],
+    [eventId, testType, JSON.stringify({ concurrency, durationSeconds, targetTPS })],
   );
   const runId = rows[0].id;
 
@@ -473,7 +497,7 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
     if (testType === "health_check") {
       results = await runHealthCheck(res, runId, eventId);
     } else if (testType === "load_test") {
-      results = await runLoadTest(res, runId, eventId, Math.min(concurrency, 20), Math.min(durationSeconds, 120));
+      results = await runLoadTest(res, runId, eventId, Math.min(concurrency, 20), Math.min(durationSeconds, 120), targetTPS);
     } else if (testType === "balance_integrity") {
       results = await runBalanceIntegrity(res, runId, eventId, Math.min(concurrency, 15));
     } else if (testType === "breaking_point") {

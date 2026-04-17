@@ -100,6 +100,7 @@ export default function LoadTestPage() {
   const [eventId,    setEventId]    = useState("");
   const [concurrency, setConcurrency] = useState(5);
   const [duration,   setDuration]   = useState(30);
+  const [targetTPS,  setTargetTPS]  = useState<number | null>(null);
 
   // Phase 1 — event profile
   const [attendees,     setAttendees]     = useState(2000);
@@ -188,7 +189,7 @@ export default function LoadTestPage() {
       const res = await fetch(`${API}/api/load-test/runs`, {
         method: "POST", signal: ctrl.signal,
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ testType, eventId, concurrency, durationSeconds: duration }),
+        body: JSON.stringify({ testType, eventId, concurrency, durationSeconds: duration, ...(targetTPS !== null ? { targetTPS } : {}) }),
       });
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
       const reader = res.body.getReader();
@@ -302,6 +303,7 @@ export default function LoadTestPage() {
                   <Button size="sm" variant="outline" className="w-full" onClick={() => {
                     setConcurrency(profile.suggestedConcurrency);
                     setDuration(profile.suggestedDuration);
+                    setTargetTPS(profile.peakTPS);
                   }}>
                     Aplicar estimación a la prueba
                   </Button>
@@ -345,6 +347,18 @@ export default function LoadTestPage() {
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">Duración: {duration}s</label>
                       <input type="range" min={10} max={120} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} disabled={running} className="w-full accent-primary" />
                       <div className="flex justify-between text-xs text-muted-foreground"><span>10s</span><span>120s</span></div>
+                    </div>
+                  )}
+                  {testType === "load_test" && (
+                    <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs space-y-0.5">
+                      {targetTPS !== null ? (
+                        <>
+                          <p className="font-medium text-foreground">~{Math.round(targetTPS * duration)} tx esperadas</p>
+                          <p className="text-muted-foreground">{targetTPS} tx/s pico · cada POS espera ~{Math.round((concurrency * 1000) / targetTPS / 1000)}s entre cobros</p>
+                        </>
+                      ) : (
+                        <p className="text-muted-foreground">Sin perfil aplicado — los cajeros operan sin límite de velocidad (no realista).</p>
+                      )}
                     </div>
                   )}
                   <div className="flex gap-2 pt-1">
