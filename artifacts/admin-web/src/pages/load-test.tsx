@@ -147,9 +147,11 @@ export default function LoadTestPage() {
     queryFn: () => apiFetch("/load-test/runs"),
     refetchInterval: running ? 4000 : false,
   });
-  const { data: railwayStatus, refetch: refetchRailway } = useQuery<ServiceStatus>({
+  const { data: railwayStatus, refetch: refetchRailway, isFetching: railwayFetching } = useQuery<ServiceStatus>({
     queryKey: ["railway-status"],
     queryFn: () => apiFetch("/load-test/railway/status"),
+    refetchInterval: 30_000,
+    staleTime: 20_000,
   });
   const { data: eventsData } = useQuery<{ events: Array<{ id: string; name: string }> }>({
     queryKey: ["events-list"],
@@ -359,7 +361,7 @@ export default function LoadTestPage() {
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <Server className="h-4 w-4" />Réplicas Railway
-                    <Button variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0" onClick={() => refetchRailway()}><RefreshCw className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0" onClick={() => refetchRailway()} disabled={railwayFetching}><RefreshCw className={`h-3 w-3 ${railwayFetching ? "animate-spin" : ""}`} /></Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
