@@ -60,6 +60,8 @@ const TRIGGER_AVAILABLE_FIELDS: Record<string, Array<{ field: string; labelKey: 
     { field: "attendeeName", labelKey: "whatsapp.field_attendeeName" },
     { field: "eventName", labelKey: "whatsapp.field_eventName" },
     { field: "venueName", labelKey: "whatsapp.field_venueName" },
+    { field: "venueAddress", labelKey: "whatsapp.field_venueAddress" },
+    { field: "venueMapUrl", labelKey: "whatsapp.field_venueMapUrl" },
     { field: "eventDate", labelKey: "whatsapp.field_eventDate" },
     { field: "daysRemainingText", labelKey: "whatsapp.field_daysRemainingText" },
   ],

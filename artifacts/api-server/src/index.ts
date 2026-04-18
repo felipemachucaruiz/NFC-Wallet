@@ -680,12 +680,15 @@ function startEventReminderJob(): void {
         event_name: string;
         event_starts_at: string;
         venue_address: string | null;
+        latitude: string | null;
+        longitude: string | null;
       };
 
       // Per-event schedules due today (not yet sent)
       const { rows: perEventSchedules } = await pool.query<DueSchedule>(`
         SELECT s.id, s.event_id, s.days_before, s.template_mapping_id, s.template_id, s.param_mappings,
-               e.name AS event_name, e.starts_at AS event_starts_at, e.venue_address
+               e.name AS event_name, e.starts_at AS event_starts_at, e.venue_address,
+               e.latitude, e.longitude
         FROM event_reminder_schedules s
         JOIN events e ON e.id = s.event_id
         WHERE s.enabled = true
@@ -697,7 +700,8 @@ function startEventReminderJob(): void {
       // Global schedules (event_id IS NULL) matched against any event starting today
       const { rows: globalSchedules } = await pool.query<DueSchedule>(`
         SELECT s.id, s.days_before, s.template_mapping_id, s.template_id, s.param_mappings,
-               e.id AS event_id, e.name AS event_name, e.starts_at AS event_starts_at, e.venue_address
+               e.id AS event_id, e.name AS event_name, e.starts_at AS event_starts_at, e.venue_address,
+               e.latitude, e.longitude
         FROM event_reminder_schedules s
         CROSS JOIN events e
         WHERE s.event_id IS NULL AND s.enabled = true
@@ -774,10 +778,17 @@ function startEventReminderJob(): void {
             const daysRemainingText = schedule.days_before === 0
               ? "HOY"
               : `en ${schedule.days_before} día${schedule.days_before > 1 ? "s" : ""}`;
+            const venueMapUrl = schedule.latitude && schedule.longitude
+              ? `https://maps.google.com/?q=${schedule.latitude},${schedule.longitude}`
+              : schedule.venue_address
+                ? `https://maps.google.com/?q=${encodeURIComponent(schedule.venue_address)}`
+                : "";
             const context: Record<string, string> = {
               attendeeName: attendee.attendee_name,
               eventName: schedule.event_name,
               venueName: schedule.venue_address ?? "",
+              venueAddress: schedule.venue_address ?? "",
+              venueMapUrl,
               eventDate,
               daysRemainingText,
             };

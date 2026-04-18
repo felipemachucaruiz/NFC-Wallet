@@ -1265,6 +1265,7 @@
     "field_eventName": "Nombre del evento",
     "field_venueName": "Nombre del lugar",
     "field_venueAddress": "Dirección del lugar",
+    "field_venueMapUrl": "Link de Google Maps",
     "field_sectionName": "Sección",
     "field_ticketTypeName": "Tipo de ticket",
     "field_validDays": "Días válidos",
