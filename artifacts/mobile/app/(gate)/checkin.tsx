@@ -884,6 +884,20 @@ export default function EntranceCheckinScreen() {
 
         {pageState === "ready" && !showQrScanner && (
           <>
+            {BROADCAST_MODE && (
+              <View style={[styles.scannerCard, { backgroundColor: C.card, borderColor: C.primary + "55" }]}>
+                <View style={styles.scannerHeader}>
+                  <Feather name="maximize" size={20} color={C.primary} />
+                  <Text style={[styles.scannerTitle, { color: C.text }]}>
+                    Escanea con el lector de códigos de barra
+                  </Text>
+                </View>
+                <Text style={[styles.barcodeHint, { color: C.textMuted }]}>
+                  Apunta el lector al código QR del tiquete y presiona el gatillo.
+                </Text>
+              </View>
+            )}
+
             {!BROADCAST_MODE && (
             <View style={[styles.scannerCard, { backgroundColor: C.card, borderColor: C.border }]}>
               <View style={styles.scannerHeader}>
