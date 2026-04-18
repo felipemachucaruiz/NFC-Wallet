@@ -2,10 +2,10 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import {
   ActivityIndicator,
   Animated,
-  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -111,7 +111,6 @@ export default function RegisterBraceletScreen() {
   const { isOnline, eventData, pendingCount } = useOfflineGate();
 
   const [pageState, setPageState] = useState<PageState>("ready");
-  const [barcodeInput, setBarcodeInput] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [successCountdown, setSuccessCountdown] = useState(0);
 
@@ -131,10 +130,6 @@ export default function RegisterBraceletScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const scanningRef = useRef(false);
   const qrProcessedRef = useRef(false);
-  const barcodeInputRef = useRef<TextInput>(null);
-  const barcodePausedRef = useRef(false);
-  const refocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const REFOCUS_DELAY_MS = 4000;
 
   const cameraPermissionHook = useCameraPermissions ? useCameraPermissions() : null;
   const cameraPermission = cameraPermissionHook ? cameraPermissionHook[0] : null;
@@ -143,47 +138,11 @@ export default function RegisterBraceletScreen() {
   const locale = i18n.language ?? "es";
   const hasCamera = CameraView !== null && Platform.OS !== "web";
 
-  const scheduleRefocus = useCallback(() => {
-    if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current);
-    refocusTimerRef.current = setTimeout(() => {
-      barcodePausedRef.current = false;
-      if (pageState === "ready") barcodeInputRef.current?.focus();
-    }, REFOCUS_DELAY_MS);
-  }, [pageState]);
-
-  const pauseBarcodeFocus = useCallback(() => {
-    barcodePausedRef.current = true;
-    barcodeInputRef.current?.blur();
-    scheduleRefocus();
-  }, [scheduleRefocus]);
-
-  const refocusBarcodeInput = useCallback(() => {
-    if (!barcodePausedRef.current && pageState === "ready") {
-      setTimeout(() => barcodeInputRef.current?.focus(), 100);
-    }
-  }, [pageState]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active" && !barcodePausedRef.current && pageState === "ready") {
-        barcodeInputRef.current?.focus();
-      }
-    });
-    return () => subscription.remove();
-  }, [pageState]);
-
-  useEffect(() => {
-    return () => {
-      if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (pageState === "ready" && !showQrScanner) {
-      const t = setTimeout(() => barcodeInputRef.current?.focus(), 300);
-      return () => clearTimeout(t);
-    }
-  }, [pageState, showQrScanner]);
+  const { inputProps: barcodeInputProps, resumeFocus: resumeBarcodeFocus, pauseFocus: pauseBarcodeFocus } = useBarcodeScanner({
+    onScan: validateTicket,
+    enabled: pageState === "ready" && !showQrScanner,
+    manageFocus: true,
+  });
 
   useEffect(() => {
     if (pageState !== "ticket_nfc_scanning") return;
@@ -374,11 +333,10 @@ export default function RegisterBraceletScreen() {
   );
 
   const handleBarcodeSubmit = useCallback(() => {
-    const trimmed = barcodeInput.trim();
+    const trimmed = barcodeInputProps.value.trim();
     if (!trimmed) return;
-    setBarcodeInput("");
     validateTicket(trimmed);
-  }, [barcodeInput, validateTicket]);
+  }, [barcodeInputProps.value, validateTicket]);
 
   const handleQrScanned = useCallback(
     (data: string) => {
@@ -505,8 +463,7 @@ export default function RegisterBraceletScreen() {
     qrProcessedRef.current = false;
     setPageState("ready");
     setShowQrScanner(false);
-    setBarcodeInput("");
-    setTimeout(() => barcodeInputRef.current?.focus(), 200);
+    resumeBarcodeFocus();
   };
 
   const openQrScanner = async () => {
@@ -693,7 +650,7 @@ export default function RegisterBraceletScreen() {
                 setShowQrScanner(false);
                 setPageState("ready");
                 qrProcessedRef.current = false;
-                setTimeout(() => barcodeInputRef.current?.focus(), 200);
+                resumeBarcodeFocus();
               }}
             >
               <Feather name="x" size={18} color={C.text} />
@@ -712,23 +669,18 @@ export default function RegisterBraceletScreen() {
                 </Text>
               </View>
               <TextInput
-                ref={barcodeInputRef}
+                {...barcodeInputProps}
                 style={[
                   styles.barcodeInput,
                   {
                     backgroundColor: C.inputBg,
                     color: C.text,
-                    borderColor: barcodeInput.trim() ? C.primary : C.border,
+                    borderColor: barcodeInputProps.value.trim() ? C.primary : C.border,
                   },
                 ]}
-                value={barcodeInput}
-                onChangeText={setBarcodeInput}
                 onSubmitEditing={handleBarcodeSubmit}
-                onBlur={refocusBarcodeInput}
                 placeholder={t("gate.barcodeInputPlaceholder")}
                 placeholderTextColor={C.textMuted}
-                autoFocus
-                showSoftInputOnFocus={false}
                 returnKeyType="go"
                 blurOnSubmit={false}
                 autoCapitalize="none"
@@ -737,7 +689,7 @@ export default function RegisterBraceletScreen() {
               <Text style={[styles.barcodeHint, { color: C.textMuted }]}>
                 {t("gate.barcodeInputHint")}
               </Text>
-              {barcodeInput.trim() ? (
+              {barcodeInputProps.value.trim() ? (
                 <Button
                   title={t("gate.ticketValidating").replace("...", "")}
                   onPress={() => { pauseBarcodeFocus(); handleBarcodeSubmit(); }}

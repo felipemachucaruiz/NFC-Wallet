@@ -72,6 +72,7 @@
     }
   },
   "dependencies": {
+    "barcode-receiver": "file:./modules/barcode-receiver",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/netinfo": "^12.0.1",
     "@sentry/react-native": "^7.2.0",

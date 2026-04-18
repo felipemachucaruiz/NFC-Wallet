@@ -2,6 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -35,7 +36,6 @@ export default function WarehouseStockScreen() {
   const [receiveNote, setReceiveNote] = useState("");
 
   // Barcode scan-to-fill in receive modal
-  const [barcodeScan, setBarcodeScan] = useState("");
 
   const isCentralized = inventoryMode === "centralized_warehouse";
 
@@ -50,25 +50,27 @@ export default function WarehouseStockScreen() {
 
   const updateWarehouse = useUpdateWarehouseInventory();
 
-  const handleOpenReceive = () => {
-    setSelectedProductId("");
-    setReceiveQty("");
-    setReceiveNote("");
-    setBarcodeScan("");
-    setReceiveModalVisible(true);
-  };
-
   const handleBarcodeScanInModal = (barcode: string) => {
-    const trimmed = barcode.trim();
-    setBarcodeScan("");
-    if (!trimmed) return;
-    const found = items.find((p) => p.product?.barcode === trimmed);
+    const found = items.find((p) => p.product?.barcode === barcode);
     if (found) {
       setSelectedProductId(found.productId);
     } else {
       showAlert(t("common.error"), t("warehouse.barcodeNotFound"));
     }
   };
+
+  const { inputProps: barcodeInputProps } = useBarcodeScanner({
+    onScan: handleBarcodeScanInModal,
+    enabled: receiveModalVisible,
+  });
+
+  const handleOpenReceive = () => {
+    setSelectedProductId("");
+    setReceiveQty("");
+    setReceiveNote("");
+    setReceiveModalVisible(true);
+  };
+
 
   const handleReceive = async () => {
     const qty = parseInt(receiveQty, 10);
@@ -213,14 +215,11 @@ export default function WarehouseStockScreen() {
             <View style={[styles.barcodeScanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
               <Feather name="maximize" size={16} color={C.textMuted} />
               <TextInput
+                {...barcodeInputProps}
                 style={[styles.barcodeScanInput, { color: C.text }]}
                 placeholder={t("warehouse.barcodeScanToAdd")}
                 placeholderTextColor={C.textMuted}
-                value={barcodeScan}
-                onChangeText={setBarcodeScan}
-                onSubmitEditing={() => handleBarcodeScanInModal(barcodeScan)}
                 returnKeyType="done"
-                blurOnSubmit={false}
                 testID="warehouse-receive-barcode-input"
               />
             </View>

@@ -1,0 +1,14 @@
+{
+  "name": "barcode-receiver",
+  "version": "1.0.0",
+  "description": "Android broadcast barcode receiver for Tapee PDA scanners",
+  "main": "src/index.ts",
+  "source": "src/index.ts",
+  "files": [
+    "src",
+    "android",
+    "ios",
+    "barcode-receiver.podspec",
+    "expo-module.config.json"
+  ]
+}

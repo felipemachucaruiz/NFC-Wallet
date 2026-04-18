@@ -755,6 +755,9 @@ importers:
       '@sentry/react-native':
         specifier: ^7.2.0
         version: 7.2.0(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.1.0))(react@19.1.0)
+      barcode-receiver:
+        specifier: file:./modules/barcode-receiver
+        version: file:artifacts/mobile/modules/barcode-receiver
       crypto-js:
         specifier: ^4.2.0
         version: 4.2.0
@@ -4813,6 +4816,9 @@ packages:
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
+
+  barcode-receiver@file:artifacts/mobile/modules/barcode-receiver:
+    resolution: {directory: artifacts/mobile/modules/barcode-receiver, type: directory}
 
   bare-events@2.8.2:
     resolution: {integrity: sha512-riJjyv1/mHLIPX4RwiK+oW9/4c3TEUeORHKefKAKnZ5kyslbN+HXowtbaVEqt4IMUB7OXlfixcs6gsFeo/jhiQ==}
@@ -13731,6 +13737,8 @@ snapshots:
   balanced-match@1.0.2: {}
 
   balanced-match@4.0.4: {}
+
+  barcode-receiver@file:artifacts/mobile/modules/barcode-receiver: {}
 
   bare-events@2.8.2: {}
 

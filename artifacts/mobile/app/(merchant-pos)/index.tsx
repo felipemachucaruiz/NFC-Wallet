@@ -2,7 +2,8 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, BackHandler, FlatList, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { BackHandler, FlatList, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListLocations, useGetLocationInventory, getProductByBarcode } from "@workspace/api-client-react";
@@ -49,19 +50,12 @@ export default function MerchantPosScreen() {
     }, [selectedLocationId]),
   );
 
-  const barcodeInputRef = useRef<TextInput>(null);
-  const barcodePausedRef = useRef(false);
-  const refocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const barcodeScanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const REFOCUS_DELAY_MS = 4000;
-  const BARCODE_SCAN_TIMEOUT_MS = 120;
-
   const [activeTab, setActiveTab] = useState<"catalog" | "cart">("catalog");
   const [search, setSearch] = useState("");
-
-  const [barcodeInput, setBarcodeInput] = useState("");
   const [barcodeToast, setBarcodeToast] = useState<string | null>(null);
+
+  // resumeFocusRef breaks the circular dep: handleBarcodeScan → resumeFocus → hook
+  const resumeFocusRef = useRef<() => void>(() => {});
 
   const { data: locationsData, isLoading: locLoading } = useListLocations();
   const locations = (locationsData as { locations?: Array<{ id: string; name: string }> } | undefined)?.locations ?? [];
@@ -103,51 +97,12 @@ export default function MerchantPosScreen() {
     setTimeout(() => setBarcodeToast(null), 2500);
   };
 
-  const refocusBarcodeInput = () => {
-    if (!barcodePausedRef.current) {
-      setTimeout(() => barcodeInputRef.current?.focus(), 100);
-    }
-  };
-
-  useEffect(() => {
-    if (!selectedLocationId) return;
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active" && !barcodePausedRef.current) {
-        barcodeInputRef.current?.focus();
-      }
-    });
-    return () => subscription.remove();
-  }, [selectedLocationId]);
-
-  useEffect(() => {
-    return () => {
-      if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current);
-      if (barcodeScanTimerRef.current) clearTimeout(barcodeScanTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!barcodeInput || barcodeInput.length < 4) return;
-    if (barcodeScanTimerRef.current) clearTimeout(barcodeScanTimerRef.current);
-    barcodeScanTimerRef.current = setTimeout(() => {
-      handleBarcodeScan(barcodeInput);
-    }, BARCODE_SCAN_TIMEOUT_MS);
-    return () => {
-      if (barcodeScanTimerRef.current) clearTimeout(barcodeScanTimerRef.current);
-    };
-  }, [barcodeInput]);
-
-  const handleBarcodeScan = async (barcode: string) => {
-    const trimmed = barcode.trim();
-    if (!trimmed) return;
-    setBarcodeInput("");
-
-    const inventoryItem = inventory.find((item) => item.product.barcode === trimmed);
+  const handleBarcodeScan = useCallback(async (barcode: string) => {
+    const inventoryItem = inventory.find((item) => item.product.barcode === barcode);
 
     if (!inventoryItem) {
-      // Fall back to API lookup then match against current inventory
       try {
-        const result = await getProductByBarcode(trimmed);
+        const result = await getProductByBarcode(barcode);
         const matched = inventory.find((item) => item.product.id === result.id);
         if (matched) {
           addItem({
@@ -159,10 +114,10 @@ export default function MerchantPosScreen() {
           });
           showBarcodeToast(t("pos.barcodeAdded"));
         } else {
-          showAlert(t("common.error"), t("pos.barcodeNotFound"), undefined, refocusBarcodeInput);
+          showAlert(t("common.error"), t("pos.barcodeNotFound"), undefined, resumeFocusRef.current);
         }
       } catch {
-        showAlert(t("common.error"), t("pos.barcodeNotFound"), undefined, refocusBarcodeInput);
+        showAlert(t("common.error"), t("pos.barcodeNotFound"), undefined, resumeFocusRef.current);
       }
     } else {
       addItem({
@@ -174,9 +129,16 @@ export default function MerchantPosScreen() {
       });
       showBarcodeToast(t("pos.barcodeAdded"));
     }
+    resumeFocusRef.current();
+  }, [inventory, addItem, t, showAlert]);
 
-    refocusBarcodeInput();
-  };
+  const { inputProps: barcodeInputProps, pauseFocus: pauseBarcodeFocus, resumeFocus: resumeBarcodeFocus } = useBarcodeScanner({
+    onScan: handleBarcodeScan,
+    enabled: !!selectedLocationId,
+    manageFocus: true,
+    debounceMs: 120,
+  });
+  resumeFocusRef.current = resumeBarcodeFocus;
 
   if (!selectedLocationId) {
     return (
@@ -224,18 +186,11 @@ export default function MerchantPosScreen() {
       <View style={[styles.barcodeRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
         <Feather name="maximize" size={16} color={C.textMuted} />
         <TextInput
-          ref={barcodeInputRef}
+          {...barcodeInputProps}
           style={[styles.barcodeInput, { color: C.text }]}
           placeholder={t("pos.barcodeScanBar")}
           placeholderTextColor={C.textMuted}
-          value={barcodeInput}
-          onChangeText={setBarcodeInput}
-          onSubmitEditing={() => { if (barcodeScanTimerRef.current) clearTimeout(barcodeScanTimerRef.current); handleBarcodeScan(barcodeInput); }}
-          onBlur={refocusBarcodeInput}
           returnKeyType="done"
-          autoFocus
-          blurOnSubmit={false}
-          showSoftInputOnFocus={false}
           testID="barcode-scan-input"
         />
         {barcodeToast && (

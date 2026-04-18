@@ -2,6 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import React, { useRef, useState } from "react";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -65,7 +66,6 @@ export default function MerchantProductsScreen() {
   const [pendingImageUri, setPendingImageUri] = useState<string | null>(null);
 
   // Scan-to-find state
-  const [scanSearch, setScanSearch] = useState("");
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const productYOffsets = useRef<Record<string, number>>({});
@@ -287,13 +287,9 @@ export default function MerchantProductsScreen() {
   };
 
   const handleScanSearch = (barcode: string) => {
-    const trimmed = barcode.trim();
-    setScanSearch("");
-    if (!trimmed) return;
-    const found = products.find((p) => p.barcode === trimmed);
+    const found = products.find((p) => p.barcode === barcode);
     if (found) {
       setHighlightedId(found.id);
-      // Scroll to the matching product
       const yOffset = productYOffsets.current[found.id];
       if (yOffset !== undefined && scrollViewRef.current) {
         scrollViewRef.current.scrollTo({ y: yOffset - 20, animated: true });
@@ -303,6 +299,11 @@ export default function MerchantProductsScreen() {
       showAlert(t("common.error"), t("merchant_admin.barcodeNotFound"));
     }
   };
+
+  const { inputProps: barcodeInputProps } = useBarcodeScanner({
+    onScan: handleScanSearch,
+    enabled: !showAddForm && !editingProduct,
+  });
 
   const currentImageUri = pendingImageUri ?? resolveImageUrl(editingProduct ? form.imageUrl : null);
 
@@ -338,14 +339,11 @@ export default function MerchantProductsScreen() {
         <View style={[styles.scanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
           <Feather name="maximize" size={16} color={C.textMuted} />
           <TextInput
+            {...barcodeInputProps}
             style={[styles.scanInput, { color: C.text }]}
             placeholder={t("merchant_admin.barcodeScanToFind")}
             placeholderTextColor={C.textMuted}
-            value={scanSearch}
-            onChangeText={setScanSearch}
-            onSubmitEditing={() => handleScanSearch(scanSearch)}
             returnKeyType="search"
-            blurOnSubmit={false}
             testID="admin-barcode-scan-input"
           />
         </View>

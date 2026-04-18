@@ -1,0 +1,13 @@
+{
+  "platforms": ["android", "ios"],
+  "android": {
+    "modules": [
+      "expo.modules.barcodereceiver.BarcodeReceiverModule"
+    ]
+  },
+  "ios": {
+    "modules": [
+      "BarcodeReceiverModule"
+    ]
+  }
+}

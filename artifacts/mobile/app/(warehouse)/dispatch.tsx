@@ -2,6 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useRef, useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -59,9 +60,7 @@ export default function DispatchScreen() {
   const [transferAddQty, setTransferAddQty] = useState("");
   const [transferNote, setTransferNote] = useState("");
 
-  // Barcode scan state
-  const [dispatchBarcode, setDispatchBarcode] = useState("");
-  const [transferBarcode, setTransferBarcode] = useState("");
+  // Barcode scan state — unused refs kept for layout compatibility
   const transferBarcodeInputRef = useRef<TextInput>(null);
   const dispatchBarcodeInputRef = useRef<TextInput>(null);
 
@@ -117,30 +116,32 @@ export default function DispatchScreen() {
   // ── Barcode scan handlers ─────────────────────────────────────────────────
 
   const handleDispatchBarcodeScan = (barcode: string) => {
-    const trimmed = barcode.trim();
-    setDispatchBarcode("");
-    if (!trimmed) return;
-    const found = dispatchProducts.find((p) => p.product?.barcode === trimmed);
+    const found = dispatchProducts.find((p) => p.product?.barcode === barcode);
     if (!found) {
       showAlert(t("common.error"), t("warehouse.barcodeNotFound"));
     } else {
       addToLines(setOrderLines, found.productId, found.product?.name ?? found.productId, found.quantityOnHand);
     }
-    setTimeout(() => dispatchBarcodeInputRef.current?.focus(), 100);
   };
 
   const handleTransferBarcodeScan = (barcode: string) => {
-    const trimmed = barcode.trim();
-    setTransferBarcode("");
-    if (!trimmed) return;
-    const found = transferProducts.find((p) => p.product?.barcode === trimmed);
+    const found = transferProducts.find((p) => p.product?.barcode === barcode);
     if (!found) {
       showAlert(t("common.error"), t("warehouse.barcodeNotFound"));
     } else {
       addToLines(setTransferLines, found.productId, found.product?.name ?? found.productId, found.quantityOnHand);
     }
-    setTimeout(() => transferBarcodeInputRef.current?.focus(), 100);
   };
+
+  // Each scanner is enabled only for the active mode — prevents both firing on a single broadcast.
+  const { inputProps: dispatchBarcodeInputProps } = useBarcodeScanner({
+    onScan: handleDispatchBarcodeScan,
+    enabled: mode === "dispatch",
+  });
+  const { inputProps: transferBarcodeInputProps } = useBarcodeScanner({
+    onScan: handleTransferBarcodeScan,
+    enabled: mode === "transfer",
+  });
 
   // ── Manual add-line handlers ─────────────────────────────────────────────
 
@@ -395,15 +396,11 @@ export default function DispatchScreen() {
                   <View style={[styles.barcodeScanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
                     <Feather name="maximize" size={15} color={C.textMuted} />
                     <TextInput
-                      ref={dispatchBarcodeInputRef}
+                      {...dispatchBarcodeInputProps}
                       style={[styles.barcodeScanInput, { color: C.text }]}
                       placeholder={t("warehouse.barcodeScanToAdd")}
                       placeholderTextColor={C.textMuted}
-                      value={dispatchBarcode}
-                      onChangeText={setDispatchBarcode}
-                      onSubmitEditing={() => handleDispatchBarcodeScan(dispatchBarcode)}
                       returnKeyType="done"
-                      blurOnSubmit={false}
                       testID="dispatch-barcode-input"
                     />
                   </View>
@@ -539,15 +536,11 @@ export default function DispatchScreen() {
                   <View style={[styles.barcodeScanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
                     <Feather name="maximize" size={15} color={C.textMuted} />
                     <TextInput
-                      ref={transferBarcodeInputRef}
+                      {...transferBarcodeInputProps}
                       style={[styles.barcodeScanInput, { color: C.text }]}
                       placeholder={t("warehouse.barcodeScanToAdd")}
                       placeholderTextColor={C.textMuted}
-                      value={transferBarcode}
-                      onChangeText={setTransferBarcode}
-                      onSubmitEditing={() => handleTransferBarcodeScan(transferBarcode)}
                       returnKeyType="done"
-                      blurOnSubmit={false}
                       testID="transfer-barcode-input"
                     />
                   </View>
