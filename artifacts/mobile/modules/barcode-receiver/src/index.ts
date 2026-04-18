@@ -1,4 +1,4 @@
-import { Platform, DeviceEventEmitter } from "react-native";
+import { Platform, NativeEventEmitter } from "react-native";
 import { requireNativeModule } from "expo-modules-core";
 
 let nativeModule: {
@@ -7,9 +7,12 @@ let nativeModule: {
   sendTestScan(barcode: string): Promise<void>;
 } | null = null;
 
+let eventEmitter: NativeEventEmitter | null = null;
+
 if (Platform.OS === "android") {
   try {
     nativeModule = requireNativeModule("BarcodeReceiver");
+    eventEmitter = new NativeEventEmitter(nativeModule as any);
   } catch {
     // Native module not available (dev client / pre-build #8)
   }
@@ -30,7 +33,7 @@ export function sendTestScan(barcode: string): Promise<void> {
 }
 
 export function addBarcodeListener(listener: (data: string) => void): { remove(): void } {
-  if (!nativeModule) return { remove: () => {} };
-  const sub = DeviceEventEmitter.addListener("TapeeBarcodeScanned", (e: { data: string }) => listener(e.data));
+  if (!eventEmitter) return { remove: () => {} };
+  const sub = eventEmitter.addListener("onBarcodeScanned", (e: { data: string }) => listener(e.data));
   return { remove: () => sub.remove() };
 }

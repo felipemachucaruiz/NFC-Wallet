@@ -4,8 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.modules.core.DeviceEventManagerModule
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -14,6 +12,8 @@ class BarcodeReceiverModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("BarcodeReceiver")
+
+    Events("onBarcodeScanned")
 
     OnCreate {
       registerReceiver()
@@ -24,19 +24,12 @@ class BarcodeReceiverModule : Module() {
     AsyncFunction("stopListening") { }
 
     AsyncFunction("sendTestScan") { barcode: String ->
-      emitBarcode(barcode)
+      sendEvent("onBarcodeScanned", mapOf("data" to barcode))
     }
 
     OnDestroy {
       unregisterReceiver()
     }
-  }
-
-  private fun emitBarcode(barcode: String) {
-    val ctx = appContext.reactContext ?: return
-    val params = Arguments.createMap().apply { putString("data", barcode) }
-    ctx.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-      ?.emit("TapeeBarcodeScanned", params)
   }
 
   private fun registerReceiver() {
@@ -46,7 +39,7 @@ class BarcodeReceiverModule : Module() {
     val receiver = object : BroadcastReceiver() {
       override fun onReceive(context: Context, intent: Intent) {
         val barcode = intent.getStringExtra("barcodeData") ?: return
-        emitBarcode(barcode)
+        sendEvent("onBarcodeScanned", mapOf("data" to barcode))
       }
     }
 
