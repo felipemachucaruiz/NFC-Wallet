@@ -1,12 +1,13 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
   useGetWarehouseInventory,
+  useListProducts,
   useListWarehouses,
   useUpdateWarehouseInventory,
 } from "@workspace/api-client-react";
@@ -19,6 +20,9 @@ import { Empty } from "@/components/ui/Empty";
 import { Input } from "@/components/ui/Input";
 import { Loading } from "@/components/ui/Loading";
 import { useEventContext } from "@/contexts/EventContext";
+
+type Warehouse = { id: string; name: string; eventId?: string };
+type Product = { id: string; name: string; barcode?: string | null; active?: boolean };
 
 export default function WarehouseStockScreen() {
   const { t } = useTranslation();
@@ -34,26 +38,52 @@ export default function WarehouseStockScreen() {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [receiveQty, setReceiveQty] = useState("");
   const [receiveNote, setReceiveNote] = useState("");
-
-  // Barcode scan-to-fill in receive modal
+  const [productSearch, setProductSearch] = useState("");
 
   const isCentralized = inventoryMode === "centralized_warehouse";
 
   const { data: warehousesData } = useListWarehouses(undefined, { query: { enabled: isCentralized, queryKey: ["warehouses-stock", isCentralized] } });
-  const warehouses = (warehousesData as { warehouses?: Array<{ id: string; name: string }> } | undefined)?.warehouses ?? [];
-  const activeWarehouseId = selectedWarehouseId || warehouses[0]?.id || "";
+  const warehouses: Warehouse[] = (warehousesData as { warehouses?: Warehouse[] } | undefined)?.warehouses ?? [];
+  const activeWarehouse = warehouses.find((w) => w.id === selectedWarehouseId) ?? warehouses[0];
+  const activeWarehouseId = activeWarehouse?.id ?? "";
+  const activeEventId = activeWarehouse?.eventId;
 
   const { data, isLoading, refetch } = useGetWarehouseInventory(activeWarehouseId, {
     query: { enabled: !!activeWarehouseId && isCentralized },
   });
   const items: WarehouseInventoryItem[] = (data as GetWarehouseInventory200 | undefined)?.inventory ?? [];
 
+  // Load ALL products for the event so warehouse can receive new items.
+  // eventId is not in the generated ListProductsParams type (spec only has merchantId)
+  // but the URL builder iterates all keys, so the cast works at runtime.
+  const { data: productsData } = useListProducts(
+    activeEventId ? ({ eventId: activeEventId } as any) : ({} as any),
+    { query: { enabled: !!activeEventId && receiveModalVisible, queryKey: ["event-products-warehouse", activeEventId] } },
+  );
+  const allProducts: Product[] = ((productsData as { products?: Product[] } | undefined)?.products ?? []).filter((p) => p.active !== false);
+
+  // Quick lookup: current warehouse qty by productId
+  const warehouseQtyMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of items) map[item.productId] = item.quantityOnHand;
+    return map;
+  }, [items]);
+
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return allProducts;
+    return allProducts.filter(
+      (p) => p.name.toLowerCase().includes(q) || (p.barcode ?? "").toLowerCase().includes(q),
+    );
+  }, [allProducts, productSearch]);
+
   const updateWarehouse = useUpdateWarehouseInventory();
 
   const handleBarcodeScanInModal = (barcode: string) => {
-    const found = items.find((p) => p.product?.barcode === barcode);
+    // Search in ALL event products, not just those already in warehouse
+    const found = allProducts.find((p) => p.barcode === barcode);
     if (found) {
-      setSelectedProductId(found.productId);
+      setSelectedProductId(found.id);
     } else {
       showAlert(t("common.error"), t("warehouse.barcodeNotFound"));
     }
@@ -68,9 +98,9 @@ export default function WarehouseStockScreen() {
     setSelectedProductId("");
     setReceiveQty("");
     setReceiveNote("");
+    setProductSearch("");
     setReceiveModalVisible(true);
   };
-
 
   const handleReceive = async () => {
     const qty = parseInt(receiveQty, 10);
@@ -211,7 +241,7 @@ export default function WarehouseStockScreen() {
           </View>
 
           <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }}>
-            {/* Barcode scan-to-fill row */}
+            {/* Barcode scan-to-select */}
             <View style={[styles.barcodeScanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
               <Feather name="maximize" size={16} color={C.textMuted} />
               <TextInput
@@ -224,26 +254,61 @@ export default function WarehouseStockScreen() {
               />
             </View>
 
+            {/* Product search + picker */}
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("warehouse.selectProduct")}</Text>
-            <View style={{ gap: 8 }}>
-              {items.map((p) => (
-                <Pressable
-                  key={p.productId}
-                  onPress={() => setSelectedProductId(p.productId)}
-                  style={[styles.productChip, {
-                    backgroundColor: selectedProductId === p.productId ? C.primaryLight : C.card,
-                    borderColor: selectedProductId === p.productId ? C.primary : C.border,
-                  }]}
-                >
-                  <Text style={[styles.productChipText, { color: selectedProductId === p.productId ? C.primary : C.text }]}>
-                    {p.product?.name ?? p.productId}
-                  </Text>
-                  <Text style={[styles.productChipQty, { color: C.textSecondary }]}>
-                    {p.quantityOnHand} {t("warehouse.inWarehouse").toLowerCase()}
-                  </Text>
+            <View style={[styles.searchRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+              <Feather name="search" size={15} color={C.textMuted} />
+              <TextInput
+                value={productSearch}
+                onChangeText={setProductSearch}
+                placeholder={t("common.search")}
+                placeholderTextColor={C.textMuted}
+                style={[styles.searchInput, { color: C.text }]}
+              />
+              {productSearch.length > 0 && (
+                <Pressable onPress={() => setProductSearch("")}>
+                  <Feather name="x" size={15} color={C.textMuted} />
                 </Pressable>
-              ))}
-              {items.length === 0 && (
+              )}
+            </View>
+
+            <View style={{ gap: 8 }}>
+              {filteredProducts.map((p) => {
+                const warehouseQty = warehouseQtyMap[p.id];
+                const isSelected = selectedProductId === p.id;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => setSelectedProductId(p.id)}
+                    style={[styles.productChip, {
+                      backgroundColor: isSelected ? C.primaryLight : C.card,
+                      borderColor: isSelected ? C.primary : C.border,
+                    }]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.productChipText, { color: isSelected ? C.primary : C.text }]}>
+                        {p.name}
+                      </Text>
+                      {p.barcode ? (
+                        <Text style={[styles.productChipBarcode, { color: C.textMuted }]}>{p.barcode}</Text>
+                      ) : null}
+                    </View>
+                    {warehouseQty !== undefined ? (
+                      <Text style={[styles.productChipQty, { color: C.textSecondary }]}>
+                        {warehouseQty} {t("warehouse.inWarehouse").toLowerCase()}
+                      </Text>
+                    ) : (
+                      <Text style={[styles.productChipQty, { color: C.textMuted }]}>
+                        {t("warehouse.new")}
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+              {filteredProducts.length === 0 && allProducts.length > 0 && (
+                <Text style={[{ color: C.textMuted, fontSize: 13 }]}>{t("common.noResults")}</Text>
+              )}
+              {allProducts.length === 0 && (
                 <Text style={[{ color: C.textMuted, fontSize: 13 }]}>{t("warehouse.noProducts")}</Text>
               )}
             </View>
@@ -296,8 +361,11 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
   barcodeScanRow: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 12, borderWidth: 1 },
   barcodeScanInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1 },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   sectionLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  productChip: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
+  productChip: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, flexDirection: "row", alignItems: "center", gap: 10 },
   productChipText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  productChipBarcode: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   productChipQty: { fontSize: 12, fontFamily: "Inter_400Regular" },
 });

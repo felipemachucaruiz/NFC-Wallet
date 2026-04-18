@@ -617,7 +617,8 @@
     "reasonExpired": "Expired",
     "reason_damaged": "Damaged",
     "reason_lost": "Lost",
-    "reason_expired": "Expired"
+    "reason_expired": "Expired",
+    "new": "New"
   },
   "eventAdmin": {
     "dashboard": "Dashboard",
@@ -1271,10 +1272,10 @@
     "noZoneWarning": "No zone assigned. Contact your event admin.",
     "securityCheck": "Access Check",
     "securityCheckHint": "Verify a wristband has access to your zone",
-    "accessGranted": "Access Granted",
+    "accessGranted": "Access granted: {{zone}}",
     "accessDenied": "Access Denied",
     "currentZones": "Zones on bracelet",
-    "scanNext": "Tap to scan next",
+    "scanNext": "Scan next",
     "checkingZone": "Zone to check",
     "checkingAccess": "Checking access...",
     "accessCheckResult": "Access check result",
@@ -1358,9 +1359,7 @@
     "braceletWrongEvent": "This bracelet belongs to a different event.",
     "directRegisterError": "Could not register bracelet. Please try again.",
     "directRegisterFailed": "Registration failed",
-    "accessGranted": "Access granted: {{zone}}",
     "nextScanIn": "Next scan in {{count}}s",
-    "scanNext": "Scan next",
     "tryAgain": "Try again",
     "nfcNotAvailable": "NFC not available",
     "nfcNotAvailableHint": "This device does not have NFC enabled.",

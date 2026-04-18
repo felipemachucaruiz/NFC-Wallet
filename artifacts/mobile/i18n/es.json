@@ -617,7 +617,8 @@
     "reasonExpired": "Vencido",
     "reason_damaged": "Dañado",
     "reason_lost": "Perdido",
-    "reason_expired": "Vencido"
+    "reason_expired": "Vencido",
+    "new": "Nuevo"
   },
   "eventAdmin": {
     "dashboard": "Dashboard",
@@ -1260,10 +1261,10 @@
     "noZoneWarning": "Sin zona asignada. Contacta al administrador del evento.",
     "securityCheck": "Verificación de Acceso",
     "securityCheckHint": "Verifica que una pulsera tenga acceso a tu zona",
-    "accessGranted": "Acceso Concedido",
+    "accessGranted": "Acceso otorgado: {{zone}}",
     "accessDenied": "Acceso Denegado",
     "currentZones": "Zonas en la pulsera",
-    "scanNext": "Toca para escanear la siguiente",
+    "scanNext": "Escanear siguiente",
     "checkingZone": "Zona a verificar",
     "checkingAccess": "Verificando acceso...",
     "accessCheckResult": "Resultado de verificación",
@@ -1347,9 +1348,7 @@
     "braceletWrongEvent": "Esta pulsera pertenece a otro evento.",
     "directRegisterError": "No se pudo registrar la pulsera. Intenta de nuevo.",
     "directRegisterFailed": "Error al registrar",
-    "accessGranted": "Acceso otorgado: {{zone}}",
     "nextScanIn": "Próximo escaneo en {{count}}s",
-    "scanNext": "Escanear siguiente",
     "tryAgain": "Intentar de nuevo",
     "nfcNotAvailable": "NFC no disponible",
     "nfcNotAvailableHint": "Este dispositivo no tiene NFC habilitado.",
