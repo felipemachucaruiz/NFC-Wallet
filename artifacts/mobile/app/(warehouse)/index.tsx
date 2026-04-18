@@ -42,23 +42,27 @@ export default function WarehouseStockScreen() {
 
   const isCentralized = inventoryMode === "centralized_warehouse";
 
-  const { data: warehousesData } = useListWarehouses(undefined, { query: { enabled: isCentralized, queryKey: ["warehouses-stock", isCentralized] } });
+  // Load warehouses unconditionally — eventId defaults to "location_based" when the
+  // warehouse_admin has no user.eventId, which would gate warehouses out and break
+  // product lookup. We always need warehouses to derive activeEventId.
+  const { data: warehousesData, isLoading: warehousesLoading } = useListWarehouses(undefined, { query: { queryKey: ["warehouses-stock"] } });
   const warehouses: Warehouse[] = (warehousesData as { warehouses?: Warehouse[] } | undefined)?.warehouses ?? [];
   const activeWarehouse = warehouses.find((w) => w.id === selectedWarehouseId) ?? warehouses[0];
   const activeWarehouseId = activeWarehouse?.id ?? "";
   const activeEventId = activeWarehouse?.eventId;
 
   const { data, isLoading, refetch } = useGetWarehouseInventory(activeWarehouseId, {
-    query: { enabled: !!activeWarehouseId && isCentralized },
+    query: { enabled: !!activeWarehouseId },
   });
   const items: WarehouseInventoryItem[] = (data as GetWarehouseInventory200 | undefined)?.inventory ?? [];
 
-  // Load ALL products for the event so warehouse can receive new items.
+  // Load ALL event products as soon as activeEventId is known (not gated on modal open)
+  // so they're ready before the user scans a barcode.
   // eventId is not in the generated ListProductsParams type (spec only has merchantId)
-  // but the URL builder iterates all keys, so the cast works at runtime.
+  // but the URL builder iterates all keys so the cast works at runtime.
   const { data: productsData } = useListProducts(
     activeEventId ? ({ eventId: activeEventId } as any) : ({} as any),
-    { query: { enabled: !!activeEventId && receiveModalVisible, queryKey: ["event-products-warehouse", activeEventId] } },
+    { query: { enabled: !!activeEventId, queryKey: ["event-products-warehouse", activeEventId] } },
   );
   const allProducts: Product[] = ((productsData as { products?: Product[] } | undefined)?.products ?? []).filter((p) => p.active !== false);
 
@@ -125,9 +129,12 @@ export default function WarehouseStockScreen() {
     }
   };
 
-  if (isLoading && !items.length) return <Loading label={t("common.loading")} />;
+  if ((isLoading || warehousesLoading) && !items.length && !warehouses.length) return <Loading label={t("common.loading")} />;
 
-  if (inventoryMode === "location_based") {
+  // Only show the info screen if warehouses have finished loading and none exist.
+  // Do NOT rely on inventoryMode from EventContext — it defaults to "location_based"
+  // for warehouse_admin users who have no eventId, even when warehouses exist.
+  if (!warehousesLoading && warehouses.length === 0) {
     return (
       <View
         style={{
