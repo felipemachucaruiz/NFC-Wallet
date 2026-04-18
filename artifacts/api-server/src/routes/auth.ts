@@ -152,10 +152,11 @@ router.get("/auth/user", async (req: Request, res: Response) => {
     // Non-fatal: names are display-only
   }
 
+  const safeResult = GetCurrentAuthUserResponse.safeParse({ user: u });
+  const baseUser = safeResult.success ? safeResult.data.user : u;
   res.json({
-    ...GetCurrentAuthUserResponse.parse({ user: u }),
     user: {
-      ...GetCurrentAuthUserResponse.parse({ user: u }).user,
+      ...baseUser,
       merchantName,
       merchantType,
       eventName,
