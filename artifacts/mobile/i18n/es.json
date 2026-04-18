@@ -593,6 +593,7 @@
     "products": "productos",
     "noProducts": "Sin productos en el almacén",
     "barcodeScanToAdd": "Escanea código de barras para agregar producto",
+    "barcodeScanHint": "Escanea el código de barras del producto con el lector",
     "barcodeNotFound": "Producto no encontrado para este código",
     "audit": "Auditoría",
     "auditSubtitle": "Compara los conteos físicos con el sistema",

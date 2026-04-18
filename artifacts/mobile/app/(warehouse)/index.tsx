@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import { FlatList, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
+import { BROADCAST_MODE, useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import {
@@ -249,17 +249,24 @@ export default function WarehouseStockScreen() {
 
           <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }}>
             {/* Barcode scan-to-select */}
-            <View style={[styles.barcodeScanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
-              <Feather name="maximize" size={16} color={C.textMuted} />
-              <TextInput
-                {...barcodeInputProps}
-                style={[styles.barcodeScanInput, { color: C.text }]}
-                placeholder={t("warehouse.barcodeScanToAdd")}
-                placeholderTextColor={C.textMuted}
-                returnKeyType="done"
-                testID="warehouse-receive-barcode-input"
-              />
-            </View>
+            {BROADCAST_MODE ? (
+              <View style={[styles.barcodeScanRow, { backgroundColor: C.primaryLight, borderColor: C.primary + "55" }]}>
+                <Feather name="maximize" size={18} color={C.primary} />
+                <Text style={[styles.barcodeScanHint, { color: C.primary }]}>{t("warehouse.barcodeScanHint")}</Text>
+              </View>
+            ) : (
+              <View style={[styles.barcodeScanRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+                <Feather name="maximize" size={16} color={C.textMuted} />
+                <TextInput
+                  {...barcodeInputProps}
+                  style={[styles.barcodeScanInput, { color: C.text }]}
+                  placeholder={t("warehouse.barcodeScanToAdd")}
+                  placeholderTextColor={C.textMuted}
+                  returnKeyType="done"
+                  testID="warehouse-receive-barcode-input"
+                />
+              </View>
+            )}
 
             {/* Product search + picker */}
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>{t("warehouse.selectProduct")}</Text>
@@ -366,8 +373,9 @@ const styles = StyleSheet.create({
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#ccc", alignSelf: "center", marginBottom: 16 },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
   modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
-  barcodeScanRow: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 12, borderWidth: 1 },
+  barcodeScanRow: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
   barcodeScanInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  barcodeScanHint: { flex: 1, fontSize: 14, fontFamily: "Inter_500Medium" },
   searchRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   sectionLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },

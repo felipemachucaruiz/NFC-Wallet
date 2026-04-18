@@ -593,6 +593,7 @@
     "products": "products",
     "noProducts": "No products in warehouse",
     "barcodeScanToAdd": "Scan barcode to add product",
+    "barcodeScanHint": "Scan the product barcode with the reader",
     "barcodeNotFound": "Product not found for this barcode",
     "audit": "Audit",
     "auditSubtitle": "Compare physical counts with the system",
