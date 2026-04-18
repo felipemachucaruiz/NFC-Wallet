@@ -473,7 +473,7 @@ async function processTransaction(
             await tx.insert(restockOrdersTable).values({
               locationId: input.locationId,
               productId: item.productId,
-              requestedQty: locInv.restockTargetQty,
+              requestedQty: Math.max(1, locInv.restockTargetQty - newQty),
               triggeredByTransactionId: txLog.id,
             });
           }
