@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
@@ -22,8 +22,19 @@ export function PasscodeScreen({ mode, onSuccess, onCancel, title, subtitle }: P
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
+  const { height: screenHeight } = useWindowDimensions();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+
+  // Compact layout for small screens (< 700px)
+  const compact = screenHeight < 700;
+  const keySize = compact ? 58 : 72;
+  const keyGap = compact ? 8 : 12;
+  const cardGap = compact ? 12 : 20;
+  const cardPadV = compact ? 16 : 28;
+  const logoH = compact ? 36 : 56;
+  const logoW = compact ? 103 : 160;
+  const titleSize = compact ? 17 : 20;
 
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
@@ -72,11 +83,11 @@ export function PasscodeScreen({ mode, onSuccess, onCancel, title, subtitle }: P
       />
 
       <View style={[styles.overlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.card}>
-          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+        <View style={[styles.card, { gap: cardGap, paddingVertical: cardPadV }]}>
+          <Image source={LOGO} style={{ width: logoW, height: logoH }} resizeMode="contain" />
 
           <View style={styles.textBlock}>
-            <Text style={styles.titleText}>
+            <Text style={[styles.titleText, { fontSize: titleSize }]}>
               {title ?? (mode === "unlock" ? t("passcode.enterPin") : t("passcode.createPin"))}
             </Text>
             {(subtitle || error) ? (
@@ -98,9 +109,9 @@ export function PasscodeScreen({ mode, onSuccess, onCancel, title, subtitle }: P
             ))}
           </Animated.View>
 
-          <View style={styles.pad}>
+          <View style={[styles.pad, { gap: keyGap }]}>
             {PAD_KEYS.map((key, idx) => {
-              if (key === "") return <View key={idx} style={styles.padEmpty} />;
+              if (key === "") return <View key={idx} style={{ width: keySize, height: keySize }} />;
               const isBackspace = key === "⌫";
               return (
                 <Pressable
@@ -108,13 +119,14 @@ export function PasscodeScreen({ mode, onSuccess, onCancel, title, subtitle }: P
                   onPress={() => press(key)}
                   style={({ pressed }) => [
                     styles.padKey,
+                    { width: keySize, height: keySize, borderRadius: keySize / 2 },
                     pressed && styles.padKeyPressed,
                   ]}
                 >
                   {isBackspace ? (
-                    <Feather name="delete" size={20} color="#ffffff" />
+                    <Feather name="delete" size={compact ? 18 : 20} color="#ffffff" />
                   ) : (
-                    <Text style={styles.padKeyText}>{key}</Text>
+                    <Text style={[styles.padKeyText, { fontSize: compact ? 22 : 26 }]}>{key}</Text>
                   )}
                 </Pressable>
               );
@@ -148,14 +160,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
-    paddingVertical: 28,
     paddingHorizontal: 20,
-    gap: 20,
   },
-  logo: { width: 160, height: 56 },
   textBlock: { alignItems: "center", gap: 6 },
   titleText: {
-    fontSize: 20,
     fontFamily: "Inter_700Bold",
     color: "#ffffff",
     textAlign: "center",
@@ -185,21 +193,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    gap: 12,
     maxWidth: 280,
   },
   padKey: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
     backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   padKeyPressed: { backgroundColor: "rgba(255,255,255,0.28)" },
-  padEmpty: { width: 72, height: 72 },
   padKeyText: {
-    fontSize: 26,
     fontFamily: "Inter_400Regular",
     color: "#ffffff",
   },
