@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -13,22 +15,16 @@ class BarcodeReceiverModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("BarcodeReceiver")
 
-    Events("onBarcodeScanned")
-
-    // Auto-register on module load so the receiver is always active,
-    // regardless of which screen is currently mounted.
     OnCreate {
       registerReceiver()
     }
 
-    // Kept for API compatibility — receiver is already registered in OnCreate.
     AsyncFunction("startListening") { }
 
     AsyncFunction("stopListening") { }
 
-    // Fires the event directly without a broadcast — use to verify the JS event chain.
     AsyncFunction("sendTestScan") { barcode: String ->
-      sendEvent("onBarcodeScanned", mapOf("data" to barcode))
+      emitBarcode(barcode)
     }
 
     OnDestroy {
@@ -36,16 +32,21 @@ class BarcodeReceiverModule : Module() {
     }
   }
 
+  private fun emitBarcode(barcode: String) {
+    val ctx = appContext.reactContext ?: return
+    val params = Arguments.createMap().apply { putString("data", barcode) }
+    ctx.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+      ?.emit("TapeeBarcodeScanned", params)
+  }
+
   private fun registerReceiver() {
     if (broadcastReceiver != null) return
-
-    // Get context first — if unavailable, bail without touching broadcastReceiver.
     val ctx = appContext.reactContext?.applicationContext ?: return
 
     val receiver = object : BroadcastReceiver() {
       override fun onReceive(context: Context, intent: Intent) {
         val barcode = intent.getStringExtra("barcodeData") ?: return
-        sendEvent("onBarcodeScanned", mapOf("data" to barcode))
+        emitBarcode(barcode)
       }
     }
 
