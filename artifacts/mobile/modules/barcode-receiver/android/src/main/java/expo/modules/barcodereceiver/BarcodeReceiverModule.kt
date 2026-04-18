@@ -40,7 +40,12 @@ class BarcodeReceiverModule : Module() {
 
     val filter = IntentFilter("scan.rcv.message")
     try {
-      appContext.reactContext?.registerReceiver(broadcastReceiver, filter)
+      val ctx = appContext.reactContext ?: return
+      if (android.os.Build.VERSION.SDK_INT >= 33) {
+        ctx.registerReceiver(broadcastReceiver, filter, Context.RECEIVER_EXPORTED)
+      } else {
+        ctx.registerReceiver(broadcastReceiver, filter)
+      }
     } catch (e: Exception) {
       broadcastReceiver = null
     }
