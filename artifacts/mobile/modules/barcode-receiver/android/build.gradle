@@ -14,6 +14,7 @@ if (expoModulesCorePlugin.exists()) {
 }
 
 android {
+  namespace "expo.modules.barcodereceiver"
   compileSdkVersion safeExtGet("compileSdkVersion", 35)
 
   defaultConfig {
