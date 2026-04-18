@@ -23,6 +23,11 @@ class BarcodeReceiverModule : Module() {
       unregisterReceiver()
     }
 
+    // Fires the event directly without a broadcast — used to verify the JS event chain works.
+    AsyncFunction("sendTestScan") { barcode: String ->
+      sendEvent("onBarcodeScanned", mapOf("data" to barcode))
+    }
+
     OnDestroy {
       unregisterReceiver()
     }
@@ -39,8 +44,9 @@ class BarcodeReceiverModule : Module() {
     }
 
     val filter = IntentFilter("scan.rcv.message")
+    // Use applicationContext for stability — survives React Native reloads.
+    val ctx = appContext.reactContext?.applicationContext ?: return
     try {
-      val ctx = appContext.reactContext ?: return
       if (android.os.Build.VERSION.SDK_INT >= 33) {
         ctx.registerReceiver(broadcastReceiver, filter, Context.RECEIVER_EXPORTED)
       } else {
@@ -54,7 +60,7 @@ class BarcodeReceiverModule : Module() {
   private fun unregisterReceiver() {
     broadcastReceiver?.let { receiver ->
       try {
-        appContext.reactContext?.unregisterReceiver(receiver)
+        appContext.reactContext?.applicationContext?.unregisterReceiver(receiver)
       } catch (_: Exception) {}
       broadcastReceiver = null
     }

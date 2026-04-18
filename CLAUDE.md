@@ -60,7 +60,7 @@ Si una tarea requiere tocar estas carpetas, detener y pedir confirmación primer
 
 | App | Archivo | Versión actual |
 |-----|---------|----------------|
-| Staff | `artifacts/mobile/app.config.js` | **1.0.12** (buildNumber 12, versionCode 12) |
+| Staff | `artifacts/mobile/app.config.js` | **1.0.13** (buildNumber 13, versionCode 13) |
 | Attendee | `artifacts/attendee-app/app.json` | **9** |
 
 Antes de cada nuevo APK de la app staff, incrementar en `artifacts/mobile/app.config.js` los tres valores juntos:

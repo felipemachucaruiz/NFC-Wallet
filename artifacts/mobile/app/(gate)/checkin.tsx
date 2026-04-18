@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useBarcodeScanner, BROADCAST_MODE } from "@/hooks/useBarcodeScanner";
+import { sendTestScan } from "@/modules/barcode-receiver/src";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -895,6 +896,15 @@ export default function EntranceCheckinScreen() {
                 <Text style={[styles.barcodeHint, { color: C.textMuted }]}>
                   Apunta el lector al código QR del tiquete y presiona el gatillo.
                 </Text>
+                <Pressable
+                  onPress={() => sendTestScan("TEST-BROADCAST-OK")}
+                  style={[styles.testScanBtn, { borderColor: C.border }]}
+                >
+                  <Feather name="zap" size={14} color={C.textMuted} />
+                  <Text style={[styles.testScanText, { color: C.textMuted }]}>
+                    Probar evento de escaneo
+                  </Text>
+                </Pressable>
               </View>
             )}
 
@@ -1171,6 +1181,21 @@ const styles = StyleSheet.create({
   barcodeHint: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
+  },
+  testScanBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  testScanText: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
   },
   orDivider: {
     textAlign: "center",

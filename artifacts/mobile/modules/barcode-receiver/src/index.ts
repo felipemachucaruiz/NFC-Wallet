@@ -1,7 +1,11 @@
 import { Platform } from "react-native";
 import { EventEmitter, requireNativeModule } from "expo-modules-core";
 
-let nativeModule: { startListening(): Promise<void>; stopListening(): Promise<void> } | null = null;
+let nativeModule: {
+  startListening(): Promise<void>;
+  stopListening(): Promise<void>;
+  sendTestScan(barcode: string): Promise<void>;
+} | null = null;
 let emitter: EventEmitter | null = null;
 
 if (Platform.OS === "android") {
@@ -22,6 +26,11 @@ export function startListening(): Promise<void> {
 
 export function stopListening(): Promise<void> {
   return nativeModule?.stopListening() ?? Promise.resolve();
+}
+
+/** Fires a fake scan event directly — bypasses broadcasts. Use to verify the JS event chain. */
+export function sendTestScan(barcode: string): Promise<void> {
+  return nativeModule?.sendTestScan(barcode) ?? Promise.resolve();
 }
 
 export function addBarcodeListener(listener: (data: string) => void): { remove(): void } {
