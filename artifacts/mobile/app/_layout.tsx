@@ -285,6 +285,11 @@ function CrashLogReporter() {
   return null;
 }
 
+function OfflineQueueWithUser({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  return <OfflineQueueProvider userId={user?.id}>{children}</OfflineQueueProvider>;
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
@@ -324,7 +329,7 @@ export default function RootLayout() {
                 <AttestationErrorBridge />
                 <AppWithPasscode>
                   <CartProvider>
-                    <OfflineQueueProvider>
+                    <OfflineQueueWithUser>
                       <ZoneCacheProvider>
                       <BannedBraceletsProvider>
                       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
@@ -341,7 +346,7 @@ export default function RootLayout() {
                       </GestureHandlerRootView>
                       </BannedBraceletsProvider>
                       </ZoneCacheProvider>
-                    </OfflineQueueProvider>
+                    </OfflineQueueWithUser>
                   </CartProvider>
                 </AppWithPasscode>
               </AttestationProvider>

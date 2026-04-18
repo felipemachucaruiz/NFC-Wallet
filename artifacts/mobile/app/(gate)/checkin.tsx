@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
+import { useBarcodeScanner, BROADCAST_MODE } from "@/hooks/useBarcodeScanner";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -884,6 +884,7 @@ export default function EntranceCheckinScreen() {
 
         {pageState === "ready" && !showQrScanner && (
           <>
+            {!BROADCAST_MODE && (
             <View style={[styles.scannerCard, { backgroundColor: C.card, borderColor: C.border }]}>
               <View style={styles.scannerHeader}>
                 <Feather name="maximize" size={20} color={C.primary} />
@@ -920,6 +921,7 @@ export default function EntranceCheckinScreen() {
                 />
               ) : null}
             </View>
+            )}
 
             {hasCamera && (
               <>

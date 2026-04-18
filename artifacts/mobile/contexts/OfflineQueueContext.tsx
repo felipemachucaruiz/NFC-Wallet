@@ -14,9 +14,9 @@ import { cacheSigningKey, getCachedSigningKey } from "@/utils/signingKeyCache";
 import { extractErrorMessage } from "@/utils/errorMessage";
 import { useAttestationContext } from "@/contexts/AttestationContext";
 
-const QUEUE_KEY = "@offline_queue";
-const TOPUP_QUEUE_KEY = "@offline_topup_queue";
-const UNSYNC_SPEND_KEY = "@unsync_spend_cop";
+const queueKey = (uid: string) => `@offline_queue_${uid}`;
+const topupKey = (uid: string) => `@offline_topup_queue_${uid}`;
+const spendKey = (uid: string) => `@unsync_spend_cop_${uid}`;
 const SYNC_INTERVAL = 30_000;
 const DISMISSED_POLL_INTERVAL = 120_000; // 2 minutes
 
@@ -113,9 +113,9 @@ function isForbiddenBlocked(item: QueuedItem): boolean {
   return item.failCount >= MAX_ATTEST_RETRIES && item.failReason === "forbidden";
 }
 
-async function loadQueue(): Promise<QueuedTransaction[]> {
+async function loadQueue(uid: string): Promise<QueuedTransaction[]> {
   try {
-    const raw = await AsyncStorage.getItem(QUEUE_KEY);
+    const raw = await AsyncStorage.getItem(queueKey(uid));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as QueuedTransaction[];
     return parsed.map((t) => ({ ...t, type: "charge" as const, grossAmount: t.grossAmount ?? 0 }));
@@ -124,15 +124,15 @@ async function loadQueue(): Promise<QueuedTransaction[]> {
   }
 }
 
-async function saveQueue(q: QueuedTransaction[]): Promise<void> {
+async function saveQueue(uid: string, q: QueuedTransaction[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+    await AsyncStorage.setItem(queueKey(uid), JSON.stringify(q));
   } catch {}
 }
 
-async function loadTopUpQueue(): Promise<QueuedTopUp[]> {
+async function loadTopUpQueue(uid: string): Promise<QueuedTopUp[]> {
   try {
-    const raw = await AsyncStorage.getItem(TOPUP_QUEUE_KEY);
+    const raw = await AsyncStorage.getItem(topupKey(uid));
     if (!raw) return [];
     return JSON.parse(raw) as QueuedTopUp[];
   } catch {
@@ -140,28 +140,32 @@ async function loadTopUpQueue(): Promise<QueuedTopUp[]> {
   }
 }
 
-async function saveTopUpQueue(q: QueuedTopUp[]): Promise<void> {
+async function saveTopUpQueue(uid: string, q: QueuedTopUp[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(TOPUP_QUEUE_KEY, JSON.stringify(q));
+    await AsyncStorage.setItem(topupKey(uid), JSON.stringify(q));
   } catch {}
 }
 
-async function loadUnsyncedSpend(): Promise<number> {
+async function loadUnsyncedSpend(uid: string): Promise<number> {
   try {
-    const raw = await AsyncStorage.getItem(UNSYNC_SPEND_KEY);
+    const raw = await AsyncStorage.getItem(spendKey(uid));
     return raw ? parseInt(raw, 10) : 0;
   } catch {
     return 0;
   }
 }
 
-async function saveUnsyncedSpend(amount: number): Promise<void> {
+async function saveUnsyncedSpend(uid: string, amount: number): Promise<void> {
   try {
-    await AsyncStorage.setItem(UNSYNC_SPEND_KEY, String(amount));
+    await AsyncStorage.setItem(spendKey(uid), String(amount));
   } catch {}
 }
 
-export function OfflineQueueProvider({ children }: { children: React.ReactNode }) {
+export function OfflineQueueProvider({ children, userId }: { children: React.ReactNode; userId?: string }) {
+  const userKey = userId ?? "anon";
+  const userKeyRef = useRef(userKey);
+  useEffect(() => { userKeyRef.current = userKey; }, [userKey]);
+
   const [queue, setQueue] = useState<QueuedTransaction[]>([]);
   const [topUpQueue, setTopUpQueue] = useState<QueuedTopUp[]>([]);
   const [isOnline, setIsOnline] = useState(true);
@@ -178,39 +182,36 @@ export function OfflineQueueProvider({ children }: { children: React.ReactNode }
   useEffect(() => { retryAttestationRef.current = retryAttestation; }, [retryAttestation]);
 
   useEffect(() => {
-    loadQueue().then((q) => {
-      queueRef.current = q;
-      setQueue(q);
-    });
-    loadTopUpQueue().then((q) => {
-      topUpQueueRef.current = q;
-      setTopUpQueue(q);
-    });
-    getCachedSigningKey().then((key) => {
-      if (key) setCachedHmacSecret(key);
-    });
-    loadUnsyncedSpend().then((amount) => {
-      unsyncedSpendRef.current = amount;
-      setUnsyncedSpendCop(amount);
-    });
-  }, []);
+    // Reset immediately so stale data from previous user is not visible
+    queueRef.current = [];
+    topUpQueueRef.current = [];
+    unsyncedSpendRef.current = 0;
+    setQueue([]);
+    setTopUpQueue([]);
+    setUnsyncedSpendCop(0);
+
+    loadQueue(userKey).then((q) => { queueRef.current = q; setQueue(q); });
+    loadTopUpQueue(userKey).then((q) => { topUpQueueRef.current = q; setTopUpQueue(q); });
+    loadUnsyncedSpend(userKey).then((amount) => { unsyncedSpendRef.current = amount; setUnsyncedSpendCop(amount); });
+    getCachedSigningKey().then((key) => { if (key) setCachedHmacSecret(key); });
+  }, [userKey]);
 
   const updateQueue = useCallback(async (q: QueuedTransaction[]) => {
     queueRef.current = q;
     setQueue([...q]);
-    await saveQueue(q);
+    await saveQueue(userKeyRef.current, q);
   }, []);
 
   const updateTopUpQueue = useCallback(async (q: QueuedTopUp[]) => {
     topUpQueueRef.current = q;
     setTopUpQueue([...q]);
-    await saveTopUpQueue(q);
+    await saveTopUpQueue(userKeyRef.current, q);
   }, []);
 
   const updateUnsyncedSpend = useCallback(async (amount: number) => {
     unsyncedSpendRef.current = amount;
     setUnsyncedSpendCop(amount);
-    await saveUnsyncedSpend(amount);
+    await saveUnsyncedSpend(userKeyRef.current, amount);
   }, []);
 
   const updateCachedHmacSecret = useCallback(async (secret: string) => {

@@ -7,7 +7,7 @@ import { addBarcodeListener, isAvailable, startListening, stopListening } from "
  * False on iOS, web, or any build that pre-dates build #8.
  * When false, the hook falls back to keyboard-wedge TextInput mode.
  */
-const BROADCAST_MODE = Platform.OS === "android" && isAvailable;
+export const BROADCAST_MODE = Platform.OS === "android" && isAvailable;
 
 interface UseBarcodeOptions {
   onScan: (barcode: string) => void;
