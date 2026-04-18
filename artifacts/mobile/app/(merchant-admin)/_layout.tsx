@@ -3,7 +3,12 @@ import { BlurView } from "expo-blur";
 import { Tabs, router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+
+const styles = StyleSheet.create({
+  posTab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3 },
+  posTabLabel: { fontSize: 10, fontFamily: "Inter_500Medium" },
+});
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -87,6 +92,22 @@ function ClassicTabLayout() {
         options={{
           title: t("merchant_admin.payouts"),
           tabBarIcon: ({ color }) => <Feather name="credit-card" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="pos-link"
+        options={{
+          title: t("pos.title"),
+          tabBarIcon: ({ color }) => <Feather name="shopping-cart" size={22} color={color} />,
+          tabBarButton: ({ style }) => (
+            <Pressable
+              style={[style, styles.posTab]}
+              onPress={() => router.push("/(merchant-pos)/")}
+            >
+              <Feather name="shopping-cart" size={22} color={C.primary} />
+              <Text style={[styles.posTabLabel, { color: C.primary }]}>{t("pos.title")}</Text>
+            </Pressable>
+          ),
         }}
       />
       <Tabs.Screen name="profile" options={{ href: null }} />

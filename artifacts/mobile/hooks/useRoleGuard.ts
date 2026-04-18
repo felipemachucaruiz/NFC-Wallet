@@ -14,8 +14,9 @@ const ROLE_HOME: Record<string, string> = {
   admin: "/(admin)/",
 };
 
-export function useRoleGuard(requiredRole: string): { isReady: boolean } {
+export function useRoleGuard(requiredRole: string | string[]): { isReady: boolean } {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
 
   useEffect(() => {
     if (isLoading) return;
@@ -23,12 +24,12 @@ export function useRoleGuard(requiredRole: string): { isReady: boolean } {
       router.replace("/login");
       return;
     }
-    if (user.role !== requiredRole) {
+    if (!allowed.includes(user.role)) {
       const home = (ROLE_HOME[user.role] ?? "/") as Parameters<typeof router.replace>[0];
       router.replace(home);
     }
-  }, [isLoading, isAuthenticated, user?.role, requiredRole]);
+  }, [isLoading, isAuthenticated, user?.role, JSON.stringify(allowed)]);
 
-  const isAuthorized = !isLoading && isAuthenticated && !!user && user.role === requiredRole;
+  const isAuthorized = !isLoading && isAuthenticated && !!user && allowed.includes(user.role);
   return { isReady: isAuthorized };
 }

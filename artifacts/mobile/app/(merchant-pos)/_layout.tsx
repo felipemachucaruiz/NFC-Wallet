@@ -10,7 +10,7 @@ import { useEventContext } from "@/contexts/EventContext";
 import { EventEndedOverlay } from "@/components/EventEndedOverlay";
 
 export default function MerchantPosLayout() {
-  const { isReady } = useRoleGuard("merchant_staff");
+  const { isReady } = useRoleGuard(["merchant_staff", "merchant_admin"]);
   const { isEventEnded, isLoading: isEventLoading } = useEventContext();
   const { t } = useTranslation();
   const scheme = useColorScheme();
