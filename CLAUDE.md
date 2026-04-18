@@ -59,7 +59,7 @@ Si una tarea requiere tocar estas carpetas, detener y pedir confirmación primer
 
 | App | Archivo | buildNumber actual |
 |-----|---------|-------------------|
-| Staff | `artifacts/mobile/app.json` | **7** |
+| Staff | `artifacts/mobile/app.config.js` | **11** (version 1.0.11) |
 | Attendee | `artifacts/attendee-app/app.json` | **9** |
 
 Siempre incrementar el `buildNumber` en el `app.json` correspondiente antes de lanzar un build.
