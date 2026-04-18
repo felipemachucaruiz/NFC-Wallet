@@ -71,26 +71,6 @@ export default function MerchantPosScreen() {
     item.product.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const scheduleRefocus = useCallback(() => {
-    if (refocusTimerRef.current) clearTimeout(refocusTimerRef.current);
-    refocusTimerRef.current = setTimeout(() => {
-      barcodePausedRef.current = false;
-      barcodeInputRef.current?.focus();
-    }, REFOCUS_DELAY_MS);
-  }, []);
-
-  const pauseBarcodeFocus = useCallback(() => {
-    barcodePausedRef.current = true;
-    barcodeInputRef.current?.blur();
-    scheduleRefocus();
-  }, [scheduleRefocus]);
-
-  useEffect(() => {
-    if (selectedLocationId && !invLoading) {
-      const t = setTimeout(() => barcodeInputRef.current?.focus(), 300);
-      return () => clearTimeout(t);
-    }
-  }, [selectedLocationId, invLoading]);
 
   const showBarcodeToast = (msg: string) => {
     setBarcodeToast(msg);
