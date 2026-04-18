@@ -59,10 +59,15 @@ Si una tarea requiere tocar estas carpetas, detener y pedir confirmación primer
 
 | App | Archivo | buildNumber actual |
 |-----|---------|-------------------|
-| Staff | `artifacts/mobile/app.config.js` | **11** (version 1.0.11) |
+| Staff | `artifacts/mobile/app.config.js` | **12** (version 1.0.12) |
 | Attendee | `artifacts/attendee-app/app.json` | **9** |
 
-Siempre incrementar el `buildNumber` en el `app.json` correspondiente antes de lanzar un build.
+Antes de cada nuevo APK, incrementar en `artifacts/mobile/app.config.js` los tres valores juntos:
+- `version` → ej. `"1.0.11"` → `"1.0.12"`
+- `buildNumber` → ej. `"11"` → `"12"`
+- `versionCode` → ej. `11` → `12`
+
+El número de patch de `version` siempre debe coincidir con `buildNumber` y `versionCode`. Esto también cambia el `runtimeVersion` (política `appVersion`), lo que significa que las OTAs publicadas para la versión anterior NO se aplican al nuevo APK — cada APK tiene su propio canal de OTA.
 
 ### 4. Entorno Windows — Errores de `preinstall`
 
