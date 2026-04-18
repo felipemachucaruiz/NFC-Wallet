@@ -23,7 +23,7 @@ function ClassicTabLayout() {
         headerTintColor: C.text,
         headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
         headerRight: () => (
-          <Pressable onPress={() => router.push("/settings")} style={{ marginRight: 16 }}>
+          <Pressable onPress={() => router.push("/(admin)/roles")} style={{ marginRight: 16 }}>
             <Feather name="settings" size={20} color={C.textSecondary} />
           </Pressable>
         ),
@@ -53,7 +53,7 @@ function ClassicTabLayout() {
       <Tabs.Screen name="analytics" options={{ title: t("analytics.title"), tabBarIcon: ({ color }) => <Feather name="activity" size={22} color={color} /> }} />
       <Tabs.Screen name="reports" options={{ title: t("admin.billing"), tabBarIcon: ({ color }) => <Feather name="dollar-sign" size={22} color={color} /> }} />
       <Tabs.Screen name="fraud-alerts" options={{ title: t("fraud.alertsTitle"), tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }} />
-      <Tabs.Screen name="roles" options={{ title: t("admin.settings"), tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} /> }} />
+      <Tabs.Screen name="roles" options={{ href: null }} />
       <Tabs.Screen name="merchants" options={{ href: null }} />
     </Tabs>
   );

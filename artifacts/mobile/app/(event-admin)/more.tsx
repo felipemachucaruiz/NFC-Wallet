@@ -49,7 +49,6 @@ export default function MoreScreen() {
     },
     { icon: "shield", labelKey: "zones.title", route: "/(event-admin)/access-zones" },
     { icon: "sliders", labelKey: "eventAdmin.inventorySettings", route: "/(event-admin)/event-settings" },
-    { icon: "user", labelKey: "common.settings", route: "/(event-admin)/profile" },
   ];
 
   const visible = menuItems.filter((m) => m.condition === undefined || m.condition);
@@ -67,6 +66,13 @@ export default function MoreScreen() {
         ]}
       >
         <Text style={[styles.title, { color: C.text }]}>{t("eventAdmin.more")}</Text>
+        <Pressable
+          onPress={() => router.push("/(event-admin)/profile")}
+          style={({ pressed }) => [styles.gearBtn, { opacity: pressed ? 0.6 : 1 }]}
+          hitSlop={12}
+        >
+          <Feather name="settings" size={22} color={C.textSecondary} />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -134,8 +140,9 @@ export default function MoreScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingBottom: 16, gap: 4 },
-  title: { fontSize: 26, fontFamily: "Inter_700Bold" },
+  header: { paddingBottom: 16, gap: 4, flexDirection: "row", alignItems: "center" },
+  title: { fontSize: 26, fontFamily: "Inter_700Bold", flex: 1 },
+  gearBtn: { padding: 4 },
   list: { paddingHorizontal: 20, paddingTop: 8, gap: 0 },
   sectionHeader: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.8, marginTop: 20, marginBottom: 8, marginLeft: 4 },
   group: {
