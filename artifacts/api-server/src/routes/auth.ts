@@ -259,6 +259,61 @@ router.post("/auth/login", async (req: Request, res: Response) => {
   res.json({ token: sid });
 });
 
+const DEMO_ROLES = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin", "box_office"] as const;
+const DemoLoginBody = z.object({
+  role: z.enum(DEMO_ROLES),
+  secret: z.string().min(1),
+});
+
+router.post("/auth/demo-login", async (req: Request, res: Response) => {
+  const demoSecret = process.env.DEMO_SECRET;
+  if (!demoSecret) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  const parsed = DemoLoginBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request" });
+    return;
+  }
+
+  const { role, secret } = parsed.data;
+  if (secret !== demoSecret) {
+    res.status(401).json({ error: "Invalid secret" });
+    return;
+  }
+
+  const username = `demo_${role}`;
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.username, username));
+
+  if (!user) {
+    res.status(404).json({ error: `Demo account for role '${role}' not found. Run the demo seed SQL first.` });
+    return;
+  }
+
+  const sessionData = {
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.profileImageUrl,
+      role: user.role,
+      merchantId: user.merchantId ?? null,
+      eventId: user.eventId ?? null,
+      promoterCompanyId: user.promoterCompanyId ?? null,
+      gateZoneId: user.gateZoneId ?? null,
+    },
+  };
+
+  const sid = await createSession(sessionData);
+  res.json({ token: sid });
+});
+
 router.post("/auth/logout", async (req: Request, res: Response) => {
   const sid = getSessionId(req);
   if (sid) {

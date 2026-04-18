@@ -49,7 +49,7 @@ type SetupStep = "prompt" | "enter" | "confirm";
 
 export default function LoginScreen() {
   const { t } = useTranslation();
-  const { login, verify2fa, isAuthenticated, isLoading } = useAuth();
+  const { login, verify2fa, demoLogin, isAuthenticated, isLoading } = useAuth();
   const { hasPasscode, setPasscode, skipPinPrompt, onLoginAttempted } = usePasscode();
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
@@ -96,6 +96,52 @@ export default function LoginScreen() {
     } finally {
       setForgotSubmitting(false);
     }
+  };
+
+  // Demo panel state
+  const DEMO_SECRET = process.env.EXPO_PUBLIC_DEMO_SECRET ?? "";
+  const demoEnabled = !!DEMO_SECRET && !isWeb;
+  const logoTapCountRef = useRef(0);
+  const lastLogoTapRef = useRef(0);
+  const [demoModalVisible, setDemoModalVisible] = useState(false);
+  const [demoSubmitting, setDemoSubmitting] = useState<string | null>(null);
+  const [demoError, setDemoError] = useState<string | null>(null);
+
+  const handleLogoPress = () => {
+    if (!demoEnabled) return;
+    const now = Date.now();
+    if (now - lastLogoTapRef.current > 2000) logoTapCountRef.current = 1;
+    else logoTapCountRef.current += 1;
+    lastLogoTapRef.current = now;
+    if (logoTapCountRef.current >= 5) {
+      logoTapCountRef.current = 0;
+      setDemoError(null);
+      setDemoModalVisible(true);
+    }
+  };
+
+  const DEMO_ROLES = [
+    { role: "admin", label: "Admin", icon: "settings" as const },
+    { role: "event_admin", label: "Event Admin", icon: "calendar" as const },
+    { role: "bank", label: "Bank / Recarga", icon: "credit-card" as const },
+    { role: "gate", label: "Gate / Acceso", icon: "log-in" as const },
+    { role: "merchant_admin", label: "Merchant Admin", icon: "briefcase" as const },
+    { role: "merchant_staff", label: "Merchant Staff", icon: "shopping-bag" as const },
+    { role: "warehouse_admin", label: "Warehouse", icon: "package" as const },
+    { role: "box_office", label: "Box Office", icon: "tag" as const },
+  ];
+
+  const handleDemoLogin = async (role: string) => {
+    setDemoError(null);
+    setDemoSubmitting(role);
+    const err = await demoLogin(role, DEMO_SECRET);
+    setDemoSubmitting(null);
+    if (err) {
+      setDemoError(err);
+      return;
+    }
+    setDemoModalVisible(false);
+    await completeLogin();
   };
 
   // 2FA state
@@ -248,11 +294,13 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={[styles.logoSection, isLandscape && styles.logoSectionLandscape]}>
-            <Image
-              source={require("@/assets/images/tapee-logo.png")}
-              style={[styles.logoImage, isLandscape && styles.logoImageLandscape]}
-              resizeMode="contain"
-            />
+            <Pressable onPress={handleLogoPress} hitSlop={12}>
+              <Image
+                source={require("@/assets/images/tapee-logo.png")}
+                style={[styles.logoImage, isLandscape && styles.logoImageLandscape]}
+                resizeMode="contain"
+              />
+            </Pressable>
             <Text style={[styles.subtitle, { color: "rgba(255,255,255,0.65)" }]}>{t("auth.subtitle")}</Text>
           </View>
 
@@ -430,6 +478,48 @@ export default function LoginScreen() {
         </Pressable>
       </Modal>
 
+      {/* Demo Quick-Switch panel */}
+      <Modal
+        visible={demoModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setDemoModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setDemoModalVisible(false)}>
+          <View style={[styles.totpSheet, { backgroundColor: "#161b22", borderColor: "rgba(255,255,255,0.1)" }]}>
+            <View style={[styles.totpIcon, { backgroundColor: "rgba(255,180,0,0.12)" }]}>
+              <Feather name="zap" size={28} color="#f59e0b" />
+            </View>
+            <Text style={styles.totpTitle}>Demo Quick-Switch</Text>
+            <Text style={styles.totpHint}>Selecciona un rol para iniciar sesión de demo al instante.</Text>
+            {demoError && (
+              <View style={[styles.totpErrorBox, { backgroundColor: "rgba(239,68,68,0.15)" }]}>
+                <Feather name="alert-circle" size={13} color="#ef4444" />
+                <Text style={[styles.totpErrorText, { color: "#ef4444" }]}>{demoError}</Text>
+              </View>
+            )}
+            <View style={{ width: "100%", gap: 8 }}>
+              {DEMO_ROLES.map(({ role, label, icon }) => (
+                <Pressable
+                  key={role}
+                  onPress={() => handleDemoLogin(role)}
+                  disabled={!!demoSubmitting}
+                  style={[styles.demoRoleBtn, { backgroundColor: demoSubmitting === role ? "rgba(0,241,255,0.15)" : "rgba(255,255,255,0.06)", opacity: demoSubmitting && demoSubmitting !== role ? 0.4 : 1 }]}
+                >
+                  <Feather name={icon} size={16} color={demoSubmitting === role ? "#00f1ff" : "rgba(255,255,255,0.7)"} />
+                  <Text style={[styles.demoRoleBtnText, { color: demoSubmitting === role ? "#00f1ff" : "#e6edf3" }]}>
+                    {demoSubmitting === role ? "Iniciando…" : label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable onPress={() => setDemoModalVisible(false)} style={styles.totpCancel}>
+              <Text style={styles.totpCancelText}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* 2FA verification modal */}
       <Modal
         visible={totpModal}
@@ -581,6 +671,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   totpErrorText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+  demoRoleBtn: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 12 },
+  demoRoleBtnText: { fontSize: 14, fontFamily: "Inter_500Medium" },
   totpCancel: { paddingVertical: 8 },
   totpCancelText: {
     fontSize: 14,

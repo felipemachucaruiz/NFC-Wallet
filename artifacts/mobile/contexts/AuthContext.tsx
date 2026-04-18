@@ -67,6 +67,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (identifier: string, password: string, rememberMe?: boolean) => Promise<string | null>;
   verify2fa: (partialToken: string, code: string, rememberMe?: boolean) => Promise<string | null>;
+  demoLogin: (role: string, secret: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -266,6 +267,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchUser, setAuthToken]);
 
+  const demoLogin = useCallback(async (role: string, secret: string): Promise<string | null> => {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/auth/demo-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, secret }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return (data as { error?: string }).error ?? "Demo login failed";
+      }
+      const { token: sid } = await res.json() as { token: string };
+      const u = await fetchUser(sid);
+      if (!u || u === "network_error") return "Could not load user profile";
+      await storeToken(sid);
+      setAuthToken(sid);
+      setUser(u);
+      return null;
+    } catch {
+      return "Network error";
+    }
+  }, [fetchUser, setAuthToken]);
+
   const logout = useCallback(async () => {
     try {
       const t = tokenRef.current;
@@ -301,6 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         login,
         verify2fa,
+        demoLogin,
         logout,
         refreshUser,
       }}
