@@ -70,7 +70,7 @@ export default function MovementsScreen() {
               <Feather name={meta.icon} size={18} color={C.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.productName, { color: C.text }]}>{item.product.name}</Text>
+              <Text style={[styles.productName, { color: C.text }]}>{item.product?.name ?? "—"}</Text>
               {locationText ? (
                 <Text style={[styles.locationText, { color: C.textSecondary }]}>{locationText}</Text>
               ) : null}

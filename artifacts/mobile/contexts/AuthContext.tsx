@@ -39,6 +39,7 @@ export type UserRole =
   | "merchant_admin"
   | "warehouse_admin"
   | "event_admin"
+  | "box_office"
   | "admin";
 
 export interface AuthUser {

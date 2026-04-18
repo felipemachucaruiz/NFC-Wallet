@@ -172,7 +172,7 @@ const StaffLoginBody = z.object({
   password: z.string().min(1),
 });
 
-const STAFF_ROLES = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin", "ticketing_auditor"] as const;
+const STAFF_ROLES = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin", "box_office", "ticketing_auditor"] as const;
 
 router.post("/auth/login", async (req: Request, res: Response) => {
   const parsed = StaffLoginBody.safeParse(req.body);
