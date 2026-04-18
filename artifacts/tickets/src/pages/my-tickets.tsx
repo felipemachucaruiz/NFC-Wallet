@@ -133,7 +133,7 @@ export default function MyTickets() {
       </div>
 
       <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
-        <DialogContent className="max-w-md p-0 border-0 bg-transparent shadow-none overflow-visible">
+        <DialogContent className="max-w-md p-0 border-0 bg-transparent shadow-none overflow-y-auto max-h-[90dvh]">
           {selectedTicket && <ETicketFull ticket={selectedTicket} />}
         </DialogContent>
       </Dialog>
