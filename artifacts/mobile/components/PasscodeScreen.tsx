@@ -71,62 +71,62 @@ export function PasscodeScreen({ mode, onSuccess, onCancel, title, subtitle }: P
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={[styles.inner, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24 }]}>
-        <View style={styles.logoWrap}>
+      <View style={[styles.overlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={styles.card}>
           <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-        </View>
 
-        <View style={styles.textBlock}>
-          <Text style={styles.titleText}>
-            {title ?? (mode === "unlock" ? t("passcode.enterPin") : t("passcode.createPin"))}
-          </Text>
-          {(subtitle || error) ? (
-            <Text style={[styles.subtitleText, error ? styles.errorText : null]}>
-              {error || subtitle}
+          <View style={styles.textBlock}>
+            <Text style={styles.titleText}>
+              {title ?? (mode === "unlock" ? t("passcode.enterPin") : t("passcode.createPin"))}
             </Text>
-          ) : null}
-        </View>
+            {(subtitle || error) ? (
+              <Text style={[styles.subtitleText, error ? styles.errorText : null]}>
+                {error || subtitle}
+              </Text>
+            ) : null}
+          </View>
 
-        <Animated.View style={[styles.dots, { transform: [{ translateX: shakeAnim }] }]}>
-          {Array.from({ length: CODE_LENGTH }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                i < code.length ? styles.dotFilled : styles.dotEmpty,
-              ]}
-            />
-          ))}
-        </Animated.View>
-
-        <View style={styles.pad}>
-          {PAD_KEYS.map((key, idx) => {
-            if (key === "") return <View key={idx} style={styles.padEmpty} />;
-            const isBackspace = key === "⌫";
-            return (
-              <Pressable
-                key={idx}
-                onPress={() => press(key)}
-                style={({ pressed }) => [
-                  styles.padKey,
-                  pressed && styles.padKeyPressed,
+          <Animated.View style={[styles.dots, { transform: [{ translateX: shakeAnim }] }]}>
+            {Array.from({ length: CODE_LENGTH }).map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  i < code.length ? styles.dotFilled : styles.dotEmpty,
                 ]}
-              >
-                {isBackspace ? (
-                  <Feather name="delete" size={22} color="#ffffff" />
-                ) : (
-                  <Text style={styles.padKeyText}>{key}</Text>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+              />
+            ))}
+          </Animated.View>
 
-        {onCancel && (
-          <Pressable onPress={onCancel} style={styles.cancelBtn}>
-            <Text style={styles.cancelText}>{t("passcode.logout")}</Text>
-          </Pressable>
-        )}
+          <View style={styles.pad}>
+            {PAD_KEYS.map((key, idx) => {
+              if (key === "") return <View key={idx} style={styles.padEmpty} />;
+              const isBackspace = key === "⌫";
+              return (
+                <Pressable
+                  key={idx}
+                  onPress={() => press(key)}
+                  style={({ pressed }) => [
+                    styles.padKey,
+                    pressed && styles.padKeyPressed,
+                  ]}
+                >
+                  {isBackspace ? (
+                    <Feather name="delete" size={20} color="#ffffff" />
+                  ) : (
+                    <Text style={styles.padKeyText}>{key}</Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {onCancel && (
+            <Pressable onPress={onCancel} style={styles.cancelBtn}>
+              <Text style={styles.cancelText}>{t("passcode.logout")}</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -134,23 +134,34 @@ export function PasscodeScreen({ mode, onSuccess, onCancel, title, subtitle }: P
 
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFillObject, zIndex: 900 },
-  inner: {
+  overlay: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 28,
+    justifyContent: "center",
+    paddingHorizontal: 20,
   },
-  logoWrap: { alignItems: "center" },
-  logo: { width: 220, height: 80 },
-  textBlock: { alignItems: "center", gap: 8 },
+  card: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    gap: 20,
+  },
+  logo: { width: 160, height: 56 },
+  textBlock: { alignItems: "center", gap: 6 },
   titleText: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: "Inter_700Bold",
     color: "#ffffff",
     textAlign: "center",
   },
   subtitleText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
     color: "rgba(255,255,255,0.7)",
     textAlign: "center",
@@ -161,9 +172,9 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   dot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     borderWidth: 2,
     borderColor: "#ffffff",
   },
@@ -174,27 +185,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    gap: 16,
-    maxWidth: 320,
+    gap: 12,
+    maxWidth: 280,
   },
   padKey: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   padKeyPressed: { backgroundColor: "rgba(255,255,255,0.28)" },
-  padEmpty: { width: 80, height: 80 },
+  padEmpty: { width: 72, height: 72 },
   padKeyText: {
-    fontSize: 28,
+    fontSize: 26,
     fontFamily: "Inter_400Regular",
     color: "#ffffff",
   },
-  cancelBtn: { paddingVertical: 12 },
+  cancelBtn: { paddingVertical: 8 },
   cancelText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "Inter_500Medium",
     color: "rgba(255,255,255,0.6)",
     textDecorationLine: "underline",
