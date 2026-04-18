@@ -542,6 +542,12 @@ router.post(
     }
 
     if (bracelet.eventId) {
+      const userEventId = req.user!.eventId;
+      if (userEventId && bracelet.eventId !== userEventId) {
+        res.status(403).json({ error: "BRACELET_WRONG_EVENT", message: "This bracelet belongs to a different event" });
+        return;
+      }
+
       const [ev] = await db.select({ nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled }).from(eventsTable).where(eq(eventsTable.id, bracelet.eventId));
       if (ev && !ev.nfcBraceletsEnabled) {
         res.status(404).json({ error: "NFC_BRACELETS_DISABLED" });
