@@ -15,15 +15,18 @@ class BarcodeReceiverModule : Module() {
 
     Events("onBarcodeScanned")
 
-    AsyncFunction("startListening") {
+    // Auto-register on module load so the receiver is always active,
+    // regardless of which screen is currently mounted.
+    OnCreate {
       registerReceiver()
     }
 
-    AsyncFunction("stopListening") {
-      unregisterReceiver()
-    }
+    // Kept for API compatibility — receiver is already registered in OnCreate.
+    AsyncFunction("startListening") { }
 
-    // Fires the event directly without a broadcast — used to verify the JS event chain works.
+    AsyncFunction("stopListening") { }
+
+    // Fires the event directly without a broadcast — use to verify the JS event chain.
     AsyncFunction("sendTestScan") { barcode: String ->
       sendEvent("onBarcodeScanned", mapOf("data" to barcode))
     }
@@ -36,7 +39,10 @@ class BarcodeReceiverModule : Module() {
   private fun registerReceiver() {
     if (broadcastReceiver != null) return
 
-    broadcastReceiver = object : BroadcastReceiver() {
+    // Get context first — if unavailable, bail without touching broadcastReceiver.
+    val ctx = appContext.reactContext?.applicationContext ?: return
+
+    val receiver = object : BroadcastReceiver() {
       override fun onReceive(context: Context, intent: Intent) {
         val barcode = intent.getStringExtra("barcodeData") ?: return
         sendEvent("onBarcodeScanned", mapOf("data" to barcode))
@@ -44,17 +50,14 @@ class BarcodeReceiverModule : Module() {
     }
 
     val filter = IntentFilter("scan.rcv.message")
-    // Use applicationContext for stability — survives React Native reloads.
-    val ctx = appContext.reactContext?.applicationContext ?: return
     try {
       if (android.os.Build.VERSION.SDK_INT >= 33) {
-        ctx.registerReceiver(broadcastReceiver, filter, Context.RECEIVER_EXPORTED)
+        ctx.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
       } else {
-        ctx.registerReceiver(broadcastReceiver, filter)
+        ctx.registerReceiver(receiver, filter)
       }
-    } catch (e: Exception) {
-      broadcastReceiver = null
-    }
+      broadcastReceiver = receiver
+    } catch (_: Exception) { }
   }
 
   private fun unregisterReceiver() {
