@@ -19,7 +19,7 @@ module.exports = {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.tapee.staff",
-      buildNumber: "8",
+      buildNumber: "9",
       infoPlist: {
         NSPhotoLibraryUsageDescription: "Used to select product photos.",
         NFCReaderUsageDescription: "Used to read NFC wristbands for cashless payments.",
@@ -32,7 +32,7 @@ module.exports = {
     android: {
       package: "com.tapee.app",
       adaptiveIcon: {
-        foregroundImage: "./assets/images/icon.png",
+        foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#0a0a0a",
       },
       permissions: [
