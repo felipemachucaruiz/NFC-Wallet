@@ -309,7 +309,7 @@ function Router() {
         <ProtectedRoute component={EventSettlement} allowedRoles={["event_admin"]} />
       </Route>
       <Route path="/event-settings">
-        <ProtectedRoute component={EventSettings} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventSettings} allowedRoles={["event_admin", "admin"]} />
       </Route>
 
       {/* Ticketing Routes (module-gated) */}

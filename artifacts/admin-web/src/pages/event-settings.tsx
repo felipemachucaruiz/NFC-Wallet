@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+import { useEventContext } from "@/contexts/event-context";
 import {
   Settings,
   MapPin,
@@ -85,7 +86,8 @@ export default function EventSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId: adminEventId } = useEventContext();
+  const eventId = auth?.user?.role === "admin" ? adminEventId : (auth?.user?.eventId ?? "");
 
   const { data: eventData, isLoading, refetch } = useGetEvent(eventId, {
     query: { enabled: !!eventId, queryKey: ["event-settings", eventId] },

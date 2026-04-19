@@ -143,6 +143,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <NavItem href="/event-guest-lists" icon={ListChecks} label={t("nav.guestLists")} />
                 </>
               )}
+              <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
             </>
           )}
 
