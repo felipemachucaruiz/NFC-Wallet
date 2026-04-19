@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable, accessZonesTable } from "@workspace/db";
+import { pool, db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable, accessZonesTable } from "@workspace/db";
 import { eq, desc, ilike, or, and, sql, asc } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { requireNfcBraceletsEnabled } from "../middlewares/featureGating";
@@ -470,6 +470,9 @@ router.delete(
       res.status(404).json({ error: "Bracelet not found" });
       return;
     }
+    // Remove FK-dependent rows before deleting the bracelet
+    await pool.query(`DELETE FROM ticket_checkins WHERE bracelet_id = $1`, [bracelet.id]);
+    await pool.query(`DELETE FROM access_upgrades WHERE bracelet_id = $1`, [bracelet.id]);
     await db.delete(braceletsTable).where(eq(braceletsTable.nfcUid, nfcUid));
     res.json({ success: true });
   },
