@@ -635,6 +635,14 @@ async function runStartupMigrations(): Promise<void> {
       );
     `);
 
+    // ── Payment methods columns ────────────────────────────────────────────────
+    await client.query(`
+      ALTER TABLE events
+        ADD COLUMN IF NOT EXISTS bank_payment_methods jsonb NOT NULL DEFAULT '["cash","card_external","nequi_transfer","bancolombia_transfer","other"]'::jsonb,
+        ADD COLUMN IF NOT EXISTS box_office_payment_methods jsonb NOT NULL DEFAULT '["gate_cash","gate_transfer","gate_card","gate_nequi"]'::jsonb,
+        ADD COLUMN IF NOT EXISTS bank_min_topup integer NOT NULL DEFAULT 0;
+    `);
+
     // ── Sync allowed_nfc_types from nfc_chip_type for legacy events ───────────
     // When allowed_nfc_types column was added it defaulted to ["ntag_21x"].
     // Events that had nfc_chip_type already set to a different value ended up

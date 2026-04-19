@@ -185,7 +185,7 @@ export default function TopUpScreen() {
         }
       : null;
 
-  const [enabledBankMethods, setEnabledBankMethods] = useState<PaymentMethod[]>(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
+  const [enabledBankMethods, setEnabledBankMethods] = useState<PaymentMethod[] | null>(null);
   const [bankMinTopup, setBankMinTopup] = useState(0);
   const [amountText, setAmountText] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -237,7 +237,10 @@ export default function TopUpScreen() {
           setBankMinTopup(d.bankMinTopup);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // On failure, fall back to showing all methods
+        setEnabledBankMethods(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
+      });
   }, [eventId]);
 
   const { data: keyData, refetch: refetchSigningKey } = useGetSigningKey();
@@ -948,7 +951,7 @@ export default function TopUpScreen() {
         <View>
           <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>{t("bank.paymentMethod")}</Text>
           <View style={styles.methodGrid}>
-            {PAYMENT_METHODS.filter((m) => enabledBankMethods.includes(m.value)).map((m) => {
+            {PAYMENT_METHODS.filter((m) => (enabledBankMethods ?? []).includes(m.value)).map((m) => {
               const isSelected = paymentMethod === m.value;
               return (
                 <Pressable
