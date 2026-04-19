@@ -67,6 +67,9 @@ type EventDetail = {
   hasUltralightCKey?: boolean;
   offlineSyncLimit?: number;
   maxOfflineSpendPerBracelet?: number;
+  bankPaymentMethods?: string[];
+  boxOfficePaymentMethods?: string[];
+  bankMinTopup?: number;
 };
 
 type ConfirmType =
@@ -118,17 +121,55 @@ export default function EventSettings() {
   const [selectedAllowedTypes, setSelectedAllowedTypes] = useState<NfcChipType[]>(["ntag_21x"]);
   const [isSavingChipTypes, setIsSavingChipTypes] = useState(false);
 
+  const [selectedBankMethods, setSelectedBankMethods] = useState<string[]>(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
+  const [selectedBoxOfficeMethods, setSelectedBoxOfficeMethods] = useState<string[]>(["gate_cash", "gate_transfer", "gate_card", "gate_nequi"]);
+  const [bankMinTopupText, setBankMinTopupText] = useState("0");
+  const [isSavingPaymentConfig, setIsSavingPaymentConfig] = useState(false);
+
   useEffect(() => {
     if (event) {
       setOfflineSyncLimit(String(event.offlineSyncLimit ?? 500000));
       setMaxOfflineSpend(String(event.maxOfflineSpendPerBracelet ?? 200000));
       const types = event.allowedNfcTypes ?? [event.nfcChipType ?? "ntag_21x"];
       setSelectedAllowedTypes(types);
+      if (event.bankPaymentMethods) setSelectedBankMethods(event.bankPaymentMethods);
+      if (event.boxOfficePaymentMethods) setSelectedBoxOfficeMethods(event.boxOfficePaymentMethods);
+      if (event.bankMinTopup !== undefined) setBankMinTopupText(String(event.bankMinTopup));
     }
-  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes]);
+  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes, event?.bankPaymentMethods, event?.boxOfficePaymentMethods, event?.bankMinTopup]);
 
   const updateEvent = useUpdateEvent();
   const unflagBracelet = useUnflagBracelet();
+
+  const handleSavePaymentConfig = async () => {
+    if (!eventId) return;
+    if (selectedBankMethods.length === 0 || selectedBoxOfficeMethods.length === 0) {
+      toast({ title: "Selecciona al menos un método de pago para cada área.", variant: "destructive" });
+      return;
+    }
+    const minTopup = parseInt(bankMinTopupText, 10);
+    if (isNaN(minTopup) || minTopup < 0) {
+      toast({ title: "Monto mínimo inválido.", variant: "destructive" });
+      return;
+    }
+    setIsSavingPaymentConfig(true);
+    try {
+      await customFetch(`/api/events/${eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          bankPaymentMethods: selectedBankMethods,
+          boxOfficePaymentMethods: selectedBoxOfficeMethods,
+          bankMinTopup: minTopup,
+        }),
+      });
+      refetch();
+      toast({ title: "Configuración de pagos guardada." });
+    } catch {
+      toast({ title: t("common.error"), variant: "destructive" });
+    } finally {
+      setIsSavingPaymentConfig(false);
+    }
+  };
 
   const handleSelectMode = (mode: InventoryMode) => {
     if (mode === currentMode) return;
@@ -598,6 +639,85 @@ export default function EventSettings() {
           )}
           <Button onClick={handleSaveChipTypes} disabled={!allowedTypesChanged || isSavingChipTypes}>
             {isSavingChipTypes ? t("common.saving") : t("common.save")}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Métodos de Pago
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold">Banco — Recargas</h4>
+            {[
+              { value: "cash", label: "Efectivo" },
+              { value: "card_external", label: "Tarjeta (datafono)" },
+              { value: "nequi_transfer", label: "Nequi" },
+              { value: "bancolombia_transfer", label: "Bancolombia" },
+              { value: "other", label: "Otro" },
+            ].map((m) => (
+              <div key={m.value} className="flex items-center gap-2">
+                <Checkbox
+                  id={`bank-${m.value}`}
+                  checked={selectedBankMethods.includes(m.value)}
+                  onCheckedChange={(checked) =>
+                    setSelectedBankMethods((prev) =>
+                      checked
+                        ? [...prev, m.value]
+                        : prev.length > 1 ? prev.filter((x) => x !== m.value) : prev
+                    )
+                  }
+                />
+                <Label htmlFor={`bank-${m.value}`}>{m.label}</Label>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bankMinTopup">Monto mínimo de recarga (COP)</Label>
+            <p className="text-xs text-muted-foreground">0 = sin mínimo adicional (usa el mínimo base de $1.000)</p>
+            <Input
+              id="bankMinTopup"
+              type="number"
+              min="0"
+              value={bankMinTopupText}
+              onChange={(e) => setBankMinTopupText(e.target.value)}
+              placeholder="0"
+              className="max-w-xs"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold">Boletería — Venta en puerta</h4>
+            {[
+              { value: "gate_cash", label: "Efectivo" },
+              { value: "gate_transfer", label: "Transferencia" },
+              { value: "gate_card", label: "Datafono" },
+              { value: "gate_nequi", label: "Nequi (Wompi)" },
+            ].map((m) => (
+              <div key={m.value} className="flex items-center gap-2">
+                <Checkbox
+                  id={`bo-${m.value}`}
+                  checked={selectedBoxOfficeMethods.includes(m.value)}
+                  onCheckedChange={(checked) =>
+                    setSelectedBoxOfficeMethods((prev) =>
+                      checked
+                        ? [...prev, m.value]
+                        : prev.length > 1 ? prev.filter((x) => x !== m.value) : prev
+                    )
+                  }
+                />
+                <Label htmlFor={`bo-${m.value}`}>{m.label}</Label>
+              </div>
+            ))}
+          </div>
+
+          <Button onClick={handleSavePaymentConfig} disabled={isSavingPaymentConfig}>
+            {isSavingPaymentConfig ? t("common.saving") : t("common.save")}
           </Button>
         </CardContent>
       </Card>
