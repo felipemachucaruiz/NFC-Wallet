@@ -22,7 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, MapPin, ChevronDown, ChevronsUpDown, Check, Building2, Upload, Ticket, X } from "lucide-react";
+import { Plus, Search, Pencil, MapPin, ChevronDown, ChevronsUpDown, Check, Building2, Upload, Ticket, X, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
@@ -612,6 +612,11 @@ export default function Events() {
     setLocation("/event-ticket-types");
   };
 
+  const handleManageEvent = (event: RawEvent) => {
+    setEventId(event.id);
+    setLocation("/event-settings");
+  };
+
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -853,6 +858,9 @@ export default function Events() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" title="Gestionar evento" onClick={() => handleManageEvent(event)}>
+                        <Settings className="w-4 h-4" />
+                      </Button>
                       {event.ticketingEnabled && (
                         <Button variant="ghost" size="icon" title={t("nav.manageTicketing")} onClick={() => handleManageTicketing(event)}>
                           <Ticket className="w-4 h-4" />
