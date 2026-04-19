@@ -26,6 +26,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { MoreHorizontal, Plus, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEventContext } from "@/contexts/event-context";
 
 const EVENT_ROLES = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin"];
 
@@ -34,7 +35,7 @@ export default function EventUsers() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId;
+  const { eventId } = useEventContext();
 
   const { data, isLoading } = useListUsers();
   const allUsers = data?.users ?? [];

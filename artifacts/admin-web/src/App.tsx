@@ -268,45 +268,45 @@ function Router() {
         <ProtectedRoute component={LoadTest} allowedRoles={["admin"]} />
       </Route>
 
-      {/* Event Admin Routes */}
+      {/* Event Admin Routes — also accessible to admin in managingEvent mode */}
       <Route path="/event-dashboard">
-        <ProtectedRoute component={EventDashboard} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventDashboard} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-users">
-        <ProtectedRoute component={EventUsers} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventUsers} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-merchants">
-        <ProtectedRoute component={EventMerchants} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventMerchants} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-bracelets">
-        <ProtectedRoute component={EventBracelets} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventBracelets} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-access-zones">
-        <ProtectedRoute component={EventAccessZones} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventAccessZones} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-payouts">
-        <ProtectedRoute component={EventPayouts} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventPayouts} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-reports">
-        <ProtectedRoute component={EventReports} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventReports} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-products">
-        <ProtectedRoute component={EventProducts} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventProducts} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-locations">
-        <ProtectedRoute component={EventLocations} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventLocations} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-transactions">
-        <ProtectedRoute component={EventTransactions} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventTransactions} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-inventory">
-        <ProtectedRoute component={EventInventory} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventInventory} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-refund-requests">
         <ProtectedRoute component={EventRefundRequests} allowedRoles={["admin", "event_admin"]} />
       </Route>
       <Route path="/event-settlement">
-        <ProtectedRoute component={EventSettlement} allowedRoles={["event_admin"]} />
+        <ProtectedRoute component={EventSettlement} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-settings">
         <ProtectedRoute component={EventSettings} allowedRoles={["event_admin", "admin"]} />

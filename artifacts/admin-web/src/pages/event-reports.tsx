@@ -12,11 +12,12 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { DollarSign, TrendingUp, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
+import { useEventContext } from "@/contexts/event-context";
 
 export default function EventReports() {
   const { t } = useTranslation();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");

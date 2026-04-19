@@ -15,11 +15,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Search, Eye, Receipt } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
+import { useEventContext } from "@/contexts/event-context";
 
 export default function EventTransactions() {
   const { t } = useTranslation();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
 
   const [page, setPage] = useState(1);
   const [searchParam, setSearchParam] = useState("");

@@ -21,6 +21,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEventContext } from "@/contexts/event-context";
 
 type MerchantForm = { name: string; commissionRatePercent: string; retencionFuenteRate: string; retencionICARate: string };
 const emptyForm: MerchantForm = { name: "", commissionRatePercent: "0", retencionFuenteRate: "0", retencionICARate: "0" };
@@ -30,7 +31,7 @@ export default function EventMerchants() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
   const { data, isLoading } = useListMerchants({ eventId: eventId || undefined });
   const merchants = data?.merchants ?? [];
 

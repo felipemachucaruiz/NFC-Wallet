@@ -15,7 +15,7 @@ export function EventProvider({ children }: { children: ReactNode }) {
   const role = user?.user?.role;
   const userEventId = user?.user?.eventId ?? "";
 
-  const [eventId, setEventIdState] = useState(() => {
+  const [storedEventId, setStoredEventId] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem(STORAGE_KEY) || "";
     }
@@ -24,12 +24,15 @@ export function EventProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (role === "event_admin" && userEventId) {
-      setEventIdState(userEventId);
+      setStoredEventId(userEventId);
     }
   }, [role, userEventId]);
 
+  // For event_admin the assigned eventId takes precedence; for admin use localStorage
+  const eventId = role === "event_admin" ? (userEventId || storedEventId) : storedEventId;
+
   const setEventId = (id: string) => {
-    setEventIdState(id);
+    setStoredEventId(id);
     localStorage.setItem(STORAGE_KEY, id);
   };
 

@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
+import { useEventContext } from "@/contexts/event-context";
 
 type ProductForm = {
   name: string;
@@ -45,7 +46,7 @@ export default function EventProducts() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
   const { data: eventData } = useGetEvent(eventId || "");
   const currency = (eventData as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
   const fmt = (n: number) => formatCurrency(n, currency);

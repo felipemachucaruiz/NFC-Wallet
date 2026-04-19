@@ -31,13 +31,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { Plus, ArrowRightLeft, Truck, Package, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEventContext } from "@/contexts/event-context";
 
 export default function EventInventory() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
 
   const { data: warehousesData, isLoading: whLoading } = useListWarehouses({ eventId: eventId || undefined });
   const warehouses = warehousesData?.warehouses ?? [];

@@ -129,6 +129,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 {(eventRecord?.name as string) || "..."}
               </p>
 
+              <NavItem href="/event-dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
+              <NavItem href="/event-users" icon={Users} label={t("nav.staffUsers")} />
+
               {ticketingEnabled && (
                 <>
                   <NavSectionLabel label={t("nav.ticketingSection")} />
@@ -143,7 +146,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <NavItem href="/event-guest-lists" icon={ListChecks} label={t("nav.guestLists")} />
                 </>
               )}
+
+              {nfcBraceletsEnabled && (
+                <>
+                  <NavSectionLabel label={t("nav.cashlessSection")} />
+                  <NavItem href="/event-merchants" icon={Store} label={t("nav.merchants")} />
+                  <NavItem href="/event-products" icon={ShoppingBag} label={t("nav.products")} />
+                  <NavItem href="/event-locations" icon={MapPinned} label={t("nav.locations")} />
+                  <NavItem href="/event-bracelets" icon={Ticket} label={t("nav.wristbands")} />
+                  <NavItem href="/event-access-zones" icon={MapPin} label={t("nav.accessZones")} />
+                  <NavItem href="/event-transactions" icon={Receipt} label={t("nav.transactions")} />
+                  <NavItem href="/event-inventory" icon={Package} label={t("nav.inventory")} />
+                  <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
+                  <NavItem href="/event-payouts" icon={CreditCard} label={t("nav.payouts")} />
+                </>
+              )}
+
+              <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />
+              <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />
               <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
+              <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
             </>
           )}
 

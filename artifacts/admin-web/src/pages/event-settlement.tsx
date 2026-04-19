@@ -9,11 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingUp, Percent, Receipt } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
+import { useEventContext } from "@/contexts/event-context";
 
 export default function EventSettlement() {
   const { t } = useTranslation();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
 
   const { data: report, isLoading } = useGetSettlementReport(eventId || null);
 

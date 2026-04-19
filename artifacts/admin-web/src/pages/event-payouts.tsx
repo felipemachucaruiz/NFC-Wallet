@@ -18,13 +18,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEventContext } from "@/contexts/event-context";
 
 export default function EventPayouts() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
 
   const { data, isLoading } = useListPayouts({ eventId: eventId || undefined });
   const payouts = data?.payouts ?? [];

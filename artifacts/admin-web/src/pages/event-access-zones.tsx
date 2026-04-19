@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, MoreHorizontal, Pencil, Trash2, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
+import { useEventContext } from "@/contexts/event-context";
 
 type ZoneForm = { name: string; description: string; colorHex: string; rank: string; upgradePrice: string };
 const emptyForm: ZoneForm = { name: "", description: "", colorHex: "#6366f1", rank: "0", upgradePrice: "" };
@@ -33,7 +34,7 @@ export default function EventAccessZones() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
   const { data: eventData } = useGetEvent(eventId || "");
   const eventRecord = eventData as Record<string, unknown> | undefined;
   const currency = (eventRecord?.currencyCode as string) ?? "COP";

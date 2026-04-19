@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useEventContext } from "@/contexts/event-context";
 import { useGetCurrentAuthUser, useGetEvent } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ export default function EventVenueLocation() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
   const { data: eventData } = useGetEvent(eventId || "");
   const event = eventData as Record<string, unknown> | undefined;
 

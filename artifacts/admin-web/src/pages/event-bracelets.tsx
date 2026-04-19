@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { useToast } from "@/hooks/use-toast";
 import { Search, ShieldOff, Trash2, DollarSign } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEventContext } from "@/contexts/event-context";
 
 const _API_BASE = import.meta.env.PROD
   ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app").replace(/\/+$/, "")
@@ -35,7 +36,7 @@ export default function EventBracelets() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
 
   const [flaggedFilter, setFlaggedFilter] = useState<string>("all");
   const [search, setSearch] = useState("");

@@ -10,11 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Users, ShoppingCart, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
+import { useEventContext } from "@/contexts/event-context";
 
 export default function EventDashboard() {
   const { t } = useTranslation();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
 
   const params = eventId ? { eventId } : {};
   const { data: rawSummary, isLoading: summaryLoading } = useGetAnalyticsSummary(params);

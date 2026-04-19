@@ -24,6 +24,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useEventContext } from "@/contexts/event-context";
 
 type LocationForm = { name: string; merchantId: string; active: boolean };
 const emptyForm: LocationForm = { name: "", merchantId: "", active: true };
@@ -33,7 +34,7 @@ export default function EventLocations() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: auth } = useGetCurrentAuthUser();
-  const eventId = auth?.user?.eventId ?? "";
+  const { eventId } = useEventContext();
 
   const { data, isLoading } = useListLocations({ eventId: eventId || undefined });
   const locations = data?.locations ?? [];
