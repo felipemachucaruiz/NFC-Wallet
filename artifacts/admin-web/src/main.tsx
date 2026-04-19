@@ -7,7 +7,7 @@ import "./i18n";
 const SENSITIVE_KEYS = /password|token|authorization|card.?number|cvv|secret/i;
 
 Sentry.init({
-  dsn: "https://4730c7036d662c2078ad9e0293962feb@o4511219507265536.ingest.us.sentry.io/4511219595149312",
+  dsn: "https://27ca100598ad82fa837c3d42d0dc59a1@o4511219507265536.ingest.us.sentry.io/4511247988948992",
   environment: import.meta.env.PROD ? "production" : "development",
   integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
   tracesSampleRate: 0.1,
@@ -15,7 +15,7 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
   profilesSampleRate: 0.1,
   attachStacktrace: true,
-  enabled: import.meta.env.PROD && !!import.meta.env.VITE_SENTRY_DSN,
+  enabled: import.meta.env.PROD,
   beforeSend(event, hint) {
     if (event.request?.data && typeof event.request.data === "object") {
       const data = event.request.data as Record<string, unknown>;
