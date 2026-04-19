@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetCurrentAuthUser,
@@ -22,10 +22,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Tags, X, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 import { useEventContext } from "@/contexts/event-context";
+
+const _API_BASE = import.meta.env.PROD
+  ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app").replace(/\/+$/, "")
+  : `${import.meta.env.BASE_URL}_srv`;
+
+function apiUrl(path: string): string { return `${_API_BASE}${path}`; }
+function authHeaders(): HeadersInit {
+  const token = localStorage.getItem("tapee_admin_token");
+  return { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" };
+}
+
+type ProductCategory = { id: string; name: string; eventId: string; createdAt: string };
 
 type ProductForm = {
   name: string;
@@ -56,6 +68,83 @@ export default function EventProducts() {
   const { data: merchantsData } = useListMerchants({ eventId: eventId || undefined });
   const merchants = merchantsData?.merchants ?? [];
 
+  // ── Categories ─────────────────────────────────────────────────────────────
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [catOpen, setCatOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [savingCat, setSavingCat] = useState(false);
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editingCatName, setEditingCatName] = useState("");
+  const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
+
+  const fetchCategories = useCallback(async () => {
+    if (!eventId) return;
+    setCategoriesLoading(true);
+    try {
+      const res = await fetch(apiUrl(`/api/events/${eventId}/product-categories`), { headers: authHeaders() });
+      if (res.ok) {
+        const json = await res.json() as { categories: ProductCategory[] };
+        setCategories(json.categories);
+      }
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }, [eventId]);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  const handleCreateCategory = async () => {
+    if (!newCatName.trim() || !eventId) return;
+    setSavingCat(true);
+    try {
+      const res = await fetch(apiUrl(`/api/events/${eventId}/product-categories`), {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ name: newCatName.trim() }),
+      });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) { toast({ title: t("common.error"), description: json.error, variant: "destructive" }); return; }
+      setNewCatName("");
+      await fetchCategories();
+    } finally {
+      setSavingCat(false);
+    }
+  };
+
+  const handleRenameCategory = async (id: string) => {
+    if (!editingCatName.trim() || !eventId) return;
+    setSavingCat(true);
+    try {
+      const res = await fetch(apiUrl(`/api/events/${eventId}/product-categories/${id}`), {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ name: editingCatName.trim() }),
+      });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) { toast({ title: t("common.error"), description: json.error, variant: "destructive" }); return; }
+      setEditingCatId(null);
+      await fetchCategories();
+    } finally {
+      setSavingCat(false);
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!deleteCatId || !eventId) return;
+    const res = await fetch(apiUrl(`/api/events/${eventId}/product-categories/${deleteCatId}`), {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (!res.ok) {
+      const json = await res.json() as { error?: string };
+      toast({ title: t("common.error"), description: json.error, variant: "destructive" });
+    }
+    setDeleteCatId(null);
+    await fetchCategories();
+  };
+
+  // ── Products ────────────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const [merchantFilter, setMerchantFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
@@ -152,6 +241,26 @@ export default function EventProducts() {
     );
   };
 
+  const categorySelect = (
+    <div className="space-y-1">
+      <Label>{t("products.category")}</Label>
+      <Select
+        value={form.category || "__none__"}
+        onValueChange={(v) => setForm((f) => ({ ...f, category: v === "__none__" ? "" : v }))}
+      >
+        <SelectTrigger data-testid="select-product-category">
+          <SelectValue placeholder={t("products.noCategory")} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">{t("products.noCategory")}</SelectItem>
+          {categories.map((cat) => (
+            <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
   const productFormFields = (
     <div className="space-y-3">
       <div className="space-y-1">
@@ -169,10 +278,7 @@ export default function EventProducts() {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <Label>{t("products.category")}</Label>
-          <Input data-testid="input-product-category" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} />
-        </div>
+        {categorySelect}
         <div className="space-y-1">
           <Label>{t("products.barcode")}</Label>
           <Input data-testid="input-product-barcode" value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} placeholder={t("products.optional")} />
@@ -213,9 +319,14 @@ export default function EventProducts() {
           <h1 className="text-3xl font-bold tracking-tight">{t("products.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("products.subtitleEvent")}</p>
         </div>
-        <Button data-testid="button-create-product" onClick={() => { setForm(emptyForm); setCreateOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> {t("products.addProduct")}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCatOpen(true)}>
+            <Tags className="w-4 h-4 mr-2" /> {t("products.manageCategories")}
+          </Button>
+          <Button data-testid="button-create-product" onClick={() => { setForm(emptyForm); setCreateOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> {t("products.addProduct")}
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-3">
@@ -285,6 +396,86 @@ export default function EventProducts() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Category Manager Dialog */}
+      <Dialog open={catOpen} onOpenChange={(open) => { setCatOpen(open); if (!open) { setEditingCatId(null); setNewCatName(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Tags className="w-5 h-5" /> {t("products.manageCategoriesTitle")}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder={t("products.newCategoryPlaceholder")}
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateCategory()}
+              />
+              <Button onClick={handleCreateCategory} disabled={savingCat || !newCatName.trim()}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="space-y-1 max-h-72 overflow-y-auto">
+              {categoriesLoading ? (
+                <p className="text-sm text-muted-foreground text-center py-4">{t("common.loading")}</p>
+              ) : categories.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">{t("products.noCategories")}</p>
+              ) : (
+                categories.map((cat) => (
+                  <div key={cat.id} className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 group">
+                    {editingCatId === cat.id ? (
+                      <>
+                        <Input
+                          className="h-7 text-sm flex-1"
+                          value={editingCatName}
+                          onChange={(e) => setEditingCatName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleRenameCategory(cat.id); if (e.key === "Escape") setEditingCatId(null); }}
+                          autoFocus
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => handleRenameCategory(cat.id)} disabled={savingCat}>
+                          <Check className="w-3.5 h-3.5 text-green-500" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setEditingCatId(null)}>
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm">{cat.name}</span>
+                        <div className="opacity-0 group-hover:opacity-100 flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingCatId(cat.id); setEditingCatName(cat.name); }}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteCatId(cat.id)}>
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setCatOpen(false)}>{t("common.close")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Category Confirm */}
+      <AlertDialog open={!!deleteCatId} onOpenChange={(open) => { if (!open) setDeleteCatId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("products.deleteCategoryTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("products.deleteCategoryDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCategory} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">

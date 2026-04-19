@@ -34,6 +34,7 @@ import devicesRouter from "./devices";
 import boxOfficeSaleRouter from "./boxOfficeSale";
 import syncIssuesRouter from "./syncIssues";
 import loadTestRouter from "./loadTest";
+import productCategoriesRouter from "./productCategories";
 
 const router: IRouter = Router();
 
@@ -72,5 +73,6 @@ router.use(devicesRouter);
 router.use(boxOfficeSaleRouter);
 router.use(syncIssuesRouter);
 router.use(loadTestRouter);
+router.use(productCategoriesRouter);
 
 export default router;

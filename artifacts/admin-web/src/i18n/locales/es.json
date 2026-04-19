@@ -294,7 +294,14 @@
     "created": "Producto creado",
     "updated": "Producto actualizado",
     "deleted": "Producto eliminado",
-    "optional": "Opcional"
+    "optional": "Opcional",
+    "manageCategories": "Categorías",
+    "manageCategoriesTitle": "Gestionar Categorías",
+    "newCategoryPlaceholder": "Nueva categoría...",
+    "noCategories": "No hay categorías creadas.",
+    "noCategory": "Sin categoría",
+    "deleteCategoryTitle": "Eliminar Categoría",
+    "deleteCategoryDesc": "Los productos con esta categoría la conservarán como texto. Puedes reasignarlos manualmente."
   },
   "transactions": {
     "title": "Transacciones",

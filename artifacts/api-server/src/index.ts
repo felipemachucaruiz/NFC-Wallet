@@ -610,6 +610,16 @@ async function runStartupMigrations(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS idx_device_test_runs_event ON device_test_runs (event_id);
 
+      -- ── product_categories: managed category list per event ───────────────────
+      CREATE TABLE IF NOT EXISTS product_categories (
+        id         varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_id   varchar NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        name       varchar(100) NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (event_id, name)
+      );
+      CREATE INDEX IF NOT EXISTS idx_product_categories_event_id ON product_categories (event_id);
+
       CREATE TABLE IF NOT EXISTS device_test_results (
         id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
         run_id        varchar REFERENCES device_test_runs(id) ON DELETE CASCADE,

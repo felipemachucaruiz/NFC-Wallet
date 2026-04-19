@@ -294,7 +294,14 @@
     "created": "Product created",
     "updated": "Product updated",
     "deleted": "Product deleted",
-    "optional": "Optional"
+    "optional": "Optional",
+    "manageCategories": "Categories",
+    "manageCategoriesTitle": "Manage Categories",
+    "newCategoryPlaceholder": "New category...",
+    "noCategories": "No categories created yet.",
+    "noCategory": "No category",
+    "deleteCategoryTitle": "Delete Category",
+    "deleteCategoryDesc": "Products with this category will keep it as text. You can reassign them manually."
   },
   "transactions": {
     "title": "Transactions",
