@@ -21,7 +21,7 @@ const PRODUCTION_STAFF_DOMAIN = "prod.tapee.app";
 export const STAFF_API_BASE_URL: string = `https://${PRODUCTION_STAFF_DOMAIN}`;
 
 export const WOMPI_PUBLIC_KEY: string =
-  process.env.EXPO_PUBLIC_WOMPI_PUBLIC_KEY ?? "";
+  process.env.EXPO_PUBLIC_WOMPI_PUBLIC_KEY ?? "pub_test_Di9jS6XJ4JF3G5PtBgTs4x43b86i3xGd";
 
 export const WOMPI_BASE_URL: string =
   process.env.EXPO_PUBLIC_WOMPI_BASE_URL ?? "https://sandbox.wompi.co/v1";
