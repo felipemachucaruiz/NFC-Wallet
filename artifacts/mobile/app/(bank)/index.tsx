@@ -60,12 +60,9 @@ const tagBadgeStyles = StyleSheet.create({
 });
 
 function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolean {
-  if (tagType === "DESFIRE_EV3") {
-    return allowedNfcTypes.includes("desfire_ev3");
-  }
-  if (tagType === "MIFARE_CLASSIC") {
-    return allowedNfcTypes.includes("mifare_classic");
-  }
+  if (tagType === "DESFIRE_EV3") return allowedNfcTypes.includes("desfire_ev3");
+  if (tagType === "MIFARE_CLASSIC") return allowedNfcTypes.includes("mifare_classic");
+  if (tagType === "MIFARE_ULTRALIGHT_C") return allowedNfcTypes.includes("mifare_ultralight_c");
   return allowedNfcTypes.includes("ntag_21x");
 }
 
@@ -158,12 +155,16 @@ export default function BankLookupScreen() {
         const payload = await readDesfireBracelet(desfireAesKey);
         result = { payload, tagInfo: { type: "DESFIRE_EV3" as TagType, label: "MIFARE DESFire EV3", memoryBytes: 0 } };
       } else {
-        result = await scanBracelet({ expectedChipType: (configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" : "ntag_21x") as NfcChipTypeHint });
+        const chipHint: NfcChipTypeHint =
+          configuredAllowedTypes.includes("mifare_classic") && configuredAllowedTypes.length === 1 ? "mifare_classic" :
+          configuredAllowedTypes.includes("mifare_ultralight_c") && configuredAllowedTypes.length === 1 ? "mifare_ultralight_c" :
+          "ntag_21x";
+        result = await scanBracelet({ expectedChipType: chipHint });
       }
       if (cancelledRef.current) return;
       if (!isChipAllowed(result.tagInfo.type, configuredAllowedTypes)) {
         const allowedLabels = configuredAllowedTypes
-          .map((ct) => (ct === "mifare_classic" ? "MIFARE Classic" : ct === "desfire_ev3" ? "DESFire EV3" : "NTAG 21x"))
+          .map((ct) => ct === "mifare_classic" ? "MIFARE Classic" : ct === "desfire_ev3" ? "DESFire EV3" : ct === "mifare_ultralight_c" ? "MIFARE Ultralight C" : "NTAG 21x")
           .join(", ");
         showAlert(
           t("common.error"),

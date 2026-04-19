@@ -446,7 +446,9 @@ export default function TopUpScreen() {
           });
         } else {
           const chipHint: NfcChipTypeHint | undefined =
-            tagInfoFromParams?.type === "MIFARE_CLASSIC" ? "mifare_classic" : undefined;
+            tagInfoFromParams?.type === "MIFARE_CLASSIC" ? "mifare_classic" :
+            tagInfoFromParams?.type === "MIFARE_ULTRALIGHT_C" ? "mifare_ultralight_c" :
+            undefined;
           await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
             if (payload.uid !== uid) {
               aborted = true;
