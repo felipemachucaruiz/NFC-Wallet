@@ -778,10 +778,12 @@ function startEventReminderJob(): void {
             const daysRemainingText = schedule.days_before === 0
               ? "HOY"
               : `en ${schedule.days_before} día${schedule.days_before > 1 ? "s" : ""}`;
+            // Gupshup URL button templates define the base URL (https://maps.google.com/)
+            // statically; the variable is only the suffix sent at runtime.
             const venueMapUrl = schedule.latitude && schedule.longitude
-              ? `https://maps.google.com/?q=${schedule.latitude},${schedule.longitude}`
+              ? `?q=${schedule.latitude},${schedule.longitude}`
               : schedule.venue_address
-                ? `https://maps.google.com/?q=${encodeURIComponent(schedule.venue_address)}`
+                ? `?q=${encodeURIComponent(schedule.venue_address)}`
                 : "";
             const context: Record<string, string> = {
               attendeeName: attendee.attendee_name,
