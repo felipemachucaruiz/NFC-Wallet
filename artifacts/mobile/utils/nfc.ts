@@ -1146,20 +1146,12 @@ export async function scanAndWriteBracelet(
       const newPayload = await onRead(payload, tagInfo);
       if (!newPayload) return { payload, tagInfo, written: false };
 
-      // For Ultralight C: always attempt 3DES authentication before writing.
-      // Use the configured key if provided; fall back to the NXP factory default.
-      // This covers chips where write-protection is enabled (AUTH0 set) but no
-      // custom key has been configured in the event — the factory default key
-      // is the most common case for unmodified NXP bracelets.
-      // If auth fails with the chosen key, we propagate the error so the caller
-      // does NOT record a topup (writeAttempted stays false — chip unchanged).
-      if (tagInfo.type === "MIFARE_ULTRALIGHT_C") {
-        const usingCustomKey = !!opts?.ultralightCKeyHex;
-        const authKey = opts?.ultralightCKeyHex || ULTRALIGHT_C_FACTORY_KEY;
-        // MifareUltralightHandlerAndroid does NOT expose transceive in react-native-nfc-manager v3.x.
-        // Raw transceive is available via NfcManager.nfcAHandler.transceive (cross-platform)
-        // or directly on NfcManagerAndroid.transceive. MIFARE Ultralight C IS an NFC-A tag,
-        // so the NfcA transceive channel works for the 3DES AUTH1/AUTH2 commands.
+      // For Ultralight C: only attempt 3DES authentication when a custom key is
+      // configured. Without a key the bracelet is assumed unprotected — skip auth
+      // and write directly (the write command itself will fail if the chip actually
+      // has write protection, which is the correct hard error in that case).
+      if (tagInfo.type === "MIFARE_ULTRALIGHT_C" && opts?.ultralightCKeyHex) {
+        const customKey = opts.ultralightCKeyHex;
         const mgr = NfcManager as unknown as AnyRecord;
         const nfcAHandler = mgr["nfcAHandler"] as { transceive?: TransceiveFn } | null;
         const transceiveFn: TransceiveFn | undefined =
@@ -1168,14 +1160,38 @@ export async function scanAndWriteBracelet(
         if (!transceiveFn) {
           throw new Error("ULTRALIGHT_C_AUTH_FAILED: ULTRALIGHT_C_TRANSCEIVE_UNAVAILABLE");
         }
-        console.log("[NFC] Ultralight C — authenticating with", usingCustomKey ? "custom key" : "factory default key");
+
+        let usedFactoryFallback = false;
+        console.log("[NFC] Ultralight C — authenticating with custom key");
         try {
-          await authenticateUltralightC(transceiveFn, authKey);
+          await authenticateUltralightC(transceiveFn, customKey);
           console.log("[NFC] Ultralight C auth OK");
         } catch (authErr) {
-          console.error("[NFC] Ultralight C auth FAILED:", authErr instanceof Error ? authErr.message : String(authErr));
-          throw new Error(`ULTRALIGHT_C_AUTH_FAILED: ${authErr instanceof Error ? authErr.message : String(authErr)}`);
+          console.warn("[NFC] Custom key auth failed — trying factory key fallback");
+          try {
+            await authenticateUltralightC(transceiveFn, ULTRALIGHT_C_FACTORY_KEY);
+            console.log("[NFC] Ultralight C auth OK with factory key");
+            usedFactoryFallback = true;
+          } catch {
+            console.error("[NFC] Ultralight C auth failed with both keys");
+            throw new Error(`ULTRALIGHT_C_AUTH_FAILED: ${authErr instanceof Error ? authErr.message : String(authErr)}`);
+          }
         }
+
+        // Re-key: write custom key to chip pages 44-47 while authenticated with factory key.
+        if (usedFactoryFallback) {
+          try {
+            const keyBytes = (customKey.match(/.{1,2}/g) ?? []).map((b) => parseInt(b, 16));
+            for (let p = 0; p < 4; p++) {
+              await mfuHandler.mifareUltralightWritePage(44 + p, keyBytes.slice(p * 4, (p + 1) * 4));
+            }
+            console.log("[NFC] Ultralight C re-keyed with custom key");
+          } catch (rekeyErr) {
+            console.warn("[NFC] Re-key failed (non-fatal):", rekeyErr instanceof Error ? rekeyErr.message : String(rekeyErr));
+          }
+        }
+      } else if (tagInfo.type === "MIFARE_ULTRALIGHT_C") {
+        console.log("[NFC] Ultralight C — no key configured, writing without auth (unprotected)");
       }
 
       // Write pages in the same session.
