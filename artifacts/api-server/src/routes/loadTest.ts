@@ -145,15 +145,30 @@ async function setupTestBracelets(runId: string, count: number, eventId: string,
 async function cleanupTestData(runId: string) {
   const prefix = `LOADTEST_${runId}_%`;
   await pool.query(`DELETE FROM transaction_logs WHERE bracelet_uid LIKE $1`, [prefix]);
-  await pool.query(`DELETE FROM top_ups WHERE nfc_uid LIKE $1`, [prefix]);
+  await pool.query(`DELETE FROM top_ups WHERE bracelet_uid LIKE $1`, [prefix]);
   await pool.query(`DELETE FROM bracelets WHERE nfc_uid LIKE $1`, [prefix]);
 }
 
 async function cleanupTestDataByUids(uids: string[]) {
   if (!uids.length) return;
   await pool.query(`DELETE FROM transaction_logs WHERE bracelet_uid = ANY($1::text[])`, [uids]);
-  await pool.query(`DELETE FROM top_ups WHERE nfc_uid = ANY($1::text[])`, [uids]);
+  await pool.query(`DELETE FROM top_ups WHERE bracelet_uid = ANY($1::text[])`, [uids]);
   await pool.query(`DELETE FROM bracelets WHERE nfc_uid = ANY($1::text[])`, [uids]);
+}
+
+// Removes any LOADTEST_/DEVTEST_ bracelets whose runs have already completed/failed.
+// Call on startup to recover from orphans left by process restarts during cleanup.
+export async function purgeOrphanedLoadTestBracelets() {
+  try {
+    await pool.query(`DELETE FROM transaction_logs WHERE bracelet_uid LIKE 'LOADTEST_%' OR bracelet_uid LIKE 'DEVTEST_%'`);
+    await pool.query(`DELETE FROM top_ups WHERE bracelet_uid LIKE 'LOADTEST_%' OR bracelet_uid LIKE 'DEVTEST_%'`);
+    const { rowCount } = await pool.query(`DELETE FROM bracelets WHERE nfc_uid LIKE 'LOADTEST_%' OR nfc_uid LIKE 'DEVTEST_%'`);
+    if ((rowCount ?? 0) > 0) {
+      logger.info({ rowCount }, "Purged orphaned load-test bracelets on startup");
+    }
+  } catch (err) {
+    logger.warn({ err }, "Failed to purge orphaned load-test bracelets");
+  }
 }
 
 // ── Single simulated charge (bypasses NFC/HMAC for load testing) ──────────────
@@ -564,9 +579,9 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
     sseWrite(res, "error", { runId, error: String(err) });
   } finally {
     sentryTx.end();
+    // Cleanup before ending stream — ensures bracelets are removed even if process restarts shortly after
+    await cleanupTestData(runId).catch((e) => logger.warn({ e, runId }, "load-test cleanup failed"));
     res.end();
-    // Cleanup in background — never blocks the SSE response
-    cleanupTestData(runId).catch((e) => logger.warn({ e, runId }, "load-test cleanup failed"));
   }
 });
 

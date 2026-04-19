@@ -4,6 +4,7 @@ import { db, sessionsTable } from "@workspace/db";
 import { lt } from "drizzle-orm";
 import app from "./app";
 import { logger } from "./lib/logger";
+import { purgeOrphanedLoadTestBracelets } from "./routes/loadTest";
 
 const rawPort = process.env["PORT"];
 
@@ -902,6 +903,7 @@ runStartupMigrations()
     startSessionCleanupJob();
     startAttestationCleanupJob();
     startEventReminderJob();
+    purgeOrphanedLoadTestBracelets();
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");
