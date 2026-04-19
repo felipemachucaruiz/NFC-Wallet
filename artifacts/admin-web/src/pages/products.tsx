@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2, ImageIcon, Upload, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -337,8 +338,8 @@ export default function Products() {
           <div className="space-y-3">
             <div className="space-y-1"><Label>{t("products.productName")}</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>{t("products.price")}</Label><Input type="number" min="0" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>{t("products.cost")}</Label><Input type="number" min="0" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.price")}</Label><CurrencyInput value={form.price} onValueChange={(v) => setForm((f) => ({ ...f, price: v }))} currencyCode={selectedCurrency} /></div>
+              <div className="space-y-1"><Label>{t("products.cost")}</Label><CurrencyInput value={form.cost} onValueChange={(v) => setForm((f) => ({ ...f, cost: v }))} currencyCode={selectedCurrency} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>{t("products.category")}</Label><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
@@ -397,8 +398,8 @@ export default function Products() {
           <div className="space-y-3">
             <div className="space-y-1"><Label>{t("products.productName")}</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>{t("products.price")}</Label><Input type="number" min="0" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>{t("products.cost")}</Label><Input type="number" min="0" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>{t("products.price")}</Label><CurrencyInput value={form.price} onValueChange={(v) => setForm((f) => ({ ...f, price: v }))} currencyCode={selectedCurrency} /></div>
+              <div className="space-y-1"><Label>{t("products.cost")}</Label><CurrencyInput value={form.cost} onValueChange={(v) => setForm((f) => ({ ...f, cost: v }))} currencyCode={selectedCurrency} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>{t("products.category")}</Label><Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>

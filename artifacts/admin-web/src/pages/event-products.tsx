@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, MoreHorizontal, Pencil, Trash2, Tags, X, Check } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 import { useEventContext } from "@/contexts/event-context";
@@ -270,11 +271,11 @@ export default function EventProducts() {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>{t("products.price")}</Label>
-          <Input data-testid="input-product-price" type="number" min="0" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
+          <CurrencyInput data-testid="input-product-price" value={form.price} onValueChange={(v) => setForm((f) => ({ ...f, price: v }))} currencyCode={currency} />
         </div>
         <div className="space-y-1">
           <Label>{t("products.cost")}</Label>
-          <Input type="number" min="0" value={form.cost} onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value }))} />
+          <CurrencyInput value={form.cost} onValueChange={(v) => setForm((f) => ({ ...f, cost: v }))} currencyCode={currency} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -298,7 +299,7 @@ export default function EventProducts() {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>{t("products.ivaRate")}</Label>
-          <Input data-testid="input-product-iva" type="text" value={form.ivaRate} onChange={(e) => setForm((f) => ({ ...f, ivaRate: e.target.value }))} />
+          <Input data-testid="input-product-iva" type="text" value={form.ivaRate} onChange={(e) => setForm((f) => ({ ...f, ivaRate: e.target.value }))} onFocus={(e) => { if (e.target.value === "0") { setForm((f) => ({ ...f, ivaRate: "" })); } else { e.target.select(); } }} />
         </div>
         <div className="flex items-center gap-2 pt-6">
           <Switch checked={form.ivaExento} onCheckedChange={(v) => setForm((f) => ({ ...f, ivaExento: v }))} />

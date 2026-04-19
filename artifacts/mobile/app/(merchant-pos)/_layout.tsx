@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Stack, router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -41,7 +41,23 @@ export default function MerchantPosLayout() {
         ),
       }}
     >
-      <Stack.Screen name="index" options={{ title: t("pos.title"), headerShown: true, gestureEnabled: false, headerBackVisible: false }} />
+      <Stack.Screen
+        name="index"
+        options={{
+          title: t("pos.title"),
+          headerShown: true,
+          gestureEnabled: false,
+          headerBackVisible: false,
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.replace("/(merchant-admin)/")}
+              style={{ marginLeft: Platform.OS === "ios" ? 4 : 0, padding: 6 }}
+            >
+              <Feather name="arrow-left" size={22} color={C.text} />
+            </Pressable>
+          ),
+        }}
+      />
       <Stack.Screen name="charge" options={{ title: t("pos.chargeTitle"), headerShown: true, presentation: "modal" }} />
       <Stack.Screen name="sync-issues" options={{ title: t("syncIssues.title"), headerShown: true }} />
     </Stack>

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/currency";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -571,20 +572,18 @@ export default function EventSettings() {
             <div className="space-y-2">
               <Label>{t("eventSettings.offlineSyncLimit")}</Label>
               <p className="text-xs text-muted-foreground">{t("eventSettings.offlineSyncLimitHint")}</p>
-              <Input
-                type="number"
+              <CurrencyInput
                 value={offlineSyncLimit}
-                onChange={(e) => setOfflineSyncLimit(e.target.value)}
+                onValueChange={setOfflineSyncLimit}
                 placeholder="500000"
               />
             </div>
             <div className="space-y-2">
               <Label>{t("eventSettings.maxOfflineSpendPerBracelet")}</Label>
               <p className="text-xs text-muted-foreground">{t("eventSettings.maxOfflineSpendHint")}</p>
-              <Input
-                type="number"
+              <CurrencyInput
                 value={maxOfflineSpend}
-                onChange={(e) => setMaxOfflineSpend(e.target.value)}
+                onValueChange={setMaxOfflineSpend}
                 placeholder="200000"
               />
             </div>
@@ -685,12 +684,10 @@ export default function EventSettings() {
           <div className="space-y-2">
             <Label htmlFor="bankMinTopup">Monto mínimo de recarga (COP)</Label>
             <p className="text-xs text-muted-foreground">0 = sin mínimo adicional (usa el mínimo base de $1.000)</p>
-            <Input
+            <CurrencyInput
               id="bankMinTopup"
-              type="number"
-              min="0"
               value={bankMinTopupText}
-              onChange={(e) => setBankMinTopupText(e.target.value)}
+              onValueChange={setBankMinTopupText}
               placeholder="0"
               className="max-w-xs"
             />

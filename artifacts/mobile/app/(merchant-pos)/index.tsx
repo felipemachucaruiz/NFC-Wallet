@@ -3,7 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, FlatList, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
+import { useBarcodeScanner, BROADCAST_MODE } from "@/hooks/useBarcodeScanner";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useListLocations, useGetLocationInventory, getProductByBarcode } from "@workspace/api-client-react";
@@ -44,6 +44,7 @@ export default function MerchantPosScreen() {
           setSelectedLocationId(null);
           return true;
         }
+        router.replace("/(merchant-admin)/");
         return true;
       });
       return () => subscription.remove();
@@ -163,22 +164,34 @@ export default function MerchantPosScreen() {
         )}
       </View>
 
-      <View style={[styles.barcodeRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
-        <Feather name="maximize" size={16} color={C.textMuted} />
-        <TextInput
-          {...barcodeInputProps}
-          style={[styles.barcodeInput, { color: C.text }]}
-          placeholder={t("pos.barcodeScanBar")}
-          placeholderTextColor={C.textMuted}
-          returnKeyType="done"
-          testID="barcode-scan-input"
-        />
-        {barcodeToast && (
-          <View style={[styles.toastChip, { backgroundColor: C.primary + "22" }]}>
-            <Text style={[styles.toastText, { color: C.primary }]}>{barcodeToast}</Text>
-          </View>
-        )}
-      </View>
+      {BROADCAST_MODE ? (
+        <View style={[styles.barcodeRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+          <Feather name="maximize" size={16} color={C.primary} />
+          <Text style={[styles.barcodeInput, { color: C.textSecondary }]}>{t("pos.barcodeScanBar")}</Text>
+          {barcodeToast && (
+            <View style={[styles.toastChip, { backgroundColor: C.primary + "22" }]}>
+              <Text style={[styles.toastText, { color: C.primary }]}>{barcodeToast}</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={[styles.barcodeRow, { backgroundColor: C.inputBg, borderColor: C.border }]}>
+          <Feather name="maximize" size={16} color={C.textMuted} />
+          <TextInput
+            {...barcodeInputProps}
+            style={[styles.barcodeInput, { color: C.text }]}
+            placeholder={t("pos.barcodeScanBar")}
+            placeholderTextColor={C.textMuted}
+            returnKeyType="done"
+            testID="barcode-scan-input"
+          />
+          {barcodeToast && (
+            <View style={[styles.toastChip, { backgroundColor: C.primary + "22" }]}>
+              <Text style={[styles.toastText, { color: C.primary }]}>{barcodeToast}</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={[styles.tabRow, { borderBottomColor: C.border }]}>
         {(["catalog", "cart"] as const).map((tab) => (

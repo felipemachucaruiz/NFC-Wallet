@@ -19,6 +19,7 @@ import { API_BASE_URL } from "@/constants/domain";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { Loading } from "@/components/ui/Loading";
 import { Empty } from "@/components/ui/Empty";
 import { extractErrorMessage } from "@/utils/errorMessage";
@@ -401,19 +402,17 @@ export default function MerchantProductsScreen() {
               onChangeText={(v) => setForm((f) => ({ ...f, barcode: v }))}
               testID="product-barcode-input"
             />
-            <Input
+            <CurrencyInput
               label={t("merchant_admin.price")}
               placeholder="0"
               value={form.price}
-              onChangeText={(v) => setForm((f) => ({ ...f, price: v }))}
-              keyboardType="numeric"
+              onChangeValue={(v) => setForm((f) => ({ ...f, price: v }))}
             />
-            <Input
+            <CurrencyInput
               label={t("merchant_admin.cost")}
               placeholder="0"
               value={form.cost}
-              onChangeText={(v) => setForm((f) => ({ ...f, cost: v }))}
-              keyboardType="numeric"
+              onChangeValue={(v) => setForm((f) => ({ ...f, cost: v }))}
             />
             <View style={[styles.ivaExentoRow, { backgroundColor: C.inputBg, borderRadius: 10 }]}>
               <View style={{ flex: 1 }}>
@@ -432,6 +431,7 @@ export default function MerchantProductsScreen() {
                 placeholder="19"
                 value={form.ivaRate}
                 onChangeText={(v) => setForm((f) => ({ ...f, ivaRate: v }))}
+                onFocus={() => { if (form.ivaRate === "0") setForm((f) => ({ ...f, ivaRate: "" })); }}
                 keyboardType="decimal-pad"
               />
             )}

@@ -25,6 +25,7 @@ import { Plus, MoreHorizontal, Pencil, Trash2, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 import { useEventContext } from "@/contexts/event-context";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 type ZoneForm = { name: string; description: string; colorHex: string; rank: string; upgradePrice: string };
 const emptyForm: ZoneForm = { name: "", description: "", colorHex: "#6366f1", rank: "0", upgradePrice: "" };
@@ -190,7 +191,7 @@ export default function EventAccessZones() {
         </div>
         <div className="space-y-1">
           <Label>{t("accessZones.upgradePrice")}</Label>
-          <Input data-testid="input-zone-price" type="number" min="0" value={form.upgradePrice} onChange={(e) => setForm((f) => ({ ...f, upgradePrice: e.target.value }))} placeholder={t("accessZones.free")} />
+          <CurrencyInput data-testid="input-zone-price" value={form.upgradePrice} onValueChange={(v) => setForm((f) => ({ ...f, upgradePrice: v }))} currencyCode={currency} placeholder={t("accessZones.free")} />
         </div>
       </div>
     </div>

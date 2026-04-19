@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Search, ShieldOff, Trash2, DollarSign } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const _API_BASE = import.meta.env.PROD
   ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app").replace(/\/+$/, "")
@@ -234,13 +235,10 @@ export default function EventBracelets() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="adjust-balance">Nuevo saldo (COP)</Label>
-                <Input
+                <CurrencyInput
                   id="adjust-balance"
-                  type="number"
-                  min="0"
-                  step="1000"
                   value={adjustBalance}
-                  onChange={(e) => setAdjustBalance(e.target.value)}
+                  onValueChange={setAdjustBalance}
                   placeholder="250000"
                 />
               </div>

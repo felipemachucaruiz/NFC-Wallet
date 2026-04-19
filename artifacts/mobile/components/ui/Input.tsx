@@ -3,14 +3,14 @@ import React from "react";
 import { StyleSheet, Text, TextInput, TextInputProps, View } from "react-native";
 import Colors from "@/constants/colors";
 
-interface InputProps extends TextInputProps {
+export interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   prefix?: string;
   hint?: string;
 }
 
-export function Input({ label, error, hint, prefix, style, ...props }: InputProps) {
+export const Input = React.forwardRef<TextInput, InputProps>(function Input({ label, error, hint, prefix, style, ...props }, ref) {
   const scheme = useColorScheme();
   const C = scheme === "dark" ? Colors.dark : Colors.light;
 
@@ -32,6 +32,7 @@ export function Input({ label, error, hint, prefix, style, ...props }: InputProp
           <Text style={[styles.prefix, { color: C.textMuted }]}>{prefix}</Text>
         ) : null}
         <TextInput
+          ref={ref}
           style={[styles.input, { color: C.text }, style]}
           placeholderTextColor={C.textMuted}
           {...props}
@@ -44,7 +45,7 @@ export function Input({ label, error, hint, prefix, style, ...props }: InputProp
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrapper: { gap: 6 },
