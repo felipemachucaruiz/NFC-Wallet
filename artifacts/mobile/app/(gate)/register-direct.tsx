@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useZoneCache } from "@/contexts/ZoneCacheContext";
 import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
+import { useEventContext } from "@/contexts/EventContext";
+import { getChipHint, isChipAllowed, chipTypeLabel } from "@/utils/chipType";
 import { API_BASE_URL } from "@/constants/domain";
 
 let Haptics: typeof import("expo-haptics") | null = null;
@@ -61,6 +63,7 @@ export default function RegisterDirectScreen() {
   const isWeb = Platform.OS === "web";
   const { token, user } = useAuth();
   const { getZoneById } = useZoneCache();
+  const { allowedNfcTypes } = useEventContext();
 
   const assignedZone = user?.gateZoneId ? getZoneById(user.gateZoneId) : null;
 
@@ -118,9 +121,17 @@ export default function RegisterDirectScreen() {
     fadeAnim.setValue(0);
 
     try {
-      const scanResult = await scanBracelet();
+      const scanResult = await scanBracelet({ expectedChipType: getChipHint(allowedNfcTypes) });
 
       if (cancelledRef.current) return;
+
+      if (!isChipAllowed(scanResult.tagInfo.type, allowedNfcTypes)) {
+        const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
+        setErrorMsg(t("eventAdmin.nfcChipMismatch", { expected, detected: scanResult.tagInfo.label }));
+        setScanState("idle");
+        scanningRef.current = false;
+        return;
+      }
 
       const nfcUid = scanResult.payload.uid;
       setLastUid(nfcUid);

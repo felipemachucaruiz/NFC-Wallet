@@ -11,10 +11,11 @@ import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { isNfcSupported, scanAndWriteBracelet, type TagInfo, type TagType, type NfcChipTypeHint } from "@/utils/nfc";
+import { isNfcSupported, scanAndWriteBracelet, type TagInfo, type TagType } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { formatCurrency } from "@/utils/format";
 import { useEventContext } from "@/contexts/EventContext";
+import { getChipHint, isChipAllowed, chipTypeLabel } from "@/utils/chipType";
 
 type RefundMethod = "cash" | "nequi" | "bancolombia" | "other";
 
@@ -36,7 +37,7 @@ export default function RefundScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { currencyCode } = useEventContext();
+  const { currencyCode, allowedNfcTypes } = useEventContext();
   const fmt = (n: number) => formatCurrency(n, currencyCode);
 
   const params = useLocalSearchParams<{
@@ -94,12 +95,16 @@ export default function RefundScreen() {
               const newCounter = counter + 1;
 
               if (isNfcSupported()) {
-                const chipHint: NfcChipTypeHint | undefined =
-                  tagInfoFromParams?.type === "MIFARE_CLASSIC" ? "mifare_classic" : undefined;
+                const chipHint = getChipHint(allowedNfcTypes);
                 const newHmac = await computeHmac(0, newCounter, hmacSecret, uid);
-                await scanAndWriteBracelet(async (payload) => {
+                await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
                   if (payload.uid !== uid) {
                     showAlert(t("common.error"), t("bank.wrongBracelet"));
+                    return null;
+                  }
+                  if (!isChipAllowed(detectedTagInfo.type, allowedNfcTypes)) {
+                    const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
+                    showAlert(t("common.error"), t("eventAdmin.nfcChipMismatch", { expected, detected: detectedTagInfo.label }));
                     return null;
                   }
                   return { uid, balance: 0, counter: newCounter, hmac: newHmac };

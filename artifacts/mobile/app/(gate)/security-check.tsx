@@ -21,6 +21,8 @@ import { useZoneCache } from "@/contexts/ZoneCacheContext";
 import { extractErrorMessage } from "@/utils/errorMessage";
 import { useBannedBracelets } from "@/contexts/BannedBraceletsContext";
 import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
+import { useEventContext } from "@/contexts/EventContext";
+import { getChipHint, isChipAllowed, chipTypeLabel } from "@/utils/chipType";
 import { API_BASE_URL } from "@/constants/domain";
 import type { AccessZone } from "@/contexts/ZoneCacheContext";
 
@@ -42,6 +44,7 @@ export default function SecurityCheckScreen() {
   const { token, user } = useAuth();
   const { zones } = useZoneCache();
   const { bannedUids, getBannedInfo, refresh: refreshBanned } = useBannedBracelets();
+  const { allowedNfcTypes } = useEventContext();
 
   const [scanState, setScanState] = useState<ScanState>("zone-select");
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(user?.gateZoneId ?? null);
@@ -108,8 +111,15 @@ export default function SecurityCheckScreen() {
     setBannedUid(null);
 
     try {
-      const scanResult = await scanBracelet();
+      const scanResult = await scanBracelet({ expectedChipType: getChipHint(allowedNfcTypes) });
       if (cancelledRef.current) return;
+
+      if (!isChipAllowed(scanResult.tagInfo.type, allowedNfcTypes)) {
+        const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
+        setErrorMsg(t("eventAdmin.nfcChipMismatch", { expected, detected: scanResult.tagInfo.label }));
+        setScanState("error");
+        return;
+      }
 
       const uid = scanResult.payload.uid;
       if (!uid) {

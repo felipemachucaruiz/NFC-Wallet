@@ -24,8 +24,9 @@ import {
   isNfcSupported,
   scanAndWriteBracelet,
   cancelNfc,
-  type NfcChipTypeHint,
 } from "@/utils/nfc";
+import { getChipHint, isChipAllowed, chipTypeLabel } from "@/utils/chipType";
+import { useEventContext } from "@/contexts/EventContext";
 import { computeHmac } from "@/utils/hmac";
 import { API_BASE_URL } from "@/constants/domain";
 import { fetchWithTimeout } from "@/utils/fetchWithTimeout";
@@ -54,6 +55,7 @@ export default function UpgradeAccessScreen() {
   const isWeb = Platform.OS === "web";
   const { token } = useAuth();
   const { getZonesByIds } = useZoneCache();
+  const { allowedNfcTypes } = useEventContext();
 
   const params = useLocalSearchParams<{
     uid: string;
@@ -176,12 +178,16 @@ export default function UpgradeAccessScreen() {
       if (isNfcSupported() && tagType && signingKey) {
         const newCounter = counter + 1;
         const newHmac = await computeHmac(balance, newCounter, signingKey, uid);
-        const chipHint: NfcChipTypeHint | undefined =
-          tagType === "MIFARE_CLASSIC" ? "mifare_classic" : undefined;
+        const chipHint = getChipHint(allowedNfcTypes);
 
         try {
-          await scanAndWriteBracelet(async (payload) => {
+          await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
             if (payload.uid !== uid) return null;
+            if (!isChipAllowed(detectedTagInfo.type, allowedNfcTypes)) {
+              const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
+              setErrorMsg(t("eventAdmin.nfcChipMismatch", { expected, detected: detectedTagInfo.label }));
+              return null;
+            }
             return { uid, balance, counter: newCounter, hmac: newHmac };
           }, {
             expectedChipType: chipHint,

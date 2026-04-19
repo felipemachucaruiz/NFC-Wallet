@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/Button";
 import { extractErrorMessage } from "@/utils/errorMessage";
 import { useAuth } from "@/contexts/AuthContext";
 import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
+import { useEventContext } from "@/contexts/EventContext";
+import { getChipHint, isChipAllowed, chipTypeLabel } from "@/utils/chipType";
 import { useOfflineGate } from "@/hooks/useOfflineGate";
 import {
   verifyQrTokenOffline,
@@ -109,6 +111,7 @@ export default function RegisterBraceletScreen() {
   const isWeb = Platform.OS === "web";
   const { token } = useAuth();
   const { isOnline, eventData, pendingCount } = useOfflineGate();
+  const { allowedNfcTypes } = useEventContext();
 
   const [pageState, setPageState] = useState<PageState>("ready");
   const [errorMsg, setErrorMsg] = useState("");
@@ -357,8 +360,15 @@ export default function RegisterBraceletScreen() {
 
     let nfcDone = false;
     try {
-      const result = await scanBracelet();
+      const result = await scanBracelet({ expectedChipType: getChipHint(allowedNfcTypes) });
       nfcDone = true;
+      if (!isChipAllowed(result.tagInfo.type, allowedNfcTypes)) {
+        const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
+        showAlert(t("common.error"), t("eventAdmin.nfcChipMismatch", { expected, detected: result.tagInfo.label }));
+        setPageState("ticket_confirmed");
+        scanningRef.current = false;
+        return;
+      }
       const uid = result.payload.uid;
       if (!uid) {
         setPageState("ticket_confirmed");

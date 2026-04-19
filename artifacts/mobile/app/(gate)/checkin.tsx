@@ -21,6 +21,8 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cancelNfc, scanBracelet, isNfcSupported } from "@/utils/nfc";
+import { useEventContext } from "@/contexts/EventContext";
+import { getChipHint, isChipAllowed, chipTypeLabel } from "@/utils/chipType";
 import { useOfflineGate } from "@/hooks/useOfflineGate";
 import {
   verifyQrTokenOffline,
@@ -142,6 +144,7 @@ export default function EntranceCheckinScreen() {
   const isWeb = Platform.OS === "web";
   const { token } = useAuth();
   const { isOnline, eventData, isSyncing, pendingCount, doSync, refreshPendingCount, refreshEventData } = useOfflineGate();
+  const { allowedNfcTypes } = useEventContext();
 
   const [pageState, setPageState] = useState<PageState>("ready");
   const [errorMsg, setErrorMsg] = useState("");
@@ -168,12 +171,6 @@ export default function EntranceCheckinScreen() {
 
   const locale = i18n.language ?? "es";
   const hasCamera = CameraView !== null && Platform.OS !== "web";
-
-  const { inputProps: barcodeInputProps, inputRef: barcodeInputRef, pauseFocus: pauseBarcodeFocus, resumeFocus: resumeBarcodeFocus } = useBarcodeScanner({
-    onScan: validateTicket,
-    enabled: pageState === "ready" && !showQrScanner,
-    manageFocus: true,
-  });
 
   useEffect(() => {
     if (pageState === "success") {
@@ -338,6 +335,14 @@ export default function EntranceCheckinScreen() {
     [t, token, locale, isOnline, validateTicketOffline],
   );
 
+  // Must be after validateTicket — Hermes production disables TDZ checks, so referencing
+  // a const before its declaration silently yields undefined, breaking the onScan callback.
+  const { inputProps: barcodeInputProps, inputRef: barcodeInputRef, pauseFocus: pauseBarcodeFocus, resumeFocus: resumeBarcodeFocus } = useBarcodeScanner({
+    onScan: validateTicket,
+    enabled: pageState === "ready" && !showQrScanner,
+    manageFocus: true,
+  });
+
   const handleBarcodeSubmit = useCallback(() => {
     const trimmed = barcodeInputProps.value.trim();
     if (!trimmed) return;
@@ -454,8 +459,15 @@ export default function EntranceCheckinScreen() {
 
     let nfcDone = false;
     try {
-      const result = await scanBracelet();
+      const result = await scanBracelet({ expectedChipType: getChipHint(allowedNfcTypes) });
       nfcDone = true;
+      if (!isChipAllowed(result.tagInfo.type, allowedNfcTypes)) {
+        const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
+        setBraceletNfcError(t("eventAdmin.nfcChipMismatch", { expected, detected: result.tagInfo.label }));
+        setPageState("confirmed");
+        braceletScanningRef.current = false;
+        return;
+      }
       const uid = result.payload.uid;
       if (!uid) {
         setPageState("confirmed");
