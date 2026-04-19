@@ -32,20 +32,23 @@ export default function Bracelets() {
   const [selectedEventId, setSelectedEventId] = useState<string>("__all__");
   const [flaggedFilter, setFlaggedFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [freezeOpen, setFreezeOpen] = useState(false);
   const [selected, setSelected] = useState<EventBracelet | null>(null);
 
   const isAllEvents = selectedEventId === "__all__";
-  const queryParams = { search: search || undefined };
+  const LIMIT = 100;
+  const queryParams = { search: search || undefined, page, limit: LIMIT };
 
   const { data: allBraceletsData, isLoading: allBraceletsLoading } = useQuery({
-    queryKey: ["admin-bracelets-all", search],
+    queryKey: ["admin-bracelets-all", search, page],
     queryFn: async () => {
       const qs = new URLSearchParams();
-      qs.set("limit", "100");
+      qs.set("limit", String(LIMIT));
+      qs.set("page", String(page));
       if (search) qs.set("search", search);
-      return customFetch<{ bracelets: EventBracelet[]; total: number }>(`/api/admin/bracelets?${qs}`);
+      return customFetch<{ bracelets: EventBracelet[]; total: number; page: number }>(`/api/admin/bracelets?${qs}`);
     },
     enabled: isAllEvents,
   });
@@ -63,6 +66,8 @@ export default function Bracelets() {
 
   const braceletsLoading = isAllEvents ? allBraceletsLoading : eventBraceletsLoading;
   const bracelets = isAllEvents ? (allBraceletsData?.bracelets ?? []) : (eventBraceletsData?.bracelets ?? []);
+  const totalItems = isAllEvents ? (allBraceletsData?.total ?? 0) : ((eventBraceletsData as { total?: number } | undefined)?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(totalItems / LIMIT));
   const filteredBracelets =
     flaggedFilter === "flagged"
       ? bracelets.filter((b) => b.flagged)
@@ -135,6 +140,7 @@ export default function Bracelets() {
             setSelectedEventId(v);
             setSearch("");
             setFlaggedFilter("all");
+            setPage(1);
           }}
         >
           <SelectTrigger className="w-64" data-testid="select-event-filter">
@@ -168,7 +174,7 @@ export default function Bracelets() {
                 placeholder={t("wristbands.searchPlaceholder")}
                 className="pl-9"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               />
             </div>
 
@@ -311,11 +317,15 @@ export default function Bracelets() {
           </Table>
 
           {(isAllEvents ? allBraceletsData : eventBraceletsData) && (
-            <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border">
-              {t("wristbands.showingOf", {
-                showing: filteredBracelets.length,
-                total: isAllEvents ? (allBraceletsData?.total ?? 0) : ((eventBraceletsData as any)?.total ?? filteredBracelets.length),
-              })}
+            <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border flex justify-between items-center">
+              <span>{t("wristbands.showingOf", { showing: filteredBracelets.length, total: totalItems })}</span>
+              {totalPages > 1 && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("common.prev")}</Button>
+                  <span className="flex items-center text-xs px-2">{page} / {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>{t("common.next")}</Button>
+                </div>
+              )}
             </div>
           )}
         </div>

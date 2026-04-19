@@ -39,6 +39,7 @@ export default function EventBracelets() {
 
   const [flaggedFilter, setFlaggedFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selected, setSelected] = useState<EventBracelet | null>(null);
 
@@ -48,10 +49,12 @@ export default function EventBracelets() {
   const [adjustReason, setAdjustReason] = useState("");
   const [adjusting, setAdjusting] = useState(false);
 
-  const queryParams = flaggedFilter === "flagged" ? { search: search || undefined } : { search: search || undefined };
+  const LIMIT = 100;
+  const queryParams = { search: search || undefined, page, limit: LIMIT };
   const { data, isLoading } = useListEventBracelets(eventId, queryParams, { query: { enabled: !!eventId, queryKey: getListEventBraceletsQueryKey(eventId, queryParams) } });
   const bracelets = data?.bracelets ?? [];
   const filteredBracelets = flaggedFilter === "all" ? bracelets : flaggedFilter === "flagged" ? bracelets.filter((b) => b.flagged) : bracelets.filter((b) => !b.flagged);
+  const totalPages = data ? Math.ceil(data.total / LIMIT) : 1;
 
   const unflag = useUnflagBracelet();
   const deleteB = useDeleteAdminBracelet();
@@ -128,9 +131,9 @@ export default function EventBracelets() {
       <div className="flex gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input data-testid="input-bracelet-search" placeholder={t("wristbands.searchPlaceholder")} className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input data-testid="input-bracelet-search" placeholder={t("wristbands.searchPlaceholder")} className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <Select value={flaggedFilter} onValueChange={setFlaggedFilter}>
+        <Select value={flaggedFilter} onValueChange={(v) => { setFlaggedFilter(v); setPage(1); }}>
           <SelectTrigger className="w-36" data-testid="select-bracelet-filter">
             <SelectValue />
           </SelectTrigger>
@@ -196,8 +199,15 @@ export default function EventBracelets() {
           </TableBody>
         </Table>
         {data && (
-          <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border">
-            {t("wristbands.showingOf", { showing: filteredBracelets.length, total: data.total })}
+          <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border flex justify-between items-center">
+            <span>{t("wristbands.showingOf", { showing: filteredBracelets.length, total: data.total })}</span>
+            {totalPages > 1 && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t("common.prev")}</Button>
+                <span className="flex items-center text-xs px-2">{page} / {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>{t("common.next")}</Button>
+              </div>
+            )}
           </div>
         )}
       </div>

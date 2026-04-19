@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useGetCurrentAuthUser } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -47,7 +48,9 @@ export default function EventAttendees() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<AdminTicket | null>(null);
+  const PAGE_SIZE = 100;
 
   const filtered = tickets.filter((t) => {
     const q = search.toLowerCase();
@@ -61,6 +64,8 @@ export default function EventAttendees() {
     const matchesStatus = statusFilter === "all" || t.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   if (isLoading) {
     return (
@@ -95,10 +100,10 @@ export default function EventAttendees() {
             placeholder="Buscar por nombre, correo, teléfono, documento u orden..."
             className="pl-9"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>
@@ -133,7 +138,7 @@ export default function EventAttendees() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((ticket) => (
+                {paged.map((ticket) => (
                   <TableRow
                     key={ticket.id}
                     className="cursor-pointer hover:bg-muted/50"
@@ -161,6 +166,16 @@ export default function EventAttendees() {
                 ))}
               </TableBody>
             </Table>
+          )}
+          {totalPages > 1 && (
+            <div className="pt-4 flex justify-between items-center text-xs text-muted-foreground">
+              <span>Mostrando {paged.length} de {filtered.length} asistentes</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
+                <span className="flex items-center px-2">{page} / {totalPages}</span>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Siguiente</Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
