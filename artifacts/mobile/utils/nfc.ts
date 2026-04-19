@@ -487,6 +487,73 @@ function getMfuEndPage(tagType: TagType): number {
   return NTAG_USER_MEMORY_END_PAGE[tagType] ?? 15;
 }
 
+// ---------------------------------------------------------------------------
+// Raw NfcA helpers for MIFARE Ultralight C authentication path.
+// MifareUltralight.transceive() uses raw=false which applies MFU response
+// framing validation — AUTH1/AUTH2 responses (0xAF prefix, 9 bytes) are NOT
+// standard MFU frames and Android throws IOException for them.
+// NfcA.transceive() uses raw=true (no framing validation) so it works for
+// the 3DES challenge-response exchange.  We request NfcA first so the
+// TagTechnologyRequest connects via NfcA, making NfcManager.transceive()
+// dispatch to NfcA.transceive() instead of MifareUltralight.transceive().
+// ---------------------------------------------------------------------------
+
+// NfcA READ command: [0x30, page] → 16 bytes (4 pages starting at page)
+async function nfcaReadUltralightPages(
+  transceive: TransceiveFn,
+  startPage: number,
+  endPage: number
+): Promise<Uint8Array> {
+  const rawBytes: number[] = [];
+  let foundNull = false;
+  for (let page = startPage; page < endPage && !foundNull; page += 4) {
+    const data = await transceive([0x30, page]);
+    if (!data || data.length < 16) break;
+    const chunk = Array.from(data.slice(0, 16));
+    rawBytes.push(...chunk);
+    if (chunk.some((b) => b === 0)) foundNull = true;
+  }
+  return new Uint8Array(rawBytes);
+}
+
+// NfcA WRITE command: [0xA2, page, b0, b1, b2, b3] — Android throws on NAK
+async function nfcaWriteUltralightPage(
+  transceive: TransceiveFn,
+  page: number,
+  data: number[]
+): Promise<void> {
+  await transceive([0xA2, page, data[0] ?? 0, data[1] ?? 0, data[2] ?? 0, data[3] ?? 0]);
+}
+
+// Detect Ultralight subtype using raw NfcA transceive (CC byte + GET_VERSION + page 40)
+async function detectUltralightSubtypeViaTransceive(transceive: TransceiveFn): Promise<TagInfo> {
+  // CC byte at page 3[2]
+  try {
+    const p3 = await transceive([0x30, 3]);
+    if (p3 && p3.length >= 16) {
+      const ccByte = (p3[2] ?? 0) & 0xff;
+      const ntag = NTAG_CC_MAP[ccByte];
+      if (ntag) { console.log("[NFC] NfcA: CC byte 0x" + ccByte.toString(16) + " →", ntag.type); return ntag; }
+    }
+  } catch {}
+  // GET_VERSION
+  try {
+    const ver = await transceive([0x60]);
+    if (ver && ver.length >= 8) {
+      const ntag = NTAG_VERSION_SIZE_MAP[(ver[6] ?? 0) & 0xff];
+      if (ntag) { console.log("[NFC] NfcA: GET_VERSION →", ntag.type); return ntag; }
+      return { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight EV1", memoryBytes: 64 };
+    }
+  } catch {}
+  // Page 40 readable → Ultralight C (48 pages)
+  try {
+    await transceive([0x30, 40]);
+    console.log("[NFC] NfcA: page 40 readable → MIFARE_ULTRALIGHT_C");
+    return { type: "MIFARE_ULTRALIGHT_C", label: "MIFARE Ultralight C", memoryBytes: 144 };
+  } catch {}
+  return { type: "MIFARE_ULTRALIGHT", label: "MIFARE Ultralight", memoryBytes: 64 };
+}
+
 export async function readBraceletUltralight(tagType: TagType = "MIFARE_ULTRALIGHT"): Promise<BraceletPayload> {
   if (!NfcManager || !NfcTech) throw new Error("NFC_NOT_AVAILABLE");
 
@@ -751,25 +818,49 @@ export async function writeBraceletUltralightC(
   await NfcManager.cancelTechnologyRequest().catch(() => {});
 
   try {
+    // Request NfcA FIRST so TagTechnologyRequest connects via NfcA (not MifareUltralight).
+    // NfcA.transceive() accepts arbitrary responses (raw=true), while
+    // MifareUltralight.transceive() applies MFU framing validation and rejects
+    // the 9-byte AUTH1 response (0xAF + 8 bytes) with IOException.
     await NfcManager.requestTechnology([
+      NfcTech.NfcA,
       NfcTech.MifareUltralight,
       NfcTech.MifareClassic,
       NfcTech.Ndef,
-      NfcTech.NfcA,
     ]);
-    const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
-    if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
+    const mgr = NfcManager as unknown as AnyRecord;
+    const transceiveFn = (typeof mgr["transceive"] === "function"
+      ? (mgr["transceive"] as TransceiveFn).bind(mgr)
+      : undefined);
+    if (!transceiveFn) throw new Error("ULTRALIGHT_C_AUTH_FAILED: ULTRALIGHT_C_TRANSCEIVE_UNAVAILABLE");
 
-    // Authenticate before writing if a key is provided — hard failure if auth fails.
-    // MifareUltralightHandlerAndroid does NOT expose transceive; use nfcAHandler instead.
-    if (keyHex && Platform.OS === "android") {
-      const mgr2 = NfcManager as unknown as AnyRecord;
-      const nfcAHandler2 = mgr2["nfcAHandler"] as { transceive?: TransceiveFn } | null;
-      const transceiveFn2: TransceiveFn | undefined =
-        (nfcAHandler2?.transceive ? nfcAHandler2.transceive.bind(nfcAHandler2) : undefined) ??
-        (typeof mgr2["transceive"] === "function" ? (mgr2["transceive"] as TransceiveFn).bind(mgr2) : undefined);
-      if (!transceiveFn2) throw new Error("ULTRALIGHT_C_AUTH_FAILED: ULTRALIGHT_C_TRANSCEIVE_UNAVAILABLE");
-      await authenticateUltralightC(transceiveFn2, keyHex);
+    if (keyHex) {
+      let usedFactory = false;
+      try {
+        await authenticateUltralightC(transceiveFn, keyHex);
+        console.log("[NFC] writeBraceletUltralightC: auth OK with custom key");
+      } catch (authErr) {
+        console.warn("[NFC] writeBraceletUltralightC: custom key failed, trying factory");
+        try {
+          await authenticateUltralightC(transceiveFn, ULTRALIGHT_C_FACTORY_KEY);
+          usedFactory = true;
+          console.log("[NFC] writeBraceletUltralightC: auth OK with factory key");
+        } catch {
+          throw new Error(`ULTRALIGHT_C_AUTH_FAILED: ${authErr instanceof Error ? authErr.message : String(authErr)}`);
+        }
+      }
+      // Re-key if authenticated with factory key
+      if (usedFactory) {
+        try {
+          const keyBytes = (keyHex.match(/.{1,2}/g) ?? []).map((b) => parseInt(b, 16));
+          for (let p = 0; p < 4; p++) {
+            await nfcaWriteUltralightPage(transceiveFn, 44 + p, keyBytes.slice(p * 4, (p + 1) * 4));
+          }
+          console.log("[NFC] writeBraceletUltralightC: re-keyed");
+        } catch (rekeyErr) {
+          console.warn("[NFC] writeBraceletUltralightC: re-key failed (non-fatal):", rekeyErr instanceof Error ? rekeyErr.message : String(rekeyErr));
+        }
+      }
     }
 
     const data = JSON.stringify({
@@ -791,12 +882,10 @@ export async function writeBraceletUltralightC(
     }
 
     for (let i = 0; i < pageCount; i++) {
-      const pageData = padded.slice(i * MFU_PAGE_SIZE, (i + 1) * MFU_PAGE_SIZE);
-      await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + i, pageData);
+      await nfcaWriteUltralightPage(transceiveFn, MFU_PAYLOAD_START_PAGE + i, padded.slice(i * MFU_PAGE_SIZE, (i + 1) * MFU_PAGE_SIZE));
     }
-
     if (pageCount < maxDataPages) {
-      await mfuHandler.mifareUltralightWritePage(MFU_PAYLOAD_START_PAGE + pageCount, [0, 0, 0, 0]);
+      await nfcaWriteUltralightPage(transceiveFn, MFU_PAYLOAD_START_PAGE + pageCount, [0, 0, 0, 0]);
     }
   } finally {
     await NfcManager.cancelTechnologyRequest().catch(() => {});
@@ -1028,12 +1117,18 @@ export async function scanAndWriteBracelet(
   }
 
   // ── Android: request all tech types once, then read + write in same session.
-  // Prioritize the expected chip technology first for better foreground dispatch.
+  // For Ultralight C with a 3DES key, request NfcA FIRST so TagTechnologyRequest
+  // connects via NfcA instead of MifareUltralight. MifareUltralight.transceive()
+  // applies MFU response framing validation that rejects the AUTH1/AUTH2 responses,
+  // causing IOException. NfcA.transceive() is raw-mode and handles them correctly.
   const preferMifareWrite = opts?.expectedChipType === "mifare_classic";
+  const preferNfcA = opts?.expectedChipType === "mifare_ultralight_c" && !!opts?.ultralightCKeyHex && Platform.OS === "android";
   await NfcManager.cancelTechnologyRequest().catch(() => {});
   try {
     await NfcManager.requestTechnology(
-      preferMifareWrite
+      preferNfcA
+        ? [NfcTech.NfcA, NfcTech.MifareUltralight, NfcTech.MifareClassic, NfcTech.Ndef]
+        : preferMifareWrite
         ? [NfcTech.MifareClassic, NfcTech.MifareUltralight, NfcTech.Ndef, NfcTech.NfcA]
         : [NfcTech.MifareUltralight, NfcTech.MifareClassic, NfcTech.Ndef, NfcTech.NfcA]
     );
@@ -1098,8 +1193,96 @@ export async function scanAndWriteBracelet(
     }
 
     // ── MIFARE Ultralight / NTAG / Ultralight C ─────────────────────────────
-    if (hasTech(techTypes, "MifareUltralight")) {
-      const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
+    if (hasTech(techTypes, "MifareUltralight") || hasTech(techTypes, "NfcA")) {
+      // When preferNfcA=true the connection is via NfcA (no MifareUltralight handler).
+      // Use raw transceive-based reads/writes for the entire session in that case.
+      const mgr = NfcManager as unknown as AnyRecord;
+      const rawTransceive: TransceiveFn | undefined =
+        typeof mgr["transceive"] === "function"
+          ? (mgr["transceive"] as TransceiveFn).bind(mgr)
+          : undefined;
+
+      if (preferNfcA && rawTransceive) {
+        // ── NfcA raw path (Ultralight C + 3DES key) ────────────────────────
+        console.log("[NFC] NfcA path — detecting subtype via raw transceive...");
+        let tagInfo: TagInfo;
+        try {
+          tagInfo = await detectUltralightSubtypeViaTransceive(rawTransceive);
+        } catch (e) {
+          console.error("[NFC] NfcA detect failed:", e instanceof Error ? e.message : String(e));
+          throw e;
+        }
+        console.log("[NFC] Chip type (NfcA):", tagInfo.type, tagInfo.label);
+        const endPage = getMfuEndPage(tagInfo.type);
+
+        // Read pages via raw [0x30, page] commands
+        const allBytes = await nfcaReadUltralightPages(rawTransceive, MFU_PAYLOAD_START_PAGE, endPage);
+        let payload: BraceletPayload;
+        const jsonStart = allBytes.indexOf(0x7b);
+        if (jsonStart === -1) {
+          payload = { uid, balance: 0, counter: 0, hmac: "" };
+        } else {
+          let jsonEnd = allBytes.length;
+          for (let i = jsonStart; i < allBytes.length; i++) {
+            if (allBytes[i] === 0) { jsonEnd = i; break; }
+          }
+          payload = parsePayloadJson(new TextDecoder().decode(allBytes.slice(jsonStart, jsonEnd)), uid);
+        }
+        console.log("[NFC] NfcA: read balance:", payload.balance, "uid:", uid.slice(-6));
+
+        // Auth BEFORE onRead (while connection is freshest, minimising window for tag loss)
+        const customKey = opts!.ultralightCKeyHex!;
+        let usedFactoryFallback = false;
+        try {
+          await authenticateUltralightC(rawTransceive, customKey);
+          console.log("[NFC] NfcA: auth OK with custom key");
+        } catch (authErr) {
+          console.warn("[NFC] NfcA: custom key auth failed — trying factory key");
+          try {
+            await authenticateUltralightC(rawTransceive, ULTRALIGHT_C_FACTORY_KEY);
+            usedFactoryFallback = true;
+            console.log("[NFC] NfcA: auth OK with factory key");
+          } catch {
+            throw new Error(`ULTRALIGHT_C_AUTH_FAILED: ${authErr instanceof Error ? authErr.message : String(authErr)}`);
+          }
+        }
+
+        const newPayload = await onRead(payload, tagInfo);
+        if (!newPayload) return { payload, tagInfo, written: false };
+
+        // Re-key if authenticated via factory key
+        if (usedFactoryFallback) {
+          try {
+            const keyBytes = (customKey.match(/.{1,2}/g) ?? []).map((b) => parseInt(b, 16));
+            for (let p = 0; p < 4; p++) {
+              await nfcaWriteUltralightPage(rawTransceive, 44 + p, keyBytes.slice(p * 4, (p + 1) * 4));
+            }
+            console.log("[NFC] NfcA: re-keyed with custom key");
+          } catch (rekeyErr) {
+            console.warn("[NFC] NfcA: re-key failed (non-fatal):", rekeyErr instanceof Error ? rekeyErr.message : String(rekeyErr));
+          }
+        }
+
+        // Write pages via raw [0xA2, page, ...] commands
+        const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });
+        const dataBytes = Array.from(new TextEncoder().encode(data));
+        const maxDataPages = endPage - MFU_PAYLOAD_START_PAGE;
+        const pageCount = Math.ceil((dataBytes.length + 1) / MFU_PAGE_SIZE);
+        if (pageCount > maxDataPages) throw new Error("PAYLOAD_TOO_LARGE_FOR_ULTRALIGHT");
+        const padded = new Array(pageCount * MFU_PAGE_SIZE).fill(0);
+        for (let i = 0; i < dataBytes.length; i++) padded[i] = dataBytes[i];
+        for (let i = 0; i < pageCount; i++) {
+          await nfcaWriteUltralightPage(rawTransceive, MFU_PAYLOAD_START_PAGE + i, padded.slice(i * MFU_PAGE_SIZE, (i + 1) * MFU_PAGE_SIZE));
+          if (i === 0) opts?.onBeforeFirstWrite?.();
+        }
+        if (pageCount < maxDataPages) {
+          try { await nfcaWriteUltralightPage(rawTransceive, MFU_PAYLOAD_START_PAGE + pageCount, [0, 0, 0, 0]); } catch {}
+        }
+        return { payload, tagInfo, written: true };
+      }
+
+      // ── MifareUltralight high-level path (no key, or unexpected tech) ─────
+      const mfuHandler = getMfuHandler(mgr);
       if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
 
       console.log("[NFC] Ultralight path — detecting subtype...");
