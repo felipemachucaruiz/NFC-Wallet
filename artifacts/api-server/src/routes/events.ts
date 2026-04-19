@@ -150,6 +150,9 @@ const updateEventSchema = z.object({
   allowedNfcTypes: z.array(z.enum(["ntag_21x", "mifare_classic", "desfire_ev3", "mifare_ultralight_c"])).min(1).optional(),
   offlineSyncLimit: z.number().int().positive().optional(),
   maxOfflineSpendPerBracelet: z.number().int().positive().optional(),
+  bankPaymentMethods: z.array(z.string()).min(1).optional(),
+  boxOfficePaymentMethods: z.array(z.string()).min(1).optional(),
+  bankMinTopup: z.number().int().min(0).optional(),
   ultralightCDesKey: z.string().regex(/^[0-9a-fA-F]{32}$/, "ultralightCDesKey must be 32 hex characters (16 bytes)").optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
@@ -186,6 +189,9 @@ const SAFE_EVENT_FIELDS = {
   allowedNfcTypes: eventsTable.allowedNfcTypes,
   offlineSyncLimit: eventsTable.offlineSyncLimit,
   maxOfflineSpendPerBracelet: eventsTable.maxOfflineSpendPerBracelet,
+  bankPaymentMethods: eventsTable.bankPaymentMethods,
+  boxOfficePaymentMethods: eventsTable.boxOfficePaymentMethods,
+  bankMinTopup: eventsTable.bankMinTopup,
   latitude: eventsTable.latitude,
   longitude: eventsTable.longitude,
   coverImageUrl: eventsTable.coverImageUrl,
@@ -423,7 +429,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt } = parsed.data;
 
   if (refundDeadline !== undefined && refundDeadline !== null) {
     const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, eventId)))[0]?.endsAt;
@@ -465,6 +471,9 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(allowedNfcTypes !== undefined && { allowedNfcTypes }),
     ...(offlineSyncLimit !== undefined && { offlineSyncLimit }),
     ...(maxOfflineSpendPerBracelet !== undefined && { maxOfflineSpendPerBracelet }),
+    ...(bankPaymentMethods !== undefined && { bankPaymentMethods }),
+    ...(boxOfficePaymentMethods !== undefined && { boxOfficePaymentMethods }),
+    ...(bankMinTopup !== undefined && { bankMinTopup }),
     ...(ultralightCDesKey !== undefined && { ultralightCDesKey }),
     ...(latitude !== undefined && { latitude: latitude !== null ? String(latitude) : null }),
     ...(longitude !== undefined && { longitude: longitude !== null ? String(longitude) : null }),
@@ -531,6 +540,31 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
   const { hmacSecret: _secret, ...eventWithoutSecret } = event;
   res.json({ ...eventWithoutSecret, hasHmacSecret: !!_secret });
 });
+
+router.get(
+  "/events/:eventId/payment-config",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const eventId = req.params.eventId as string;
+    const [event] = await db
+      .select({
+        bankPaymentMethods: eventsTable.bankPaymentMethods,
+        boxOfficePaymentMethods: eventsTable.boxOfficePaymentMethods,
+        bankMinTopup: eventsTable.bankMinTopup,
+      })
+      .from(eventsTable)
+      .where(eq(eventsTable.id, eventId));
+    if (!event) {
+      res.status(404).json({ error: "Event not found" });
+      return;
+    }
+    res.json({
+      bankPaymentMethods: event.bankPaymentMethods ?? ["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"],
+      boxOfficePaymentMethods: event.boxOfficePaymentMethods ?? ["gate_cash", "gate_transfer", "gate_card", "gate_nequi"],
+      bankMinTopup: event.bankMinTopup ?? 0,
+    });
+  },
+);
 
 router.post(
   "/events/:eventId/rotate-signing-key",

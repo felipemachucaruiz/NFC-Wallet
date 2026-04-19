@@ -29,7 +29,25 @@ type EventDetail = {
   hasUltralightCKey?: boolean;
   offlineSyncLimit?: number;
   maxOfflineSpendPerBracelet?: number;
+  bankPaymentMethods?: string[];
+  boxOfficePaymentMethods?: string[];
+  bankMinTopup?: number;
 };
+
+const BANK_METHODS = [
+  { value: "cash", label: "Efectivo", icon: "dollar-sign" as const },
+  { value: "card_external", label: "Tarjeta (datafono)", icon: "credit-card" as const },
+  { value: "nequi_transfer", label: "Nequi", icon: "smartphone" as const },
+  { value: "bancolombia_transfer", label: "Bancolombia", icon: "home" as const },
+  { value: "other", label: "Otro", icon: "more-horizontal" as const },
+];
+
+const BOX_OFFICE_METHODS = [
+  { value: "gate_cash", label: "Efectivo", icon: "dollar-sign" as const },
+  { value: "gate_transfer", label: "Transferencia", icon: "smartphone" as const },
+  { value: "gate_card", label: "Datafono", icon: "credit-card" as const },
+  { value: "gate_nequi", label: "Nequi (Wompi)", icon: "zap" as const },
+];
 
 type ConfirmModal =
   | { type: "inventory"; pendingMode: InventoryMode }
@@ -188,17 +206,55 @@ export default function EventSettingsScreen() {
   const [isGeneratingDesfireKey, setIsGeneratingDesfireKey] = useState(false);
   const [isGeneratingUltralightCKey, setIsGeneratingUltralightCKey] = useState(false);
 
+  const [selectedBankMethods, setSelectedBankMethods] = useState<string[]>(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
+  const [selectedBoxOfficeMethods, setSelectedBoxOfficeMethods] = useState<string[]>(["gate_cash", "gate_transfer", "gate_card", "gate_nequi"]);
+  const [bankMinTopupText, setBankMinTopupText] = useState("0");
+  const [isSavingPaymentConfig, setIsSavingPaymentConfig] = useState(false);
+
   React.useEffect(() => {
     if (event) {
       setOfflineSyncLimit(String(event.offlineSyncLimit ?? 500000));
       setMaxOfflineSpendPerBracelet(String(event.maxOfflineSpendPerBracelet ?? 200000));
       const types = event.allowedNfcTypes ?? [event.nfcChipType ?? "ntag_21x"];
       setSelectedAllowedTypes(types);
+      if (event.bankPaymentMethods) setSelectedBankMethods(event.bankPaymentMethods);
+      if (event.boxOfficePaymentMethods) setSelectedBoxOfficeMethods(event.boxOfficePaymentMethods);
+      if (event.bankMinTopup !== undefined) setBankMinTopupText(String(event.bankMinTopup));
     }
-  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes]);
+  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes, event?.bankPaymentMethods, event?.boxOfficePaymentMethods, event?.bankMinTopup]);
 
   const updateEvent = useUpdateEvent();
   const queryClient = useQueryClient();
+
+  const handleSavePaymentConfig = async () => {
+    if (!user?.eventId) return;
+    if (selectedBankMethods.length === 0 || selectedBoxOfficeMethods.length === 0) {
+      showAlert(t("common.error"), "Selecciona al menos un método de pago para cada área.");
+      return;
+    }
+    const minTopup = parseInt(bankMinTopupText, 10);
+    if (isNaN(minTopup) || minTopup < 0) {
+      showAlert(t("common.error"), "Monto mínimo inválido.");
+      return;
+    }
+    setIsSavingPaymentConfig(true);
+    try {
+      await customFetch(`/api/events/${user.eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          bankPaymentMethods: selectedBankMethods,
+          boxOfficePaymentMethods: selectedBoxOfficeMethods,
+          bankMinTopup: minTopup,
+        }),
+      });
+      refetch();
+      showAlert(t("common.success"), "Configuración de pagos guardada.");
+    } catch {
+      showAlert(t("common.error"), t("common.error"));
+    } finally {
+      setIsSavingPaymentConfig(false);
+    }
+  };
 
   const handleSelectMode = (mode: InventoryMode) => {
     if (mode === currentMode) return;
@@ -673,6 +729,98 @@ export default function EventSettingsScreen() {
             )}
           </>
         )}
+
+        <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
+
+        <Text style={[styles.sectionTitle, { color: C.text }]}>Métodos de Pago</Text>
+        <Text style={[styles.subtitle, { color: C.textSecondary }]}>
+          Configura qué métodos de pago están disponibles para banco y boletería.
+        </Text>
+
+        <Card padding={16} style={{ borderColor: C.border, borderWidth: 1 }}>
+          <Text style={[styles.inputLabel, { color: C.text }]}>Banco — Recargas</Text>
+          <View style={{ gap: 8, marginTop: 8 }}>
+            {BANK_METHODS.map((m) => {
+              const isChecked = selectedBankMethods.includes(m.value);
+              return (
+                <Pressable
+                  key={m.value}
+                  onPress={() => setSelectedBankMethods((prev) =>
+                    prev.includes(m.value)
+                      ? prev.length > 1 ? prev.filter((x) => x !== m.value) : prev
+                      : [...prev, m.value]
+                  )}
+                  style={[
+                    styles.modeOption,
+                    {
+                      backgroundColor: isChecked ? C.primaryLight : C.card,
+                      borderColor: isChecked ? C.primary : C.border,
+                      padding: 12,
+                    },
+                  ]}
+                >
+                  <Feather name={m.icon} size={18} color={isChecked ? C.primary : C.textMuted} />
+                  <Text style={[styles.modeTitle, { color: isChecked ? C.primary : C.text, flex: 1 }]}>{m.label}</Text>
+                  <View style={[styles.checkboxBox, { borderColor: isChecked ? C.primary : C.border, backgroundColor: isChecked ? C.primary : "transparent" }]}>
+                    {isChecked && <Feather name="check" size={14} color="#0a0a0a" />}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.inputLabel, { color: C.text, marginTop: 16 }]}>Monto mínimo de recarga (COP)</Text>
+          <Text style={[styles.inputHint, { color: C.textMuted }]}>0 = sin mínimo adicional (usa el mínimo base de $1.000)</Text>
+          <TextInput
+            style={[styles.limitInput, { backgroundColor: C.inputBg, color: C.text, borderColor: C.border }]}
+            value={bankMinTopupText}
+            onChangeText={setBankMinTopupText}
+            keyboardType="numeric"
+            placeholder="0"
+            placeholderTextColor={C.textMuted}
+          />
+
+          <Text style={[styles.inputLabel, { color: C.text, marginTop: 16 }]}>Boletería — Venta en puerta</Text>
+          <View style={{ gap: 8, marginTop: 8 }}>
+            {BOX_OFFICE_METHODS.map((m) => {
+              const isChecked = selectedBoxOfficeMethods.includes(m.value);
+              return (
+                <Pressable
+                  key={m.value}
+                  onPress={() => setSelectedBoxOfficeMethods((prev) =>
+                    prev.includes(m.value)
+                      ? prev.length > 1 ? prev.filter((x) => x !== m.value) : prev
+                      : [...prev, m.value]
+                  )}
+                  style={[
+                    styles.modeOption,
+                    {
+                      backgroundColor: isChecked ? C.primaryLight : C.card,
+                      borderColor: isChecked ? C.primary : C.border,
+                      padding: 12,
+                    },
+                  ]}
+                >
+                  <Feather name={m.icon} size={18} color={isChecked ? C.primary : C.textMuted} />
+                  <Text style={[styles.modeTitle, { color: isChecked ? C.primary : C.text, flex: 1 }]}>{m.label}</Text>
+                  <View style={[styles.checkboxBox, { borderColor: isChecked ? C.primary : C.border, backgroundColor: isChecked ? C.primary : "transparent" }]}>
+                    {isChecked && <Feather name="check" size={14} color="#0a0a0a" />}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Button
+            title={t("common.save")}
+            onPress={handleSavePaymentConfig}
+            variant="primary"
+            size="md"
+            fullWidth
+            style={{ marginTop: 16 }}
+            loading={isSavingPaymentConfig}
+          />
+        </Card>
 
         <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
 

@@ -41,6 +41,15 @@ type SaleResult = {
   };
 };
 
+type BoxOfficePaymentMethod = "gate_cash" | "gate_transfer" | "gate_card" | "gate_nequi";
+
+const ALL_BOX_OFFICE_METHODS: { value: BoxOfficePaymentMethod; labelKey: string; icon: string }[] = [
+  { value: "gate_cash", labelKey: "boxOffice.gate_cash", icon: "dollar-sign" },
+  { value: "gate_transfer", labelKey: "boxOffice.gate_transfer", icon: "smartphone" },
+  { value: "gate_card", labelKey: "boxOffice.gate_card", icon: "credit-card" },
+  { value: "gate_nequi", labelKey: "boxOffice.gate_nequi", icon: "zap" },
+];
+
 type PageState = "form" | "loading" | "success" | "error";
 
 export default function BoxOfficeSaleScreen() {
@@ -49,7 +58,7 @@ export default function BoxOfficeSaleScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { user, sessionToken } = useAuth();
+  const { user, token } = useAuth();
 
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
@@ -57,7 +66,8 @@ export default function BoxOfficeSaleScreen() {
   const [attendeeName, setAttendeeName] = useState("");
   const [attendeeEmail, setAttendeeEmail] = useState("");
   const [attendeePhone, setAttendeePhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"gate_cash" | "gate_transfer">("gate_cash");
+  const [enabledPaymentMethods, setEnabledPaymentMethods] = useState<BoxOfficePaymentMethod[]>(["gate_cash", "gate_transfer", "gate_card", "gate_nequi"]);
+  const [paymentMethod, setPaymentMethod] = useState<BoxOfficePaymentMethod>("gate_cash");
   const [pageState, setPageState] = useState<PageState>("form");
   const [saleResult, setSaleResult] = useState<SaleResult | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -65,10 +75,25 @@ export default function BoxOfficeSaleScreen() {
   const eventId = user?.eventId ?? "";
 
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId || !token) return;
+    fetch(`${API_BASE_URL}/api/events/${eventId}/payment-config`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const methods: BoxOfficePaymentMethod[] = data.boxOfficePaymentMethods ?? ["gate_cash", "gate_transfer", "gate_card", "gate_nequi"];
+        setEnabledPaymentMethods(methods);
+        if (!methods.includes(paymentMethod)) {
+          setPaymentMethod(methods[0] ?? "gate_cash");
+        }
+      })
+      .catch(() => {});
+  }, [eventId, token]);
+
+  useEffect(() => {
+    if (!eventId || !token) return;
     fetch(`${API_BASE_URL}/api/events/${eventId}/box-office/ticket-types`, {
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
       .then((data) => {
@@ -78,7 +103,7 @@ export default function BoxOfficeSaleScreen() {
       })
       .catch(() => {})
       .finally(() => setLoadingTypes(false));
-  }, [eventId]);
+  }, [eventId, token]);
 
   const selectedType = ticketTypes.find((t) => t.id === selectedTypeId);
   const available = selectedType ? selectedType.quantity - selectedType.soldCount : 0;
@@ -92,8 +117,7 @@ export default function BoxOfficeSaleScreen() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/events/${eventId}/box-office/sale`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           ticketTypeId: selectedTypeId,
           attendeeName: attendeeName.trim(),
@@ -120,7 +144,7 @@ export default function BoxOfficeSaleScreen() {
     setAttendeeName("");
     setAttendeeEmail("");
     setAttendeePhone("");
-    setPaymentMethod("gate_cash");
+    setPaymentMethod(enabledPaymentMethods[0] ?? "gate_cash");
     setSaleResult(null);
     setErrorMsg("");
     setPageState("form");
@@ -287,25 +311,25 @@ export default function BoxOfficeSaleScreen() {
                   {t("boxOffice.paymentMethod")}
                 </Text>
                 <View style={[styles.typeSelector, { backgroundColor: C.card, borderColor: C.border }]}>
-                  {(["gate_cash", "gate_transfer"] as const).map((pm) => (
+                  {ALL_BOX_OFFICE_METHODS.filter((m) => enabledPaymentMethods.includes(m.value)).map((m) => (
                     <Pressable
-                      key={pm}
+                      key={m.value}
                       style={[
                         styles.typeOption,
-                        paymentMethod === pm && { backgroundColor: C.primaryLight },
+                        paymentMethod === m.value && { backgroundColor: C.primaryLight },
                       ]}
-                      onPress={() => setPaymentMethod(pm)}
+                      onPress={() => setPaymentMethod(m.value)}
                     >
                       <Feather
-                        name={pm === "gate_cash" ? "dollar-sign" : "smartphone"}
+                        name={m.icon as React.ComponentProps<typeof Feather>["name"]}
                         size={18}
-                        color={paymentMethod === pm ? C.primary : C.textMuted}
+                        color={paymentMethod === m.value ? C.primary : C.textMuted}
                         style={{ marginRight: 10 }}
                       />
-                      <Text style={[styles.typeName, { color: paymentMethod === pm ? C.primary : C.text }]}>
-                        {t(`boxOffice.${pm}`)}
+                      <Text style={[styles.typeName, { color: paymentMethod === m.value ? C.primary : C.text }]}>
+                        {t(m.labelKey)}
                       </Text>
-                      {paymentMethod === pm && <Feather name="check" size={18} color={C.primary} style={{ marginLeft: "auto" }} />}
+                      {paymentMethod === m.value && <Feather name="check" size={18} color={C.primary} style={{ marginLeft: "auto" }} />}
                     </Pressable>
                   ))}
                 </View>

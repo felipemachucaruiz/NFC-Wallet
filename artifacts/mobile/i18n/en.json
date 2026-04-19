@@ -1233,6 +1233,8 @@
     "paymentMethod": "Payment method",
     "gate_cash": "Cash",
     "gate_transfer": "Transfer",
+    "gate_card": "Card (POS terminal)",
+    "gate_nequi": "Nequi (Wompi)",
     "available": "available",
     "soldOut": "Sold out",
     "confirmSale": "Confirm sale",

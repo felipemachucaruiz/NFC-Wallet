@@ -6,7 +6,7 @@ import { Animated, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Te
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useUpdateBraceletContact, useGetSigningKey, type SigningKeyResponse } from "@workspace/api-client-react";
+import { useUpdateBraceletContact, useGetSigningKey, customFetch, type SigningKeyResponse } from "@workspace/api-client-react";
 import { useAttestationContext } from "@/contexts/AttestationContext";
 import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
@@ -154,7 +154,7 @@ export default function TopUpScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { currencyCode } = useEventContext();
+  const { currencyCode, eventId } = useEventContext();
   const fmt = (n: number) => formatCurrency(n, currencyCode);
 
   const params = useLocalSearchParams<{
@@ -185,6 +185,8 @@ export default function TopUpScreen() {
         }
       : null;
 
+  const [enabledBankMethods, setEnabledBankMethods] = useState<PaymentMethod[]>(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
+  const [bankMinTopup, setBankMinTopup] = useState(0);
   const [amountText, setAmountText] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [step, setStep] = useState<Step>("form");
@@ -219,6 +221,24 @@ export default function TopUpScreen() {
   const [phoneCountry, setPhoneCountry] = useState<CountryCode>(() => parsePhoneParam(params.phone).country);
   const [phone, setPhone] = useState(() => parsePhoneParam(params.phone).number);
   const [email, setEmail] = useState(params.email ?? "");
+
+  useEffect(() => {
+    if (!eventId) return;
+    customFetch(`/api/events/${eventId}/payment-config`, { method: "GET" })
+      .then((data: unknown) => {
+        const d = data as { bankPaymentMethods?: string[]; bankMinTopup?: number };
+        if (Array.isArray(d.bankPaymentMethods) && d.bankPaymentMethods.length > 0) {
+          setEnabledBankMethods(d.bankPaymentMethods as PaymentMethod[]);
+          if (!d.bankPaymentMethods.includes(paymentMethod)) {
+            setPaymentMethod((d.bankPaymentMethods[0] ?? "cash") as PaymentMethod);
+          }
+        }
+        if (typeof d.bankMinTopup === "number") {
+          setBankMinTopup(d.bankMinTopup);
+        }
+      })
+      .catch(() => {});
+  }, [eventId]);
 
   const { data: keyData, refetch: refetchSigningKey } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
@@ -308,6 +328,7 @@ export default function TopUpScreen() {
   // In sync mode amount is always 0 — we're writing the server's correct balance
   // to a stale chip without charging any new funds.
   const amount = isSyncMode ? 0 : parseCOPInput(amountText);
+  const effectiveMinAmount = Math.max(1000, bankMinTopup);
   const newBalance = currentBalance + amount;
   const newCounter = currentCounter + 1;
 
@@ -351,7 +372,7 @@ export default function TopUpScreen() {
   // ─── Step 1: User confirms the form → go to NFC tap ─────────────────────────
   const handleConfirm = async () => {
     if (submittingRef.current) return;
-    if (amount < 1000) {
+    if (amount < effectiveMinAmount) {
       showAlert(t("common.error"), t("bank.minimumAmount"));
       return;
     }
@@ -912,7 +933,7 @@ export default function TopUpScreen() {
           keyboardType="numeric"
           value={amountText}
           onChangeText={setAmountText}
-          error={amount > 0 && amount < 1000 ? t("bank.minimumAmount") : undefined}
+          error={amount > 0 && amount < effectiveMinAmount ? t("bank.minimumAmount") : undefined}
         />
 
         {amount > 0 && (
@@ -927,7 +948,7 @@ export default function TopUpScreen() {
         <View>
           <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>{t("bank.paymentMethod")}</Text>
           <View style={styles.methodGrid}>
-            {PAYMENT_METHODS.map((m) => {
+            {PAYMENT_METHODS.filter((m) => enabledBankMethods.includes(m.value)).map((m) => {
               const isSelected = paymentMethod === m.value;
               return (
                 <Pressable
@@ -986,7 +1007,7 @@ export default function TopUpScreen() {
           variant="success"
           size="lg"
           fullWidth
-          disabled={amount < 1000}
+          disabled={amount < effectiveMinAmount}
           testID="confirm-topup-btn"
         />
       </ScrollView>

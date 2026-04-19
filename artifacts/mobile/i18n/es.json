@@ -1222,6 +1222,8 @@
     "paymentMethod": "Método de pago",
     "gate_cash": "Efectivo",
     "gate_transfer": "Transferencia",
+    "gate_card": "Datafono",
+    "gate_nequi": "Nequi (Wompi)",
     "available": "disponibles",
     "soldOut": "Agotado",
     "confirmSale": "Confirmar venta",
