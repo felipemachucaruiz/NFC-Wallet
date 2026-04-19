@@ -530,6 +530,10 @@ async function runStartupMigrations(): Promise<void> {
       ALTER TABLE event_reminder_schedules ADD COLUMN IF NOT EXISTS param_mappings jsonb;
       CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_schedules_global_days ON event_reminder_schedules (days_before) WHERE event_id IS NULL;
 
+      -- ── Allow multiple reminders per day (drop unique constraints) ────────────
+      ALTER TABLE event_reminder_schedules DROP CONSTRAINT IF EXISTS event_reminder_schedules_event_id_days_before_key;
+      DROP INDEX IF EXISTS idx_reminder_schedules_global_days;
+
       -- ── event_reminder_runs: per-event tracking for global schedules ─────────
       CREATE TABLE IF NOT EXISTS event_reminder_runs (
         id          varchar PRIMARY KEY DEFAULT gen_random_uuid(),

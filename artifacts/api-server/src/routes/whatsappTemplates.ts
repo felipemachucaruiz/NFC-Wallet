@@ -472,27 +472,11 @@ router.post("/whatsapp-reminder-schedules", requireAuth, requireRole("admin"), a
   const { eventId, daysBefore, templateId, paramMappings, enabled } = parsed.data;
   const resolvedEventId = (!eventId || eventId === "global") ? null : eventId;
   const { rows } = await pool.query<{ id: string }>(`
-    WITH upd AS (
-      UPDATE event_reminder_schedules
-      SET template_id = $3, param_mappings = $4, enabled = $5, sent_at = NULL, updated_at = now()
-      WHERE event_id IS NOT DISTINCT FROM $1 AND days_before = $2
-      RETURNING id
-    )
     INSERT INTO event_reminder_schedules (event_id, days_before, template_id, param_mappings, enabled)
-    SELECT $1, $2, $3, $4, $5
-    WHERE NOT EXISTS (SELECT 1 FROM upd)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING id
   `, [resolvedEventId, daysBefore, templateId ?? null, paramMappings ? JSON.stringify(paramMappings) : null, enabled ?? true]);
-  // If update returned rows, fetch that id
-  if (!rows[0]) {
-    const { rows: existing } = await pool.query<{ id: string }>(
-      `SELECT id FROM event_reminder_schedules WHERE event_id IS NOT DISTINCT FROM $1 AND days_before = $2`,
-      [resolvedEventId, daysBefore],
-    );
-    res.json({ id: existing[0]?.id });
-  } else {
-    res.json({ id: rows[0].id });
-  }
+  res.json({ id: rows[0].id });
 });
 
 router.patch("/whatsapp-reminder-schedules/:id", requireAuth, requireRole("admin"), async (req, res) => {
