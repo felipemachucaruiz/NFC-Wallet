@@ -75,6 +75,8 @@ function parsePhoneParam(raw: string | undefined): { country: CountryCode; numbe
 
 type PaymentMethod = "cash" | "card_external" | "nequi_transfer" | "bancolombia_transfer" | "other";
 
+const ALL_BANK_METHODS: PaymentMethod[] = ["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"];
+
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
   { value: "cash", label: "Efectivo", icon: "dollar-sign" },
   { value: "card_external", label: "Tarjeta", icon: "credit-card" },
@@ -185,7 +187,7 @@ export default function TopUpScreen() {
         }
       : null;
 
-  const [enabledBankMethods, setEnabledBankMethods] = useState<PaymentMethod[] | null>(null);
+  const [enabledBankMethods, setEnabledBankMethods] = useState<PaymentMethod[]>(ALL_BANK_METHODS);
   const [bankMinTopup, setBankMinTopup] = useState(0);
   const [amountText, setAmountText] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -227,19 +229,19 @@ export default function TopUpScreen() {
     customFetch(`/api/events/${eventId}/payment-config`, { method: "GET" })
       .then((data: unknown) => {
         const d = data as { bankPaymentMethods?: string[]; bankMinTopup?: number };
-        if (Array.isArray(d.bankPaymentMethods) && d.bankPaymentMethods.length > 0) {
-          setEnabledBankMethods(d.bankPaymentMethods as PaymentMethod[]);
-          if (!d.bankPaymentMethods.includes(paymentMethod)) {
-            setPaymentMethod((d.bankPaymentMethods[0] ?? "cash") as PaymentMethod);
-          }
+        const methods = Array.isArray(d.bankPaymentMethods) && d.bankPaymentMethods.length > 0
+          ? d.bankPaymentMethods as PaymentMethod[]
+          : ALL_BANK_METHODS;
+        setEnabledBankMethods(methods);
+        if (!methods.includes(paymentMethod)) {
+          setPaymentMethod(methods[0] ?? "cash");
         }
         if (typeof d.bankMinTopup === "number") {
           setBankMinTopup(d.bankMinTopup);
         }
       })
       .catch(() => {
-        // On failure, fall back to showing all methods
-        setEnabledBankMethods(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
+        setEnabledBankMethods(ALL_BANK_METHODS);
       });
   }, [eventId]);
 
@@ -951,7 +953,7 @@ export default function TopUpScreen() {
         <View>
           <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>{t("bank.paymentMethod")}</Text>
           <View style={styles.methodGrid}>
-            {PAYMENT_METHODS.filter((m) => (enabledBankMethods ?? []).includes(m.value)).map((m) => {
+            {PAYMENT_METHODS.filter((m) => enabledBankMethods.includes(m.value)).map((m) => {
               const isSelected = paymentMethod === m.value;
               return (
                 <Pressable
