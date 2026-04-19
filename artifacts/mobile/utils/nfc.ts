@@ -619,6 +619,11 @@ async function authenticateUltralightC(transceiveFn: TransceiveFn, keyHex: strin
   if (keyBytes.length !== 16) {
     throw new Error("ULTRALIGHT_C_INVALID_KEY_LENGTH");
   }
+  // CryptoJS.TripleDES requires a 24-byte key. MIFARE Ultralight C uses 2TDEA
+  // (16-byte key) where K3 = K1. Extend here so CryptoJS produces correct output.
+  const key24 = new Uint8Array(24);
+  key24.set(keyBytes);
+  key24.set(keyBytes.slice(0, 8), 16);
 
   // Step 1: Send AUTH1 command (0x1A 0x00) to get RndB encrypted
   const auth1Response = await transceiveFn([0x1a, 0x00]);
@@ -632,7 +637,7 @@ async function authenticateUltralightC(transceiveFn: TransceiveFn, keyHex: strin
   const encRndB = new Uint8Array(auth1Response.slice(1, 9));
 
   // Step 2: Decrypt RndB using 3DES (2TDEA) in CBC mode with IV=0
-  const rndB = des3DecryptCBC(encRndB, keyBytes, new Uint8Array(8));
+  const rndB = des3DecryptCBC(encRndB, key24, new Uint8Array(8));
 
   // Step 3: Rotate RndB left by 1 byte to get RndB'
   const rndBPrime = new Uint8Array(8);
@@ -648,7 +653,7 @@ async function authenticateUltralightC(transceiveFn: TransceiveFn, keyHex: strin
   const plaintext = new Uint8Array(16);
   plaintext.set(rndA, 0);
   plaintext.set(rndBPrime, 8);
-  const encPayload = des3EncryptCBC(plaintext, keyBytes, encRndB);
+  const encPayload = des3EncryptCBC(plaintext, key24, encRndB);
 
   // Step 6: Send AUTH2 command: 0xAF + 16 bytes ciphertext
   const auth2Cmd = [0xaf, ...Array.from(encPayload)];
@@ -665,7 +670,7 @@ async function authenticateUltralightC(transceiveFn: TransceiveFn, keyHex: strin
   // Step 7: Decrypt RndA' and verify it equals RndA rotated left by 1 byte
   // IV for this decrypt is the last block of encPayload (second 8 bytes)
   const ivForDecrypt = encPayload.slice(8, 16);
-  const decRndAPrime = des3DecryptCBC(encRndAPrime, keyBytes, ivForDecrypt);
+  const decRndAPrime = des3DecryptCBC(encRndAPrime, key24, ivForDecrypt);
 
   // Expected RndA' = RndA rotated left by 1 byte
   const expectedRndAPrime = new Uint8Array(8);
