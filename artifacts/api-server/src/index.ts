@@ -830,6 +830,18 @@ function startEventReminderJob(): void {
             formBody.append("destination", phone);
             formBody.append("src.name", GUPSHUP_APP_NAME);
             formBody.append("template", JSON.stringify({ id: gupshupTemplateId, params }));
+            // Attach native location header when coordinates are available
+            if (schedule.latitude && schedule.longitude) {
+              formBody.append("message", JSON.stringify({
+                type: "location",
+                location: {
+                  latitude: schedule.latitude,
+                  longitude: schedule.longitude,
+                  name: schedule.event_name,
+                  address: schedule.venue_address ?? undefined,
+                },
+              }));
+            }
 
             const gupshupRes = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
               method: "POST",
