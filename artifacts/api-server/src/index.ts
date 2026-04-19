@@ -625,6 +625,17 @@ async function runStartupMigrations(): Promise<void> {
       );
     `);
 
+    // ── Sync allowed_nfc_types from nfc_chip_type for legacy events ───────────
+    // When allowed_nfc_types column was added it defaulted to ["ntag_21x"].
+    // Events that had nfc_chip_type already set to a different value ended up
+    // with an inconsistent allowed_nfc_types. Fix them once, idempotently.
+    await client.query(`
+      UPDATE events
+      SET allowed_nfc_types = jsonb_build_array(nfc_chip_type::text)
+      WHERE nfc_chip_type != 'ntag_21x'
+        AND allowed_nfc_types = '["ntag_21x"]'::jsonb
+    `);
+
     logger.info("Startup migrations complete.");
   } finally {
     client.release();

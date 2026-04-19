@@ -312,7 +312,10 @@ export default function EventSettings() {
     try {
       await customFetch(`/api/events/${eventId}`, {
         method: "PATCH",
-        body: JSON.stringify({ allowedNfcTypes: selectedAllowedTypes }),
+        body: JSON.stringify({
+          allowedNfcTypes: selectedAllowedTypes,
+          nfcChipType: selectedAllowedTypes[0],
+        }),
       });
       refetch();
       toast({ title: t("eventSettings.nfcChipSaved") });
