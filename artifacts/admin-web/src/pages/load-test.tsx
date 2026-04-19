@@ -178,6 +178,23 @@ export default function LoadTestPage() {
 
   useEffect(() => { return () => { sseRef.current?.abort(); }; }, []);
 
+  // Auto-sync server test config whenever the event profile changes
+  useEffect(() => {
+    setConcurrency(profile.suggestedConcurrency);
+    setDuration(profile.suggestedDuration);
+    setTargetTPS(profile.peakTPS);
+  }, [profile.suggestedConcurrency, profile.suggestedDuration, profile.peakTPS]);
+
+  // Auto-sync device groups from profile so tx counts respond to attendees and POS count
+  useEffect(() => {
+    const merchantCharges = Math.max(5, Math.min(50, Math.round(profile.totalTx / Math.max(numMerchants, 1) / 15)));
+    setDeviceGroups((prev) => prev.map((g) => {
+      if (g.role === "merchant_staff") return { ...g, count: numMerchants, numCharges: merchantCharges };
+      if (g.role === "bank") return { ...g, count: Math.max(2, Math.ceil(numMerchants / 2)) };
+      return g;
+    }));
+  }, [profile.totalTx, numMerchants]);
+
   async function startServerTest() {
     if (!eventId) { toast({ title: "Selecciona un evento", variant: "destructive" }); return; }
     sseRef.current?.abort();
@@ -297,13 +314,6 @@ export default function LoadTestPage() {
                     </div>
                   </div>
 
-                  <Button size="sm" variant="outline" className="w-full" onClick={() => {
-                    setConcurrency(profile.suggestedConcurrency);
-                    setDuration(profile.suggestedDuration);
-                    setTargetTPS(profile.peakTPS);
-                  }}>
-                    Aplicar estimación a la prueba
-                  </Button>
                 </CardContent>
               </Card>
 
