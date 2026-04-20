@@ -165,7 +165,7 @@ export default function RegisterDirectScreen() {
       triggerHaptic("light");
 
       // Register with server (outside NFC session — best-effort, bracelet already has zone)
-      const resp = await fetchWithTimeout(`${API_BASE_URL}/gate/bracelet-register`, {
+      const resp = await fetchWithTimeout(`${API_BASE_URL}/api/gate/bracelet-register`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ braceletNfcUid: nfcUid }),
