@@ -60,7 +60,8 @@ function calcEventProfile(attendees: number, _eventHours: number, merchants: num
 
 const TEST_TYPES = [
   { value: "health_check",           label: "Health Check",            icon: Activity,    description: "Latencia de endpoints críticos (10 rondas × 3 endpoints)" },
-  { value: "load_test",              label: "Prueba de Carga",          icon: Zap,         description: "N cajeros virtuales por X segundos" },
+  { value: "load_test",              label: "Prueba de Carga",          icon: Zap,         description: "N cajeros virtuales por X segundos (DB directo)" },
+  { value: "http_merchant_charge",   label: "HTTP Merchant Charge",     icon: Cpu,         description: "POS virtuales con HMAC real — full HTTP stack (equivalente a k6)" },
   { value: "balance_integrity",      label: "Integridad de Saldo",      icon: ShieldCheck, description: "Cobros concurrentes — verifica sin race conditions" },
   { value: "breaking_point",         label: "Punto de Quiebre",         icon: TrendingUp,  description: "Ramp 2 → 40 cajeros hasta detectar degradación" },
   { value: "k6_merchant-charge",     label: "k6 · Merchant Charge",     icon: Cpu,         description: "Full HTTP stack — POS concurrentes con HMAC real" },
@@ -152,11 +153,18 @@ export default function LoadTestPage() {
   const qc = useQueryClient();
 
   // Server test config
-  const [testType,   setTestType]   = useState("health_check");
-  const [eventId,    setEventId]    = useState("");
-  const [concurrency, setConcurrency] = useState(5);
-  const [duration,   setDuration]   = useState(30);
-  const [targetTPS,  setTargetTPS]  = useState<number | null>(null);
+  const [testType,        setTestType]        = useState("health_check");
+  const [eventId,         setEventId]         = useState("");
+  const [concurrency,     setConcurrency]     = useState(5);
+  const [duration,        setDuration]        = useState(30);
+  const [targetTPS,       setTargetTPS]       = useState<number | null>(null);
+  const [attestationToken, setAttestationToken] = useState("");
+  const [chargeCents,     setChargeCents]     = useState(8000);
+  // k6 tab params
+  const [k6DemoSecret,   setK6DemoSecret]    = useState("");
+  const [k6AttnToken,    setK6AttnToken]     = useState("");
+  const [k6Vus,          setK6Vus]           = useState(15);
+  const [k6Duration,     setK6Duration]      = useState(120);
 
   // Phase 1 — event profile
   const [attendees,     setAttendees]     = useState(2000);
@@ -262,7 +270,7 @@ export default function LoadTestPage() {
       const res = await fetch(`${API}/api/load-test/runs`, {
         method: "POST", signal: ctrl.signal,
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ testType, eventId, concurrency, durationSeconds: duration, ...(targetTPS !== null ? { targetTPS } : {}) }),
+        body: JSON.stringify({ testType, eventId, concurrency, durationSeconds: duration, ...(targetTPS !== null ? { targetTPS } : {}), ...(testType === "http_merchant_charge" ? { attestationToken, chargeCents } : {}) }),
       });
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
       const reader = res.body.getReader();
@@ -398,18 +406,30 @@ export default function LoadTestPage() {
                       <SelectContent>{eventsData?.events?.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  {(testType === "load_test" || testType === "balance_integrity") && (
+                  {(testType === "load_test" || testType === "balance_integrity" || testType === "http_merchant_charge") && (
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Cajeros: {concurrency}</label>
-                      <input type="range" min={1} max={20} value={concurrency} onChange={(e) => setConcurrency(Number(e.target.value))} disabled={running} className="w-full accent-primary" />
-                      <div className="flex justify-between text-xs text-muted-foreground"><span>1</span><span>20</span></div>
+                      <label className="text-xs font-medium text-muted-foreground mb-1 block">POS virtuales: {concurrency}</label>
+                      <input type="range" min={1} max={testType === "http_merchant_charge" ? 40 : 20} value={concurrency} onChange={(e) => setConcurrency(Number(e.target.value))} disabled={running} className="w-full accent-primary" />
+                      <div className="flex justify-between text-xs text-muted-foreground"><span>1</span><span>{testType === "http_merchant_charge" ? 40 : 20}</span></div>
                     </div>
                   )}
-                  {testType === "load_test" && (
+                  {(testType === "load_test" || testType === "http_merchant_charge") && (
                     <div>
                       <label className="text-xs font-medium text-muted-foreground mb-1 block">Duración: {duration}s</label>
-                      <input type="range" min={10} max={120} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} disabled={running} className="w-full accent-primary" />
-                      <div className="flex justify-between text-xs text-muted-foreground"><span>10s</span><span>120s</span></div>
+                      <input type="range" min={10} max={testType === "http_merchant_charge" ? 300 : 120} step={5} value={duration} onChange={(e) => setDuration(Number(e.target.value))} disabled={running} className="w-full accent-primary" />
+                      <div className="flex justify-between text-xs text-muted-foreground"><span>10s</span><span>{testType === "http_merchant_charge" ? "300s" : "120s"}</span></div>
+                    </div>
+                  )}
+                  {testType === "http_merchant_charge" && (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Monto por cobro (COP)</label>
+                        <Input type="number" min={1000} step={1000} value={chargeCents} onChange={(e) => setChargeCents(Number(e.target.value))} disabled={running} className="h-8 text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Attestation Token <span className="text-muted-foreground/60">(opcional)</span></label>
+                        <Input type="password" placeholder="token registrado en DB..." value={attestationToken} onChange={(e) => setAttestationToken(e.target.value)} disabled={running} className="h-8 text-sm font-mono" />
+                      </div>
                     </div>
                   )}
                   {testType === "load_test" && (
@@ -644,45 +664,71 @@ export default function LoadTestPage() {
         {/* ── k6 Tab ── */}
         <TabsContent value="k6" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left: script reference */}
+            {/* Left: params + scripts */}
             <div className="space-y-4">
+              {/* Parameter inputs */}
               <Card>
-                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Cpu className="h-4 w-4" />Scripts disponibles</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  {K6_SCRIPTS.map((s) => (
-                    <div key={s.name} className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <s.icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <p className="text-sm font-semibold">{s.label}</p>
-                        <Badge variant="outline" className="text-xs font-mono">{s.name}</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground pl-6">{s.description}</p>
-                      <div className="pl-6">
-                        <p className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1.5 rounded break-all">
-                          {s.cmd(eventId || "<eventId>")}
-                        </p>
-                      </div>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Cpu className="h-4 w-4" />Parámetros</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">Evento</label>
+                      <Select value={eventId} onValueChange={setEventId}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                        <SelectContent>{eventsData?.events?.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
+                      </Select>
                     </div>
-                  ))}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">VUs (POS)</label>
+                      <Input type="number" min={1} max={100} value={k6Vus} onChange={(e) => setK6Vus(Number(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">Duración (s)</label>
+                      <Input type="number" min={30} max={600} step={30} value={k6Duration} onChange={(e) => setK6Duration(Number(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">Monto cobro (COP)</label>
+                      <Input type="number" min={1000} step={1000} value={chargeCents} onChange={(e) => setChargeCents(Number(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">DEMO_SECRET</label>
+                    <Input type="password" placeholder="secreto demo login..." value={k6DemoSecret} onChange={(e) => setK6DemoSecret(e.target.value)} className="h-8 text-sm font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">ATTESTATION_TOKEN</label>
+                    <Input type="password" placeholder="token registrado en DB..." value={k6AttnToken} onChange={(e) => setK6AttnToken(e.target.value)} className="h-8 text-sm font-mono" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">UPLOAD_TOKEN se auto-completa con tu sesión actual.</p>
                 </CardContent>
               </Card>
+              {/* Scripts */}
               <Card>
-                <CardHeader><CardTitle className="text-base">Variables comunes</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="space-y-1 text-xs font-mono">
-                    {[
-                      ["DEMO_SECRET", "secreto demo login staff"],
-                      ["ATTESTATION_TOKEN", "token de attestación registrado en DB"],
-                      ["WOMPI_PUBLIC_KEY", "pub_test_... (ver Railway env)"],
-                      ["UPLOAD_TOKEN", "token admin para guardar resultados aquí"],
-                      ["UPLOAD_EVENT_ID", "event ID para el historial (opcional)"],
-                    ].map(([k, v]) => (
-                      <div key={k} className="flex gap-2">
-                        <span className="text-primary shrink-0">{k}</span>
-                        <span className="text-muted-foreground">— {v}</span>
+                <CardHeader><CardTitle className="text-base">Scripts disponibles</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  {K6_SCRIPTS.map((s) => {
+                    const filled = s.cmd(eventId || "<eventId>")
+                      .replace(/-e DEMO_SECRET=\.\.\./g, k6DemoSecret ? `-e DEMO_SECRET=${k6DemoSecret}` : "-e DEMO_SECRET=<pendiente>")
+                      .replace(/-e ATTESTATION_TOKEN=\.\.\./g, k6AttnToken ? `-e ATTESTATION_TOKEN=${k6AttnToken}` : "-e ATTESTATION_TOKEN=<pendiente>")
+                      .replace(/-e UPLOAD_TOKEN=\.\.\./g, `-e UPLOAD_TOKEN=${getToken()}`)
+                      + ` -e VUS=${k6Vus} -e DURATION_SECS=${k6Duration} -e CHARGE_CENTS=${chargeCents}`;
+                    return (
+                      <div key={s.name} className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <s.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <p className="text-sm font-semibold">{s.label}</p>
+                          <Badge variant="outline" className="text-xs font-mono">{s.name}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground pl-6">{s.description}</p>
+                        <div className="pl-6 flex items-start gap-2">
+                          <p className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1.5 rounded break-all flex-1">{filled}</p>
+                          <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => { navigator.clipboard.writeText(filled); toast({ title: "Comando copiado" }); }}>
+                            Copiar
+                          </Button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             </div>
