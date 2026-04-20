@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil, MessageCircle, Zap, X, Download, RefreshCw, Clock, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight, RotateCw, FileText, Bell, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Pencil, MessageCircle, Zap, X, Download, RefreshCw, Clock, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight, RotateCw, FileText, Bell, RotateCcw, Link } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   apiFetchWhatsAppTemplates,
@@ -117,6 +117,7 @@ export default function WhatsAppTemplates() {
     status: "active" as string,
     bodyPreview: "",
     parameters: [] as Array<{ name: string; description: string; example: string }>,
+    buttons: [] as Array<{ type: "url" | "phone"; text: string }>,
   });
 
   const [mapForm, setMapForm] = useState({
@@ -265,7 +266,7 @@ export default function WhatsAppTemplates() {
 
   function openNewTemplate() {
     setEditingTemplate(null);
-    setTplForm({ name: "", gupshupTemplateId: "", description: "", language: "es", category: "UTILITY", status: "active", bodyPreview: "", parameters: [] });
+    setTplForm({ name: "", gupshupTemplateId: "", description: "", language: "es", category: "UTILITY", status: "active", bodyPreview: "", parameters: [], buttons: [] });
     setShowTemplateDialog(true);
   }
 
@@ -290,6 +291,7 @@ export default function WhatsAppTemplates() {
       status: tpl.status,
       bodyPreview: tpl.bodyPreview || "",
       parameters: tpl.parameters.map(p => ({ name: p.name, description: p.description, example: p.example || "" })),
+      buttons: (tpl.buttons ?? []).map(b => ({ type: b.type, text: b.text })),
     });
     setShowTemplateDialog(true);
   }
@@ -333,6 +335,7 @@ export default function WhatsAppTemplates() {
       status: tplForm.status,
       bodyPreview: tplForm.bodyPreview || null,
       parameters: tplForm.parameters.filter(p => p.name.trim()),
+      buttons: tplForm.buttons.filter(b => b.text.trim()),
     };
 
     if (editingTemplate) {
@@ -392,6 +395,21 @@ export default function WhatsAppTemplates() {
     setTplForm(f => ({
       ...f,
       parameters: f.parameters.map((p, i) => i === idx ? { ...p, [field]: value } : p),
+    }));
+  }
+
+  function addButton() {
+    setTplForm(f => ({ ...f, buttons: [...f.buttons, { type: "url" as const, text: "" }] }));
+  }
+
+  function removeButton(idx: number) {
+    setTplForm(f => ({ ...f, buttons: f.buttons.filter((_, i) => i !== idx) }));
+  }
+
+  function updateButton(idx: number, field: string, value: string) {
+    setTplForm(f => ({
+      ...f,
+      buttons: f.buttons.map((b, i) => i === idx ? { ...b, [field]: value } : b),
     }));
   }
 
@@ -845,17 +863,29 @@ export default function WhatsAppTemplates() {
                                     className="h-7 text-xs gap-1"
                                     onClick={() => {
                                       setParamMappingScheduleId(sched.id);
-                                      setDraftParamMappings(
-                                        selectedTpl.parameters.map((_, i) => {
+                                      setDraftParamMappings(() => {
+                                        const bodyParams = selectedTpl.parameters.map((_, i) => {
                                           const existing = (sched as any).param_mappings?.find((m: any) => m.position === i + 1);
                                           return { position: i + 1, field: existing?.field ?? "" };
-                                        })
-                                      );
+                                        });
+                                        const btnOffset = selectedTpl.parameters.length;
+                                        const buttonParams = (selectedTpl.buttons ?? [])
+                                          .filter((b) => b.type === "url")
+                                          .map((_, i) => {
+                                            const pos = btnOffset + i + 1;
+                                            const existing = (sched as any).param_mappings?.find((m: any) => m.position === pos);
+                                            return { position: pos, field: existing?.field ?? "" };
+                                          });
+                                        return [...bodyParams, ...buttonParams];
+                                      });
                                       setShowParamMappingDialog(true);
                                     }}
                                   >
                                     <Zap className="h-3 w-3" />
                                     {selectedTpl.parameters.length} param{selectedTpl.parameters.length !== 1 ? "s" : ""}
+                                    {(selectedTpl.buttons ?? []).filter(b => b.type === "url").length > 0 && (
+                                      <> + {(selectedTpl.buttons ?? []).filter(b => b.type === "url").length} URL</>
+                                    )}
                                   </Button>
                                 ) : (
                                   <span className="text-xs text-muted-foreground">—</span>
@@ -970,29 +1000,41 @@ export default function WhatsAppTemplates() {
                     <p className="text-xs text-muted-foreground bg-muted rounded p-2 font-mono">{tpl.bodyPreview}</p>
                   )}
                   <div className="space-y-3">
-                    {draftParamMappings.map((pm, idx) => (
-                      <div key={pm.position} className="flex items-center gap-3">
-                        <span className="text-sm font-mono w-12 shrink-0 text-muted-foreground">{`{{${pm.position}}}`}</span>
-                        <Select
-                          value={pm.field || "__none__"}
-                          onValueChange={(v) =>
-                            setDraftParamMappings((prev) =>
-                              prev.map((x, i) => i === idx ? { ...x, field: v === "__none__" ? "" : v } : x)
-                            )
-                          }
-                        >
-                          <SelectTrigger className="flex-1 h-8 text-sm">
-                            <SelectValue placeholder="Sin asignar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">Sin asignar</SelectItem>
-                            {reminderFields.map((f) => (
-                              <SelectItem key={f.field} value={f.field}>{t(f.labelKey, f.field)}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ))}
+                    {draftParamMappings.map((pm, idx) => {
+                      const isButton = tpl && idx >= tpl.parameters.length;
+                      const btnDef = isButton && tpl
+                        ? (tpl.buttons ?? [])[idx - tpl.parameters.length]
+                        : null;
+                      return (
+                        <div key={pm.position} className="flex items-center gap-3">
+                          <span className="text-sm font-mono w-12 shrink-0 text-muted-foreground">{`{{${pm.position}}}`}</span>
+                          {btnDef && (
+                            <Badge variant="outline" className="text-xs shrink-0 text-blue-500 border-blue-400 gap-1">
+                              <Link className="h-3 w-3" />
+                              {btnDef.text || "URL"}
+                            </Badge>
+                          )}
+                          <Select
+                            value={pm.field || "__none__"}
+                            onValueChange={(v) =>
+                              setDraftParamMappings((prev) =>
+                                prev.map((x, i) => i === idx ? { ...x, field: v === "__none__" ? "" : v } : x)
+                              )
+                            }
+                          >
+                            <SelectTrigger className="flex-1 h-8 text-sm">
+                              <SelectValue placeholder="Sin asignar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Sin asignar</SelectItem>
+                              {reminderFields.map((f) => (
+                                <SelectItem key={f.field} value={f.field}>{t(f.labelKey, f.field)}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1127,6 +1169,49 @@ export default function WhatsAppTemplates() {
                         className="flex-1"
                       />
                       <Button type="button" variant="ghost" size="icon" onClick={() => removeParam(idx)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Link className="h-4 w-4 text-blue-500" />
+                  <Label>Botones CTA (URL)</Label>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={addButton}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Agregar botón
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Botones de llamada a la acción. El botón URL envía al usuario a Google Maps con las coordenadas del evento.
+                Registra la URL base estática en Gupshup (ej: <span className="font-mono">https://maps.google.com/</span>) y el sufijo dinámico se mapea en el recordatorio.
+              </p>
+              {tplForm.buttons.length > 0 && (
+                <div className="space-y-2">
+                  {tplForm.buttons.map((b, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <Select value={b.type} onValueChange={v => updateButton(idx, "type", v)}>
+                        <SelectTrigger className="w-28 shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="url">URL</SelectItem>
+                          <SelectItem value="phone">Teléfono</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder="Texto del botón, ej: Ver en mapa"
+                        value={b.text}
+                        onChange={e => updateButton(idx, "text", e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeButton(idx)}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>

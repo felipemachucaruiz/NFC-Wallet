@@ -652,6 +652,11 @@ async function runStartupMigrations(): Promise<void> {
         ADD COLUMN IF NOT EXISTS bank_min_topup integer NOT NULL DEFAULT 0;
     `);
 
+    // ── WhatsApp template CTA buttons ────────────────────────────────────────
+    await client.query(`
+      ALTER TABLE whatsapp_templates ADD COLUMN IF NOT EXISTS buttons jsonb NOT NULL DEFAULT '[]'::jsonb;
+    `);
+
     // ── Sync allowed_nfc_types from nfc_chip_type for legacy events ───────────
     // When allowed_nfc_types column was added it defaulted to ["ntag_21x"].
     // Events that had nfc_chip_type already set to a different value ended up
@@ -764,22 +769,32 @@ function startEventReminderJob(): void {
           // Resolve template: prefer template_id (direct), fall back to template_mapping_id
           let gupshupTemplateId: string | null = null;
           let paramMappings: Array<{ position: number; field: string }> = [];
+          let bodyParamCount = 0;
+          let templateButtons: Array<{ type: string; text: string }> = [];
 
           if (schedule.template_id) {
-            const { rows: tplRows } = await pool.query<{ gupshup_template_id: string }>(
-              `SELECT gupshup_template_id FROM whatsapp_templates WHERE id = $1 AND status = 'active'`,
+            const { rows: tplRows } = await pool.query<{
+              gupshup_template_id: string;
+              parameters: Array<{ name: string }> | null;
+              buttons: Array<{ type: string; text: string }> | null;
+            }>(
+              `SELECT gupshup_template_id, parameters, buttons FROM whatsapp_templates WHERE id = $1 AND status = 'active'`,
               [schedule.template_id],
             );
             if (tplRows[0]) {
               gupshupTemplateId = tplRows[0].gupshup_template_id;
               paramMappings = schedule.param_mappings ?? [];
+              bodyParamCount = tplRows[0].parameters?.length ?? 0;
+              templateButtons = tplRows[0].buttons ?? [];
             }
           } else if (schedule.template_mapping_id) {
             const { rows: mappingRows } = await pool.query<{
               gupshup_template_id: string;
               parameter_mappings: Array<{ position: number; field: string }>;
+              parameters: Array<{ name: string }> | null;
+              buttons: Array<{ type: string; text: string }> | null;
             }>(`
-              SELECT t.gupshup_template_id, m.parameter_mappings
+              SELECT t.gupshup_template_id, m.parameter_mappings, t.parameters, t.buttons
               FROM whatsapp_trigger_mappings m
               JOIN whatsapp_templates t ON t.id = m.template_id
               WHERE m.id = $1 AND m.active = true AND t.status = 'active'
@@ -787,6 +802,8 @@ function startEventReminderJob(): void {
             if (mappingRows[0]) {
               gupshupTemplateId = mappingRows[0].gupshup_template_id;
               paramMappings = mappingRows[0].parameter_mappings ?? [];
+              bodyParamCount = mappingRows[0].parameters?.length ?? 0;
+              templateButtons = mappingRows[0].buttons ?? [];
             }
           }
 
@@ -837,13 +854,26 @@ function startEventReminderJob(): void {
               eventDate,
               daysRemainingText,
             };
-            const maxPos = paramMappings.length > 0
-              ? Math.max(...paramMappings.map((m) => m.position))
+            // Split: positions 1..bodyParamCount → body params; beyond → CTA URL button suffixes
+            const bodyMappings = templateButtons.length > 0
+              ? paramMappings.filter((m) => m.position <= bodyParamCount)
+              : paramMappings;
+            const buttonMappings = templateButtons.length > 0
+              ? paramMappings.filter((m) => m.position > bodyParamCount)
+              : [];
+            const maxBodyPos = bodyMappings.length > 0
+              ? Math.max(...bodyMappings.map((m) => m.position))
               : 0;
-            const params: string[] = Array(maxPos).fill("");
-            for (const mapping of paramMappings) {
+            const params: string[] = Array(maxBodyPos).fill("");
+            for (const mapping of bodyMappings) {
               params[mapping.position - 1] = context[mapping.field] ?? "";
             }
+            const ctaButtons = buttonMappings
+              .map((m, btnIdx) => ({
+                type: templateButtons[btnIdx]?.type ?? "url",
+                parameter: context[m.field] ?? "",
+              }))
+              .filter((b) => b.parameter);
 
             // Normalize phone
             let phone = attendee.attendee_phone.replace(/[\s\-()]/g, "");
@@ -872,7 +902,9 @@ function startEventReminderJob(): void {
             formBody.append("source", GUPSHUP_SOURCE);
             formBody.append("destination", phone);
             formBody.append("src.name", GUPSHUP_APP_NAME);
-            formBody.append("template", JSON.stringify({ id: gupshupTemplateId, params }));
+            const templatePayload: Record<string, unknown> = { id: gupshupTemplateId, params };
+            if (ctaButtons.length > 0) templatePayload.buttons = ctaButtons;
+            formBody.append("template", JSON.stringify(templatePayload));
             // Attach native location header when coordinates are available
             if (schedule.latitude && schedule.longitude) {
               formBody.append("message", JSON.stringify({

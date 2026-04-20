@@ -364,6 +364,7 @@ export interface WhatsAppTemplate {
   category: string;
   status: string;
   parameters: Array<{ name: string; description: string; example?: string }>;
+  buttons: Array<{ type: "url" | "phone"; text: string }> | null;
   bodyPreview: string | null;
   createdAt: string;
   updatedAt: string;
