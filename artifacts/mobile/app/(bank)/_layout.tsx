@@ -7,7 +7,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
-import { useEventContext } from "@/contexts/EventContext";
+import { EventProvider, useEventContext } from "@/contexts/EventContext";
 import { EventEndedOverlay } from "@/components/EventEndedOverlay";
 
 function ClassicTabLayout() {
@@ -78,7 +78,7 @@ function ClassicTabLayout() {
   );
 }
 
-export default function BankLayout() {
+function BankLayoutInner() {
   const { isReady } = useRoleGuard("bank");
   const { isEventEnded, isLoading: isEventLoading } = useEventContext();
   const scheme = useColorScheme();
@@ -97,4 +97,12 @@ export default function BankLayout() {
   }
 
   return <ClassicTabLayout />;
+}
+
+export default function BankLayout() {
+  return (
+    <EventProvider>
+      <BankLayoutInner />
+    </EventProvider>
+  );
 }
