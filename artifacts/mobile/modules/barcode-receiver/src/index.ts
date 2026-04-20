@@ -1,5 +1,5 @@
-import { Platform, NativeEventEmitter } from "react-native";
-import { requireNativeModule } from "expo-modules-core";
+import { Platform } from "react-native";
+import { requireNativeModule, EventEmitter } from "expo-modules-core";
 
 let nativeModule: {
   startListening(): Promise<void>;
@@ -7,12 +7,12 @@ let nativeModule: {
   sendTestScan(barcode: string): Promise<void>;
 } | null = null;
 
-let eventEmitter: NativeEventEmitter | null = null;
+let eventEmitter: EventEmitter | null = null;
 
 if (Platform.OS === "android") {
   try {
     nativeModule = requireNativeModule("BarcodeReceiver");
-    eventEmitter = new NativeEventEmitter(nativeModule as any);
+    eventEmitter = new EventEmitter(nativeModule as any);
   } catch {
     // Native module not available (dev client / pre-build #8)
   }
