@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, merchantsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, eventsTable, merchantsTable, accessZonesTable, usersTable } from "@workspace/db";
+import { eq, asc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { requireAttestation } from "../middlewares/requireAttestation";
 import { deriveEventKey } from "../lib/kdf";
@@ -14,9 +14,31 @@ function isUltralightCConfigured(event: { nfcChipType: string | null; allowedNfc
   );
 }
 
+async function fetchEventZones(eventId: string): Promise<{ id: string; name: string; rank: number; colorHex: string | null }[]> {
+  return db
+    .select({ id: accessZonesTable.id, name: accessZonesTable.name, rank: accessZonesTable.rank, colorHex: accessZonesTable.colorHex })
+    .from(accessZonesTable)
+    .where(eq(accessZonesTable.eventId, eventId))
+    .orderBy(asc(accessZonesTable.rank));
+}
+
+async function getGateZoneBitIndex(userId: string, eventId: string): Promise<number> {
+  try {
+    const [u] = await db
+      .select({ gateZoneId: usersTable.gateZoneId })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (!u?.gateZoneId) return -1;
+    const zones = await fetchEventZones(eventId);
+    return zones.findIndex((z) => z.id === u.gateZoneId);
+  } catch {
+    return -1;
+  }
+}
+
 router.get(
   "/auth/signing-key",
-  requireRole("bank", "merchant_staff", "merchant_admin", "admin", "event_admin"),
+  requireRole("bank", "merchant_staff", "merchant_admin", "admin", "event_admin", "gate"),
   requireAttestation,
   async (req: Request, res: Response) => {
     const proto = req.headers["x-forwarded-proto"] ?? (req.secure ? "https" : "http");
@@ -73,6 +95,11 @@ router.get(
       return;
     }
 
+    // Fetch event zones for offline zone validation (all roles get this)
+    const eventZones = await fetchEventZones(eventId);
+    const isGate = user.role === "gate";
+    const gateZoneBitIndex = isGate ? await getGateZoneBitIndex(user.id, eventId) : undefined;
+
     // KDF path: derive event key from master key
     if (event.useKdf) {
       const masterKey = process.env.HMAC_MASTER_KEY;
@@ -91,7 +118,11 @@ router.get(
         offlineSyncLimit: event.offlineSyncLimit,
         maxOfflineSpendPerBracelet: event.maxOfflineSpendPerBracelet,
         nfcChipType: event.nfcChipType,
+        eventZones,
       };
+      if (gateZoneBitIndex !== undefined && gateZoneBitIndex >= 0) {
+        response.gateZoneBitIndex = gateZoneBitIndex;
+      }
       if (event.nfcChipType === "desfire_ev3" && event.desfireAesKey) {
         response.desfireAesKey = event.desfireAesKey;
       }
@@ -110,7 +141,11 @@ router.get(
         offlineSyncLimit: event.offlineSyncLimit,
         maxOfflineSpendPerBracelet: event.maxOfflineSpendPerBracelet,
         nfcChipType: event.nfcChipType,
+        eventZones,
       };
+      if (gateZoneBitIndex !== undefined && gateZoneBitIndex >= 0) {
+        response.gateZoneBitIndex = gateZoneBitIndex;
+      }
       if (event.nfcChipType === "desfire_ev3" && event.desfireAesKey) {
         response.desfireAesKey = event.desfireAesKey;
       }
@@ -133,7 +168,11 @@ router.get(
       offlineSyncLimit: event.offlineSyncLimit,
       maxOfflineSpendPerBracelet: event.maxOfflineSpendPerBracelet,
       nfcChipType: event.nfcChipType,
+      eventZones,
     };
+    if (gateZoneBitIndex !== undefined && gateZoneBitIndex >= 0) {
+      response.gateZoneBitIndex = gateZoneBitIndex;
+    }
     if (event.nfcChipType === "desfire_ev3" && event.desfireAesKey) {
       response.desfireAesKey = event.desfireAesKey;
     }

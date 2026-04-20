@@ -10,6 +10,7 @@ const bancolombiaXml = (color: string) =>
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -38,6 +39,49 @@ function safeParseJson<T>(json: string | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+type CardBrand = "visa" | "mastercard" | "amex" | null;
+
+function detectCardBrand(raw: string): CardBrand {
+  const n = raw.replace(/\D/g, "");
+  if (/^4/.test(n)) return "visa";
+  if (/^(5[1-5]|2[2-7]\d{2})/.test(n)) return "mastercard";
+  if (/^3[47]/.test(n)) return "amex";
+  return null;
+}
+
+function formatCardNumber(raw: string, brand: CardBrand): string {
+  const digits = raw.replace(/\D/g, "");
+  if (brand === "amex") {
+    const p1 = digits.slice(0, 4);
+    const p2 = digits.slice(4, 10);
+    const p3 = digits.slice(10, 15);
+    return [p1, p2, p3].filter(Boolean).join(" ");
+  }
+  return (digits.match(/.{1,4}/g) ?? []).join(" ").slice(0, 19);
+}
+
+function handleExpiryChange(value: string, prev: string): string {
+  let v = value.replace(/[^\d/]/g, "");
+  if (v.length === 2 && !v.includes("/") && prev.length === 1) v = v + "/";
+  const parts = v.split("/");
+  if (parts[1] && parts[1].length === 4) v = parts[0] + "/" + parts[1].slice(2);
+  return v.slice(0, 5);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CARD_LOGOS: Record<NonNullable<CardBrand>, any> = {
+  visa: require("@/assets/images/card-visa.png"),
+  mastercard: require("@/assets/images/card-mastercard.png"),
+  amex: require("@/assets/images/card-amex.png"),
+};
+
+function CardBrandLogo({ brand }: { brand: CardBrand }) {
+  if (!brand) return null;
+  return (
+    <Image source={CARD_LOGOS[brand]} style={{ width: 44, height: 28 }} resizeMode="contain" />
+  );
 }
 
 type LegalIdType = "CC" | "CE" | "NIT" | "PP" | "TI";
@@ -365,22 +409,30 @@ export default function TicketCheckoutScreen() {
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
               {t("tickets.cardDetails").toUpperCase()}
             </Text>
-            <TextInput
-              style={inputStyle}
-              placeholder={t("tickets.cardNumber")}
-              placeholderTextColor={C.textMuted}
-              value={cardNumber}
-              onChangeText={setCardNumber}
-              keyboardType="numeric"
-              maxLength={19}
-            />
+            <View style={{ position: "relative" }}>
+              <TextInput
+                style={[inputStyle, { paddingRight: 56, fontVariant: ["tabular-nums"] }]}
+                placeholder="1234 5678 9012 3456"
+                placeholderTextColor={C.textMuted}
+                value={cardNumber}
+                onChangeText={(raw) => {
+                  const brand = detectCardBrand(raw);
+                  setCardNumber(formatCardNumber(raw, brand));
+                }}
+                keyboardType="numeric"
+                maxLength={detectCardBrand(cardNumber) === "amex" ? 17 : 19}
+              />
+              <View style={{ position: "absolute", right: 10, top: 0, bottom: 0, justifyContent: "center", pointerEvents: "none" }}>
+                <CardBrandLogo brand={detectCardBrand(cardNumber)} />
+              </View>
+            </View>
             <View style={styles.cardRow}>
               <TextInput
                 style={[inputStyle, { flex: 1 }]}
                 placeholder="MM/AA"
                 placeholderTextColor={C.textMuted}
                 value={cardExpiry}
-                onChangeText={setCardExpiry}
+                onChangeText={(v) => setCardExpiry(handleExpiryChange(v, cardExpiry))}
                 keyboardType="numeric"
                 maxLength={5}
               />
@@ -389,9 +441,9 @@ export default function TicketCheckoutScreen() {
                 placeholder="CVC"
                 placeholderTextColor={C.textMuted}
                 value={cardCvc}
-                onChangeText={setCardCvc}
+                onChangeText={(v) => setCardCvc(v.replace(/\D/g, "").slice(0, detectCardBrand(cardNumber) === "amex" ? 4 : 3))}
                 keyboardType="numeric"
-                maxLength={4}
+                maxLength={detectCardBrand(cardNumber) === "amex" ? 4 : 3}
                 secureTextEntry
               />
             </View>

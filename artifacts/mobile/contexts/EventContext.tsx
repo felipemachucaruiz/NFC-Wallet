@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import { useGetEvent } from "@workspace/api-client-react";
 import type { InventoryMode } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,7 +51,6 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
 
   const inventoryMode: InventoryMode = event?.inventoryMode ?? "location_based";
   const nfcChipType: NfcChipType = event?.nfcChipType ?? "ntag_21x";
-  const allowedNfcTypes: NfcChipType[] = event?.allowedNfcTypes ?? [nfcChipType];
   const eventName: string | null = event?.name ?? null;
   const eventEndsAt: string | null = event?.endsAt ?? null;
   const currencyCode: string = event?.currencyCode ?? "COP";
@@ -60,8 +59,32 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     !!event &&
     (event.active === false || (!!eventEndsAt && new Date(eventEndsAt) < new Date()));
 
+  // Normalize allowedNfcTypes: the column defaulted to ["ntag_21x"] for all existing events.
+  // If nfcChipType is something else but allowedNfcTypes is still the default singleton,
+  // the data is inconsistent — trust nfcChipType as the source of truth.
+  const rawAllowedTypes = (event?.allowedNfcTypes ?? [nfcChipType]) as NfcChipType[];
+  const allowedNfcTypes: NfcChipType[] =
+    nfcChipType !== "ntag_21x" &&
+    rawAllowedTypes.length === 1 &&
+    rawAllowedTypes[0] === "ntag_21x"
+      ? [nfcChipType]
+      : rawAllowedTypes;
+
+  const contextValue = useMemo(() => ({
+    eventId: user?.eventId,
+    inventoryMode,
+    nfcChipType,
+    allowedNfcTypes,
+    isLoading,
+    isEventEnded,
+    eventName,
+    eventEndsAt,
+    currencyCode,
+    refetch,
+  }), [user?.eventId, inventoryMode, nfcChipType, allowedNfcTypes, isLoading, isEventEnded, eventName, eventEndsAt, currencyCode, refetch]);
+
   return (
-    <EventContext.Provider value={{ eventId: user?.eventId, inventoryMode, nfcChipType, allowedNfcTypes, isLoading, isEventEnded, eventName, eventEndsAt, currencyCode, refetch }}>
+    <EventContext.Provider value={contextValue}>
       {children}
     </EventContext.Provider>
   );

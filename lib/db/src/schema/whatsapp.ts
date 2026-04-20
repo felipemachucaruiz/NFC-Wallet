@@ -65,6 +65,7 @@ export const whatsappTemplatesTable = pgTable("whatsapp_templates", {
   category: whatsappTemplateCategoryEnum("category").notNull().default("UTILITY"),
   status: whatsappTemplateStatusEnum("status").notNull().default("active"),
   parameters: jsonb("parameters").$type<Array<{ name: string; description: string; example?: string }>>().notNull().default(sql`'[]'::jsonb`),
+  buttons: jsonb("buttons").$type<Array<{ type: "url" | "phone"; text: string }>>().notNull().default(sql`'[]'::jsonb`),
   bodyPreview: text("body_preview"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

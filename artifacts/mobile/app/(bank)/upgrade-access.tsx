@@ -87,7 +87,14 @@ export default function UpgradeAccessScreen() {
   const cancelledRef = useRef(false);
 
   const { data: signingKeyData } = useGetSigningKey();
-  const signingKey = (signingKeyData as { key?: string } | undefined)?.key;
+  const signingKeyTyped = signingKeyData as {
+    hmacSecret?: string;
+    ultralightCDesKey?: string;
+    eventZones?: Array<{ id: string; rank: number }>;
+  } | undefined;
+  const signingKey = signingKeyTyped?.hmacSecret ?? "";
+  const ultralightCDesKey = signingKeyTyped?.ultralightCDesKey ?? "";
+  const eventZones = (signingKeyTyped?.eventZones ?? []) as Array<{ id: string; rank: number }>;
 
   useEffect(() => {
     if (step !== "writing") return;
@@ -177,8 +184,12 @@ export default function UpgradeAccessScreen() {
 
       if (isNfcSupported() && tagType && signingKey) {
         const newCounter = counter + 1;
-        const newHmac = await computeHmac(balance, newCounter, signingKey, uid);
         const chipHint = getChipHint(allowedNfcTypes);
+        // Compute bitmask for all zones now on bracelet (after upgrade)
+        const serverZoneMask = rawData.currentZones.reduce((mask, zone) => {
+          const bitIdx = eventZones.findIndex((z) => z.id === zone.id);
+          return bitIdx >= 0 ? mask | (1 << bitIdx) : mask;
+        }, 0);
 
         try {
           await scanAndWriteBracelet(async (payload, detectedTagInfo) => {
@@ -188,9 +199,13 @@ export default function UpgradeAccessScreen() {
               setErrorMsg(t("eventAdmin.nfcChipMismatch", { expected, detected: detectedTagInfo.label }));
               return null;
             }
-            return { uid, balance, counter: newCounter, hmac: newHmac };
+            // Merge server zones with any pre-existing bits on chip
+            const finalZoneMask = (payload.zoneMask ?? 0) | serverZoneMask;
+            const newHmac = await computeHmac(balance, newCounter, signingKey, uid, finalZoneMask || undefined);
+            return { uid, balance, counter: newCounter, hmac: newHmac, zoneMask: finalZoneMask };
           }, {
             expectedChipType: chipHint,
+            ultralightCKeyHex: ultralightCDesKey || undefined,
           });
         } catch (nfcErr: unknown) {
           const msg = extractErrorMessage(nfcErr, "");

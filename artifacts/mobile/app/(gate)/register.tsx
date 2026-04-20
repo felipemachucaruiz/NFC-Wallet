@@ -20,11 +20,15 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { extractErrorMessage } from "@/utils/errorMessage";
+import { useAlert } from "@/components/CustomAlert";
 import { useAuth } from "@/contexts/AuthContext";
-import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
+import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type BraceletPayload } from "@/utils/nfc";
+import { computeHmac } from "@/utils/hmac";
 import { useEventContext } from "@/contexts/EventContext";
 import { getChipHint, isChipAllowed, chipTypeLabel } from "@/utils/chipType";
 import { useOfflineGate } from "@/hooks/useOfflineGate";
+import { useZoneCache } from "@/contexts/ZoneCacheContext";
+import { useGetSigningKey } from "@workspace/api-client-react";
 import {
   verifyQrTokenOffline,
   resolveTicketOffline,
@@ -109,9 +113,23 @@ export default function RegisterBraceletScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { token } = useAuth();
+  const { show: showAlert } = useAlert();
+  const { token, user } = useAuth();
   const { isOnline, eventData, pendingCount } = useOfflineGate();
   const { allowedNfcTypes } = useEventContext();
+  const { zones: cachedZones } = useZoneCache();
+  const { data: signingKeyData } = useGetSigningKey();
+  const signingKeyTyped = signingKeyData as unknown as {
+    hmacSecret?: string;
+    ultralightCDesKey?: string;
+    eventZones?: Array<{ id: string; rank: number }>;
+    gateZoneBitIndex?: number;
+  } | undefined;
+  const hmacSecret = signingKeyTyped?.hmacSecret ?? "";
+  const ultralightCDesKey = signingKeyTyped?.ultralightCDesKey ?? "";
+  const eventZones = signingKeyTyped?.eventZones ?? cachedZones;
+  const gateZoneBitIndex = signingKeyTyped?.gateZoneBitIndex
+    ?? (user?.gateZoneId ? eventZones.findIndex((z) => z.id === user.gateZoneId) : -1);
 
   const [pageState, setPageState] = useState<PageState>("ready");
   const [errorMsg, setErrorMsg] = useState("");
@@ -140,12 +158,6 @@ export default function RegisterBraceletScreen() {
 
   const locale = i18n.language ?? "es";
   const hasCamera = CameraView !== null && Platform.OS !== "web";
-
-  const { inputProps: barcodeInputProps, resumeFocus: resumeBarcodeFocus, pauseFocus: pauseBarcodeFocus } = useBarcodeScanner({
-    onScan: validateTicket,
-    enabled: pageState === "ready" && !showQrScanner,
-    manageFocus: true,
-  });
 
   useEffect(() => {
     if (pageState !== "ticket_nfc_scanning") return;
@@ -335,6 +347,14 @@ export default function RegisterBraceletScreen() {
     [t, token, locale, isOnline, validateTicketOffline],
   );
 
+  // Must be after validateTicket — Hermes production disables TDZ checks, so referencing
+  // a const before its declaration silently yields undefined, breaking the onScan callback.
+  const { inputProps: barcodeInputProps, resumeFocus: resumeBarcodeFocus, pauseFocus: pauseBarcodeFocus } = useBarcodeScanner({
+    onScan: validateTicket,
+    enabled: pageState === "ready" && !showQrScanner,
+    manageFocus: true,
+  });
+
   const handleBarcodeSubmit = useCallback(() => {
     const trimmed = barcodeInputProps.value.trim();
     if (!trimmed) return;
@@ -358,47 +378,69 @@ export default function RegisterBraceletScreen() {
     setNfcRetryError(null);
     setPageState("ticket_nfc_scanning");
 
-    let nfcDone = false;
+    // Capture mutable outcome refs so the callback can signal results outside NFC session
+    const outcomeRef = { errorCode: "", errorMsg: "", payload: null as Record<string, unknown> | null };
+
     try {
-      const result = await scanBracelet({ expectedChipType: getChipHint(allowedNfcTypes) });
-      nfcDone = true;
-      if (!isChipAllowed(result.tagInfo.type, allowedNfcTypes)) {
-        const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
-        showAlert(t("common.error"), t("eventAdmin.nfcChipMismatch", { expected, detected: result.tagInfo.label }));
+      const chipHint = getChipHint(allowedNfcTypes);
+      await scanAndWriteBracelet(async (braceletPayload: BraceletPayload, tagInfo) => {
+        if (!isChipAllowed(tagInfo.type, allowedNfcTypes)) {
+          const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
+          outcomeRef.errorMsg = t("eventAdmin.nfcChipMismatch", { expected, detected: tagInfo.label });
+          outcomeRef.errorCode = "CHIP_MISMATCH";
+          return null;
+        }
+        const uid = braceletPayload.uid;
+        if (!uid) return null;
+
+        setPageState("ticket_registering");
+
+        // Make the server checkin call inside the NFC session
+        const res = await fetchWithTimeout(`${API_BASE_URL}/api/gate/ticket-checkin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ qrToken, braceletNfcUid: uid }),
+        }, 8000);
+
+        const responseData = await res.json().catch(() => ({})) as Record<string, unknown>;
+        outcomeRef.payload = responseData;
+
+        if (!res.ok) {
+          outcomeRef.errorCode = (responseData.error as string) ?? "ERROR";
+          return null;
+        }
+
+        // Compute new zoneMask: OR in all zones granted by server + gate's own zone
+        let newZoneMask = braceletPayload.zoneMask ?? 0;
+        const responseZone = responseData.zone as { id?: string } | null;
+        const zonesGrantedIds: string[] = responseZone?.id ? [responseZone.id] : [];
+        for (const zoneId of zonesGrantedIds) {
+          const bitIdx = eventZones.findIndex((z) => z.id === zoneId);
+          if (bitIdx >= 0) newZoneMask |= (1 << bitIdx);
+        }
+        if (gateZoneBitIndex >= 0) newZoneMask |= (1 << gateZoneBitIndex);
+
+        // Recompute HMAC with new zoneMask (if we have the secret; otherwise preserve)
+        const newHmac = hmacSecret
+          ? await computeHmac(braceletPayload.balance, braceletPayload.counter, hmacSecret, uid, newZoneMask || undefined)
+          : braceletPayload.hmac;
+
+        return { ...braceletPayload, hmac: newHmac, zoneMask: newZoneMask };
+      }, { expectedChipType: chipHint, ultralightCKeyHex: ultralightCDesKey || undefined });
+
+      // NFC session complete — check outcome
+      if (outcomeRef.errorCode === "CHIP_MISMATCH") {
+        showAlert(t("common.error"), outcomeRef.errorMsg);
         setPageState("ticket_confirmed");
-        scanningRef.current = false;
         return;
       }
-      const uid = result.payload.uid;
-      if (!uid) {
-        setPageState("ticket_confirmed");
-        scanningRef.current = false;
-        return;
-      }
 
-      setPageState("ticket_registering");
-
-      const res = await fetchWithTimeout(`${API_BASE_URL}/api/gate/ticket-checkin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          qrToken,
-          braceletNfcUid: uid,
-        }),
-      }, 8000);
-
-      const payload = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        const errCode = payload.error as string;
+      if (outcomeRef.errorCode) {
+        const errCode = outcomeRef.errorCode;
+        const responseData = outcomeRef.payload ?? {};
         if (errCode === "ALREADY_CHECKED_IN") {
-          const checkedTime = formatTime(payload.checkedInAt, locale);
-          setErrorMsg(
-            `${t("gate.ticketAlreadyUsed")}\n${t("gate.ticketAlreadyUsedHint", { time: checkedTime })}`,
-          );
+          const checkedTime = formatTime((responseData.checkedInAt as string) ?? null, locale);
+          setErrorMsg(`${t("gate.ticketAlreadyUsed")}\n${t("gate.ticketAlreadyUsedHint", { time: checkedTime })}`);
         } else if (errCode === "BRACELET_WRONG_EVENT") {
           setErrorMsg(t("gate.ticketBraceletWrongEvent"));
         } else if (errCode === "EVENT_NOT_STARTED") {
@@ -406,30 +448,32 @@ export default function RegisterBraceletScreen() {
         } else if (errCode === "WRONG_DAY") {
           setErrorMsg(`${t("gate.ticketWrongDay")}\n${t("gate.ticketWrongDayHint")}`);
         } else {
-          setErrorMsg(payload.message ?? t("gate.ticketError"));
+          setErrorMsg((responseData.message as string) ?? t("gate.ticketError"));
         }
         setPageState("ticket_error");
         triggerHaptic("error");
-        scanningRef.current = false;
         return;
       }
 
-      const attendeeName = payload.attendee?.fullName ?? "";
-      const zoneName = payload.zone?.name ?? "";
+      const responseData = outcomeRef.payload ?? {};
+      const attendeeName = (responseData.attendee as { fullName?: string } | null)?.fullName ?? "";
+      const zoneName = (responseData.zone as { name?: string } | null)?.name ?? "";
+      const uid = (responseData.checkin as { braceletNfcUid?: string } | null)?.braceletNfcUid
+        ?? (responseData as { braceletNfcUid?: string }).braceletNfcUid ?? "";
 
       setTicketSuccessName(attendeeName);
       setTicketSuccessZone(zoneName);
       setTicketSuccessBraceletUid(uid);
 
       const historyItem: CheckinHistoryListItem = {
-        id: payload.checkin?.id ?? Date.now().toString(),
-        ticketId: payload.ticket?.ticketId ?? "",
+        id: (responseData.checkin as { id?: string } | null)?.id ?? Date.now().toString(),
+        ticketId: (responseData.ticket as { ticketId?: string } | null)?.ticketId ?? "",
         attendeeName,
-        section: payload.ticket?.section ?? null,
-        ticketType: payload.ticket?.ticketType ?? null,
+        section: (responseData.ticket as { section?: string | null } | null)?.section ?? null,
+        ticketType: (responseData.ticket as { ticketType?: string | null } | null)?.ticketType ?? null,
         braceletNfcUid: uid,
-        eventDayIndex: payload.todayDayIndex ?? 0,
-        checkedInAt: payload.checkin?.checkedInAt ?? new Date().toISOString(),
+        eventDayIndex: (responseData.todayDayIndex as number) ?? 0,
+        checkedInAt: (responseData.checkin as { checkedInAt?: string } | null)?.checkedInAt ?? new Date().toISOString(),
       };
       setSessionHistory((prev) => [historyItem, ...prev]);
 
@@ -440,17 +484,9 @@ export default function RegisterBraceletScreen() {
       const msg = extractErrorMessage(err, "");
       if (msg === "NFC_CANCELLED" || msg === "USER_CANCELLED") {
         setPageState("ticket_confirmed");
-      } else if (nfcDone) {
-        // NFC read succeeded but network request failed — show error state (real issue)
-        setErrorMsg(t("gate.scanFailed"));
-        setPageState("ticket_error");
-        triggerHaptic("error");
       } else {
-        // NFC read itself failed (tag lost, connection issue, etc.) — let user retry
         const isTagLost = msg.toLowerCase().includes("tag") || msg.toLowerCase().includes("lost") || msg.toLowerCase().includes("connection");
-        const retryMsg = isTagLost
-          ? t("gate.nfcTagLost")
-          : t("gate.nfcScanRetry");
+        const retryMsg = isTagLost ? t("gate.nfcTagLost") : t("gate.nfcScanRetry");
         setNfcRetryError(retryMsg);
         setPageState("ticket_confirmed");
         triggerHaptic("error");
@@ -458,7 +494,7 @@ export default function RegisterBraceletScreen() {
     } finally {
       scanningRef.current = false;
     }
-  }, [t, token, qrToken, locale]);
+  }, [t, token, qrToken, locale, allowedNfcTypes, hmacSecret, ultralightCDesKey, eventZones, gateZoneBitIndex]);
 
   const resetForNext = () => {
     setErrorMsg("");

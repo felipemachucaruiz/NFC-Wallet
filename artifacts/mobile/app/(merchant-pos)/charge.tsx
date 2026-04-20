@@ -84,8 +84,7 @@ const tagBadgeStyles = StyleSheet.create({
 function isChipAllowed(tagType: TagType, allowedNfcTypes: NfcChipType[]): boolean {
   if (tagType === "MIFARE_CLASSIC") return allowedNfcTypes.includes("mifare_classic");
   if (tagType === "DESFIRE_EV3") return allowedNfcTypes.includes("desfire_ev3");
-  if (tagType === "MIFARE_ULTRALIGHT_C") return allowedNfcTypes.includes("mifare_ultralight_c");
-  return allowedNfcTypes.includes("ntag_21x");
+  return allowedNfcTypes.includes("ntag_21x") || allowedNfcTypes.includes("mifare_ultralight_c");
 }
 
 export default function ChargeScreen() {
@@ -427,8 +426,8 @@ export default function ChargeScreen() {
             newCounter = payload.counter + 1;
             readSucceeded = true;
             setStep("writing");
-            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
-            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
+            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid, payload.zoneMask || undefined);
+            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac, zoneMask: payload.zoneMask };
           }, {
             expectedChipType: configuredAllowedTypes.includes("mifare_classic") && !configuredAllowedTypes.includes("mifare_ultralight_c")
               ? "mifare_classic"

@@ -75,6 +75,8 @@ function parsePhoneParam(raw: string | undefined): { country: CountryCode; numbe
 
 type PaymentMethod = "cash" | "card_external" | "nequi_transfer" | "bancolombia_transfer" | "other";
 
+const ALL_BANK_METHODS: PaymentMethod[] = ["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"];
+
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
   { value: "cash", label: "Efectivo", icon: "dollar-sign" },
   { value: "card_external", label: "Tarjeta", icon: "credit-card" },
@@ -185,7 +187,7 @@ export default function TopUpScreen() {
         }
       : null;
 
-  const [enabledBankMethods, setEnabledBankMethods] = useState<PaymentMethod[]>(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
+  const [enabledBankMethods, setEnabledBankMethods] = useState<PaymentMethod[]>(ALL_BANK_METHODS);
   const [bankMinTopup, setBankMinTopup] = useState(0);
   const [amountText, setAmountText] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -222,29 +224,41 @@ export default function TopUpScreen() {
   const [phone, setPhone] = useState(() => parsePhoneParam(params.phone).number);
   const [email, setEmail] = useState(params.email ?? "");
 
-  useEffect(() => {
-    if (!eventId) return;
-    customFetch(`/api/events/${eventId}/payment-config`, { method: "GET" })
-      .then((data: unknown) => {
-        const d = data as { bankPaymentMethods?: string[]; bankMinTopup?: number };
-        if (Array.isArray(d.bankPaymentMethods) && d.bankPaymentMethods.length > 0) {
-          setEnabledBankMethods(d.bankPaymentMethods as PaymentMethod[]);
-          if (!d.bankPaymentMethods.includes(paymentMethod)) {
-            setPaymentMethod((d.bankPaymentMethods[0] ?? "cash") as PaymentMethod);
-          }
-        }
-        if (typeof d.bankMinTopup === "number") {
-          setBankMinTopup(d.bankMinTopup);
-        }
-      })
-      .catch(() => {});
-  }, [eventId]);
-
   const { data: keyData, refetch: refetchSigningKey } = useGetSigningKey();
   const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
   const desfireAesKey = (keyData as unknown as { desfireAesKey?: string; nfcChipType?: string } | undefined)?.desfireAesKey ?? "";
   const ultralightCDesKey = (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
   const nfcChipType = (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
+
+  useEffect(() => {
+    if (!eventId) return;
+    let cancelled = false;
+    const attempt = async (retries = 0) => {
+      try {
+        const data = await customFetch(`/api/events/${eventId}/payment-config`, { method: "GET" });
+        if (cancelled) return;
+        const d = data as { bankPaymentMethods?: string[]; bankMinTopup?: number };
+        const methods = Array.isArray(d.bankPaymentMethods) && d.bankPaymentMethods.length > 0
+          ? d.bankPaymentMethods as PaymentMethod[]
+          : ALL_BANK_METHODS;
+        setEnabledBankMethods(methods);
+        setPaymentMethod((prev) => (methods.includes(prev) ? prev : (methods[0] ?? "cash")));
+        if (typeof d.bankMinTopup === "number") {
+          setBankMinTopup(d.bankMinTopup);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const status = (err as { status?: number })?.status;
+        if (status === 401 && retries < 3) {
+          setTimeout(() => attempt(retries + 1), 600 * (retries + 1));
+        } else {
+          setEnabledBankMethods(ALL_BANK_METHODS);
+        }
+      }
+    };
+    void attempt();
+    return () => { cancelled = true; };
+  }, [eventId]);
   const { enqueueTopUp, cachedHmacSecret, updateCachedHmacSecret, syncNow } = useOfflineQueue();
   const { retryAttestation } = useAttestationContext();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
@@ -493,8 +507,8 @@ export default function TopUpScreen() {
             }
             stepRef.current = "writing";
             setStep("writing");
-            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
-            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
+            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid, payload.zoneMask || undefined);
+            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac, zoneMask: payload.zoneMask };
           }, {
             expectedChipType: chipHint,
             ultralightCKeyHex: ultralightCDesKey || undefined,
