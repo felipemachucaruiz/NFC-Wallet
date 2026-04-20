@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -273,6 +274,11 @@ export default function EntranceCheckinScreen() {
 
   const validateTicket = useCallback(
     async (data: string) => {
+      if (data === "TEST-BROADCAST-OK") {
+        triggerHaptic("success");
+        Alert.alert("Prueba de lector", "✅ El lector de códigos de barra está funcionando correctamente.");
+        return;
+      }
       setPageState("validating");
       setErrorMsg("");
 
