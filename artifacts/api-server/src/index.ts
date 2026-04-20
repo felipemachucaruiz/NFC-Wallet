@@ -668,6 +668,14 @@ async function runStartupMigrations(): Promise<void> {
         AND allowed_nfc_types = '["ntag_21x"]'::jsonb
     `);
 
+    // ── Tombstone table for hard-deleted bracelets ───────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS deleted_bracelet_uids (
+        nfc_uid varchar(64) PRIMARY KEY,
+        deleted_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+
     logger.info("Startup migrations complete.");
   } finally {
     client.release();
