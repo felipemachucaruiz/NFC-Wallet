@@ -106,18 +106,19 @@ async function readUltralightCCByte(): Promise<number | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Compact binary format for basic MIFARE Ultralight (16 pages, 44 usable bytes).
-// JSON payload with full HMAC is ~100 bytes — too large. This format fits 20 bytes.
+// Compact binary format for basic MIFARE Ultralight (16 pages, 48 usable bytes).
+// JSON payload with full HMAC is ~100 bytes — too large. This format fits 24 bytes.
 //
-// Layout (20 bytes = 5 pages, written starting at page 4):
+// Layout (24 bytes = 6 pages, written starting at page 4):
 //   Byte  0   : 0xBF  — magic marker (never valid JSON: JSON starts with 0x7B '{')
 //   Bytes 1-4 : balance  — uint32 big-endian (max ~4.29 B COP)
 //   Bytes 5-8 : counter  — uint32 big-endian
 //   Bytes 9-16: HMAC[0..7] — first 8 raw bytes of HMAC-SHA256 (= 16 hex chars)
-//   Bytes 17-19: 0x00 padding
+//   Bytes 17-20: zoneMask — uint32 big-endian (offline zone access bitmask)
+//   Bytes 21-23: 0x00 padding
 // ---------------------------------------------------------------------------
 const COMPACT_BINARY_MAGIC = 0xbf;
-const COMPACT_BINARY_PAGES = 5; // 20 bytes
+const COMPACT_BINARY_PAGES = 6; // 24 bytes
 
 function encodeBraceletCompact(payload: BraceletPayload): number[] {
   const out = new Array(COMPACT_BINARY_PAGES * MFU_PAGE_SIZE).fill(0);
@@ -139,18 +140,28 @@ function encodeBraceletCompact(payload: BraceletPayload): number[] {
   for (let i = 0; i < 8; i++) {
     out[9 + i] = parseInt(hmacHex.slice(i * 2, i * 2 + 2), 16) || 0;
   }
+  // zoneMask — uint32 big-endian
+  const zm = ((payload.zoneMask ?? 0) >>> 0);
+  out[17] = (zm >>> 24) & 0xff;
+  out[18] = (zm >>> 16) & 0xff;
+  out[19] = (zm >>> 8) & 0xff;
+  out[20] = zm & 0xff;
   return out;
 }
 
 function decodeBraceletCompact(bytes: Uint8Array, uid: string): BraceletPayload {
   if (bytes.length < 17 || bytes[0] !== COMPACT_BINARY_MAGIC) {
-    return { uid, balance: 0, counter: 0, hmac: "" };
+    return { uid, balance: 0, counter: 0, hmac: "", zoneMask: 0 };
   }
   const balance = ((bytes[1] << 24) | (bytes[2] << 16) | (bytes[3] << 8) | bytes[4]) >>> 0;
   const counter = ((bytes[5] << 24) | (bytes[6] << 16) | (bytes[7] << 8) | bytes[8]) >>> 0;
   const hmacBytes = bytes.slice(9, 17);
   const hmac = Array.from(hmacBytes).map((b) => b.toString(16).padStart(2, "0")).join("");
-  return { uid, balance, counter, hmac };
+  // zoneMask: bytes 17-20, only present in v2 format (>= 21 bytes)
+  const zoneMask = bytes.length >= 21
+    ? (((bytes[17] << 24) | (bytes[18] << 16) | (bytes[19] << 8) | bytes[20]) >>> 0)
+    : 0;
+  return { uid, balance, counter, hmac, zoneMask };
 }
 
 // GET_VERSION response byte 6 → chip storage size → NTAG type mapping.
@@ -282,10 +293,21 @@ function parsePayloadJson(text: string, uid: string): BraceletPayload {
       balance: typeof parsed.balance === "number" ? parsed.balance : 0,
       counter: typeof parsed.counter === "number" ? parsed.counter : 0,
       hmac: typeof parsed.hmac === "string" ? parsed.hmac : "",
+      zoneMask: typeof parsed.zoneMask === "number" ? parsed.zoneMask : 0,
     };
   } catch {
-    return { uid, balance: 0, counter: 0, hmac: "" };
+    return { uid, balance: 0, counter: 0, hmac: "", zoneMask: 0 };
   }
+}
+
+function serializePayload(payload: BraceletPayload): string {
+  const obj: Record<string, unknown> = {
+    balance: payload.balance,
+    counter: payload.counter,
+    hmac: payload.hmac,
+  };
+  if (payload.zoneMask) obj.zoneMask = payload.zoneMask;
+  return JSON.stringify(obj);
 }
 
 function getUid(tag: unknown): string {
@@ -353,11 +375,7 @@ async function writeBraceletNdef(payload: BraceletPayload): Promise<void> {
 
   try {
     await NfcManager.requestTechnology(NfcTech.Ndef);
-    const data = JSON.stringify({
-      balance: payload.balance,
-      counter: payload.counter,
-      hmac: payload.hmac,
-    });
+    const data = serializePayload(payload);
     const bytes = Ndef.encodeMessage([Ndef.textRecord(data)]);
     await NfcManager.ndefHandler.writeNdefMessage(bytes);
   } finally {
@@ -446,11 +464,7 @@ export async function writeBraceletMifareClassic(payload: BraceletPayload): Prom
     const mfcHandler = getMfcHandler(NfcManager as unknown as AnyRecord);
     if (!mfcHandler) throw new Error("MIFARE_CLASSIC_HANDLER_UNAVAILABLE");
 
-    const data = JSON.stringify({
-      balance: payload.balance,
-      counter: payload.counter,
-      hmac: payload.hmac,
-    });
+    const data = serializePayload(payload);
     const dataBytes = Array.from(new TextEncoder().encode(data));
     const maxCapacity = MIFARE_BLOCK_SIZE * MFC_DATA_BLOCKS_IN_SECTOR * MFC_PAYLOAD_SECTORS.length;
     if (dataBytes.length > maxCapacity) {
@@ -643,11 +657,7 @@ export async function writeBraceletUltralight(
     const mfuHandler = getMfuHandler(NfcManager as unknown as AnyRecord);
     if (!mfuHandler) throw new Error("ULTRALIGHT_HANDLER_UNAVAILABLE");
 
-    const data = JSON.stringify({
-      balance: payload.balance,
-      counter: payload.counter,
-      hmac: payload.hmac,
-    });
+    const data = serializePayload(payload);
     const dataBytes = Array.from(new TextEncoder().encode(data));
     const endPage = getMfuEndPage(tagType);
     const maxDataPages = endPage - MFU_PAYLOAD_START_PAGE;
@@ -1063,6 +1073,68 @@ export async function cancelNfc(): Promise<void> {
 }
 
 /**
+ * Authenticate with an old key, wipe user data (pages 4-39), and set a new key.
+ * Used to re-initialize bracelets that were previously used in another event.
+ *
+ * @param unlockKeyHex  32-char hex key currently on the chip (previous event's key)
+ * @param newKeyHex     32-char hex new key to set; omit to restore factory default
+ */
+/**
+ * Wipe user data (pages 4-39) on a MIFARE Ultralight C chip.
+ *
+ * @param unlockKeyHex  32-char hex key on the chip. Pass null/empty for
+ *                      unprotected chips (HMAC-only events) — writes directly.
+ * @param newKeyHex     New 3DES key to set after wiping (pages 44-47).
+ *                      Omit to restore factory default.
+ *                      Ignored when unlockKeyHex is null (unprotected chips
+ *                      stay unprotected — no re-key written).
+ */
+export async function resetAndRekeyUltralightC(
+  unlockKeyHex: string | null,
+  newKeyHex?: string,
+): Promise<void> {
+  if (!NfcManager || !NfcTech) throw new Error("NFC_NOT_AVAILABLE");
+  if (Platform.OS === "ios") throw new Error("RESET_IOS_NOT_SUPPORTED");
+
+  await NfcManager.cancelTechnologyRequest().catch(() => {});
+  try {
+    await NfcManager.requestTechnology([
+      NfcTech.NfcA,
+      NfcTech.MifareUltralight,
+      NfcTech.MifareClassic,
+      NfcTech.Ndef,
+    ]);
+    const mgr = NfcManager as unknown as AnyRecord;
+    const transceive = (typeof mgr["transceive"] === "function"
+      ? (mgr["transceive"] as TransceiveFn).bind(mgr)
+      : undefined);
+    if (!transceive) throw new Error("ULTRALIGHT_C_AUTH_FAILED: TRANSCEIVE_UNAVAILABLE");
+
+    if (unlockKeyHex) {
+      await authenticateUltralightC(transceive, unlockKeyHex);
+    }
+    // If no unlockKeyHex the chip is unprotected — write directly.
+
+    // Wipe user data pages 4-39
+    for (let page = MFU_PAYLOAD_START_PAGE; page < 40; page++) {
+      await nfcaWriteUltralightPage(transceive, page, [0, 0, 0, 0]);
+    }
+
+    // Only write a new key when we know the chip is 3DES-protected
+    // (unlockKeyHex provided). For unprotected chips leave pages 44-47 as-is.
+    if (unlockKeyHex) {
+      const targetKey = newKeyHex ?? ULTRALIGHT_C_FACTORY_KEY;
+      const keyBytes = (targetKey.match(/.{1,2}/g) ?? []).map((b) => parseInt(b, 16));
+      for (let p = 0; p < 4; p++) {
+        await nfcaWriteUltralightPage(transceive, 44 + p, keyBytes.slice(p * 4, (p + 1) * 4));
+      }
+    }
+  } finally {
+    await NfcManager.cancelTechnologyRequest().catch(() => {});
+  }
+}
+
+/**
  * Read then write in a single NFC session — one tap only.
  *
  * `onRead` receives the data read from the tag and returns either:
@@ -1107,7 +1179,7 @@ export async function scanAndWriteBracelet(
       const newPayload = await onRead(payload, tagInfo);
       if (!newPayload) return { payload, tagInfo, written: false };
 
-      const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });
+      const data = serializePayload(newPayload);
       const bytes = Ndef.encodeMessage([Ndef.textRecord(data)]);
       await NfcManager.ndefHandler.writeNdefMessage(bytes);
       return { payload, tagInfo, written: true };
@@ -1122,7 +1194,10 @@ export async function scanAndWriteBracelet(
   // applies MFU response framing validation that rejects the AUTH1/AUTH2 responses,
   // causing IOException. NfcA.transceive() is raw-mode and handles them correctly.
   const preferMifareWrite = opts?.expectedChipType === "mifare_classic";
-  const preferNfcA = opts?.expectedChipType === "mifare_ultralight_c" && !!opts?.ultralightCKeyHex && Platform.OS === "android";
+  // Use NfcA path for ALL Ultralight C chips regardless of key — NfcA.transceive()
+  // is raw-mode (no MFU framing validation), which is required for the 3DES
+  // challenge-response even when no event key is configured (factory key fallback).
+  const preferNfcA = opts?.expectedChipType === "mifare_ultralight_c" && Platform.OS === "android";
   await NfcManager.cancelTechnologyRequest().catch(() => {});
   try {
     await NfcManager.requestTechnology(
@@ -1171,7 +1246,7 @@ export async function scanAndWriteBracelet(
       if (!newPayload) return { payload, tagInfo, written: false };
 
       // Write in the same session
-      const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });
+      const data = serializePayload(newPayload);
       const dataBytes = Array.from(new TextEncoder().encode(data));
       const maxCapacity = MIFARE_BLOCK_SIZE * MFC_DATA_BLOCKS_IN_SECTOR * MFC_PAYLOAD_SECTORS.length;
       if (dataBytes.length > maxCapacity) throw new Error("PAYLOAD_TOO_LARGE_FOR_MIFARE_CLASSIC");
@@ -1231,27 +1306,36 @@ export async function scanAndWriteBracelet(
         console.log("[NFC] NfcA: read balance:", payload.balance, "uid:", uid.slice(-6));
 
         // Auth BEFORE onRead (while connection is freshest, minimising window for tag loss)
-        const customKey = opts!.ultralightCKeyHex!;
+        const customKey = opts?.ultralightCKeyHex || null;
         let usedFactoryFallback = false;
-        try {
-          await authenticateUltralightC(rawTransceive, customKey);
-          console.log("[NFC] NfcA: auth OK with custom key");
-        } catch (authErr) {
-          console.warn("[NFC] NfcA: custom key auth failed — trying factory key");
+        if (customKey) {
           try {
-            await authenticateUltralightC(rawTransceive, ULTRALIGHT_C_FACTORY_KEY);
-            usedFactoryFallback = true;
-            console.log("[NFC] NfcA: auth OK with factory key");
-          } catch {
-            throw new Error(`ULTRALIGHT_C_AUTH_FAILED: ${authErr instanceof Error ? authErr.message : String(authErr)}`);
+            await authenticateUltralightC(rawTransceive, customKey);
+            console.log("[NFC] NfcA: auth OK with custom key");
+          } catch (authErr) {
+            console.warn("[NFC] NfcA: custom key auth failed — trying factory key");
+            try {
+              await authenticateUltralightC(rawTransceive, ULTRALIGHT_C_FACTORY_KEY);
+              usedFactoryFallback = true;
+              console.log("[NFC] NfcA: auth OK with factory key");
+            } catch {
+              throw new Error(`ULTRALIGHT_C_AUTH_FAILED: ${authErr instanceof Error ? authErr.message : String(authErr)}`);
+            }
           }
+        } else {
+          // No event key configured → write without auth.
+          // Unprotected chips (AUTH0=0xFF factory default) work fine.
+          // If the chip is protected by a previous event's key, the write
+          // command itself will NACK, surfacing as a retryable IO error
+          // which tells the operator to use "Reinicializar pulsera" first.
+          console.log("[NFC] NfcA: no event key — writing without auth (unprotected chip assumed)");
         }
 
         const newPayload = await onRead(payload, tagInfo);
         if (!newPayload) return { payload, tagInfo, written: false };
 
-        // Re-key if authenticated via factory key
-        if (usedFactoryFallback) {
+        // Re-key only when we authenticated via factory fallback AND have a custom key to install
+        if (usedFactoryFallback && customKey) {
           try {
             const keyBytes = (customKey.match(/.{1,2}/g) ?? []).map((b) => parseInt(b, 16));
             for (let p = 0; p < 4; p++) {
@@ -1264,7 +1348,7 @@ export async function scanAndWriteBracelet(
         }
 
         // Write pages via raw [0xA2, page, ...] commands
-        const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });
+        const data = serializePayload(newPayload);
         const dataBytes = Array.from(new TextEncoder().encode(data));
         const maxDataPages = endPage - MFU_PAYLOAD_START_PAGE;
         const pageCount = Math.ceil((dataBytes.length + 1) / MFU_PAGE_SIZE);
@@ -1397,7 +1481,7 @@ export async function scanAndWriteBracelet(
         writePages = encodeBraceletCompact(newPayload);
         console.log("[NFC] Writing compact binary format (basic MFU)");
       } else {
-        const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });
+        const data = serializePayload(newPayload);
         const dataBytes = Array.from(new TextEncoder().encode(data));
         const maxDataPages = endPage - MFU_PAYLOAD_START_PAGE;
         const pageCount = Math.ceil((dataBytes.length + 1) / MFU_PAGE_SIZE);
@@ -1442,7 +1526,7 @@ export async function scanAndWriteBracelet(
     const newPayload = await onRead(payload, tagInfo);
     if (!newPayload) return { payload, tagInfo, written: false };
 
-    const data = JSON.stringify({ balance: newPayload.balance, counter: newPayload.counter, hmac: newPayload.hmac });
+    const data = serializePayload(newPayload);
     const bytes = Ndef.encodeMessage([Ndef.textRecord(data)]);
     await NfcManager.ndefHandler.writeNdefMessage(bytes);
     return { payload, tagInfo, written: true };

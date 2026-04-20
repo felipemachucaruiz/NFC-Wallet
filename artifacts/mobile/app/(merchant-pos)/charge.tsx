@@ -426,8 +426,8 @@ export default function ChargeScreen() {
             newCounter = payload.counter + 1;
             readSucceeded = true;
             setStep("writing");
-            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
-            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
+            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid, payload.zoneMask || undefined);
+            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac, zoneMask: payload.zoneMask };
           }, {
             expectedChipType: configuredAllowedTypes.includes("mifare_classic") && !configuredAllowedTypes.includes("mifare_ultralight_c")
               ? "mifare_classic"

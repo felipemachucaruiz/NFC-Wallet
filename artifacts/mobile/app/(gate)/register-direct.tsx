@@ -17,9 +17,11 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useZoneCache } from "@/contexts/ZoneCacheContext";
-import { isNfcSupported, scanBracelet, cancelNfc } from "@/utils/nfc";
+import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type BraceletPayload } from "@/utils/nfc";
+import { computeHmac } from "@/utils/hmac";
 import { useEventContext } from "@/contexts/EventContext";
 import { getChipHint, isChipAllowed, chipTypeLabel } from "@/utils/chipType";
+import { useGetSigningKey } from "@workspace/api-client-react";
 import { API_BASE_URL } from "@/constants/domain";
 
 let Haptics: typeof import("expo-haptics") | null = null;
@@ -62,8 +64,20 @@ export default function RegisterDirectScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const { token, user } = useAuth();
-  const { getZoneById } = useZoneCache();
+  const { getZoneById, zones: cachedZones } = useZoneCache();
   const { allowedNfcTypes } = useEventContext();
+  const { data: signingKeyData } = useGetSigningKey();
+  const signingKeyTyped = signingKeyData as unknown as {
+    hmacSecret?: string;
+    ultralightCDesKey?: string;
+    eventZones?: Array<{ id: string; rank: number }>;
+    gateZoneBitIndex?: number;
+  } | undefined;
+  const hmacSecret = signingKeyTyped?.hmacSecret ?? "";
+  const ultralightCDesKey = signingKeyTyped?.ultralightCDesKey ?? "";
+  const eventZones = signingKeyTyped?.eventZones ?? cachedZones;
+  const gateZoneBitIndex = signingKeyTyped?.gateZoneBitIndex
+    ?? (user?.gateZoneId ? eventZones.findIndex((z) => z.id === user.gateZoneId) : -1);
 
   const assignedZone = user?.gateZoneId ? getZoneById(user.gateZoneId) : null;
 
@@ -120,30 +134,40 @@ export default function RegisterDirectScreen() {
     setErrorMsg("");
     fadeAnim.setValue(0);
 
+    let nfcUid = "";
     try {
-      const scanResult = await scanBracelet({ expectedChipType: getChipHint(allowedNfcTypes) });
+      const chipHint = getChipHint(allowedNfcTypes);
+      // Write gate zone to chip during the NFC tap (offline-first)
+      await scanAndWriteBracelet(async (braceletPayload: BraceletPayload, tagInfo) => {
+        if (!isChipAllowed(tagInfo.type, allowedNfcTypes)) {
+          const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
+          setErrorMsg(t("eventAdmin.nfcChipMismatch", { expected, detected: tagInfo.label }));
+          setScanState("error");
+          return null;
+        }
+        nfcUid = braceletPayload.uid;
 
-      if (cancelledRef.current) return;
+        // OR in gate's zone bit (offline-first — written even without network)
+        let newZoneMask = braceletPayload.zoneMask ?? 0;
+        if (gateZoneBitIndex >= 0) newZoneMask |= (1 << gateZoneBitIndex);
 
-      if (!isChipAllowed(scanResult.tagInfo.type, allowedNfcTypes)) {
-        const expected = allowedNfcTypes.map(chipTypeLabel).join(", ");
-        setErrorMsg(t("eventAdmin.nfcChipMismatch", { expected, detected: scanResult.tagInfo.label }));
-        setScanState("idle");
-        scanningRef.current = false;
-        return;
-      }
+        const newHmac = hmacSecret
+          ? await computeHmac(braceletPayload.balance, braceletPayload.counter, hmacSecret, nfcUid, newZoneMask || undefined)
+          : braceletPayload.hmac;
 
-      const nfcUid = scanResult.payload.uid;
+        return { ...braceletPayload, hmac: newHmac, zoneMask: newZoneMask };
+      }, { expectedChipType: chipHint, ultralightCKeyHex: ultralightCDesKey || undefined });
+
+      if (!nfcUid || cancelledRef.current) return;
+
       setLastUid(nfcUid);
       setScanState("registering");
       triggerHaptic("light");
 
+      // Register with server (outside NFC session — best-effort, bracelet already has zone)
       const resp = await fetchWithTimeout(`${API_BASE_URL}/gate/bracelet-register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ braceletNfcUid: nfcUid }),
       });
 
@@ -181,7 +205,7 @@ export default function RegisterDirectScreen() {
     } finally {
       scanningRef.current = false;
     }
-  }, [nfcAvailable, token, t]);
+  }, [nfcAvailable, token, t, allowedNfcTypes, hmacSecret, ultralightCDesKey, gateZoneBitIndex]);
 
   const handleScanNext = useCallback(() => {
     cancelNfc().catch(() => {});

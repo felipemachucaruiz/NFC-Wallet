@@ -1242,6 +1242,7 @@ router.post(
       braceletId: bracelet?.id ?? null,
       braceletNfcUid,
       zoneGranted,
+      zoneId: zoneGranted ? gateZoneId : null,
     });
   },
 );

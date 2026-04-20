@@ -230,29 +230,35 @@ export default function TopUpScreen() {
   const ultralightCDesKey = (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
   const nfcChipType = (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
 
-  // Wait for keyData before fetching payment-config — keyData loading proves the auth
-  // token is ready in tokenRef. Without this gate, customFetch fires before the token
-  // is loaded from AsyncStorage, gets a 401, and the catch block keeps all 5 methods.
   useEffect(() => {
-    if (!eventId || !keyData) return;
-    customFetch(`/api/events/${eventId}/payment-config`, { method: "GET" })
-      .then((data: unknown) => {
+    if (!eventId) return;
+    let cancelled = false;
+    const attempt = async (retries = 0) => {
+      try {
+        const data = await customFetch(`/api/events/${eventId}/payment-config`, { method: "GET" });
+        if (cancelled) return;
         const d = data as { bankPaymentMethods?: string[]; bankMinTopup?: number };
         const methods = Array.isArray(d.bankPaymentMethods) && d.bankPaymentMethods.length > 0
           ? d.bankPaymentMethods as PaymentMethod[]
           : ALL_BANK_METHODS;
         setEnabledBankMethods(methods);
-        if (!methods.includes(paymentMethod)) {
-          setPaymentMethod(methods[0] ?? "cash");
-        }
+        setPaymentMethod((prev) => (methods.includes(prev) ? prev : (methods[0] ?? "cash")));
         if (typeof d.bankMinTopup === "number") {
           setBankMinTopup(d.bankMinTopup);
         }
-      })
-      .catch(() => {
-        setEnabledBankMethods(ALL_BANK_METHODS);
-      });
-  }, [eventId, keyData]);
+      } catch (err) {
+        if (cancelled) return;
+        const status = (err as { status?: number })?.status;
+        if (status === 401 && retries < 3) {
+          setTimeout(() => attempt(retries + 1), 600 * (retries + 1));
+        } else {
+          setEnabledBankMethods(ALL_BANK_METHODS);
+        }
+      }
+    };
+    void attempt();
+    return () => { cancelled = true; };
+  }, [eventId]);
   const { enqueueTopUp, cachedHmacSecret, updateCachedHmacSecret, syncNow } = useOfflineQueue();
   const { retryAttestation } = useAttestationContext();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
@@ -501,8 +507,8 @@ export default function TopUpScreen() {
             }
             stepRef.current = "writing";
             setStep("writing");
-            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid);
-            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac };
+            writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid, payload.zoneMask || undefined);
+            return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac, zoneMask: payload.zoneMask };
           }, {
             expectedChipType: chipHint,
             ultralightCKeyHex: ultralightCDesKey || undefined,
