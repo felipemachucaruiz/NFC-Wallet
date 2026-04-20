@@ -19,6 +19,10 @@ const createTemplateSchema = z.object({
     description: z.string(),
     example: z.string().optional(),
   })).default([]),
+  buttons: z.array(z.object({
+    type: z.enum(["url", "phone"]),
+    text: z.string(),
+  })).default([]),
   bodyPreview: z.string().optional(),
 });
 
