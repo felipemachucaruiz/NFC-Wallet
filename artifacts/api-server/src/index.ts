@@ -529,6 +529,15 @@ async function runStartupMigrations(): Promise<void> {
       ALTER TABLE event_reminder_schedules ALTER COLUMN event_id DROP NOT NULL;
       ALTER TABLE event_reminder_schedules ADD COLUMN IF NOT EXISTS template_id varchar REFERENCES whatsapp_templates(id) ON DELETE SET NULL;
       ALTER TABLE event_reminder_schedules ADD COLUMN IF NOT EXISTS param_mappings jsonb;
+      -- Deduplicate global schedules before creating the transient unique index
+      DELETE FROM event_reminder_schedules
+      WHERE event_id IS NULL
+        AND id NOT IN (
+          SELECT DISTINCT ON (days_before) id
+          FROM event_reminder_schedules
+          WHERE event_id IS NULL
+          ORDER BY days_before, id
+        );
       CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_schedules_global_days ON event_reminder_schedules (days_before) WHERE event_id IS NULL;
 
       -- ── Allow multiple reminders per day (drop unique constraints) ────────────
