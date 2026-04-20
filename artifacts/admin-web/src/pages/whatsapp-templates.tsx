@@ -112,6 +112,7 @@ export default function WhatsAppTemplates() {
   const [testScheduleId, setTestScheduleId] = useState<string | null>(null);
   const [testPhone, setTestPhone] = useState("");
   const [testAttendeeName, setTestAttendeeName] = useState("");
+  const [testEventId, setTestEventId] = useState("");
 
   const [tplForm, setTplForm] = useState({
     name: "",
@@ -209,13 +210,14 @@ export default function WhatsAppTemplates() {
   });
 
   const testReminderMut = useMutation({
-    mutationFn: ({ id, phone, attendeeName }: { id: string; phone: string; attendeeName: string }) =>
-      apiTestReminderSchedule(id, { phone, attendeeName: attendeeName || undefined }),
+    mutationFn: ({ id, phone, attendeeName, eventId }: { id: string; phone: string; attendeeName: string; eventId: string }) =>
+      apiTestReminderSchedule(id, { phone, attendeeName: attendeeName || undefined, eventId: eventId || undefined }),
     onSuccess: () => {
       toast({ title: "Mensaje de prueba enviado", description: `WhatsApp enviado a ${testPhone}` });
       setShowTestDialog(false);
       setTestPhone("");
       setTestAttendeeName("");
+      setTestEventId("");
     },
     onError: (err: Error) => toast({ title: "Error al enviar prueba", description: err.message, variant: "destructive" }),
   });
@@ -946,6 +948,7 @@ export default function WhatsAppTemplates() {
                                         setTestScheduleId(sched.id);
                                         setTestPhone("");
                                         setTestAttendeeName("");
+                                        setTestEventId(sched.event_id ?? "");
                                         setShowTestDialog(true);
                                       }}
                                     >
@@ -1031,6 +1034,20 @@ export default function WhatsAppTemplates() {
               Envía el mensaje de este recordatorio a un número de WhatsApp para verificar que el template y los parámetros están correctos.
             </p>
             <div>
+              <Label>Evento (datos del mensaje)</Label>
+              <Select value={testEventId || "__none__"} onValueChange={(v) => setTestEventId(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sin evento (datos de prueba)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sin evento (datos de prueba)</SelectItem>
+                  {events.map((e: { id: string; name: string }) => (
+                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>Teléfono destinatario</Label>
               <Input
                 className="mt-1"
@@ -1039,7 +1056,7 @@ export default function WhatsAppTemplates() {
                 onChange={(e) => setTestPhone(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && testPhone && testScheduleId) {
-                    testReminderMut.mutate({ id: testScheduleId, phone: testPhone, attendeeName: testAttendeeName });
+                    testReminderMut.mutate({ id: testScheduleId, phone: testPhone, attendeeName: testAttendeeName, eventId: testEventId });
                   }
                 }}
               />
@@ -1059,7 +1076,7 @@ export default function WhatsAppTemplates() {
             <Button
               disabled={!testPhone || testReminderMut.isPending}
               onClick={() => {
-                if (testScheduleId) testReminderMut.mutate({ id: testScheduleId, phone: testPhone, attendeeName: testAttendeeName });
+                if (testScheduleId) testReminderMut.mutate({ id: testScheduleId, phone: testPhone, attendeeName: testAttendeeName, eventId: testEventId });
               }}
             >
               <Send className="h-4 w-4 mr-2" />

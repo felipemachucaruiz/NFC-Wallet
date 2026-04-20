@@ -513,7 +513,7 @@ router.delete("/whatsapp-reminder-schedules/:id", requireAuth, requireRole("admi
 
 router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("admin"), async (req, res) => {
   const { id } = req.params as { id: string };
-  const { phone, attendeeName } = req.body as { phone?: string; attendeeName?: string };
+  const { phone, attendeeName, eventId: testEventId } = req.body as { phone?: string; attendeeName?: string; eventId?: string };
   if (!phone) { res.status(400).json({ error: "phone is required" }); return; }
 
   const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
@@ -586,20 +586,40 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
 
   if (!gupshupTemplateId) { res.status(400).json({ error: "No active template configured for this schedule" }); return; }
 
-  // Build context with test/placeholder values
-  const eventDate = sched.event_starts_at
-    ? new Date(sched.event_starts_at).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" })
+  // If a specific event was requested for the test, fetch its data
+  let eventName = sched.event_name;
+  let venueAddress = sched.venue_address;
+  let latitude = sched.latitude;
+  let longitude = sched.longitude;
+  let eventStartsAt = sched.event_starts_at;
+
+  if (testEventId) {
+    const { rows: evRows } = await pool.query<{
+      name: string; venue_address: string | null; latitude: string | null; longitude: string | null; starts_at: string;
+    }>(`SELECT name, venue_address, latitude, longitude, starts_at FROM events WHERE id = $1`, [testEventId]);
+    if (evRows[0]) {
+      eventName = evRows[0].name;
+      venueAddress = evRows[0].venue_address;
+      latitude = evRows[0].latitude;
+      longitude = evRows[0].longitude;
+      eventStartsAt = evRows[0].starts_at;
+    }
+  }
+
+  // Build context
+  const eventDate = eventStartsAt
+    ? new Date(eventStartsAt).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" })
     : "Fecha del evento";
   const daysRemainingText = sched.days_before === 0 ? "HOY" : `en ${sched.days_before} día${sched.days_before > 1 ? "s" : ""}`;
-  const venueMapUrl = sched.latitude && sched.longitude
-    ? `?q=${sched.latitude},${sched.longitude}`
-    : sched.venue_address ? `?q=${encodeURIComponent(sched.venue_address)}` : "";
+  const venueMapUrl = latitude && longitude
+    ? `?q=${latitude},${longitude}`
+    : venueAddress ? `?q=${encodeURIComponent(venueAddress)}` : "";
 
   const context: Record<string, string> = {
     attendeeName: attendeeName || "Test",
-    eventName: sched.event_name ?? "Nombre del evento",
-    venueName: sched.venue_address ?? "Lugar del evento",
-    venueAddress: sched.venue_address ?? "Dirección del evento",
+    eventName: eventName ?? "Nombre del evento",
+    venueName: venueAddress ?? "Lugar del evento",
+    venueAddress: venueAddress ?? "Dirección del evento",
     venueMapUrl,
     eventDate,
     daysRemainingText,
@@ -627,10 +647,10 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
   const templatePayload: Record<string, unknown> = { id: gupshupTemplateId, params };
   if (ctaButtons.length > 0) templatePayload.buttons = ctaButtons;
   formBody.append("template", JSON.stringify(templatePayload));
-  if (sched.latitude && sched.longitude) {
+  if (latitude && longitude) {
     formBody.append("message", JSON.stringify({
       type: "location",
-      location: { latitude: sched.latitude, longitude: sched.longitude, name: sched.event_name ?? "", address: sched.venue_address ?? undefined },
+      location: { latitude, longitude, name: eventName ?? "", address: venueAddress ?? undefined },
     }));
   }
 
