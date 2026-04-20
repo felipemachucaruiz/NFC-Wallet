@@ -511,4 +511,144 @@ router.delete("/whatsapp-reminder-schedules/:id", requireAuth, requireRole("admi
   res.json({ ok: true });
 });
 
+router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("admin"), async (req, res) => {
+  const { id } = req.params as { id: string };
+  const { phone, attendeeName } = req.body as { phone?: string; attendeeName?: string };
+  if (!phone) { res.status(400).json({ error: "phone is required" }); return; }
+
+  const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
+  const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
+  const GUPSHUP_SOURCE = process.env.GUPSHUP_SOURCE_NUMBER;
+  if (!GUPSHUP_API_KEY || !GUPSHUP_APP_NAME || !GUPSHUP_SOURCE) {
+    res.status(503).json({ error: "WhatsApp not configured" });
+    return;
+  }
+
+  // Fetch schedule + associated event
+  const { rows } = await pool.query<{
+    template_id: string | null;
+    template_mapping_id: string | null;
+    param_mappings: Array<{ position: number; field: string }> | null;
+    days_before: number;
+    event_name: string | null;
+    venue_address: string | null;
+    latitude: string | null;
+    longitude: string | null;
+    event_starts_at: string | null;
+  }>(`
+    SELECT s.template_id, s.template_mapping_id, s.param_mappings, s.days_before,
+           e.name AS event_name, e.venue_address, e.latitude, e.longitude, e.starts_at AS event_starts_at
+    FROM event_reminder_schedules s
+    LEFT JOIN events e ON e.id = s.event_id
+    WHERE s.id = $1
+  `, [id]);
+
+  if (!rows[0]) { res.status(404).json({ error: "Schedule not found" }); return; }
+  const sched = rows[0];
+
+  // Resolve template
+  let gupshupTemplateId: string | null = null;
+  let paramMappings: Array<{ position: number; field: string }> = [];
+  let bodyParamCount = 0;
+  let templateButtons: Array<{ type: string; text: string }> = [];
+
+  if (sched.template_id) {
+    const { rows: tplRows } = await pool.query<{
+      gupshup_template_id: string;
+      parameters: Array<{ name: string }> | null;
+      buttons: Array<{ type: string; text: string }> | null;
+    }>(`SELECT gupshup_template_id, parameters, buttons FROM whatsapp_templates WHERE id = $1 AND status = 'active'`, [sched.template_id]);
+    if (tplRows[0]) {
+      gupshupTemplateId = tplRows[0].gupshup_template_id;
+      paramMappings = sched.param_mappings ?? [];
+      bodyParamCount = tplRows[0].parameters?.length ?? 0;
+      templateButtons = tplRows[0].buttons ?? [];
+    }
+  } else if (sched.template_mapping_id) {
+    const { rows: mRows } = await pool.query<{
+      gupshup_template_id: string;
+      parameter_mappings: Array<{ position: number; field: string }>;
+      parameters: Array<{ name: string }> | null;
+      buttons: Array<{ type: string; text: string }> | null;
+    }>(`
+      SELECT t.gupshup_template_id, m.parameter_mappings, t.parameters, t.buttons
+      FROM whatsapp_trigger_mappings m
+      JOIN whatsapp_templates t ON t.id = m.template_id
+      WHERE m.id = $1 AND m.active = true AND t.status = 'active'
+    `, [sched.template_mapping_id]);
+    if (mRows[0]) {
+      gupshupTemplateId = mRows[0].gupshup_template_id;
+      paramMappings = mRows[0].parameter_mappings ?? [];
+      bodyParamCount = mRows[0].parameters?.length ?? 0;
+      templateButtons = mRows[0].buttons ?? [];
+    }
+  }
+
+  if (!gupshupTemplateId) { res.status(400).json({ error: "No active template configured for this schedule" }); return; }
+
+  // Build context with test/placeholder values
+  const eventDate = sched.event_starts_at
+    ? new Date(sched.event_starts_at).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" })
+    : "Fecha del evento";
+  const daysRemainingText = sched.days_before === 0 ? "HOY" : `en ${sched.days_before} día${sched.days_before > 1 ? "s" : ""}`;
+  const venueMapUrl = sched.latitude && sched.longitude
+    ? `?q=${sched.latitude},${sched.longitude}`
+    : sched.venue_address ? `?q=${encodeURIComponent(sched.venue_address)}` : "";
+
+  const context: Record<string, string> = {
+    attendeeName: attendeeName || "Test",
+    eventName: sched.event_name ?? "Nombre del evento",
+    venueName: sched.venue_address ?? "Lugar del evento",
+    venueAddress: sched.venue_address ?? "Dirección del evento",
+    venueMapUrl,
+    eventDate,
+    daysRemainingText,
+  };
+
+  const bodyMappings = templateButtons.length > 0 ? paramMappings.filter((m) => m.position <= bodyParamCount) : paramMappings;
+  const buttonMappings = templateButtons.length > 0 ? paramMappings.filter((m) => m.position > bodyParamCount) : [];
+  const maxBodyPos = bodyMappings.length > 0 ? Math.max(...bodyMappings.map((m) => m.position)) : 0;
+  const params: string[] = Array(maxBodyPos).fill("");
+  for (const mapping of bodyMappings) params[mapping.position - 1] = context[mapping.field] ?? "";
+  const ctaButtons = buttonMappings
+    .map((m, i) => ({ type: templateButtons[i]?.type ?? "url", parameter: context[m.field] ?? "" }))
+    .filter((b) => b.parameter);
+
+  // Normalize phone
+  let dest = phone.replace(/[\s\-()]/g, "");
+  if (/^\d{10}$/.test(dest)) dest = `57${dest}`;
+  dest = dest.replace(/^\+/, "");
+
+  const formBody = new URLSearchParams();
+  formBody.append("channel", "whatsapp");
+  formBody.append("source", GUPSHUP_SOURCE);
+  formBody.append("destination", dest);
+  formBody.append("src.name", GUPSHUP_APP_NAME);
+  const templatePayload: Record<string, unknown> = { id: gupshupTemplateId, params };
+  if (ctaButtons.length > 0) templatePayload.buttons = ctaButtons;
+  formBody.append("template", JSON.stringify(templatePayload));
+  if (sched.latitude && sched.longitude) {
+    formBody.append("message", JSON.stringify({
+      type: "location",
+      location: { latitude: sched.latitude, longitude: sched.longitude, name: sched.event_name ?? "", address: sched.venue_address ?? undefined },
+    }));
+  }
+
+  const gupshupRes = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", apikey: GUPSHUP_API_KEY },
+    body: formBody.toString(),
+  });
+  const responseText = await gupshupRes.text();
+  let parsed: Record<string, unknown> = {};
+  try { parsed = JSON.parse(responseText); } catch {}
+  const success = gupshupRes.ok && parsed.status !== "error";
+
+  if (success) {
+    res.json({ ok: true, messageId: parsed.messageId });
+  } else {
+    res.status(502).json({ ok: false, error: parsed.message || responseText });
+  }
+});
+
 export default router;
