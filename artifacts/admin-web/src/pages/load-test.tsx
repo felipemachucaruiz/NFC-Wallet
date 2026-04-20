@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,10 +59,65 @@ function calcEventProfile(attendees: number, _eventHours: number, merchants: num
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
 const TEST_TYPES = [
-  { value: "health_check",      label: "Health Check",        icon: Activity,    description: "Latencia de endpoints críticos (10 rondas × 3 endpoints)" },
-  { value: "load_test",         label: "Prueba de Carga",      icon: Zap,         description: "N cajeros virtuales por X segundos" },
-  { value: "balance_integrity", label: "Integridad de Saldo",  icon: ShieldCheck, description: "Cobros concurrentes — verifica sin race conditions" },
-  { value: "breaking_point",    label: "Punto de Quiebre",     icon: TrendingUp,  description: "Ramp 2 → 40 cajeros hasta detectar degradación" },
+  { value: "health_check",           label: "Health Check",            icon: Activity,    description: "Latencia de endpoints críticos (10 rondas × 3 endpoints)" },
+  { value: "load_test",              label: "Prueba de Carga",          icon: Zap,         description: "N cajeros virtuales por X segundos" },
+  { value: "balance_integrity",      label: "Integridad de Saldo",      icon: ShieldCheck, description: "Cobros concurrentes — verifica sin race conditions" },
+  { value: "breaking_point",         label: "Punto de Quiebre",         icon: TrendingUp,  description: "Ramp 2 → 40 cajeros hasta detectar degradación" },
+  { value: "k6_merchant-charge",     label: "k6 · Merchant Charge",     icon: Cpu,         description: "Full HTTP stack — POS concurrentes con HMAC real" },
+  { value: "k6_topup",               label: "k6 · Topup",               icon: Cpu,         description: "Full HTTP stack — recargas concurrentes" },
+  { value: "k6_balance-integrity",   label: "k6 · Balance Integrity",   icon: Cpu,         description: "Race condition — cobros concurrentes sobre una sola pulsera" },
+  { value: "k6_breaking-point",      label: "k6 · Breaking Point",      icon: Cpu,         description: "Step-load con abortOnFail — encuentra el punto de quiebre" },
+  { value: "k6_gate-checkin",        label: "k6 · Gate Checkin",        icon: Cpu,         description: "Rush de entrada en puerta — stack HTTP completo" },
+  { value: "k6_ticket-soldout",      label: "k6 · Ticket Sold-Out",     icon: Cpu,         description: "Race condition de inventario — muchos compradores, pocos tickets" },
+  { value: "k6_ticket-card-payment", label: "k6 · Card Payment",        icon: Cpu,         description: "Compra con tarjeta via Wompi sandbox — flujo completo" },
+];
+
+const K6_SCRIPTS: Array<{
+  name: string; label: string; icon: React.FC<{ className?: string }>;
+  description: string; cmd: (eventId: string) => string;
+}> = [
+  {
+    name: "merchant-charge",
+    label: "Merchant Charge",
+    icon: Zap,
+    description: "Cobros POS concurrentes con HMAC real — reemplaza la simulación interna.",
+    cmd: (e) => `k6 run -e DEMO_SECRET=... -e EVENT_ID=${e} -e ATTESTATION_TOKEN=... -e UPLOAD_TOKEN=... loadtests/k6/merchant-charge.js`,
+  },
+  {
+    name: "breaking-point",
+    label: "Breaking Point",
+    icon: TrendingUp,
+    description: "Rampa 2→40 cajeros, aborta cuando p95>1000ms.",
+    cmd: (e) => `k6 run -e DEMO_SECRET=... -e EVENT_ID=${e} -e ATTESTATION_TOKEN=... -e UPLOAD_TOKEN=... loadtests/k6/breaking-point.js`,
+  },
+  {
+    name: "balance-integrity",
+    label: "Balance Integrity",
+    icon: ShieldCheck,
+    description: "N VUs cobran la misma pulsera — verifica sin double-spend.",
+    cmd: (e) => `k6 run -e DEMO_SECRET=... -e EVENT_ID=${e} -e ATTESTATION_TOKEN=... loadtests/k6/balance-integrity.js`,
+  },
+  {
+    name: "ticket-soldout",
+    label: "Ticket Sold-Out",
+    icon: Users,
+    description: "50 compradores simultáneos — detecta race conditions en inventario.",
+    cmd: (e) => `k6 run -e BUYER_EMAIL=... -e BUYER_PASSWORD=... -e EVENT_ID=${e} -e TICKET_TYPE_ID=... -e EXPECTED_CAPACITY=5 loadtests/k6/ticket-soldout.js`,
+  },
+  {
+    name: "ticket-card-payment",
+    label: "Card Payment (Wompi)",
+    icon: Activity,
+    description: "Compra con tarjeta sandbox — flujo completo con polling de estado.",
+    cmd: (e) => `k6 run -e BUYER_EMAIL=... -e BUYER_PASSWORD=... -e EVENT_ID=${e} -e TICKET_TYPE_ID=... -e WOMPI_PUBLIC_KEY=pub_test_... -e UPLOAD_TOKEN=... loadtests/k6/ticket-card-payment.js`,
+  },
+  {
+    name: "gate-checkin",
+    label: "Gate Checkin",
+    icon: Timer,
+    description: "Rush de entrada en puerta — full HTTP stack.",
+    cmd: (e) => `k6 run -e DEMO_SECRET=... -e EVENT_ID=${e} -e QR_TOKENS=tok1,tok2,... loadtests/k6/gate-checkin.js`,
+  },
 ];
 
 function scoreColor(s: number) { return s >= 85 ? "text-green-500" : s >= 65 ? "text-yellow-500" : "text-red-500"; }
@@ -265,6 +320,7 @@ export default function LoadTestPage() {
         <TabsList>
           <TabsTrigger value="server"><Server className="h-4 w-4 mr-1.5" />Servidor</TabsTrigger>
           <TabsTrigger value="devices"><Smartphone className="h-4 w-4 mr-1.5" />Dispositivos</TabsTrigger>
+          <TabsTrigger value="k6"><Cpu className="h-4 w-4 mr-1.5" />k6</TabsTrigger>
         </TabsList>
 
         {/* ── Server Test Tab ── */}
@@ -577,6 +633,76 @@ export default function LoadTestPage() {
                   ) : (
                     <div className="space-y-3">
                       {deviceRunsData.runs.map((run) => <DeviceRunCard key={run.id} run={run} />)}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ── k6 Tab ── */}
+        <TabsContent value="k6" className="mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: script reference */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Cpu className="h-4 w-4" />Scripts disponibles</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  {K6_SCRIPTS.map((s) => (
+                    <div key={s.name} className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <s.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <p className="text-sm font-semibold">{s.label}</p>
+                        <Badge variant="outline" className="text-xs font-mono">{s.name}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground pl-6">{s.description}</p>
+                      <div className="pl-6">
+                        <p className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1.5 rounded break-all">
+                          {s.cmd(eventId || "<eventId>")}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Variables comunes</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-1 text-xs font-mono">
+                    {[
+                      ["DEMO_SECRET", "secreto demo login staff"],
+                      ["ATTESTATION_TOKEN", "token de attestación registrado en DB"],
+                      ["WOMPI_PUBLIC_KEY", "pub_test_... (ver Railway env)"],
+                      ["UPLOAD_TOKEN", "token admin para guardar resultados aquí"],
+                      ["UPLOAD_EVENT_ID", "event ID para el historial (opcional)"],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex gap-2">
+                        <span className="text-primary shrink-0">{k}</span>
+                        <span className="text-muted-foreground">— {v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            {/* Right: k6 run history */}
+            <div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Clock className="h-4 w-4" />Historial k6
+                    <Button variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0" onClick={() => refetchRuns()}><RefreshCw className="h-3 w-3" /></Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!runsData?.runs?.length ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Sin pruebas k6 todavía.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {runsData.runs
+                        .filter((r) => r.test_type.startsWith("k6_"))
+                        .map((r) => <RunRow key={r.id} run={r} />)}
                     </div>
                   )}
                 </CardContent>

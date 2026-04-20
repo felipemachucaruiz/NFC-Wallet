@@ -767,6 +767,108 @@ router.post("/load-test/device-test/complete", requireAuth, async (req: Request,
   res.json({ ok: true });
 });
 
+// ── k6 Support Routes ─────────────────────────────────────────────────────────
+
+// POST /load-test/k6-setup — create test bracelets + return full context for k6 scripts
+router.post("/load-test/k6-setup", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
+  const { eventId, braceletCount = 20, initialBalanceCents = 10_000_000 } = req.body as {
+    eventId: string; braceletCount?: number; initialBalanceCents?: number;
+  };
+  if (!eventId) { res.status(400).json({ error: "eventId required" }); return; }
+
+  const runId = Math.random().toString(36).slice(2, 10);
+  try {
+    const ctx = await setupTestBracelets(runId, Math.min(braceletCount, 50), eventId, initialBalanceCents);
+
+    const { rows: evtRows } = await pool.query<{ hmac_secret: string | null; use_kdf: boolean }>(
+      `SELECT hmac_secret, use_kdf FROM events WHERE id = $1`, [eventId],
+    );
+    const evt = evtRows[0];
+    let signingKey = "";
+    if (evt?.use_kdf) {
+      const masterKey = process.env.HMAC_MASTER_KEY;
+      if (!masterKey) { res.status(500).json({ error: "HMAC_MASTER_KEY not configured" }); return; }
+      const nodeCrypto = await import("node:crypto");
+      signingKey = nodeCrypto.createHmac("sha256", masterKey).update(eventId).digest("hex");
+    } else {
+      signingKey = evt?.hmac_secret ?? process.env.HMAC_SECRET ?? "";
+    }
+
+    const { rows: locRows } = await pool.query<{
+      location_id: string; merchant_id: string;
+      product_id: string; product_name: string; product_price: number;
+    }>(
+      `SELECT l.id AS location_id, m.id AS merchant_id,
+              p.id AS product_id, p.name AS product_name, p.price AS product_price
+       FROM locations l
+       JOIN merchants m ON m.id = l.merchant_id
+       JOIN products  p ON p.merchant_id = m.id
+       WHERE m.event_id = $1 AND l.active = true AND p.active = true
+       LIMIT 1`,
+      [eventId],
+    );
+
+    res.json({
+      runId, eventId, initialBalanceCents,
+      bracelets: ctx.uids.map((uid) => ({ uid, balance: initialBalanceCents, counter: 0 })),
+      locationId: locRows[0]?.location_id ?? null,
+      merchantId: locRows[0]?.merchant_id ?? null,
+      products: locRows[0]
+        ? [{ id: locRows[0].product_id, name: locRows[0].product_name, price: locRows[0].product_price }]
+        : [],
+      signingKey,
+    });
+  } catch (err) {
+    logger.error({ err }, "k6-setup failed");
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /load-test/k6-cleanup — delete test bracelets, return final balances before removal
+router.post("/load-test/k6-cleanup", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
+  const { runId, braceletUids } = req.body as { runId?: string; braceletUids?: string[] };
+  const finalBalances: Record<string, { balance: number; counter: number }> = {};
+  try {
+    if (braceletUids?.length) {
+      const { rows } = await pool.query<{ nfc_uid: string; last_known_balance: number; last_counter: number }>(
+        `SELECT nfc_uid, last_known_balance, last_counter FROM bracelets WHERE nfc_uid = ANY($1::text[])`,
+        [braceletUids],
+      );
+      for (const row of rows) {
+        finalBalances[row.nfc_uid] = { balance: row.last_known_balance, counter: row.last_counter };
+      }
+    }
+    if (runId) await cleanupTestData(runId);
+    if (braceletUids?.length) await cleanupTestDataByUids(braceletUids);
+    res.json({ ok: true, finalBalances });
+  } catch (err) {
+    logger.error({ err }, "k6-cleanup failed");
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+// POST /load-test/k6-results — ingest a k6 summary into load_test_runs for admin history
+router.post("/load-test/k6-results", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
+  const { eventId, script, results } = req.body as {
+    eventId?: string | null; script: string; results: Record<string, unknown>;
+  };
+  if (!script || !results) { res.status(400).json({ error: "script and results required" }); return; }
+  const score = typeof results.score === "number" ? Math.round(results.score) : 0;
+  try {
+    const { rows } = await pool.query<{ id: string }>(
+      `INSERT INTO load_test_runs (event_id, test_type, config, status, score, results, started_at, completed_at)
+       VALUES ($1, $2, $3, 'completed', $4, $5, NOW() - INTERVAL '5 minutes', NOW())
+       RETURNING id`,
+      [eventId ?? null, `k6_${script}`, JSON.stringify({ script, runner: "k6" }), score, JSON.stringify(results)],
+    );
+    logger.info({ runId: rows[0].id, script, score }, "k6 results ingested");
+    res.json({ ok: true, runId: rows[0].id, score });
+  } catch (err) {
+    logger.error({ err }, "k6-results ingestion failed");
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // GET /load-test/device-test/runs — list runs with per-device results
 router.get("/load-test/device-test/runs", requireAuth, requireRole("admin"), async (_req: Request, res: Response) => {
   const { rows } = await pool.query(
