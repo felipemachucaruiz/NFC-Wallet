@@ -541,7 +541,7 @@ export async function apiDeleteReminderSchedule(id: string): Promise<void> {
   if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to delete schedule"); }
 }
 
-export async function apiTestReminderSchedule(id: string, body: { phone: string; attendeeName?: string; eventId?: string }): Promise<{ ok: boolean; messageId?: string }> {
+export async function apiTestReminderSchedule(id: string, body: { phone: string; attendeeName?: string; eventId?: string }): Promise<{ ok: boolean; messageId?: string; gupshupStatus?: string; dest?: string }> {
   const res = await fetch(apiUrl(`/api/whatsapp-reminder-schedules/${id}/test`), {
     method: "POST",
     headers: { ...authHeaders(), "Content-Type": "application/json" },

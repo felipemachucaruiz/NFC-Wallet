@@ -524,150 +524,179 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
     return;
   }
 
-  // Fetch schedule + associated event
-  const { rows } = await pool.query<{
-    template_id: string | null;
-    template_mapping_id: string | null;
-    param_mappings: Array<{ position: number; field: string }> | null;
-    days_before: number;
-    event_name: string | null;
-    venue_address: string | null;
-    latitude: string | null;
-    longitude: string | null;
-    event_starts_at: string | null;
-  }>(`
-    SELECT s.template_id, s.template_mapping_id, s.param_mappings, s.days_before,
-           e.name AS event_name, e.venue_address, e.latitude, e.longitude, e.starts_at AS event_starts_at
-    FROM event_reminder_schedules s
-    LEFT JOIN events e ON e.id = s.event_id
-    WHERE s.id = $1
-  `, [id]);
-
-  if (!rows[0]) { res.status(404).json({ error: "Schedule not found" }); return; }
-  const sched = rows[0];
-
-  // Resolve template
-  let gupshupTemplateId: string | null = null;
-  let paramMappings: Array<{ position: number; field: string }> = [];
-  let bodyParamCount = 0;
-  let templateButtons: Array<{ type: string; text: string }> = [];
-
-  if (sched.template_id) {
-    const { rows: tplRows } = await pool.query<{
-      gupshup_template_id: string;
-      parameters: Array<{ name: string }> | null;
-      buttons: Array<{ type: string; text: string }> | null;
-    }>(`SELECT gupshup_template_id, parameters, buttons FROM whatsapp_templates WHERE id = $1 AND status = 'active'`, [sched.template_id]);
-    if (tplRows[0]) {
-      gupshupTemplateId = tplRows[0].gupshup_template_id;
-      paramMappings = sched.param_mappings ?? [];
-      bodyParamCount = tplRows[0].parameters?.length ?? 0;
-      templateButtons = tplRows[0].buttons ?? [];
-    }
-  } else if (sched.template_mapping_id) {
-    const { rows: mRows } = await pool.query<{
-      gupshup_template_id: string;
-      parameter_mappings: Array<{ position: number; field: string }>;
-      parameters: Array<{ name: string }> | null;
-      buttons: Array<{ type: string; text: string }> | null;
+  try {
+    // Fetch schedule + associated event
+    const { rows } = await pool.query<{
+      template_id: string | null;
+      template_mapping_id: string | null;
+      param_mappings: Array<{ position: number; field: string }> | null;
+      days_before: number;
+      event_name: string | null;
+      venue_address: string | null;
+      latitude: string | null;
+      longitude: string | null;
+      event_starts_at: string | null;
     }>(`
-      SELECT t.gupshup_template_id, m.parameter_mappings, t.parameters, t.buttons
-      FROM whatsapp_trigger_mappings m
-      JOIN whatsapp_templates t ON t.id = m.template_id
-      WHERE m.id = $1 AND m.active = true AND t.status = 'active'
-    `, [sched.template_mapping_id]);
-    if (mRows[0]) {
-      gupshupTemplateId = mRows[0].gupshup_template_id;
-      paramMappings = mRows[0].parameter_mappings ?? [];
-      bodyParamCount = mRows[0].parameters?.length ?? 0;
-      templateButtons = mRows[0].buttons ?? [];
+      SELECT s.template_id, s.template_mapping_id, s.param_mappings, s.days_before,
+             e.name AS event_name, e.venue_address, e.latitude, e.longitude, e.starts_at AS event_starts_at
+      FROM event_reminder_schedules s
+      LEFT JOIN events e ON e.id = s.event_id
+      WHERE s.id = $1
+    `, [id]);
+
+    if (!rows[0]) { res.status(404).json({ error: "Schedule not found" }); return; }
+    const sched = rows[0];
+
+    // Resolve template
+    let gupshupTemplateId: string | null = null;
+    let resolvedTemplateId: string | null = sched.template_id;
+    let paramMappings: Array<{ position: number; field: string }> = [];
+    let bodyParamCount = 0;
+    let templateButtons: Array<{ type: string; text: string }> = [];
+
+    if (sched.template_id) {
+      const { rows: tplRows } = await pool.query<{
+        gupshup_template_id: string;
+        parameters: Array<{ name: string }> | null;
+        buttons: Array<{ type: string; text: string }> | null;
+      }>(`SELECT gupshup_template_id, parameters, buttons FROM whatsapp_templates WHERE id = $1 AND status = 'active'`, [sched.template_id]);
+      if (tplRows[0]) {
+        gupshupTemplateId = tplRows[0].gupshup_template_id;
+        paramMappings = sched.param_mappings ?? [];
+        bodyParamCount = tplRows[0].parameters?.length ?? 0;
+        templateButtons = tplRows[0].buttons ?? [];
+      }
+    } else if (sched.template_mapping_id) {
+      const { rows: mRows } = await pool.query<{
+        gupshup_template_id: string;
+        template_id: string;
+        parameter_mappings: Array<{ position: number; field: string }>;
+        parameters: Array<{ name: string }> | null;
+        buttons: Array<{ type: string; text: string }> | null;
+      }>(`
+        SELECT t.gupshup_template_id, t.id AS template_id, m.parameter_mappings, t.parameters, t.buttons
+        FROM whatsapp_trigger_mappings m
+        JOIN whatsapp_templates t ON t.id = m.template_id
+        WHERE m.id = $1 AND m.active = true AND t.status = 'active'
+      `, [sched.template_mapping_id]);
+      if (mRows[0]) {
+        gupshupTemplateId = mRows[0].gupshup_template_id;
+        resolvedTemplateId = mRows[0].template_id;
+        paramMappings = mRows[0].parameter_mappings ?? [];
+        bodyParamCount = mRows[0].parameters?.length ?? 0;
+        templateButtons = mRows[0].buttons ?? [];
+      }
     }
-  }
 
-  if (!gupshupTemplateId) { res.status(400).json({ error: "No active template configured for this schedule" }); return; }
+    if (!gupshupTemplateId) { res.status(400).json({ error: "No active template configured for this schedule" }); return; }
 
-  // If a specific event was requested for the test, fetch its data
-  let eventName = sched.event_name;
-  let venueAddress = sched.venue_address;
-  let latitude = sched.latitude;
-  let longitude = sched.longitude;
-  let eventStartsAt = sched.event_starts_at;
+    // If a specific event was requested for the test, fetch its data
+    let eventName = sched.event_name;
+    let venueAddress = sched.venue_address;
+    let latitude = sched.latitude;
+    let longitude = sched.longitude;
+    let eventStartsAt = sched.event_starts_at;
 
-  if (testEventId) {
-    const { rows: evRows } = await pool.query<{
-      name: string; venue_address: string | null; latitude: string | null; longitude: string | null; starts_at: string;
-    }>(`SELECT name, venue_address, latitude, longitude, starts_at FROM events WHERE id = $1`, [testEventId]);
-    if (evRows[0]) {
-      eventName = evRows[0].name;
-      venueAddress = evRows[0].venue_address;
-      latitude = evRows[0].latitude;
-      longitude = evRows[0].longitude;
-      eventStartsAt = evRows[0].starts_at;
+    if (testEventId) {
+      const { rows: evRows } = await pool.query<{
+        name: string; venue_address: string | null; latitude: string | null; longitude: string | null; starts_at: string;
+      }>(`SELECT name, venue_address, latitude, longitude, starts_at FROM events WHERE id = $1`, [testEventId]);
+      if (evRows[0]) {
+        eventName = evRows[0].name;
+        venueAddress = evRows[0].venue_address;
+        latitude = evRows[0].latitude;
+        longitude = evRows[0].longitude;
+        eventStartsAt = evRows[0].starts_at;
+      }
     }
-  }
 
-  // Build context
-  const eventDate = eventStartsAt
-    ? new Date(eventStartsAt).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" })
-    : "Fecha del evento";
-  const daysRemainingText = sched.days_before === 0 ? "HOY" : `en ${sched.days_before} día${sched.days_before > 1 ? "s" : ""}`;
-  const venueMapUrl = latitude && longitude
-    ? `?q=${latitude},${longitude}`
-    : venueAddress ? `?q=${encodeURIComponent(venueAddress)}` : "";
+    // Build context
+    const eventDate = eventStartsAt
+      ? new Date(eventStartsAt).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Bogota" })
+      : "Fecha del evento";
+    const daysRemainingText = sched.days_before === 0 ? "HOY" : `en ${sched.days_before} día${sched.days_before > 1 ? "s" : ""}`;
+    const venueMapUrl = latitude && longitude
+      ? `?q=${latitude},${longitude}`
+      : venueAddress ? `?q=${encodeURIComponent(venueAddress)}` : "";
 
-  const context: Record<string, string> = {
-    attendeeName: attendeeName || "Test",
-    eventName: eventName ?? "Nombre del evento",
-    venueName: venueAddress ?? "Lugar del evento",
-    venueAddress: venueAddress ?? "Dirección del evento",
-    venueMapUrl,
-    eventDate,
-    daysRemainingText,
-  };
+    const context: Record<string, string> = {
+      attendeeName: attendeeName || "Test",
+      eventName: eventName ?? "Nombre del evento",
+      venueName: venueAddress ?? "Lugar del evento",
+      venueAddress: venueAddress ?? "Dirección del evento",
+      venueMapUrl,
+      eventDate,
+      daysRemainingText,
+    };
 
-  const bodyMappings = templateButtons.length > 0 ? paramMappings.filter((m) => m.position <= bodyParamCount) : paramMappings;
-  const buttonMappings = templateButtons.length > 0 ? paramMappings.filter((m) => m.position > bodyParamCount) : [];
-  const maxBodyPos = bodyMappings.length > 0 ? Math.max(...bodyMappings.map((m) => m.position)) : 0;
-  const params: string[] = Array(maxBodyPos).fill("");
-  for (const mapping of bodyMappings) params[mapping.position - 1] = context[mapping.field] ?? "";
-  const ctaButtons = buttonMappings
-    .map((m, i) => ({ type: templateButtons[i]?.type ?? "url", parameter: context[m.field] ?? "" }))
-    .filter((b) => b.parameter);
+    const bodyMappings = templateButtons.length > 0 ? paramMappings.filter((m) => m.position <= bodyParamCount) : paramMappings;
+    const buttonMappings = templateButtons.length > 0 ? paramMappings.filter((m) => m.position > bodyParamCount) : [];
+    const maxBodyPos = bodyMappings.length > 0 ? Math.max(...bodyMappings.map((m) => m.position)) : 0;
+    const params: string[] = Array(maxBodyPos).fill("");
+    for (const mapping of bodyMappings) params[mapping.position - 1] = context[mapping.field] ?? "";
+    const ctaButtons = buttonMappings
+      .map((m, i) => ({ type: templateButtons[i]?.type ?? "url", parameter: context[m.field] ?? "" }))
+      .filter((b) => b.parameter);
 
-  // Normalize phone
-  let dest = phone.replace(/[\s\-()]/g, "");
-  if (/^\d{10}$/.test(dest)) dest = `57${dest}`;
-  dest = dest.replace(/^\+/, "");
+    // Normalize phone
+    let dest = phone.replace(/[\s\-()]/g, "");
+    if (/^\d{10}$/.test(dest)) dest = `57${dest}`;
+    dest = dest.replace(/^\+/, "");
 
-  const formBody = new URLSearchParams();
-  formBody.append("channel", "whatsapp");
-  formBody.append("source", GUPSHUP_SOURCE);
-  formBody.append("destination", dest);
-  formBody.append("src.name", GUPSHUP_APP_NAME);
-  const templatePayload: Record<string, unknown> = { id: gupshupTemplateId, params };
-  if (ctaButtons.length > 0) templatePayload.buttons = ctaButtons;
-  formBody.append("template", JSON.stringify(templatePayload));
-  if (latitude && longitude) {
-    formBody.append("message", JSON.stringify({
-      type: "location",
-      location: { latitude, longitude, name: eventName ?? "", address: venueAddress ?? undefined },
-    }));
-  }
+    const templatePayload: Record<string, unknown> = { id: gupshupTemplateId, params };
+    if (ctaButtons.length > 0) templatePayload.buttons = ctaButtons;
 
-  const gupshupRes = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", apikey: GUPSHUP_API_KEY },
-    body: formBody.toString(),
-  });
-  const responseText = await gupshupRes.text();
-  let parsed: Record<string, unknown> = {};
-  try { parsed = JSON.parse(responseText); } catch {}
-  const success = gupshupRes.ok && parsed.status !== "error";
+    const formBody = new URLSearchParams();
+    formBody.append("channel", "whatsapp");
+    formBody.append("source", GUPSHUP_SOURCE);
+    formBody.append("destination", dest);
+    formBody.append("src.name", GUPSHUP_APP_NAME);
+    formBody.append("template", JSON.stringify(templatePayload));
+    if (latitude && longitude) {
+      formBody.append("message", JSON.stringify({
+        type: "location",
+        location: { latitude, longitude, name: eventName ?? "", address: venueAddress ?? undefined },
+      }));
+    }
 
-  if (success) {
-    res.json({ ok: true, messageId: parsed.messageId });
-  } else {
-    res.status(502).json({ ok: false, error: parsed.message || responseText });
+    console.log("[WA test] dest=%s template=%s params=%j", dest, gupshupTemplateId, params);
+
+    const gupshupRes = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", apikey: GUPSHUP_API_KEY },
+      body: formBody.toString(),
+    });
+    const responseText = await gupshupRes.text();
+    console.log("[WA test] Gupshup HTTP %d: %s", gupshupRes.status, responseText);
+
+    let parsed: Record<string, unknown> = {};
+    try { parsed = JSON.parse(responseText); } catch {}
+    const success = gupshupRes.ok && parsed.status !== "error";
+
+    // Always log to message log so failures are visible in the admin UI
+    await pool.query(`
+      INSERT INTO whatsapp_message_log
+        (destination, message_type, template_id, template_name, trigger_type, status, payload, attendee_name, error_message, gupshup_message_id)
+      VALUES ($1, 'template', $2, $3, 'custom', $4, $5, $6, $7, $8)
+    `, [
+      dest,
+      resolvedTemplateId,
+      gupshupTemplateId,
+      success ? "sent" : "failed",
+      JSON.stringify({ templateId: gupshupTemplateId, params, test: true }),
+      attendeeName || "Test",
+      success ? null : (parsed.message as string || responseText),
+      success ? (parsed.messageId as string || null) : null,
+    ]);
+
+    if (success) {
+      res.json({ ok: true, messageId: parsed.messageId, gupshupStatus: parsed.status, dest });
+    } else {
+      res.status(502).json({ ok: false, error: parsed.message as string || responseText, gupshupStatus: parsed.status, dest });
+    }
+  } catch (err) {
+    console.error("[WA test] Unexpected error:", err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal error" });
   }
 });
 

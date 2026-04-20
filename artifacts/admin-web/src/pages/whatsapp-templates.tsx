@@ -212,8 +212,12 @@ export default function WhatsAppTemplates() {
   const testReminderMut = useMutation({
     mutationFn: ({ id, phone, attendeeName, eventId }: { id: string; phone: string; attendeeName: string; eventId: string }) =>
       apiTestReminderSchedule(id, { phone, attendeeName: attendeeName || undefined, eventId: eventId || undefined }),
-    onSuccess: () => {
-      toast({ title: "Mensaje de prueba enviado", description: `WhatsApp enviado a ${testPhone}` });
+    onSuccess: (data) => {
+      const dest = (data as Record<string, unknown>).dest as string | undefined;
+      toast({
+        title: "Mensaje de prueba enviado",
+        description: `Gupshup aceptó el mensaje${dest ? ` → +${dest}` : ""}. Revisa el log si no llega.`,
+      });
       setShowTestDialog(false);
       setTestPhone("");
       setTestAttendeeName("");
