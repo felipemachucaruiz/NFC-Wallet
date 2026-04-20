@@ -128,15 +128,10 @@ router.post(
       }
     }
 
-    // Block re-registration of hard-deleted bracelets
-    const [deleted] = await db
-      .select()
-      .from(deletedBraceletUidsTable)
+    // If this UID was previously hard-deleted, clear the tombstone so it can be re-registered fresh
+    await db
+      .delete(deletedBraceletUidsTable)
       .where(eq(deletedBraceletUidsTable.nfcUid, nfcUid));
-    if (deleted) {
-      res.status(409).json({ error: "BRACELET_DELETED: Esta pulsera fue eliminada por un administrador y no puede re-registrarse" });
-      return;
-    }
 
     const existing = await db
       .select()
