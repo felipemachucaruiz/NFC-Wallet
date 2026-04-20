@@ -11,6 +11,7 @@ const roleRoutes: Record<string, string> = {
   warehouse_admin: "/(warehouse)/",
   event_admin: "/(event-admin)/",
   admin: "/(admin)/",
+  box_office: "/(box-office)/",
 };
 
 export default function IndexScreen() {

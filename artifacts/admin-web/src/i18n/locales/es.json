@@ -344,7 +344,7 @@
     "topUpStatus": "Estado",
     "topUpPerformedBy": "Realizado por",
     "methodCash": "Efectivo",
-    "methodCard": "Tarjeta",
+    "methodCard": "Tarjeta (Datafono)",
     "methodOther": "Otro",
     "allEvents": "Todos los Eventos",
     "colEvent": "Evento"

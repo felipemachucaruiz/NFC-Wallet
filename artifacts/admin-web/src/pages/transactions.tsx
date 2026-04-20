@@ -163,7 +163,7 @@ export default function Transactions() {
       cash: t("transactions.methodCash"),
       card_external: t("transactions.methodCard"),
       nequi_transfer: "Nequi",
-      bancolombia_transfer: "Bancolombia",
+      bancolombia_transfer: "Transferencia",
       nequi: "Nequi",
       pse: "PSE",
       other: t("transactions.methodOther"),

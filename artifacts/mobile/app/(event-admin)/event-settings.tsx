@@ -36,17 +36,17 @@ type EventDetail = {
 
 const BANK_METHODS = [
   { value: "cash", label: "Efectivo", icon: "dollar-sign" as const },
-  { value: "card_external", label: "Tarjeta (datafono)", icon: "credit-card" as const },
+  { value: "card_external", label: "Tarjeta (Datafono)", icon: "credit-card" as const },
   { value: "nequi_transfer", label: "Nequi", icon: "smartphone" as const },
-  { value: "bancolombia_transfer", label: "Bancolombia", icon: "home" as const },
+  { value: "bancolombia_transfer", label: "Transferencia", icon: "home" as const },
   { value: "other", label: "Otro", icon: "more-horizontal" as const },
 ];
 
 const BOX_OFFICE_METHODS = [
   { value: "gate_cash", label: "Efectivo", icon: "dollar-sign" as const },
   { value: "gate_transfer", label: "Transferencia", icon: "smartphone" as const },
-  { value: "gate_card", label: "Datafono", icon: "credit-card" as const },
-  { value: "gate_nequi", label: "Nequi (Wompi)", icon: "zap" as const },
+  { value: "gate_card", label: "Tarjeta (Datafono)", icon: "credit-card" as const },
+  { value: "gate_nequi", label: "Nequi", icon: "zap" as const },
 ];
 
 type ConfirmModal =

@@ -160,14 +160,23 @@ export default function TransferBalanceScreen() {
             )}
           </View>
         ) : (
-          <Button
-            title={tappingFor === "old" ? t("attendee.tapping") : isNfcSupported() ? t("bankTransfer.tapOldBracelet") : t("bank.enterUid")}
-            onPress={() => handleTap("old")}
-            loading={tappingFor === "old"}
-            variant="secondary"
-            size="md"
-            fullWidth
-          />
+          <View style={{ gap: 10 }}>
+            <Button
+              title={tappingFor === "old" ? t("attendee.tapping") : isNfcSupported() ? t("bankTransfer.tapOldBracelet") : t("bank.enterUid")}
+              onPress={() => handleTap("old")}
+              loading={tappingFor === "old"}
+              variant="secondary"
+              size="md"
+              fullWidth
+            />
+            {isNfcSupported() && (
+              <Pressable onPress={() => { setManualFor("old"); setShowManual(true); }} style={{ alignSelf: "center" }}>
+                <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: "Inter_500Medium" }}>
+                  {t("bank.enterUidManual")}
+                </Text>
+              </Pressable>
+            )}
+          </View>
         )}
       </Card>
 

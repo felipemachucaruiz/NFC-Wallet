@@ -141,7 +141,7 @@ export default function LoginScreen() {
       return;
     }
     setDemoModalVisible(false);
-    await completeLogin();
+    router.replace("/");
   };
 
   // 2FA state

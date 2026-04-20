@@ -79,9 +79,9 @@ const ALL_BANK_METHODS: PaymentMethod[] = ["cash", "card_external", "nequi_trans
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
   { value: "cash", label: "Efectivo", icon: "dollar-sign" },
-  { value: "card_external", label: "Tarjeta", icon: "credit-card" },
+  { value: "card_external", label: "Tarjeta (Datafono)", icon: "credit-card" },
   { value: "nequi_transfer", label: "Nequi", icon: "smartphone" },
-  { value: "bancolombia_transfer", label: "Bancolombia", icon: "home" },
+  { value: "bancolombia_transfer", label: "Transferencia", icon: "home" },
   { value: "other", label: "Otro", icon: "more-horizontal" },
 ];
 
@@ -139,6 +139,11 @@ function isChipCompatible(detectedType: TagType, eventChipType: string): boolean
   }
 }
 
+function isAnyChipCompatible(detectedType: TagType, allowedTypes: string[]): boolean {
+  if (allowedTypes.length === 0) return true;
+  return allowedTypes.some((t) => isChipCompatible(detectedType, t));
+}
+
 function chipTypeLabel(eventChipType: string): string {
   switch (eventChipType) {
     case "ntag_21x": return "NTAG 21x";
@@ -156,7 +161,7 @@ export default function TopUpScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { currencyCode, eventId, bankPaymentMethods: contextBankMethods, bankMinTopup: contextBankMinTopup } = useEventContext();
+  const { currencyCode, eventId, bankPaymentMethods: contextBankMethods, bankMinTopup: contextBankMinTopup, allowedNfcTypes: contextAllowedNfcTypes } = useEventContext();
   const fmt = (n: number) => formatCurrency(n, currencyCode);
 
   const params = useLocalSearchParams<{
@@ -364,7 +369,7 @@ export default function TopUpScreen() {
   const handleConfirm = async () => {
     if (submittingRef.current) return;
     if (amount < effectiveMinAmount) {
-      showAlert(t("common.error"), t("bank.minimumAmount"));
+      showAlert(t("common.error"), t("bank.minimumAmount", { min: fmt(effectiveMinAmount) }));
       return;
     }
     submittingRef.current = true;
@@ -471,12 +476,15 @@ export default function TopUpScreen() {
             // what the event is configured to use. This is a defense-in-depth check —
             // the initial scan already validates this, but re-checking here prevents
             // writing to a wrong chip if the bracelet was swapped between scan and write.
-            if (nfcChipType && !isChipCompatible(detectedTagInfo.type, nfcChipType)) {
+            const effectiveAllowedTypes = contextAllowedNfcTypes.length > 0
+              ? contextAllowedNfcTypes
+              : (nfcChipType ? [nfcChipType] : []);
+            if (effectiveAllowedTypes.length > 0 && !isAnyChipCompatible(detectedTagInfo.type, effectiveAllowedTypes)) {
               aborted = true;
               showAlert(
                 t("common.error"),
                 t("bank.wrongChipType", {
-                  expected: chipTypeLabel(nfcChipType),
+                  expected: effectiveAllowedTypes.map(chipTypeLabel).join(" / "),
                   detected: detectedTagInfo.label,
                 })
               );
@@ -924,7 +932,7 @@ export default function TopUpScreen() {
           keyboardType="numeric"
           value={amountText}
           onChangeText={setAmountText}
-          error={amount > 0 && amount < effectiveMinAmount ? t("bank.minimumAmount") : undefined}
+          error={amount > 0 && amount < effectiveMinAmount ? t("bank.minimumAmount", { min: fmt(effectiveMinAmount) }) : undefined}
         />
 
         {amount > 0 && (
