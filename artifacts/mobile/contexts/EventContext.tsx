@@ -15,6 +15,8 @@ interface EventContextValue {
   eventName: string | null;
   eventEndsAt: string | null;
   currencyCode: string;
+  bankPaymentMethods: string[];
+  bankMinTopup: number;
   refetch: () => void;
 }
 
@@ -28,6 +30,8 @@ const EventContext = createContext<EventContextValue>({
   eventName: null,
   eventEndsAt: null,
   currencyCode: "COP",
+  bankPaymentMethods: ["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"],
+  bankMinTopup: 0,
   refetch: () => {},
 });
 
@@ -47,9 +51,15 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     endsAt?: string | null;
     active?: boolean;
     currencyCode?: string;
+    bankPaymentMethods?: string[];
+    bankMinTopup?: number;
   } | undefined;
 
   const inventoryMode: InventoryMode = event?.inventoryMode ?? "location_based";
+  const bankPaymentMethods: string[] = (Array.isArray(event?.bankPaymentMethods) && event.bankPaymentMethods.length > 0)
+    ? event.bankPaymentMethods
+    : ["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"];
+  const bankMinTopup: number = typeof event?.bankMinTopup === "number" ? event.bankMinTopup : 0;
   const nfcChipType: NfcChipType = event?.nfcChipType ?? "ntag_21x";
   const eventName: string | null = event?.name ?? null;
   const eventEndsAt: string | null = event?.endsAt ?? null;
@@ -80,8 +90,10 @@ export function EventProvider({ children }: { children: React.ReactNode }) {
     eventName,
     eventEndsAt,
     currencyCode,
+    bankPaymentMethods,
+    bankMinTopup,
     refetch,
-  }), [user?.eventId, inventoryMode, nfcChipType, allowedNfcTypes, isLoading, isEventEnded, eventName, eventEndsAt, currencyCode, refetch]);
+  }), [user?.eventId, inventoryMode, nfcChipType, allowedNfcTypes, isLoading, isEventEnded, eventName, eventEndsAt, currencyCode, bankPaymentMethods, bankMinTopup, refetch]);
 
   return (
     <EventContext.Provider value={contextValue}>

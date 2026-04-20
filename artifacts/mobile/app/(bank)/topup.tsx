@@ -1,12 +1,12 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useUpdateBraceletContact, useGetSigningKey, customFetch, type SigningKeyResponse } from "@workspace/api-client-react";
+import { useUpdateBraceletContact, useGetSigningKey, type SigningKeyResponse } from "@workspace/api-client-react";
 import { useAttestationContext } from "@/contexts/AttestationContext";
 import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
@@ -156,7 +156,7 @@ export default function TopUpScreen() {
   const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
-  const { currencyCode, eventId } = useEventContext();
+  const { currencyCode, eventId, bankPaymentMethods: contextBankMethods, bankMinTopup: contextBankMinTopup } = useEventContext();
   const fmt = (n: number) => formatCurrency(n, currencyCode);
 
   const params = useLocalSearchParams<{
@@ -187,8 +187,11 @@ export default function TopUpScreen() {
         }
       : null;
 
-  const [enabledBankMethods, setEnabledBankMethods] = useState<PaymentMethod[]>(ALL_BANK_METHODS);
-  const [bankMinTopup, setBankMinTopup] = useState(0);
+  const enabledBankMethods = useMemo(() => {
+    const filtered = (contextBankMethods as PaymentMethod[]).filter(m => ALL_BANK_METHODS.includes(m));
+    return filtered.length > 0 ? filtered : ALL_BANK_METHODS;
+  }, [contextBankMethods]);
+  const bankMinTopup = contextBankMinTopup;
   const [amountText, setAmountText] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [step, setStep] = useState<Step>("form");
@@ -231,34 +234,8 @@ export default function TopUpScreen() {
   const nfcChipType = (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
 
   useEffect(() => {
-    if (!eventId) return;
-    let cancelled = false;
-    const attempt = async (retries = 0) => {
-      try {
-        const data = await customFetch(`/api/events/${eventId}/payment-config`, { method: "GET" });
-        if (cancelled) return;
-        const d = data as { bankPaymentMethods?: string[]; bankMinTopup?: number };
-        const methods = Array.isArray(d.bankPaymentMethods) && d.bankPaymentMethods.length > 0
-          ? d.bankPaymentMethods as PaymentMethod[]
-          : ALL_BANK_METHODS;
-        setEnabledBankMethods(methods);
-        setPaymentMethod((prev) => (methods.includes(prev) ? prev : (methods[0] ?? "cash")));
-        if (typeof d.bankMinTopup === "number") {
-          setBankMinTopup(d.bankMinTopup);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        const status = (err as { status?: number })?.status;
-        if (status === 401 && retries < 3) {
-          setTimeout(() => attempt(retries + 1), 600 * (retries + 1));
-        } else {
-          setEnabledBankMethods(ALL_BANK_METHODS);
-        }
-      }
-    };
-    void attempt();
-    return () => { cancelled = true; };
-  }, [eventId]);
+    setPaymentMethod((prev) => (enabledBankMethods.includes(prev) ? prev : (enabledBankMethods[0] ?? "cash")));
+  }, [enabledBankMethods]);
   const { enqueueTopUp, cachedHmacSecret, updateCachedHmacSecret, syncNow } = useOfflineQueue();
   const { retryAttestation } = useAttestationContext();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
