@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { createHmac } from "node:crypto";
 import * as Sentry from "@sentry/node";
 import { pool } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
@@ -434,6 +435,145 @@ async function runBreakingPoint(res: Response, runId: string, eventId: string) {
   return { breakingPoint, steps: stepsData, maxThroughput, recommendedReplicas, p50, p95, errorRate, score, recommendations: recs };
 }
 
+// ── HTTP Merchant Charge runner (full stack: auth + HMAC + real HTTP) ─────────
+
+async function runHttpMerchantCharge(
+  res: Response,
+  runId: string,
+  eventId: string,
+  concurrency: number,
+  durationSeconds: number,
+  chargeCents: number,
+  attestationToken: string,
+) {
+  const apiBase = process.env.API_SELF_URL ?? "http://localhost:3000";
+  const demoSecret = process.env.DEMO_SECRET;
+  if (!demoSecret) throw new Error("DEMO_SECRET no configurado en Railway");
+
+  sseWrite(res, "progress", { phase: "setup", message: `Creando ${concurrency} pulseras de prueba...`, progress: 5 });
+  const { uids } = await setupTestBracelets(runId, concurrency, eventId, 10_000_000);
+
+  // Resolve signing key
+  const { rows: evtRows } = await pool.query<{ hmac_secret: string | null; use_kdf: boolean }>(
+    `SELECT hmac_secret, use_kdf FROM events WHERE id = $1`, [eventId],
+  );
+  const evt = evtRows[0];
+  let signingKey = "";
+  if (evt?.use_kdf) {
+    const masterKey = process.env.HMAC_MASTER_KEY;
+    if (!masterKey) throw new Error("HMAC_MASTER_KEY no configurado");
+    signingKey = createHmac("sha256", masterKey).update(eventId).digest("hex");
+  } else {
+    signingKey = evt?.hmac_secret ?? process.env.HMAC_SECRET ?? "";
+  }
+  if (!signingKey) throw new Error("Sin signing key para el evento");
+
+  // Get active location + product
+  const { rows: locRows } = await pool.query<{ location_id: string; product_id: string }>(
+    `SELECT l.id AS location_id, p.id AS product_id
+     FROM locations l
+     JOIN merchants m ON m.id = l.merchant_id
+     JOIN products  p ON p.merchant_id = m.id
+     WHERE m.event_id = $1 AND l.active = true AND p.active = true
+     LIMIT 1`,
+    [eventId],
+  );
+  if (!locRows[0]) throw new Error("No hay merchant/location/producto activo para el evento");
+  const { location_id: locationId, product_id: productId } = locRows[0];
+
+  // Demo login as merchant_staff
+  sseWrite(res, "progress", { phase: "setup", message: "Autenticando POS virtual...", progress: 10 });
+  const loginRes = await fetch(`${apiBase}/api/auth/demo-login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role: "merchant_staff", secret: demoSecret, eventId }),
+  });
+  if (!loginRes.ok) throw new Error(`Demo login falló: ${loginRes.status} — asegúrate de que DEMO_SECRET esté configurado`);
+  const { token: staffToken } = await loginRes.json() as { token: string };
+
+  const bracelets = uids.map((uid) => ({ uid, balance: 10_000_000, counter: 0 }));
+  const allLatencies: number[] = [];
+  let successCount = 0;
+  let errorCount = 0;
+  const startTime = Date.now();
+  const endTime   = startTime + durationSeconds * 1000;
+
+  const cycleLabel = "~5 tx/s por POS";
+  sseWrite(res, "progress", { phase: "running", message: `${concurrency} POS virtuales · ${cycleLabel} · ${durationSeconds}s`, progress: 20 });
+
+  let reporterDone = false;
+  const reporterPromise = (async () => {
+    while (!reporterDone) {
+      await new Promise((r) => setTimeout(r, 500));
+      if (reporterDone) break;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const progress = Math.min(90, 20 + Math.floor((elapsed / durationSeconds) * 70));
+      const txCount   = allLatencies.length;
+      const throughput = txCount / Math.max(0.1, elapsed);
+      sseWrite(res, "metric", { txCount, throughput: throughput.toFixed(1), p50: percentile(allLatencies, 50), p95: percentile(allLatencies, 95), errors: errorCount });
+      sseWrite(res, "progress", { phase: "running", progress, message: `${txCount} tx · ${throughput.toFixed(1)} tx/s · p95=${percentile(allLatencies, 95)}ms` });
+    }
+  })();
+
+  await Promise.all(bracelets.map(async (b) => {
+    while (Date.now() < endTime) {
+      if (b.balance < chargeCents) b.balance = 10_000_000;
+      const newBalance = b.balance - chargeCents;
+      const newCounter = b.counter + 1;
+      const sig = createHmac("sha256", signingKey)
+        .update(`${newBalance}:${newCounter}:${b.uid}`)
+        .digest("hex");
+
+      const t0 = Date.now();
+      try {
+        const txRes = await fetch(`${apiBase}/api/transactions/log`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${staffToken}`,
+            ...(attestationToken ? { "x-attestation-token": attestationToken } : {}),
+          },
+          body: JSON.stringify({
+            idempotencyKey: `LT_${b.uid}_${newCounter}_${Date.now()}`,
+            nfcUid:         b.uid,
+            locationId,
+            newBalance,
+            counter:        newCounter,
+            hmac:           sig,
+            lineItems:      [{ productId, quantity: 1 }],
+          }),
+        });
+        allLatencies.push(Date.now() - t0);
+        if (txRes.status === 201 || txRes.status === 200) {
+          successCount++;
+          b.balance = newBalance;
+          b.counter = newCounter;
+        } else if (txRes.status !== 409) {
+          errorCount++;
+        }
+      } catch {
+        allLatencies.push(Date.now() - t0);
+        errorCount++;
+      }
+      await new Promise((r) => setTimeout(r, 200)); // 5 tx/s per VU
+    }
+  }));
+
+  reporterDone = true;
+  await reporterPromise;
+
+  const txCount    = allLatencies.length;
+  const throughput = txCount / durationSeconds;
+  const p50        = percentile(allLatencies, 50);
+  const p95        = percentile(allLatencies, 95);
+  const p99        = percentile(allLatencies, 99);
+  const errorRate  = errorCount / Math.max(1, txCount);
+  const score      = calcScore(p50, p95, errorRate);
+
+  return { txCount, successCount, errorCount, throughput, p50, p95, p99, errorRate, score,
+    recommendations: recommendations(p50, p95, errorRate, throughput), _uids: uids };
+}
+
 // ── Expo Push helper ──────────────────────────────────────────────────────────
 
 async function sendExpoPush(tokens: string[], data: Record<string, unknown>, body: string) {
@@ -494,12 +634,14 @@ router.post("/load-test/railway/scale", requireAuth, requireRole("admin"), async
 
 // POST /load-test/runs — start a test run (SSE stream)
 router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
-  const { testType, eventId, concurrency = 5, durationSeconds = 30, targetTPS } = req.body as {
-    testType: "health_check" | "load_test" | "balance_integrity" | "breaking_point";
+  const { testType, eventId, concurrency = 5, durationSeconds = 30, targetTPS, attestationToken = "", chargeCents = 8000 } = req.body as {
+    testType: "health_check" | "load_test" | "balance_integrity" | "breaking_point" | "http_merchant_charge";
     eventId: string;
     concurrency?: number;
     durationSeconds?: number;
     targetTPS?: number;
+    attestationToken?: string;
+    chargeCents?: number;
   };
 
   if (!testType || !eventId) { res.status(400).json({ error: "testType and eventId required" }); return; }
@@ -542,6 +684,8 @@ router.post("/load-test/runs", requireAuth, requireRole("admin"), async (req: Re
       results = await runBalanceIntegrity(res, runId, eventId, Math.min(concurrency, 15));
     } else if (testType === "breaking_point") {
       results = await runBreakingPoint(res, runId, eventId);
+    } else if (testType === "http_merchant_charge") {
+      results = await runHttpMerchantCharge(res, runId, eventId, Math.min(concurrency, 40), Math.min(durationSeconds, 300), chargeCents, attestationToken);
     }
 
     // Override score and recommendations with live Railway context
