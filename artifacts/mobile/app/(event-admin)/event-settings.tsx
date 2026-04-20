@@ -103,13 +103,12 @@ function NfcChipCheckbox({
         <Text style={[styles.modeDesc, { color: C.textSecondary }]}>{description}</Text>
       </View>
       <View style={[
-        styles.checkboxBox,
+        styles.radioBox,
         {
           borderColor: checked ? C.primary : C.border,
-          backgroundColor: checked ? C.primary : "transparent",
         },
       ]}>
-        {checked && <Feather name="check" size={14} color="#0a0a0a" />}
+        {checked && <View style={[styles.radioDot, { backgroundColor: C.primary }]} />}
       </View>
     </Pressable>
   );
@@ -201,7 +200,7 @@ export default function EventSettingsScreen() {
   const [maxOfflineSpendPerBracelet, setMaxOfflineSpendPerBracelet] = useState<string>("");
   const [isSavingLimits, setIsSavingLimits] = useState(false);
 
-  const [selectedAllowedTypes, setSelectedAllowedTypes] = useState<NfcChipType[]>(["ntag_21x"]);
+  const [selectedChipType, setSelectedChipType] = useState<NfcChipType>("ntag_21x");
   const [isSavingChipType, setIsSavingChipType] = useState(false);
   const [isGeneratingDesfireKey, setIsGeneratingDesfireKey] = useState(false);
   const [isGeneratingUltralightCKey, setIsGeneratingUltralightCKey] = useState(false);
@@ -216,7 +215,7 @@ export default function EventSettingsScreen() {
       setOfflineSyncLimit(String(event.offlineSyncLimit ?? 500000));
       setMaxOfflineSpendPerBracelet(String(event.maxOfflineSpendPerBracelet ?? 200000));
       const types = event.allowedNfcTypes ?? [event.nfcChipType ?? "ntag_21x"];
-      setSelectedAllowedTypes(types);
+      setSelectedChipType(types[0] ?? "ntag_21x");
       if (event.bankPaymentMethods) setSelectedBankMethods(event.bankPaymentMethods);
       if (event.boxOfficePaymentMethods) setSelectedBoxOfficeMethods(event.boxOfficePaymentMethods);
       if (event.bankMinTopup !== undefined) setBankMinTopupText(String(event.bankMinTopup));
@@ -405,19 +404,11 @@ export default function EventSettingsScreen() {
     }
   };
 
-  const handleToggleChipType = (chipType: NfcChipType) => {
-    setSelectedAllowedTypes((prev) => {
-      if (prev.includes(chipType)) {
-        if (prev.length === 1) return prev;
-        return prev.filter((t) => t !== chipType);
-      }
-      return [...prev, chipType];
-    });
+  const handleSelectChipType = (chipType: NfcChipType) => {
+    setSelectedChipType(chipType);
   };
 
-  const allowedTypesChanged =
-    selectedAllowedTypes.length !== currentAllowedTypes.length ||
-    !selectedAllowedTypes.every((t) => currentAllowedTypes.includes(t));
+  const allowedTypesChanged = selectedChipType !== (currentAllowedTypes[0] ?? "ntag_21x");
 
   const handleSaveChipType = async () => {
     if (!user?.eventId) return;
@@ -426,7 +417,7 @@ export default function EventSettingsScreen() {
     try {
       await customFetch(`/api/events/${user.eventId}`, {
         method: "PATCH",
-        body: JSON.stringify({ allowedNfcTypes: selectedAllowedTypes }),
+        body: JSON.stringify({ allowedNfcTypes: [selectedChipType], nfcChipType: selectedChipType }),
       });
       refetch();
       queryClient.invalidateQueries({ queryKey: ["event-context", user.eventId] });
@@ -585,36 +576,36 @@ export default function EventSettingsScreen() {
             title={t("eventAdmin.ntag21x")}
             description={t("eventAdmin.ntag21xDesc")}
             icon="wifi"
-            checked={selectedAllowedTypes.includes("ntag_21x")}
-            onToggle={() => handleToggleChipType("ntag_21x")}
+            checked={selectedChipType === "ntag_21x"}
+            onToggle={() => handleSelectChipType("ntag_21x")}
           />
           <NfcChipCheckbox
             chipType="mifare_classic"
             title={t("eventAdmin.mifareClassic")}
             description={t("eventAdmin.mifareClassicDesc")}
             icon="cpu"
-            checked={selectedAllowedTypes.includes("mifare_classic")}
-            onToggle={() => handleToggleChipType("mifare_classic")}
+            checked={selectedChipType === "mifare_classic"}
+            onToggle={() => handleSelectChipType("mifare_classic")}
           />
           <NfcChipCheckbox
             chipType="desfire_ev3"
             title={t("eventAdmin.desfireEv3")}
             description={t("eventAdmin.desfireEv3Desc")}
             icon="shield"
-            checked={selectedAllowedTypes.includes("desfire_ev3")}
-            onToggle={() => handleToggleChipType("desfire_ev3")}
+            checked={selectedChipType === "desfire_ev3"}
+            onToggle={() => handleSelectChipType("desfire_ev3")}
           />
           <NfcChipCheckbox
             chipType="mifare_ultralight_c"
             title={t("eventAdmin.mifareUltralightC")}
             description={t("eventAdmin.mifareUltralightCDesc")}
             icon="lock"
-            checked={selectedAllowedTypes.includes("mifare_ultralight_c")}
-            onToggle={() => handleToggleChipType("mifare_ultralight_c")}
+            checked={selectedChipType === "mifare_ultralight_c"}
+            onToggle={() => handleSelectChipType("mifare_ultralight_c")}
           />
         </View>
 
-        {selectedAllowedTypes.includes("mifare_classic") && (
+        {selectedChipType === "mifare_classic" && (
           <Card style={[styles.infoCard, { borderColor: C.warning + "55", backgroundColor: C.warningLight }]} padding={14}>
             <View style={styles.infoRow}>
               <Feather name="alert-triangle" size={16} color={C.warning} style={{ marginTop: 1 }} />
@@ -625,7 +616,7 @@ export default function EventSettingsScreen() {
           </Card>
         )}
 
-        {selectedAllowedTypes.includes("desfire_ev3") && (
+        {selectedChipType === "desfire_ev3" && (
           <Card style={[styles.infoCard, { borderColor: C.primary + "55", backgroundColor: C.primaryLight }]} padding={14}>
             <View style={styles.infoRow}>
               <Feather name="info" size={16} color={C.primary} style={{ marginTop: 1 }} />
@@ -646,7 +637,7 @@ export default function EventSettingsScreen() {
           disabled={!allowedTypesChanged}
         />
 
-        {selectedAllowedTypes.includes("desfire_ev3") && (
+        {selectedChipType === "desfire_ev3" && (
           <>
             <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
             <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.desfireAesKey")}</Text>
@@ -688,7 +679,7 @@ export default function EventSettingsScreen() {
           </>
         )}
 
-        {selectedAllowedTypes.includes("mifare_ultralight_c") && (
+        {selectedChipType === "mifare_ultralight_c" && (
           <>
             <View style={[styles.sectionDivider, { borderTopColor: C.separator }]} />
             <Text style={[styles.sectionTitle, { color: C.text }]}>{t("eventAdmin.ultralightCDesKey")}</Text>
@@ -1211,6 +1202,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignSelf: "center",
     flexShrink: 0,
+  },
+  radioBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    flexShrink: 0,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   flaggedRow: {
     flexDirection: "row",

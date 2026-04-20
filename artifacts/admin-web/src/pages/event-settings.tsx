@@ -121,7 +121,7 @@ export default function EventSettings() {
   const [maxOfflineSpend, setMaxOfflineSpend] = useState("");
   const [isSavingLimits, setIsSavingLimits] = useState(false);
 
-  const [selectedAllowedTypes, setSelectedAllowedTypes] = useState<NfcChipType[]>(["ntag_21x"]);
+  const [selectedChipType, setSelectedChipType] = useState<NfcChipType>("ntag_21x");
   const [isSavingChipTypes, setIsSavingChipTypes] = useState(false);
 
   const [selectedBankMethods, setSelectedBankMethods] = useState<string[]>(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
@@ -134,7 +134,7 @@ export default function EventSettings() {
       setOfflineSyncLimit(String(event.offlineSyncLimit ?? 500000));
       setMaxOfflineSpend(String(event.maxOfflineSpendPerBracelet ?? 200000));
       const types = event.allowedNfcTypes ?? [event.nfcChipType ?? "ntag_21x"];
-      setSelectedAllowedTypes(types);
+      setSelectedChipType(types[0] ?? "ntag_21x");
       if (event.bankPaymentMethods) setSelectedBankMethods(event.bankPaymentMethods);
       if (event.boxOfficePaymentMethods) setSelectedBoxOfficeMethods(event.boxOfficePaymentMethods);
       if (event.bankMinTopup !== undefined) setBankMinTopupText(String(event.bankMinTopup));
@@ -293,19 +293,11 @@ export default function EventSettings() {
     }
   };
 
-  const handleToggleChipType = (chipType: NfcChipType) => {
-    setSelectedAllowedTypes((prev) => {
-      if (prev.includes(chipType)) {
-        if (prev.length === 1) return prev;
-        return prev.filter((t) => t !== chipType);
-      }
-      return [...prev, chipType];
-    });
+  const handleSelectChipType = (chipType: NfcChipType) => {
+    setSelectedChipType(chipType);
   };
 
-  const allowedTypesChanged =
-    selectedAllowedTypes.length !== currentAllowedTypes.length ||
-    !selectedAllowedTypes.every((t) => currentAllowedTypes.includes(t));
+  const allowedTypesChanged = selectedChipType !== (currentAllowedTypes[0] ?? "ntag_21x");
 
   const handleSaveChipTypes = async () => {
     if (!eventId || !allowedTypesChanged) return;
@@ -314,8 +306,8 @@ export default function EventSettings() {
       await customFetch(`/api/events/${eventId}`, {
         method: "PATCH",
         body: JSON.stringify({
-          allowedNfcTypes: selectedAllowedTypes,
-          nfcChipType: selectedAllowedTypes[0],
+          allowedNfcTypes: [selectedChipType],
+          nfcChipType: selectedChipType,
         }),
       });
       refetch();
@@ -612,22 +604,19 @@ export default function EventSettings() {
             ]).map(({ type, icon: Icon, label, desc }) => (
               <button
                 key={type}
-                onClick={() => handleToggleChipType(type)}
+                onClick={() => handleSelectChipType(type)}
                 className={`flex items-start gap-3 p-4 rounded-lg border-2 transition-colors text-left ${
-                  selectedAllowedTypes.includes(type)
+                  selectedChipType === type
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-muted-foreground/30"
                 }`}
               >
-                <Checkbox
-                  checked={selectedAllowedTypes.includes(type)}
-                  onCheckedChange={() => {}}
-                  onClick={(e) => e.stopPropagation()}
-                  className="mt-0.5 pointer-events-none"
-                />
+                <div className={`mt-0.5 h-4 w-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${selectedChipType === type ? "border-primary" : "border-muted-foreground"}`}>
+                  {selectedChipType === type && <div className="h-2 w-2 rounded-full bg-primary" />}
+                </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <Icon className={`h-4 w-4 ${selectedAllowedTypes.includes(type) ? "text-primary" : "text-muted-foreground"}`} />
+                    <Icon className={`h-4 w-4 ${selectedChipType === type ? "text-primary" : "text-muted-foreground"}`} />
                     <span className="font-medium text-sm">{label}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">{desc}</p>
@@ -635,7 +624,7 @@ export default function EventSettings() {
               </button>
             ))}
           </div>
-          {selectedAllowedTypes.includes("mifare_classic") && (
+          {selectedChipType === "mifare_classic" && (
             <div className="flex items-start gap-2 p-3 rounded-md bg-yellow-500/10 border border-yellow-500/30 text-sm">
               <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
               <span>{t("eventSettings.mifareClassicWarning")}</span>
