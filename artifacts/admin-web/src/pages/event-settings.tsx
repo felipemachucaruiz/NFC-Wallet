@@ -659,9 +659,9 @@ export default function EventSettings() {
             <h4 className="text-sm font-semibold">Banco — Recargas</h4>
             {[
               { value: "cash", label: "Efectivo" },
-              { value: "card_external", label: "Tarjeta (datafono)" },
+              { value: "card_external", label: "Tarjeta (Datafono)" },
               { value: "nequi_transfer", label: "Nequi" },
-              { value: "bancolombia_transfer", label: "Bancolombia" },
+              { value: "bancolombia_transfer", label: "Transferencia" },
               { value: "other", label: "Otro" },
             ].map((m) => (
               <div key={m.value} className="flex items-center gap-2">
@@ -698,8 +698,8 @@ export default function EventSettings() {
             {[
               { value: "gate_cash", label: "Efectivo" },
               { value: "gate_transfer", label: "Transferencia" },
-              { value: "gate_card", label: "Datafono" },
-              { value: "gate_nequi", label: "Nequi (Wompi)" },
+              { value: "gate_card", label: "Tarjeta (Datafono)" },
+              { value: "gate_nequi", label: "Nequi" },
             ].map((m) => (
               <div key={m.value} className="flex items-center gap-2">
                 <Checkbox
