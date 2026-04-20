@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, usersTable, accessZonesTable, eventsTable, ticketCheckinsTable, ticketsTable, ticketTypesTable, venueSectionsTable, eventDaysTable, pool } from "@workspace/db";
+import { db, braceletsTable, usersTable, accessZonesTable, eventsTable, ticketCheckinsTable, ticketsTable, ticketTypesTable, venueSectionsTable, eventDaysTable, pool, deletedBraceletUidsTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -1190,6 +1190,11 @@ router.post(
     }
 
     const gateZoneId = (gateUser as unknown as { gateZoneId?: string | null }).gateZoneId ?? null;
+
+    // Clear tombstone if present so a previously hard-deleted bracelet can be re-registered
+    await db
+      .delete(deletedBraceletUidsTable)
+      .where(eq(deletedBraceletUidsTable.nfcUid, braceletNfcUid));
 
     // Upsert bracelet record
     let bracelet;

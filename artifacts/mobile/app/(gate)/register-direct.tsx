@@ -180,7 +180,7 @@ export default function RegisterDirectScreen() {
         if (code === "BRACELET_WRONG_EVENT") {
           setErrorMsg(t("gate.braceletWrongEvent"));
         } else {
-          setErrorMsg(data?.message ?? t("gate.directRegisterError"));
+          setErrorMsg(data?.message ?? data?.error ?? t("gate.directRegisterError"));
         }
         triggerHaptic("error");
         setScanState("error");
