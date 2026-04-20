@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { pool, db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable, accessZonesTable } from "@workspace/db";
+import { pool, db, braceletsTable, eventsTable, transactionLogsTable, locationsTable, merchantsTable, topUpsTable, usersTable, accessZonesTable, deletedBraceletUidsTable } from "@workspace/db";
 import { eq, desc, ilike, or, and, sql, asc } from "drizzle-orm";
 import { requireRole, requireAuth } from "../middlewares/requireRole";
 import { requireNfcBraceletsEnabled } from "../middlewares/featureGating";
@@ -126,6 +126,16 @@ router.post(
         res.status(404).json({ error: "NFC_BRACELETS_DISABLED" });
         return;
       }
+    }
+
+    // Block re-registration of hard-deleted bracelets
+    const [deleted] = await db
+      .select()
+      .from(deletedBraceletUidsTable)
+      .where(eq(deletedBraceletUidsTable.nfcUid, nfcUid));
+    if (deleted) {
+      res.status(409).json({ error: "BRACELET_DELETED: Esta pulsera fue eliminada por un administrador y no puede re-registrarse" });
+      return;
     }
 
     const existing = await db
@@ -474,6 +484,11 @@ router.delete(
     await pool.query(`DELETE FROM ticket_checkins WHERE bracelet_id = $1`, [bracelet.id]);
     await pool.query(`DELETE FROM access_upgrades WHERE bracelet_id = $1`, [bracelet.id]);
     await db.delete(braceletsTable).where(eq(braceletsTable.nfcUid, nfcUid));
+    // Write a tombstone so the bank cannot auto-recreate this UID
+    await db
+      .insert(deletedBraceletUidsTable)
+      .values({ nfcUid })
+      .onConflictDoNothing();
     res.json({ success: true });
   },
 );

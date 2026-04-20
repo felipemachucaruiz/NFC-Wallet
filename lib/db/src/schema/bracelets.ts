@@ -2,6 +2,11 @@ import { pgTable, varchar, text, timestamp, boolean, integer } from "drizzle-orm
 import { sql } from "drizzle-orm";
 import { usersTable } from "./auth";
 
+export const deletedBraceletUidsTable = pgTable("deleted_bracelet_uids", {
+  nfcUid: varchar("nfc_uid", { length: 64 }).primaryKey(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const braceletsTable = pgTable("bracelets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   nfcUid: varchar("nfc_uid", { length: 64 }).notNull().unique(),
