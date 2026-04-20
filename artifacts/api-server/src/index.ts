@@ -876,12 +876,18 @@ function startEventReminderJob(): void {
             for (const mapping of bodyMappings) {
               params[mapping.position - 1] = context[mapping.field] ?? "";
             }
-            const ctaButtons = buttonMappings
+            let ctaButtons = buttonMappings
               .map((m, btnIdx) => ({
                 type: templateButtons[btnIdx]?.type ?? "url",
                 parameter: context[m.field] ?? "",
               }))
               .filter((b) => b.parameter);
+
+            // Fallback: auto-include venueMapUrl as CTA URL button when
+            // no explicit button mapping is configured but the URL is available.
+            if (ctaButtons.length === 0 && venueMapUrl) {
+              ctaButtons = [{ type: "url", parameter: venueMapUrl }];
+            }
 
             // Normalize phone
             let phone = attendee.attendee_phone.replace(/[\s\-()]/g, "");

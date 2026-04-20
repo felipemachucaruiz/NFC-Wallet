@@ -634,9 +634,20 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
     const maxBodyPos = bodyMappings.length > 0 ? Math.max(...bodyMappings.map((m) => m.position)) : 0;
     const params: string[] = Array(maxBodyPos).fill("");
     for (const mapping of bodyMappings) params[mapping.position - 1] = context[mapping.field] ?? "";
-    const ctaButtons = buttonMappings
+    let ctaButtons = buttonMappings
       .map((m, i) => ({ type: templateButtons[i]?.type ?? "url", parameter: context[m.field] ?? "" }))
       .filter((b) => b.parameter);
+
+    // Fallback: if the template has URL buttons but no explicit button mapping was
+    // configured (or all button params resolved to empty), auto-include venueMapUrl
+    // as the URL button suffix so the Google Maps CTA always works.
+    if (ctaButtons.length === 0 && venueMapUrl) {
+      const btnType = templateButtons.find((b) => b.type === "url") ? "url" : null;
+      if (btnType || templateButtons.length === 0) {
+        ctaButtons = [{ type: "url", parameter: venueMapUrl }];
+        console.log("[WA test] Auto-injecting venueMapUrl as CTA button (no explicit button mapping found)");
+      }
+    }
 
     // Normalize phone
     let dest = phone.replace(/[\s\-()]/g, "");
@@ -659,7 +670,7 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
       }));
     }
 
-    console.log("[WA test] dest=%s template=%s params=%j", dest, gupshupTemplateId, params);
+    console.log("[WA test] dest=%s template=%s params=%j buttons=%j", dest, gupshupTemplateId, params, ctaButtons);
 
     const gupshupRes = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
       method: "POST",
@@ -683,7 +694,7 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
       resolvedTemplateId,
       gupshupTemplateId,
       success ? "sent" : "failed",
-      JSON.stringify({ templateId: gupshupTemplateId, params, test: true }),
+      JSON.stringify({ templateId: gupshupTemplateId, params, buttons: ctaButtons, test: true }),
       attendeeName || "Test",
       success ? null : (parsed.message as string || responseText),
       success ? (parsed.messageId as string || null) : null,
