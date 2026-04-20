@@ -224,8 +224,17 @@ export default function TopUpScreen() {
   const [phone, setPhone] = useState(() => parsePhoneParam(params.phone).number);
   const [email, setEmail] = useState(params.email ?? "");
 
+  const { data: keyData, refetch: refetchSigningKey } = useGetSigningKey();
+  const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
+  const desfireAesKey = (keyData as unknown as { desfireAesKey?: string; nfcChipType?: string } | undefined)?.desfireAesKey ?? "";
+  const ultralightCDesKey = (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
+  const nfcChipType = (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
+
+  // Wait for keyData before fetching payment-config — keyData loading proves the auth
+  // token is ready in tokenRef. Without this gate, customFetch fires before the token
+  // is loaded from AsyncStorage, gets a 401, and the catch block keeps all 5 methods.
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId || !keyData) return;
     customFetch(`/api/events/${eventId}/payment-config`, { method: "GET" })
       .then((data: unknown) => {
         const d = data as { bankPaymentMethods?: string[]; bankMinTopup?: number };
@@ -243,13 +252,7 @@ export default function TopUpScreen() {
       .catch(() => {
         setEnabledBankMethods(ALL_BANK_METHODS);
       });
-  }, [eventId]);
-
-  const { data: keyData, refetch: refetchSigningKey } = useGetSigningKey();
-  const networkHmacSecret = (keyData as unknown as { hmacSecret: string } | undefined)?.hmacSecret ?? "";
-  const desfireAesKey = (keyData as unknown as { desfireAesKey?: string; nfcChipType?: string } | undefined)?.desfireAesKey ?? "";
-  const ultralightCDesKey = (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
-  const nfcChipType = (keyData as unknown as { nfcChipType?: string } | undefined)?.nfcChipType ?? "";
+  }, [eventId, keyData]);
   const { enqueueTopUp, cachedHmacSecret, updateCachedHmacSecret, syncNow } = useOfflineQueue();
   const { retryAttestation } = useAttestationContext();
   const hmacSecret = networkHmacSecret || cachedHmacSecret;
