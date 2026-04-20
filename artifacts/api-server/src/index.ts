@@ -849,9 +849,9 @@ function startEventReminderJob(): void {
             // Gupshup URL button templates define the base URL (https://maps.google.com/)
             // statically; the variable is only the suffix sent at runtime.
             const venueMapUrl = schedule.latitude && schedule.longitude
-              ? `?q=${schedule.latitude},${schedule.longitude}`
+              ? `https://maps.google.com/?q=${schedule.latitude},${schedule.longitude}`
               : schedule.venue_address
-                ? `?q=${encodeURIComponent(schedule.venue_address)}`
+                ? `https://maps.google.com/?q=${encodeURIComponent(schedule.venue_address)}`
                 : "";
             const context: Record<string, string> = {
               attendeeName: attendee.attendee_name,
@@ -919,18 +919,6 @@ function startEventReminderJob(): void {
             const templatePayload: Record<string, unknown> = { id: gupshupTemplateId, params };
             if (ctaButtons.length > 0) templatePayload.buttons = ctaButtons;
             formBody.append("template", JSON.stringify(templatePayload));
-            // Attach native location header when coordinates are available
-            if (schedule.latitude && schedule.longitude) {
-              formBody.append("message", JSON.stringify({
-                type: "location",
-                location: {
-                  latitude: schedule.latitude,
-                  longitude: schedule.longitude,
-                  name: schedule.event_name,
-                  address: schedule.venue_address ?? undefined,
-                },
-              }));
-            }
 
             const gupshupRes = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
               method: "POST",

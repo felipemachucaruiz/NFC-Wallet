@@ -616,8 +616,8 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
       : "Fecha del evento";
     const daysRemainingText = sched.days_before === 0 ? "HOY" : `en ${sched.days_before} día${sched.days_before > 1 ? "s" : ""}`;
     const venueMapUrl = latitude && longitude
-      ? `?q=${latitude},${longitude}`
-      : venueAddress ? `?q=${encodeURIComponent(venueAddress)}` : "";
+      ? `https://maps.google.com/?q=${latitude},${longitude}`
+      : venueAddress ? `https://maps.google.com/?q=${encodeURIComponent(venueAddress)}` : "";
 
     const context: Record<string, string> = {
       attendeeName: attendeeName || "Test",
@@ -663,12 +663,6 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
     formBody.append("destination", dest);
     formBody.append("src.name", GUPSHUP_APP_NAME);
     formBody.append("template", JSON.stringify(templatePayload));
-    if (latitude && longitude) {
-      formBody.append("message", JSON.stringify({
-        type: "location",
-        location: { latitude, longitude, name: eventName ?? "", address: venueAddress ?? undefined },
-      }));
-    }
 
     console.log("[WA test] dest=%s template=%s params=%j buttons=%j", dest, gupshupTemplateId, params, ctaButtons);
 
