@@ -541,6 +541,17 @@ export async function apiDeleteReminderSchedule(id: string): Promise<void> {
   if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to delete schedule"); }
 }
 
+export async function apiTestReminderSchedule(id: string, body: { phone: string; attendeeName?: string }): Promise<{ ok: boolean; messageId?: string }> {
+  const res = await fetch(apiUrl(`/api/whatsapp-reminder-schedules/${id}/test`), {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Test send failed");
+  return data;
+}
+
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")

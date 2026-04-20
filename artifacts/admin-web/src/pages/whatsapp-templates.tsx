@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil, MessageCircle, Zap, X, Download, RefreshCw, Clock, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight, RotateCw, FileText, Bell, RotateCcw, Link } from "lucide-react";
+import { Plus, Trash2, Pencil, MessageCircle, Zap, X, Download, RefreshCw, Clock, CheckCircle, XCircle, Search, ChevronLeft, ChevronRight, RotateCw, FileText, Bell, RotateCcw, Link, FlaskConical, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   apiFetchWhatsAppTemplates,
@@ -32,6 +32,7 @@ import {
   apiUpsertReminderSchedule,
   apiUpdateReminderSchedule,
   apiDeleteReminderSchedule,
+  apiTestReminderSchedule,
   type WhatsAppTemplate,
   type WhatsAppTriggerMapping,
   type GupshupTemplate,
@@ -107,6 +108,10 @@ export default function WhatsAppTemplates() {
   const [showParamMappingDialog, setShowParamMappingDialog] = useState(false);
   const [paramMappingScheduleId, setParamMappingScheduleId] = useState<string | null>(null);
   const [draftParamMappings, setDraftParamMappings] = useState<Array<{ position: number; field: string }>>([]);
+  const [showTestDialog, setShowTestDialog] = useState(false);
+  const [testScheduleId, setTestScheduleId] = useState<string | null>(null);
+  const [testPhone, setTestPhone] = useState("");
+  const [testAttendeeName, setTestAttendeeName] = useState("");
 
   const [tplForm, setTplForm] = useState({
     name: "",
@@ -201,6 +206,18 @@ export default function WhatsAppTemplates() {
     mutationFn: apiDeleteReminderSchedule,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["reminder-schedules"] }); },
     onError: (err: Error) => toast({ title: t("common.error"), description: err.message, variant: "destructive" }),
+  });
+
+  const testReminderMut = useMutation({
+    mutationFn: ({ id, phone, attendeeName }: { id: string; phone: string; attendeeName: string }) =>
+      apiTestReminderSchedule(id, { phone, attendeeName: attendeeName || undefined }),
+    onSuccess: () => {
+      toast({ title: "Mensaje de prueba enviado", description: `WhatsApp enviado a ${testPhone}` });
+      setShowTestDialog(false);
+      setTestPhone("");
+      setTestAttendeeName("");
+    },
+    onError: (err: Error) => toast({ title: "Error al enviar prueba", description: err.message, variant: "destructive" }),
   });
 
   const createTemplateMut = useMutation({
@@ -919,13 +936,30 @@ export default function WhatsAppTemplates() {
                                 )}
                               </TableCell>
                               <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => deleteReminderMut.mutate(sched.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
+                                <div className="flex items-center justify-end gap-1">
+                                  {selectedTpl && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      title="Enviar prueba"
+                                      onClick={() => {
+                                        setTestScheduleId(sched.id);
+                                        setTestPhone("");
+                                        setTestAttendeeName("");
+                                        setShowTestDialog(true);
+                                      }}
+                                    >
+                                      <FlaskConical className="h-4 w-4 text-blue-500" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteReminderMut.mutate(sched.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -978,6 +1012,58 @@ export default function WhatsAppTemplates() {
               }}
             >
               Agregar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Test de recordatorio ── */}
+      <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5 text-blue-500" />
+              Enviar prueba
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Envía el mensaje de este recordatorio a un número de WhatsApp para verificar que el template y los parámetros están correctos.
+            </p>
+            <div>
+              <Label>Teléfono destinatario</Label>
+              <Input
+                className="mt-1"
+                placeholder="Ej: 3001234567 ó +573001234567"
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && testPhone && testScheduleId) {
+                    testReminderMut.mutate({ id: testScheduleId, phone: testPhone, attendeeName: testAttendeeName });
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <Label>Nombre del asistente (opcional)</Label>
+              <Input
+                className="mt-1"
+                placeholder="Se usa como {{attendeeName}} en el template"
+                value={testAttendeeName}
+                onChange={(e) => setTestAttendeeName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTestDialog(false)}>Cancelar</Button>
+            <Button
+              disabled={!testPhone || testReminderMut.isPending}
+              onClick={() => {
+                if (testScheduleId) testReminderMut.mutate({ id: testScheduleId, phone: testPhone, attendeeName: testAttendeeName });
+              }}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              {testReminderMut.isPending ? "Enviando…" : "Enviar prueba"}
             </Button>
           </DialogFooter>
         </DialogContent>
