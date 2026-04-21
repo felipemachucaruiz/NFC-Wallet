@@ -481,14 +481,30 @@ function fmtUptime(s: number | null): string {
 }
 
 function LocalServersPanel() {
+  const queryClient = useQueryClient();
   const { data, isLoading, refetch, isFetching } = useQuery<{ servers: LocalServer[] }>({
     queryKey: ["local-servers"],
     queryFn: () => customFetch<{ servers: LocalServer[] }>("/api/local-servers"),
     refetchInterval: 30_000,
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (serverId: string) =>
+      customFetch(`/api/local-servers/${encodeURIComponent(serverId)}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["local-servers"] }),
+  });
+
   const servers = data?.servers ?? [];
   const now = Date.now();
+
+  const offlineServers = servers.filter((s) => {
+    const staleMin = Math.floor((now - new Date(s.reported_at).getTime()) / 60_000);
+    return staleMin >= 2;
+  });
+
+  const handleCleanOffline = () => {
+    offlineServers.forEach((s) => deleteMutation.mutate(s.server_id));
+  };
 
   return (
     <div className="space-y-4">
@@ -497,10 +513,18 @@ function LocalServersPanel() {
           <Server className="w-5 h-5 text-muted-foreground" />
           <h2 className="text-xl font-semibold">Servidores Locales</h2>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-          Actualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          {offlineServers.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleCleanOffline} disabled={deleteMutation.isPending}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Limpiar offline ({offlineServers.length})
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -524,16 +548,30 @@ function LocalServersPanel() {
               <div key={s.server_id} className="border border-border rounded-lg bg-card p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold text-sm leading-tight break-all">{s.server_id}</p>
-                  <Badge
-                    variant="secondary"
-                    className={`shrink-0 text-xs ${online ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}
-                  >
-                    {online ? (
-                      <><Wifi className="w-3 h-3 mr-1" />En línea</>
-                    ) : (
-                      <><WifiOff className="w-3 h-3 mr-1" />Offline {staleMin}m</>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Badge
+                      variant="secondary"
+                      className={`text-xs ${online ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}
+                    >
+                      {online ? (
+                        <><Wifi className="w-3 h-3 mr-1" />En línea</>
+                      ) : (
+                        <><WifiOff className="w-3 h-3 mr-1" />Offline {staleMin}m</>
+                      )}
+                    </Badge>
+                    {!online && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteMutation.mutate(s.server_id)}
+                        disabled={deleteMutation.isPending}
+                        title="Eliminar registro"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
                     )}
-                  </Badge>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
