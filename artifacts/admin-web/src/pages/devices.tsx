@@ -508,8 +508,10 @@ function LocalServersPanel() {
           Cargando…
         </div>
       ) : servers.length === 0 ? (
-        <div className="border border-border rounded-lg bg-card h-24 flex items-center justify-center text-muted-foreground text-sm">
-          No hay servidores locales registrados. Configura <code className="mx-1 text-xs bg-muted px-1 rounded">RAILWAY_SYNC_URL</code> en el servidor local.
+        <div className="border border-border rounded-lg bg-card p-6 flex flex-col items-center justify-center gap-2 text-muted-foreground text-sm text-center">
+          <span>No hay servidores locales activos.</span>
+          <span>Asegúrate de que el servidor local esté corriendo con <code className="mx-1 text-xs bg-muted px-1 rounded">RAILWAY_SYNC_URL</code> configurado y actualizado a la última versión:</span>
+          <code className="text-xs bg-muted px-2 py-1 rounded">docker compose pull &amp;&amp; docker compose up -d</code>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
