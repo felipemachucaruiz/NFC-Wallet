@@ -300,7 +300,7 @@ export default function AdsPage() {
                   <div className="flex flex-col items-center justify-center h-24 text-muted-foreground text-sm gap-1">
                     <ImageIcon className="w-8 h-8 opacity-40" />
                     <span>Clic para subir imagen</span>
-                    <span className="text-xs">Recomendado: 1200×300 px</span>
+                    <span className="text-xs">Recomendado: 1200×230 px</span>
                   </div>
                 )}
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
