@@ -1,6 +1,6 @@
 import { Router } from "express";
+import { pool } from "@workspace/db";
 import { requireRole } from "../middlewares/requireRole";
-import { getSyncPool } from "../lib/railwaySync";
 
 const router = Router();
 
@@ -9,12 +9,7 @@ router.get(
   requireRole("admin"),
   async (_req, res, next) => {
     try {
-      const syncPool = getSyncPool();
-      if (!syncPool) {
-        res.json({ servers: [] });
-        return;
-      }
-      const { rows } = await syncPool.query<{
+      const { rows } = await pool.query<{
         server_id: string;
         cpu_load_percent: number | null;
         memory_used_mb: number | null;
@@ -38,7 +33,10 @@ router.get(
         ORDER BY reported_at DESC
       `);
       res.json({ servers: rows });
-    } catch (err) {
+    } catch (err: unknown) {
+      // Table doesn't exist yet — no local server has connected
+      const pg = err as { code?: string };
+      if (pg.code === "42P01") { res.json({ servers: [] }); return; }
       next(err);
     }
   },
