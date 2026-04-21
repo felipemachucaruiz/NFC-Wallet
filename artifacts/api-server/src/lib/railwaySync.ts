@@ -200,6 +200,10 @@ async function seedEventData(): Promise<void> {
     );
     await upsertRows(localClient, "bracelets", brRows, "nfc_uid");
 
+    // 11. deleted_bracelet_uids — tombstones; prevents re-registering hard-deleted UIDs
+    const delRows = await fetchFromRailway(localClient, "deleted_bracelet_uids", "");
+    await upsertRows(localClient, "deleted_bracelet_uids", delRows, "nfc_uid");
+
     lastSeedStats = {
       events: activeEventIds.length,
       merchants: mRows.length,
@@ -345,6 +349,7 @@ async function pushLocalTransactions(): Promise<void> {
       if (rows.length === 0) return;
 
       let pushed = 0;
+      const pushedIds: string[] = [];
       for (const row of rows) {
         try {
           await syncPool!.query(
@@ -360,12 +365,57 @@ async function pushLocalTransactions(): Promise<void> {
              row.offline_created_at, row.created_at],
           );
           pushed++;
+          pushedIds.push(row.id);
         } catch (err) {
           logger.warn({ err, id: row.id }, "Railway sync: skipped transaction (FK missing on cloud)");
         }
       }
       lastTransactionSyncAt = rows[rows.length - 1].created_at;
       if (pushed > 0) logger.info({ pushed, total: rows.length }, "Railway sync: pushed transactions to cloud");
+
+      // Push corresponding line items for every successfully pushed transaction
+      if (pushedIds.length > 0) {
+        const idList = pushedIds.map((_, i) => `$${i + 1}`).join(", ");
+        const { rows: lineItems } = await client.query<{
+          id: string;
+          transaction_log_id: string;
+          product_id: string;
+          product_name_snapshot: string;
+          unit_price_snapshot: number;
+          unit_cost_snapshot: number;
+          quantity: number;
+          iva_amount: number;
+          retencion_fuente_amount: number;
+          retencion_ica_amount: number;
+          created_at: Date;
+        }>(`
+          SELECT id, transaction_log_id, product_id, product_name_snapshot,
+                 unit_price_snapshot, unit_cost_snapshot, quantity,
+                 iva_amount, retencion_fuente_amount, retencion_ica_amount, created_at
+          FROM transaction_line_items
+          WHERE transaction_log_id IN (${idList})
+        `, pushedIds);
+        let pushedLines = 0;
+        for (const li of lineItems) {
+          try {
+            await syncPool!.query(
+              `INSERT INTO transaction_line_items
+               (id, transaction_log_id, product_id, product_name_snapshot,
+                unit_price_snapshot, unit_cost_snapshot, quantity,
+                iva_amount, retencion_fuente_amount, retencion_ica_amount, created_at)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+               ON CONFLICT (id) DO NOTHING`,
+              [li.id, li.transaction_log_id, li.product_id, li.product_name_snapshot,
+               li.unit_price_snapshot, li.unit_cost_snapshot, li.quantity,
+               li.iva_amount, li.retencion_fuente_amount, li.retencion_ica_amount, li.created_at],
+            );
+            pushedLines++;
+          } catch (err) {
+            logger.warn({ err, id: li.id }, "Railway sync: skipped line item");
+          }
+        }
+        if (pushedLines > 0) logger.info({ pushedLines }, "Railway sync: pushed transaction line items to cloud");
+      }
     } finally {
       client.release();
     }
