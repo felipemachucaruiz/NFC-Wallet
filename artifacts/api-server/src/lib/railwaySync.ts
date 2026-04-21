@@ -12,14 +12,17 @@ let lastTopUpSyncAt: Date = new Date(0);
 // those columns from Railway. This handles schema drift gracefully: if Railway
 // has extra columns the local DB hasn't seen yet, they're simply skipped.
 
-async function getLocalColumns(localClient: pg.PoolClient, table: string): Promise<string[]> {
-  const { rows } = await localClient.query<{ column_name: string }>(
-    `SELECT column_name FROM information_schema.columns
+async function getLocalColumns(
+  localClient: pg.PoolClient,
+  table: string,
+): Promise<{ name: string; isJsonb: boolean }[]> {
+  const { rows } = await localClient.query<{ column_name: string; data_type: string }>(
+    `SELECT column_name, data_type FROM information_schema.columns
      WHERE table_schema = 'public' AND table_name = $1
      ORDER BY ordinal_position`,
     [table],
   );
-  return rows.map((r: { column_name: string }) => r.column_name);
+  return rows.map((r) => ({ name: r.column_name, isJsonb: r.data_type === "jsonb" }));
 }
 
 // Upsert an array of rows (from SELECT * on Railway) into the local table.
@@ -32,6 +35,8 @@ async function upsertRows(
 ): Promise<void> {
   if (rows.length === 0) return;
 
+  const colMeta = await getLocalColumns(localClient, table);
+  const jsonbCols = new Set(colMeta.filter((c) => c.isJsonb).map((c) => c.name));
   const cols = Object.keys(rows[0]);
   const quotedCols = cols.map((c) => `"${c}"`).join(", ");
   const conflictCols = conflictOn.split(",").map((c) => c.trim());
@@ -50,9 +55,10 @@ async function upsertRows(
       .join(", ");
     const params = batch.flatMap((row) => cols.map((c) => {
       const val = row[c] ?? null;
-      // pg serializes JS arrays/objects as PostgreSQL array literals {…} which
-      // fails on jsonb columns — stringify them so they arrive as JSON text.
-      if (val !== null && typeof val === "object" && !(val instanceof Date)) {
+      // pg serializes JS arrays/objects as PostgreSQL array literals {…}.
+      // For jsonb columns that needs to be a JSON string instead.
+      // text[] columns receive JS arrays directly (pg handles the serialization).
+      if (jsonbCols.has(c) && val !== null && typeof val === "object" && !(val instanceof Date)) {
         return JSON.stringify(val);
       }
       return val;
@@ -74,9 +80,9 @@ async function fetchFromRailway(
   where: string,
   params: unknown[] = [],
 ): Promise<Record<string, unknown>[]> {
-  const cols = await getLocalColumns(localClient, table);
-  if (cols.length === 0) return [];
-  const colList = cols.map((c) => `"${c}"`).join(", ");
+  const colMeta = await getLocalColumns(localClient, table);
+  if (colMeta.length === 0) return [];
+  const colList = colMeta.map((c) => `"${c.name}"`).join(", ");
   const { rows } = await syncPool!.query(
     `SELECT ${colList} FROM "${table}" ${where}`,
     params,
