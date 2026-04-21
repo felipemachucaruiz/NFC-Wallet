@@ -1,0 +1,50 @@
+Política Integral de Tratamiento de Datos Personales
+Habeas Data - TAPEE
+
+I. MARCO NORMATIVO Y PRINCIPIOS RECTORES
+La presente Política de Tratamiento de Datos Personales se fundamenta en la Constitución Política de Colombia (Art. 15), la Ley 1581 de 2012, el Decreto 1377 de 2013 y la Sentencia C-748 de 2011. TAPEE se compromete a aplicar de manera rigurosa los principios de legalidad, finalidad, libertad, veracidad, transparencia, acceso y circulación restringida, seguridad y confidencialidad en el manejo de la información.
+
+II. IDENTIFICACIÓN Y DOMICILIO DEL RESPONSABLE
+Titular: INVERSIONES JUDIMAC S.A.S (en adelante, "TAPEE" o el "Responsable").
+Identificación Tributaria: 901890734-3
+Domicilio Legal: Medellín, Antioquia, Colombia.
+Canales de Atención al Titular: Se dispone del correo electrónico hola@tapee.app para la recepción de consultas, peticiones, quejas y reclamos (PQR) relacionados con el tratamiento de datos.
+III. DEFINICIONES TÉCNICAS LEGALES
+Para efectos de la presente política, se entenderá por:
+
+Autorización: Consentimiento previo, expreso e informado del Titular.
+Base de Datos: Conjunto organizado de datos personales objeto de Tratamiento.
+Encargado del Tratamiento: Persona que realiza el tratamiento por cuenta del Responsable.
+Dato Sensible: Aquellos que afectan la intimidad del Titular o cuyo uso indebido puede generar discriminación (ej. biometría en eventos).
+IV. CATEGORÍAS DE DATOS Y MÉTODOS DE RECOLECCIÓN
+TAPEE recolectará datos a través de sus interfaces digitales, formularios de registro, dispositivos de lectura NFC y comunicaciones directas. Las categorías incluyen:
+
+Datos de Identificación Personal: Nombres, apellidos, número de identificación, género, edad y fotografía de perfil (opcional).
+Datos de Contacto Local y Digital: Direcciones de correo electrónico, números de telefonía móvil, perfiles de redes sociales y direcciones de facturación.
+Datos de Tráfico y Navegación: Direcciones IP, identificadores de sesión, tipos de navegador, sistemas operativos, registros de "logs", geolocalización basada en nodos de red y patrones de comportamiento dentro de la aplicación.
+Datos Técnicos de Proximidad (NFC): Identificadores dispositivos vinculados (UID de chips), marcas de tiempo de ingreso y salida, histórico de validaciones en puntos de control y consumos asociados si la manilla cuenta con sistema "cashless".
+V. FINALIDADES DEL TRATAMIENTO (USOS AUTORIZADOS)
+El Titular, al aceptar esta política, autoriza de manera expresa a TAPEE para tratar sus datos con los siguientes fines:
+
+Operación del Servicio: Gestión de preventas, ventas, reservas, emisión de tickets digitales y entrega física de dispositivos NFC.
+Seguridad y Prevención de Riesgos: Verificación de identidad para mitigar fraudes en transacciones electrónicas y prevenir la suplantación de identidad en el ingreso a eventos.
+Soporte Técnico y PQR: Atender consultas técnicas sobre el funcionamiento de la plataforma o la integridad de los dispositivos NFC.
+Relación con el Organizador: Transferir los datos de asistencia al Organizador del Evento, quien actúa como Responsable independiente, para fines de pólizas de seguros de asistentes, control de aforo y logística de emergencia.
+Marketing y Fidelización: Envío de información publicitaria, boletines de noticias, ofertas comerciales de aliados y encuestas de satisfacción. El Titular podrá revocar esta finalidad específica en cualquier momento.
+Analítica Masiva: Realizar estudios estadísticos sobre tendencias de asistencia, horas pico de ingreso y mapas de calor en eventos para mejorar la seguridad pública.
+VI. DERECHOS DE LOS TITULARES (ART. 8 LEY 1581)
+El Titular de los datos personales tendrá los siguientes derechos:
+
+Conocimiento: Acceder de forma gratuita a los datos personales que hayan sido objeto de Tratamiento.
+Actualización y Rectificación: Solicitar la corrección de datos parciales, inexactos, incompletos o que induzcan a error.
+Prueba de Autorización: Solicitar prueba de la autorización otorgada al Responsable del Tratamiento.
+Revocatoria y Supresión: Solicitar la supresión del dato o revocar la autorización cuando no se respeten los principios legales, previa queja ante la Superintendencia de Industria y Comercio (SIC).
+Información: Ser informado sobre el uso que se le ha dado a sus datos personales.
+VII. PROTOCOLOS DE SEGURIDAD Y CONFIDENCIALIDAD
+TAPEE declara que cuenta con medidas de seguridad física, técnica y administrativa para evitar el acceso no autorizado. Esto incluye:
+
+Protocolos de cifrado de extremo a extremo en la transmisión de datos.
+Servidores con redundancia y almacenamiento en la nube bajo estándares internacionales (SOC 2 / ISO 27001).
+Acceso restringido a la base de datos solo a personal autorizado bajo acuerdos de confidencialidad estricta.
+VIII. VIGENCIA Y MODIFICACIONES
+La presente política entra en vigor el día de su publicación. TAPEE se reserva el derecho de modificarla en cualquier momento para adaptarla a cambios legislativos o tecnológicos. Cualquier cambio sustancial será notificado a través de los canales de contacto registrados.
