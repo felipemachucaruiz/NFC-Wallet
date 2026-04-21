@@ -1,0 +1,37 @@
+Estatutos de Operación y Contrato de Adhesión
+Términos y Condiciones - TAPEE
+
+CLÁUSULA PRIMERA: NATURALEZA DEL VÍNCULO JURÍDICO
+El presente documento constituye un contrato de adhesión vinculante entre cualquier persona física o jurídica que acceda a la infraestructura de TAPEE (el "Usuario") y TAPEE. Al navegar por la Plataforma o adquirir servicios, el Usuario acepta de forma incondicional todas las disposiciones aquí contenidas.
+
+CLÁUSULA SEGUNDA: INTERMEDIACIÓN TÉCNICA Y EXCLUSIÓN DE RESPONSABILIDAD ORGANIZATIVA
+El Usuario reconoce expresamente que TAPEE opera bajo un modelo de Software como Servicio (SaaS) y actúa exclusivamente como un Intermediario Tecnológico.
+
+Independencia: TAPEE no es propietario, organizador, promotor, administrador ni responsable de la logística de los eventos publicados.
+Responsabilidad del Espectáculo: El Organizador del Evento es el único sujeto obligado frente al Usuario por la ejecución, calidad, seguridad, cambios de programación, cancelaciones y cumplimiento de las normas de salud pública y policía.
+Garantías del Evento: Cualquier reclamación relativa al contenido del espectáculo, el line-up de artistas, el sonido, la iluminación o la acomodación debe dirigirse al Organizador, cuyos datos aparecen en el resumen de compra.
+CLÁUSULA TERCERA: CONDICIONES DE ACCESO Y USO DEL HARDWARE NFC
+En eventos donde se implemente tecnología de Identificación por Radiofrecuencia (RFID/NFC):
+
+Carácter Personal: La manilla o dispositivo NFC es personal e intransferible. El uso por parte de terceros podrá resultar en la invalidación del acceso sin reembolso.
+Cuidado y Riesgo: El Usuario asume el riesgo de pérdida, robo, extravío o daño físico del dispositivo NFC una vez entregado. La exposición a altas temperaturas, humedad extrema, campos magnéticos o manipulación mecánica del chip invalidará la garantía del dispositivo.
+Reposiciones: En caso de daño por culpa del Usuario, la reposición de la manilla estará sujeta a la disponibilidad técnica y a los costos administrativos que el Organizador y TAPEE determinen.
+Uso Indebido: Queda terminantemente prohibido el uso de dispositivos de clonación o "sniffing" sobre el ecosistema de TAPEE. Estas conductas serán perseguidas bajo la Ley 1273 de 2009 (Delitos Informáticos).
+CLÁUSULA CUARTA: PROPIEDAD INTELECTUAL Y ACTIVOS DIGITALES
+Todos los derechos de propiedad intelectual sobre la Plataforma, incluyendo pero no limitado a: código objeto y fuente, algoritmos de encriptación, interfaces de usuario (UI), esquemas de experiencia (UX), gráficos, logotipos, bases de datos y manuales de operación, son propiedad exclusiva de TAPEE.
+
+Licencia Limitada: Se otorga al Usuario una licencia no exclusiva, revocable e intransferible para el uso personal de la Plataforma con fines de compra y validación.
+Prohibiciones: Se prohíbe el desensamblaje, ingeniería inversa, creación de obras derivadas o cualquier método de extracción de datos ("web scraping") no autorizado por escrito.
+CLÁUSULA QUINTA: PRECIOS, PAGOS Y CARGOS POR SERVICIO
+Composición del Precio: El precio total visualizado en el check-out se compone del valor facial de la entrada (fijado por el Organizador), los impuestos aplicables (IVA/Consumo) y el Cargo por Servicio de Tecnología (Service Fee).
+Ejecución del Servicio: El Usuario acepta que el Cargo por Servicio remunera el uso de la plataforma, el procesamiento de la transacción y la emisión del ticket, servicios que se consideran plenamente ejecutados al momento de confirmarse la compra.
+Seguridad en Pagos: Las transacciones se realizan a través de pasarelas de pago certificadas (PCI-DSS). TAPEE no almacena datos sensibles de tarjetas de crédito.
+CLÁUSULA SEXTA: LIMITACIÓN DE RESPONSABILIDAD TÉCNICA (SLA)
+TAPEE se esfuerza por mantener una disponibilidad del 99.9% de sus servicios; sin embargo, no garantiza el acceso ininterrumpido en casos de:
+
+Fallas en los nodos troncales de internet.
+Interrupciones en el suministro eléctrico de los recintos de eventos.
+Ataques coordinados de denegación de servicio (DDoS).
+Incompatibilidad con sistemas operativos desactualizados o dispositivos móviles modificados (jailbreak/root).
+CLÁUSULA SÉPTIMA: JURISDICCIÓN Y LEY APLICABLE
+Este contrato se rige íntegramente por las leyes de la República de Colombia. Para cualquier litigio, las partes renuncian a otros fueros y se someten a los juzgados competentes de la ciudad de Medellín.

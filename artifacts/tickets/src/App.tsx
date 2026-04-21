@@ -18,6 +18,9 @@ import MyOrders from "@/pages/my-orders";
 import Account from "@/pages/account";
 import NotFound from "@/pages/not-found";
 import GuestListPage from "@/pages/guest-list";
+import Terms from "@/pages/terms";
+import Privacy from "@/pages/privacy";
+import Returns from "@/pages/returns";
 
 const EXPECTED_ERRORS = /AbortError|NetworkError|cancelled|user denied/i;
 
@@ -62,6 +65,9 @@ function Router() {
           <Route path="/my-orders" component={MyOrders} />
           <Route path="/account" component={Account} />
           <Route path="/guest-list/:slug" component={GuestListPage} />
+          <Route path="/terminos" component={Terms} />
+          <Route path="/privacidad" component={Privacy} />
+          <Route path="/devoluciones" component={Returns} />
           <Route component={NotFound} />
         </Switch>
       </main>

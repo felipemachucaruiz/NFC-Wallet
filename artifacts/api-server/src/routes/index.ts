@@ -36,6 +36,7 @@ import syncIssuesRouter from "./syncIssues";
 import loadTestRouter from "./loadTest";
 import productCategoriesRouter from "./productCategories";
 import localServersRouter from "./localServers";
+import adsRouter from "./ads";
 
 const router: IRouter = Router();
 
@@ -76,5 +77,6 @@ router.use(syncIssuesRouter);
 router.use(loadTestRouter);
 router.use(productCategoriesRouter);
 router.use(localServersRouter);
+router.use(adsRouter);
 
 export default router;
