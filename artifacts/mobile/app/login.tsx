@@ -4,8 +4,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import { setBaseUrl } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePasscode } from "@/contexts/PasscodeContext";
 import { PasscodeScreen } from "@/components/PasscodeScreen";
@@ -13,6 +15,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Colors from "@/constants/colors";
 import { API_BASE_URL } from "@/constants/domain";
+
+export const LOCAL_SERVER_URL_KEY = "@tapee_local_server_url";
 
 const loginBgVideo = require("@/assets/login-bg.mp4");
 
@@ -64,6 +68,38 @@ export default function LoginScreen() {
 
   const [setupStep, setSetupStep] = useState<SetupStep | null>(null);
   const firstCodeRef = useRef("");
+
+  // Server config state
+  const [savedServerUrl, setSavedServerUrl] = useState<string | null>(null);
+  const [serverConfigModal, setServerConfigModal] = useState(false);
+  const [serverUrlInput, setServerUrlInput] = useState("");
+
+  useEffect(() => {
+    AsyncStorage.getItem(LOCAL_SERVER_URL_KEY).then((saved) => {
+      setSavedServerUrl(saved);
+    }).catch(() => {});
+  }, []);
+
+  const handleSaveServerUrl = async () => {
+    const url = serverUrlInput.trim().replace(/\/$/, "");
+    if (url) {
+      await AsyncStorage.setItem(LOCAL_SERVER_URL_KEY, url).catch(() => {});
+      setBaseUrl(url);
+      setSavedServerUrl(url);
+    } else {
+      await AsyncStorage.removeItem(LOCAL_SERVER_URL_KEY).catch(() => {});
+      setBaseUrl(API_BASE_URL);
+      setSavedServerUrl(null);
+    }
+    setServerConfigModal(false);
+  };
+
+  const handleResetServerUrl = async () => {
+    await AsyncStorage.removeItem(LOCAL_SERVER_URL_KEY).catch(() => {});
+    setBaseUrl(API_BASE_URL);
+    setSavedServerUrl(null);
+    setServerUrlInput("");
+  };
 
   // Forgot password state
   const [forgotModal, setForgotModal] = useState(false);
@@ -282,6 +318,22 @@ export default function LoginScreen() {
 
       {/* Black overlay */}
       <View style={styles.overlay} />
+
+      {/* Server config gear — long-press to configure local server */}
+      {!isWeb && (
+        <Pressable
+          onLongPress={() => {
+            setServerUrlInput(savedServerUrl ?? "");
+            setServerConfigModal(true);
+          }}
+          delayLongPress={600}
+          style={[styles.gearBtn, { top: insets.top + 8 }]}
+          hitSlop={16}
+        >
+          <Feather name="settings" size={20} color="rgba(255,255,255,0.22)" />
+          <View style={[styles.gearDot, { backgroundColor: savedServerUrl ? "#f59e0b" : "#22c55e" }]} />
+        </Pressable>
+      )}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
@@ -520,6 +572,65 @@ export default function LoginScreen() {
         </Pressable>
       </Modal>
 
+      {/* Server config modal */}
+      <Modal
+        visible={serverConfigModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setServerConfigModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setServerConfigModal(false)}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ width: "100%" }}>
+            <View style={[styles.totpSheet, { backgroundColor: "#161b22", borderColor: "rgba(255,255,255,0.1)" }]}>
+              <View style={[styles.totpIcon, { backgroundColor: "rgba(255,255,255,0.06)" }]}>
+                <Feather name="settings" size={28} color="rgba(255,255,255,0.7)" />
+              </View>
+              <Text style={styles.totpTitle}>Configuración de Servidor</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, width: "100%" }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: savedServerUrl ? "#f59e0b" : "#22c55e" }} />
+                <Text style={[styles.totpHint, { margin: 0 }]}>
+                  {savedServerUrl ? `Local: ${savedServerUrl}` : "Producción (prod.tapee.app)"}
+                </Text>
+              </View>
+              <Text style={[styles.totpHint, { textAlign: "left", width: "100%" }]}>
+                URL del servidor local. Vacío = producción.
+              </Text>
+              <TextInput
+                style={[styles.totpInput, { backgroundColor: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 14, letterSpacing: 0, fontFamily: "Inter_400Regular", paddingHorizontal: 14, textAlign: "left" }]}
+                value={serverUrlInput}
+                onChangeText={setServerUrlInput}
+                placeholder="http://192.168.1.100:3001"
+                placeholderTextColor="rgba(255,255,255,0.25)"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                returnKeyType="done"
+                onSubmitEditing={handleSaveServerUrl}
+              />
+              <View style={{ flexDirection: "row", gap: 10, width: "100%" }}>
+                {savedServerUrl ? (
+                  <Pressable
+                    onPress={handleResetServerUrl}
+                    style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", alignItems: "center" }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, fontFamily: "Inter_500Medium" }}>Producción</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={handleSaveServerUrl}
+                  style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: "#00f1ff", alignItems: "center" }}
+                >
+                  <Text style={{ color: "#0a0a0a", fontSize: 14, fontFamily: "Inter_700Bold" }}>Guardar</Text>
+                </Pressable>
+              </View>
+              <Pressable onPress={() => setServerConfigModal(false)} style={styles.totpCancel}>
+                <Text style={styles.totpCancelText}>Cancelar</Text>
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
+
       {/* 2FA verification modal */}
       <Modal
         visible={totpModal}
@@ -673,6 +784,25 @@ const styles = StyleSheet.create({
   totpErrorText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
   demoRoleBtn: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 12 },
   demoRoleBtnText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  gearBtn: {
+    position: "absolute",
+    right: 16,
+    zIndex: 100,
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gearDot: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: "rgba(0,0,0,0.5)",
+  },
   totpCancel: { paddingVertical: 8 },
   totpCancelText: {
     fontSize: 14,
