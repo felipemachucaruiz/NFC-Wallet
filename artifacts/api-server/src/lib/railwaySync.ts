@@ -79,10 +79,10 @@ async function upsertRows(
     let conflict: string;
     if (!updateSet) {
       conflict = `ON CONFLICT (${conflictOn}) DO NOTHING`;
-    } else if (hasUpdatedAt) {
-      // Only overwrite if Railway's version is newer — protects local writes
-      // (balance decrements, stock changes) from being clobbered before they
-      // are pushed back to Railway.
+    } else if (hasUpdatedAt && LOCAL_WRITE_TABLES.has(table)) {
+      // Only guard tables the local server writes to (bracelets, location_inventory).
+      // For all other tables Railway is authoritative — always overwrite so config
+      // changes (payment methods, min topup, prices, etc.) propagate immediately.
       conflict = `ON CONFLICT (${conflictOn}) DO UPDATE SET ${updateSet} WHERE "${table}".updated_at < EXCLUDED.updated_at`;
     } else {
       conflict = `ON CONFLICT (${conflictOn}) DO UPDATE SET ${updateSet}`;
@@ -115,6 +115,15 @@ async function fetchFromRailway(
 // Syncs every table that exists on both Railway and local, automatically
 // discovering new tables without code changes. Runs on startup and every
 // 5 minutes. Order below is FK-safe (parents before children).
+
+// Tables where the local server writes authoritatively (balance decrements,
+// stock consumption). Only these get the updated_at guard that prevents
+// Railway from clobbering a locally-written value before it's pushed back.
+// Every other table is a pure config mirror — Railway always wins.
+const LOCAL_WRITE_TABLES: Set<string> = new Set([
+  "bracelets",
+  "location_inventory",
+]);
 
 // Tables never pulled from Railway — either pushed BY local, ephemeral, or
 // managed by other services.
