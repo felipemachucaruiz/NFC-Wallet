@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { pool } from "@workspace/db";
 import { requireRole } from "../middlewares/requireRole";
 
@@ -7,7 +7,7 @@ const router = Router();
 router.get(
   "/api/local-servers",
   requireRole("admin"),
-  async (_req, res, next) => {
+  async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const { rows } = await pool.query<{
         server_id: string;
