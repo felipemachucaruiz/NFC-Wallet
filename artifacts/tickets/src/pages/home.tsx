@@ -312,7 +312,7 @@ function AdsBanner({ ads }: { ads: ApiAd[] }) {
       <img
         src={resolveImageUrl(ad.imageUrl)}
         alt={ad.title}
-        className="w-full h-[120px] sm:h-[160px] md:h-[200px] object-cover"
+        className="w-full h-auto object-contain"
       />
       {count > 1 && (
         <div className="absolute bottom-2 right-3 flex gap-1.5">
