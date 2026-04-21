@@ -34,9 +34,26 @@ router.get(
       `);
       res.json({ servers: rows });
     } catch (err: unknown) {
-      // Table doesn't exist yet — no local server has connected
       const pg = err as { code?: string };
       if (pg.code === "42P01") { res.json({ servers: [] }); return; }
+      next(err);
+    }
+  },
+);
+
+router.delete(
+  "/local-servers/:serverId",
+  requireRole("admin"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await pool.query(
+        "DELETE FROM local_server_heartbeats WHERE server_id = $1",
+        [req.params.serverId],
+      );
+      res.json({ ok: true });
+    } catch (err: unknown) {
+      const pg = err as { code?: string };
+      if (pg.code === "42P01") { res.json({ ok: true }); return; }
       next(err);
     }
   },
