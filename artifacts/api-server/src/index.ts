@@ -553,7 +553,7 @@ async function runStartupMigrations(): Promise<void> {
 
       DO $$ BEGIN
         ALTER TABLE bracelet_transfer_logs RENAME COLUMN balance_cop TO balance;
-      EXCEPTION WHEN undefined_column OR duplicate_column OR undefined_table THEN NULL; END $$;
+      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
 
       -- Migrate data from leftover _cop column if both exist, then drop
       DO $$ BEGIN
@@ -756,6 +756,16 @@ async function runStartupMigrations(): Promise<void> {
         ON auditor_csv_downloads (user_id);
       CREATE INDEX IF NOT EXISTS idx_auditor_csv_downloads_downloaded_at
         ON auditor_csv_downloads (downloaded_at);
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS bracelet_transfer_logs (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        bracelet_uid varchar(64) NOT NULL,
+        from_user_id varchar NOT NULL REFERENCES users(id),
+        balance integer NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
     `);
 
     logger.info("Startup migrations complete.");
