@@ -96,132 +96,176 @@ async function fetchFromRailway(
   return rows as Record<string, unknown>[];
 }
 
-// ── Full event data seed: Railway → local ──────────────────────────────────
-// Seeds every table the transaction handler reads from so the local server
-// can process payments for any active event without manual setup.
-// Runs once at startup and then every 5 minutes to stay current.
-// Seeding order respects FK constraints.
+// ── Dynamic full-mirror seed: Railway → local ─────────────────────────────
+// Syncs every table that exists on both Railway and local, automatically
+// discovering new tables without code changes. Runs on startup and every
+// 5 minutes. Order below is FK-safe (parents before children).
+
+// Tables never pulled from Railway — either pushed BY local, ephemeral, or
+// managed by other services.
+const PULL_EXCLUDED: Set<string> = new Set([
+  "sessions",
+  "password_reset_tokens",
+  "local_server_heartbeats",
+  "transaction_logs",
+  "transaction_line_items",
+  "top_ups",
+  "stock_movements",
+  "restock_orders",
+  "fraud_alerts",
+  "merchant_payouts",
+  "attendee_refund_requests",
+  "wompi_payment_intents",
+  "auditor_csv_downloads",
+  "auditor_login_activity",
+  "partial_sessions",
+  "inventory_audits",
+  "inventory_audit_items",
+  "damaged_goods",
+]);
+
+// FK-safe seeding order. Tables not listed are synced last (caught by dynamic discovery).
+const SEED_ORDER: string[] = [
+  "promoter_companies",
+  "exchange_rates",
+  "users",
+  "warehouses",
+  "venues",
+  "events",
+  "merchants",
+  "access_zones",
+  "locations",
+  "products",
+  "product_categories",
+  "user_location_assignments",
+  "location_inventory",
+  "warehouse_inventory",
+  "venue_sections",
+  "access_upgrades",
+  "guest_lists",
+  "event_days",
+  "ticket_types",
+  "bracelets",
+  "deleted_bracelet_uids",
+  "push_tokens",
+  "guest_list_entries",
+  "tickets",
+  "whatsapp_templates",
+  "whatsapp_trigger_mappings",
+  "whatsapp_message_log",
+  "pending_whatsapp_documents",
+  "bracelet_transfer_logs",
+  "event_reminder_schedules",
+];
+
+async function getPublicTables(client: pg.Pool | pg.PoolClient): Promise<string[]> {
+  const { rows } = await client.query<{ table_name: string }>(
+    `SELECT table_name FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+     ORDER BY table_name`,
+  );
+  return rows.map((r) => r.table_name);
+}
+
+async function getPrimaryKey(localClient: pg.PoolClient, table: string): Promise<string | null> {
+  const { rows } = await localClient.query<{ pk: string }>(
+    `SELECT string_agg(kcu.column_name, ',' ORDER BY kcu.ordinal_position) AS pk
+     FROM information_schema.table_constraints tc
+     JOIN information_schema.key_column_usage kcu
+       ON tc.constraint_name = kcu.constraint_name
+       AND tc.table_schema = kcu.table_schema
+     WHERE tc.table_schema = 'public' AND tc.table_name = $1
+       AND tc.constraint_type = 'PRIMARY KEY'
+     GROUP BY tc.table_name`,
+    [table],
+  );
+  return rows[0]?.pk ?? null;
+}
+
+async function tableHasColumn(localClient: pg.PoolClient, table: string, col: string): Promise<boolean> {
+  const cols = await getLocalColumns(localClient, table);
+  return cols.some((c) => c.name === col);
+}
+
+function makeInParam(ids: string[], offset = 0): string {
+  return `(${ids.map((_, i) => `$${i + 1 + offset}`).join(", ")})`;
+}
+
 async function seedEventData(): Promise<void> {
   if (!syncPool) return;
   const localClient = await pool.connect();
   try {
-    // Resolve active event IDs first; used to scope all subsequent queries.
-    const { rows: eventRows } = await syncPool.query<{ id: string }>(`
-      SELECT id FROM events
-      WHERE active = true OR ends_at > now() - interval '2 days'
-    `);
-    const activeEventIds = eventRows.map((r: { id: string }) => r.id);
+    // Resolve active event IDs for scoping large tables
+    const { rows: eventRows } = await syncPool.query<{ id: string }>(
+      `SELECT id FROM events WHERE active = true OR ends_at > now() - interval '2 days'`,
+    );
+    const activeEventIds = eventRows.map((r) => r.id);
 
     if (activeEventIds.length === 0) {
-      logger.info("Railway sync: no active events found on Railway — skipping seed");
+      logger.info("Railway sync: no active events on Railway — skipping seed");
       return;
     }
 
-    const evIdParam = `($${Array.from({ length: activeEventIds.length }, (_, i) => i + 1).join(", $")})`;
+    // Discover tables present on both Railway and local, minus exclusions
+    const [railwayTables, localTables] = await Promise.all([
+      getPublicTables(syncPool),
+      getPublicTables(localClient),
+    ]);
+    const localSet = new Set(localTables);
+    const eligible = railwayTables.filter((t) => localSet.has(t) && !PULL_EXCLUDED.has(t));
 
-    // 1. promoter_companies (referenced by events — must come first)
-    const pcRows = await fetchFromRailway(localClient, "promoter_companies", "");
-    await upsertRows(localClient, "promoter_companies", pcRows, "id");
+    // Sort by SEED_ORDER then any remaining tables at end
+    const orderedTables = [
+      ...SEED_ORDER.filter((t) => eligible.includes(t)),
+      ...eligible.filter((t) => !SEED_ORDER.includes(t)),
+    ];
 
-    // 2. events
-    const evRows = await fetchFromRailway(
-      localClient, "events",
-      `WHERE active = true OR ends_at > now() - interval '2 days'`,
-    );
-    await upsertRows(localClient, "events", evRows, "id");
+    const stats: Record<string, number> = {};
 
-    // 3. merchants
-    const mRows = await fetchFromRailway(
-      localClient, "merchants",
-      `WHERE event_id IN ${evIdParam}`, activeEventIds,
-    );
-    await upsertRows(localClient, "merchants", mRows, "id");
+    for (const table of orderedTables) {
+      try {
+        const pk = await getPrimaryKey(localClient, table);
+        if (!pk) continue; // no PK — can't upsert safely
 
-    const merchantIds = mRows.map((r) => r["id"] as string);
-    if (merchantIds.length === 0) {
-      logger.info({ events: activeEventIds.length }, "Railway sync: event data seeded (no merchants yet)");
-      return;
+        const hasEventId = await tableHasColumn(localClient, table, "event_id");
+
+        let where = "";
+        let params: unknown[] = [];
+
+        if (hasEventId && activeEventIds.length > 0) {
+          // Scope to active events (include rows with null event_id for global rows)
+          where = `WHERE event_id IN ${makeInParam(activeEventIds)} OR event_id IS NULL`;
+          params = activeEventIds;
+        } else if (table === "users") {
+          // Never pull attendees — they're managed by the attendee-api
+          where = `WHERE role != 'attendee'`;
+        }
+
+        const rows = await fetchFromRailway(localClient, table, where, params);
+        if (rows.length > 0) {
+          await upsertRows(localClient, table, rows, pk);
+        }
+        stats[table] = rows.length;
+      } catch (err) {
+        logger.warn({ err, table }, "Railway sync: skipped table during seed");
+      }
     }
-    const mIdParam = `($${Array.from({ length: merchantIds.length }, (_, i) => i + 1).join(", $")})`;
-
-    // 4. access_zones
-    const azRows = await fetchFromRailway(
-      localClient, "access_zones",
-      `WHERE event_id IN ${evIdParam}`, activeEventIds,
-    );
-    await upsertRows(localClient, "access_zones", azRows, "id");
-
-    // 5. locations
-    const locRows = await fetchFromRailway(
-      localClient, "locations",
-      `WHERE event_id IN ${evIdParam}`, activeEventIds,
-    );
-    await upsertRows(localClient, "locations", locRows, "id");
-
-    const locationIds = locRows.map((r) => r["id"] as string);
-    const locIdParam = locationIds.length > 0
-      ? `($${Array.from({ length: locationIds.length }, (_, i) => i + 1).join(", $")})`
-      : null;
-
-    // 6. products
-    const prodRows = await fetchFromRailway(
-      localClient, "products",
-      `WHERE merchant_id IN ${mIdParam}`, merchantIds,
-    );
-    await upsertRows(localClient, "products", prodRows, "id");
-
-    // 7. users — all non-attendee staff (no event scoping: admins have no event_id)
-    const userRows = await fetchFromRailway(
-      localClient, "users",
-      `WHERE role != 'attendee'`,
-    );
-    await upsertRows(localClient, "users", userRows, "id");
-
-    if (locIdParam && locationIds.length > 0) {
-      // 8. user_location_assignments
-      const ulaRows = await fetchFromRailway(
-        localClient, "user_location_assignments",
-        `WHERE location_id IN ${locIdParam}`, locationIds,
-      );
-      await upsertRows(localClient, "user_location_assignments", ulaRows, "id");
-
-      // 9. location_inventory
-      const liRows = await fetchFromRailway(
-        localClient, "location_inventory",
-        `WHERE location_id IN ${locIdParam}`, locationIds,
-      );
-      await upsertRows(localClient, "location_inventory", liRows, "id");
-    }
-
-    // 10. bracelets — full row (all columns needed for NFC verification)
-    const brRows = await fetchFromRailway(
-      localClient, "bracelets",
-      `WHERE event_id IN ${evIdParam}`, activeEventIds,
-    );
-    await upsertRows(localClient, "bracelets", brRows, "nfc_uid");
-
-    // 11. deleted_bracelet_uids — tombstones; prevents re-registering hard-deleted UIDs
-    const delRows = await fetchFromRailway(localClient, "deleted_bracelet_uids", "");
-    await upsertRows(localClient, "deleted_bracelet_uids", delRows, "nfc_uid");
 
     lastSeedStats = {
       events: activeEventIds.length,
-      merchants: mRows.length,
-      bracelets: brRows.length,
-      users: userRows.length,
+      merchants: stats["merchants"] ?? 0,
+      bracelets: stats["bracelets"] ?? 0,
+      users: stats["users"] ?? 0,
     };
     lastSeedAt = new Date();
 
-    logger.info({
-      events: activeEventIds.length,
-      merchants: mRows.length,
-      locations: locRows.length,
-      products: prodRows.length,
-      users: userRows.length,
-      bracelets: brRows.length,
-    }, "Railway sync: event data seeded");
+    const totalRows = Object.values(stats).reduce((a, b) => a + b, 0);
+    logger.info(
+      { tables: orderedTables.length, totalRows, ...stats },
+      "Railway sync: full mirror seed complete",
+    );
   } catch (err) {
-    logger.error({ err }, "Railway sync: event seed failed");
+    logger.error({ err }, "Railway sync: seed failed");
   } finally {
     localClient.release();
   }
@@ -573,6 +617,7 @@ export function getSyncPool(): pg.Pool | null {
 
 export async function initSyncPool(railwaySyncUrl: string): Promise<void> {
   syncPool = new pg.Pool({ connectionString: railwaySyncUrl, max: 3 });
+
   // Ensure heartbeat table exists on Railway
   try {
     await syncPool.query(`
@@ -595,6 +640,26 @@ export async function initSyncPool(railwaySyncUrl: string): Promise<void> {
     `);
   } catch (err) {
     logger.warn({ err }, "Railway sync: could not create local_server_heartbeats table");
+  }
+
+  // Warn immediately if any active event uses KDF but HMAC_MASTER_KEY is not set
+  if (!process.env.HMAC_MASTER_KEY) {
+    try {
+      const { rows } = await syncPool.query<{ id: string; name: string }>(
+        `SELECT id, name FROM events WHERE (active = true OR ends_at > now() - interval '2 days') AND use_kdf = true LIMIT 5`,
+      );
+      if (rows.length > 0) {
+        const names = rows.map((r) => r.name).join(", ");
+        logger.error(
+          { events: names },
+          "⚠️  HMAC_MASTER_KEY is not set but active event(s) use KDF signing. " +
+          "Top-ups and transactions WILL FAIL with 'HMAC_MASTER_KEY not configured'. " +
+          "Add HMAC_MASTER_KEY to your .env file (copy from Railway environment variables).",
+        );
+      }
+    } catch {
+      // non-fatal — just couldn't check
+    }
   }
 }
 

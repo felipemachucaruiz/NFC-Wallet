@@ -98,10 +98,12 @@ if [[ -z "${SKIP_ENV:-}" ]]; then
     HMAC_SECRET=$(prompt HMAC_SECRET "HMAC_SECRET" "" secret)
   done
 
-  # HMAC_MASTER_KEY — optional
+  # HMAC_MASTER_KEY — required for KDF events
   echo ""
-  info "HMAC_MASTER_KEY is only needed if your events use KDF-based NFC signing."
-  HMAC_MASTER_KEY=$(prompt HMAC_MASTER_KEY "HMAC_MASTER_KEY (leave blank if not used)" "" secret)
+  warn "HMAC_MASTER_KEY is required if your events use KDF-based NFC signing (most do)."
+  warn "Without it, top-ups and transactions will fail with 'clave de firma no disponible'."
+  warn "Copy this value from Railway → Variables → HMAC_MASTER_KEY."
+  HMAC_MASTER_KEY=$(prompt HMAC_MASTER_KEY "HMAC_MASTER_KEY (leave blank only if events do NOT use KDF)" "" secret)
 
   # DEMO_SECRET — optional
   echo ""
