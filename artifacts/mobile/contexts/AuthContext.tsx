@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useCallback,
   useRef,
+  useMemo,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
@@ -75,7 +76,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const STAFF_ROLES: readonly string[] = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"];
+const STAFF_ROLES: readonly string[] = ["bank", "gate", "box_office", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "admin"];
 
 const getAuthBase = (role?: string): string =>
   role && STAFF_ROLES.includes(role) ? API_BASE_URL : ATTENDEE_API_BASE_URL;
@@ -317,20 +318,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (result && result !== "network_error") setUser(result);
   }, [fetchUser]);
 
+  const contextValue = useMemo(
+    () => ({
+      user,
+      token,
+      isLoading,
+      isAuthenticated: !!user,
+      login,
+      verify2fa,
+      demoLogin,
+      logout,
+      refreshUser,
+    }),
+    [user, token, isLoading, login, verify2fa, demoLogin, logout, refreshUser]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        verify2fa,
-        demoLogin,
-        logout,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

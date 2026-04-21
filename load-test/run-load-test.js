@@ -1,6 +1,7 @@
 import { Pool } from "undici";
 import { randomBytes, createHmac } from "crypto";
 import { setTimeout as sleep } from "timers/promises";
+import pg from "pg";
 
 const ATTENDEE_API = process.env.ATTENDEE_API || "https://attendee.tapee.app";
 const STAFF_API = process.env.STAFF_API || "https://prod.tapee.app";
@@ -632,6 +633,26 @@ async function main() {
 
   await attendeePool.close();
   await staffPool.close();
+
+  // Clean up test users created during this run
+  const dbUrl = process.env.RAILWAY_DATABASE_URL;
+  if (dbUrl) {
+    console.log("\n  Cleaning up load test users from database...");
+    const pgClient = new pg.Client({ connectionString: dbUrl });
+    try {
+      await pgClient.connect();
+      const result = await pgClient.query(
+        "DELETE FROM users WHERE email LIKE '%@loadtest.tapee.app' OR username LIKE 'loadtest_%'"
+      );
+      console.log(`  Deleted ${result.rowCount} load test users.`);
+    } catch (err) {
+      console.warn("  Warning: cleanup failed —", err.message);
+    } finally {
+      await pgClient.end();
+    }
+  } else {
+    console.warn("\n  Warning: RAILWAY_DATABASE_URL not set — load test users were NOT cleaned up from the database.");
+  }
 }
 
 main().catch((err) => {
