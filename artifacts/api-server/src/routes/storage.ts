@@ -33,31 +33,29 @@ router.get("/storage/objects/*objectPath", async (req: Request, res: Response) =
     return;
   }
 
-  const allowedPrefixes = ["product-images/", "event-images/", "venue-floorplans/"];
+  const allowedPrefixes = ["product-images/", "event-images/", "venue-floorplans/", "ads/"];
   if (!allowedPrefixes.some((p) => objectName.startsWith(p))) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
 
-  if (isBucketConfigured()) {
-    try {
-      const result = await getObject(objectName);
-      if (!result) {
-        res.status(404).json({ error: "Object not found" });
-        return;
-      }
+  // 1. Try S3 or local disk (via unified getObject)
+  try {
+    const result = await getObject(objectName);
+    if (result) {
       res.setHeader("Content-Type", result.contentType);
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       (result.body as NodeJS.ReadableStream).pipe(res);
-    } catch {
-      res.status(404).json({ error: "Object not found" });
+      return;
     }
-    return;
+  } catch {
+    // fall through to GCS
   }
 
+  // 2. Try Replit Object Storage (GCS) as second fallback
   const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
   if (!bucketId) {
-    res.status(500).json({ error: "Object storage not configured" });
+    res.status(404).json({ error: "Object not found" });
     return;
   }
 
