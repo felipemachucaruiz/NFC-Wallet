@@ -1,5 +1,5 @@
 [build]
-buildCommand = "pnpm install && pnpm run build"
+buildCommand = "pnpm install && pnpm run build && cp -r ../../loadtests/k6 dist/k6scripts"
 
 [deploy]
 startCommand = "pnpm run start"
