@@ -9,14 +9,14 @@ export default function Terms() {
       <div className="prose prose-sm dark:prose-invert max-w-none space-y-8 text-foreground">
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Cláusula Primera: Naturaleza del Vínculo Jurídico</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Cláusula Primera: Naturaleza del Vínculo Jurídico</h2>
           <p className="text-muted-foreground leading-relaxed">
             El presente documento constituye un contrato de adhesión vinculante entre cualquier persona física o jurídica que acceda a la infraestructura de TAPEE (el "Usuario") y TAPEE. Al navegar por la Plataforma o adquirir servicios, el Usuario acepta de forma incondicional todas las disposiciones aquí contenidas.
           </p>
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Cláusula Segunda: Intermediación Técnica y Exclusión de Responsabilidad Organizativa</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Cláusula Segunda: Intermediación Técnica y Exclusión de Responsabilidad Organizativa</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             El Usuario reconoce expresamente que TAPEE opera bajo un modelo de Software como Servicio (SaaS) y actúa exclusivamente como un Intermediario Tecnológico.
           </p>
@@ -28,7 +28,7 @@ export default function Terms() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Cláusula Tercera: Condiciones de Acceso y Uso del Hardware NFC</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Cláusula Tercera: Condiciones de Acceso y Uso del Hardware NFC</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             En eventos donde se implemente tecnología de Identificación por Radiofrecuencia (RFID/NFC):
           </p>
@@ -41,7 +41,7 @@ export default function Terms() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Cláusula Cuarta: Propiedad Intelectual y Activos Digitales</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Cláusula Cuarta: Propiedad Intelectual y Activos Digitales</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             Todos los derechos de propiedad intelectual sobre la Plataforma, incluyendo pero no limitado a: código objeto y fuente, algoritmos de encriptación, interfaces de usuario (UI), esquemas de experiencia (UX), gráficos, logotipos, bases de datos y manuales de operación, son propiedad exclusiva de TAPEE.
           </p>
@@ -52,7 +52,7 @@ export default function Terms() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Cláusula Quinta: Precios, Pagos y Cargos por Servicio</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Cláusula Quinta: Precios, Pagos y Cargos por Servicio</h2>
           <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
             <li><span className="font-medium text-foreground">Composición del Precio:</span> El precio total visualizado en el check-out se compone del valor facial de la entrada (fijado por el Organizador), los impuestos aplicables (IVA/Consumo) y el Cargo por Servicio de Tecnología (Service Fee).</li>
             <li><span className="font-medium text-foreground">Ejecución del Servicio:</span> El Usuario acepta que el Cargo por Servicio remunera el uso de la plataforma, el procesamiento de la transacción y la emisión del ticket, servicios que se consideran plenamente ejecutados al momento de confirmarse la compra.</li>
@@ -61,7 +61,7 @@ export default function Terms() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Cláusula Sexta: Limitación de Responsabilidad Técnica (SLA)</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Cláusula Sexta: Limitación de Responsabilidad Técnica (SLA)</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             TAPEE se esfuerza por mantener una disponibilidad del 99.9% de sus servicios; sin embargo, no garantiza el acceso ininterrumpido en casos de:
           </p>
@@ -74,7 +74,7 @@ export default function Terms() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Cláusula Séptima: Jurisdicción y Ley Aplicable</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Cláusula Séptima: Jurisdicción y Ley Aplicable</h2>
           <p className="text-muted-foreground leading-relaxed">
             Este contrato se rige íntegramente por las leyes de la República de Colombia. Para cualquier litigio, las partes renuncian a otros fueros y se someten a los juzgados competentes de la ciudad de Medellín.
           </p>

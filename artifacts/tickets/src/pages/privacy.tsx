@@ -9,14 +9,14 @@ export default function Privacy() {
       <div className="prose prose-sm dark:prose-invert max-w-none space-y-8 text-foreground">
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">I. Marco Normativo y Principios Rectores</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">I. Marco Normativo y Principios Rectores</h2>
           <p className="text-muted-foreground leading-relaxed">
             La presente Política de Tratamiento de Datos Personales se fundamenta en la Constitución Política de Colombia (Art. 15), la Ley 1581 de 2012, el Decreto 1377 de 2013 y la Sentencia C-748 de 2011. TAPEE se compromete a aplicar de manera rigurosa los principios de legalidad, finalidad, libertad, veracidad, transparencia, acceso y circulación restringida, seguridad y confidencialidad en el manejo de la información.
           </p>
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">II. Identificación y Domicilio del Responsable</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">II. Identificación y Domicilio del Responsable</h2>
           <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
             <li><span className="font-medium text-foreground">Titular:</span> INVERSIONES JUDIMAC S.A.S (en adelante, "TAPEE" o el "Responsable").</li>
             <li><span className="font-medium text-foreground">Identificación Tributaria:</span> 901890734-3</li>
@@ -26,7 +26,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">III. Definiciones Técnicas Legales</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">III. Definiciones Técnicas Legales</h2>
           <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
             <li><span className="font-medium text-foreground">Autorización:</span> Consentimiento previo, expreso e informado del Titular.</li>
             <li><span className="font-medium text-foreground">Base de Datos:</span> Conjunto organizado de datos personales objeto de Tratamiento.</li>
@@ -36,7 +36,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">IV. Categorías de Datos y Métodos de Recolección</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">IV. Categorías de Datos y Métodos de Recolección</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             TAPEE recolectará datos a través de sus interfaces digitales, formularios de registro, dispositivos de lectura NFC y comunicaciones directas. Las categorías incluyen:
           </p>
@@ -49,7 +49,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">V. Finalidades del Tratamiento (Usos Autorizados)</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">V. Finalidades del Tratamiento (Usos Autorizados)</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             El Titular, al aceptar esta política, autoriza de manera expresa a TAPEE para tratar sus datos con los siguientes fines:
           </p>
@@ -64,7 +64,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">VI. Derechos de los Titulares (Art. 8 Ley 1581)</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">VI. Derechos de los Titulares (Art. 8 Ley 1581)</h2>
           <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
             <li><span className="font-medium text-foreground">Conocimiento:</span> Acceder de forma gratuita a los datos personales que hayan sido objeto de Tratamiento.</li>
             <li><span className="font-medium text-foreground">Actualización y Rectificación:</span> Solicitar la corrección de datos parciales, inexactos, incompletos o que induzcan a error.</li>
@@ -75,7 +75,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">VII. Protocolos de Seguridad y Confidencialidad</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">VII. Protocolos de Seguridad y Confidencialidad</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             TAPEE declara que cuenta con medidas de seguridad física, técnica y administrativa para evitar el acceso no autorizado. Esto incluye:
           </p>
@@ -87,7 +87,7 @@ export default function Privacy() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">VIII. Vigencia y Modificaciones</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">VIII. Vigencia y Modificaciones</h2>
           <p className="text-muted-foreground leading-relaxed">
             La presente política entra en vigor el día de su publicación. TAPEE se reserva el derecho de modificarla en cualquier momento para adaptarla a cambios legislativos o tecnológicos. Cualquier cambio sustancial será notificado a través de los canales de contacto registrados.
           </p>

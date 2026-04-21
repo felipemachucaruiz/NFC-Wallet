@@ -9,21 +9,21 @@ export default function Returns() {
       <div className="prose prose-sm dark:prose-invert max-w-none space-y-8 text-foreground">
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Sección 1: Fundamentos Legales del Consumidor Digital</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Sección 1: Fundamentos Legales del Consumidor Digital</h2>
           <p className="text-muted-foreground leading-relaxed">
             Este reglamento opera bajo los principios de la Ley 1480 de 2011 (Estatuto del Consumidor) y el Decreto 587 de 2016 relativo a la reversión de pagos en comercio electrónico. El Usuario reconoce que la compra de boletería es un contrato de prestación de servicios de esparcimiento con fecha y hora determinada.
           </p>
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Sección 2: Excepción Legal al Derecho de Retracto</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Sección 2: Excepción Legal al Derecho de Retracto</h2>
           <p className="text-muted-foreground leading-relaxed">
             De conformidad con el Artículo 47, Numeral 12 de la Ley 1480 de 2011, el derecho de retracto no es aplicable a los servicios de adquisición de entradas para espectáculos públicos. Una vez realizada la compra, no habrá lugar a devoluciones por el simple cambio de opinión del Usuario, imposibilidad de viaje, compromisos laborales sobrevinientes o errores en la selección de la boleta.
           </p>
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Sección 3: Protocolo ante Cancelación o Modificación del Evento</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Sección 3: Protocolo ante Cancelación o Modificación del Evento</h2>
           <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
             <li><span className="font-medium text-foreground">Cancelación Definitiva:</span> Si el evento es cancelado sin nueva fecha programada por causas imputables al Organizador, el Organizador es el único responsable de la devolución del 100% del valor facial de la entrada.</li>
             <li><span className="font-medium text-foreground">Rol de TAPEE:</span> En su calidad de intermediario, TAPEE gestionará la devolución de los fondos previa entrega de estos por parte del Organizador. Si el Organizador no transfiere los fondos a TAPEE, el Usuario deberá dirigir su reclamación directamente contra el patrimonio del Organizador.</li>
@@ -33,7 +33,7 @@ export default function Returns() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Sección 4: Procedimiento para la Reversión de Pagos</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Sección 4: Procedimiento para la Reversión de Pagos</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             Bajo el Decreto 587 de 2016, el Usuario tiene derecho a solicitar la reversión de su pago ante TAPEE y su entidad bancaria únicamente cuando:
           </p>
@@ -49,7 +49,7 @@ export default function Returns() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Sección 5: Fuerza Mayor y Actos de Autoridad</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Sección 5: Fuerza Mayor y Actos de Autoridad</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             No habrá lugar a reclamación por incumplimiento ni a devoluciones inmediatas en casos de Fuerza Mayor o Caso Fortuito, incluyendo pero no limitado a:
           </p>
@@ -65,7 +65,7 @@ export default function Returns() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-3">Sección 6: Canales de Reclamación (PQR)</h2>
+          <h2 className="text-lg font-semibold mb-3 text-primary">Sección 6: Canales de Reclamación (PQR)</h2>
           <p className="text-muted-foreground leading-relaxed mb-3">
             Para cualquier solicitud de reembolso autorizada, el Usuario deberá radicar un correo a{" "}
             <a href="mailto:hola@tapee.app" className="text-primary hover:underline">hola@tapee.app</a>{" "}
