@@ -48,7 +48,15 @@ async function upsertRows(
     const placeholders = batch
       .map((_, ri) => `(${cols.map((_, ci) => `$${ri * n + ci + 1}`).join(", ")})`)
       .join(", ");
-    const params = batch.flatMap((row) => cols.map((c) => row[c] ?? null));
+    const params = batch.flatMap((row) => cols.map((c) => {
+      const val = row[c] ?? null;
+      // pg serializes JS arrays/objects as PostgreSQL array literals {…} which
+      // fails on jsonb columns — stringify them so they arrive as JSON text.
+      if (val !== null && typeof val === "object" && !(val instanceof Date)) {
+        return JSON.stringify(val);
+      }
+      return val;
+    }));
     const conflict = updateSet
       ? `ON CONFLICT (${conflictOn}) DO UPDATE SET ${updateSet}`
       : `ON CONFLICT (${conflictOn}) DO NOTHING`;
