@@ -32,6 +32,9 @@ services:
       LOCAL_SERVER_NAME: ${LOCAL_SERVER_NAME:-}
       # Optional: sync event data and balances from Railway
       RAILWAY_SYNC_URL: ${RAILWAY_SYNC_URL:-}
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       postgres:
         condition: service_healthy
