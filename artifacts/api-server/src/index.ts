@@ -487,6 +487,83 @@ async function runStartupMigrations(): Promise<void> {
       );
     `);
 
+    // ── WhatsApp tables (not in Drizzle 0000-0003, referenced by event_reminder_schedules FK) ──
+    await client.query(`
+      DO $$ BEGIN CREATE TYPE whatsapp_template_category AS ENUM ('UTILITY','MARKETING','AUTHENTICATION');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      DO $$ BEGIN CREATE TYPE whatsapp_template_status AS ENUM ('active','inactive','pending_approval');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      DO $$ BEGIN CREATE TYPE whatsapp_trigger_type AS ENUM ('ticket_purchased','otp_verification','event_reminder','ticket_refund','welcome_message','ticket_transfer','custom');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      DO $$ BEGIN CREATE TYPE whatsapp_message_status AS ENUM ('sent','failed','pending');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      DO $$ BEGIN CREATE TYPE whatsapp_message_type AS ENUM ('template','text','document','image');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+      DO $$ BEGIN CREATE TYPE pending_wa_doc_status AS ENUM ('pending','sent','expired','failed');
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      CREATE TABLE IF NOT EXISTS whatsapp_templates (
+        id                  varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        name                varchar(255) NOT NULL,
+        gupshup_template_id varchar(255) NOT NULL,
+        description         text,
+        language            varchar(10) NOT NULL DEFAULT 'es',
+        category            whatsapp_template_category NOT NULL DEFAULT 'UTILITY',
+        status              whatsapp_template_status NOT NULL DEFAULT 'active',
+        parameters          jsonb NOT NULL DEFAULT '[]'::jsonb,
+        buttons             jsonb NOT NULL DEFAULT '[]'::jsonb,
+        body_preview        text,
+        created_at          timestamptz NOT NULL DEFAULT now(),
+        updated_at          timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS whatsapp_trigger_mappings (
+        id                  varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        trigger_type        whatsapp_trigger_type NOT NULL,
+        template_id         varchar NOT NULL REFERENCES whatsapp_templates(id) ON DELETE CASCADE,
+        event_id            varchar,
+        active              boolean NOT NULL DEFAULT true,
+        priority            integer NOT NULL DEFAULT 0,
+        parameter_mappings  jsonb NOT NULL DEFAULT '[]'::jsonb,
+        created_at          timestamptz NOT NULL DEFAULT now(),
+        updated_at          timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS whatsapp_message_log (
+        id                  varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        destination         varchar(30) NOT NULL,
+        message_type        whatsapp_message_type NOT NULL,
+        template_id         varchar,
+        template_name       varchar(255),
+        trigger_type        varchar(50),
+        status              whatsapp_message_status NOT NULL DEFAULT 'pending',
+        error_message       text,
+        payload             jsonb,
+        order_id            varchar,
+        ticket_id           varchar,
+        event_id            varchar,
+        attendee_name       varchar(255),
+        gupshup_message_id  varchar(255),
+        retry_count         integer NOT NULL DEFAULT 0,
+        created_at          timestamptz NOT NULL DEFAULT now(),
+        updated_at          timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS pending_whatsapp_documents (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        phone         varchar(30) NOT NULL,
+        order_id      varchar NOT NULL,
+        event_name    varchar(255) NOT NULL,
+        attendee_name varchar(255) NOT NULL,
+        ticket_count  integer NOT NULL DEFAULT 1,
+        pdf_url       text NOT NULL,
+        filename      varchar(255) NOT NULL,
+        status        pending_wa_doc_status NOT NULL DEFAULT 'pending',
+        created_at    timestamptz NOT NULL DEFAULT now(),
+        updated_at    timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+
     await client.query(`
       DO $$ BEGIN
         ALTER TABLE bracelets RENAME COLUMN last_known_balance_cop TO last_known_balance;
