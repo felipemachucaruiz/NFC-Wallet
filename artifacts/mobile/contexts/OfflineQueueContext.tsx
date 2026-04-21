@@ -271,11 +271,11 @@ export function OfflineQueueProvider({ children, userId }: { children: React.Rea
     [updateTopUpQueue]
   );
 
-  // Fire-and-forget: report all forbidden-blocked items to the server so admins can see them
+  // Fire-and-forget: report all failed items to the server so admins can see them
   const reportBlockedItems = useCallback(async () => {
     const blocked = [
-      ...queueRef.current.filter(isForbiddenBlocked),
-      ...topUpQueueRef.current.filter(isForbiddenBlocked),
+      ...queueRef.current.filter((t) => t.status === "failed"),
+      ...topUpQueueRef.current.filter((t) => t.status === "failed"),
     ];
     if (blocked.length === 0) return;
     for (const item of blocked) {
@@ -555,7 +555,7 @@ export function OfflineQueueProvider({ children, userId }: { children: React.Rea
 
     setIsSyncing(false);
 
-    // Report any forbidden-blocked items to the server (fire-and-forget)
+    // Report all currently-failed items to the server (fire-and-forget)
     void reportBlockedItems();
   }, [updateQueue, updateTopUpQueue, updateUnsyncedSpend, reportBlockedItems]);
 
