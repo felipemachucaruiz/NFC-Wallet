@@ -553,7 +553,7 @@ async function runStartupMigrations(): Promise<void> {
 
       DO $$ BEGIN
         ALTER TABLE bracelet_transfer_logs RENAME COLUMN balance_cop TO balance;
-      EXCEPTION WHEN undefined_column OR duplicate_column THEN NULL; END $$;
+      EXCEPTION WHEN undefined_column OR duplicate_column OR undefined_table THEN NULL; END $$;
 
       -- Migrate data from leftover _cop column if both exist, then drop
       DO $$ BEGIN
