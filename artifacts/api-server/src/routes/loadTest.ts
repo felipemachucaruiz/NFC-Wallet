@@ -1,5 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { createHmac } from "node:crypto";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import * as Sentry from "@sentry/node";
 import { pool } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
@@ -15,6 +18,18 @@ const RAILWAY_SERVICES: Record<string, { id: string; label: string }> = {
   "tapee-staff":    { id: "aa2eab58-2a82-45b9-b1bf-2a36da29698d", label: "Tapee Staff (API)" },
   "tapee-attendee": { id: "be3fe07b-32e3-4e6b-a816-f596b8bf7dd6", label: "Tapee Wallet (Attendee API)" },
 };
+
+// k6 scripts directory — tries production path first, then local dev
+const K6_SCRIPTS_DIR = (() => {
+  const candidates = [
+    path.join(process.cwd(), "dist", "k6scripts"),       // Railway (copied at build time)
+    path.resolve(process.cwd(), "../../loadtests/k6"),   // local dev monorepo
+  ];
+  return candidates.find((c) => existsSync(c)) ?? candidates[0];
+})();
+
+const K6_RUNNABLE_SCRIPTS = ["merchant-charge", "breaking-point", "balance-integrity", "topup"] as const;
+type K6Script = (typeof K6_RUNNABLE_SCRIPTS)[number];
 
 // UX-based baseline thresholds at 1 replica (calibrated April 2026 load tests)
 const BASE_P95_1R = 1000;   // ms — p95 at 100 users, 1 replica
@@ -1011,6 +1026,110 @@ router.post("/load-test/k6-results", requireAuth, requireRole("admin"), async (r
     logger.error({ err }, "k6-results ingestion failed");
     res.status(500).json({ error: String(err) });
   }
+});
+
+// POST /load-test/k6-run — execute a k6 script server-side, stream stdout via SSE
+router.post("/load-test/k6-run", requireAuth, requireRole("admin"), async (req: Request, res: Response) => {
+  const {
+    script,
+    eventId,
+    vus = 15,
+    durationSecs = 120,
+    chargeCents = 8000,
+    attestationToken = "",
+  } = req.body as {
+    script: string; eventId: string; vus?: number;
+    durationSecs?: number; chargeCents?: number; attestationToken?: string;
+  };
+
+  if (!K6_RUNNABLE_SCRIPTS.includes(script as K6Script)) {
+    res.status(400).json({ error: `script must be one of: ${K6_RUNNABLE_SCRIPTS.join(", ")}` });
+    return;
+  }
+  if (!eventId) { res.status(400).json({ error: "eventId required" }); return; }
+
+  const scriptPath = path.join(K6_SCRIPTS_DIR, `${script}.js`);
+  if (!existsSync(scriptPath)) {
+    res.status(503).json({
+      error: `k6 script not found at ${scriptPath}. Ensure nixpacks.toml installs k6 and the build copies loadtests/k6 to dist/k6scripts.`,
+    });
+    return;
+  }
+
+  const uploadToken = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
+
+  const { rows } = await pool.query<{ id: string }>(
+    `INSERT INTO load_test_runs (event_id, test_type, config, status, started_at)
+     VALUES ($1, $2, $3, 'running', NOW()) RETURNING id`,
+    [eventId, `k6_${script}`, JSON.stringify({ script, vus, durationSecs, chargeCents, runner: "k6_server" })],
+  );
+  const runId = rows[0].id;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  sseWrite(res, "start", { runId, script, eventId });
+
+  const apiBase = process.env.API_SELF_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    DEMO_SECRET:       process.env.DEMO_SECRET ?? "",
+    EVENT_ID:          eventId,
+    ATTESTATION_TOKEN: attestationToken,
+    VUS:               String(Math.min(vus, 40)),
+    DURATION_SECS:     String(Math.min(durationSecs, 300)),
+    CHARGE_CENTS:      String(chargeCents),
+    UPLOAD_TOKEN:      uploadToken,
+    UPLOAD_EVENT_ID:   eventId,
+    STAFF_API_URL:     apiBase,
+    ATTENDEE_API_URL:  apiBase,
+  };
+
+  const proc = spawn("k6", ["run", scriptPath], { env });
+  let finished = false;
+
+  proc.stdout.on("data", (chunk: Buffer) => {
+    for (const line of chunk.toString().split("\n")) {
+      if (line.trim()) sseWrite(res, "log", { line: line.trimEnd() });
+    }
+  });
+
+  proc.stderr.on("data", (chunk: Buffer) => {
+    for (const line of chunk.toString().split("\n")) {
+      if (line.trim()) sseWrite(res, "log", { line: line.trimEnd(), stderr: true });
+    }
+  });
+
+  proc.on("error", async (err) => {
+    if (finished) return;
+    finished = true;
+    logger.error({ err, script }, "k6 spawn error — binary probably not installed");
+    await pool.query(`UPDATE load_test_runs SET status = 'failed', completed_at = NOW() WHERE id = $1`, [runId]);
+    sseWrite(res, "error", { runId, error: err.message.includes("ENOENT") ? "k6 no está instalado en el servidor" : err.message });
+    res.end();
+  });
+
+  proc.on("close", async (code) => {
+    if (finished) return;
+    finished = true;
+    const status = code === 0 ? "completed" : "failed";
+    try {
+      await pool.query(
+        `UPDATE load_test_runs SET status = $1, completed_at = NOW() WHERE id = $2 AND status = 'running'`,
+        [status, runId],
+      );
+    } catch (err) {
+      logger.warn({ err, runId }, "Failed to update k6 run status");
+    }
+    sseWrite(res, "complete", { runId, script, exitCode: code, success: code === 0 });
+    res.end();
+  });
+
+  req.on("close", () => {
+    if (!finished && !proc.killed) proc.kill("SIGTERM");
+  });
 });
 
 // GET /load-test/device-test/runs — list runs with per-device results

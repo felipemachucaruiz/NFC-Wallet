@@ -13,7 +13,7 @@ import { AUTH_TOKEN_KEY } from "@/pages/login";
 import {
   Activity, Zap, ShieldCheck, TrendingUp, Server, Play, RefreshCw,
   ChevronUp, ChevronDown, Clock, AlertTriangle, CheckCircle2, XCircle,
-  Smartphone, Users, Timer, Cpu,
+  Smartphone, Users, Timer, Cpu, Terminal,
 } from "lucide-react";
 
 const API = import.meta.env.PROD
@@ -121,6 +121,9 @@ const K6_SCRIPTS: Array<{
   },
 ];
 
+// Scripts that support server-side execution (have auto env setup)
+const K6_RUNNABLE = new Set(["merchant-charge", "breaking-point", "balance-integrity", "topup"]);
+
 function scoreColor(s: number) { return s >= 85 ? "text-green-500" : s >= 65 ? "text-yellow-500" : "text-red-500"; }
 function scoreBadgeVariant(s: number): "default" | "secondary" | "destructive" {
   return s >= 85 ? "default" : s >= 65 ? "secondary" : "destructive";
@@ -184,6 +187,13 @@ export default function LoadTestPage() {
   const [lastResult,    setLastResult]    = useState<{ runId: string; score: number; results: Record<string, unknown> } | null>(null);
   const [sseError,      setSseError]      = useState<string | null>(null);
   const sseRef = useRef<AbortController | null>(null);
+
+  // k6 server-run state
+  const [k6Running,      setK6Running]      = useState(false);
+  const [k6ActiveScript, setK6ActiveScript] = useState<string | null>(null);
+  const [k6LogLines,     setK6LogLines]     = useState<Array<{ line: string; stderr?: boolean }>>([]);
+  const k6SseRef  = useRef<AbortController | null>(null);
+  const logBoxRef = useRef<HTMLDivElement>(null);
 
   // Phase 2 — device groups config
   const [dtStarting, setDtStarting] = useState(false);
@@ -257,6 +267,68 @@ export default function LoadTestPage() {
       return g;
     }));
   }, [profile.totalTx, numMerchants]);
+
+  // Auto-scroll log terminal
+  useEffect(() => {
+    if (logBoxRef.current) logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight;
+  }, [k6LogLines]);
+
+  async function startK6Run(scriptName: string) {
+    if (!eventId) { toast({ title: "Selecciona un evento", variant: "destructive" }); return; }
+    k6SseRef.current?.abort();
+    const ctrl = new AbortController();
+    k6SseRef.current = ctrl;
+    setK6Running(true);
+    setK6ActiveScript(scriptName);
+    setK6LogLines([]);
+
+    try {
+      const res = await fetch(`${API}/api/load-test/k6-run`, {
+        method: "POST",
+        signal: ctrl.signal,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          script: scriptName,
+          eventId,
+          vus: k6Vus,
+          durationSecs: k6Duration,
+          chargeCents,
+          attestationToken: k6AttnToken,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText })) as { error?: string };
+        toast({ title: "Error al iniciar k6", description: err.error ?? res.statusText, variant: "destructive" });
+        return;
+      }
+      if (!res.body) return;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        let evType = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) evType = line.slice(7);
+          else if (line.startsWith("data: ")) {
+            const payload = JSON.parse(line.slice(6));
+            if (evType === "log")      setK6LogLines((prev) => [...prev.slice(-800), payload as { line: string; stderr?: boolean }]);
+            else if (evType === "complete") { refetchRuns(); }
+            else if (evType === "error")    toast({ title: "k6 falló", description: (payload as { error: string }).error, variant: "destructive" });
+          }
+        }
+      }
+    } catch (e: unknown) {
+      if ((e as Error).name !== "AbortError")
+        toast({ title: "Error de conexión", description: String(e), variant: "destructive" });
+    } finally {
+      setK6Running(false);
+    }
+  }
 
   async function startServerTest() {
     if (!eventId) { toast({ title: "Selecciona un evento", variant: "destructive" }); return; }
@@ -712,19 +784,31 @@ export default function LoadTestPage() {
                       .replace(/-e ATTESTATION_TOKEN=\.\.\./g, k6AttnToken ? `-e ATTESTATION_TOKEN=${k6AttnToken}` : "-e ATTESTATION_TOKEN=<pendiente>")
                       .replace(/-e UPLOAD_TOKEN=\.\.\./g, `-e UPLOAD_TOKEN=${getToken()}`)
                       + ` -e VUS=${k6Vus} -e DURATION_SECS=${k6Duration} -e CHARGE_CENTS=${chargeCents}`;
+                    const canRun = K6_RUNNABLE.has(s.name);
+                    const isThisRunning = k6Running && k6ActiveScript === s.name;
                     return (
                       <div key={s.name} className="space-y-1.5">
                         <div className="flex items-center gap-2">
                           <s.icon className="h-4 w-4 text-muted-foreground shrink-0" />
                           <p className="text-sm font-semibold">{s.label}</p>
                           <Badge variant="outline" className="text-xs font-mono">{s.name}</Badge>
+                          {canRun && <Badge variant="secondary" className="text-xs">auto-run</Badge>}
                         </div>
                         <p className="text-xs text-muted-foreground pl-6">{s.description}</p>
                         <div className="pl-6 flex items-start gap-2">
                           <p className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1.5 rounded break-all flex-1">{filled}</p>
-                          <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => { navigator.clipboard.writeText(filled); toast({ title: "Comando copiado" }); }}>
+                          <Button size="sm" variant="outline" className="h-7 text-xs shrink-0"
+                            onClick={() => { navigator.clipboard.writeText(filled); toast({ title: "Comando copiado" }); }}>
                             Copiar
                           </Button>
+                          {canRun && (
+                            <Button size="sm" variant="default" className="h-7 text-xs shrink-0"
+                              onClick={() => startK6Run(s.name)}
+                              disabled={!eventId || k6Running}>
+                              <Play className="mr-1 h-3 w-3" />
+                              {isThisRunning ? "Ejecutando..." : "Ejecutar"}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     );
@@ -732,8 +816,41 @@ export default function LoadTestPage() {
                 </CardContent>
               </Card>
             </div>
-            {/* Right: k6 run history */}
-            <div>
+            {/* Right: log terminal + k6 run history */}
+            <div className="space-y-4">
+              {/* Live log terminal */}
+              {(k6Running || k6LogLines.length > 0) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Terminal className="h-4 w-4" />
+                      {k6Running
+                        ? <><Activity className="h-3 w-3 animate-pulse text-green-500" />{k6ActiveScript}</>
+                        : k6ActiveScript}
+                      {k6Running && (
+                        <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs"
+                          onClick={() => { k6SseRef.current?.abort(); setK6Running(false); }}>
+                          <XCircle className="h-3 w-3 mr-1" />Detener
+                        </Button>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div
+                      ref={logBoxRef}
+                      className="font-mono text-xs bg-black text-green-400 rounded p-3 h-72 overflow-y-auto whitespace-pre leading-5"
+                    >
+                      {k6LogLines.length === 0
+                        ? <span className="text-green-600">Iniciando k6…</span>
+                        : k6LogLines.map((l, i) => (
+                          <div key={i} className={l.stderr ? "text-yellow-300" : ""}>{l.line}</div>
+                        ))
+                      }
+                      {k6Running && <span className="animate-pulse">▋</span>}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
@@ -742,11 +859,11 @@ export default function LoadTestPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {!runsData?.runs?.length ? (
+                  {!runsData?.runs?.filter((r) => r.test_type.startsWith("k6_")).length ? (
                     <p className="text-sm text-muted-foreground text-center py-4">Sin pruebas k6 todavía.</p>
                   ) : (
                     <div className="space-y-2">
-                      {runsData.runs
+                      {runsData!.runs
                         .filter((r) => r.test_type.startsWith("k6_"))
                         .map((r) => <RunRow key={r.id} run={r} />)}
                     </div>
