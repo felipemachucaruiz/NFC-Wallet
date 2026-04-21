@@ -5,6 +5,7 @@ import { lt } from "drizzle-orm";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { purgeOrphanedLoadTestBracelets } from "./routes/loadTest";
+import { startBalanceSyncJob } from "./lib/railwaySync";
 
 const rawPort = process.env["PORT"];
 
@@ -976,6 +977,9 @@ runStartupMigrations()
     startAttestationCleanupJob();
     startEventReminderJob();
     purgeOrphanedLoadTestBracelets();
+    if (process.env.RAILWAY_SYNC_URL) {
+      startBalanceSyncJob(process.env.RAILWAY_SYNC_URL);
+    }
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

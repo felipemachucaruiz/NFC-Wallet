@@ -93,6 +93,11 @@ if (Platform.OS !== "web") {
 setBaseUrl(API_BASE_URL);
 setFetchImplementation(fetchWithTimeout);
 
+// Restore saved local server URL from previous session (async — resolves before first API call)
+AsyncStorage.getItem("@tapee_local_server_url").then((saved) => {
+  if (saved) setBaseUrl(saved);
+}).catch(() => {});
+
 SplashScreen.preventAutoHideAsync();
 
 const CRASH_LOG_KEY = "@tapee_crash_log";
