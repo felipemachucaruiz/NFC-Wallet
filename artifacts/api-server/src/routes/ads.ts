@@ -19,12 +19,12 @@ const AdSchema = z.object({
   endsAt: z.string().datetime({ offset: true }).optional().or(z.literal("")),
 });
 
-router.get("/ads", requireAuth, requireRole(["admin", "super_admin"]), async (req: Request, res: Response) => {
+router.get("/ads", requireAuth, requireRole("admin", "super_admin"), async (req: Request, res: Response) => {
   const ads = await db.select().from(adsTable).orderBy(asc(adsTable.displayOrder), asc(adsTable.createdAt));
   res.json({ ads });
 });
 
-router.post("/ads", requireAuth, requireRole(["admin", "super_admin"]), adUpload.single("image"), async (req: Request, res: Response) => {
+router.post("/ads", requireAuth, requireRole("admin", "super_admin"), adUpload.single("image"), async (req: Request, res: Response) => {
   const parsed = AdSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0].message });
@@ -64,7 +64,7 @@ router.post("/ads", requireAuth, requireRole(["admin", "super_admin"]), adUpload
   res.status(201).json({ ad });
 });
 
-router.put("/ads/:id", requireAuth, requireRole(["admin", "super_admin"]), adUpload.single("image"), async (req: Request, res: Response) => {
+router.put("/ads/:id", requireAuth, requireRole("admin", "super_admin"), adUpload.single("image"), async (req: Request, res: Response) => {
   const { id } = req.params;
   const parsed = AdSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -109,7 +109,7 @@ router.put("/ads/:id", requireAuth, requireRole(["admin", "super_admin"]), adUpl
   res.json({ ad });
 });
 
-router.patch("/ads/:id/toggle", requireAuth, requireRole(["admin", "super_admin"]), async (req: Request, res: Response) => {
+router.patch("/ads/:id/toggle", requireAuth, requireRole("admin", "super_admin"), async (req: Request, res: Response) => {
   const { id } = req.params;
   const [existing] = await db.select().from(adsTable).where(eq(adsTable.id, id));
   if (!existing) {
@@ -120,7 +120,7 @@ router.patch("/ads/:id/toggle", requireAuth, requireRole(["admin", "super_admin"
   res.json({ ad });
 });
 
-router.delete("/ads/:id", requireAuth, requireRole(["admin", "super_admin"]), async (req: Request, res: Response) => {
+router.delete("/ads/:id", requireAuth, requireRole("admin", "super_admin"), async (req: Request, res: Response) => {
   const { id } = req.params;
   const [existing] = await db.select().from(adsTable).where(eq(adsTable.id, id));
   if (!existing) {
