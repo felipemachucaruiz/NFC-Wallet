@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Link } from "wouter";
 import { MapPin, Phone, Mail } from "lucide-react";
 
 const InstagramIcon = () => (
@@ -43,8 +44,9 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-sm mb-3">Legal</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-foreground transition-colors">{t("footer.terms")}</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">{t("footer.privacy")}</a></li>
+              <li><Link href="/terminos" className="hover:text-foreground transition-colors">{t("footer.terms")}</Link></li>
+              <li><Link href="/privacidad" className="hover:text-foreground transition-colors">{t("footer.privacy")}</Link></li>
+              <li><Link href="/devoluciones" className="hover:text-foreground transition-colors">{t("footer.returns", "Política de devoluciones")}</Link></li>
             </ul>
           </div>
 
