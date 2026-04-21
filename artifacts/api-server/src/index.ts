@@ -845,6 +845,22 @@ async function runStartupMigrations(): Promise<void> {
         ON auditor_csv_downloads (downloaded_at);
     `);
 
+    // ── ads: promotional banners for the ticket storefront ───────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ads (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        title         varchar(255) NOT NULL,
+        image_url     text NOT NULL,
+        link_url      text,
+        is_active     boolean NOT NULL DEFAULT true,
+        display_order integer NOT NULL DEFAULT 0,
+        starts_at     timestamptz,
+        ends_at       timestamptz,
+        created_at    timestamptz NOT NULL DEFAULT now(),
+        updated_at    timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+
     // ── local_server_heartbeats: health pings from on-site local servers ─────
     await client.query(`
       CREATE TABLE IF NOT EXISTS local_server_heartbeats (
