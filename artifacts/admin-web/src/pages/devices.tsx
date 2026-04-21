@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map, AlertTriangle, KeyRound, Info, Battery, Cpu, Signal, MapPin, Settings, HardDrive } from "lucide-react";
+import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map, AlertTriangle, KeyRound, Info, Battery, Cpu, Signal, MapPin, Settings, HardDrive, Server } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
 import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER, TAPEE_MAP_STYLES } from "@/lib/maps";
@@ -437,6 +437,145 @@ function DeviceMap({ devices }: { devices: Device[] }) {
   );
 }
 
+interface LocalServer {
+  server_id: string;
+  cpu_load_percent: number | null;
+  memory_used_mb: number | null;
+  memory_total_mb: number | null;
+  process_uptime_s: number | null;
+  events_loaded: number | null;
+  bracelets_loaded: number | null;
+  merchants_loaded: number | null;
+  users_loaded: number | null;
+  railway_latency_ms: number | null;
+  railway_connected: boolean | null;
+  last_seed_at: string | null;
+  last_balance_sync_at: string | null;
+  reported_at: string;
+}
+
+function UsageBar({ used, total, label }: { used: number | null; total: number | null; label: string }) {
+  if (!used || !total) return <span className="text-xs text-muted-foreground">—</span>;
+  const pct = Math.min(100, Math.round((used / total) * 100));
+  const color = pct > 85 ? "bg-red-500" : pct > 60 ? "bg-yellow-500" : "bg-green-500";
+  return (
+    <div className="space-y-1 min-w-[120px]">
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>{label}</span>
+        <span>{pct}%</span>
+      </div>
+      <div className="w-full bg-muted rounded-full h-1.5">
+        <div className={`${color} h-1.5 rounded-full`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-xs text-muted-foreground">{used} / {total} MB</p>
+    </div>
+  );
+}
+
+function fmtUptime(s: number | null): string {
+  if (s === null) return "—";
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function LocalServersPanel() {
+  const { data, isLoading, refetch, isFetching } = useQuery<{ servers: LocalServer[] }>({
+    queryKey: ["local-servers"],
+    queryFn: () => customFetch<{ servers: LocalServer[] }>("/api/local-servers"),
+    refetchInterval: 30_000,
+  });
+
+  const servers = data?.servers ?? [];
+  const now = Date.now();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Server className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-xl font-semibold">Servidores Locales</h2>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+          Actualizar
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="border border-border rounded-lg bg-card h-24 flex items-center justify-center text-muted-foreground text-sm">
+          Cargando…
+        </div>
+      ) : servers.length === 0 ? (
+        <div className="border border-border rounded-lg bg-card h-24 flex items-center justify-center text-muted-foreground text-sm">
+          No hay servidores locales registrados. Configura <code className="mx-1 text-xs bg-muted px-1 rounded">RAILWAY_SYNC_URL</code> en el servidor local.
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {servers.map((s) => {
+            const seenMs = new Date(s.reported_at).getTime();
+            const staleMin = Math.floor((now - seenMs) / 60_000);
+            const online = staleMin < 2;
+            const cpuColor = (s.cpu_load_percent ?? 0) > 80 ? "text-red-600" : (s.cpu_load_percent ?? 0) > 50 ? "text-yellow-600" : "text-green-600";
+            return (
+              <div key={s.server_id} className="border border-border rounded-lg bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold text-sm leading-tight break-all">{s.server_id}</p>
+                  <Badge
+                    variant="secondary"
+                    className={`shrink-0 text-xs ${online ? "bg-green-100 text-green-800 border-green-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}
+                  >
+                    {online ? (
+                      <><Wifi className="w-3 h-3 mr-1" />En línea</>
+                    ) : (
+                      <><WifiOff className="w-3 h-3 mr-1" />Offline {staleMin}m</>
+                    )}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span className="text-muted-foreground">CPU</span>
+                  <span className={`font-medium ${cpuColor}`}>{s.cpu_load_percent !== null ? `${s.cpu_load_percent}%` : "—"}</span>
+
+                  <span className="text-muted-foreground">RAM</span>
+                  <span className="font-medium">{s.memory_used_mb !== null && s.memory_total_mb !== null ? `${s.memory_used_mb} / ${s.memory_total_mb} MB` : "—"}</span>
+
+                  <span className="text-muted-foreground">Uptime</span>
+                  <span className="font-medium">{fmtUptime(s.process_uptime_s)}</span>
+
+                  <span className="text-muted-foreground">Latencia Railway</span>
+                  <span className="font-medium">{s.railway_latency_ms !== null ? `${s.railway_latency_ms} ms` : "—"}</span>
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span className="text-muted-foreground">Eventos</span>
+                  <span className="font-medium">{s.events_loaded ?? "—"}</span>
+
+                  <span className="text-muted-foreground">Pulseras</span>
+                  <span className="font-medium">{s.bracelets_loaded ?? "—"}</span>
+
+                  <span className="text-muted-foreground">Comerciantes</span>
+                  <span className="font-medium">{s.merchants_loaded ?? "—"}</span>
+
+                  <span className="text-muted-foreground">Usuarios</span>
+                  <span className="font-medium">{s.users_loaded ?? "—"}</span>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Último reporte: {fmtLastSeen(s.reported_at)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Devices() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -699,6 +838,10 @@ export default function Devices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Separator />
+
+      <LocalServersPanel />
     </div>
   );
 }
