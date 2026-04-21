@@ -33,6 +33,9 @@ async function getLocalColumns(
 
 // Upsert an array of rows (from SELECT * on Railway) into the local table.
 // conflictOn: comma-separated column name(s) that form the unique key.
+// For tables with updated_at: Railway only wins if its row is newer than local,
+// protecting locally-written data (bracelets, location_inventory) from being
+// overwritten by a stale Railway value before the push cycle carries it back.
 async function upsertRows(
   localClient: pg.PoolClient,
   table: string,
@@ -43,6 +46,7 @@ async function upsertRows(
 
   const colMeta = await getLocalColumns(localClient, table);
   const jsonbCols = new Set(colMeta.filter((c) => c.isJsonb).map((c) => c.name));
+  const hasUpdatedAt = colMeta.some((c) => c.name === "updated_at");
   const cols = Object.keys(rows[0]);
   const quotedCols = cols.map((c) => `"${c}"`).join(", ");
   const conflictCols = conflictOn.split(",").map((c) => c.trim());
@@ -69,9 +73,17 @@ async function upsertRows(
       }
       return val;
     }));
-    const conflict = updateSet
-      ? `ON CONFLICT (${conflictOn}) DO UPDATE SET ${updateSet}`
-      : `ON CONFLICT (${conflictOn}) DO NOTHING`;
+    let conflict: string;
+    if (!updateSet) {
+      conflict = `ON CONFLICT (${conflictOn}) DO NOTHING`;
+    } else if (hasUpdatedAt) {
+      // Only overwrite if Railway's version is newer — protects local writes
+      // (balance decrements, stock changes) from being clobbered before they
+      // are pushed back to Railway.
+      conflict = `ON CONFLICT (${conflictOn}) DO UPDATE SET ${updateSet} WHERE "${table}".updated_at < EXCLUDED.updated_at`;
+    } else {
+      conflict = `ON CONFLICT (${conflictOn}) DO UPDATE SET ${updateSet}`;
+    }
     await localClient.query(
       `INSERT INTO "${table}" (${quotedCols}) VALUES ${placeholders} ${conflict}`,
       params,
