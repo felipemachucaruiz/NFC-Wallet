@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map, AlertTriangle, KeyRound, Info, Battery, Cpu, Signal, MapPin, Settings, HardDrive, Server } from "lucide-react";
+import { Lock, RotateCcw, Trash2, RefreshCw, Wifi, WifiOff, List, Map, AlertTriangle, KeyRound, Info, Battery, Cpu, Signal, MapPin, Settings, HardDrive, Server, Smartphone } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
 import { GOOGLE_MAPS_API_KEY, MAPS_LIBRARIES, DEFAULT_CENTER, TAPEE_MAP_STYLES } from "@/lib/maps";
@@ -722,6 +722,13 @@ export default function Devices() {
               {errorStatus === 503 ? t("devices.fetchErrorNoKeyDesc") : t("devices.fetchErrorUnreachableDesc")}
             </p>
           </div>
+        </div>
+      )}
+
+      {view === "table" && (
+        <div className="flex items-center gap-2">
+          <Smartphone className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-xl font-semibold">PDA's y Móviles</h2>
         </div>
       )}
 
