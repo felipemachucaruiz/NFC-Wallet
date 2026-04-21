@@ -6,6 +6,7 @@ import { Loading } from "@/components/ui/Loading";
 const roleRoutes: Record<string, string> = {
   bank: "/(bank)/",
   gate: "/(gate)/",
+  box_office: "/(box-office)/",
   merchant_staff: "/(merchant-pos)/",
   merchant_admin: "/(merchant-admin)/",
   warehouse_admin: "/(warehouse)/",

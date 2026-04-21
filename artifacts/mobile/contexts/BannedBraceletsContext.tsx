@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
@@ -79,15 +79,20 @@ export function BannedBraceletsProvider({ children }: { children: React.ReactNod
     if (isMounted.current) setIsLoading(false);
   }, [user?.role, user?.eventId, token, fetchFromServer]);
 
-  const bannedUids = new Set(banned.map((b) => b.nfcUid));
+  const bannedUids = useMemo(() => new Set(banned.map((b) => b.nfcUid)), [banned]);
 
   const getBannedInfo = useCallback(
     (uid: string) => banned.find((b) => b.nfcUid === uid),
     [banned]
   );
 
+  const contextValue = useMemo(
+    () => ({ bannedUids, getBannedInfo, isLoading, refresh, lastRefreshedAt }),
+    [bannedUids, getBannedInfo, isLoading, refresh, lastRefreshedAt]
+  );
+
   return (
-    <BannedBraceletsContext.Provider value={{ bannedUids, getBannedInfo, isLoading, refresh, lastRefreshedAt }}>
+    <BannedBraceletsContext.Provider value={contextValue}>
       {children}
     </BannedBraceletsContext.Provider>
   );

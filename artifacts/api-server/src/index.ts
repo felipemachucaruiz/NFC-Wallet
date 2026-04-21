@@ -1,4 +1,5 @@
-// gate role added to UserRole enum — force rebuild
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { pool } from "@workspace/db";
 import { db, sessionsTable } from "@workspace/db";
 import { lt } from "drizzle-orm";
@@ -26,9 +27,62 @@ async function runStartupMigrations(): Promise<void> {
   try {
     logger.info("Running startup migrations…");
 
-    // Must run outside transaction block (ALTER TYPE ADD VALUE restriction)
-    await client.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'gate'`);
-    await client.query(`ALTER TYPE stock_movement_type ADD VALUE IF NOT EXISTS 'manual_adjustment'`);
+    // ── Bootstrap fresh database ───────────────────────────────────────────────
+    // On a brand-new install (Docker or otherwise) the base schema created by
+    // drizzle-kit doesn't exist yet. Detect this by checking for the `users`
+    // table and, if absent, apply the four Drizzle SQL migration files in order.
+    // The files live at ../../lib/db/drizzle/ relative to the api-server CWD.
+    // On subsequent restarts the check is a single fast query — no extra cost.
+    {
+      const { rows: [{ schema_exists }] } = await client.query<{ schema_exists: boolean }>(
+        `SELECT EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'users'
+        ) AS schema_exists`
+      );
+
+      if (!schema_exists) {
+        logger.info("Fresh database detected — applying base Drizzle schema migrations…");
+        const drizzleDir = resolve(process.cwd(), "../../lib/db/drizzle");
+        const baseFiles = [
+          "0000_abnormal_barracuda.sql",
+          "0001_access_zones_constraints.sql",
+          "0002_add_manual_adjustment_and_check_constraints.sql",
+          "0003_add_event_timezone.sql",
+        ];
+        for (const filename of baseFiles) {
+          const sql = readFileSync(resolve(drizzleDir, filename), "utf8");
+          // Drizzle uses `--> statement-breakpoint` as statement separators.
+          // They start with `--` so psql treats them as comments; here we split
+          // on them to feed each statement to the driver individually.
+          const statements = sql
+            .split(/--> statement-breakpoint/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+          for (const stmt of statements) {
+            await client.query(stmt);
+          }
+          logger.info({ file: filename }, "Base migration applied");
+        }
+        logger.info("Base schema bootstrap complete.");
+      }
+    }
+
+    // Must run outside transaction block (ALTER TYPE ADD VALUE restriction).
+    // Guard against fresh DBs: skip ALTER if the base types don't exist yet
+    // (base schema is created by the Drizzle initial migration).
+    const { rows: existingTypeRows } = await client.query<{ typname: string }>(
+      `SELECT typname FROM pg_type WHERE typname IN ('user_role', 'stock_movement_type')`
+    );
+    const existingTypes = new Set(existingTypeRows.map((r: { typname: string }) => r.typname));
+    if (existingTypes.has('user_role')) {
+      await client.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'gate'`);
+      await client.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'box_office'`);
+      await client.query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'ticketing_auditor'`);
+    }
+    if (existingTypes.has('stock_movement_type')) {
+      await client.query(`ALTER TYPE stock_movement_type ADD VALUE IF NOT EXISTS 'manual_adjustment'`);
+    }
 
     await client.query(`
       -- ── Enum types (idempotent) ────────────────────────────────────────────
@@ -120,8 +174,10 @@ async function runStartupMigrations(): Promise<void> {
       );
 
       -- ── bracelets: recent columns ──────────────────────────────────────────
-      ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS access_zone_ids  text[] NOT NULL DEFAULT '{}';
-      ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS max_offline_spend integer;
+      ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS access_zone_ids        text[] NOT NULL DEFAULT '{}';
+      ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS max_offline_spend       integer;
+      ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS pending_top_up_amount   integer NOT NULL DEFAULT 0;
+      ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS registered_by_user_id  varchar REFERENCES users(id);
 
       -- ── events: recent columns ─────────────────────────────────────────────
       ALTER TABLE events ADD COLUMN IF NOT EXISTS promoter_company_id varchar;
@@ -675,6 +731,31 @@ async function runStartupMigrations(): Promise<void> {
         nfc_uid varchar(64) PRIMARY KEY,
         deleted_at timestamptz NOT NULL DEFAULT now()
       );
+    `);
+
+    // ── Ticketing auditor audit tables ────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS auditor_login_activity (
+        id           varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id      varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        logged_in_at timestamptz NOT NULL DEFAULT now(),
+        ip_address   varchar(45)
+      );
+      CREATE INDEX IF NOT EXISTS idx_auditor_login_activity_user_id
+        ON auditor_login_activity (user_id);
+      CREATE INDEX IF NOT EXISTS idx_auditor_login_activity_logged_in_at
+        ON auditor_login_activity (logged_in_at);
+
+      CREATE TABLE IF NOT EXISTS auditor_csv_downloads (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id       varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        downloaded_at timestamptz NOT NULL DEFAULT now(),
+        filters       jsonb NOT NULL DEFAULT '{}'::jsonb
+      );
+      CREATE INDEX IF NOT EXISTS idx_auditor_csv_downloads_user_id
+        ON auditor_csv_downloads (user_id);
+      CREATE INDEX IF NOT EXISTS idx_auditor_csv_downloads_downloaded_at
+        ON auditor_csv_downloads (downloaded_at);
     `);
 
     logger.info("Startup migrations complete.");

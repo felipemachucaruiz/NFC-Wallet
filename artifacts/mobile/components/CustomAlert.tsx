@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Modal,
@@ -64,8 +64,10 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     ? config.buttons
     : [{ text: "OK", variant: "primary" }];
 
+  const contextValue = useMemo(() => ({ show }), [show]);
+
   return (
-    <AlertContext.Provider value={{ show }}>
+    <AlertContext.Provider value={contextValue}>
       {children}
       <Modal
         visible={visible}
@@ -144,7 +146,7 @@ export function useAlert() {
     ) => {
       ctx.show({ title, message, buttons, onDismiss });
     },
-    [ctx],
+    [ctx.show],
   );
 
   return { show };

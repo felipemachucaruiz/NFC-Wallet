@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 
 export interface CartItem {
   productId: string;
@@ -58,13 +58,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = useCallback(() => setItems([]), []);
 
-  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
+  const total = useMemo(() => items.reduce((sum, i) => sum + i.price * i.quantity, 0), [items]);
+  const itemCount = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
+
+  const contextValue = useMemo(
+    () => ({ items, addItem, removeItem, updateQty, clearCart, total, itemCount }),
+    [items, addItem, removeItem, updateQty, clearCart, total, itemCount]
+  );
 
   return (
-    <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQty, clearCart, total, itemCount }}
-    >
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   );

@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -650,36 +651,48 @@ export function OfflineQueueProvider({ children, userId }: { children: React.Rea
     queue.filter((t) => t.status === "pending" || t.status === "syncing").length +
     topUpQueue.filter((t) => t.status === "pending" || t.status === "syncing").length;
 
-  const allFailedItems: QueuedItem[] = [
-    ...queue.filter((t) => t.status === "failed"),
-    ...topUpQueue.filter((t) => t.status === "failed"),
-  ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const allFailedItems = useMemo<QueuedItem[]>(
+    () =>
+      [
+        ...queue.filter((t) => t.status === "failed"),
+        ...topUpQueue.filter((t) => t.status === "failed"),
+      ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [queue, topUpQueue]
+  );
 
   const isOfflineLimitReached = unsyncedSpend >= offlineSyncLimit;
 
+  const contextValue = useMemo(
+    () => ({
+      queue,
+      topUpQueue,
+      allFailedItems,
+      isOnline,
+      isSyncing,
+      enqueue,
+      enqueueTopUp,
+      syncNow,
+      dismissFailedItem,
+      retryFailedItem,
+      pendingCount,
+      cachedHmacSecret,
+      offlineSyncLimit,
+      unsyncedSpend,
+      isOfflineLimitReached,
+      updateCachedHmacSecret,
+      updateOfflineLimits,
+      clearCachedHmacSecret,
+    }),
+    [
+      queue, topUpQueue, allFailedItems, isOnline, isSyncing,
+      enqueue, enqueueTopUp, syncNow, dismissFailedItem, retryFailedItem,
+      pendingCount, cachedHmacSecret, offlineSyncLimit, unsyncedSpend,
+      isOfflineLimitReached, updateCachedHmacSecret, updateOfflineLimits, clearCachedHmacSecret,
+    ]
+  );
+
   return (
-    <OfflineQueueContext.Provider
-      value={{
-        queue,
-        topUpQueue,
-        allFailedItems,
-        isOnline,
-        isSyncing,
-        enqueue,
-        enqueueTopUp,
-        syncNow,
-        dismissFailedItem,
-        retryFailedItem,
-        pendingCount,
-        cachedHmacSecret,
-        offlineSyncLimit,
-        unsyncedSpend,
-        isOfflineLimitReached,
-        updateCachedHmacSecret,
-        updateOfflineLimits,
-        clearCachedHmacSecret,
-      }}
-    >
+    <OfflineQueueContext.Provider value={contextValue}>
       {children}
     </OfflineQueueContext.Provider>
   );

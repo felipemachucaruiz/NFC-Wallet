@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -187,23 +188,25 @@ export function PasscodeProvider({
     setSkipRemaining(SKIP_COUNT);
   }, []);
 
-  // Prompt is shown only when no passcode is set AND no skips remain
   const shouldShowPinPrompt = !storedCode && skipRemaining === 0;
 
+  const contextValue = useMemo(
+    () => ({
+      hasPasscode: !!storedCode,
+      isLocked,
+      shouldShowPinPrompt,
+      lock,
+      unlock,
+      setPasscode,
+      clearPasscode,
+      skipPinPrompt,
+      onLoginAttempted,
+    }),
+    [storedCode, isLocked, shouldShowPinPrompt, lock, unlock, setPasscode, clearPasscode, skipPinPrompt, onLoginAttempted]
+  );
+
   return (
-    <PasscodeContext.Provider
-      value={{
-        hasPasscode: !!storedCode,
-        isLocked,
-        shouldShowPinPrompt,
-        lock,
-        unlock,
-        setPasscode,
-        clearPasscode,
-        skipPinPrompt,
-        onLoginAttempted,
-      }}
-    >
+    <PasscodeContext.Provider value={contextValue}>
       {children}
     </PasscodeContext.Provider>
   );

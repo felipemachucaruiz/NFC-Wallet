@@ -11,6 +11,7 @@
     "test:spike": "PROFILE=spike node run-load-test.js"
   },
   "dependencies": {
+    "pg": "^8.20.0",
     "undici": "^6.19.0"
   }
 }

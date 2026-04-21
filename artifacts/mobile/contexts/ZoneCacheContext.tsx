@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_BASE_URL } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
@@ -92,8 +92,13 @@ export function ZoneCacheProvider({ children }: { children: React.ReactNode }) {
     [zones],
   );
 
+  const contextValue = useMemo(
+    () => ({ zones, isLoading, refresh, getZoneById, getZonesByIds }),
+    [zones, isLoading, refresh, getZoneById, getZonesByIds]
+  );
+
   return (
-    <ZoneCacheContext.Provider value={{ zones, isLoading, refresh, getZoneById, getZonesByIds }}>
+    <ZoneCacheContext.Provider value={contextValue}>
       {children}
     </ZoneCacheContext.Provider>
   );

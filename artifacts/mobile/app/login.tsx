@@ -423,40 +423,45 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          {/* Passcode setup prompt — shown below form in portrait, hidden in landscape */}
-          {setupStep === "prompt" && !isLandscape && (
-            <View style={[styles.promptBox, { backgroundColor: "rgba(17,17,17,0.9)", borderColor: "rgba(255,255,255,0.1)" }]}>
-              <View style={[styles.promptIcon, { backgroundColor: C.primaryLight }]}>
-                <Feather name="shield" size={22} color={C.primary} />
-              </View>
-              <Text style={[styles.promptTitle, { color: "#ffffff" }]}>{t("passcode.promptTitle")}</Text>
-              <Text style={[styles.promptHint, { color: "rgba(255,255,255,0.6)" }]}>{t("passcode.promptHint")}</Text>
-              <View style={styles.promptActions}>
-                <Button
-                  title={t("passcode.skip")}
-                  onPress={async () => {
-                    await skipPinPrompt();
-                    setSetupStep(null);
-                    router.replace("/");
-                  }}
-                  variant="ghost"
-                  size="md"
-                />
-                <Button
-                  title={t("passcode.setupBtn")}
-                  onPress={() => setSetupStep("enter")}
-                  variant="primary"
-                  size="md"
-                />
-              </View>
-            </View>
-          )}
-
-          {!isLandscape && (
-            <Text style={[styles.disclaimer, { color: "rgba(255,255,255,0.35)" }]}>{t("auth.disclaimer")}</Text>
-          )}
+          <Text style={[styles.disclaimer, { color: "rgba(255,255,255,0.35)" }]}>{t("auth.disclaimer")}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* PIN setup prompt modal */}
+      <Modal
+        visible={setupStep === "prompt"}
+        transparent
+        animationType="slide"
+        onRequestClose={async () => { await skipPinPrompt(); setSetupStep(null); router.replace("/"); }}
+      >
+        <Pressable style={styles.modalOverlay} onPress={async () => { await skipPinPrompt(); setSetupStep(null); router.replace("/"); }}>
+          <View style={[styles.totpSheet, { backgroundColor: "#161b22", borderColor: "rgba(255,255,255,0.1)" }]}>
+            <View style={[styles.totpIcon, { backgroundColor: C.primaryLight }]}>
+              <Feather name="shield" size={28} color={C.primary} />
+            </View>
+            <Text style={[styles.totpTitle, { color: "#ffffff" }]}>{t("passcode.promptTitle")}</Text>
+            <Text style={[styles.totpHint, { color: "rgba(255,255,255,0.6)", textAlign: "center" }]}>{t("passcode.promptHint")}</Text>
+            <View style={[styles.promptActions, { marginTop: 8 }]}>
+              <Button
+                title={t("passcode.skip")}
+                onPress={async () => {
+                  await skipPinPrompt();
+                  setSetupStep(null);
+                  router.replace("/");
+                }}
+                variant="ghost"
+                size="md"
+              />
+              <Button
+                title={t("passcode.setupBtn")}
+                onPress={() => setSetupStep("enter")}
+                variant="primary"
+                size="md"
+              />
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Forgot password modal */}
       <Modal

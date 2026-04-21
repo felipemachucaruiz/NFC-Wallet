@@ -5,6 +5,7 @@ import React, {
   useRef,
   useCallback,
   useState,
+  useMemo,
 } from "react";
 import { AppState } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
@@ -100,10 +101,13 @@ export function AttestationProvider({ children }: { children: React.ReactNode })
     await runAttestation(true);
   }, [runAttestation]);
 
+  const contextValue = useMemo(
+    () => ({ isAttested, isVerifying, attestationError, retryAttestation }),
+    [isAttested, isVerifying, attestationError, retryAttestation]
+  );
+
   return (
-    <AttestationContext.Provider
-      value={{ isAttested, isVerifying, attestationError, retryAttestation }}
-    >
+    <AttestationContext.Provider value={contextValue}>
       {children}
     </AttestationContext.Provider>
   );

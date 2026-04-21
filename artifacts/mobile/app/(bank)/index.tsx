@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useFocusEffect } from "expo-router";
-import { isNfcSupported, scanBracelet, cancelNfc, type TagInfo, type TagType, type NfcChipTypeHint } from "@/utils/nfc";
+import { isNfcSupported, scanBracelet, cancelNfc, resetAndRekeyUltralightC, type TagInfo, type TagType, type NfcChipTypeHint } from "@/utils/nfc";
 import { readDesfireBracelet } from "@/utils/desfire";
 import { useGetSigningKey } from "@workspace/api-client-react";
 import { OfflineBanner } from "@/components/OfflineBanner";
@@ -92,12 +92,18 @@ export default function BankLookupScreen() {
   const desfireAesKey = (keyData as unknown as { desfireAesKey?: string } | undefined)?.desfireAesKey ?? "";
   const desfireAesKeyRef = useRef(desfireAesKey);
   desfireAesKeyRef.current = desfireAesKey;
+  const ultralightCDesKey = (keyData as unknown as { ultralightCDesKey?: string } | undefined)?.ultralightCDesKey ?? "";
 
   const [bracelet, setBracelet] = useState<BraceletState | null>(null);
   const [isTapping, setIsTapping] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [manualUid, setManualUid] = useState("");
   const [fetchUid, setFetchUid] = useState<string | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetKeyInput, setResetKeyInput] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetStatus, setResetStatus] = useState<"idle" | "scanning" | "success" | "error">("idle");
+  const [resetErrorMsg, setResetErrorMsg] = useState("");
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [pendingNfcWrites, setPendingNfcWrites] = useState<PendingNfcWrite[]>([]);
@@ -239,6 +245,44 @@ export default function BankLookupScreen() {
     ? pendingNfcWrites.filter((pw) => pw.nfcUid === bracelet.uid)
     : [];
   const hasLocalPendingWrites = localPendingForUid.length > 0;
+
+  const handleResetBracelet = async () => {
+    const cleanKey = resetKeyInput.replace(/\s/g, "").toLowerCase();
+    if (cleanKey && !/^[0-9a-f]{32}$/.test(cleanKey)) {
+      setResetErrorMsg("La clave debe ser 32 caracteres hexadecimales.");
+      return;
+    }
+    setResetErrorMsg("");
+    setIsResetting(true);
+    setResetStatus("scanning");
+    try {
+      // null = no unlock key (unprotected chip, HMAC-only event) → write directly.
+      // key present = authenticate first, then wipe and restore factory key.
+      await resetAndRekeyUltralightC(cleanKey || null, undefined);
+      setResetStatus("success");
+      setBracelet(null);
+      setTagInfo(null);
+      setFetchUid(null);
+      setTimeout(() => {
+        setShowResetModal(false);
+        setResetStatus("idle");
+        setResetKeyInput("");
+      }, 2000);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setResetStatus("error");
+      if (msg.includes("ULTRALIGHT_C_AUTH_FAILED")) {
+        setResetErrorMsg("Autenticación fallida. Verifica que la clave sea correcta.");
+      } else if (msg.includes("cancelled") || msg.includes("cancel")) {
+        setResetStatus("idle");
+        setResetErrorMsg("");
+      } else {
+        setResetErrorMsg("Error al reinicializar: " + msg);
+      }
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const handleTopUp = () => {
     if (!bracelet) return;
@@ -502,6 +546,22 @@ export default function BankLookupScreen() {
                     />
                   )}
 
+                  {tagInfo?.type === "MIFARE_ULTRALIGHT_C" && (
+                    <Button
+                      title="Reinicializar pulsera"
+                      onPress={() => {
+                        setResetKeyInput(ultralightCDesKey);
+                        setResetStatus("idle");
+                        setResetErrorMsg("");
+                        setShowResetModal(true);
+                      }}
+                      variant="ghost"
+                      size="sm"
+                      fullWidth
+                      icon="refresh-cw"
+                    />
+                  )}
+
                   {/* Current Access Zones card */}
                   {apiRecord && (
                     <View style={[styles.accessCard, { backgroundColor: C.inputBg, borderColor: C.border }]}>
@@ -650,6 +710,77 @@ export default function BankLookupScreen() {
         onClose={() => setShowReportModal(false)}
         prefillUid={bracelet?.uid}
       />
+
+      <Modal visible={showResetModal} transparent animationType="slide">
+        <View style={[styles.overlay, { backgroundColor: C.overlay }]}>
+          <View style={[styles.modalBox, { backgroundColor: C.card }]}>
+            {resetStatus === "success" ? (
+              <View style={{ alignItems: "center", gap: 12 }}>
+                <Feather name="check-circle" size={48} color="#22C55E" />
+                <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
+                  Pulsera reinicializada
+                </Text>
+                <Text style={{ color: C.textSecondary, textAlign: "center", fontSize: 13 }}>
+                  La pulsera fue borrada y rekeada exitosamente.
+                </Text>
+              </View>
+            ) : resetStatus === "scanning" ? (
+              <View style={{ alignItems: "center", gap: 16 }}>
+                <Feather name="wifi" size={48} color={C.primary} />
+                <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
+                  Acercar pulsera...
+                </Text>
+                <Text style={{ color: C.textSecondary, textAlign: "center", fontSize: 13 }}>
+                  Mantén la pulsera firme contra el teléfono.
+                </Text>
+                <Button title="Cancelar" onPress={() => { cancelNfc(); setIsResetting(false); setResetStatus("idle"); }} variant="secondary" />
+              </View>
+            ) : (
+              <>
+                <Text style={[styles.modalTitle, { color: C.text }]}>Reinicializar pulsera</Text>
+                <Text style={{ color: C.textSecondary, fontSize: 13, lineHeight: 18 }}>
+                  Borra el saldo y los datos del chip. La pulsera quedará lista para usarse en cualquier evento.
+                </Text>
+                {ultralightCDesKey ? (
+                  <View style={{ backgroundColor: C.primaryLight, borderRadius: 10, padding: 12, gap: 4 }}>
+                    <Text style={{ color: C.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>
+                      ✓ Clave del evento cargada automáticamente
+                    </Text>
+                    <Text style={{ color: C.primary, fontSize: 11, opacity: 0.7 }}>
+                      Si la pulsera es de otro evento, ingresa esa clave abajo.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ backgroundColor: C.primaryLight, borderRadius: 10, padding: 12, gap: 4 }}>
+                    <Text style={{ color: C.primary, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>
+                      Pulsera sin clave 3DES — se borrará directo
+                    </Text>
+                    <Text style={{ color: C.primary, fontSize: 11, opacity: 0.7 }}>
+                      Si la pulsera viene de un evento con clave, ingrésala abajo.
+                    </Text>
+                  </View>
+                )}
+                <TextInput
+                  style={[styles.uidInput, { backgroundColor: C.inputBg, color: C.text, borderColor: resetErrorMsg ? "#EF4444" : C.border, fontSize: 13 }]}
+                  placeholder="Clave hex del otro evento (opcional)"
+                  placeholderTextColor={C.textMuted}
+                  value={resetKeyInput}
+                  onChangeText={setResetKeyInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {!!resetErrorMsg && (
+                  <Text style={{ color: "#EF4444", fontSize: 12 }}>{resetErrorMsg}</Text>
+                )}
+                <View style={styles.modalActions}>
+                  <Button title="Cancelar" onPress={() => { setShowResetModal(false); setResetKeyInput(""); setResetErrorMsg(""); }} variant="secondary" />
+                  <Button title="Reinicializar" onPress={handleResetBracelet} variant="danger" loading={isResetting} />
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
     </>
   );
