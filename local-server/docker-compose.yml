@@ -22,12 +22,15 @@ services:
     environment:
       PORT: "3001"
       DATABASE_URL: postgres://tapee:tapee_local@postgres:5432/tapee
-      # Copy remaining vars from .env:
-      NODE_ENV: production
+      # local: disables HTTPS guard on signing-key, skips device attestation,
+      # and opens CORS — appropriate for a trusted on-site network.
+      NODE_ENV: local
       SESSION_SECRET: ${SESSION_SECRET}
       HMAC_SECRET: ${HMAC_SECRET}
-      DEMO_SECRET: ${DEMO_SECRET}
-      # Optional: sync bracelet balances from Railway every 2 min
+      HMAC_MASTER_KEY: ${HMAC_MASTER_KEY:-}
+      DEMO_SECRET: ${DEMO_SECRET:-}
+      LOCAL_SERVER_NAME: ${LOCAL_SERVER_NAME:-}
+      # Optional: sync event data and balances from Railway
       RAILWAY_SYNC_URL: ${RAILWAY_SYNC_URL:-}
     depends_on:
       postgres:
