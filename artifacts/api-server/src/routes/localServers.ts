@@ -5,7 +5,7 @@ import { requireRole } from "../middlewares/requireRole";
 const router = Router();
 
 router.get(
-  "/api/local-servers",
+  "/local-servers",
   requireRole("admin"),
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
