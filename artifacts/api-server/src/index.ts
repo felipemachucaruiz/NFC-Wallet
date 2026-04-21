@@ -845,6 +845,26 @@ async function runStartupMigrations(): Promise<void> {
         ON auditor_csv_downloads (downloaded_at);
     `);
 
+    // ── local_server_heartbeats: health pings from on-site local servers ─────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS local_server_heartbeats (
+        server_id            TEXT PRIMARY KEY,
+        cpu_load_percent     INTEGER,
+        memory_used_mb       INTEGER,
+        memory_total_mb      INTEGER,
+        process_uptime_s     INTEGER,
+        events_loaded        INTEGER,
+        bracelets_loaded     INTEGER,
+        merchants_loaded     INTEGER,
+        users_loaded         INTEGER,
+        railway_latency_ms   INTEGER,
+        railway_connected    BOOLEAN,
+        last_seed_at         TIMESTAMPTZ,
+        last_balance_sync_at TIMESTAMPTZ,
+        reported_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `);
+
     logger.info("Startup migrations complete.");
   } finally {
     client.release();
