@@ -35,6 +35,7 @@ import boxOfficeSaleRouter from "./boxOfficeSale";
 import syncIssuesRouter from "./syncIssues";
 import loadTestRouter from "./loadTest";
 import productCategoriesRouter from "./productCategories";
+import localServersRouter from "./localServers";
 
 const router: IRouter = Router();
 
@@ -74,5 +75,6 @@ router.use(boxOfficeSaleRouter);
 router.use(syncIssuesRouter);
 router.use(loadTestRouter);
 router.use(productCategoriesRouter);
+router.use(localServersRouter);
 
 export default router;

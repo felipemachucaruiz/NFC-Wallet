@@ -1,3 +1,4 @@
+import os from "os";
 import pg from "pg";
 import { pool } from "@workspace/db";
 import { logger } from "./logger";
@@ -6,6 +7,11 @@ let syncPool: pg.Pool | null = null;
 
 let lastTransactionSyncAt: Date = new Date(0);
 let lastTopUpSyncAt: Date = new Date(0);
+
+// Stats tracked for heartbeat
+let lastSeedStats = { events: 0, bracelets: 0, merchants: 0, users: 0 };
+let lastSeedAt: Date | null = null;
+let lastBalanceSyncAt: Date | null = null;
 
 // ── Schema-aware upsert helper ─────────────────────────────────────────────
 // Queries the LOCAL table for its current column list, then SELECTs only
@@ -193,6 +199,14 @@ async function seedEventData(): Promise<void> {
       `WHERE event_id IN ${evIdParam}`, activeEventIds,
     );
     await upsertRows(localClient, "bracelets", brRows, "nfc_uid");
+
+    lastSeedStats = {
+      events: activeEventIds.length,
+      merchants: mRows.length,
+      bracelets: brRows.length,
+      users: userRows.length,
+    };
+    lastSeedAt = new Date();
 
     logger.info({
       events: activeEventIds.length,
@@ -426,10 +440,112 @@ async function runBalanceSync(): Promise<void> {
   await pushLocalBalances();
   await pushLocalTransactions();
   await pushLocalTopUps();
+  lastBalanceSyncAt = new Date();
 }
 
-export function initSyncPool(railwaySyncUrl: string): void {
+// ── CPU usage helper ───────────────────────────────────────────────────────
+function getCpuUsagePercent(): number {
+  const cpus = os.cpus();
+  let totalIdle = 0, totalTick = 0;
+  for (const cpu of cpus) {
+    for (const type of Object.values(cpu.times)) totalTick += type;
+    totalIdle += cpu.times.idle;
+  }
+  return Math.round((1 - totalIdle / totalTick) * 100);
+}
+
+// ── Heartbeat ──────────────────────────────────────────────────────────────
+async function pushHeartbeat(): Promise<void> {
+  if (!syncPool) return;
+  try {
+    const serverId = process.env.LOCAL_SERVER_NAME || os.hostname();
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const cpuPct = getCpuUsagePercent();
+
+    // Measure Railway latency
+    let latencyMs: number | null = null;
+    let railwayConnected = false;
+    try {
+      const t0 = Date.now();
+      await syncPool.query("SELECT 1");
+      latencyMs = Date.now() - t0;
+      railwayConnected = true;
+    } catch {
+      // railway unreachable
+    }
+
+    await syncPool.query(
+      `INSERT INTO local_server_heartbeats
+         (server_id, cpu_load_percent, memory_used_mb, memory_total_mb,
+          process_uptime_s, events_loaded, bracelets_loaded, merchants_loaded,
+          users_loaded, railway_latency_ms, railway_connected,
+          last_seed_at, last_balance_sync_at, reported_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
+       ON CONFLICT (server_id) DO UPDATE SET
+         cpu_load_percent   = EXCLUDED.cpu_load_percent,
+         memory_used_mb     = EXCLUDED.memory_used_mb,
+         memory_total_mb    = EXCLUDED.memory_total_mb,
+         process_uptime_s   = EXCLUDED.process_uptime_s,
+         events_loaded      = EXCLUDED.events_loaded,
+         bracelets_loaded   = EXCLUDED.bracelets_loaded,
+         merchants_loaded   = EXCLUDED.merchants_loaded,
+         users_loaded       = EXCLUDED.users_loaded,
+         railway_latency_ms = EXCLUDED.railway_latency_ms,
+         railway_connected  = EXCLUDED.railway_connected,
+         last_seed_at       = EXCLUDED.last_seed_at,
+         last_balance_sync_at = EXCLUDED.last_balance_sync_at,
+         reported_at        = now()`,
+      [
+        serverId,
+        cpuPct,
+        Math.round((totalMem - freeMem) / 1024 / 1024),
+        Math.round(totalMem / 1024 / 1024),
+        Math.round(process.uptime()),
+        lastSeedStats.events,
+        lastSeedStats.bracelets,
+        lastSeedStats.merchants,
+        lastSeedStats.users,
+        latencyMs,
+        railwayConnected,
+        lastSeedAt,
+        lastBalanceSyncAt,
+      ],
+    );
+  } catch (err) {
+    logger.warn({ err }, "Railway sync: heartbeat push failed");
+  }
+}
+
+export function getSyncPool(): pg.Pool | null {
+  return syncPool;
+}
+
+export async function initSyncPool(railwaySyncUrl: string): Promise<void> {
   syncPool = new pg.Pool({ connectionString: railwaySyncUrl, max: 3 });
+  // Ensure heartbeat table exists on Railway
+  try {
+    await syncPool.query(`
+      CREATE TABLE IF NOT EXISTS local_server_heartbeats (
+        server_id           TEXT PRIMARY KEY,
+        cpu_load_percent    INTEGER,
+        memory_used_mb      INTEGER,
+        memory_total_mb     INTEGER,
+        process_uptime_s    INTEGER,
+        events_loaded       INTEGER,
+        bracelets_loaded    INTEGER,
+        merchants_loaded    INTEGER,
+        users_loaded        INTEGER,
+        railway_latency_ms  INTEGER,
+        railway_connected   BOOLEAN,
+        last_seed_at        TIMESTAMPTZ,
+        last_balance_sync_at TIMESTAMPTZ,
+        reported_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
+  } catch (err) {
+    logger.warn({ err }, "Railway sync: could not create local_server_heartbeats table");
+  }
 }
 
 export { seedEventData };
@@ -437,6 +553,7 @@ export { seedEventData };
 export function startBalanceSyncJob(): void {
   const TWO_MIN = 2 * 60 * 1000;
   const FIVE_MIN = 5 * 60 * 1000;
+  const THIRTY_SEC = 30 * 1000;
 
   // Periodic full seed every 5 min (catalog changes slowly)
   setInterval(seedEventData, FIVE_MIN);
@@ -445,5 +562,9 @@ export function startBalanceSyncJob(): void {
   setTimeout(runBalanceSync, 15_000);
   setInterval(runBalanceSync, TWO_MIN);
 
-  logger.info("Railway sync started: full seed every 5 min, balance sync every 2 min");
+  // Heartbeat every 30s so admin-web can see server health from anywhere
+  setTimeout(pushHeartbeat, 5_000);
+  setInterval(pushHeartbeat, THIRTY_SEC);
+
+  logger.info("Railway sync started: full seed every 5 min, balance sync every 2 min, heartbeat every 30s");
 }

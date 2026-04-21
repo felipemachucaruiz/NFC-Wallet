@@ -1146,7 +1146,7 @@ runStartupMigrations()
     startEventReminderJob();
     purgeOrphanedLoadTestBracelets();
     if (process.env.RAILWAY_SYNC_URL) {
-      initSyncPool(process.env.RAILWAY_SYNC_URL);
+      await initSyncPool(process.env.RAILWAY_SYNC_URL);
       logger.info("Seeding event data from Railway before accepting connections…");
       await seedEventData();
       startBalanceSyncJob();
