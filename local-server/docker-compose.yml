@@ -16,11 +16,7 @@ services:
       retries: 10
 
   api:
-    image: ghcr.io/felipemachucaruiz/tapee-api:latest
-    # Or build from source:
-    # build:
-    #   context: ..
-    #   dockerfile: local-server/Dockerfile
+    image: ghcr.io/felipemachucaruiz/tapee-local:latest
     ports:
       - "3001:3001"
     environment:
