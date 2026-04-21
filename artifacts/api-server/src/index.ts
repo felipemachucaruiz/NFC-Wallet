@@ -6,7 +6,7 @@ import { lt } from "drizzle-orm";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { purgeOrphanedLoadTestBracelets } from "./routes/loadTest";
-import { startBalanceSyncJob } from "./lib/railwaySync";
+import { initSyncPool, seedEventData, startBalanceSyncJob } from "./lib/railwaySync";
 
 const rawPort = process.env["PORT"];
 
@@ -1140,13 +1140,16 @@ function startEventReminderJob(): void {
 }
 
 runStartupMigrations()
-  .then(() => {
+  .then(async () => {
     startSessionCleanupJob();
     startAttestationCleanupJob();
     startEventReminderJob();
     purgeOrphanedLoadTestBracelets();
     if (process.env.RAILWAY_SYNC_URL) {
-      startBalanceSyncJob(process.env.RAILWAY_SYNC_URL);
+      initSyncPool(process.env.RAILWAY_SYNC_URL);
+      logger.info("Seeding event data from Railway before accepting connections…");
+      await seedEventData();
+      startBalanceSyncJob();
     }
     app.listen(port, (err) => {
       if (err) {

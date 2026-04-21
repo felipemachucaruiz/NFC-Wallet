@@ -428,14 +428,17 @@ async function runBalanceSync(): Promise<void> {
   await pushLocalTopUps();
 }
 
-export function startBalanceSyncJob(railwaySyncUrl: string): void {
+export function initSyncPool(railwaySyncUrl: string): void {
+  syncPool = new pg.Pool({ connectionString: railwaySyncUrl, max: 3 });
+}
+
+export { seedEventData };
+
+export function startBalanceSyncJob(): void {
   const TWO_MIN = 2 * 60 * 1000;
   const FIVE_MIN = 5 * 60 * 1000;
 
-  syncPool = new pg.Pool({ connectionString: railwaySyncUrl, max: 3 });
-
-  // Full seed on startup, then every 5 min (event catalog changes slowly)
-  setTimeout(seedEventData, 5_000);
+  // Periodic full seed every 5 min (catalog changes slowly)
   setInterval(seedEventData, FIVE_MIN);
 
   // Balance/counter sync every 2 min (changes frequently during event)
