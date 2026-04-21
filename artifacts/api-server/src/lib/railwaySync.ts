@@ -7,6 +7,9 @@ let syncPool: pg.Pool | null = null;
 
 let lastTransactionSyncAt: Date = new Date(0);
 let lastTopUpSyncAt: Date = new Date(0);
+// Cursors for incremental balance sync — start at epoch so first run is a full sweep
+let lastBalancePullAt: Date = new Date(0);
+let lastBalancePushAt: Date = new Date(0);
 
 // Stats tracked for heartbeat
 let lastSeedStats = { events: 0, bracelets: 0, merchants: 0, users: 0 };
@@ -284,8 +287,9 @@ async function seedEventData(): Promise<void> {
 }
 
 // ── Railway → local (balance + NFC state) ─────────────────────────────────
-// Applies Railway's bracelet state to local when Railway is newer.
-// Runs every 2 min to keep balances/counters current between seeds.
+// Only fetches bracelets updated on Railway since the last successful pull.
+// Cursor advances only on full success — if Railway is unreachable the next
+// run retries from the same point, guaranteeing no update is skipped.
 async function pullRailwayBalances(): Promise<void> {
   if (!syncPool) return;
   try {
@@ -296,11 +300,14 @@ async function pullRailwayBalances(): Promise<void> {
       pending_top_up_amount: number;
       event_id: string;
       updated_at: Date;
-    }>(`
-      SELECT nfc_uid, last_known_balance, last_counter,
-             pending_top_up_amount, event_id, updated_at
-      FROM bracelets
-    `);
+    }>(
+      `SELECT nfc_uid, last_known_balance, last_counter,
+              pending_top_up_amount, event_id, updated_at
+       FROM bracelets
+       WHERE updated_at > $1
+       ORDER BY updated_at ASC`,
+      [lastBalancePullAt],
+    );
     if (rows.length === 0) return;
 
     const client = await pool.connect();
@@ -318,17 +325,21 @@ async function pullRailwayBalances(): Promise<void> {
         );
         if (result.rowCount && result.rowCount > 0) updated++;
       }
-      if (updated > 0) logger.info({ updated }, "Railway sync: pulled balances from cloud");
+      // Advance cursor to the latest timestamp seen — use Railway's clock, not local
+      lastBalancePullAt = rows[rows.length - 1].updated_at;
+      if (updated > 0) logger.info({ updated, fetched: rows.length }, "Railway sync: pulled balances from cloud");
     } finally {
       client.release();
     }
   } catch (err) {
     logger.error({ err }, "Railway sync: pull balances failed");
+    // Cursor intentionally NOT advanced — next run retries from same point
   }
 }
 
 // ── Local → Railway (balance + NFC state) ─────────────────────────────────
-// Pushes local bracelet changes (sales, top-ups) back to Railway.
+// Only pushes bracelets modified locally since the last successful push.
+// Cursor advances only on full success — failed runs are fully retried.
 async function pushLocalBalances(): Promise<void> {
   if (!syncPool) return;
   try {
@@ -341,11 +352,14 @@ async function pushLocalBalances(): Promise<void> {
         pending_top_up_amount: number;
         event_id: string;
         updated_at: Date;
-      }>(`
-        SELECT nfc_uid, last_known_balance, last_counter,
-               pending_top_up_amount, event_id, updated_at
-        FROM bracelets
-      `);
+      }>(
+        `SELECT nfc_uid, last_known_balance, last_counter,
+                pending_top_up_amount, event_id, updated_at
+         FROM bracelets
+         WHERE updated_at > $1
+         ORDER BY updated_at ASC`,
+        [lastBalancePushAt],
+      );
       if (rows.length === 0) return;
 
       let pushed = 0;
@@ -361,12 +375,15 @@ async function pushLocalBalances(): Promise<void> {
         );
         if (result.rowCount && result.rowCount > 0) pushed++;
       }
-      if (pushed > 0) logger.info({ pushed }, "Railway sync: pushed local balances to cloud");
+      // Advance cursor only after all rows processed successfully
+      lastBalancePushAt = rows[rows.length - 1].updated_at;
+      if (pushed > 0) logger.info({ pushed, fetched: rows.length }, "Railway sync: pushed local balances to cloud");
     } finally {
       client.release();
     }
   } catch (err) {
     logger.error({ err }, "Railway sync: push balances failed");
+    // Cursor intentionally NOT advanced — next run retries from same point
   }
 }
 
