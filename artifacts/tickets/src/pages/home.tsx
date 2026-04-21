@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fetchEvents, resolveImageUrl, type ApiEvent } from "@/lib/api";
+import { fetchEvents, fetchAds, resolveImageUrl, type ApiEvent, type ApiAd } from "@/lib/api";
 import { formatPrice, formatDateRange } from "@/lib/format";
 
 const ITEMS_PER_PAGE = 6;
@@ -33,6 +33,13 @@ export default function Home() {
     }),
     staleTime: 30_000,
   });
+
+  const { data: adsData } = useQuery({
+    queryKey: ["ads"],
+    queryFn: fetchAds,
+    staleTime: 60_000,
+  });
+  const ads = adsData?.ads ?? [];
 
   const events = data?.events ?? [];
 
@@ -189,6 +196,8 @@ export default function Home() {
         </section>
       )}
 
+      {ads.length > 0 && <AdsBanner ads={ads} />}
+
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col md:flex-row gap-3 mb-6">
           <div className="relative flex-1">
@@ -270,6 +279,65 @@ export default function Home() {
           </>
         )}
       </section>
+    </div>
+  );
+}
+
+function AdsBanner({ ads }: { ads: ApiAd[] }) {
+  const [idx, setIdx] = useState(0);
+  const [fade, setFade] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const count = ads.length;
+
+  const goTo = useCallback((i: number) => {
+    setFade(false);
+    setTimeout(() => { setIdx(i); setFade(true); }, 400);
+  }, []);
+
+  useEffect(() => {
+    if (count <= 1) return;
+    timerRef.current = setInterval(() => goTo((idx + 1) % count), 5000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [idx, count, goTo]);
+
+  const ad = ads[idx];
+  if (!ad) return null;
+
+  const inner = (
+    <div
+      className="relative w-full overflow-hidden rounded-xl border border-border"
+      style={{ transition: "opacity 0.4s", opacity: fade ? 1 : 0 }}
+    >
+      <img
+        src={resolveImageUrl(ad.imageUrl)}
+        alt={ad.title}
+        className="w-full h-[120px] sm:h-[160px] md:h-[200px] object-cover"
+      />
+      {count > 1 && (
+        <div className="absolute bottom-2 right-3 flex gap-1.5">
+          {ads.map((_, i) => (
+            <button
+              key={i}
+              onClick={(e) => { e.preventDefault(); if (timerRef.current) clearInterval(timerRef.current); goTo(i); }}
+              className={`rounded-full transition-all duration-300 ${i === idx ? "w-5 h-2 bg-white" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`}
+            />
+          ))}
+        </div>
+      )}
+      <div className="absolute top-2 right-2 text-[10px] text-white/60 bg-black/30 px-1.5 py-0.5 rounded">
+        Patrocinado
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      {ad.linkUrl ? (
+        <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block">
+          {inner}
+        </a>
+      ) : inner}
     </div>
   );
 }

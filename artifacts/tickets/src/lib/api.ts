@@ -395,3 +395,18 @@ export async function verifyWhatsAppOtp(phone: string, code: string): Promise<{ 
     body: JSON.stringify({ phone, code }),
   });
 }
+
+export interface ApiAd {
+  id: string;
+  title: string;
+  imageUrl: string;
+  linkUrl: string | null;
+  isActive: boolean;
+  displayOrder: number;
+  startsAt: string | null;
+  endsAt: string | null;
+}
+
+export async function fetchAds(): Promise<{ ads: ApiAd[] }> {
+  return apiFetch("/public/ads");
+}

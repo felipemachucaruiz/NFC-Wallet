@@ -113,6 +113,7 @@ import AuditorTicketSales from "@/pages/auditor-ticket-sales";
 import Devices from "@/pages/devices";
 import SyncIssues from "@/pages/sync-issues";
 import LoadTest from "@/pages/load-test";
+import Ads from "@/pages/ads";
 
 function handleGlobal401() {
   localStorage.removeItem(AUTH_TOKEN_KEY);
@@ -266,6 +267,9 @@ function Router() {
       </Route>
       <Route path="/load-test">
         <ProtectedRoute component={LoadTest} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/ads">
+        <ProtectedRoute component={Ads} allowedRoles={["admin"]} />
       </Route>
 
       {/* Event Admin Routes — also accessible to admin in managingEvent mode */}
