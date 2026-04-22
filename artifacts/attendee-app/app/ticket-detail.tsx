@@ -211,8 +211,8 @@ export default function TicketDetailScreen() {
               </View>
             )}
             <LinearGradient
-              colors={["transparent", "rgba(17,17,17,0.6)", "#111111"]}
-              locations={[0.4, 0.75, 1]}
+              colors={["rgba(17,17,17,0)", "rgba(17,17,17,0.75)", "#111111"]}
+              locations={[0, 0.6, 1]}
               style={styles.imageGradient}
             />
           </View>
@@ -522,8 +522,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   imageGradient: {
-    ...StyleSheet.absoluteFillObject,
-    top: "30%",
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 200,
   },
   qrSection: {
     alignItems: "center",
