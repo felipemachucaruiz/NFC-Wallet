@@ -185,6 +185,7 @@ router.post(
     const [userRecord] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
     const customerEmail = userRecord?.email || `attendee_${req.user.id}@evento.local`;
 
+    const buyerFullName = [userRecord?.firstName, userRecord?.lastName].filter(Boolean).join(" ") || customerEmail;
     const reference = `topup_${braceletUid}_${Date.now()}`;
     let wompiTransactionId: string | undefined;
     let redirectUrl: string | undefined;
@@ -220,7 +221,6 @@ router.post(
           browser_tz: "-300",
         };
         const effectiveBrowserInfo = browserInfo ?? defaultBrowserInfo;
-        const fullName = [userRecord?.firstName, userRecord?.lastName].filter(Boolean).join(" ") || customerEmail;
         wompiBody = {
           amount_in_cents: amountCentavos,
           currency: "COP",
@@ -236,8 +236,8 @@ router.post(
           is_three_ds: true,
           three_ds_auth_type: "challenge_v2",
           customer_data: {
-            full_name: fullName,
-            phone_number: "",
+            full_name: buyerFullName,
+            phone_number: phoneNumber ?? "",
             browser_info: effectiveBrowserInfo,
           },
         };
@@ -296,6 +296,10 @@ router.post(
             user_legal_id: userLegalId!,
             financial_institution_code: bankCode,
             payment_description: "Recarga pulsera evento",
+          },
+          customer_data: {
+            full_name: buyerFullName,
+            phone_number: phoneNumber ?? "",
           },
           reference,
           acceptance_token: acceptanceToken,
@@ -710,22 +714,13 @@ const PSE_BANKS_FALLBACK: PseBank[] = [
 let pseBanksCache: { data: PseBank[]; fetchedAt: number } | null = null;
 const PSE_BANKS_CACHE_TTL_MS = 5 * 60 * 1000;
 
-router.get(
-  "/payments/pse/banks",
-  requireRole("attendee"),
-  async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-
+async function getPseBanksData(res: Response) {
     if (pseBanksCache && Date.now() - pseBanksCache.fetchedAt < PSE_BANKS_CACHE_TTL_MS) {
       res.json({ data: pseBanksCache.data });
       return;
     }
 
     if (!WOMPI_PUBLIC_KEY) {
-      // No Wompi key — serve the known fallback list so the UI still works
       res.json({ data: PSE_BANKS_FALLBACK });
       return;
     }
@@ -752,9 +747,27 @@ router.get(
       Sentry.captureException(err instanceof Error ? err : new Error(String(err)), {
         tags: { route: "payments/pse-banks" },
       });
-      // Network error — serve fallback so the UI still works
       res.json({ data: PSE_BANKS_FALLBACK });
     }
+}
+
+router.get(
+  "/payments/pse/banks/public",
+  async (req: Request, res: Response) => {
+    await getPseBanksData(res);
+  },
+);
+
+router.get(
+  "/payments/pse/banks",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    await getPseBanksData(res);
   },
 );
 

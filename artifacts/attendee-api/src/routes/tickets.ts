@@ -102,6 +102,7 @@ const createOrderSchema = z.object({
   savedCardId: z.string().optional(),
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
+  pseUserType: z.number().int().min(0).max(1).optional(),
   userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
   userLegalId: z.string().max(20).optional(),
   installments: z.number().int().min(1).max(36).optional(),
@@ -129,7 +130,7 @@ router.post(
       return;
     }
 
-    const { eventId, unitSelections, paymentMethod, savedCardId, phoneNumber, bankCode, userLegalIdType, userLegalId, installments, turnstileToken, browserInfo } = parsed.data;
+    const { eventId, unitSelections, paymentMethod, savedCardId, phoneNumber, bankCode, pseUserType, userLegalIdType, userLegalId, installments, turnstileToken, browserInfo } = parsed.data;
     let { cardToken } = parsed.data;
 
     // Normalize legacy `tickets` format (old app versions) → `attendees` format
@@ -595,11 +596,15 @@ router.post(
           customer_email: customerEmail,
           payment_method: {
             type: "PSE",
-            user_type: 0,
+            user_type: pseUserType ?? 0,
             user_legal_id_type: userLegalIdType ?? "CC",
             user_legal_id: userLegalId!,
             financial_institution_code: bankCode,
-            payment_description: `Entrada ${event.name}`,
+            payment_description: `Entrada ${event.name}`.slice(0, 64),
+          },
+          customer_data: {
+            full_name: buyerName || customerEmail,
+            phone_number: phoneNumber ?? "",
           },
           reference,
           acceptance_token: acceptanceToken,

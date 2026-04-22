@@ -268,6 +268,7 @@ export interface PurchaseRequest {
   paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia" | "free";
   phoneNumber?: string;
   bankCode?: string;
+  pseUserType?: 0 | 1;
   userLegalIdType?: "CC" | "CE" | "NIT" | "PP" | "TI";
   userLegalId?: string;
   cardToken?: string;
@@ -291,6 +292,16 @@ export interface WompiConfig {
 
 export async function getWompiConfig(): Promise<WompiConfig> {
   return apiFetch("/config/wompi");
+}
+
+export interface PseBank {
+  financial_institution_code: string;
+  financial_institution_name: string;
+}
+
+export async function getPseBanks(): Promise<PseBank[]> {
+  const res = await apiFetch<{ data: PseBank[] }>("/payments/pse/banks/public");
+  return res.data;
 }
 
 export interface PurchaseResponse {

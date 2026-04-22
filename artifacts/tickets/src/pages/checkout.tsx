@@ -65,7 +65,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatPrice } from "@/lib/format";
-import { purchaseTickets, getAuthToken, getWompiConfig, fetchSavedCards, saveCard, type SavedCard } from "@/lib/api";
+import { purchaseTickets, getAuthToken, getWompiConfig, fetchSavedCards, saveCard, getPseBanks, type SavedCard, type PseBank } from "@/lib/api";
 import { Turnstile } from "@/components/Turnstile";
 
 interface CheckoutData {
@@ -86,23 +86,6 @@ interface CheckoutData {
   selectedUnitLabel?: string;
 }
 
-const PSE_BANKS = [
-  { code: "1007", name: "Bancolombia" },
-  { code: "1009", name: "Citibank" },
-  { code: "1013", name: "BBVA" },
-  { code: "1019", name: "Scotiabank" },
-  { code: "1023", name: "Banco de Occidente" },
-  { code: "1032", name: "Banco Caja Social" },
-  { code: "1040", name: "Banco Agrario" },
-  { code: "1051", name: "Davivienda" },
-  { code: "1052", name: "AV Villas" },
-  { code: "1062", name: "Banco Falabella" },
-  { code: "1063", name: "Banco Finandina" },
-  { code: "1065", name: "Banco Santander" },
-  { code: "1066", name: "Banco Cooperativo" },
-  { code: "1507", name: "Nequi" },
-  { code: "1151", name: "Rappipay" },
-];
 
 type CardBrand = "visa" | "mastercard" | "amex" | null;
 
@@ -179,6 +162,10 @@ export default function Checkout() {
   const [puntosPhone, setPuntosPhone] = useState("");
   const [puntosLegalId, setPuntosLegalId] = useState("");
   const [puntosLegalIdType, setPuntosLegalIdType] = useState<"CC" | "CE" | "NIT" | "PP" | "TI">("CC");
+  const [pseBanks, setPseBanks] = useState<PseBank[]>([]);
+  const [pseBanksLoading, setPseBanksLoading] = useState(false);
+  const [pseUserType, setPseUserType] = useState<"0" | "1">("0");
+  const [psePhone, setPsePhone] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
@@ -278,6 +265,15 @@ export default function Checkout() {
     submitFreeOrder();
   }, [data, isFreeOrder, turnstileToken]);
 
+  useEffect(() => {
+    if (paymentMethod !== "pse" || pseBanks.length > 0 || pseBanksLoading) return;
+    setPseBanksLoading(true);
+    getPseBanks()
+      .then((banks) => setPseBanks(banks))
+      .catch(() => {})
+      .finally(() => setPseBanksLoading(false));
+  }, [paymentMethod]);
+
   if (!data) return null;
 
   if (isFreeOrder) {
@@ -320,7 +316,7 @@ export default function Checkout() {
     if (paymentMethod === "nequi") return /^\d{10}$/.test(nequiPhone.replace(/\s/g, ""));
     if (paymentMethod === "daviplata") return /^\d{10}$/.test(daviplataPhone.replace(/\s/g, ""));
     if (paymentMethod === "puntoscolombia") return /^\d{10}$/.test(puntosPhone.replace(/\s/g, "")) && puntosLegalId.trim().length >= 5;
-    if (paymentMethod === "pse") return pseBank.length > 0 && pseLegalId.length > 0;
+    if (paymentMethod === "pse") return pseBank.length > 0 && pseLegalId.length > 0 && /^\d{7,15}$/.test(psePhone.replace(/\s/g, ""));
     if (paymentMethod === "card") {
       if (selectedSavedCardId && !showNewCardForm) return true;
       return cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0;
@@ -363,6 +359,8 @@ export default function Checkout() {
         purchaseData.bankCode = pseBank;
         purchaseData.userLegalId = pseLegalId;
         purchaseData.userLegalIdType = pseLegalIdType;
+        purchaseData.phoneNumber = psePhone.replace(/\s/g, "");
+        purchaseData.pseUserType = parseInt(pseUserType, 10) as 0 | 1;
       } else if (paymentMethod === "card") {
         purchaseData.browserInfo = {
           browser_color_depth: String(window.screen.colorDepth ?? 24),
@@ -679,17 +677,42 @@ export default function Checkout() {
               {paymentMethod === "pse" && (
                 <div className="space-y-4">
                   <div>
-                    <Label>Banco</Label>
-                    <Select value={pseBank} onValueChange={setPseBank} disabled={processing}>
+                    <Label>Tipo de persona</Label>
+                    <Select value={pseUserType} onValueChange={(v) => setPseUserType(v as "0" | "1")} disabled={processing}>
                       <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Selecciona un banco" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {PSE_BANKS.map((bank) => (
-                          <SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>
+                        <SelectItem value="0">Persona natural</SelectItem>
+                        <SelectItem value="1">Persona jurídica</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Banco</Label>
+                    <Select value={pseBank} onValueChange={setPseBank} disabled={processing || pseBanksLoading}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder={pseBanksLoading ? "Cargando bancos…" : "Selecciona un banco"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pseBanks.map((bank) => (
+                          <SelectItem key={bank.financial_institution_code} value={bank.financial_institution_code}>{bank.financial_institution_name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div>
+                    <Label>Teléfono de contacto</Label>
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      value={psePhone}
+                      onChange={(e) => setPsePhone(e.target.value.replace(/\D/g, ""))}
+                      placeholder="3001234567"
+                      className="mt-1"
+                      maxLength={15}
+                      disabled={processing}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
