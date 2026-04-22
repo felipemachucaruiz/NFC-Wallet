@@ -50,6 +50,15 @@ async function fetchWompiTokens(): Promise<{ acceptanceToken: string; personalAu
   return { acceptanceToken, personalAuthToken };
 }
 
+const browserInfoSchema = z.object({
+  browser_color_depth: z.string(),
+  browser_screen_height: z.string(),
+  browser_screen_width: z.string(),
+  browser_language: z.string(),
+  browser_user_agent: z.string(),
+  browser_tz: z.string(),
+});
+
 const initiatePaymentSchema = z.object({
   braceletUid: z.string().min(1),
   amount: z.number().int().min(1000),
@@ -61,6 +70,7 @@ const initiatePaymentSchema = z.object({
   cardToken: z.string().optional(),
   savedCardId: z.string().optional(),
   installments: z.number().int().min(1).max(36).optional(),
+  browserInfo: browserInfoSchema.optional(),
 });
 
 router.post(
@@ -82,7 +92,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { braceletUid, amount, paymentMethod, phoneNumber, bankCode, userLegalIdType, userLegalId, savedCardId, installments } = parsed.data;
+    const { braceletUid, amount, paymentMethod, phoneNumber, bankCode, userLegalIdType, userLegalId, savedCardId, installments, browserInfo } = parsed.data;
     let { cardToken } = parsed.data;
 
     if (paymentMethod === "nequi" && !phoneNumber) {
@@ -201,6 +211,16 @@ router.post(
           acceptance_personal_auth_token: personalAuthToken,
         };
       } else if (paymentMethod === "card") {
+        const defaultBrowserInfo = {
+          browser_color_depth: "24",
+          browser_screen_height: "844",
+          browser_screen_width: "390",
+          browser_language: "es-CO",
+          browser_user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+          browser_tz: "-300",
+        };
+        const effectiveBrowserInfo = browserInfo ?? defaultBrowserInfo;
+        const fullName = [userRecord?.firstName, userRecord?.lastName].filter(Boolean).join(" ") || customerEmail;
         wompiBody = {
           amount_in_cents: amountCentavos,
           currency: "COP",
@@ -213,6 +233,13 @@ router.post(
           reference,
           acceptance_token: acceptanceToken,
           acceptance_personal_auth_token: personalAuthToken,
+          is_three_ds: true,
+          three_ds_auth_type: "challenge_v2",
+          customer_data: {
+            full_name: fullName,
+            phone_number: "",
+            browser_info: effectiveBrowserInfo,
+          },
         };
       } else if (paymentMethod === "bancolombia_transfer") {
         wompiBody = {
@@ -379,18 +406,33 @@ router.get(
       return;
     }
 
+    type WompiThreeDsAuth = {
+      current_step: string;
+      current_step_status: string;
+      three_ds_method_data?: string;
+      iframe_content?: string;
+    };
+    type WompiTxData = {
+      status: string;
+      payment_method?: { extra?: { three_ds_auth?: WompiThreeDsAuth } };
+    };
+
+    let threeDsAuth: WompiThreeDsAuth | null = null;
+
     if ((intent.status === "pending" || intent.status === "processing") && intent.wompiTransactionId) {
       try {
         const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions/${intent.wompiTransactionId}`, {
           headers: { Authorization: `Bearer ${WOMPI_PRIVATE_KEY}` },
         });
-        const wompiData = await wompiRes.json() as { data?: { status: string } };
+        const wompiData = await wompiRes.json() as { data?: WompiTxData };
         if (wompiRes.ok && wompiData.data) {
           const wompiStatus = wompiData.data.status;
+          threeDsAuth = wompiData.data.payment_method?.extra?.three_ds_auth ?? null;
+
           if (wompiStatus === "APPROVED") {
             await processSuccessfulPayment(intent.id, intent.wompiTransactionId!);
             const [updated] = await db.select().from(wompiPaymentIntentsTable).where(eq(wompiPaymentIntentsTable.id, id));
-            res.json({ intentId: updated.id, status: updated.status, topUpId: updated.topUpId });
+            res.json({ intentId: updated.id, status: updated.status, topUpId: updated.topUpId, threeDsAuth: null });
             return;
           } else if (wompiStatus === "DECLINED" || wompiStatus === "ERROR" || wompiStatus === "VOIDED") {
             await db.update(wompiPaymentIntentsTable)
@@ -402,7 +444,7 @@ router.get(
               if (fb?.eventId) { const [fe] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb.eventId)).limit(1); if (fe) fcc = fe.currencyCode; }
               void notifyTopUpFailed(intent.performedByUserId, intent.amount, fcc).catch(() => {});
             }
-            res.json({ intentId: id, status: "failed" });
+            res.json({ intentId: id, status: "failed", threeDsAuth: null });
             return;
           }
         }
@@ -420,6 +462,7 @@ router.get(
       intentId: intent.id,
       status: clientStatus,
       topUpId: intent.topUpId ?? null,
+      threeDsAuth,
     });
   },
 );

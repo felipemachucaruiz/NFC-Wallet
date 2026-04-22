@@ -186,6 +186,14 @@ export function useInitiateTopUp() {
       cardToken?: string;
       savedCardId?: string;
       installments?: number;
+      browserInfo?: {
+        browser_color_depth: string;
+        browser_screen_height: string;
+        browser_screen_width: string;
+        browser_language: string;
+        browser_user_agent: string;
+        browser_tz: string;
+      };
     }) =>
       apiFetch<{ intentId: string; status: string; redirectUrl?: string | null }>(
         `${API_BASE_URL}/api/payments/initiate`,

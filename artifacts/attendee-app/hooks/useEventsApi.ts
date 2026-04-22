@@ -318,6 +318,14 @@ export function usePurchaseTickets() {
       userLegalIdType?: string;
       userLegalId?: string;
       cardToken?: string;
+      browserInfo?: {
+        browser_color_depth: string;
+        browser_screen_height: string;
+        browser_screen_width: string;
+        browser_language: string;
+        browser_user_agent: string;
+        browser_tz: string;
+      };
     }) => {
       const { tickets, ...rest } = data;
       const body = {

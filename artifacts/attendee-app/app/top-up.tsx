@@ -17,6 +17,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Platform,
   Pressable,
@@ -97,6 +98,22 @@ const LEGAL_ID_TYPES: { code: LegalIdType; label: string }[] = [
 ];
 
 const AMOUNTS = [10000, 20000, 50000, 100000, 200000];
+
+function collectBrowserInfo() {
+  const screen = Dimensions.get("screen");
+  return {
+    browser_color_depth: "24",
+    browser_screen_height: String(Math.round(screen.height)),
+    browser_screen_width: String(Math.round(screen.width)),
+    browser_language: "es-CO",
+    browser_user_agent: Platform.OS === "ios"
+      ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+      : Platform.OS === "android"
+      ? "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36"
+      : "Mozilla/5.0",
+    browser_tz: String(-new Date().getTimezoneOffset()),
+  };
+}
 
 function normalizeUid(raw: string): string {
   const clean = raw.replace(/[:\s\-]/g, "").toUpperCase();
@@ -216,6 +233,7 @@ export default function TopUpScreen() {
       body.userLegalIdType = legalIdType;
       body.userLegalId = legalId.trim();
     } else if (method === "card") {
+      body.browserInfo = collectBrowserInfo();
       if (selectedSavedCardId && !showNewCardForm) {
         body.savedCardId = selectedSavedCardId;
         body.installments = 1;

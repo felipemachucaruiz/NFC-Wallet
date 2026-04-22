@@ -106,6 +106,14 @@ const createOrderSchema = z.object({
   userLegalId: z.string().max(20).optional(),
   installments: z.number().int().min(1).max(36).optional(),
   turnstileToken: z.string().optional(),
+  browserInfo: z.object({
+    browser_color_depth: z.string(),
+    browser_screen_height: z.string(),
+    browser_screen_width: z.string(),
+    browser_language: z.string(),
+    browser_user_agent: z.string(),
+    browser_tz: z.string(),
+  }).optional(),
 }).refine((d) => (d.attendees && d.attendees.length > 0) || (d.tickets && d.tickets.length > 0), {
   message: "Either attendees or tickets must be provided",
   path: ["attendees"],
@@ -121,7 +129,7 @@ router.post(
       return;
     }
 
-    const { eventId, unitSelections, paymentMethod, savedCardId, phoneNumber, bankCode, userLegalIdType, userLegalId, installments, turnstileToken } = parsed.data;
+    const { eventId, unitSelections, paymentMethod, savedCardId, phoneNumber, bankCode, userLegalIdType, userLegalId, installments, turnstileToken, browserInfo } = parsed.data;
     let { cardToken } = parsed.data;
 
     // Normalize legacy `tickets` format (old app versions) → `attendees` format
@@ -495,6 +503,15 @@ router.post(
       let wompiBody: Record<string, unknown>;
 
       if (paymentMethod === "card") {
+        const defaultBrowserInfo = {
+          browser_color_depth: "24",
+          browser_screen_height: "900",
+          browser_screen_width: "1440",
+          browser_language: "es-CO",
+          browser_user_agent: "Mozilla/5.0",
+          browser_tz: "-300",
+        };
+        const effectiveBrowserInfo = browserInfo ?? defaultBrowserInfo;
         wompiBody = {
           amount_in_cents: amountCentavos,
           currency: "COP",
@@ -507,6 +524,13 @@ router.post(
           reference,
           acceptance_token: acceptanceToken,
           acceptance_personal_auth_token: personalAuthToken,
+          is_three_ds: true,
+          three_ds_auth_type: "challenge_v2",
+          customer_data: {
+            full_name: buyerName || customerEmail,
+            phone_number: phoneNumber ?? "",
+            browser_info: effectiveBrowserInfo,
+          },
         };
       } else if (paymentMethod === "nequi") {
         wompiBody = {
@@ -712,29 +736,42 @@ router.get(
 
     if (order.paymentStatus === "pending" && order.wompiTransactionId && WOMPI_PRIVATE_KEY) {
       try {
+        type WompiThreeDsAuth = {
+          current_step: string;
+          current_step_status: string;
+          three_ds_method_data?: string;
+          iframe_content?: string;
+        };
+        type WompiTxData = {
+          status: string;
+          payment_method?: { extra?: { three_ds_auth?: WompiThreeDsAuth } };
+        };
         const wompiRes = await fetch(`${WOMPI_BASE_URL}/transactions/${order.wompiTransactionId}`, {
           headers: { Authorization: `Bearer ${WOMPI_PRIVATE_KEY}` },
         });
-        const wompiData = await wompiRes.json() as { data?: { status: string } };
+        const wompiData = await wompiRes.json() as { data?: WompiTxData };
         if (wompiRes.ok && wompiData.data) {
+          const threeDsAuth = wompiData.data.payment_method?.extra?.three_ds_auth ?? null;
           if (wompiData.data.status === "APPROVED") {
             const reqLocale = parseAcceptLocale(req.headers["accept-language"]);
             await processTicketOrderPayment(order.id, order.wompiTransactionId!, reqLocale);
             const [updated] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, orderId));
-            res.json({ orderId: updated.id, status: updated.paymentStatus });
+            res.json({ orderId: updated.id, status: updated.paymentStatus, threeDsAuth: null });
             return;
           } else if (["DECLINED", "ERROR", "VOIDED"].includes(wompiData.data.status)) {
             await cancelTicketOrder(order.id);
-            res.json({ orderId, status: "cancelled" });
+            res.json({ orderId, status: "cancelled", threeDsAuth: null });
             return;
           }
+          res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth });
+          return;
         }
       } catch (err) {
         logger.error({ err }, "Wompi status poll error");
       }
     }
 
-    res.json({ orderId: order.id, status: order.paymentStatus });
+    res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth: null });
   },
 );
 

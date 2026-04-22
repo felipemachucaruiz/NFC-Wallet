@@ -313,6 +313,14 @@ export default function Checkout() {
         purchaseData.userLegalId = pseLegalId;
         purchaseData.userLegalIdType = pseLegalIdType;
       } else if (paymentMethod === "card") {
+        purchaseData.browserInfo = {
+          browser_color_depth: String(window.screen.colorDepth ?? 24),
+          browser_screen_height: String(window.screen.height),
+          browser_screen_width: String(window.screen.width),
+          browser_language: navigator.language || "es-CO",
+          browser_user_agent: navigator.userAgent,
+          browser_tz: String(-new Date().getTimezoneOffset()),
+        };
         if (selectedSavedCardId && !showNewCardForm) {
           purchaseData.savedCardId = selectedSavedCardId;
           purchaseData.installments = 1;
@@ -356,6 +364,7 @@ export default function Checkout() {
       sessionStorage.removeItem("tapee_checkout");
       sessionStorage.setItem("tapee_order_id", result.orderId);
       sessionStorage.setItem("tapee_order_status", result.status);
+      sessionStorage.setItem("tapee_payment_method", paymentMethod);
 
       if (result.redirectUrl) {
         window.location.href = result.redirectUrl;

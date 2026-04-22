@@ -10,6 +10,7 @@ const bancolombiaXml = (color: string) =>
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
+  Dimensions,
   Image,
   Platform,
   Pressable,
@@ -39,6 +40,23 @@ function safeParseJson<T>(json: string | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function collectBrowserInfo() {
+  const screen = Dimensions.get("screen");
+  return {
+    browser_color_depth: "24",
+    browser_screen_height: String(Math.round(screen.height)),
+    browser_screen_width: String(Math.round(screen.width)),
+    browser_language: "es-CO",
+    browser_user_agent:
+      Platform.OS === "ios"
+        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+        : Platform.OS === "android"
+          ? "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36"
+          : "Mozilla/5.0",
+    browser_tz: String(-new Date().getTimezoneOffset()),
+  };
 }
 
 type CardBrand = "visa" | "mastercard" | "amex" | null;
@@ -172,6 +190,7 @@ export default function TicketCheckoutScreen() {
       body.userLegalId = legalId.trim();
     }
     if (method === "card") {
+      body.browserInfo = collectBrowserInfo();
       try {
         const parts = cardExpiry.split("/");
         const token = await tokenizeCard({

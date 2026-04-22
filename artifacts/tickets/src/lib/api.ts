@@ -274,6 +274,14 @@ export interface PurchaseRequest {
   savedCardId?: string;
   installments?: number;
   turnstileToken?: string;
+  browserInfo?: {
+    browser_color_depth: string;
+    browser_screen_height: string;
+    browser_screen_width: string;
+    browser_language: string;
+    browser_user_agent: string;
+    browser_tz: string;
+  };
 }
 
 export interface WompiConfig {
@@ -302,9 +310,17 @@ export async function purchaseTickets(data: PurchaseRequest): Promise<PurchaseRe
   });
 }
 
+export interface ThreeDsAuth {
+  current_step: string;
+  current_step_status: string;
+  three_ds_method_data?: string;
+  iframe_content?: string;
+}
+
 export interface OrderStatus {
   orderId: string;
   status: string;
+  threeDsAuth?: ThreeDsAuth | null;
 }
 
 export async function fetchOrderStatus(orderId: string): Promise<OrderStatus> {

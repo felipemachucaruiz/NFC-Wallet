@@ -3,7 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -13,8 +13,46 @@ import { useTicketPaymentStatus } from "@/hooks/useEventsApi";
 
 type Status = "pending" | "success" | "failed";
 
-const POLL_INTERVAL_MS = 3000;
-const MAX_POLLS = 40;
+type ThreeDsAuth = {
+  current_step: string;
+  current_step_status: string;
+  three_ds_method_data?: string;
+  iframe_content?: string;
+};
+
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLLS = 150;
+
+const MASTERCARD_LOGO =
+  "https://brand.mastercard.com/content/dam/mccom/brandcenter/thumbnails/mastercard_circles_92px_2x.png";
+
+function decodeHtmlEntities(html: string): string {
+  return html
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
+let WebView: React.ComponentType<{
+  source: { html: string };
+  style?: object;
+  javaScriptEnabled?: boolean;
+  originWhitelist?: string[];
+  scalesPageToFit?: boolean;
+  scrollEnabled?: boolean;
+}> | null = null;
+
+if (Platform.OS !== "web") {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    WebView = require("react-native-webview").WebView;
+  } catch {
+    WebView = null;
+  }
+}
 
 export default function TicketPaymentStatusScreen() {
   const { t } = useTranslation();
@@ -36,13 +74,21 @@ export default function TicketPaymentStatusScreen() {
 
   const [pollCount, setPollCount] = useState(0);
   const [hasRedirected, setHasRedirected] = useState(false);
+  const [threeDsAuth, setThreeDsAuth] = useState<ThreeDsAuth | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: statusData, refetch, isError } = useTicketPaymentStatus(intentId);
 
   const rawStatus = (statusData as { status?: string } | undefined)?.status;
   const status: Status = (rawStatus as Status) ?? "pending";
-  const confirmedTickets = (statusData as { tickets?: Array<{ qrCode: string; attendeeEmail: string }> } | undefined)?.tickets;
+  const confirmedTickets = (
+    statusData as { tickets?: Array<{ qrCode: string; attendeeEmail: string }> } | undefined
+  )?.tickets;
+
+  useEffect(() => {
+    const auth = (statusData as { threeDsAuth?: ThreeDsAuth } | undefined)?.threeDsAuth;
+    if (auth) setThreeDsAuth(auth);
+  }, [statusData]);
 
   useEffect(() => {
     if (redirectUrl && !hasRedirected && paymentMethod === "pse") {
@@ -75,6 +121,20 @@ export default function TicketPaymentStatusScreen() {
 
   const timedOut = pollCount >= MAX_POLLS && status === "pending";
 
+  const is3DsFingerprint =
+    paymentMethod === "card" &&
+    status === "pending" &&
+    threeDsAuth?.current_step === "FINGERPRINT" &&
+    threeDsAuth?.current_step_status === "PENDING" &&
+    !!threeDsAuth?.three_ds_method_data;
+
+  const is3DsChallenge =
+    paymentMethod === "card" &&
+    status === "pending" &&
+    threeDsAuth?.current_step === "CHALLENGE" &&
+    threeDsAuth?.current_step_status === "PENDING" &&
+    !!threeDsAuth?.iframe_content;
+
   const renderIcon = () => {
     if (status === "success") {
       return (
@@ -101,6 +161,7 @@ export default function TicketPaymentStatusScreen() {
     if (status === "success") return t("tickets.purchaseSuccess");
     if (status === "failed" || isError) return t("tickets.purchaseFailed");
     if (timedOut) return t("paymentStatus.timeout");
+    if (is3DsChallenge) return "Autenticación bancaria";
     return t("tickets.purchaseProcessing");
   };
 
@@ -108,16 +169,86 @@ export default function TicketPaymentStatusScreen() {
     if (status === "success") return t("tickets.purchaseSuccessMsg");
     if (status === "failed" || isError) return t("tickets.purchaseFailedMsg");
     if (timedOut) return t("paymentStatus.timeoutMsg");
+    if (is3DsChallenge) return "Tu banco requiere verificación adicional.";
+    if (is3DsFingerprint) return "Verificando tu dispositivo con el banco...";
     if (paymentMethod === "nequi") return t("paymentStatus.nequiPending");
     if (paymentMethod === "pse") return t("paymentStatus.psePending");
     return t("tickets.purchaseProcessing");
   };
 
+  if (is3DsChallenge && !isWeb && WebView) {
+    const htmlContent = decodeHtmlEntities(threeDsAuth!.iframe_content!);
+    return (
+      <View style={[styles.container, { backgroundColor: C.background }]}>
+        <LinearGradient colors={["#050505", "#0a0a0a", "#111111"]} style={StyleSheet.absoluteFill} />
+        <View
+          style={[styles.topBar, { paddingTop: isWeb ? 67 : insets.top + 8, paddingHorizontal: 20 }]}
+        >
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Feather name="arrow-left" size={22} color={C.text} />
+          </Pressable>
+          <Text style={[styles.pageTitle, { color: C.text }]}>Verificación 3D Secure</Text>
+          <View style={{ width: 30 }} />
+        </View>
+
+        <View style={{ paddingHorizontal: 20, paddingBottom: 8, alignItems: "center", gap: 8 }}>
+          <Image
+            source={{ uri: MASTERCARD_LOGO }}
+            style={{ width: 60, height: 37 }}
+            resizeMode="contain"
+          />
+          <Text
+            style={{
+              color: C.textSecondary,
+              fontSize: 12,
+              fontFamily: "Inter_400Regular",
+              textAlign: "center",
+            }}
+          >
+            Autenticación segura 3D Secure
+          </Text>
+        </View>
+
+        <View
+          style={{
+            flex: 1,
+            marginHorizontal: 16,
+            marginBottom: insets.bottom + 16,
+            borderRadius: 16,
+            overflow: "hidden",
+            backgroundColor: "#fff",
+          }}
+        >
+          <WebView
+            source={{ html: htmlContent }}
+            javaScriptEnabled
+            originWhitelist={["*"]}
+            scalesPageToFit={false}
+            scrollEnabled
+          />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <LinearGradient colors={["#050505", "#0a0a0a", "#111111"]} style={StyleSheet.absoluteFill} />
 
-      <View style={[styles.topBar, { paddingTop: isWeb ? 67 : insets.top + 8, paddingHorizontal: 20 }]}>
+      {is3DsFingerprint && !isWeb && WebView && (
+        <View style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+          <WebView
+            source={{ html: decodeHtmlEntities(threeDsAuth!.three_ds_method_data!) }}
+            javaScriptEnabled
+            originWhitelist={["*"]}
+            style={{ width: 1, height: 1 }}
+          />
+        </View>
+      )}
+
+      <View
+        style={[styles.topBar, { paddingTop: isWeb ? 67 : insets.top + 8, paddingHorizontal: 20 }]}
+      >
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={C.text} />
         </Pressable>
@@ -135,7 +266,13 @@ export default function TicketPaymentStatusScreen() {
             {Array.from({ length: 3 }).map((_, i) => (
               <View
                 key={i}
-                style={[styles.dot, { backgroundColor: C.primary, opacity: (pollCount % 3) === i ? 1 : 0.3 }]}
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor: C.primary,
+                    opacity: pollCount % 3 === i ? 1 : 0.3,
+                  },
+                ]}
               />
             ))}
           </View>
@@ -161,33 +298,63 @@ export default function TicketPaymentStatusScreen() {
             style={[styles.openBankBtn, { borderColor: C.primary }]}
           >
             <Feather name="external-link" size={16} color={C.primary} />
-            <Text style={[styles.openBankText, { color: C.primary }]}>{t("paymentStatus.openBank")}</Text>
+            <Text style={[styles.openBankText, { color: C.primary }]}>
+              {t("paymentStatus.openBank")}
+            </Text>
           </Pressable>
         )}
 
         <View style={styles.actions}>
           {status === "success" && (
             <>
-              <Button title={t("tickets.viewMyTickets")} onPress={() => router.replace("/my-tickets")} variant="primary" fullWidth />
-              <Button title={t("paymentStatus.goHome")} onPress={() => router.replace("/(tabs)/home")} variant="secondary" fullWidth />
+              <Button
+                title={t("tickets.viewMyTickets")}
+                onPress={() => router.replace("/my-tickets")}
+                variant="primary"
+                fullWidth
+              />
+              <Button
+                title={t("paymentStatus.goHome")}
+                onPress={() => router.replace("/(tabs)/home")}
+                variant="secondary"
+                fullWidth
+              />
             </>
           )}
           {(status === "failed" || isError) && (
             <>
-              <Button title={t("paymentStatus.retry")} onPress={() => router.back()} variant="primary" fullWidth />
-              <Button title={t("paymentStatus.goHome")} onPress={() => router.replace("/(tabs)/home")} variant="secondary" fullWidth />
+              <Button
+                title={t("paymentStatus.retry")}
+                onPress={() => router.back()}
+                variant="primary"
+                fullWidth
+              />
+              <Button
+                title={t("paymentStatus.goHome")}
+                onPress={() => router.replace("/(tabs)/home")}
+                variant="secondary"
+                fullWidth
+              />
             </>
           )}
           {(timedOut || status === "pending") && (
             <Button
               title={t("paymentStatus.checkStatus")}
-              onPress={() => { setPollCount(0); void refetch(); }}
+              onPress={() => {
+                setPollCount(0);
+                void refetch();
+              }}
               variant="secondary"
               fullWidth
             />
           )}
           {status !== "success" && (
-            <Button title={t("paymentStatus.cancel")} onPress={() => router.replace("/(tabs)/events")} variant="ghost" fullWidth />
+            <Button
+              title={t("paymentStatus.cancel")}
+              onPress={() => router.replace("/(tabs)/events")}
+              variant="ghost"
+              fullWidth
+            />
           )}
         </View>
       </View>
@@ -197,19 +364,44 @@ export default function TicketPaymentStatusScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 8 },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 8,
+  },
   backBtn: { padding: 4 },
   pageTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  content: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 20 },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    gap: 20,
+  },
   iconCircle: { width: 120, height: 120, borderRadius: 60, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 24, fontFamily: "Inter_700Bold", textAlign: "center" },
   subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 },
   pollRow: { flexDirection: "row", gap: 10, alignItems: "center" },
   dot: { width: 10, height: 10, borderRadius: 5 },
   confirmTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8 },
-  confirmRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6, borderBottomWidth: 1 },
+  confirmRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+  },
   confirmEmail: { fontSize: 13, fontFamily: "Inter_400Regular" },
-  openBankBtn: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12 },
+  openBankBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
   openBankText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   actions: { width: "100%", gap: 12 },
 });

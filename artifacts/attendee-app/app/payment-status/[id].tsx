@@ -3,7 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -12,8 +12,45 @@ import { usePaymentStatus } from "@/hooks/useAttendeeApi";
 
 type PaymentStatus = "pending" | "success" | "failed";
 
-const POLL_INTERVAL_MS = 3000;
-const MAX_POLLS = 40;
+type ThreeDsAuth = {
+  current_step: string;
+  current_step_status: string;
+  three_ds_method_data?: string;
+  iframe_content?: string;
+};
+
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLLS = 150;
+
+const MASTERCARD_LOGO = "https://brand.mastercard.com/content/dam/mccom/brandcenter/thumbnails/mastercard_circles_92px_2x.png";
+
+function decodeHtmlEntities(html: string): string {
+  return html
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
+let WebView: React.ComponentType<{
+  source: { html: string };
+  style?: object;
+  javaScriptEnabled?: boolean;
+  originWhitelist?: string[];
+  scalesPageToFit?: boolean;
+  scrollEnabled?: boolean;
+}> | null = null;
+
+if (Platform.OS !== "web") {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    WebView = require("react-native-webview").WebView;
+  } catch {
+    WebView = null;
+  }
+}
 
 export default function PaymentStatusScreen() {
   const { t } = useTranslation();
@@ -34,11 +71,17 @@ export default function PaymentStatusScreen() {
 
   const [pollCount, setPollCount] = useState(0);
   const [hasRedirected, setHasRedirected] = useState(false);
+  const [threeDsAuth, setThreeDsAuth] = useState<ThreeDsAuth | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: statusData, refetch, isError } = usePaymentStatus(intentId);
 
   const status: PaymentStatus = ((statusData as { status?: string } | undefined)?.status as PaymentStatus) ?? "pending";
+
+  useEffect(() => {
+    const auth = (statusData as { threeDsAuth?: ThreeDsAuth } | undefined)?.threeDsAuth;
+    if (auth) setThreeDsAuth(auth);
+  }, [statusData]);
 
   useEffect(() => {
     if (redirectUrl && !hasRedirected && paymentMethod === "pse") {
@@ -71,6 +114,20 @@ export default function PaymentStatusScreen() {
 
   const timedOut = pollCount >= MAX_POLLS && status === "pending";
 
+  const is3DsFingerprint =
+    paymentMethod === "card" &&
+    status === "pending" &&
+    threeDsAuth?.current_step === "FINGERPRINT" &&
+    threeDsAuth?.current_step_status === "PENDING" &&
+    !!threeDsAuth?.three_ds_method_data;
+
+  const is3DsChallenge =
+    paymentMethod === "card" &&
+    status === "pending" &&
+    threeDsAuth?.current_step === "CHALLENGE" &&
+    threeDsAuth?.current_step_status === "PENDING" &&
+    !!threeDsAuth?.iframe_content;
+
   const renderIcon = () => {
     if (status === "success") {
       return (
@@ -97,6 +154,7 @@ export default function PaymentStatusScreen() {
     if (status === "success") return t("paymentStatus.success");
     if (status === "failed" || isError) return t("paymentStatus.failed");
     if (timedOut) return t("paymentStatus.timeout");
+    if (is3DsChallenge) return "Autenticación bancaria";
     return t("paymentStatus.processing");
   };
 
@@ -104,9 +162,48 @@ export default function PaymentStatusScreen() {
     if (status === "success") return t("paymentStatus.successMsg");
     if (status === "failed" || isError) return t("paymentStatus.failedMsg");
     if (timedOut) return t("paymentStatus.timeoutMsg");
+    if (is3DsChallenge) return "Tu banco requiere verificación adicional. Completa el proceso a continuación.";
+    if (is3DsFingerprint) return "Verificando tu dispositivo con el banco...";
     if (paymentMethod === "nequi" || paymentMethod === "daviplata" || paymentMethod === "puntoscolombia") return t("paymentStatus.nequiPending");
     return t("paymentStatus.psePending");
   };
+
+  if (is3DsChallenge && !isWeb && WebView) {
+    const htmlContent = decodeHtmlEntities(threeDsAuth!.iframe_content!);
+    return (
+      <View style={[styles.container, { backgroundColor: C.background }]}>
+        <LinearGradient colors={["#050505", "#0a0a0a", "#111111"]} style={StyleSheet.absoluteFill} />
+        <View style={[styles.topBar, { paddingTop: isWeb ? 67 : insets.top + 8, paddingHorizontal: 20 }]}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Feather name="arrow-left" size={22} color={C.text} />
+          </Pressable>
+          <Text style={[styles.pageTitle, { color: C.text }]}>Verificación 3D Secure</Text>
+          <View style={{ width: 30 }} />
+        </View>
+
+        <View style={{ paddingHorizontal: 20, paddingBottom: 8, alignItems: "center", gap: 8 }}>
+          <Image
+            source={{ uri: MASTERCARD_LOGO }}
+            style={{ width: 60, height: 37 }}
+            resizeMode="contain"
+          />
+          <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" }}>
+            Autenticación segura 3D Secure
+          </Text>
+        </View>
+
+        <View style={{ flex: 1, marginHorizontal: 16, marginBottom: insets.bottom + 16, borderRadius: 16, overflow: "hidden", backgroundColor: "#fff" }}>
+          <WebView
+            source={{ html: htmlContent }}
+            javaScriptEnabled
+            originWhitelist={["*"]}
+            scalesPageToFit={false}
+            scrollEnabled
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
@@ -114,6 +211,17 @@ export default function PaymentStatusScreen() {
         colors={["#050505", "#0a0a0a", "#111111"]}
         style={StyleSheet.absoluteFill}
       />
+
+      {is3DsFingerprint && !isWeb && WebView && (
+        <View style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+          <WebView
+            source={{ html: decodeHtmlEntities(threeDsAuth!.three_ds_method_data!) }}
+            javaScriptEnabled
+            originWhitelist={["*"]}
+            style={{ width: 1, height: 1 }}
+          />
+        </View>
+      )}
 
       <View style={[styles.topBar, { paddingTop: isWeb ? 67 : insets.top + 8, paddingHorizontal: 20 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
