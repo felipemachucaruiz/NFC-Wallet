@@ -130,11 +130,18 @@ router.get(
     }
 
     const bracelets = await db
-      .select({ nfcUid: braceletsTable.nfcUid })
+      .select({ nfcUid: braceletsTable.nfcUid, eventId: braceletsTable.eventId })
       .from(braceletsTable)
       .where(eq(braceletsTable.attendeeUserId, userId));
 
     const uids = bracelets.map((b) => b.nfcUid);
+
+    const txEventIds = [...new Set(bracelets.map((b) => b.eventId).filter(Boolean) as string[])];
+    const txEvents = txEventIds.length > 0
+      ? await db.select({ id: eventsTable.id, name: eventsTable.name }).from(eventsTable).where(inArray(eventsTable.id, txEventIds))
+      : [];
+    const txEventsById = new Map(txEvents.map((e) => [e.id, e.name]));
+    const uidToEvent = new Map(bracelets.map((b) => [b.nfcUid, b.eventId ? { eventId: b.eventId, eventName: txEventsById.get(b.eventId) ?? null } : null]));
 
     const txLogRows = uids.length > 0
       ? await db
@@ -230,6 +237,8 @@ router.get(
             newBalance: tx.newBalance,
             merchantName: merchant?.name ?? null,
             locationName: location?.name ?? null,
+            eventId: uidToEvent.get(tx.braceletUid)?.eventId ?? null,
+            eventName: uidToEvent.get(tx.braceletUid)?.eventName ?? null,
             lineItems: lineItems.map((li) => ({
               name: li.productNameSnapshot,
               quantity: li.quantity,
@@ -248,6 +257,8 @@ router.get(
             newBalance: 0,
             merchantName: null,
             locationName: null,
+            eventId: uidToEvent.get(ref.braceletUid)?.eventId ?? null,
+            eventName: uidToEvent.get(ref.braceletUid)?.eventName ?? null,
             lineItems: [],
             createdAt: ref.createdAt,
             refundStatus: ref.status,
@@ -263,6 +274,8 @@ router.get(
             newBalance: 0,
             merchantName: null,
             locationName: null,
+            eventId: uidToEvent.get(tr.braceletUid)?.eventId ?? null,
+            eventName: uidToEvent.get(tr.braceletUid)?.eventName ?? null,
             lineItems: [],
             createdAt: tr.createdAt,
             refundStatus: null,
@@ -277,6 +290,8 @@ router.get(
             newBalance: tu.newBalance,
             merchantName: null,
             locationName: null,
+            eventId: uidToEvent.get(tu.braceletUid)?.eventId ?? null,
+            eventName: uidToEvent.get(tu.braceletUid)?.eventName ?? null,
             lineItems: [],
             createdAt: tu.createdAt,
             refundStatus: null,
