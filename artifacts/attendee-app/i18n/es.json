@@ -380,7 +380,7 @@
     "subtotal": "Subtotal",
     "serviceFees": "Cargos por servicio",
     "paymentMethod": "Método de pago",
-    "creditCard": "Tarjeta",
+    "creditCard": "Tarjeta débito o crédito",
     "cardDetails": "Datos de la tarjeta",
     "cardNumber": "Número de tarjeta",
     "cardHolder": "Nombre en la tarjeta",
