@@ -1,5 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Image } from 'expo-image';
+import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -202,13 +203,18 @@ export default function TicketDetailScreen() {
                 source={{ uri: ticket.eventCoverImageUrl }}
                 style={styles.heroImage}
                 contentFit="cover"
+                contentPosition="top"
               />
             ) : (
               <View style={[styles.heroImage, { backgroundColor: dominantColor }]}>
                 <Feather name="music" size={48} color="rgba(255,255,255,0.3)" />
               </View>
             )}
-            <View style={styles.imageOverlay} />
+            <LinearGradient
+              colors={["transparent", "rgba(17,17,17,0.6)", "#111111"]}
+              locations={[0.4, 0.75, 1]}
+              style={styles.imageGradient}
+            />
           </View>
 
           {ticket.qrCode ? (
@@ -505,7 +511,7 @@ const styles = StyleSheet.create({
     marginTop: Platform.OS === "web" ? 80 : 0,
   },
   imageSection: {
-    height: 220,
+    height: 320,
     overflow: "hidden",
     position: "relative",
   },
@@ -515,13 +521,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  imageOverlay: {
+  imageGradient: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.15)",
+    top: "30%",
   },
   qrSection: {
     alignItems: "center",
-    marginTop: -60,
+    marginTop: -100,
     paddingBottom: 16,
     zIndex: 5,
   },
