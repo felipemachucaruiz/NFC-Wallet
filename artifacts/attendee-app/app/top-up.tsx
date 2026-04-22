@@ -5,6 +5,12 @@ import { SvgXml } from "react-native-svg";
 const nequiXml = (bodyColor: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38.15 30"><path fill="#ca0080" d="M8.38,3.86h-3.93c-.46,0-.83.37-.83.83v3.34c0,.46.37.83.83.83h3.93c.46,0,.83-.37.83-.83v-3.34c0-.46-.37-.83-.83-.83Z"/><path fill="${bodyColor}" d="M32.4,3.86h-3.39c-.46,0-.83.38-.83.83v13.55c0,.28-.36.38-.49.13l-7.88-14.15c-.13-.23-.36-.36-.64-.36h-5.64c-.46,0-.83.38-.83.83v21.65c0,.46.38.83.83.83h3.39c.46,0,.83-.38.83-.83v-13.96c0-.28.36-.38.49-.13l8.1,14.57c.13.23.36.36.64.36h5.39c.46,0,.83-.38.83-.83V4.68c0-.46-.38-.83-.83-.83h.03Z"/></svg>`;
 
+const daviplataXml = (color: string) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="none"/><path fill="${color}" d="M8,4h10c9.94,0,16,5.8,16,16s-6.06,16-16,16H8V4Zm5,5v22h5c6.62,0,11-4.1,11-11S24.62,9,18,9H13Z"/></svg>`;
+
+const puntosColombiaXml = (color: string) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path fill="${color}" d="M20,2l4.5,9.1L35,12.7l-7.5,7.3,1.8,10.3L20,25.1l-9.3,5.2,1.8-10.3L5,12.7l10.5-1.6Z"/></svg>`;
+
 const bancolombiaXml = (color: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110.54 110.83"><path fill="${color}" d="M82.66.03c-21.47,2.65-42.21,6.56-63,12.59-2.71.85-4.37,3.88-3.69,6.57,1.52,5.99,2.29,8.99,3.83,15,.65,2.54,3.21,3.84,5.8,2.98,21.24-6.54,42.53-11.01,64.51-14.27,2.52-.34,3.89-2.94,2.97-5.55-1.95-5.51-2.93-8.25-4.92-13.73-.86-2.32-3.15-3.85-5.5-3.59ZM100.62,33.37c-33.61,4.29-66.35,12.6-97.39,26.34-2.26,1.07-3.62,3.92-3.14,6.43,1.22,6.42,1.83,9.64,3.07,16.07.53,2.75,3.1,4.02,5.63,2.78,31.53-14.45,64.84-23.64,99.01-29.12,2.17-.36,3.28-2.85,2.45-5.41-1.72-5.32-2.59-7.98-4.37-13.27-.81-2.46-3.04-4.11-5.26-3.82ZM100.22,69.19c-20.99,4.56-41.51,10.05-61.83,17.03-2.58.95-4.03,3.66-3.35,6.17,1.62,5.96,2.42,8.95,4.06,14.93.77,2.81,3.93,4.25,6.83,3.14,20.31-7.28,40.83-13.63,61.79-18.73,2.01-.49,3-2.85,2.26-5.28-1.65-5.37-2.48-8.05-4.18-13.39-.83-2.63-3.27-4.35-5.58-3.87Z"/></svg>`;
 import { router, useLocalSearchParams } from "expo-router";
@@ -32,7 +38,7 @@ import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneI
 import { useInitiateTopUp, useMyBracelets, usePseBanks, useSavedCards, useSaveCard, type SavedCard } from "@/hooks/useAttendeeApi";
 import { useTokenizeCard } from "@/hooks/useEventsApi";
 
-type DigitalMethod = "nequi" | "pse" | "card" | "bancolombia_transfer";
+type DigitalMethod = "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia";
 type LegalIdType = "CC" | "CE" | "NIT" | "PP" | "TI";
 
 type CardBrand = "visa" | "mastercard" | "amex" | null;
@@ -179,8 +185,10 @@ export default function TopUpScreen() {
   const canSubmit =
     effectiveAmount >= 1000 &&
     braceletUid.length > 0 &&
-    (method === "nequi"
+    (method === "nequi" || method === "daviplata"
       ? phoneNumber.replace(/\D/g, "").length === 10
+      : method === "puntoscolombia"
+      ? phoneNumber.replace(/\D/g, "").length === 10 && legalId.trim().length >= 5
       : method === "pse"
       ? selectedBank !== null && legalId.trim().length >= 5
       : method === "card"
@@ -197,8 +205,12 @@ export default function TopUpScreen() {
 
     let newCardData: typeof pendingCardSave = null;
 
-    if (method === "nequi") {
+    if (method === "nequi" || method === "daviplata") {
       body.phoneNumber = phoneNumber.replace(/\D/g, "");
+    } else if (method === "puntoscolombia") {
+      body.phoneNumber = phoneNumber.replace(/\D/g, "");
+      body.userLegalIdType = legalIdType;
+      body.userLegalId = legalId.trim();
     } else if (method === "pse") {
       body.bankCode = selectedBank!.code;
       body.userLegalIdType = legalIdType;
@@ -493,9 +505,11 @@ export default function TopUpScreen() {
           <View style={styles.methodGrid}>
             {([
               { id: "nequi", icon: "smartphone", label: "Nequi" },
+              { id: "daviplata", icon: "smartphone", label: "Daviplata" },
               { id: "pse", icon: "globe", label: "PSE" },
               { id: "card", icon: "credit-card", label: t("tickets.creditCard") },
               { id: "bancolombia_transfer", icon: "repeat", label: "Bancolombia" },
+              { id: "puntoscolombia", icon: "star", label: "Puntos Col." },
             ] as { id: DigitalMethod; icon: string; label: string }[]).map((m) => (
               <Pressable
                 key={m.id}
@@ -517,6 +531,18 @@ export default function TopUpScreen() {
                 ) : m.id === "bancolombia_transfer" ? (
                   <SvgXml
                     xml={bancolombiaXml(method === m.id ? C.primary : C.textSecondary)}
+                    width={20}
+                    height={20}
+                  />
+                ) : m.id === "daviplata" ? (
+                  <SvgXml
+                    xml={daviplataXml(method === m.id ? C.primary : C.textSecondary)}
+                    width={20}
+                    height={20}
+                  />
+                ) : m.id === "puntoscolombia" ? (
+                  <SvgXml
+                    xml={puntosColombiaXml(method === m.id ? C.primary : C.textSecondary)}
                     width={20}
                     height={20}
                   />
@@ -549,6 +575,85 @@ export default function TopUpScreen() {
               country={phoneCountry}
               onCountryChange={setPhoneCountry}
               placeholder={t("topUp.nequiPlaceholder")}
+            />
+          </Card>
+        )}
+
+        {method === "daviplata" && (
+          <Card style={{ gap: 10 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              NÚMERO DAVIPLATA
+            </Text>
+            <Text style={[styles.hintText, { color: C.textSecondary }]}>
+              Recibirás una notificación en tu app Daviplata para aprobar el pago.
+            </Text>
+            <PhoneInput
+              number={phoneNumber}
+              onNumberChange={setPhoneNumber}
+              country={phoneCountry}
+              onCountryChange={setPhoneCountry}
+              placeholder="Número celular Daviplata"
+            />
+          </Card>
+        )}
+
+        {method === "puntoscolombia" && (
+          <Card style={{ gap: 10 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              PUNTOS COLOMBIA
+            </Text>
+            <Text style={[styles.hintText, { color: C.textSecondary }]}>
+              Recibirás una notificación en tu app Puntos Colombia para aprobar el pago.
+            </Text>
+            <PhoneInput
+              number={phoneNumber}
+              onNumberChange={setPhoneNumber}
+              country={phoneCountry}
+              onCountryChange={setPhoneCountry}
+              placeholder="Número celular registrado"
+            />
+            <Text style={[styles.sectionLabel, { color: C.textSecondary, marginTop: 8 }]}>
+              DOCUMENTO DE IDENTIDAD
+            </Text>
+            <Pressable
+              onPress={() => setShowLegalIdTypePicker(!showLegalIdTypePicker)}
+              style={[styles.bankSelector, { backgroundColor: C.inputBg, borderColor: C.border }]}
+            >
+              <Text style={{ color: C.text, flex: 1, fontFamily: "Inter_400Regular" }}>
+                {LEGAL_ID_TYPES.find(t => t.code === legalIdType)?.label ?? "Cédula de Ciudadanía"}
+              </Text>
+              <Feather name={showLegalIdTypePicker ? "chevron-up" : "chevron-down"} size={18} color={C.textSecondary} />
+            </Pressable>
+            {showLegalIdTypePicker && (
+              <View style={[styles.bankList, { backgroundColor: C.card, borderColor: C.border }]}>
+                {LEGAL_ID_TYPES.map((idType) => (
+                  <Pressable
+                    key={idType.code}
+                    onPress={() => { setLegalIdType(idType.code); setShowLegalIdTypePicker(false); }}
+                    style={[
+                      styles.bankItem,
+                      {
+                        backgroundColor: legalIdType === idType.code ? C.primaryLight : "transparent",
+                        borderBottomColor: C.separator,
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: C.text, fontFamily: "Inter_400Regular" }}>{idType.label}</Text>
+                    {legalIdType === idType.code && <Feather name="check" size={16} color={C.primary} />}
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            <TextInput
+              style={[styles.input, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
+              placeholder="Número de documento"
+              placeholderTextColor={C.textMuted}
+              value={legalId}
+              onChangeText={(v) => setLegalId(v.replace(/[^0-9a-zA-Z\-]/g, ""))}
+              keyboardType="default"
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={20}
             />
           </Card>
         )}

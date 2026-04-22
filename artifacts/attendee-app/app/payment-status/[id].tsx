@@ -104,7 +104,7 @@ export default function PaymentStatusScreen() {
     if (status === "success") return t("paymentStatus.successMsg");
     if (status === "failed" || isError) return t("paymentStatus.failedMsg");
     if (timedOut) return t("paymentStatus.timeoutMsg");
-    if (paymentMethod === "nequi") return t("paymentStatus.nequiPending");
+    if (paymentMethod === "nequi" || paymentMethod === "daviplata" || paymentMethod === "puntoscolombia") return t("paymentStatus.nequiPending");
     return t("paymentStatus.psePending");
   };
 

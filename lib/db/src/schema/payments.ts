@@ -7,6 +7,8 @@ export const wompiPaymentMethodEnum = pgEnum("wompi_payment_method", [
   "pse",
   "card",
   "bancolombia_transfer",
+  "daviplata",
+  "puntoscolombia",
 ]);
 
 export const wompiPaymentStatusEnum = pgEnum("wompi_payment_status", [

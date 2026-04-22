@@ -178,7 +178,7 @@ export function useInitiateTopUp() {
     mutationFn: (data: {
       braceletUid: string;
       amount: number;
-      paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer";
+      paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia";
       phoneNumber?: string;
       bankCode?: string;
       userLegalIdType?: string;

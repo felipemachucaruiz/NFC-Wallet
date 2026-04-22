@@ -53,7 +53,7 @@ async function fetchWompiTokens(): Promise<{ acceptanceToken: string; personalAu
 const initiatePaymentSchema = z.object({
   braceletUid: z.string().min(1),
   amount: z.number().int().min(1000),
-  paymentMethod: z.enum(["nequi", "pse", "card", "bancolombia_transfer"]),
+  paymentMethod: z.enum(["nequi", "pse", "card", "bancolombia_transfer", "daviplata", "puntoscolombia"]),
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
   userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
@@ -87,6 +87,18 @@ router.post(
 
     if (paymentMethod === "nequi" && !phoneNumber) {
       res.status(400).json({ error: "phoneNumber is required for Nequi payments" });
+      return;
+    }
+    if (paymentMethod === "daviplata" && !phoneNumber) {
+      res.status(400).json({ error: "phoneNumber is required for Daviplata payments" });
+      return;
+    }
+    if (paymentMethod === "puntoscolombia" && !phoneNumber) {
+      res.status(400).json({ error: "phoneNumber is required for Puntos Colombia payments" });
+      return;
+    }
+    if (paymentMethod === "puntoscolombia" && !userLegalId) {
+      res.status(400).json({ error: "userLegalId is required for Puntos Colombia payments" });
       return;
     }
     if (paymentMethod === "pse" && !bankCode) {
@@ -216,6 +228,34 @@ router.post(
           acceptance_token: acceptanceToken,
           acceptance_personal_auth_token: personalAuthToken,
           redirect_url: `${process.env.APP_URL ?? "https://attendee.tapee.app"}/payment-return`,
+        };
+      } else if (paymentMethod === "daviplata") {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "DAVIPLATA",
+            phone_number: phoneNumber,
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
+        };
+      } else if (paymentMethod === "puntoscolombia") {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "PUNTOS_COLOMBIA",
+            phone_number: phoneNumber,
+            identification_type: userLegalIdType ?? "CC",
+            identification_number: userLegalId!,
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
         };
       } else {
         wompiBody = {
