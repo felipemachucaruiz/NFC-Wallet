@@ -616,12 +616,14 @@ export default function TopUpScreen() {
             <Text style={[styles.hintText, { color: C.textSecondary }]}>
               Recibirás una notificación en tu app Puntos Colombia para aprobar el pago.
             </Text>
-            <PhoneInput
-              number={phoneNumber}
-              onNumberChange={setPhoneNumber}
-              country={phoneCountry}
-              onCountryChange={setPhoneCountry}
-              placeholder="Número celular registrado"
+            <TextInput
+              style={[styles.input, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
+              placeholder="Número celular (10 dígitos)"
+              placeholderTextColor={C.textMuted}
+              value={phoneNumber}
+              onChangeText={(v) => setPhoneNumber(v.replace(/\D/g, "").slice(0, 10))}
+              keyboardType="phone-pad"
+              maxLength={10}
             />
             <Text style={[styles.sectionLabel, { color: C.textSecondary, marginTop: 8 }]}>
               DOCUMENTO DE IDENTIDAD

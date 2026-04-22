@@ -566,7 +566,7 @@ router.post(
           currency: "COP",
           customer_email: customerEmail,
           payment_method: {
-            type: "PUNTOS_COLOMBIA",
+            type: "PCOL",
             phone_number: `+57${(phoneNumber ?? "").replace(/\D/g, "").replace(/^57/, "")}`,
             identification_type: userLegalIdType ?? "CC",
             identification_number: userLegalId ?? "",
