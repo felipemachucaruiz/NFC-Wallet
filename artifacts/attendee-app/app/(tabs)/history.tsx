@@ -1,11 +1,13 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Platform,
+  Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -29,6 +31,8 @@ type TxItem = {
   newBalance: number;
   merchantName: string | null;
   locationName: string | null;
+  eventId: string | null;
+  eventName: string | null;
   lineItems: Array<{ name: string; quantity: number; unitPrice: number }>;
   createdAt: string;
   refundStatus?: "pending" | "approved" | "rejected" | null;
@@ -45,6 +49,7 @@ export default function HistoryScreen() {
   const [pages, setPages] = useState<TxItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null | undefined>(undefined);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const { data: initialData, isLoading, refetch, isRefetching } = useMyTransactions();
   const { data: braceletData } = useMyBracelets();
@@ -60,6 +65,21 @@ export default function HistoryScreen() {
   const cursor = pages.length > 0 ? nextCursor : initialNextCursor;
 
   const { refetch: fetchNextPage } = useMyTransactions(cursor ?? undefined);
+
+  const events = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const tx of allTransactions) {
+      if (tx.eventId && tx.eventName && !map.has(tx.eventId)) {
+        map.set(tx.eventId, tx.eventName);
+      }
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [allTransactions]);
+
+  const filteredTransactions = useMemo(() => {
+    if (!selectedEventId) return allTransactions;
+    return allTransactions.filter((tx) => tx.eventId === selectedEventId);
+  }, [allTransactions, selectedEventId]);
 
   const handleLoadMore = useCallback(async () => {
     if (!cursor || loadingMore) return;
@@ -82,6 +102,7 @@ export default function HistoryScreen() {
   const handleRefresh = useCallback(async () => {
     setPages([]);
     setNextCursor(undefined);
+    setSelectedEventId(null);
     await refetch();
   }, [refetch]);
 
@@ -90,7 +111,7 @@ export default function HistoryScreen() {
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <FlatList
-        data={allTransactions}
+        data={filteredTransactions}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{
           padding: 16,
@@ -113,6 +134,46 @@ export default function HistoryScreen() {
                 </Text>
               </View>
             )}
+            {events.length > 1 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginTop: 4 }}
+                contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+              >
+                <Pressable
+                  onPress={() => setSelectedEventId(null)}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: selectedEventId === null ? C.primary : C.inputBg,
+                      borderColor: selectedEventId === null ? C.primary : C.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.filterChipText, { color: selectedEventId === null ? "#fff" : C.textSecondary }]}>
+                    Todos
+                  </Text>
+                </Pressable>
+                {events.map((ev) => (
+                  <Pressable
+                    key={ev.id}
+                    onPress={() => setSelectedEventId(ev.id === selectedEventId ? null : ev.id)}
+                    style={[
+                      styles.filterChip,
+                      {
+                        backgroundColor: selectedEventId === ev.id ? C.primary : C.inputBg,
+                        borderColor: selectedEventId === ev.id ? C.primary : C.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.filterChipText, { color: selectedEventId === ev.id ? "#fff" : C.textSecondary }]}>
+                      {ev.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
           </View>
         )}
         ListEmptyComponent={() => (
@@ -131,7 +192,7 @@ export default function HistoryScreen() {
             <Text style={[styles.endText, { color: C.textMuted }]}>{t("common.endOfList")}</Text>
           ) : null
         }
-        renderItem={({ item }) => <TxCard tx={item} C={C} t={t} />}
+        renderItem={({ item }) => <TxCard tx={item} C={C} t={t} showEvent={selectedEventId === null && events.length > 1} />}
       />
     </View>
   );
@@ -195,10 +256,12 @@ function TxCard({
   tx,
   C,
   t,
+  showEvent,
 }: {
   tx: TxItem;
   C: typeof Colors.dark;
   t: (k: string) => string;
+  showEvent: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = txConfig(tx, C, t);
@@ -214,6 +277,11 @@ function TxCard({
             <Text style={[styles.txType, { color: C.text }]}>{cfg.label}</Text>
             {tx.locationName && (
               <Text style={[styles.txLocation, { color: C.textMuted }]}>{tx.locationName}</Text>
+            )}
+            {showEvent && tx.eventName && (
+              <Text style={[styles.txEvent, { color: C.primary }]}>
+                <Feather name="calendar" size={10} color={C.primary} /> {tx.eventName}
+              </Text>
             )}
             <Text style={[styles.txDate, { color: C.textMuted }]}>{formatDateTime(tx.createdAt)}</Text>
           </View>
@@ -252,11 +320,19 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: 24, fontFamily: "Inter_700Bold" },
   balancePill: { alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100 },
   balancePillText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 100,
+    borderWidth: 1,
+  },
+  filterChipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   txCard: { borderRadius: 14, borderWidth: 1, padding: 14 },
   txRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   txIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   txType: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   txLocation: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  txEvent: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 2 },
   txDate: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   txRight: { alignItems: "flex-end", gap: 4 },
   lineItems: { borderTopWidth: 1, marginTop: 12, paddingTop: 10, gap: 6 },
