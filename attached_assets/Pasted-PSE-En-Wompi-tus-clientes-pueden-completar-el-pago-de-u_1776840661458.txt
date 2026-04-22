@@ -1,0 +1,69 @@
+PSE
+En Wompi, tus clientes pueden completar el pago de una transacción usando su cuenta de ahorros o corriente de cualquier banco colombiano, a través de PSE. El nombre del método de pago que debes usar al crear la transacción es PSE.
+
+Al usar el tipo de método de pago PSE debes tener en cuenta lo siguiente:
+
+Debes obtener primero una lista de instituciones financieras usando nuestro API, en el endpoint GET /v1/pse/financial_institutions
+Tu cliente debe escoger en qué institución (banco) quiere realizar el pago
+Tu cliente debe especificar el tipo de persona que es: natural (0) o jurídica (1).
+Tu cliente debe especificar su tipo y número de documento
+Tu cliente debe especificar su nombre completo
+Tu cliente debe especificar una cuenta de correo electrónico
+Tu cliente debe especificar un número de teléfono
+Finalmente debes especificar la descripción de lo que tu cliente está pagando, máximo 64 caracteres
+Luego de que tu cliente haya escogido una institución financiera, usa su código (code) como el identificador que vas a enviar al crear la transacción. Así, los campos de método de pago de una nueva transacción tipo PSE deben ser similares a los siguientes:
+
+{
+  "customer_email": "cliente@example.com",
+  "payment_method": {
+    "type": "PSE",
+    "user_type": 0, // Tipo de persona, natural (0) o jurídica (1)
+    "user_legal_id_type": "CC", // Tipo de documento, CC o NIT
+    "user_legal_id": "1099888777", // Número de documento
+    "financial_institution_code": "1", // Código (`code`) de la institución financiera
+    "payment_description": "Pago a Tienda Wompi, ref: JD38USJW2XPLQA" // Descripción de lo que está pagando. Máximo 64 caracteres
+  },
+  "customer_data": {
+    "phone_number": "573145678901",
+    "full_name": "Nombre(s) Apellido(s)"
+  }
+  // Otros campos de la transacción a crear...
+}
+
+
+A tener en cuenta: Con el fin de mitigar el fraude en el servicio PSE, se han definido acciones adicionales que deben ser implementadas por todas las empresas vinculadas a la categoría de Servicios Financieros. Entre estas acciones se encuentra la inclusión de tres campos obligatorios en la trama transaccional, relacionados con la dirección IP del usuario, la fecha de apertura del producto y la identificación del beneficiario.
+
+De cumplir con la descripción anterior se recomienda enviar el objeto payment_method con los campos reference_one, reference_two, reference_three
+
+{
+  // Otros campos de la transacción...
+  "payment_method": {
+    "type": "PSE",
+    "user_type": 0,
+    "user_legal_id_type": "CC",
+    "user_legal_id": "1999888777",
+    "financial_institution_code": "1",
+    "payment_description": "Pago a Tienda Wompi",
+    "reference_one": "192.168.0.1", // Dirección IP del cliente pagador, en caso de no enviarla se tomará la ip de origen de la petición
+    "reference_two": "20240101",    // Fecha de apertura del producto en formato yyyymmdd
+    "reference_three": "123456"   // Número de documento del beneficiario del producto financiero
+  }
+}
+
+
+Al crear la transacción, debes consultarla continuamente (long polling) hasta que ésta contenga un campo llamado async_payment_url dentro de un objeto extra, que estará dentro de la propiedad payment_method. Una vez la obtengas, debes redireccionar a tu cliente a esta URL para que complete el pago en la respectiva institución financiera (banco). El campo que debes esperar de la transacción se vería como el siguiente:
+
+{
+  "payment_method": {
+    // Otros campos del payment_method
+    "extra": {
+      "async_payment_url": "https://..." // URL para redireccionar al cliente
+    }
+  }
+  // Otros campos de la transacción...
+}
+
+Al finalizarse el proceso de pago a través de PSE, éste redireccionará a la redirect_url que hayas especificado originalmente en la transacción, para que puedas verificar el resultado de la transacción, nuevamente con un long polling hasta obtener un status final.
+
+Por último, recuerda siempre verificar periódicamente el estado de una transacción en Wompi desde tu sistema usando el ID de transacción y nuestro API, con el endpoint GET /v1/transactions/<ID_DE_TRANSACCION>
+
