@@ -1052,7 +1052,7 @@ const styles = StyleSheet.create({
     gap: 8,
     width: "48%",
   },
-  methodLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  methodLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   savedCardBtn: {
     flexDirection: "row",
     alignItems: "center",
