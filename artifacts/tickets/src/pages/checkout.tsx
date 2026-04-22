@@ -562,7 +562,7 @@ export default function Checkout() {
                     >
                       <CardBrandLogo brand={card.brand as CardBrand} className="h-6 w-auto" />
                       <span className="text-sm font-medium flex-1">
-                        {card.alias ? `${card.alias} · ` : ""}{brandLabel(card.brand)} •••• {card.lastFour}
+                        {card.alias || brandLabel(card.brand)} •••• {card.lastFour}
                       </span>
                       {selectedSavedCardId === card.id && !showNewCardForm && (
                         <Check className="w-4 h-4 text-primary shrink-0" />

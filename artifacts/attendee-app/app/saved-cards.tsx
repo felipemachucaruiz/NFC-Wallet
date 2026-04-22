@@ -154,7 +154,7 @@ export default function SavedCardsScreen() {
                   <CardLogo brand={card.brand} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.cardTitle, { color: C.text }]}>
-                      {card.alias ? `${card.alias} · ` : ""}{brandLabel(card.brand)} •••• {card.lastFour}
+                      {card.alias || brandLabel(card.brand)} •••• {card.lastFour}
                     </Text>
                     <Text style={[styles.cardSub, { color: C.textSecondary }]}>
                       {card.cardHolderName} · {card.expiryMonth}/{card.expiryYear}

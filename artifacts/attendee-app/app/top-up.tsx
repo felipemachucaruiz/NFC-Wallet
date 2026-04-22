@@ -803,7 +803,7 @@ export default function TopUpScreen() {
               >
                 <Feather name="credit-card" size={18} color={selectedSavedCardId === card.id && !showNewCardForm ? C.primary : C.textSecondary} />
                 <Text style={[styles.savedCardText, { color: selectedSavedCardId === card.id && !showNewCardForm ? C.primary : C.text }]}>
-                  {card.alias ? `${card.alias} · ` : ""}{card.brand.toUpperCase()} •••• {card.lastFour}
+                  {card.alias || card.brand.toUpperCase()} •••• {card.lastFour}
                 </Text>
                 {selectedSavedCardId === card.id && !showNewCardForm && (
                   <Feather name="check" size={16} color={C.primary} />
