@@ -181,6 +181,8 @@ export function useInitiateTopUp() {
       paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia";
       phoneNumber?: string;
       bankCode?: string;
+      pseUserType?: 0 | 1;
+      pseEmail?: string;
       userLegalIdType?: string;
       userLegalId?: string;
       cardToken?: string;

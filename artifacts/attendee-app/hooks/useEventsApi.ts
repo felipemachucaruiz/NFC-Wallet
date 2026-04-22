@@ -315,6 +315,8 @@ export function usePurchaseTickets() {
       paymentMethod: PaymentMethod;
       phoneNumber?: string;
       bankCode?: string;
+      pseUserType?: 0 | 1;
+      pseEmail?: string;
       userLegalIdType?: string;
       userLegalId?: string;
       cardToken?: string;

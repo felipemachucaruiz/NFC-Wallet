@@ -103,6 +103,7 @@ const createOrderSchema = z.object({
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
   pseUserType: z.number().int().min(0).max(1).optional(),
+  pseEmail: z.string().email().max(254).optional(),
   userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
   userLegalId: z.string().max(20).optional(),
   installments: z.number().int().min(1).max(36).optional(),
@@ -130,7 +131,7 @@ router.post(
       return;
     }
 
-    const { eventId, unitSelections, paymentMethod, savedCardId, phoneNumber, bankCode, pseUserType, userLegalIdType, userLegalId, installments, turnstileToken, browserInfo } = parsed.data;
+    const { eventId, unitSelections, paymentMethod, savedCardId, phoneNumber, bankCode, pseUserType, pseEmail, userLegalIdType, userLegalId, installments, turnstileToken, browserInfo } = parsed.data;
     let { cardToken } = parsed.data;
 
     // Normalize legacy `tickets` format (old app versions) → `attendees` format
@@ -590,10 +591,11 @@ router.post(
           redirect_url: `${process.env.APP_URL ?? "https://tickets.tapee.app"}/payment-return`,
         };
       } else {
+        const pseCustomerEmail = pseEmail ?? customerEmail;
         wompiBody = {
           amount_in_cents: amountCentavos,
           currency: "COP",
-          customer_email: customerEmail,
+          customer_email: pseCustomerEmail,
           payment_method: {
             type: "PSE",
             user_type: pseUserType ?? 0,
@@ -603,7 +605,7 @@ router.post(
             payment_description: `Entrada ${event.name}`.slice(0, 64),
           },
           customer_data: {
-            full_name: buyerName || customerEmail,
+            full_name: buyerName || pseCustomerEmail,
             phone_number: phoneNumber ?? "",
           },
           reference,

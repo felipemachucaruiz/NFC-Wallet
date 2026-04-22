@@ -167,6 +167,7 @@ export default function Checkout() {
   const [pseBanksLoading, setPseBanksLoading] = useState(false);
   const [pseUserType, setPseUserType] = useState<"0" | "1">("0");
   const [psePhone, setPsePhone] = useState("");
+  const [pseEmail, setPseEmail] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
@@ -317,7 +318,7 @@ export default function Checkout() {
     if (paymentMethod === "nequi") return /^\d{10}$/.test(nequiPhone.replace(/\s/g, ""));
     if (paymentMethod === "daviplata") return /^\d{10}$/.test(daviplataPhone.replace(/\s/g, ""));
     if (paymentMethod === "puntoscolombia") return /^\d{10}$/.test(puntosPhone.replace(/\s/g, "")) && puntosLegalId.trim().length >= 5;
-    if (paymentMethod === "pse") return pseBank.length > 0 && pseLegalId.length > 0 && /^\d{7,15}$/.test(psePhone.replace(/\s/g, ""));
+    if (paymentMethod === "pse") return pseBank.length > 0 && pseLegalId.length > 0 && /^\d{7,15}$/.test(psePhone.replace(/\s/g, "")) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pseEmail.trim());
     if (paymentMethod === "card") {
       if (selectedSavedCardId && !showNewCardForm) return true;
       return cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0;
@@ -362,6 +363,7 @@ export default function Checkout() {
         purchaseData.userLegalIdType = pseLegalIdType;
         purchaseData.phoneNumber = psePhone.replace(/\s/g, "");
         purchaseData.pseUserType = parseInt(pseUserType, 10) as 0 | 1;
+        purchaseData.pseEmail = pseEmail.trim();
       } else if (paymentMethod === "card") {
         purchaseData.browserInfo = {
           browser_color_depth: String(window.screen.colorDepth ?? 24),
@@ -714,6 +716,19 @@ export default function Checkout() {
                       maxLength={15}
                       disabled={processing}
                     />
+                  </div>
+                  <div>
+                    <Label>Correo electrónico</Label>
+                    <Input
+                      type="email"
+                      inputMode="email"
+                      value={pseEmail}
+                      onChange={(e) => setPseEmail(e.target.value)}
+                      placeholder="tucorreo@ejemplo.com"
+                      className="mt-1"
+                      disabled={processing}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">PSE enviará el enlace de pago a este correo.</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>

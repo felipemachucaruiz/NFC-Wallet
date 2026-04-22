@@ -269,6 +269,7 @@ export interface PurchaseRequest {
   phoneNumber?: string;
   bankCode?: string;
   pseUserType?: 0 | 1;
+  pseEmail?: string;
   userLegalIdType?: "CC" | "CE" | "NIT" | "PP" | "TI";
   userLegalId?: string;
   cardToken?: string;

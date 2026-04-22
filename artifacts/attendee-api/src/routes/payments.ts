@@ -65,6 +65,8 @@ const initiatePaymentSchema = z.object({
   paymentMethod: z.enum(["nequi", "pse", "card", "bancolombia_transfer", "daviplata", "puntoscolombia"]),
   phoneNumber: z.string().optional(),
   bankCode: z.string().optional(),
+  pseUserType: z.number().int().min(0).max(1).optional(),
+  pseEmail: z.string().email().max(254).optional(),
   userLegalIdType: z.enum(["CC", "CE", "NIT", "PP", "TI"]).optional(),
   userLegalId: z.string().max(20).optional(),
   cardToken: z.string().optional(),
@@ -92,7 +94,7 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const { braceletUid, amount, paymentMethod, phoneNumber, bankCode, userLegalIdType, userLegalId, savedCardId, installments, browserInfo } = parsed.data;
+    const { braceletUid, amount, paymentMethod, phoneNumber, bankCode, pseUserType, pseEmail, userLegalIdType, userLegalId, savedCardId, installments, browserInfo } = parsed.data;
     let { cardToken } = parsed.data;
 
     if (paymentMethod === "nequi" && !phoneNumber) {
@@ -285,13 +287,14 @@ router.post(
           acceptance_personal_auth_token: personalAuthToken,
         };
       } else {
+        const pseCustomerEmail = pseEmail ?? customerEmail;
         wompiBody = {
           amount_in_cents: amountCentavos,
           currency: "COP",
-          customer_email: customerEmail,
+          customer_email: pseCustomerEmail,
           payment_method: {
             type: "PSE",
-            user_type: 0,
+            user_type: pseUserType ?? 0,
             user_legal_id_type: userLegalIdType ?? "CC",
             user_legal_id: userLegalId!,
             financial_institution_code: bankCode,

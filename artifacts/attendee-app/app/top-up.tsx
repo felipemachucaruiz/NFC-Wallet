@@ -139,6 +139,9 @@ export default function TopUpScreen() {
   const [legalIdType, setLegalIdType] = useState<LegalIdType>("CC");
   const [legalId, setLegalId] = useState("");
   const [showLegalIdTypePicker, setShowLegalIdTypePicker] = useState(false);
+  const [pseUserType, setPseUserType] = useState<0 | 1>(0);
+  const [showPseUserTypePicker, setShowPseUserTypePicker] = useState(false);
+  const [pseEmail, setPseEmail] = useState("");
 
   const { data: pseBanksRaw, isPending: pseBanksLoading, isError: pseBanksError, refetch: refetchPseBanks } = usePseBanks();
   const pseBanks = (pseBanksRaw ?? []).map((b) => ({
@@ -195,7 +198,7 @@ export default function TopUpScreen() {
       : method === "puntoscolombia"
       ? phoneNumber.replace(/\D/g, "").length === 10 && legalId.trim().length >= 5
       : method === "pse"
-      ? selectedBank !== null && legalId.trim().length >= 5
+      ? selectedBank !== null && legalId.trim().length >= 5 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pseEmail.trim())
       : method === "card"
       ? (selectedSavedCardId !== null && !showNewCardForm) || (cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= (detectCardBrand(cardNumber) === "amex" ? 4 : 3) && cardHolder.trim().length > 0)
       : true);
@@ -220,6 +223,8 @@ export default function TopUpScreen() {
       body.bankCode = selectedBank!.code;
       body.userLegalIdType = legalIdType;
       body.userLegalId = legalId.trim();
+      body.pseUserType = pseUserType;
+      body.pseEmail = pseEmail.trim();
     } else if (method === "card") {
       body.browserInfo = collectBrowserInfo();
       if (selectedSavedCardId && !showNewCardForm) {
@@ -667,6 +672,33 @@ export default function TopUpScreen() {
         {method === "pse" && (
           <Card style={{ gap: 10 }}>
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              TIPO DE PERSONA
+            </Text>
+            <Pressable
+              onPress={() => setShowPseUserTypePicker(!showPseUserTypePicker)}
+              style={[styles.bankSelector, { backgroundColor: C.inputBg, borderColor: C.border }]}
+            >
+              <Text style={{ color: C.text, flex: 1, fontFamily: "Inter_400Regular" }}>
+                {pseUserType === 0 ? "Persona natural" : "Persona jurídica"}
+              </Text>
+              <Feather name={showPseUserTypePicker ? "chevron-up" : "chevron-down"} size={18} color={C.textSecondary} />
+            </Pressable>
+            {showPseUserTypePicker && (
+              <View style={[styles.bankList, { backgroundColor: C.card, borderColor: C.border }]}>
+                {([{ label: "Persona natural", value: 0 }, { label: "Persona jurídica", value: 1 }] as const).map((opt) => (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => { setPseUserType(opt.value as 0 | 1); setShowPseUserTypePicker(false); }}
+                    style={[styles.bankItem, { backgroundColor: pseUserType === opt.value ? C.primaryLight : "transparent", borderBottomColor: C.separator }]}
+                  >
+                    <Text style={{ color: C.text, fontFamily: "Inter_400Regular" }}>{opt.label}</Text>
+                    {pseUserType === opt.value && <Feather name="check" size={16} color={C.primary} />}
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            <Text style={[styles.sectionLabel, { color: C.textSecondary, marginTop: 8 }]}>
               {t("topUp.pseBank").toUpperCase()}
             </Text>
             <Text style={[styles.hintText, { color: C.textSecondary }]}>
@@ -770,6 +802,23 @@ export default function TopUpScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               maxLength={20}
+            />
+
+            <Text style={[styles.sectionLabel, { color: C.textSecondary, marginTop: 8 }]}>
+              CORREO ELECTRÓNICO
+            </Text>
+            <Text style={[styles.hintText, { color: C.textSecondary }]}>
+              PSE enviará el enlace de pago a este correo.
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: C.inputBg, borderColor: C.border, color: C.text }]}
+              placeholder="tucorreo@ejemplo.com"
+              placeholderTextColor={C.textMuted}
+              value={pseEmail}
+              onChangeText={setPseEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
             />
           </Card>
         )}
