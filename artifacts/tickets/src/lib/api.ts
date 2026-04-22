@@ -265,7 +265,7 @@ export interface PurchaseRequest {
   eventId: string;
   attendees: { name: string; email: string; phone?: string; dateOfBirth?: string; sex?: "male" | "female"; idDocument?: string; ticketTypeId: string }[];
   unitSelections?: { ticketTypeId: string; unitId: string }[];
-  paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "free";
+  paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia" | "free";
   phoneNumber?: string;
   bankCode?: string;
   userLegalIdType?: "CC" | "CE" | "NIT" | "PP" | "TI";

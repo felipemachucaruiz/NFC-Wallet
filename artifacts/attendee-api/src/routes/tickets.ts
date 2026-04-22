@@ -97,7 +97,7 @@ const createOrderSchema = z.object({
     ticketTypeId: z.string().min(1),
     unitId: z.string().min(1),
   })).optional(),
-  paymentMethod: z.enum(["card", "nequi", "pse", "bancolombia_transfer", "free"]),
+  paymentMethod: z.enum(["card", "nequi", "pse", "bancolombia_transfer", "daviplata", "puntoscolombia", "free"]),
   cardToken: z.string().optional(),
   savedCardId: z.string().optional(),
   phoneNumber: z.string().optional(),
@@ -540,6 +540,34 @@ router.post(
           payment_method: {
             type: "NEQUI",
             phone_number: phoneNumber,
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
+        };
+      } else if (paymentMethod === "daviplata") {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "DAVIPLATA",
+            phone_number: `+57${(phoneNumber ?? "").replace(/\D/g, "").replace(/^57/, "")}`,
+          },
+          reference,
+          acceptance_token: acceptanceToken,
+          acceptance_personal_auth_token: personalAuthToken,
+        };
+      } else if (paymentMethod === "puntoscolombia") {
+        wompiBody = {
+          amount_in_cents: amountCentavos,
+          currency: "COP",
+          customer_email: customerEmail,
+          payment_method: {
+            type: "PUNTOS_COLOMBIA",
+            phone_number: `+57${(phoneNumber ?? "").replace(/\D/g, "").replace(/^57/, "")}`,
+            identification_type: userLegalIdType ?? "CC",
+            identification_number: userLegalId ?? "",
           },
           reference,
           acceptance_token: acceptanceToken,

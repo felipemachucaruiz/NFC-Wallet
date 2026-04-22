@@ -19,6 +19,22 @@ function BancolombiaIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+function DaviplataIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="currentColor">
+      <path d="M8,4h10c9.94,0,16,5.8,16,16s-6.06,16-16,16H8V4Zm5,5v22h5c6.62,0,11-4.1,11-11S24.62,9,18,9H13Z"/>
+    </svg>
+  );
+}
+
+function PuntosColombiaIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="currentColor">
+      <path d="M20,2l4.5,9.1L35,12.7l-7.5,7.3,1.8,10.3L20,25.1l-9.3,5.2,1.8-10.3L5,12.7l10.5-1.6Z"/>
+    </svg>
+  );
+}
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
@@ -125,7 +141,7 @@ export default function Checkout() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
   const [data, setData] = useState<CheckoutData | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"nequi" | "pse" | "card" | "bancolombia_transfer">("nequi");
+  const [paymentMethod, setPaymentMethod] = useState<"nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia">("nequi");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -136,6 +152,10 @@ export default function Checkout() {
   const [pseBank, setPseBank] = useState("");
   const [pseLegalId, setPseLegalId] = useState("");
   const [pseLegalIdType, setPseLegalIdType] = useState<"CC" | "CE" | "NIT" | "PP" | "TI">("CC");
+  const [daviplataPhone, setDaviplataPhone] = useState("");
+  const [puntosPhone, setPuntosPhone] = useState("");
+  const [puntosLegalId, setPuntosLegalId] = useState("");
+  const [puntosLegalIdType, setPuntosLegalIdType] = useState<"CC" | "CE" | "NIT" | "PP" | "TI">("CC");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
@@ -275,6 +295,8 @@ export default function Checkout() {
 
   const isPaymentValid = () => {
     if (paymentMethod === "nequi") return /^\d{10}$/.test(nequiPhone.replace(/\s/g, ""));
+    if (paymentMethod === "daviplata") return /^\d{10}$/.test(daviplataPhone.replace(/\s/g, ""));
+    if (paymentMethod === "puntoscolombia") return /^\d{10}$/.test(puntosPhone.replace(/\s/g, "")) && puntosLegalId.trim().length >= 5;
     if (paymentMethod === "pse") return pseBank.length > 0 && pseLegalId.length > 0;
     if (paymentMethod === "card") {
       if (selectedSavedCardId && !showNewCardForm) return true;
@@ -308,6 +330,12 @@ export default function Checkout() {
 
       if (paymentMethod === "nequi") {
         purchaseData.phoneNumber = nequiPhone.replace(/\s/g, "");
+      } else if (paymentMethod === "daviplata") {
+        purchaseData.phoneNumber = daviplataPhone.replace(/\s/g, "");
+      } else if (paymentMethod === "puntoscolombia") {
+        purchaseData.phoneNumber = puntosPhone.replace(/\s/g, "");
+        purchaseData.userLegalIdType = puntosLegalIdType;
+        purchaseData.userLegalId = puntosLegalId.trim();
       } else if (paymentMethod === "pse") {
         purchaseData.bankCode = pseBank;
         purchaseData.userLegalId = pseLegalId;
@@ -454,6 +482,8 @@ export default function Checkout() {
     { id: "pse" as const, icon: Building2, label: t("checkout.pse") },
     { id: "card" as const, icon: CreditCard, label: t("checkout.card") },
     { id: "bancolombia_transfer" as const, icon: null, label: "Bancolombia" },
+    { id: "daviplata" as const, icon: null, label: "Daviplata" },
+    { id: "puntoscolombia" as const, icon: null, label: "Puntos Colombia" },
   ];
 
   return (
@@ -541,7 +571,7 @@ export default function Checkout() {
                     onClick={() => setPaymentMethod(m.id)}
                     disabled={processing}
                   >
-                    {m.id === "nequi" ? <NequiIcon className="w-5 h-5" /> : m.id === "bancolombia_transfer" ? <BancolombiaIcon className="w-5 h-5" /> : m.icon ? <m.icon className="w-5 h-5" /> : null}
+                    {m.id === "nequi" ? <NequiIcon className="w-5 h-5" /> : m.id === "bancolombia_transfer" ? <BancolombiaIcon className="w-5 h-5" /> : m.id === "daviplata" ? <DaviplataIcon className="w-5 h-5" /> : m.id === "puntoscolombia" ? <PuntosColombiaIcon className="w-5 h-5" /> : m.icon ? <m.icon className="w-5 h-5" /> : null}
                     <span className="text-sm font-medium">{m.label}</span>
                     {paymentMethod === m.id && <Check className="w-4 h-4 text-primary ml-auto" />}
                   </button>
@@ -560,6 +590,66 @@ export default function Checkout() {
                     disabled={processing}
                   />
                   <p className="text-xs text-muted-foreground">Ingresa tu número de teléfono Nequi (10 dígitos)</p>
+                </div>
+              )}
+
+              {paymentMethod === "daviplata" && (
+                <div className="space-y-2">
+                  <Label>Número Daviplata</Label>
+                  <Input
+                    type="tel"
+                    value={daviplataPhone}
+                    onChange={(e) => setDaviplataPhone(e.target.value)}
+                    placeholder="3001234567"
+                    maxLength={10}
+                    disabled={processing}
+                  />
+                  <p className="text-xs text-muted-foreground">Recibirás una notificación en tu app Daviplata para aprobar el pago.</p>
+                </div>
+              )}
+
+              {paymentMethod === "puntoscolombia" && (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Número celular Puntos Colombia</Label>
+                    <Input
+                      type="tel"
+                      value={puntosPhone}
+                      onChange={(e) => setPuntosPhone(e.target.value)}
+                      placeholder="3001234567"
+                      maxLength={10}
+                      disabled={processing}
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Recibirás una notificación en tu app Puntos Colombia para aprobar el pago.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Tipo de documento</Label>
+                      <Select value={puntosLegalIdType} onValueChange={(v) => setPuntosLegalIdType(v as "CC" | "CE" | "NIT" | "PP" | "TI")} disabled={processing}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
+                          <SelectItem value="CE">Cédula de Extranjería</SelectItem>
+                          <SelectItem value="NIT">NIT</SelectItem>
+                          <SelectItem value="PP">Pasaporte</SelectItem>
+                          <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Número de documento</Label>
+                      <Input
+                        value={puntosLegalId}
+                        onChange={(e) => setPuntosLegalId(e.target.value)}
+                        placeholder="123456789"
+                        disabled={processing}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 

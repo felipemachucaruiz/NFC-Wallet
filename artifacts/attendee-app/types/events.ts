@@ -107,7 +107,7 @@ export interface OrderSummary {
   currencyCode: string;
 }
 
-export type PaymentMethod = "nequi" | "pse" | "card" | "bancolombia_transfer" | "free";
+export type PaymentMethod = "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia" | "free";
 
 export interface TicketPurchaseResult {
   orderId: string;
