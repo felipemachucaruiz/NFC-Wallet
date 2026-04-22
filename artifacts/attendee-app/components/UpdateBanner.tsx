@@ -1,24 +1,15 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Updates from "expo-updates";
 
-/**
- * Floating banner that:
- * 1. Checks for an OTA update on mount (and then every 5 min).
- * 2. Downloads it silently.
- * 3. Shows a banner asking the user to restart once the download is done.
- *
- * Only active in production builds (__DEV__ === false).
- */
 export function UpdateBanner() {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(80)).current;
 
   const { isUpdatePending, isDownloading, isChecking } = Updates.useUpdates();
 
-  // Check + download on mount and every 5 minutes
   useEffect(() => {
     if (__DEV__) return;
     const run = async () => {
@@ -34,6 +25,15 @@ export function UpdateBanner() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (__DEV__) return;
+    if (!isUpdatePending) return;
+    const timer = setTimeout(() => {
+      Updates.reloadAsync().catch(() => {});
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [isUpdatePending]);
+
   const isVisible = !__DEV__ && (isUpdatePending || isDownloading || isChecking);
 
   useEffect(() => {
@@ -47,13 +47,17 @@ export function UpdateBanner() {
 
   if (__DEV__) return null;
 
-  const label = isDownloading || isChecking
-    ? "Descargando actualización…"
-    : "Actualización lista — toca para reiniciar";
+  const label = isUpdatePending
+    ? "Aplicando actualización…"
+    : isDownloading
+      ? "Descargando actualización…"
+      : "Buscando actualizaciones…";
 
-  const icon: "download-cloud" | "refresh-cw" = isDownloading || isChecking
-    ? "download-cloud"
-    : "refresh-cw";
+  const icon: "refresh-cw" | "download-cloud" | "search" = isUpdatePending
+    ? "refresh-cw"
+    : isDownloading
+      ? "download-cloud"
+      : "search";
 
   return (
     <Animated.View
@@ -61,20 +65,17 @@ export function UpdateBanner() {
         styles.wrapper,
         { bottom: insets.bottom + 8, transform: [{ translateY: slideAnim }] },
       ]}
-      pointerEvents={isUpdatePending ? "auto" : "none"}
+      pointerEvents="none"
     >
-      <Pressable
-        onPress={() => { if (isUpdatePending) Updates.reloadAsync().catch(() => {}); }}
-        style={({ pressed }) => [styles.banner, pressed && styles.bannerPressed]}
-      >
+      <View style={styles.banner}>
         <Feather name={icon} size={16} color="#fff" />
         <Text style={styles.label}>{label}</Text>
         {isUpdatePending && (
           <View style={styles.pill}>
-            <Text style={styles.pillText}>REINICIAR</Text>
+            <Text style={styles.pillText}>REINICIANDO</Text>
           </View>
         )}
-      </Pressable>
+      </View>
     </Animated.View>
   );
 }
@@ -101,9 +102,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
-  },
-  bannerPressed: {
-    opacity: 0.8,
   },
   label: {
     flex: 1,
