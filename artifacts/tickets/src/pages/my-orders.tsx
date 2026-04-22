@@ -15,15 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { fetchMyOrders, fetchOrderDownloadLink, resolveImageUrl, type ApiOrder } from "@/lib/api";
-
-function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("es-CO", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount / 100);
-}
+import { formatPrice } from "@/lib/format";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   card: "Tarjeta",
@@ -174,7 +166,7 @@ function OrderCard({ order }: { order: ApiOrder }) {
         {/* Amount + status */}
         <div className="shrink-0 text-right flex flex-col items-end gap-1">
           <span className="text-sm font-bold text-white">
-            {formatCurrency(order.totalAmount, order.currencyCode)}
+            {formatPrice(order.totalAmount, order.currencyCode)}
           </span>
           <Badge className={`text-[10px] px-1.5 py-0 ${statusStyle}`}>{statusLabel}</Badge>
         </div>
@@ -243,7 +235,7 @@ function OrderCard({ order }: { order: ApiOrder }) {
                 {t("myOrders.total", "Total pagado")}
               </p>
               <p className="text-xs font-bold text-white">
-                {formatCurrency(order.totalAmount, order.currencyCode)}
+                {formatPrice(order.totalAmount, order.currencyCode)}
               </p>
             </div>
           </div>
