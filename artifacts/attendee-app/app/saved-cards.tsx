@@ -1,20 +1,9 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  Image,
-} from "react-native";
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { Card } from "@/components/ui/Card";
@@ -49,7 +38,7 @@ function brandLabel(brand: string): string {
 function CardLogo({ brand }: { brand: string }) {
   const b = detectBrand(brand);
   if (!b) return <Feather name="credit-card" size={28} color="#888" />;
-  return <Image source={CARD_LOGOS[b]} style={{ width: 44, height: 28 }} resizeMode="contain" />;
+  return <Image source={CARD_LOGOS[b]} style={{ width: 44, height: 28 }} contentFit="contain" />;
 }
 
 export default function SavedCardsScreen() {

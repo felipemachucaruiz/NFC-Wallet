@@ -1,16 +1,9 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import {
-  Image,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useAnimatedStyle,
@@ -138,7 +131,7 @@ function ZoomableMap({
               <Image
                 source={{ uri: floorplanImageUrl }}
                 style={mapStyles.floorplanImage}
-                resizeMode="contain"
+                contentFit="contain"
               />
             )}
             {!hasFloorplan && (

@@ -1,22 +1,9 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -26,7 +13,7 @@ import { Empty } from "@/components/ui/Empty";
 import { useMyTickets, useTransferTicket, useAddToWallet } from "@/hooks/useEventsApi";
 import QRCode from "react-native-qrcode-svg";
 import { useAlert } from "@/components/CustomAlert";
-import { Linking } from "react-native";
+import { Linking } from 'react-native';
 import type { MyTicket } from "@/types/events";
 
 const appleWalletBadge = require("@/assets/images/apple-wallet-badge.png");
@@ -72,7 +59,7 @@ function TicketCard({ ticket, onPress, archived }: { ticket: MyTicket; onPress: 
     >
       <View style={styles.ticketImageWrap}>
         {ticket.eventCoverImageUrl ? (
-          <Image source={{ uri: ticket.eventCoverImageUrl }} style={styles.ticketCoverImage} resizeMode="cover" />
+          <Image source={{ uri: ticket.eventCoverImageUrl }} style={styles.ticketCoverImage} contentFit="cover" />
         ) : (
           <View style={[styles.ticketCoverImage, { backgroundColor: C.inputBg, alignItems: "center", justifyContent: "center" }]}>
             <Feather name="tag" size={32} color={C.textMuted} />
@@ -255,7 +242,7 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                     <Image
                       source={{ uri: ticket.eventCoverImageUrl }}
                       style={styles.flyerImage}
-                      resizeMode="cover"
+                      contentFit="cover"
                     />
                   ) : (
                     <View style={[styles.flyerImage, { backgroundColor: "#1a1a2e", alignItems: "center", justifyContent: "center" }]}>
@@ -361,7 +348,7 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                     <Image
                       source={isIOS ? appleWalletBadge : googleWalletBadge}
                       style={styles.walletBadgeImg}
-                      resizeMode="contain"
+                      contentFit="contain"
                     />
                   )}
                 </Pressable>

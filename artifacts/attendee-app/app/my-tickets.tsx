@@ -1,17 +1,9 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
-import {
-  FlatList,
-  Image,
-  Platform,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -52,7 +44,7 @@ function TicketCard({ ticket }: { ticket: MyTicket }) {
     >
       <View style={styles.ticketCardRow}>
         {ticket.eventCoverImageUrl ? (
-          <Image source={{ uri: ticket.eventCoverImageUrl }} style={styles.ticketThumb} resizeMode="cover" />
+          <Image source={{ uri: ticket.eventCoverImageUrl }} style={styles.ticketThumb} contentFit="cover" />
         ) : (
           <View style={[styles.ticketThumb, { backgroundColor: C.inputBg, alignItems: "center", justifyContent: "center" }]}>
             <Feather name="tag" size={20} color={C.textMuted} />

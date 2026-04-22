@@ -1,20 +1,10 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  AppState,
-  AppStateStatus,
-  Image,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { AppState, AppStateStatus, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -359,7 +349,7 @@ export default function HomeScreen() {
                       <Image
                         source={NFC_TAG_IMAGE}
                         style={styles.nfcTagImage}
-                        resizeMode="contain"
+                        contentFit="contain"
                       />
                       <View style={styles.nfcTagOverlay}>
                         <Text style={styles.nfcTagUid}>{b.uid.replace(/:/g, "")}</Text>

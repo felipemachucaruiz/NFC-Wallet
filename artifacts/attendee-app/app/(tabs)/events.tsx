@@ -1,20 +1,10 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import {
-  FlatList,
-  Image,
-  ImageBackground,
-  Platform,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -53,12 +43,14 @@ function EventCard({ event }: { event: EventListItem }) {
       onPress={() => router.push({ pathname: "/event-detail", params: { eventId: event.id } })}
     >
       {event.coverImageUrl ? (
-        <ImageBackground
-          source={{ uri: event.coverImageUrl }}
-          style={styles.cardHero}
-          resizeMode="cover"
-          blurRadius={1}
-        >
+        <View style={styles.cardHero}>
+          <Image
+            source={{ uri: event.coverImageUrl }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            contentFit="cover"
+            blurRadius={1}
+            cachePolicy="disk"
+          />
           <View style={styles.scrim} />
           <LinearGradient
             colors={["transparent", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.92)"]}
@@ -69,7 +61,7 @@ function EventCard({ event }: { event: EventListItem }) {
             <Image
               source={{ uri: event.flyerImageUrl }}
               style={styles.flyerSquare}
-              resizeMode="cover"
+              contentFit="cover"
             />
           )}
 
@@ -106,7 +98,7 @@ function EventCard({ event }: { event: EventListItem }) {
               )}
             </View>
           </View>
-        </ImageBackground>
+        </View>
       ) : (
         <View style={[styles.cardHero, { backgroundColor: C.inputBg }]}>
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>

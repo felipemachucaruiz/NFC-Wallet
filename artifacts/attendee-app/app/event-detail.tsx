@@ -1,19 +1,10 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import {
-  Image,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -127,7 +118,7 @@ export default function EventDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         <View style={styles.heroWrap}>
           {event.coverImageUrl ? (
-            <Image source={{ uri: event.coverImageUrl }} style={styles.heroImage} resizeMode="cover" />
+            <Image source={{ uri: event.coverImageUrl }} style={styles.heroImage} contentFit="cover" />
           ) : (
             <View style={[styles.heroImage, { backgroundColor: C.inputBg }]} />
           )}
@@ -171,7 +162,7 @@ export default function EventDetailScreen() {
                 <Image
                   source={{ uri: event.flyerImageUrl }}
                   style={styles.flyerThumb}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
                 <LinearGradient
                   colors={["transparent", C.background]}
@@ -307,7 +298,7 @@ export default function EventDetailScreen() {
             <Image
               source={{ uri: event.flyerImageUrl }}
               style={styles.flyerFullImage}
-              resizeMode="contain"
+              contentFit="contain"
             />
           )}
         </View>

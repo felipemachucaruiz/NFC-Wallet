@@ -1,9 +1,10 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
-import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -195,7 +196,7 @@ export default function TicketPaymentStatusScreen() {
           <Image
             source={{ uri: MASTERCARD_LOGO }}
             style={{ width: 60, height: 37 }}
-            resizeMode="contain"
+            contentFit="contain"
           />
           <Text
             style={{

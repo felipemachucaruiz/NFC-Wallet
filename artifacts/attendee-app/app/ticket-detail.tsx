@@ -1,21 +1,9 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import QRCode from "react-native-qrcode-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -213,7 +201,7 @@ export default function TicketDetailScreen() {
               <Image
                 source={{ uri: ticket.eventCoverImageUrl }}
                 style={styles.heroImage}
-                resizeMode="cover"
+                contentFit="cover"
               />
             ) : (
               <View style={[styles.heroImage, { backgroundColor: dominantColor }]}>
@@ -379,7 +367,7 @@ export default function TicketDetailScreen() {
               <Image
                 source={isIOS ? appleWalletBadge : googleWalletBadge}
                 style={styles.walletBadgeImg}
-                resizeMode="contain"
+                contentFit="contain"
               />
             )}
           </Pressable>
