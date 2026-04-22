@@ -239,7 +239,7 @@ router.post(
           three_ds_auth_type: "challenge_v2",
           customer_data: {
             full_name: buyerFullName,
-            phone_number: phoneNumber ?? "",
+            phone_number: phoneNumber || userRecord?.phone || "0000000000",
             browser_info: effectiveBrowserInfo,
           },
         };
@@ -302,7 +302,7 @@ router.post(
           },
           customer_data: {
             full_name: buyerFullName,
-            phone_number: phoneNumber ?? "",
+            phone_number: phoneNumber || userRecord?.phone || "0000000000",
           },
           reference,
           acceptance_token: acceptanceToken,
