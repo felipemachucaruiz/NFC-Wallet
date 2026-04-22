@@ -30,8 +30,22 @@ function DaviplataIcon({ className }: { className?: string }) {
 
 function PuntosColombiaIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="currentColor">
-      <path d="M20,2l4.5,9.1L35,12.7l-7.5,7.3,1.8,10.3L20,25.1l-9.3,5.2,1.8-10.3L5,12.7l10.5-1.6Z"/>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" viewBox="0 0 89 32">
+      <defs>
+        <clipPath id="pc-clip">
+          <rect width="88.87" height="32"/>
+        </clipPath>
+      </defs>
+      <g clipPath="url(#pc-clip)">
+        <path fill="#5e00cc" d="M13.9,0C6.33-.14.13,5.88,0,13.39h0v17.81c0,.44.36.8.8.8h6.66c.44,0,.8-.36.8-.8v-4.49c0-.26.26-.43.5-.34,1.51.58,3.16.9,4.87.9,7.59,0,13.74-6.21,13.63-13.83C27.16,6.12,21.21.14,13.9,0Z"/>
+        <path fill="#fff" d="M9.01,18.79c-1.2-1.28-1.79-3-1.79-5.16s.61-3.87,1.84-5.16c1.22-1.28,2.89-1.92,4.99-1.92,1.64,0,3,.47,4.09,1.4,1.08.94,1.71,2.17,1.9,3.69h-3.02c-.36-1.58-1.5-2.57-3.12-2.57-1.12,0-1.99.42-2.64,1.25-.65.85-.98,1.94-.98,3.31s.32,2.45.96,3.3c.64.85,1.52,1.26,2.62,1.26,1.66,0,2.8-.97,3.16-2.57h3c-.17,1.53-.81,2.75-1.92,3.68-1.12.94-2.53,1.41-4.22,1.41-2.05,0-3.67-.64-4.86-1.92Z"/>
+        <path fill="#fff" d="M36.47,4.43h-4.92v12.99h2.78v-3.99h2.13c2.93,0,4.86-1.76,4.86-4.49s-1.93-4.51-4.86-4.51h0ZM36.21,11.12h-1.88v-4.36h1.88c1.41,0,2.32.84,2.32,2.19s-.91,2.17-2.32,2.17Z"/>
+        <path fill="#fff" d="M48.87,12.99c0,1.6-.56,2.38-1.86,2.38s-1.86-.78-1.86-2.38v-5.1h-2.62v5.1c0,3.38,1.82,4.53,4.47,4.53s4.47-1.15,4.47-4.53v-5.1h-2.62v5.1h0Z"/>
+        <path fill="#fff" d="M58.21,7.77c-1.47,0-2.34.56-2.95,1.31l-.24-1.2h-2.28v9.54h2.62v-4.88c0-1.65.78-2.62,2.13-2.62s1.93.85,1.93,2.47v5.03h2.62v-5.29c0-3.27-1.76-4.36-3.82-4.36h0Z"/>
+        <path fill="#fff" d="M66.71,14.27v-4.18h2.19v-2.21h-2.19v-2.67h-2.62v2.67h-1.58v2.21h1.58v4.6c0,1.82.91,2.73,2.73,2.73h2.13v-2.21h-1.3c-.69,0-.95-.28-.95-.95Z"/>
+        <path fill="#fff" d="M74.41,17.61c-1.53,0-2.75-.45-3.67-1.35-.92-.89-1.38-2.08-1.38-3.55s.46-2.66,1.38-3.56c.92-.9,2.14-1.35,3.67-1.35s2.76.45,3.68,1.35c.92.9,1.38,2.09,1.38,3.56s-.46,2.67-1.38,3.56c-.92.89-2.15,1.34-3.68,1.34ZM74.41,15.47c.73,0,1.31-.25,1.75-.76.43-.51.65-1.17.65-1.99s-.22-1.48-.65-1.99c-.44-.51-1.02-.77-1.75-.77s-1.3.26-1.73.77c-.43.51-.64,1.17-.64,1.99s.21,1.48.64,1.99c.43.51,1,.76,1.73.76Z"/>
+        <path fill="#fff" d="M84.86,11.56c-1.37-.17-2.19-.24-2.19-.97,0-.61.67-.98,1.69-.98s1.78.46,1.86,1.23h2.51c-.13-1.95-1.89-3.08-4.45-3.08-2.45-.02-4.1,1.23-4.1,3.12s1.73,2.47,3.95,2.73c1.54.2,2.19.26,2.19,1.04,0,.67-.67,1.02-1.76,1.02-1.28,0-2-.58-2.1-1.41h-2.49c.11,2.04,1.91,3.29,4.57,3.29s4.34-1.21,4.34-3.1c0-2.15-1.82-2.65-4.01-2.88h0Z"/>
+      </g>
     </svg>
   );
 }
@@ -571,7 +585,7 @@ export default function Checkout() {
                     onClick={() => setPaymentMethod(m.id)}
                     disabled={processing}
                   >
-                    {m.id === "nequi" ? <NequiIcon className="w-5 h-5" /> : m.id === "bancolombia_transfer" ? <BancolombiaIcon className="w-5 h-5" /> : m.id === "daviplata" ? <DaviplataIcon className="w-5 h-5" /> : m.id === "puntoscolombia" ? <PuntosColombiaIcon className="w-5 h-5" /> : m.icon ? <m.icon className="w-5 h-5" /> : null}
+                    {m.id === "nequi" ? <NequiIcon className="w-5 h-5" /> : m.id === "bancolombia_transfer" ? <BancolombiaIcon className="w-5 h-5" /> : m.id === "daviplata" ? <DaviplataIcon className="w-5 h-5" /> : m.id === "puntoscolombia" ? <PuntosColombiaIcon className="h-4 w-auto" /> : m.icon ? <m.icon className="w-5 h-5" /> : null}
                     <span className="text-sm font-medium">{m.label}</span>
                     {paymentMethod === m.id && <Check className="w-4 h-4 text-primary ml-auto" />}
                   </button>
