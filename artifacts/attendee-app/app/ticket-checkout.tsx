@@ -159,8 +159,8 @@ export default function TicketCheckoutScreen() {
   const { mutateAsync: tokenizeCard, isPending: isTokenizing } = useTokenizeCard();
 
   const canSubmit = () => {
-    if (method === "nequi" || method === "daviplata") return phoneNumber.replace(/\D/g, "").length === 10;
-    if (method === "puntoscolombia") return phoneNumber.replace(/\D/g, "").length === 10 && legalId.trim().length >= 5;
+    if (method === "nequi" || method === "daviplata") return phoneNumber.replace(/\D/g, "").length >= 10;
+    if (method === "puntoscolombia") return phoneNumber.replace(/\D/g, "").length >= 10 && legalId.trim().length >= 5;
     if (method === "pse") return selectedBank !== null && legalId.trim().length >= 5 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pseEmail.trim());
     if (method === "card") return cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0;
     if (method === "bancolombia_transfer") return true;
@@ -302,7 +302,7 @@ export default function TicketCheckoutScreen() {
             ] as { id: PaymentMethod; icon: string; label: string }[]).map((m) => (
               <Pressable
                 key={m.id}
-                onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); setShowLegalIdTypePicker(false); }}
+                onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); setShowLegalIdTypePicker(false); setPhoneNumber(""); }}
                 style={[
                   styles.methodBtn,
                   {

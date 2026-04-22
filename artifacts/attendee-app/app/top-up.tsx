@@ -194,9 +194,9 @@ export default function TopUpScreen() {
     effectiveAmount >= 1000 &&
     braceletUid.length > 0 &&
     (method === "nequi" || method === "daviplata"
-      ? phoneNumber.replace(/\D/g, "").length === 10
+      ? phoneNumber.replace(/\D/g, "").length >= 10
       : method === "puntoscolombia"
-      ? phoneNumber.replace(/\D/g, "").length === 10 && legalId.trim().length >= 5
+      ? phoneNumber.replace(/\D/g, "").length >= 10 && legalId.trim().length >= 5
       : method === "pse"
       ? selectedBank !== null && legalId.trim().length >= 5 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pseEmail.trim())
       : method === "card"
@@ -524,7 +524,7 @@ export default function TopUpScreen() {
             ] as { id: DigitalMethod; icon: string; label: string }[]).map((m) => (
               <Pressable
                 key={m.id}
-                onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); }}
+                onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); setPhoneNumber(""); }}
                 style={[
                   styles.methodBtn,
                   {
