@@ -649,7 +649,7 @@ router.post(
           return;
         }
 
-        if (intent.status === "pending") {
+        if (intent.status === "pending" || intent.status === "expired") {
           if (intent.purposeType === "ticket" && intent.ticketOrderId) {
             await processTicketOrderPayment(intent.ticketOrderId, txData.id);
           } else if (intent.selfService) {
@@ -664,7 +664,7 @@ router.post(
           .from(wompiPaymentIntentsTable)
           .where(eq(wompiPaymentIntentsTable.wompiTransactionId, txData.id));
 
-        if (intent && intent.status === "pending") {
+        if (intent && (intent.status === "pending" || intent.status === "expired")) {
           if (intent.purposeType === "ticket" && intent.ticketOrderId) {
             await cancelTicketOrder(intent.ticketOrderId);
           } else {
