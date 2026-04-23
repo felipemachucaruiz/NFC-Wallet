@@ -613,9 +613,10 @@ router.post(
       return;
     }
 
-    if (body.environment === "test" && process.env.NODE_ENV === "production") {
-      console.warn("Rejecting test-mode Wompi webhook in production");
-      res.status(400).json({ error: "Test webhooks are not accepted in production" });
+    const isProductionWompiKey = WOMPI_PUBLIC_KEY.startsWith("pub_prod_");
+    if (body.environment === "test" && isProductionWompiKey) {
+      console.warn("Rejecting test-mode Wompi webhook when using production keys");
+      res.status(400).json({ error: "Test webhooks are not accepted with production keys" });
       return;
     }
 
