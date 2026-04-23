@@ -1,4 +1,5 @@
 import { useState } from "react";
+import TapeeLogo from "@/components/TapeeLogo";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Globe, User, Ticket, LogOut, ShoppingBag } from "lucide-react";
@@ -31,11 +32,7 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
-              <img
-                src={`${import.meta.env.BASE_URL}tapee-logo.svg`}
-                alt="Tapee"
-                className="h-12"
-              />
+              <TapeeLogo className="h-12" />
             </Link>
 
             <nav className="hidden md:flex items-center gap-1">
