@@ -223,6 +223,7 @@ router.post(
           browser_tz: "-300",
         };
         const effectiveBrowserInfo = browserInfo ?? defaultBrowserInfo;
+        const useThreeDs = WOMPI_PUBLIC_KEY.startsWith("pub_prod_");
         wompiBody = {
           amount_in_cents: amountCentavos,
           currency: "COP",
@@ -235,12 +236,11 @@ router.post(
           reference,
           acceptance_token: acceptanceToken,
           acceptance_personal_auth_token: personalAuthToken,
-          is_three_ds: true,
-          three_ds_auth_type: "challenge_v2",
+          ...(useThreeDs ? { is_three_ds: true, three_ds_auth_type: "challenge_v2" } : {}),
           customer_data: {
             full_name: buyerFullName,
             phone_number: phoneNumber || userRecord?.phone || "0000000000",
-            browser_info: effectiveBrowserInfo,
+            ...(useThreeDs ? { browser_info: effectiveBrowserInfo } : {}),
           },
         };
       } else if (paymentMethod === "bancolombia_transfer") {
