@@ -1,5 +1,5 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { Image } from 'expo-image';
+import { TapeeLogo } from "@/components/TapeeLogo";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -150,10 +150,9 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.logoSection}>
-          <Image
-            source={require("@/assets/images/tapee-logo.png")}
-            style={styles.wordmark}
-            contentFit="contain"
+          <TapeeLogo
+            width={Math.min(SCREEN_W * 0.78, 300)}
+            height={Math.min(SCREEN_W * 0.78, 300) / (941.47 / 350.31)}
           />
           <Text style={styles.appSubtitle}>{t("auth.subtitle")}</Text>
         </View>
@@ -374,7 +373,7 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     width: Math.min(SCREEN_W * 0.78, 300),
-    height: Math.min(SCREEN_W * 0.78, 300) / (1199 / 435),
+    height: Math.min(SCREEN_W * 0.78, 300) / (941.47 / 350.31),
   },
   appSubtitle: {
     fontSize: 12,

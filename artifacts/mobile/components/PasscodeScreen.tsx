@@ -2,11 +2,12 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
-const LOGO = require("../assets/images/tapee-logo.png");
+import { TapeeLogo } from "./TapeeLogo";
+
 const PAD_KEYS = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
 const CODE_LENGTH = 4;
 
@@ -33,7 +34,7 @@ export function PasscodeScreen({ mode, onSuccess, onCancel, title, subtitle }: P
   const cardGap = compact ? 12 : 20;
   const cardPadV = compact ? 16 : 28;
   const logoH = compact ? 36 : 56;
-  const logoW = compact ? 103 : 160;
+  const logoW = Math.round(logoH * (941.47 / 350.31));
   const titleSize = compact ? 17 : 20;
 
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -84,7 +85,7 @@ export function PasscodeScreen({ mode, onSuccess, onCancel, title, subtitle }: P
 
       <View style={[styles.overlay, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={[styles.card, { gap: cardGap, paddingVertical: cardPadV }]}>
-          <Image source={LOGO} style={{ width: logoW, height: logoH }} resizeMode="contain" />
+          <TapeeLogo width={logoW} height={logoH} />
 
           <View style={styles.textBlock}>
             <Text style={[styles.titleText, { fontSize: titleSize }]}>

@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src={`${import.meta.env.BASE_URL}tapee-logo.png`} alt="Tapee" className="h-14 mx-auto mb-4" />
+          <img src={`${import.meta.env.BASE_URL}tapee-logo.svg`} alt="Tapee" className="h-14 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-foreground">{t("forgotPassword.title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>
         </div>

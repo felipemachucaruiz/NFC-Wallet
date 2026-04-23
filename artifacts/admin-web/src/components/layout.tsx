@@ -88,7 +88,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex bg-background text-foreground">
       <aside className="w-64 border-r border-border bg-sidebar flex flex-col">
         <div className="p-5 border-b border-border">
-          <img src={`${import.meta.env.BASE_URL}tapee-logo.png`} alt="Tapee" className="h-8 mb-2" />
+          <img src={`${import.meta.env.BASE_URL}tapee-logo.svg`} alt="Tapee" className="h-8 mb-2" />
           <p className="text-xs text-primary/80 uppercase tracking-wider font-semibold">
             {isGlobalAdmin ? t("nav.globalCommand") : isTicketingAuditor ? "Auditoría" : t("nav.eventControl")}
           </p>

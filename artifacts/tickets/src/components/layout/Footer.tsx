@@ -31,7 +31,7 @@ export function Footer() {
           <div className="col-span-1 md:col-span-2">
             <div className="mb-4">
               <img
-                src={`${import.meta.env.BASE_URL}tapee-logo.png`}
+                src={`${import.meta.env.BASE_URL}tapee-logo.svg`}
                 alt="Tapee"
                 className="h-12"
               />

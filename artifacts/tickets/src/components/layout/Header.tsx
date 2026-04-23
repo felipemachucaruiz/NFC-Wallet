@@ -32,7 +32,7 @@ export function Header() {
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
               <img
-                src={`${import.meta.env.BASE_URL}tapee-logo.png`}
+                src={`${import.meta.env.BASE_URL}tapee-logo.svg`}
                 alt="Tapee"
                 className="h-12"
               />

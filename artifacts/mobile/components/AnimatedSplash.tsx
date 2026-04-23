@@ -11,15 +11,14 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
+import { TapeeLogo } from "./TapeeLogo";
 
 interface Props {
   onFinished: () => void;
 }
 
-const logo = require("../assets/images/tapee-logo.png");
-
 const LOGO_W = 260;
-const LOGO_H = LOGO_W / (1199 / 435);
+const LOGO_H = LOGO_W / (941.47 / 350.31);
 
 const GLOW_LAYERS = [
   { scaleMax: 1.10, opacityMax: 0.35, delay: 0 },
@@ -75,11 +74,9 @@ function GlowLayer({
   }));
 
   return (
-    <Animated.Image
-      source={logo}
-      style={[styles.glowLayer, style]}
-      resizeMode="contain"
-    />
+    <Animated.View style={[styles.glowLayer, style]}>
+      <TapeeLogo width={LOGO_W} height={LOGO_H} />
+    </Animated.View>
   );
 }
 
@@ -128,11 +125,9 @@ export function AnimatedSplash({ onFinished }: Props) {
           {GLOW_LAYERS.map((layer, i) => (
             <GlowLayer key={i} {...layer} />
           ))}
-          <Animated.Image
-            source={logo}
-            style={[styles.logo, logoStyle]}
-            resizeMode="contain"
-          />
+          <Animated.View style={[styles.logo, logoStyle]}>
+            <TapeeLogo width={LOGO_W} height={LOGO_H} />
+          </Animated.View>
         </View>
 
         <Animated.Text style={[styles.tagline, taglineStyle]}>
@@ -170,7 +165,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: LOGO_W,
     height: LOGO_H,
-    tintColor: "#00f1ff",
   },
   logo: {
     position: "absolute",

@@ -3,7 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -14,6 +14,7 @@ import { PasscodeScreen } from "@/components/PasscodeScreen";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Colors from "@/constants/colors";
+import { TapeeLogo } from "@/components/TapeeLogo";
 import { API_BASE_URL } from "@/constants/domain";
 
 export const LOCAL_SERVER_URL_KEY = "@tapee_local_server_url";
@@ -347,11 +348,9 @@ export default function LoginScreen() {
         >
           <View style={[styles.logoSection, isLandscape && styles.logoSectionLandscape]}>
             <Pressable onPress={handleLogoPress} hitSlop={12}>
-              <Image
-                source={require("@/assets/images/tapee-logo.png")}
-                style={[styles.logoImage, isLandscape && styles.logoImageLandscape]}
-                resizeMode="contain"
-              />
+              <View style={[styles.logoImage, isLandscape && styles.logoImageLandscape]}>
+                <TapeeLogo width="100%" height="100%" />
+              </View>
             </Pressable>
             <Text style={[styles.subtitle, { color: "rgba(255,255,255,0.65)" }]}>{t("auth.subtitle")}</Text>
           </View>
@@ -701,7 +700,7 @@ const styles = StyleSheet.create({
   innerLandscape: { flexDirection: "row", alignItems: "center", gap: 24, paddingVertical: 12 },
   logoSection: { alignItems: "center", gap: 8 },
   logoSectionLandscape: { width: "38%", alignItems: "center", justifyContent: "center", gap: 6 },
-  logoImage: { width: "78%", maxWidth: 300, aspectRatio: 1199 / 435 },
+  logoImage: { width: "78%", maxWidth: 300, aspectRatio: 941.47 / 350.31 },
   logoImageLandscape: { width: "85%", maxWidth: 200 },
   formLandscape: { flex: 1 },
   subtitle: { fontSize: 15, fontFamily: "Inter_400Regular", textAlign: "center" },
