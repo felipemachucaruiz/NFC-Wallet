@@ -34,6 +34,7 @@ export const eventsTable = pgTable("events", {
   bankPaymentMethods: jsonb("bank_payment_methods").$type<string[]>().notNull().default(sql`'["cash","card_external","nequi_transfer","bancolombia_transfer","other"]'::jsonb`),
   boxOfficePaymentMethods: jsonb("box_office_payment_methods").$type<string[]>().notNull().default(sql`'["gate_cash","gate_transfer","gate_card","gate_nequi"]'::jsonb`),
   bankMinTopup: integer("bank_min_topup").notNull().default(0),
+  braceletActivationFee: integer("bracelet_activation_fee").notNull().default(3000),
   ticketingEnabled: boolean("ticketing_enabled").notNull().default(false),
   nfcBraceletsEnabled: boolean("nfc_bracelets_enabled").notNull().default(true),
   salesChannel: varchar("sales_channel", { length: 20 }).notNull().default("both"),

@@ -131,9 +131,10 @@ router.post(
 
     // Closed-event guard: reject top-up if the bracelet's event is inactive or ended
     const effectiveEventIdForCheck = bracelet.eventId ?? bankEventId;
+    let activationFeeConfig = 3000;
     if (effectiveEventIdForCheck) {
       const [braceletEvent] = await db
-        .select({ active: eventsTable.active, endsAt: eventsTable.endsAt })
+        .select({ active: eventsTable.active, endsAt: eventsTable.endsAt, braceletActivationFee: eventsTable.braceletActivationFee })
         .from(eventsTable)
         .where(eq(eventsTable.id, effectiveEventIdForCheck));
       if (braceletEvent && !braceletEvent.active) {
@@ -144,10 +145,22 @@ router.post(
         res.status(400).json({ error: "EVENT_ENDED: Este evento ya ha finalizado. No se pueden procesar más recargas." });
         return;
       }
+      if (braceletEvent) activationFeeConfig = braceletEvent.braceletActivationFee;
+    }
+
+    // Activation fee: charged on the first top-up only
+    const isFirstActivation = !bracelet.activatedAt;
+    const activationFeeAmount = isFirstActivation ? activationFeeConfig : 0;
+    if (isFirstActivation && amount <= activationFeeAmount) {
+      res.status(400).json({
+        error: `ACTIVATION_FEE: El monto mínimo para la primera recarga es ${activationFeeAmount + 1} pesos (incluye ${activationFeeAmount} de activación del brazalete)`,
+      });
+      return;
     }
 
     const effectiveEventId = bracelet.eventId ?? bankEventId;
-    const newBalance = bracelet.lastKnownBalance + amount;
+    const braceletAmount = amount - activationFeeAmount;
+    const newBalance = bracelet.lastKnownBalance + braceletAmount;
     const newCounter = bracelet.lastCounter + 1;
 
     let hmac: string;
@@ -170,8 +183,9 @@ router.post(
         performedByUserId: req.user.id,
         wompiTransactionId,
         status: "completed",
-        newBalance: newBalance,
+        newBalance,
         newCounter,
+        activationFeeAmount,
       })
       .returning();
 
@@ -180,6 +194,7 @@ router.post(
       .set({
         lastKnownBalance: newBalance,
         lastCounter: newCounter,
+        activatedAt: bracelet.activatedAt ?? new Date(),
         pendingSync: false,
         pendingBalance: 0,
         pendingTopUpAmount: 0,
@@ -340,6 +355,23 @@ router.post(
       );
     }
 
+    // For offline syncs, the HMAC is already signed for the full amount on the NFC tag —
+    // we cannot adjust the balance retroactively. Record the activation fee for accounting
+    // purposes (promoter owes Tapee) without changing the bracelet's balance.
+    const isSyncFirstActivation = !bracelet.activatedAt;
+    let syncActivationFeeAmount = 0;
+    if (isSyncFirstActivation) {
+      const syncEffectiveEventId2 = bracelet.eventId ?? syncBankEventId;
+      syncActivationFeeAmount = 3000;
+      if (syncEffectiveEventId2) {
+        const [syncEvent] = await db
+          .select({ braceletActivationFee: eventsTable.braceletActivationFee })
+          .from(eventsTable)
+          .where(eq(eventsTable.id, syncEffectiveEventId2));
+        if (syncEvent) syncActivationFeeAmount = syncEvent.braceletActivationFee;
+      }
+    }
+
     const [topUp] = await db
       .insert(topUpsTable)
       .values({
@@ -349,8 +381,9 @@ router.post(
         paymentMethod,
         performedByUserId: req.user.id,
         status: "completed",
-        newBalance: newBalance,
+        newBalance,
         newCounter,
+        activationFeeAmount: syncActivationFeeAmount,
         syncedAt: new Date(),
         offlineCreatedAt: offlineCreatedAt ? new Date(offlineCreatedAt) : null,
       })
@@ -361,6 +394,7 @@ router.post(
       .set({
         lastKnownBalance: newBalance,
         lastCounter: newCounter,
+        activatedAt: bracelet.activatedAt ?? new Date(),
         pendingTopUpAmount: sql`GREATEST(${braceletsTable.pendingTopUpAmount} - ${amount}, 0)`,
         updatedAt: new Date(),
       })

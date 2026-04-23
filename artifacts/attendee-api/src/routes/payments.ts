@@ -510,7 +510,24 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
       bracelet = created;
     }
 
-    const newBalance = bracelet.lastKnownBalance + intent.amount;
+    // Activation fee: deducted from first top-up amount, recorded for settlement
+    const isFirstActivation = !bracelet.activatedAt;
+    let activationFeeAmount = 0;
+    if (isFirstActivation) {
+      activationFeeAmount = 3000; // default
+      if (bracelet.eventId) {
+        const [ev] = await tx
+          .select({ braceletActivationFee: eventsTable.braceletActivationFee })
+          .from(eventsTable)
+          .where(eq(eventsTable.id, bracelet.eventId));
+        if (ev) activationFeeAmount = ev.braceletActivationFee;
+      }
+      // If the paid amount doesn't cover the fee, don't charge it (edge case: very small topup)
+      if (intent.amount <= activationFeeAmount) activationFeeAmount = 0;
+    }
+
+    const braceletAmount = intent.amount - activationFeeAmount;
+    const newBalance = bracelet.lastKnownBalance + braceletAmount;
     const newCounter = bracelet.lastCounter + 1;
 
     const topUpPaymentMethod = intent.paymentMethod === "card" ? "card_external" as const : intent.paymentMethod;
@@ -523,14 +540,20 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
         performedByUserId: intent.performedByUserId ?? "self-service",
         wompiTransactionId,
         status: "completed",
-        newBalance: newBalance,
+        newBalance,
         newCounter,
+        activationFeeAmount,
       })
       .returning();
 
     await tx
       .update(braceletsTable)
-      .set({ lastKnownBalance: newBalance, lastCounter: newCounter, updatedAt: new Date() })
+      .set({
+        lastKnownBalance: newBalance,
+        lastCounter: newCounter,
+        activatedAt: bracelet.activatedAt ?? new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(braceletsTable.nfcUid, braceletUid));
 
     await tx
@@ -539,7 +562,7 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
       .where(eq(wompiPaymentIntentsTable.id, intentId));
 
     notifyBraceletUid = braceletUid;
-    notifyAmount = intent.amount;
+    notifyAmount = braceletAmount;
     notifyNewBalance = newBalance;
   });
 

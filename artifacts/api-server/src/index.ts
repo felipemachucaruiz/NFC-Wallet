@@ -881,6 +881,16 @@ async function runStartupMigrations(): Promise<void> {
       );
     `);
 
+    // ── Bracelet activation fee ───────────────────────────────────────────────
+    await client.query(`
+      ALTER TABLE bracelets
+        ADD COLUMN IF NOT EXISTS activated_at TIMESTAMPTZ;
+      ALTER TABLE top_ups
+        ADD COLUMN IF NOT EXISTS activation_fee_amount INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE events
+        ADD COLUMN IF NOT EXISTS bracelet_activation_fee INTEGER NOT NULL DEFAULT 3000;
+    `);
+
     logger.info("Startup migrations complete.");
   } finally {
     client.release();

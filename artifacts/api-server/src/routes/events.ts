@@ -1429,16 +1429,27 @@ router.get(
     const braceletUids = bracelets.map((b) => b.nfcUid);
     let totalTopUps = 0;
     let topUpCount = 0;
+    let totalActivationFees = 0;
+    let activatedBraceletCount = 0;
     if (braceletUids.length > 0) {
       const [topUpAgg] = await db
         .select({
           total: sum(topUpsTable.amount),
           cnt: count(),
+          fees: sum(topUpsTable.activationFeeAmount),
         })
         .from(topUpsTable)
         .where(inArray(topUpsTable.braceletUid, braceletUids));
       totalTopUps = Number(topUpAgg?.total ?? 0);
       topUpCount = Number(topUpAgg?.cnt ?? 0);
+      totalActivationFees = Number(topUpAgg?.fees ?? 0);
+    }
+    if (bracelets.length > 0) {
+      const [activatedAgg] = await db
+        .select({ cnt: count() })
+        .from(braceletsTable)
+        .where(and(eq(braceletsTable.eventId, eventId), sql`${braceletsTable.activatedAt} IS NOT NULL`));
+      activatedBraceletCount = Number(activatedAgg?.cnt ?? 0);
     }
 
     // Refund deductions (approved attendee refund requests)
@@ -1451,8 +1462,8 @@ router.get(
       ));
     const totalRefunds = Number(refundAgg?.total ?? 0);
 
-    // Net settlement owed to the promoter = gross sales - platform commissions - refunds
-    const netSettlement = totals.grossSales - totals.commissions - totalRefunds;
+    // Net settlement owed to the promoter = gross sales - platform commissions - refunds - activation fees
+    const netSettlement = totals.grossSales - totals.commissions - totalRefunds - totalActivationFees;
 
     if (format === "csv") {
       const header = "merchantId,merchantName,commissionRatePercent,grossSales,tips,commissions,netPayout,transactionCount\n";
@@ -1497,6 +1508,8 @@ router.get(
       totalTopUps,
       topUpCount,
       totalRefunds,
+      totalActivationFees,
+      activatedBraceletCount,
       netSettlement,
       braceletCount: bracelets.length,
     });

@@ -72,6 +72,7 @@ export const topUpsTable = pgTable("top_ups", {
   status: topUpStatusEnum("status").notNull().default("completed"),
   newBalance: integer("new_balance").notNull(),
   newCounter: integer("new_counter").notNull(),
+  activationFeeAmount: integer("activation_fee_amount").notNull().default(0),
   syncedAt: timestamp("synced_at", { withTimezone: true }),
   offlineCreatedAt: timestamp("offline_created_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

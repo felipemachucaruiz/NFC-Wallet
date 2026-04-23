@@ -24,6 +24,7 @@ export const braceletsTable = pgTable("bracelets", {
   pendingBalance: integer("pending_balance").notNull().default(0),
   pendingTopUpAmount: integer("pending_top_up_amount").notNull().default(0),
   accessZoneIds: text("access_zone_ids").array().notNull().default(sql`'{}'::text[]`),
+  activatedAt: timestamp("activated_at", { withTimezone: true }),
   registeredByUserId: varchar("registered_by_user_id").references(() => usersTable.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
