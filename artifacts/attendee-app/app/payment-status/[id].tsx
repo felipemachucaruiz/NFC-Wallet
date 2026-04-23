@@ -1,5 +1,4 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { usePaymentStatus } from "@/hooks/useAttendeeApi";
+import { MastercardIdCheckLogo } from "@/components/MastercardIdCheckLogo";
 
 type PaymentStatus = "pending" | "success" | "failed";
 
@@ -23,7 +23,6 @@ type ThreeDsAuth = {
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 150;
 
-const MASTERCARD_LOGO = "https://brand.mastercard.com/content/dam/mccom/brandcenter/thumbnails/mastercard_circles_92px_2x.png";
 
 function decodeHtmlEntities(html: string): string {
   return html
@@ -183,11 +182,7 @@ export default function PaymentStatusScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 20, paddingBottom: 8, alignItems: "center", gap: 8 }}>
-          <Image
-            source={{ uri: MASTERCARD_LOGO }}
-            style={{ width: 60, height: 37 }}
-            contentFit="contain"
-          />
+          <MastercardIdCheckLogo width={120} height={34} />
           <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" }}>
             Autenticación segura 3D Secure
           </Text>

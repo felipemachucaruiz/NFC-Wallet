@@ -7,8 +7,7 @@ import { fetchOrderStatus, type ThreeDsAuth } from "@/lib/api";
 
 type PaymentState = "processing" | "confirmed" | "failed";
 
-const MASTERCARD_LOGO =
-  "https://brand.mastercard.com/content/dam/mccom/brandcenter/thumbnails/mastercard_circles_92px_2x.png";
+const MASTERCARD_LOGO = "/mastercard-id-check.svg";
 
 function decodeHtmlEntities(html: string): string {
   return html
