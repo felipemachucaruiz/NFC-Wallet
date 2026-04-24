@@ -151,7 +151,7 @@ if (process.env.DOCS_ENABLED === "true") {
   };
 
   try {
-    const openapiPath = path.resolve(process.cwd(), "../../lib/api-spec/openapi.yaml");
+    const openapiPath = path.resolve(__dirname, "openapi.yaml");
     const openapiDocument = yaml.load(fs.readFileSync(openapiPath, "utf-8")) as object;
     app.use("/api/docs", swaggerBasicAuth, swaggerUi.serve, swaggerUi.setup(openapiDocument));
   } catch (err) {
