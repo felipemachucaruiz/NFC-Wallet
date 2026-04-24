@@ -25,6 +25,8 @@
     },
     "android": {
       "package": "com.tapee.attendee",
+      "minSdkVersion": 29,
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0a0a0a"
@@ -59,7 +61,10 @@
           "androidMode": "default"
         }
       ],
-      "expo-updates"
+      "expo-updates",
+      "./plugins/withAndroidBackup",
+      "./plugins/withNetworkSecurity",
+      "./plugins/withPermissions"
     ],
     "runtimeVersion": {
       "policy": "appVersion"
