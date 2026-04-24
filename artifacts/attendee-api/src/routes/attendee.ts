@@ -742,8 +742,21 @@ router.get(
     const userId = req.user!.id;
 
     const refundRequests = await db
-      .select()
+      .select({
+        id: attendeeRefundRequestsTable.id,
+        braceletUid: attendeeRefundRequestsTable.braceletUid,
+        eventId: attendeeRefundRequestsTable.eventId,
+        eventName: eventsTable.name,
+        refundMethod: attendeeRefundRequestsTable.refundMethod,
+        amount: attendeeRefundRequestsTable.amount,
+        status: attendeeRefundRequestsTable.status,
+        chipZeroed: attendeeRefundRequestsTable.chipZeroed,
+        accountDetails: attendeeRefundRequestsTable.accountDetails,
+        notes: attendeeRefundRequestsTable.notes,
+        createdAt: attendeeRefundRequestsTable.createdAt,
+      })
       .from(attendeeRefundRequestsTable)
+      .leftJoin(eventsTable, eq(attendeeRefundRequestsTable.eventId, eventsTable.id))
       .where(eq(attendeeRefundRequestsTable.attendeeUserId, userId))
       .orderBy(desc(attendeeRefundRequestsTable.createdAt));
 

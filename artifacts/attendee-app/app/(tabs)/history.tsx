@@ -192,7 +192,7 @@ export default function HistoryScreen() {
             <Text style={[styles.endText, { color: C.textMuted }]}>{t("common.endOfList")}</Text>
           ) : null
         }
-        renderItem={({ item }) => <TxCard tx={item} C={C} t={t} showEvent={selectedEventId === null && events.length > 1} />}
+        renderItem={({ item }) => <TxCard tx={item} C={C} t={t} showEvent={!!item.eventName} />}
       />
     </View>
   );
