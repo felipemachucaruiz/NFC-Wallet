@@ -35,6 +35,28 @@ async function runStartupMigrations(): Promise<void> {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ads (
+        id            varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        title         varchar(255) NOT NULL,
+        image_url     text NOT NULL,
+        link_url      text,
+        is_active     boolean NOT NULL DEFAULT true,
+        display_order integer NOT NULL DEFAULT 0,
+        starts_at     timestamptz,
+        ends_at       timestamptz,
+        created_at    timestamptz NOT NULL DEFAULT now(),
+        updated_at    timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+
+    await pool.query(`
+      ALTER TABLE bracelets ADD COLUMN IF NOT EXISTS activated_at TIMESTAMPTZ;
+      ALTER TABLE top_ups ADD COLUMN IF NOT EXISTS activation_fee_amount INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS bracelet_activation_fee INTEGER NOT NULL DEFAULT 3000;
+    `);
+
     logger.info("Startup migrations completed");
   } catch (err) {
     logger.error({ err }, "Startup migrations failed");
