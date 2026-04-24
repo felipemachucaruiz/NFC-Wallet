@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next";
-import TapeeLogo from "@/components/TapeeLogo";
 import { Link } from "wouter";
 import { MapPin, Phone, Mail } from "lucide-react";
 
@@ -31,7 +30,11 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
             <div className="mb-4">
-              <TapeeLogo className="h-12" />
+              <img
+                src={`${import.meta.env.BASE_URL}tapee-logo.png`}
+                alt="Tapee"
+                className="h-12"
+              />
             </div>
             <p className="text-muted-foreground text-sm max-w-md">
               La plataforma de boletas más segura de Colombia. Compra tus entradas de forma rápida y segura con tecnología NFC.
