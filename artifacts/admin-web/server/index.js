@@ -34,7 +34,7 @@ app.use((_req, res, next) => {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self'",
       "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
       "font-src 'self' fonts.gstatic.com",
       "img-src 'self' data: blob:",
@@ -114,11 +114,22 @@ app.use(PROXY_PREFIX, (req, res) => {
 });
 
 const staticDir = path.join(__dirname, "../dist/public");
-app.use(express.static(staticDir));
+app.use(
+  express.static(staticDir, {
+    setHeaders(res, filePath) {
+      if (path.basename(filePath) === "index.html") {
+        res.setHeader("Cache-Control", "no-store, must-revalidate");
+      } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    },
+  }),
+);
 
 // Express 5 uses path-to-regexp v8 which rejects bare "*".
 // Use app.use() for the SPA catch-all instead.
 app.use((_req, res) => {
+  res.setHeader("Cache-Control", "no-store, must-revalidate");
   res.sendFile(path.join(staticDir, "index.html"));
 });
 
