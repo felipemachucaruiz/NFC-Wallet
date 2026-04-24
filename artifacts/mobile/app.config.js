@@ -32,6 +32,7 @@ module.exports = {
     android: {
       package: "com.tapee.app",
       versionCode: 19,
+      minSdkVersion: 29,
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#0a0a0a",
@@ -87,6 +88,9 @@ module.exports = {
         },
       ],
       "./plugins/withGoogleMapsManifest",
+      "./plugins/withAndroidBackup",
+      "./plugins/withNetworkSecurityConfig",
+      "./plugins/withRestrictWriteStorage",
       "expo-updates",
     ],
     runtimeVersion: {
