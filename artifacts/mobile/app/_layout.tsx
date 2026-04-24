@@ -94,9 +94,23 @@ if (Platform.OS !== "web") {
 setBaseUrl(API_BASE_URL);
 setFetchImplementation(fetchWithTimeout);
 
-// Restore saved local server URL from previous session (async — resolves before first API call)
-AsyncStorage.getItem("@tapee_local_server_url").then((saved) => {
-  if (saved) setBaseUrl(saved);
+// Restore saved local server URL from previous session, but only if it's reachable.
+// Stale IPs (e.g. from a developer's LAN) would cause all API calls to fail silently.
+AsyncStorage.getItem("@tapee_local_server_url").then(async (saved) => {
+  if (!saved) return;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3000);
+    const res = await fetch(`${saved}/api/healthz`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (res.ok) {
+      setBaseUrl(saved);
+    } else {
+      await AsyncStorage.removeItem("@tapee_local_server_url").catch(() => {});
+    }
+  } catch {
+    await AsyncStorage.removeItem("@tapee_local_server_url").catch(() => {});
+  }
 }).catch(() => {});
 
 SplashScreen.preventAutoHideAsync();

@@ -80,10 +80,10 @@ app.use(
   }),
 );
 const rawCorsOrigin = process.env.CORS_ORIGIN ?? "";
-const allowedOrigins = rawCorsOrigin
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  "https://attendee.tapee.app",
+  ...rawCorsOrigin.split(",").map((o) => o.trim()).filter(Boolean),
+];
 
 app.use((req, res, next) => {
   if (
