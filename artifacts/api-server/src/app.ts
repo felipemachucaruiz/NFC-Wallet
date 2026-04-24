@@ -153,7 +153,16 @@ if (process.env.DOCS_ENABLED === "true") {
   try {
     const openapiPath = path.resolve(__dirname, "openapi.yaml");
     const openapiDocument = yaml.load(fs.readFileSync(openapiPath, "utf-8")) as object;
-    app.use("/api/docs", swaggerBasicAuth, swaggerUi.serve, swaggerUi.setup(openapiDocument));
+    // Serve raw spec so Swagger UI can show the download link
+    app.get("/api/docs/openapi.json", swaggerBasicAuth, (_req, res) => {
+      res.json(openapiDocument);
+    });
+    app.use(
+      "/api/docs",
+      swaggerBasicAuth,
+      swaggerUi.serve,
+      swaggerUi.setup(undefined, { swaggerOptions: { url: "/api/docs/openapi.json" } }),
+    );
   } catch (err) {
     logger.warn({ err }, "Could not load openapi.yaml for Swagger UI");
   }
