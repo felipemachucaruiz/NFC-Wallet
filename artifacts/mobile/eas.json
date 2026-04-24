@@ -33,6 +33,8 @@
     "production-apk": {
       "distribution": "internal",
       "channel": "production-apk",
+      "credentialsSource": "local",
+      "prebuildCommand": "node scripts/decode-keystore.js && npx expo prebuild --clean",
       "android": {
         "buildType": "apk"
       },
@@ -44,6 +46,8 @@
     },
     "production": {
       "channel": "production",
+      "credentialsSource": "local",
+      "prebuildCommand": "node scripts/decode-keystore.js && npx expo prebuild --clean",
       "android": {
         "buildType": "app-bundle"
       },

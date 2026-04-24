@@ -126,10 +126,29 @@ Scan the QR code with Expo Go (development) or run on a device/simulator with th
 # EAS Build (iOS)
 eas build --platform ios --profile production --non-interactive
 
-# EAS Build (Android)
+# EAS Build (Android — app bundle)
 eas build --platform android --profile production --non-interactive
 
+# EAS Build (Android — distributable APK)
+eas build --platform android --profile production-apk --non-interactive
 ```
+
+### Android Signing — Required EAS Secrets
+
+Production and `production-apk` builds use a **locally managed keystore** with real certificate subject fields (`CN=Tapee, O=Tapee SAS, OU=Engineering, C=CO`). The keystore is never committed to source control. Instead, four EAS secrets must be set for the project (`@felipemachucadj/mobile`) before any Android production build:
+
+| Secret name | Description |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded PKCS12 keystore file |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore (store) password |
+| `ANDROID_KEY_ALIAS` | Key alias inside the keystore (`tapee-key`) |
+| `ANDROID_KEY_PASSWORD` | Private key password |
+
+These secrets are already set in EAS for this project. If a build machine does not have them, the build will fail early with a clear error from `scripts/decode-keystore.js`.
+
+**How it works:** The EAS `prebuildCommand` in `eas.json` runs `node scripts/decode-keystore.js` before `expo prebuild`. That script decodes `ANDROID_KEYSTORE_BASE64` into `tapee-release.keystore` and writes a `credentials.json` file. EAS reads `credentials.json` (via `credentialsSource: "local"`) and uses it to sign the output artifact.
+
+To rotate the keystore, generate a new one, base64-encode it, and update the four EAS secrets via `eas secret:push` or the Expo dashboard.
 
 ---
 
