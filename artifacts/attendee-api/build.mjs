@@ -25,6 +25,7 @@ async function buildAll() {
       "*.node",
       "swagger-ui-express",
       "swagger-ui-dist",
+      "js-yaml",
       "sharp",
       "better-sqlite3",
       "sqlite3",
