@@ -144,7 +144,7 @@ app.use("/attendee-api/api", staticRouter);
 
 app.use(authMiddleware);
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.DOCS_ENABLED === "true") {
   const docsUsername = process.env.DOCS_USERNAME;
   const docsPassword = process.env.DOCS_PASSWORD;
 

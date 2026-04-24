@@ -113,7 +113,7 @@ app.use(AUTH_RATE_LIMITED_PATHS, authLimiter);
 
 app.use(authMiddleware);
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.DOCS_ENABLED === "true") {
   const docsUsername = process.env.DOCS_USERNAME;
   const docsPassword = process.env.DOCS_PASSWORD;
 
