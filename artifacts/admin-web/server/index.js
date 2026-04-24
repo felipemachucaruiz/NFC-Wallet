@@ -27,6 +27,37 @@ const PROXY_PREFIX = "/_srv";
 
 const app = express();
 
+app.disable("x-powered-by");
+
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+      "font-src 'self' fonts.gstatic.com",
+      "img-src 'self' data: blob:",
+      "connect-src 'self' *.sentry.io sentry.io",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "base-uri 'self'",
+      "upgrade-insecure-requests",
+      "block-all-mixed-content",
+    ].join("; "),
+  );
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=()",
+  );
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  next();
+});
+
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.use(PROXY_PREFIX, (req, res) => {
@@ -59,7 +90,12 @@ app.use(PROXY_PREFIX, (req, res) => {
         headers,
       },
       (proxyRes) => {
-        res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
+        const upstreamHeaders = Object.fromEntries(
+          Object.entries(proxyRes.headers).filter(
+            ([k]) => k.toLowerCase() !== "x-powered-by",
+          ),
+        );
+        res.writeHead(proxyRes.statusCode ?? 502, upstreamHeaders);
         proxyRes.pipe(res, { end: true });
       },
     );
