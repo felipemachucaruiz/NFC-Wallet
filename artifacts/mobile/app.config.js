@@ -5,7 +5,7 @@ module.exports = {
     name: "Tapee Staff",
     slug: "mobile",
     owner: "felipemachucadj",
-    version: "1.0.19",
+    version: "1.0.20",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "tapee",
@@ -19,7 +19,7 @@ module.exports = {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.tapee.staff",
-      buildNumber: "19",
+      buildNumber: "20",
       infoPlist: {
         NSPhotoLibraryUsageDescription: "Used to select product photos.",
         NFCReaderUsageDescription: "Used to read NFC wristbands for cashless payments.",
@@ -31,7 +31,7 @@ module.exports = {
     },
     android: {
       package: "com.tapee.app",
-      versionCode: 19,
+      versionCode: 20,
       minSdkVersion: 29,
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
@@ -91,6 +91,7 @@ module.exports = {
       "./plugins/withAndroidBackup",
       "./plugins/withNetworkSecurityConfig",
       "./plugins/withRestrictWriteStorage",
+      "./plugins/withUCropActivity",
       "expo-updates",
     ],
     runtimeVersion: {
