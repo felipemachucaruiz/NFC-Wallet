@@ -47,7 +47,20 @@ Sentry.init({
 });
 
 const app: Express = express();
+app.disable("x-powered-by");
 app.use(compression());
+
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
+  );
+  next();
+});
 
 // Only trust proxy headers when explicitly enabled (TRUSTED_PROXY=true).
 // The IP allowlist middleware uses raw socket address by default to prevent
@@ -180,7 +193,7 @@ Sentry.setupExpressErrorHandler(app);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   logger.error({ err }, "Unhandled route error");
-  res.status(500).json({ error: "Internal server error" });
+  res.status(500).json({ error: "An unexpected error occurred" });
 });
 
 export default app;

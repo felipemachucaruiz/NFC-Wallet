@@ -40,6 +40,8 @@ app.use((_req, res, next) => {
       "img-src 'self' data: blob:",
       "connect-src 'self' *.sentry.io sentry.io",
       "object-src 'none'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
       "base-uri 'self'",
       "upgrade-insecure-requests",
       "block-all-mixed-content",
