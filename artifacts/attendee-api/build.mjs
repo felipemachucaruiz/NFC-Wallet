@@ -23,6 +23,8 @@ async function buildAll() {
     logLevel: "info",
     external: [
       "*.node",
+      "swagger-ui-express",
+      "swagger-ui-dist",
       "sharp",
       "better-sqlite3",
       "sqlite3",

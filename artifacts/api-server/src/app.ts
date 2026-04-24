@@ -9,6 +9,10 @@ import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import { ipAllowlistMiddleware } from "./middlewares/ipAllowlist";
 import { authLimiter } from "./middlewares/rateLimiter";
+import path from "node:path";
+import fs from "node:fs";
+import yaml from "js-yaml";
+import swaggerUi from "swagger-ui-express";
 
 const SENSITIVE_KEYS = /^(password|token|authorization|cookie|secret|card.?number|cvv)$/i;
 
@@ -107,6 +111,16 @@ const AUTH_RATE_LIMITED_PATHS = [
 app.use(AUTH_RATE_LIMITED_PATHS, authLimiter);
 
 app.use(authMiddleware);
+
+if (process.env.NODE_ENV !== "production") {
+  try {
+    const openapiPath = path.resolve(process.cwd(), "../../lib/api-spec/openapi.yaml");
+    const openapiDocument = yaml.load(fs.readFileSync(openapiPath, "utf-8")) as object;
+    app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument));
+  } catch (err) {
+    logger.warn({ err }, "Could not load openapi.yaml for Swagger UI");
+  }
+}
 
 app.use("/api", router);
 
