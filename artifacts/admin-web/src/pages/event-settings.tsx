@@ -72,6 +72,7 @@ type EventDetail = {
   bankPaymentMethods?: string[];
   boxOfficePaymentMethods?: string[];
   bankMinTopup?: number;
+  braceletActivationFee?: number;
 };
 
 type ConfirmType =
@@ -127,6 +128,7 @@ export default function EventSettings() {
   const [selectedBankMethods, setSelectedBankMethods] = useState<string[]>(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
   const [selectedBoxOfficeMethods, setSelectedBoxOfficeMethods] = useState<string[]>(["gate_cash", "gate_transfer", "gate_card", "gate_nequi"]);
   const [bankMinTopupText, setBankMinTopupText] = useState("0");
+  const [activationFeeText, setActivationFeeText] = useState("3000");
   const [isSavingPaymentConfig, setIsSavingPaymentConfig] = useState(false);
 
   useEffect(() => {
@@ -138,8 +140,9 @@ export default function EventSettings() {
       if (event.bankPaymentMethods) setSelectedBankMethods(event.bankPaymentMethods);
       if (event.boxOfficePaymentMethods) setSelectedBoxOfficeMethods(event.boxOfficePaymentMethods);
       if (event.bankMinTopup !== undefined) setBankMinTopupText(String(event.bankMinTopup));
+      if (event.braceletActivationFee !== undefined) setActivationFeeText(String(event.braceletActivationFee));
     }
-  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes, event?.bankPaymentMethods, event?.boxOfficePaymentMethods, event?.bankMinTopup]);
+  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes, event?.bankPaymentMethods, event?.boxOfficePaymentMethods, event?.bankMinTopup, event?.braceletActivationFee]);
 
   const updateEvent = useUpdateEvent();
   const unflagBracelet = useUnflagBracelet();
@@ -155,6 +158,11 @@ export default function EventSettings() {
       toast({ title: "Monto mínimo inválido.", variant: "destructive" });
       return;
     }
+    const activationFee = parseInt(activationFeeText, 10);
+    if (isNaN(activationFee) || activationFee < 0) {
+      toast({ title: "Fee de activación inválido.", variant: "destructive" });
+      return;
+    }
     setIsSavingPaymentConfig(true);
     try {
       await customFetch(`/api/events/${eventId}`, {
@@ -163,6 +171,7 @@ export default function EventSettings() {
           bankPaymentMethods: selectedBankMethods,
           boxOfficePaymentMethods: selectedBoxOfficeMethods,
           bankMinTopup: minTopup,
+          braceletActivationFee: activationFee,
         }),
       });
       refetch();
@@ -678,6 +687,18 @@ export default function EventSettings() {
               value={bankMinTopupText}
               onValueChange={setBankMinTopupText}
               placeholder="0"
+              className="max-w-xs"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="activationFee">Fee de activación del brazalete (COP)</Label>
+            <p className="text-xs text-muted-foreground">Se descuenta de la primera recarga. 0 = sin fee. Por defecto: 3.000</p>
+            <CurrencyInput
+              id="activationFee"
+              value={activationFeeText}
+              onValueChange={setActivationFeeText}
+              placeholder="3000"
               className="max-w-xs"
             />
           </div>
