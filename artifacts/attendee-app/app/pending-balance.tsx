@@ -76,6 +76,25 @@ export default function PendingBalanceScreen() {
             {t("pendingBalance.autoTransferHint")}
           </Text>
         </View>
+
+        <View style={[styles.divider, { backgroundColor: C.separator }]} />
+
+        <View style={styles.infoRow}>
+          <View style={[styles.infoIconWrap, { backgroundColor: "rgba(234,179,8,0.12)" }]}>
+            <Feather name="wifi" size={16} color="#eab308" />
+          </View>
+          <View style={{ flex: 1, gap: 8 }}>
+            <Text style={[styles.infoText, { color: C.textSecondary }]}>
+              {t("pendingBalance.noBraceletHint")}
+            </Text>
+            <Text
+              style={[styles.addBraceletLink, { color: C.primary }]}
+              onPress={() => router.push("/add-bracelet")}
+            >
+              {t("pendingBalance.addBraceletAction")}
+            </Text>
+          </View>
+        </View>
       </Card>
 
       {/* Actions */}
@@ -119,4 +138,5 @@ const styles = StyleSheet.create({
   infoText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
   divider: { height: 1, marginHorizontal: 16 },
   actions: { gap: 10, marginTop: 8 },
+  addBraceletLink: { fontSize: 13, fontFamily: "Inter_600SemiBold", textDecorationLine: "underline" },
 });

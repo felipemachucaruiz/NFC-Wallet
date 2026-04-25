@@ -466,6 +466,8 @@
     "hintWithBracelet": "Tu pulsera está vinculada. Este saldo se transferirá automáticamente cuando te registres en la entrada del evento.",
     "hintNoBracelet": "Cuando llegues al evento y el agente de entrada vincule tu pulsera, este saldo se transferirá automáticamente.",
     "autoTransferHint": "No necesitas hacer nada — la transferencia ocurre automáticamente cuando el agente escanea tu pulsera.",
+    "noBraceletHint": "Si aún no ves tu pulsera en la app, agrégala manualmente escaneándola con tu teléfono o ingresando los números impresos en ella.",
+    "addBraceletAction": "Agregar pulsera →",
     "addMore": "Cargar más saldo"
   }
 }
