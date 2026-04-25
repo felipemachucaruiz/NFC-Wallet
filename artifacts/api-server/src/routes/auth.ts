@@ -484,6 +484,10 @@ router.post("/auth/setup", async (req: Request, res: Response) => {
 });
 
 router.get("/login", async (req: Request, res: Response) => {
+  if (!(process.env.CLIENT_ID ?? process.env.REPL_ID)) {
+    res.redirect(getOrigin(req));
+    return;
+  }
   const config = await getOidcConfig();
   const callbackUrl = `${getOrigin(req)}/api/callback`;
 
@@ -585,18 +589,25 @@ router.get("/callback", async (req: Request, res: Response) => {
 });
 
 router.get("/logout", async (req: Request, res: Response) => {
-  const config = await getOidcConfig();
   const origin = getOrigin(req);
-
   const sid = getSessionId(req);
   await clearSession(res, sid);
 
-  const endSessionUrl = oidc.buildEndSessionUrl(config, {
-    client_id: (process.env.CLIENT_ID ?? process.env.REPL_ID)!,
-    post_logout_redirect_uri: origin,
-  });
-
-  res.redirect(endSessionUrl.href);
+  const clientId = process.env.CLIENT_ID ?? process.env.REPL_ID;
+  if (clientId) {
+    try {
+      const config = await getOidcConfig();
+      const endSessionUrl = oidc.buildEndSessionUrl(config, {
+        client_id: clientId,
+        post_logout_redirect_uri: origin,
+      });
+      res.redirect(endSessionUrl.href);
+      return;
+    } catch {
+      // OIDC discovery failed — fall through to plain redirect
+    }
+  }
+  res.redirect(origin);
 });
 
 export default router;

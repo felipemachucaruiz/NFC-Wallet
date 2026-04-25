@@ -400,6 +400,7 @@ export interface GupshupTemplate {
 export async function apiFetchGupshupTemplates(): Promise<GupshupTemplate[]> {
   const res = await fetch(apiUrl("/api/whatsapp-templates/gupshup"), { headers: authHeaders() });
   const data = await res.json();
+  if (res.status === 503) return []; // Gupshup not configured — return empty, don't throw
   if (!res.ok) throw new Error(data.error ?? "Failed to fetch Gupshup templates");
   return data.templates;
 }

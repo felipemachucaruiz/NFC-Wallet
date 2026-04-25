@@ -46,6 +46,20 @@ Sentry.init({
   profilesSampleRate: 0.2,
   attachStacktrace: true,
   beforeSend(event, hint) {
+    // Drop expected business-logic rejections that are handled in the UI
+    const errMsg = (hint?.originalException as Error | undefined)?.message ?? "";
+    if (
+      errMsg.includes("Insufficient bracelet balance") ||
+      errMsg.includes("ACTIVATION_FEE")
+    ) return null;
+    // Drop network failures to local/private IPs (stale local-server config)
+    if (errMsg === "Network request failed") {
+      const breadcrumbs = event.breadcrumbs ?? [];
+      const hasLocalIpRequest = (Array.isArray(breadcrumbs) ? breadcrumbs : (breadcrumbs as { values?: Sentry.Breadcrumb[] }).values ?? []).some(
+        (b: Sentry.Breadcrumb) => typeof b.data?.url === "string" && /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)\d+\.\d+/.test(b.data.url),
+      );
+      if (hasLocalIpRequest) return null;
+    }
     if (event.request?.data && typeof event.request.data === "object") {
       const data = event.request.data as Record<string, unknown>;
       for (const key of Object.keys(data)) {
