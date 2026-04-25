@@ -3,8 +3,11 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -145,7 +148,16 @@ export function WhatsAppOtpModal({ visible, onClose }: Props) {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardAvoid}
+      >
+        <Pressable style={styles.overlayFlex} onPress={onClose} />
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled={false}
+        >
         <Pressable style={[styles.sheet, { backgroundColor: "#1a1a1a", borderColor: "rgba(255,255,255,0.1)" }]} onPress={() => {}}>
           {/* Handle bar */}
           <View style={styles.handle} />
@@ -295,7 +307,8 @@ export function WhatsAppOtpModal({ visible, onClose }: Props) {
             </>
           )}
         </Pressable>
-      </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Country picker sub-modal */}
       <Modal
@@ -344,6 +357,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "flex-end",
+  },
+  keyboardAvoid: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "flex-end",
+  },
+  overlayFlex: {
+    flex: 1,
   },
   sheet: {
     borderTopLeftRadius: 24,
