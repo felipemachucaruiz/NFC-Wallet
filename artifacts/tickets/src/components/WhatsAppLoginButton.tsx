@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { ArrowLeft, MessageCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
@@ -87,7 +88,7 @@ export function WhatsAppLoginForm({ onSuccess, onBack }: Props) {
       <form onSubmit={handleVerifyOtp} className="space-y-4">
         <div className="text-center mb-2">
           <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
-            <MessageCircle className="w-7 h-7 text-green-500" />
+            <WhatsAppIcon className="w-7 h-7 text-green-500" />
           </div>
           <h2 className="text-xl font-bold">{t("auth.verifyCode")}</h2>
           <p className="text-sm text-muted-foreground mt-2">{t("auth.otpSent")}</p>
@@ -158,7 +159,7 @@ export function WhatsAppLoginForm({ onSuccess, onBack }: Props) {
     <form onSubmit={handleSendOtp} className="space-y-4">
       <div className="text-center mb-2">
         <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
-          <MessageCircle className="w-7 h-7 text-green-500" />
+          <WhatsAppIcon className="w-7 h-7 text-green-500" />
         </div>
         <h2 className="text-xl font-bold">{t("auth.phoneLoginTitle")}</h2>
         <p className="text-sm text-muted-foreground mt-2">{t("auth.phoneLoginDesc")}</p>
@@ -183,7 +184,7 @@ export function WhatsAppLoginForm({ onSuccess, onBack }: Props) {
         className="w-full bg-green-600 text-white hover:bg-green-700"
         disabled={loading || !phone || phone.length < 7}
       >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <MessageCircle className="w-4 h-4 mr-2" />}
+        {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <WhatsAppIcon className="w-4 h-4 mr-2" />}
         {t("auth.sendCode")}
       </Button>
 
