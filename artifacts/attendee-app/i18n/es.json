@@ -59,7 +59,9 @@
     "sendCode": "Enviar código",
     "verifyCode": "Verificar código",
     "resendCode": "Reenviar código",
-    "googleFailed": "No se pudo iniciar sesión con Google"
+    "googleFailed": "No se pudo iniciar sesión con Google",
+    "confirmPasswordPlaceholder": "Confirmar contraseña",
+    "passwordMismatch": "Las contraseñas no coinciden"
   },
   "home": {
     "tab": "Inicio",

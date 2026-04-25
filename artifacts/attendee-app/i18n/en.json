@@ -59,7 +59,9 @@
     "sendCode": "Send code",
     "verifyCode": "Verify code",
     "resendCode": "Resend code",
-    "googleFailed": "Could not sign in with Google"
+    "googleFailed": "Could not sign in with Google",
+    "confirmPasswordPlaceholder": "Confirm password",
+    "passwordMismatch": "Passwords do not match"
   },
   "home": {
     "tab": "Home",

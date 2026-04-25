@@ -63,7 +63,9 @@ export default function LoginScreen() {
   const [countryCode, setCountryCode] = useState(COUNTRY_CODES[0]);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
@@ -86,6 +88,10 @@ export default function LoginScreen() {
     }
     if (password.length < 6) {
       setError(t("auth.passwordMinLength"));
+      return;
+    }
+    if (tab === "register" && password !== confirmPassword) {
+      setError(t("auth.passwordMismatch"));
       return;
     }
     if (tab === "register" && (!firstName.trim() || !lastName.trim())) {
@@ -146,7 +152,7 @@ export default function LoginScreen() {
             {(["login", "register"] as AuthTab[]).map((t_) => (
               <Pressable
                 key={t_}
-                onPress={() => { setTab(t_); setError(null); }}
+                onPress={() => { setTab(t_); setError(null); setConfirmPassword(""); }}
                 style={[styles.tabBtn, tab === t_ && { backgroundColor: C.primaryLight }]}
               >
                 <Text style={[styles.tabText, { color: tab === t_ ? C.primary : "rgba(255,255,255,0.5)" }]}>
@@ -223,6 +229,26 @@ export default function LoginScreen() {
               <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={C.textSecondary} />
             </Pressable>
           </View>
+
+          {tab === "register" && (
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[inputStyle, { flex: 1 }]}
+                placeholder={t("auth.confirmPasswordPlaceholder")}
+                placeholderTextColor={C.textMuted}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+                autoComplete="new-password"
+              />
+              <Pressable
+                onPress={() => setShowConfirmPassword((v) => !v)}
+                style={[styles.eyeBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
+              >
+                <Feather name={showConfirmPassword ? "eye-off" : "eye"} size={18} color={C.textSecondary} />
+              </Pressable>
+            </View>
+          )}
 
           {tab === "login" && (
             <Pressable
