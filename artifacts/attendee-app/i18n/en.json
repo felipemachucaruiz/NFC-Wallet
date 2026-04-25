@@ -458,5 +458,15 @@
     "successTitle": "Password updated!",
     "successMsg": "You can now sign in with your new password.",
     "goToLogin": "Go to sign in"
+  },
+  "pendingBalance": {
+    "title": "Pending balance",
+    "subtitle": "You have pre-loaded balance ready for your event.",
+    "availableAmount": "Available amount",
+    "paymentConfirmed": "Payment confirmed",
+    "hintWithBracelet": "Your wristband is linked. This balance will be automatically transferred when you check in at the event gate.",
+    "hintNoBracelet": "When you arrive at the event and the gate agent links your wristband, this balance will be transferred automatically.",
+    "autoTransferHint": "No action needed — the transfer happens automatically when the gate agent scans your wristband.",
+    "addMore": "Add more balance"
   }
 }

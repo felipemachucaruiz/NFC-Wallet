@@ -457,5 +457,15 @@
     "successTitle": "¡Contraseña actualizada!",
     "successMsg": "Ya puedes iniciar sesión con tu nueva contraseña.",
     "goToLogin": "Ir a iniciar sesión"
+  },
+  "pendingBalance": {
+    "title": "Saldo pendiente",
+    "subtitle": "Tienes saldo pre-cargado listo para tu evento.",
+    "availableAmount": "Monto disponible",
+    "paymentConfirmed": "Pago confirmado",
+    "hintWithBracelet": "Tu pulsera está vinculada. Este saldo se transferirá automáticamente cuando te registres en la entrada del evento.",
+    "hintNoBracelet": "Cuando llegues al evento y el agente de entrada vincule tu pulsera, este saldo se transferirá automáticamente.",
+    "autoTransferHint": "No necesitas hacer nada — la transferencia ocurre automáticamente cuando el agente escanea tu pulsera.",
+    "addMore": "Cargar más saldo"
   }
 }

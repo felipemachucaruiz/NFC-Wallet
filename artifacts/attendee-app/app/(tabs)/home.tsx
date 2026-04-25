@@ -345,7 +345,7 @@ export default function HomeScreen() {
 
         {pendingWalletBalance > 0 && (
           <Pressable
-            onPress={() => router.push({ pathname: "/top-up", params: { preload: "true" } })}
+            onPress={() => router.push("/pending-balance")}
             style={[styles.pendingBalanceBanner, { backgroundColor: "rgba(0,241,255,0.08)", borderColor: "rgba(0,241,255,0.28)" }]}
           >
             <View style={[styles.pendingBalanceIconWrap, { backgroundColor: "rgba(0,241,255,0.12)" }]}>
