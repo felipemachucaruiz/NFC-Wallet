@@ -55,7 +55,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  // Swagger UI needs scripts, styles, and fetch — relax CSP only for /api/docs
+  res.setHeader("Cache-Control", "no-store");
   if (req.path.startsWith("/api/docs")) {
     res.setHeader(
       "Content-Security-Policy",
@@ -193,6 +193,11 @@ app.use("/api", router);
 
 app.get("/debug-sentry", (_req, _res) => {
   throw new Error("My first Sentry error!");
+});
+
+// Catch-all 404 — must come before Sentry error handler so our headers are applied
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not Found" });
 });
 
 Sentry.setupExpressErrorHandler(app);
