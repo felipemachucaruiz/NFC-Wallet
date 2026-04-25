@@ -1,12 +1,12 @@
 const API_BASE = (import.meta.env.VITE_API_URL ?? `${import.meta.env.BASE_URL}_srv`).replace(/\/+$/, "");
-const ATTENDEE_API_URL = (import.meta.env.VITE_ATTENDEE_API_URL || "https://attendee.tapee.app").replace(/\/+$/, "");
+const ATTENDEE_BASE = `${import.meta.env.BASE_URL}_att`;
 
 function apiUrl(path: string): string {
   return `${API_BASE}${path}`;
 }
 
 function attendeeApiUrl(path: string): string {
-  return `${ATTENDEE_API_URL}${path}`;
+  return `${ATTENDEE_BASE}${path}`;
 }
 
 export interface LoginResult {

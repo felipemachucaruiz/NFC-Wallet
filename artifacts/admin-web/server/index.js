@@ -2,14 +2,16 @@
  * Production server for the Tapee Admin Portal.
  *
  * Responsibilities:
- *  1. Proxy  /_srv/*  →  prod.tapee.app  (strips Origin/Referer so the
- *     Railway-hosted admin web is not rejected by the API's CORS policy).
- *  2. Serve the Vite-built static files from dist/public.
- *  3. SPA fallback: all unmatched GET routes return index.html.
+ *  1. Proxy  /_srv/*  →  prod.tapee.app     (staff API)
+ *  2. Proxy  /_att/*  →  attendee.tapee.app (attendee API, used for forgot/reset password)
+ *     Both proxies strip Origin/Referer so Railway's CORS policy is not triggered.
+ *  3. Serve the Vite-built static files from dist/public.
+ *  4. SPA fallback: all unmatched GET routes return index.html.
  *
  * Environment variables:
- *  PORT             - listening port (set automatically by Railway)
- *  VITE_API_TARGET  - API base URL (default: https://prod.tapee.app)
+ *  PORT                  - listening port (set automatically by Railway)
+ *  VITE_API_TARGET       - staff API base URL (default: https://prod.tapee.app)
+ *  VITE_ATTENDEE_TARGET  - attendee API base URL (default: https://attendee.tapee.app)
  */
 
 import express from "express";
@@ -23,7 +25,9 @@ const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT ?? 3000);
 const API_TARGET = process.env.VITE_API_TARGET || "https://prod.tapee.app";
+const ATTENDEE_TARGET = process.env.VITE_ATTENDEE_TARGET || "https://attendee.tapee.app";
 const PROXY_PREFIX = "/_srv";
+const ATTENDEE_PROXY_PREFIX = "/_att";
 
 const app = express();
 
@@ -60,58 +64,63 @@ app.use((_req, res, next) => {
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-app.use(PROXY_PREFIX, (req, res) => {
-  const target = new URL(API_TARGET);
-  const upstreamPath = req.url || "/";
+function makeProxy(targetUrl) {
+  return (req, res) => {
+    const target = new URL(targetUrl);
+    const upstreamPath = req.url || "/";
 
-  const headers = {};
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (!value) continue;
-    const lc = key.toLowerCase();
-    if (lc === "origin" || lc === "referer" || lc === "host") continue;
-    headers[key] = Array.isArray(value) ? value.join(", ") : value;
-  }
-  headers["host"] = target.host;
-
-  const chunks = [];
-  req.on("data", (c) => chunks.push(c));
-  req.on("end", () => {
-    const body = chunks.length ? Buffer.concat(chunks) : undefined;
-    if (body?.length) {
-      headers["content-length"] = String(body.length);
+    const headers = {};
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (!value) continue;
+      const lc = key.toLowerCase();
+      if (lc === "origin" || lc === "referer" || lc === "host") continue;
+      headers[key] = Array.isArray(value) ? value.join(", ") : value;
     }
+    headers["host"] = target.host;
 
-    const proxyReq = https.request(
-      {
-        hostname: target.hostname,
-        port: Number(target.port) || 443,
-        path: upstreamPath,
-        method: req.method,
-        headers,
-      },
-      (proxyRes) => {
-        const upstreamHeaders = Object.fromEntries(
-          Object.entries(proxyRes.headers).filter(
-            ([k]) => k.toLowerCase() !== "x-powered-by",
-          ),
-        );
-        res.writeHead(proxyRes.statusCode ?? 502, upstreamHeaders);
-        proxyRes.pipe(res, { end: true });
-      },
-    );
-
-    proxyReq.on("error", (err) => {
-      console.error("[proxy] upstream error:", err.message);
-      if (!res.headersSent) {
-        res.writeHead(502, { "content-type": "application/json" });
-        res.end(JSON.stringify({ error: "Proxy error" }));
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      const body = chunks.length ? Buffer.concat(chunks) : undefined;
+      if (body?.length) {
+        headers["content-length"] = String(body.length);
       }
-    });
 
-    if (body?.length) proxyReq.write(body);
-    proxyReq.end();
-  });
-});
+      const proxyReq = https.request(
+        {
+          hostname: target.hostname,
+          port: Number(target.port) || 443,
+          path: upstreamPath,
+          method: req.method,
+          headers,
+        },
+        (proxyRes) => {
+          const upstreamHeaders = Object.fromEntries(
+            Object.entries(proxyRes.headers).filter(
+              ([k]) => k.toLowerCase() !== "x-powered-by",
+            ),
+          );
+          res.writeHead(proxyRes.statusCode ?? 502, upstreamHeaders);
+          proxyRes.pipe(res, { end: true });
+        },
+      );
+
+      proxyReq.on("error", (err) => {
+        console.error("[proxy] upstream error:", err.message);
+        if (!res.headersSent) {
+          res.writeHead(502, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: "Proxy error" }));
+        }
+      });
+
+      if (body?.length) proxyReq.write(body);
+      proxyReq.end();
+    });
+  };
+}
+
+app.use(PROXY_PREFIX, makeProxy(API_TARGET));
+app.use(ATTENDEE_PROXY_PREFIX, makeProxy(ATTENDEE_TARGET));
 
 const staticDir = path.join(__dirname, "../dist/public");
 app.use(
@@ -136,4 +145,5 @@ app.use((_req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Tapee Admin Portal listening on port ${PORT}`);
   console.log(`Proxying ${PROXY_PREFIX}/* → ${API_TARGET}`);
+  console.log(`Proxying ${ATTENDEE_PROXY_PREFIX}/* → ${ATTENDEE_TARGET}`);
 });
