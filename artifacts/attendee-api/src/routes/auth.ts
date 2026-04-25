@@ -799,32 +799,36 @@ router.post("/auth/resend-verification", async (req: Request, res: Response) => 
 });
 
 router.get("/login", async (req: Request, res: Response) => {
-  const config = await getOidcConfig();
-  const callbackUrl = `${getOrigin(req)}/api/callback`;
+  try {
+    const config = await getOidcConfig();
+    const callbackUrl = `${getOrigin(req)}/api/callback`;
 
-  const returnTo = getSafeReturnTo(req.query.returnTo);
+    const returnTo = getSafeReturnTo(req.query.returnTo);
 
-  const state = oidc.randomState();
-  const nonce = oidc.randomNonce();
-  const codeVerifier = oidc.randomPKCECodeVerifier();
-  const codeChallenge = await oidc.calculatePKCECodeChallenge(codeVerifier);
+    const state = oidc.randomState();
+    const nonce = oidc.randomNonce();
+    const codeVerifier = oidc.randomPKCECodeVerifier();
+    const codeChallenge = await oidc.calculatePKCECodeChallenge(codeVerifier);
 
-  const redirectTo = oidc.buildAuthorizationUrl(config, {
-    redirect_uri: callbackUrl,
-    scope: "openid email profile offline_access",
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
-    prompt: "login consent",
-    state,
-    nonce,
-  });
+    const redirectTo = oidc.buildAuthorizationUrl(config, {
+      redirect_uri: callbackUrl,
+      scope: "openid email profile offline_access",
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
+      prompt: "login consent",
+      state,
+      nonce,
+    });
 
-  setOidcCookie(res, "code_verifier", codeVerifier);
-  setOidcCookie(res, "nonce", nonce);
-  setOidcCookie(res, "state", state);
-  setOidcCookie(res, "return_to", returnTo);
+    setOidcCookie(res, "code_verifier", codeVerifier);
+    setOidcCookie(res, "nonce", nonce);
+    setOidcCookie(res, "state", state);
+    setOidcCookie(res, "return_to", returnTo);
 
-  res.redirect(redirectTo.href);
+    res.redirect(redirectTo.href);
+  } catch {
+    res.status(503).json({ error: "Authentication service unavailable" });
+  }
 });
 
 router.get("/callback", async (req: Request, res: Response) => {
@@ -870,9 +874,13 @@ router.get("/callback", async (req: Request, res: Response) => {
     return;
   }
 
-  const dbUser = await upsertUser(
-    claims as unknown as Record<string, unknown>,
-  );
+  let dbUser: Awaited<ReturnType<typeof upsertUser>>;
+  try {
+    dbUser = await upsertUser(claims as unknown as Record<string, unknown>);
+  } catch {
+    res.redirect("/api/login");
+    return;
+  }
 
   const now = Math.floor(Date.now() / 1000);
   const sessionData: SessionData = {
@@ -892,24 +900,37 @@ router.get("/callback", async (req: Request, res: Response) => {
     expires_at: tokens.expiresIn() ? now + tokens.expiresIn()! : claims.exp,
   };
 
-  const sid = await createSession(sessionData);
+  let sid: string;
+  try {
+    sid = await createSession(sessionData);
+  } catch {
+    res.redirect("/api/login");
+    return;
+  }
   setSessionCookie(res, sid);
   res.redirect(returnTo);
 });
 
 router.get("/logout", async (req: Request, res: Response) => {
-  const config = await getOidcConfig();
   const origin = getOrigin(req);
+  const sessionId = getSessionId(req);
 
-  const sid = getSessionId(req);
-  await clearSession(res, sid);
+  try {
+    await clearSession(res, sessionId);
+  } catch {
+    // Session cleanup failed — continue to redirect anyway
+  }
 
-  const endSessionUrl = oidc.buildEndSessionUrl(config, {
-    client_id: (process.env.CLIENT_ID ?? process.env.REPL_ID)!,
-    post_logout_redirect_uri: origin,
-  });
-
-  res.redirect(endSessionUrl.href);
+  try {
+    const config = await getOidcConfig();
+    const endSessionUrl = oidc.buildEndSessionUrl(config, {
+      client_id: (process.env.CLIENT_ID ?? process.env.REPL_ID)!,
+      post_logout_redirect_uri: origin,
+    });
+    res.redirect(endSessionUrl.href);
+  } catch {
+    res.redirect(origin);
+  }
 });
 
 router.post(

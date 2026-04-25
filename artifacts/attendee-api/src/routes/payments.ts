@@ -581,8 +581,7 @@ router.post(
   "/payments/webhook",
   async (req: Request, res: Response) => {
     if (!WOMPI_EVENTS_SECRET) {
-      console.error("WOMPI_EVENTS_SECRET not configured — rejecting webhook");
-      res.status(500).json({ error: "Webhook secret not configured" });
+      res.status(401).json({ error: "Invalid webhook signature" });
       return;
     }
 

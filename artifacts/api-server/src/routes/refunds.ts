@@ -506,8 +506,7 @@ router.post(
   async (req: Request, res: Response) => {
     const WOMPI_EVENTS_SECRET = process.env.WOMPI_EVENTS_SECRET || "";
     if (!WOMPI_EVENTS_SECRET) {
-      console.error("WOMPI_EVENTS_SECRET not configured — rejecting disbursement webhook");
-      res.status(500).json({ error: "Webhook secret not configured" });
+      res.status(401).json({ error: "Invalid webhook signature" });
       return;
     }
 
