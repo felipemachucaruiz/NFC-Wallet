@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_URL ?? `${import.meta.env.BASE_URL}_srv`).replace(/\/+$/, "");
+const API_BASE = `${import.meta.env.BASE_URL}_srv`;
 const ATTENDEE_BASE = `${import.meta.env.BASE_URL}_att`;
 
 function apiUrl(path: string): string {
