@@ -1,6 +1,8 @@
+import type { CSSProperties } from "react";
+
 interface Props {
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
 export default function TapeeLogo({ className, style }: Props) {

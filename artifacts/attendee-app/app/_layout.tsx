@@ -31,6 +31,7 @@ Sentry.init({
   dsn: "https://d3bff6b9eb2c975f13e05eae9ec4e157@o4511219507265536.ingest.us.sentry.io/4511219551240192",
   environment: __DEV__ ? "development" : "production",
   enabled: !__DEV__,
+  enableSpotlight: __DEV__,
   tracesSampleRate: 0.2,
   profilesSampleRate: 0.2,
   attachStacktrace: true,

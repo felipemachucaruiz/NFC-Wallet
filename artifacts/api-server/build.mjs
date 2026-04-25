@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { rm, copyFile } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -29,6 +29,9 @@ async function buildAll() {
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "*.node",
+      "swagger-ui-express",
+      "swagger-ui-dist",
+      "js-yaml",
       "sharp",
       "better-sqlite3",
       "sqlite3",
@@ -117,6 +120,10 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // Embed openapi.yaml so it's available at runtime regardless of CWD
+  const openapiSrc = path.resolve(artifactDir, "../../lib/api-spec/openapi.yaml");
+  await copyFile(openapiSrc, path.resolve(distDir, "openapi.yaml"));
 }
 
 buildAll().catch((err) => {

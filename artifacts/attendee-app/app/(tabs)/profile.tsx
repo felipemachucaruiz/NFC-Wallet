@@ -27,6 +27,8 @@ import { formatDate } from "@/utils/format";
 type RefundRequest = {
   id: string;
   braceletUid: string;
+  eventId?: string | null;
+  eventName?: string | null;
   refundMethod: string;
   amount: number;
   status: "pending" | "approved" | "rejected";
@@ -350,7 +352,10 @@ export default function ProfileScreen() {
             <Card key={r.id} style={{ marginBottom: 8 }}>
               <View style={styles.refundRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.refundUid, { color: C.text }]}>{r.braceletUid}</Text>
+                  {r.eventName ? (
+                    <Text style={[styles.refundEventName, { color: C.text }]}>{r.eventName}</Text>
+                  ) : null}
+                  <Text style={[styles.refundUid, { color: r.eventName ? C.textMuted : C.text }]}>{r.braceletUid}</Text>
                   <Text style={[styles.refundDate, { color: C.textMuted }]}>
                     {formatDate(r.createdAt)} · {r.refundMethod}
                   </Text>
@@ -497,7 +502,8 @@ const styles = StyleSheet.create({
   emptyRefundText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   refundRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   refundRight: { alignItems: "flex-end", gap: 4 },
-  refundUid: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  refundEventName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  refundUid: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
   refundDate: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   logoutBtn: {
     flexDirection: "row",

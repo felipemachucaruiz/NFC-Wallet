@@ -9,6 +9,11 @@ import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import { ipAllowlistMiddleware } from "./middlewares/ipAllowlist";
 import { authLimiter } from "./middlewares/rateLimiter";
+import path from "node:path";
+import fs from "node:fs";
+import crypto from "node:crypto";
+import yaml from "js-yaml";
+import swaggerUi from "swagger-ui-express";
 
 const SENSITIVE_KEYS = /^(password|token|authorization|cookie|secret|card.?number|cvv)$/i;
 
@@ -42,7 +47,20 @@ Sentry.init({
 });
 
 const app: Express = express();
+app.disable("x-powered-by");
 app.use(compression());
+
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
+  );
+  next();
+});
 
 // Only trust proxy headers when explicitly enabled (TRUSTED_PROXY=true).
 // The IP allowlist middleware uses raw socket address by default to prevent
@@ -108,6 +126,61 @@ app.use(AUTH_RATE_LIMITED_PATHS, authLimiter);
 
 app.use(authMiddleware);
 
+if (process.env.DOCS_ENABLED === "true") {
+  const docsUsername = process.env.DOCS_USERNAME;
+  const docsPassword = process.env.DOCS_PASSWORD;
+
+  const swaggerBasicAuth = (req: Request, res: Response, next: NextFunction) => {
+    if (!docsUsername || !docsPassword) {
+      res.status(503).send("Swagger UI is disabled: DOCS_USERNAME and DOCS_PASSWORD env vars must be set.");
+      return;
+    }
+    const authHeader = req.headers.authorization ?? "";
+    if (!authHeader.startsWith("Basic ")) {
+      res.setHeader("WWW-Authenticate", 'Basic realm="Swagger UI"');
+      res.status(401).send("Authentication required");
+      return;
+    }
+    const encoded = authHeader.slice("Basic ".length);
+    const decoded = Buffer.from(encoded, "base64").toString("utf-8");
+    const colonIdx = decoded.indexOf(":");
+    if (colonIdx < 0) {
+      res.setHeader("WWW-Authenticate", 'Basic realm="Swagger UI"');
+      res.status(401).send("Invalid credentials");
+      return;
+    }
+    const user = decoded.slice(0, colonIdx);
+    const pass = decoded.slice(colonIdx + 1);
+    const userMatch = user.length === docsUsername.length &&
+      crypto.timingSafeEqual(Buffer.from(user), Buffer.from(docsUsername));
+    const passMatch = pass.length === docsPassword.length &&
+      crypto.timingSafeEqual(Buffer.from(pass), Buffer.from(docsPassword));
+    if (!userMatch || !passMatch) {
+      res.setHeader("WWW-Authenticate", 'Basic realm="Swagger UI"');
+      res.status(401).send("Invalid credentials");
+      return;
+    }
+    next();
+  };
+
+  try {
+    const openapiPath = path.resolve(__dirname, "openapi.yaml");
+    const openapiDocument = yaml.load(fs.readFileSync(openapiPath, "utf-8")) as object;
+    // Serve raw spec so Swagger UI can show the download link
+    app.get("/api/docs/openapi.json", swaggerBasicAuth, (_req, res) => {
+      res.json(openapiDocument);
+    });
+    app.use(
+      "/api/docs",
+      swaggerBasicAuth,
+      swaggerUi.serve,
+      swaggerUi.setup(undefined, { swaggerOptions: { url: "/api/docs/openapi.json" } }),
+    );
+  } catch (err) {
+    logger.warn({ err }, "Could not load openapi.yaml for Swagger UI");
+  }
+}
+
 app.use("/api", router);
 
 app.get("/debug-sentry", (_req, _res) => {
@@ -120,7 +193,7 @@ Sentry.setupExpressErrorHandler(app);
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   logger.error({ err }, "Unhandled route error");
-  res.status(500).json({ error: "Internal server error" });
+  res.status(500).json({ error: "An unexpected error occurred" });
 });
 
 export default app;
