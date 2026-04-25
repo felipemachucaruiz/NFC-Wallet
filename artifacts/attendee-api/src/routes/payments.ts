@@ -60,7 +60,7 @@ const browserInfoSchema = z.object({
 });
 
 const initiatePaymentSchema = z.object({
-  braceletUid: z.string().min(1),
+  braceletUid: z.string().min(1).optional(),
   amount: z.number().int().min(1000),
   paymentMethod: z.enum(["nequi", "pse", "card", "bancolombia_transfer", "daviplata", "puntoscolombia"]),
   phoneNumber: z.string().optional(),
@@ -139,56 +139,81 @@ router.post(
       }
     }
 
-    const [bracelet] = await db
-      .select()
-      .from(braceletsTable)
-      .where(eq(braceletsTable.nfcUid, braceletUid));
+    const isPreload = !braceletUid;
 
-    if (!bracelet) {
-      res.status(404).json({ error: "Bracelet not found" });
-      return;
-    }
+    if (!isPreload) {
+      const [bracelet] = await db
+        .select()
+        .from(braceletsTable)
+        .where(eq(braceletsTable.nfcUid, braceletUid!));
 
-    if (req.user.role === "attendee" && bracelet.attendeeUserId !== req.user.id) {
-      res.status(403).json({ error: "You can only top up your own bracelet" });
-      return;
-    }
-
-    if (bracelet.eventId) {
-      const [event] = await db
-        .select({ nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled })
-        .from(eventsTable)
-        .where(eq(eventsTable.id, bracelet.eventId));
-      if (event && !event.nfcBraceletsEnabled) {
-        res.status(404).json({ error: "NFC_BRACELETS_DISABLED", message: "NFC bracelets are not enabled for this event" });
+      if (!bracelet) {
+        res.status(404).json({ error: "Bracelet not found" });
         return;
       }
-    }
 
-    const [activeIntent] = await db
-      .select({ id: wompiPaymentIntentsTable.id })
-      .from(wompiPaymentIntentsTable)
-      .where(
-        and(
-          eq(wompiPaymentIntentsTable.braceletUid, braceletUid),
-          inArray(wompiPaymentIntentsTable.status, ["pending", "processing"]),
-        ),
-      );
+      if (req.user.role === "attendee" && bracelet.attendeeUserId !== req.user.id) {
+        res.status(403).json({ error: "You can only top up your own bracelet" });
+        return;
+      }
 
-    if (activeIntent) {
-      res.status(409).json({
-        error: "PAYMENT_ALREADY_IN_PROGRESS",
-        message: "There is already a payment in progress for this bracelet. Please wait for it to complete or expire.",
-        existingIntentId: activeIntent.id,
-      });
-      return;
+      if (bracelet.eventId) {
+        const [event] = await db
+          .select({ nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled })
+          .from(eventsTable)
+          .where(eq(eventsTable.id, bracelet.eventId));
+        if (event && !event.nfcBraceletsEnabled) {
+          res.status(404).json({ error: "NFC_BRACELETS_DISABLED", message: "NFC bracelets are not enabled for this event" });
+          return;
+        }
+      }
+
+      const [activeIntent] = await db
+        .select({ id: wompiPaymentIntentsTable.id })
+        .from(wompiPaymentIntentsTable)
+        .where(
+          and(
+            eq(wompiPaymentIntentsTable.braceletUid, braceletUid!),
+            inArray(wompiPaymentIntentsTable.status, ["pending", "processing"]),
+          ),
+        );
+
+      if (activeIntent) {
+        res.status(409).json({
+          error: "PAYMENT_ALREADY_IN_PROGRESS",
+          message: "There is already a payment in progress for this bracelet. Please wait for it to complete or expire.",
+          existingIntentId: activeIntent.id,
+        });
+        return;
+      }
+    } else {
+      // Pre-load: block concurrent pre-load intents per user
+      const [activePreload] = await db
+        .select({ id: wompiPaymentIntentsTable.id })
+        .from(wompiPaymentIntentsTable)
+        .where(
+          and(
+            eq(wompiPaymentIntentsTable.performedByUserId, req.user.id),
+            eq(wompiPaymentIntentsTable.purposeType, "preload"),
+            inArray(wompiPaymentIntentsTable.status, ["pending", "processing"]),
+          ),
+        );
+
+      if (activePreload) {
+        res.status(409).json({
+          error: "PAYMENT_ALREADY_IN_PROGRESS",
+          message: "There is already a pre-load payment in progress. Please wait for it to complete.",
+          existingIntentId: activePreload.id,
+        });
+        return;
+      }
     }
 
     const [userRecord] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
     const customerEmail = userRecord?.email || `attendee_${req.user.id}@evento.local`;
 
     const buyerFullName = [userRecord?.firstName, userRecord?.lastName].filter(Boolean).join(" ") || customerEmail;
-    const reference = `topup_${braceletUid}_${Date.now()}`;
+    const reference = isPreload ? `preload_${req.user.id}_${Date.now()}` : `topup_${braceletUid}_${Date.now()}`;
     let wompiTransactionId: string | undefined;
     let redirectUrl: string | undefined;
 
@@ -364,7 +389,7 @@ router.post(
     const [intent] = await db
       .insert(wompiPaymentIntentsTable)
       .values({
-        braceletUid,
+        braceletUid: braceletUid ?? null,
         amount,
         paymentMethod,
         phoneNumber,
@@ -373,6 +398,7 @@ router.post(
         wompiReference: reference,
         redirectUrl,
         status: "pending",
+        purposeType: isPreload ? "preload" : "topup",
         performedByUserId: req.user.id,
       })
       .returning();
@@ -381,6 +407,7 @@ router.post(
       intentId: intent.id,
       status: intent.status,
       paymentMethod,
+      purposeType: intent.purposeType,
       wompiTransactionId,
       redirectUrl: redirectUrl ?? null,
     });
@@ -446,9 +473,11 @@ router.get(
               .set({ status: "failed", updatedAt: new Date() })
               .where(eq(wompiPaymentIntentsTable.id, id));
             if (intent.performedByUserId) {
-              const [fb] = intent.braceletUid ? await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1) : [undefined];
               let fcc = "COP";
-              if (fb?.eventId) { const [fe] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb.eventId)).limit(1); if (fe) fcc = fe.currencyCode; }
+              if (intent.braceletUid) {
+                const [fb] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1);
+                if (fb?.eventId) { const [fe] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb.eventId)).limit(1); if (fe) fcc = fe.currencyCode; }
+              }
               void notifyTopUpFailed(intent.performedByUserId, intent.amount, fcc).catch(() => {});
             }
             res.json({ intentId: id, status: "failed", threeDsAuth: null });
@@ -468,6 +497,7 @@ router.get(
     res.json({
       intentId: intent.id,
       status: clientStatus,
+      purposeType: intent.purposeType,
       topUpId: intent.topUpId ?? null,
       threeDsAuth,
     });
@@ -476,8 +506,10 @@ router.get(
 
 async function processSuccessfulPayment(intentId: string, wompiTransactionId: string) {
   let notifyBraceletUid: string | null = null;
+  let notifyUserId: string | null = null;
   let notifyAmount = 0;
   let notifyNewBalance = 0;
+  let notifyIsPreload = false;
 
   await db.transaction(async (tx) => {
     const claimed = await tx
@@ -493,6 +525,31 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
 
     if (claimed.length === 0) return;
     const intent = claimed[0];
+
+    // Pre-load: no bracelet yet — credit user's pending wallet balance
+    if (intent.purposeType === "preload" && !intent.braceletUid) {
+      if (!intent.performedByUserId) return;
+
+      const [updated] = await tx
+        .update(usersTable)
+        .set({
+          pendingWalletBalance: sql`${usersTable.pendingWalletBalance} + ${intent.amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, intent.performedByUserId))
+        .returning({ pendingWalletBalance: usersTable.pendingWalletBalance });
+
+      await tx
+        .update(wompiPaymentIntentsTable)
+        .set({ status: "success", updatedAt: new Date() })
+        .where(eq(wompiPaymentIntentsTable.id, intentId));
+
+      notifyUserId = intent.performedByUserId;
+      notifyIsPreload = true;
+      notifyAmount = intent.amount;
+      notifyNewBalance = updated?.pendingWalletBalance ?? intent.amount;
+      return;
+    }
 
     if (!intent.braceletUid) return;
     const braceletUid = intent.braceletUid;
@@ -566,7 +623,9 @@ async function processSuccessfulPayment(intentId: string, wompiTransactionId: st
     notifyNewBalance = newBalance;
   });
 
-  if (notifyBraceletUid) {
+  if (notifyIsPreload && notifyUserId) {
+    void notifyTopUpSuccess(notifyUserId, notifyAmount, notifyNewBalance, "COP").catch(() => {});
+  } else if (notifyBraceletUid) {
     const [b] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, notifyBraceletUid)).limit(1);
     let cc = "COP";
     if (b?.eventId) {
@@ -695,10 +754,12 @@ router.post(
               .update(wompiPaymentIntentsTable)
               .set({ status: "failed", updatedAt: new Date() })
               .where(eq(wompiPaymentIntentsTable.id, intent.id));
-            if (intent.performedByUserId && intent.braceletUid) {
-              const [fb2] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1);
+            if (intent.performedByUserId) {
               let fcc2 = "COP";
-              if (fb2?.eventId) { const [fe2] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb2.eventId)).limit(1); if (fe2) fcc2 = fe2.currencyCode; }
+              if (intent.braceletUid) {
+                const [fb2] = await db.select({ eventId: braceletsTable.eventId }).from(braceletsTable).where(eq(braceletsTable.nfcUid, intent.braceletUid)).limit(1);
+                if (fb2?.eventId) { const [fe2] = await db.select({ currencyCode: eventsTable.currencyCode }).from(eventsTable).where(eq(eventsTable.id, fb2.eventId)).limit(1); if (fe2) fcc2 = fe2.currencyCode; }
+              }
               void notifyTopUpFailed(intent.performedByUserId, intent.amount, fcc2).catch(() => {});
             }
           }
@@ -804,6 +865,23 @@ router.get(
       publicKey: WOMPI_PUBLIC_KEY,
       baseUrl: WOMPI_BASE_URL,
     });
+  },
+);
+
+router.get(
+  "/user/wallet",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const [user] = await db
+      .select({ pendingWalletBalance: usersTable.pendingWalletBalance })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.user.id));
+
+    res.json({ pendingWalletBalance: user?.pendingWalletBalance ?? 0 });
   },
 );
 

@@ -120,7 +120,8 @@ export default function TopUpScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
 
-  const params = useLocalSearchParams<{ braceletUid?: string }>();
+  const params = useLocalSearchParams<{ braceletUid?: string; preload?: string }>();
+  const isPreload = params.preload === "true";
   const [braceletUid, setBraceletUid] = useState(params.braceletUid ?? "");
 
   const { data } = useMyBracelets();
@@ -195,7 +196,7 @@ export default function TopUpScreen() {
 
   const canSubmit =
     effectiveAmount >= 1000 &&
-    braceletUid.length > 0 &&
+    (isPreload || braceletUid.length > 0) &&
     (method === "nequi" || method === "daviplata"
       ? phoneNumber.replace(/\D/g, "").length >= 10
       : method === "puntoscolombia"
@@ -209,7 +210,7 @@ export default function TopUpScreen() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     const body: Parameters<typeof initiatePayment>[0] = {
-      braceletUid,
+      ...(isPreload ? {} : { braceletUid }),
       amount: effectiveAmount,
       paymentMethod: method,
     };
@@ -270,6 +271,7 @@ export default function TopUpScreen() {
             id: result.intentId,
             redirectUrl: result.redirectUrl ?? "",
             paymentMethod: method,
+            purposeType: result.purposeType ?? "topup",
           },
         };
         if (newCardData) {
@@ -378,7 +380,7 @@ export default function TopUpScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={C.text} />
         </Pressable>
-        <Text style={[styles.title, { color: C.text }]}>{t("topUp.title")}</Text>
+        <Text style={[styles.title, { color: C.text }]}>{isPreload ? t("topUp.preloadTitle") : t("topUp.title")}</Text>
         <View style={{ width: 30 }} />
       </View>
 
@@ -386,7 +388,16 @@ export default function TopUpScreen() {
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
       >
-        <Card style={{ gap: 12 }}>
+        {isPreload && (
+          <Card style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
+            <Feather name="info" size={16} color={C.primary} style={{ marginTop: 2 }} />
+            <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 }}>
+              {t("topUp.preloadHint")}
+            </Text>
+          </Card>
+        )}
+
+        {!isPreload && <Card style={{ gap: 12 }}>
           <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
             {t("topUp.selectBracelet").toUpperCase()}
           </Text>
@@ -471,7 +482,7 @@ export default function TopUpScreen() {
               </Text>
             </>
           )}
-        </Card>
+        </Card>}
 
         <Card style={{ gap: 12 }}>
           <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>

@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyBracelets, useLinkBracelet } from "@/hooks/useAttendeeApi";
+import { useMyBracelets, useLinkBracelet, usePendingWalletBalance } from "@/hooks/useAttendeeApi";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
 import { API_BASE_URL } from "@/constants/domain";
 
@@ -99,6 +99,8 @@ export default function HomeScreen() {
   const { user, token } = useAuth();
 
   const { data, isPending, refetch } = useMyBracelets();
+  const { data: walletData, refetch: refetchWallet } = usePendingWalletBalance();
+  const pendingWalletBalance = (walletData as { pendingWalletBalance?: number } | undefined)?.pendingWalletBalance ?? 0;
   const bracelets = ((data as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
   const isArchived = (b: BraceletItem) =>
     b.pendingRefund || b.refundStatus === "disbursement_completed" || (b.event && !b.event.active);
@@ -112,17 +114,18 @@ export default function HomeScreen() {
   const handleManualRefresh = useCallback(async () => {
     setManualRefreshing(true);
     try {
-      await refetch();
+      await Promise.all([refetch(), refetchWallet()]);
     } finally {
       setManualRefreshing(false);
     }
-  }, [refetch]);
+  }, [refetch, refetchWallet]);
 
   const appState = useRef(AppState.currentState);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && nextState === "active") {
         refetch();
+        refetchWallet();
       }
       appState.current = nextState;
     });
@@ -301,6 +304,12 @@ export default function HomeScreen() {
                 variant="primary"
                 style={styles.addBraceletBtn}
               />
+              <Button
+                title={t("home.preloadBalance")}
+                onPress={() => router.push({ pathname: "/top-up", params: { preload: "true" } })}
+                variant="secondary"
+                style={styles.addBraceletBtn}
+              />
             </View>
           )}
         </View>
@@ -332,6 +341,29 @@ export default function HomeScreen() {
               <Feather name="x" size={16} color="rgba(234,179,8,0.6)" />
             </Pressable>
           </View>
+        )}
+
+        {pendingWalletBalance > 0 && (
+          <Pressable
+            onPress={() => router.push({ pathname: "/top-up", params: { preload: "true" } })}
+            style={[styles.pendingBalanceBanner, { backgroundColor: "rgba(0,241,255,0.08)", borderColor: "rgba(0,241,255,0.28)" }]}
+          >
+            <View style={[styles.pendingBalanceIconWrap, { backgroundColor: "rgba(0,241,255,0.12)" }]}>
+              <Feather name="clock" size={18} color={C.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.pendingBalanceTitle, { color: C.primary }]}>
+                {t("home.pendingBalanceTitle")}
+              </Text>
+              <Text style={[styles.pendingBalanceAmount, { color: C.text }]}>
+                {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pendingWalletBalance)}
+              </Text>
+              <Text style={[styles.pendingBalanceHint, { color: C.textSecondary }]}>
+                {activeBracelets.length > 0 ? t("home.pendingBalanceWithBracelet") : t("home.pendingBalanceNoBracelet")}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={C.primary} />
+          </Pressable>
         )}
 
         {activeBracelets.length > 0 && (
@@ -877,4 +909,24 @@ const styles = StyleSheet.create({
   },
   emptyActiveTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   emptyActiveHint: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 19 },
+  pendingBalanceBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  pendingBalanceIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  pendingBalanceTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5 },
+  pendingBalanceAmount: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  pendingBalanceHint: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
 });

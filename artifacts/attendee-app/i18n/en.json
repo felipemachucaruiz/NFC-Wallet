@@ -113,7 +113,11 @@
     "addBraceletAction": "Link to my account",
     "topUpAction": "Top up",
     "braceletLinked": "Wristband linked!",
-    "transfer": "Transfer"
+    "transfer": "Transfer",
+    "preloadBalance": "Pre-load balance",
+    "pendingBalanceTitle": "Pending balance",
+    "pendingBalanceWithBracelet": "Will be automatically loaded to your wristband at the event gate.",
+    "pendingBalanceNoBracelet": "Will be transferred to your wristband when you check in at the event."
   },
   "addBracelet": {
     "title": "Add Wristband",
@@ -193,6 +197,8 @@
   },
   "topUp": {
     "title": "Top up wristband",
+    "preloadTitle": "Pre-load balance",
+    "preloadHint": "Your balance will be held and automatically transferred to your wristband when you check in at the event.",
     "amount": "Amount to top up",
     "orCustom": "Or enter a custom amount",
     "amountPlaceholder": "E.g.: 75000",
