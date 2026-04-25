@@ -2,6 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { TapeeLogo } from "@/components/TapeeLogo";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { WhatsAppOtpModal } from "@/components/WhatsAppOtpModal";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -321,7 +322,7 @@ export default function LoginScreen() {
               onPress={() => setShowWhatsApp(true)}
               style={({ pressed }) => [styles.whatsappBtn, pressed && { opacity: 0.75 }]}
             >
-              <Feather name="message-circle" size={18} color="#25D366" />
+              <WhatsAppIcon size={20} />
               <Text style={styles.whatsappBtnText}>{t("auth.whatsappLogin")}</Text>
             </Pressable>
           </View>

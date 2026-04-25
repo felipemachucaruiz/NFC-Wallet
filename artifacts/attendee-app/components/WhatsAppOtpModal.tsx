@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import Colors from "@/constants/colors";
@@ -180,7 +181,7 @@ export function WhatsAppOtpModal({ visible, onClose }: Props) {
           {/* Icon */}
           <View style={styles.iconRow}>
             <View style={styles.iconBadge}>
-              <Feather name="message-circle" size={28} color="#25D366" />
+              <WhatsAppIcon size={30} />
             </View>
           </View>
 
