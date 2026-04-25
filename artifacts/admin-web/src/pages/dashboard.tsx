@@ -70,7 +70,7 @@ export default function Dashboard() {
     }).addTo(map);
     mapInstanceRef.current = map;
     return () => { map.remove(); mapInstanceRef.current = null; };
-  }, []);
+  }, [eventsLoading]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
