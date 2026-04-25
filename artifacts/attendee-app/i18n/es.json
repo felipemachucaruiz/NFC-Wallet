@@ -143,7 +143,13 @@
     "eventLimitMsg": "Ya tienes una pulsera vinculada para este evento. Solo se permite una por persona.",
     "scanFailed": "El escaneo NFC falló. Por favor intenta de nuevo.",
     "unknownBracelet": "Esta pulsera no está registrada. Busquemos tu evento.",
-    "selectingEvent": "Seleccionando evento..."
+    "selectingEvent": "Seleccionando evento...",
+    "transferPendingTitle": "¿Transferir saldo pendiente?",
+    "transferPendingMsg": "Tienes {{amount}} de saldo pre-cargado. ¿Quieres transferirlo a esta pulsera ahora? Se aplicará automáticamente en tu próxima compra.",
+    "transferNow": "Transferir ahora",
+    "transferLater": "Después",
+    "transferSuccessTitle": "¡Saldo transferido!",
+    "transferSuccessMsg": "Tu saldo se aplicará automáticamente en tu próxima compra en cualquier punto de venta."
   },
   "selectEvent": {
     "title": "Seleccionar Evento",
@@ -468,6 +474,7 @@
     "autoTransferHint": "No necesitas hacer nada — la transferencia ocurre automáticamente cuando el agente escanea tu pulsera.",
     "noBraceletHint": "Si aún no ves tu pulsera en la app, agrégala manualmente escaneándola con tu teléfono o ingresando los números impresos en ella.",
     "addBraceletAction": "Agregar pulsera →",
+    "transferToBracelet": "Transferir a mi pulsera",
     "addMore": "Cargar más saldo"
   }
 }

@@ -336,6 +336,24 @@ export function useUpdateCardAlias() {
   });
 }
 
+export function useClaimWalletBalance() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (uid: string) =>
+      apiFetch<{ transferred: number }>(
+        `${API_BASE_URL}/api/attendee/me/bracelets/${encodeURIComponent(uid)}/claim-wallet-balance`,
+        headers,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["wallet", "pending"] });
+      void queryClient.invalidateQueries({ queryKey: ["attendee", "bracelets"] });
+    },
+  });
+}
+
 export function useDeleteCard() {
   const headers = useAuthHeaders();
   const apiFetch = useApiFetch();

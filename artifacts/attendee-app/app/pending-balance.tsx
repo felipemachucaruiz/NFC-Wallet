@@ -9,11 +9,11 @@ import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CopAmount } from "@/components/CopAmount";
-import { usePendingWalletBalance } from "@/hooks/useAttendeeApi";
-import { useMyBracelets } from "@/hooks/useAttendeeApi";
+import { usePendingWalletBalance, useMyBracelets, useClaimWalletBalance } from "@/hooks/useAttendeeApi";
+import { useAlert } from "@/components/CustomAlert";
 import { Loading } from "@/components/ui/Loading";
 
-type BraceletItem = { uid: string; event?: { active: boolean } | null };
+type BraceletItem = { uid: string; flagged?: boolean; pendingRefund?: boolean; event?: { active: boolean } | null };
 
 export default function PendingBalanceScreen() {
   const { t } = useTranslation();
@@ -22,12 +22,27 @@ export default function PendingBalanceScreen() {
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
 
+  const { show: showAlert } = useAlert();
   const { data: walletData, isPending } = usePendingWalletBalance();
   const { data: braceletData } = useMyBracelets();
+  const { mutateAsync: claimWalletBalance, isPending: isClaiming } = useClaimWalletBalance();
 
   const pendingBalance = (walletData as { pendingWalletBalance?: number } | undefined)?.pendingWalletBalance ?? 0;
   const bracelets = ((braceletData as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
-  const hasActiveBracelet = bracelets.some((b) => b.event?.active);
+  const activeBracelet = bracelets.find((b) => b.event?.active && !b.flagged && !b.pendingRefund) ?? null;
+  const hasActiveBracelet = activeBracelet !== null;
+
+  const handleClaim = async () => {
+    if (!activeBracelet) return;
+    try {
+      const result = await claimWalletBalance(activeBracelet.uid);
+      if (result.transferred > 0) {
+        showAlert(t("addBracelet.transferSuccessTitle"), t("addBracelet.transferSuccessMsg"));
+      }
+    } catch {
+      showAlert(t("common.error"), t("common.unknownError"));
+    }
+  };
 
   if (isPending) return <Loading label={t("common.loading")} />;
 
@@ -99,10 +114,18 @@ export default function PendingBalanceScreen() {
 
       {/* Actions */}
       <View style={styles.actions}>
+        {hasActiveBracelet && (
+          <Button
+            title={isClaiming ? t("common.loading") : t("pendingBalance.transferToBracelet")}
+            onPress={handleClaim}
+            variant="primary"
+            disabled={isClaiming}
+          />
+        )}
         <Button
           title={t("pendingBalance.addMore")}
           onPress={() => router.push({ pathname: "/top-up", params: { preload: "true" } })}
-          variant="primary"
+          variant={hasActiveBracelet ? "secondary" : "primary"}
         />
         <Button
           title={t("common.back")}

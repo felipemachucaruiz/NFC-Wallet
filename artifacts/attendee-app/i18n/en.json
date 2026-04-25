@@ -144,7 +144,13 @@
     "eventLimitMsg": "You already have a wristband linked for this event. Only one is allowed per person.",
     "scanFailed": "NFC scan failed. Please try again.",
     "unknownBracelet": "This wristband is not registered. Let's find your event.",
-    "selectingEvent": "Selecting event..."
+    "selectingEvent": "Selecting event...",
+    "transferPendingTitle": "Transfer pending balance?",
+    "transferPendingMsg": "You have {{amount}} of pre-loaded balance. Do you want to transfer it to this wristband now? It will be applied automatically on your next purchase.",
+    "transferNow": "Transfer now",
+    "transferLater": "Later",
+    "transferSuccessTitle": "Balance transferred!",
+    "transferSuccessMsg": "Your balance will be applied automatically on your next purchase at any point of sale."
   },
   "selectEvent": {
     "title": "Select Event",
@@ -469,6 +475,7 @@
     "autoTransferHint": "No action needed — the transfer happens automatically when the gate agent scans your wristband.",
     "noBraceletHint": "If you don't see your wristband in the app yet, add it manually by scanning it with your phone or entering the numbers printed on it.",
     "addBraceletAction": "Add wristband →",
+    "transferToBracelet": "Transfer to my wristband",
     "addMore": "Add more balance"
   }
 }

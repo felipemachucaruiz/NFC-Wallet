@@ -927,4 +927,56 @@ router.post(
   },
 );
 
+router.post(
+  "/attendee/me/bracelets/:uid/claim-wallet-balance",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const rawUid = (req.params as { uid: string }).uid;
+    const uid = normalizeUidLocal(rawUid);
+    if (!uid) {
+      res.status(400).json({ error: "Invalid UID format" });
+      return;
+    }
+
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(and(eq(braceletsTable.nfcUid, uid), eq(braceletsTable.attendeeUserId, userId)));
+
+    if (!bracelet) {
+      res.status(404).json({ error: "Bracelet not found or not linked to your account" });
+      return;
+    }
+
+    const [user] = await db
+      .select({ pendingWalletBalance: usersTable.pendingWalletBalance })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+
+    const amount = user?.pendingWalletBalance ?? 0;
+    if (amount <= 0) {
+      res.json({ transferred: 0 });
+      return;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(usersTable)
+        .set({ pendingWalletBalance: 0, updatedAt: new Date() })
+        .where(eq(usersTable.id, userId));
+
+      await tx
+        .update(braceletsTable)
+        .set({
+          pendingTopUpAmount: sql`${braceletsTable.pendingTopUpAmount} + ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(braceletsTable.nfcUid, uid));
+    });
+
+    res.json({ transferred: amount });
+  }
+);
+
 export default router;

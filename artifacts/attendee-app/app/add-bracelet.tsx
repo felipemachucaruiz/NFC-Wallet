@@ -18,7 +18,9 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
-import { useLinkBracelet } from "@/hooks/useAttendeeApi";
+import { useLinkBracelet, usePendingWalletBalance, useClaimWalletBalance } from "@/hooks/useAttendeeApi";
+import { useAlert } from "@/components/CustomAlert";
+import { CopAmount } from "@/components/CopAmount";
 
 function normalizeUid(raw: string): string {
   const clean = raw.replace(/[:\s\-]/g, "").toUpperCase();
@@ -43,7 +45,11 @@ export default function AddBraceletScreen() {
   const [linkedUid, setLinkedUid] = useState("");
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const { show: showAlert } = useAlert();
   const { mutate: linkBracelet } = useLinkBracelet();
+  const { data: walletData } = usePendingWalletBalance();
+  const pendingWalletBalance = (walletData as { pendingWalletBalance?: number } | undefined)?.pendingWalletBalance ?? 0;
+  const { mutateAsync: claimWalletBalance } = useClaimWalletBalance();
 
   useEffect(() => {
     setNfcAvailable(isNfcSupported());
@@ -69,6 +75,29 @@ export default function AddBraceletScreen() {
         onSuccess: (res) => {
           setLinkedUid(res.uid);
           setState("success");
+          if (pendingWalletBalance > 0) {
+            showAlert(
+              t("addBracelet.transferPendingTitle"),
+              t("addBracelet.transferPendingMsg", {
+                amount: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pendingWalletBalance),
+              }),
+              [
+                { text: t("addBracelet.transferLater"), variant: "cancel" },
+                {
+                  text: t("addBracelet.transferNow"),
+                  variant: "primary",
+                  onPress: async () => {
+                    try {
+                      await claimWalletBalance(res.uid);
+                      showAlert(t("addBracelet.transferSuccessTitle"), t("addBracelet.transferSuccessMsg"));
+                    } catch {
+                      // silent — user can retry from pending-balance screen
+                    }
+                  },
+                },
+              ]
+            );
+          }
         },
         onError: (err) => {
           if (err.message === "BRACELET_ALREADY_LINKED") {

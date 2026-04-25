@@ -14,7 +14,8 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyBracelets, useLinkBracelet, usePendingWalletBalance } from "@/hooks/useAttendeeApi";
+import { useMyBracelets, useLinkBracelet, usePendingWalletBalance, useClaimWalletBalance } from "@/hooks/useAttendeeApi";
+import { useAlert } from "@/components/CustomAlert";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
 import { API_BASE_URL } from "@/constants/domain";
 
@@ -158,7 +159,9 @@ export default function HomeScreen() {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [nfcFeedback, setNfcFeedback] = useState<"success" | "already" | "event_limit" | "error" | null>(null);
 
+  const { show: showAlert } = useAlert();
   const { mutate: linkBracelet } = useLinkBracelet();
+  const { mutateAsync: claimWalletBalance } = useClaimWalletBalance();
 
   useEffect(() => {
     setNfcAvailable(isNfcSupported());
@@ -180,9 +183,32 @@ export default function HomeScreen() {
           linkBracelet(
             { uid },
             {
-              onSuccess: () => {
+              onSuccess: (res) => {
                 setNfcFeedback("success");
                 setTimeout(() => setNfcFeedback(null), 3000);
+                if (pendingWalletBalance > 0) {
+                  showAlert(
+                    t("addBracelet.transferPendingTitle"),
+                    t("addBracelet.transferPendingMsg", {
+                      amount: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pendingWalletBalance),
+                    }),
+                    [
+                      { text: t("addBracelet.transferLater"), variant: "cancel" },
+                      {
+                        text: t("addBracelet.transferNow"),
+                        variant: "primary",
+                        onPress: async () => {
+                          try {
+                            await claimWalletBalance(res.uid);
+                            showAlert(t("addBracelet.transferSuccessTitle"), t("addBracelet.transferSuccessMsg"));
+                          } catch {
+                            // silent
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }
               },
               onError: (err) => {
                 if (err.message === "ONE_BRACELET_PER_EVENT") {
