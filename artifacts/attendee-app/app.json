@@ -64,6 +64,7 @@
       ],
       "expo-updates",
       "./plugins/withAndroidBackup",
+      "./plugins/withAdiRegistration",
       "./plugins/withNetworkSecurity",
       "./plugins/withPermissions"
     ],
