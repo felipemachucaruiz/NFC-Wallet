@@ -46,6 +46,7 @@ interface AuthContextValue {
   login: (identifier: string, password: string, keepMeLoggedIn?: boolean) => Promise<string | null>;
   register: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<string | null>;
   loginWithGoogle: (idToken: string) => Promise<string | null>;
+  loginWithSessionToken: (sessionToken: string) => Promise<string | null>;
   sendWhatsAppOtp: (phone: string) => Promise<{ expiresIn: number }>;
   verifyWhatsAppOtp: (phone: string, code: string) => Promise<string | null>;
   logout: () => Promise<void>;
@@ -245,6 +246,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setAuthToken]);
 
+  const loginWithSessionToken = useCallback(async (sessionToken: string): Promise<string | null> => {
+    try {
+      const u = await fetchCurrentUser(sessionToken);
+      if (!u) return "No se pudo cargar el perfil";
+      if (u === "network_error") return "Error de red";
+      if (u.role !== "attendee") return "StaffNotAllowed";
+      await storeToken(sessionToken);
+      setAuthToken(sessionToken);
+      setUser(u as AuthUser);
+      return null;
+    } catch {
+      return "Error de red";
+    }
+  }, [setAuthToken]);
+
   const sendWhatsAppOtp = useCallback(async (phone: string): Promise<{ expiresIn: number }> => {
     const res = await fetch(`${API_BASE_URL}/api/auth/whatsapp-otp/send`, {
       method: "POST",
@@ -385,6 +401,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       loginWithGoogle,
+      loginWithSessionToken,
       sendWhatsAppOtp,
       verifyWhatsAppOtp,
       logout,

@@ -1,39 +1,19 @@
-/**
- * Google Sign-In using expo-web-browser (no new native modules needed).
- *
- * SETUP REQUIRED (one-time):
- * Add `tapee-attendee://auth/google/callback` to the list of
- * "Authorized redirect URIs" in Google Cloud Console → your OAuth 2.0
- * web client credentials page.
- */
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
-import * as Crypto from "expo-crypto";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import { API_BASE_URL } from "@/constants/domain";
 
 interface Props {
   onError?: (msg: string) => void;
 }
 
-function parseFragment(url: string): Record<string, string> {
-  const hashIdx = url.indexOf("#");
-  if (hashIdx === -1) return {};
-  return url
-    .substring(hashIdx + 1)
-    .split("&")
-    .reduce<Record<string, string>>((acc, pair) => {
-      const [k, v] = pair.split("=");
-      if (k) acc[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
-      return acc;
-    }, {});
-}
+const DEEP_LINK_PREFIX = "tapee-attendee://auth/done";
 
 export function GoogleSignInButton({ onError }: Props) {
   const { t } = useTranslation();
-  const { googleClientId, loginWithGoogle } = useAuth();
+  const { googleClientId, loginWithSessionToken } = useAuth();
   const [loading, setLoading] = useState(false);
 
   if (!googleClientId) return null;
@@ -41,32 +21,31 @@ export function GoogleSignInButton({ onError }: Props) {
   const handlePress = async () => {
     setLoading(true);
     try {
-      const redirectUri = Linking.createURL("auth/google/callback");
-      const nonce = Crypto.randomUUID();
-
-      const params = new URLSearchParams({
-        client_id: googleClientId,
-        redirect_uri: redirectUri,
-        response_type: "id_token",
-        scope: "openid email profile",
-        nonce,
-        prompt: "select_account",
-      });
-
       const result = await WebBrowser.openAuthSessionAsync(
-        `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
-        redirectUri,
+        `${API_BASE_URL}/api/auth/google/mobile-start`,
+        DEEP_LINK_PREFIX,
       );
 
       if (result.type !== "success") return;
 
-      const idToken = parseFragment(result.url).id_token;
-      if (!idToken) {
+      const url = new URL(result.url);
+      const errorParam = url.searchParams.get("error");
+      if (errorParam) {
+        onError?.(
+          errorParam === "staff_not_allowed"
+            ? (t("auth.staffNotAllowed") ?? "Las cuentas de staff deben iniciar sesión en la app de staff.")
+            : t("auth.googleFailed"),
+        );
+        return;
+      }
+
+      const token = url.searchParams.get("token");
+      if (!token) {
         onError?.(t("auth.googleFailed"));
         return;
       }
 
-      const err = await loginWithGoogle(idToken);
+      const err = await loginWithSessionToken(token);
       if (err) {
         onError?.(
           err === "StaffNotAllowed"

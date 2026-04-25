@@ -419,6 +419,148 @@ router.post("/auth/google", async (req: Request, res: Response) => {
   }
 });
 
+// ── Google OAuth mobile flow (authorization code via backend) ────────────────
+const GOOGLE_MOBILE_CALLBACK_PATH = "/api/auth/google/mobile-callback";
+const APP_DEEP_LINK_BASE = "tapee-attendee://auth/done";
+
+router.get("/auth/google/mobile-start", (req: Request, res: Response) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    res.status(503).json({ error: "Google sign-in is not configured" });
+    return;
+  }
+
+  const state = crypto.randomBytes(16).toString("hex");
+  const redirectUri = `${getOrigin(req)}${GOOGLE_MOBILE_CALLBACK_PATH}`;
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: "openid email profile",
+    state,
+    access_type: "online",
+    prompt: "select_account",
+  });
+
+  res.cookie("google_mobile_state", state, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 10 * 60 * 1000,
+  });
+
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+});
+
+router.get("/auth/google/mobile-callback", async (req: Request, res: Response) => {
+  const { code, state, error } = req.query as Record<string, string>;
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (error || !code || !clientId || !clientSecret || !googleClient) {
+    res.redirect(`${APP_DEEP_LINK_BASE}?error=cancelled`);
+    return;
+  }
+
+  const savedState = req.cookies?.google_mobile_state;
+  res.clearCookie("google_mobile_state", { path: "/" });
+  if (savedState && state !== savedState) {
+    res.redirect(`${APP_DEEP_LINK_BASE}?error=state_mismatch`);
+    return;
+  }
+
+  try {
+    const redirectUri = `${getOrigin(req)}${GOOGLE_MOBILE_CALLBACK_PATH}`;
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      }).toString(),
+    });
+
+    if (!tokenRes.ok) {
+      res.redirect(`${APP_DEEP_LINK_BASE}?error=token_exchange_failed`);
+      return;
+    }
+
+    const tokenData = await tokenRes.json() as { id_token?: string };
+    const idToken = tokenData.id_token;
+    if (!idToken) {
+      res.redirect(`${APP_DEEP_LINK_BASE}?error=no_id_token`);
+      return;
+    }
+
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: clientId });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email || !payload.email_verified) {
+      res.redirect(`${APP_DEEP_LINK_BASE}?error=invalid_token`);
+      return;
+    }
+
+    const googleEmail = payload.email.toLowerCase().trim();
+    const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, googleEmail));
+
+    let userId: string;
+    if (existingUser) {
+      if (existingUser.role !== "attendee") {
+        res.redirect(`${APP_DEEP_LINK_BASE}?error=staff_not_allowed`);
+        return;
+      }
+      userId = existingUser.id;
+      if (!existingUser.emailVerified) {
+        await db.update(usersTable).set({ emailVerified: true, updatedAt: new Date() }).where(eq(usersTable.id, existingUser.id));
+      }
+      if (!existingUser.firstName && payload.given_name) {
+        await db.update(usersTable).set({
+          firstName: payload.given_name,
+          lastName: payload.family_name ?? null,
+          profileImageUrl: payload.picture ?? null,
+          updatedAt: new Date(),
+        }).where(eq(usersTable.id, existingUser.id));
+      }
+    } else {
+      const [newUser] = await db.insert(usersTable).values({
+        email: googleEmail,
+        firstName: payload.given_name ?? null,
+        lastName: payload.family_name ?? null,
+        profileImageUrl: payload.picture ?? null,
+        role: "attendee",
+        emailVerified: true,
+      }).returning();
+      userId = newUser.id;
+    }
+
+    const [freshUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    const sessionData = {
+      user: {
+        id: freshUser.id,
+        email: freshUser.email,
+        firstName: freshUser.firstName,
+        lastName: freshUser.lastName,
+        profileImageUrl: freshUser.profileImageUrl,
+        role: freshUser.role,
+        merchantId: freshUser.merchantId ?? null,
+        eventId: freshUser.eventId ?? null,
+        promoterCompanyId: freshUser.promoterCompanyId ?? null,
+      },
+    };
+
+    const sid = await createSession(sessionData);
+    res.redirect(`${APP_DEEP_LINK_BASE}?token=${encodeURIComponent(sid)}`);
+  } catch (err) {
+    req.log.error({ err }, "Google mobile OAuth callback error");
+    res.redirect(`${APP_DEEP_LINK_BASE}?error=auth_failed`);
+  }
+});
+
 router.post("/auth/logout", async (req: Request, res: Response) => {
   const sid = getSessionId(req);
   if (sid) {
