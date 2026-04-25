@@ -13,6 +13,11 @@ class BarcodeReceiverModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("BarcodeReceiver")
 
+    // CRITICAL: Must use Expo's sendEvent() + Events() declaration.
+    // nativeModule.addListener() in src/index.ts only connects to the Expo
+    // events channel — DeviceEventManagerModule/RCTDeviceEventEmitter will
+    // NOT reach the JS listener. Do not revert to emitBarcode() or
+    // RCTDeviceEventEmitter (regression introduced in commit 16af252).
     Events("onBarcodeScanned")
 
     OnCreate {
