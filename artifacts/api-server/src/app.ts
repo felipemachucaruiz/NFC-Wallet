@@ -50,15 +50,23 @@ const app: Express = express();
 app.disable("x-powered-by");
 app.use(compression());
 
-app.use((_req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
-  );
+  // Swagger UI needs scripts, styles, and fetch — relax CSP only for /api/docs
+  if (req.path.startsWith("/api/docs")) {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'",
+    );
+  } else {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
+    );
+  }
   next();
 });
 
