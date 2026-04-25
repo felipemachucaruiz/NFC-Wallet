@@ -47,7 +47,19 @@
     "keepMeLoggedInHint": "Your session will be saved securely on this device.",
     "phone": "Phone number",
     "phonePlaceholder": "300 000 0000",
-    "selectCountry": "Select country"
+    "selectCountry": "Select country",
+    "orContinueWith": "Or continue with",
+    "googleSignIn": "Continue with Google",
+    "whatsappLogin": "Continue with WhatsApp",
+    "whatsappLoginTitle": "Sign in with WhatsApp",
+    "whatsappLoginDesc": "Enter your number and we'll send a verification code via WhatsApp",
+    "otpSent": "Code sent to",
+    "otpFailed": "Incorrect or expired code. Please try again.",
+    "otpSendFailed": "Could not send the code. Please try again.",
+    "sendCode": "Send code",
+    "verifyCode": "Verify code",
+    "resendCode": "Resend code",
+    "googleFailed": "Could not sign in with Google"
   },
   "home": {
     "tab": "Home",

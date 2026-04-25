@@ -47,7 +47,19 @@
     "keepMeLoggedInHint": "Tu sesión se guardará de forma segura en este dispositivo.",
     "phone": "Número celular",
     "phonePlaceholder": "300 000 0000",
-    "selectCountry": "Seleccionar país"
+    "selectCountry": "Seleccionar país",
+    "orContinueWith": "O continuar con",
+    "googleSignIn": "Continuar con Google",
+    "whatsappLogin": "Continuar con WhatsApp",
+    "whatsappLoginTitle": "Acceder con WhatsApp",
+    "whatsappLoginDesc": "Ingresa tu número y te enviaremos un código de verificación por WhatsApp",
+    "otpSent": "Código enviado a",
+    "otpFailed": "Código incorrecto o expirado. Intenta de nuevo.",
+    "otpSendFailed": "No se pudo enviar el código. Intenta de nuevo.",
+    "sendCode": "Enviar código",
+    "verifyCode": "Verificar código",
+    "resendCode": "Reenviar código",
+    "googleFailed": "No se pudo iniciar sesión con Google"
   },
   "home": {
     "tab": "Inicio",
