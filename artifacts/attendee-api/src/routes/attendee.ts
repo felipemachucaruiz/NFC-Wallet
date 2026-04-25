@@ -134,20 +134,29 @@ router.get(
       .from(braceletsTable)
       .where(eq(braceletsTable.attendeeUserId, userId));
 
-    // Also include bracelets this user previously owned (transferred/unlinked)
+    const currentUids = new Set(bracelets.map((b) => b.nfcUid));
+
+    // Historical ownership: bracelet_transfer_logs records each unlink with its timestamp.
+    // We use the latest unlink date per bracelet as the cutoff — transactions after that
+    // belong to whoever linked the bracelet next.
     const historicalTransfers = await db
-      .select({ braceletUid: braceletTransferLogsTable.braceletUid })
+      .select({ braceletUid: braceletTransferLogsTable.braceletUid, createdAt: braceletTransferLogsTable.createdAt })
       .from(braceletTransferLogsTable)
       .where(eq(braceletTransferLogsTable.fromUserId, userId));
 
-    const historicalUids = [...new Set(historicalTransfers.map((t) => t.braceletUid))];
-    const newHistoricalUids = historicalUids.filter((uid) => !bracelets.some((b) => b.nfcUid === uid));
+    const historicalCutoffs = new Map<string, Date>();
+    for (const t of historicalTransfers) {
+      const existing = historicalCutoffs.get(t.braceletUid);
+      if (!existing || t.createdAt > existing) historicalCutoffs.set(t.braceletUid, t.createdAt);
+    }
 
-    const historicalBracelets = newHistoricalUids.length > 0
+    const pureHistoricalUids = [...historicalCutoffs.keys()].filter((uid) => !currentUids.has(uid));
+
+    const historicalBracelets = pureHistoricalUids.length > 0
       ? await db
           .select({ nfcUid: braceletsTable.nfcUid, eventId: braceletsTable.eventId })
           .from(braceletsTable)
-          .where(inArray(braceletsTable.nfcUid, newHistoricalUids))
+          .where(inArray(braceletsTable.nfcUid, pureHistoricalUids))
       : [];
 
     const allBracelets = [...bracelets, ...historicalBracelets];
@@ -160,7 +169,13 @@ router.get(
     const txEventsById = new Map(txEvents.map((e) => [e.id, e.name]));
     const uidToEvent = new Map(allBracelets.map((b) => [b.nfcUid, b.eventId ? { eventId: b.eventId, eventName: txEventsById.get(b.eventId) ?? null } : null]));
 
-    const txLogRows = uids.length > 0
+    const isBeforeOwnershipCutoff = (braceletUid: string, createdAt: Date) => {
+      if (currentUids.has(braceletUid)) return true;
+      const cutoff = historicalCutoffs.get(braceletUid);
+      return cutoff ? createdAt <= cutoff : true;
+    };
+
+    const rawTxLogRows = uids.length > 0
       ? await db
           .select()
           .from(transactionLogsTable)
@@ -171,10 +186,11 @@ router.get(
             )
           )
           .orderBy(desc(transactionLogsTable.createdAt))
-          .limit(limit * 2)
+          .limit(limit * 4)
       : [];
+    const txLogRows = rawTxLogRows.filter((tx) => isBeforeOwnershipCutoff(tx.braceletUid, tx.createdAt));
 
-    const topUpRows = uids.length > 0
+    const rawTopUpRows = uids.length > 0
       ? await db
           .select()
           .from(topUpsTable)
@@ -185,8 +201,9 @@ router.get(
             )
           )
           .orderBy(desc(topUpsTable.createdAt))
-          .limit(limit * 2)
+          .limit(limit * 4)
       : [];
+    const topUpRows = rawTopUpRows.filter((tu) => isBeforeOwnershipCutoff(tu.braceletUid, tu.createdAt));
 
     const refundRows = await db
       .select()
