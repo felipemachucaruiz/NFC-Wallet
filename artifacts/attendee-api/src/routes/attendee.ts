@@ -134,14 +134,31 @@ router.get(
       .from(braceletsTable)
       .where(eq(braceletsTable.attendeeUserId, userId));
 
-    const uids = bracelets.map((b) => b.nfcUid);
+    // Also include bracelets this user previously owned (transferred/unlinked)
+    const historicalTransfers = await db
+      .select({ braceletUid: braceletTransferLogsTable.braceletUid })
+      .from(braceletTransferLogsTable)
+      .where(eq(braceletTransferLogsTable.fromUserId, userId));
 
-    const txEventIds = [...new Set(bracelets.map((b) => b.eventId).filter(Boolean) as string[])];
+    const historicalUids = [...new Set(historicalTransfers.map((t) => t.braceletUid))];
+    const newHistoricalUids = historicalUids.filter((uid) => !bracelets.some((b) => b.nfcUid === uid));
+
+    const historicalBracelets = newHistoricalUids.length > 0
+      ? await db
+          .select({ nfcUid: braceletsTable.nfcUid, eventId: braceletsTable.eventId })
+          .from(braceletsTable)
+          .where(inArray(braceletsTable.nfcUid, newHistoricalUids))
+      : [];
+
+    const allBracelets = [...bracelets, ...historicalBracelets];
+    const uids = allBracelets.map((b) => b.nfcUid);
+
+    const txEventIds = [...new Set(allBracelets.map((b) => b.eventId).filter(Boolean) as string[])];
     const txEvents = txEventIds.length > 0
       ? await db.select({ id: eventsTable.id, name: eventsTable.name }).from(eventsTable).where(inArray(eventsTable.id, txEventIds))
       : [];
     const txEventsById = new Map(txEvents.map((e) => [e.id, e.name]));
-    const uidToEvent = new Map(bracelets.map((b) => [b.nfcUid, b.eventId ? { eventId: b.eventId, eventName: txEventsById.get(b.eventId) ?? null } : null]));
+    const uidToEvent = new Map(allBracelets.map((b) => [b.nfcUid, b.eventId ? { eventId: b.eventId, eventName: txEventsById.get(b.eventId) ?? null } : null]));
 
     const txLogRows = uids.length > 0
       ? await db
