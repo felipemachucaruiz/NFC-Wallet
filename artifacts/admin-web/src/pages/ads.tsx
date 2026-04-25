@@ -12,9 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Pencil, Trash2, Power, ExternalLink, ImageIcon, Loader2, GripVertical } from "lucide-react";
 
-const API_BASE = import.meta.env.PROD
-  ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app").replace(/\/+$/, "")
-  : `${import.meta.env.BASE_URL}_srv`;
+const API_BASE = `${import.meta.env.BASE_URL}_srv`;
 
 function apiUrl(path: string) { return `${API_BASE}${path}`; }
 function authHeaders(): Record<string, string> {
@@ -38,7 +36,7 @@ interface Ad {
   createdAt: string;
 }
 
-const STORAGE_ORIGIN = "https://prod.tapee.app";
+const STORAGE_ORIGIN = `${import.meta.env.BASE_URL}_srv`;
 function resolveImageUrl(path: string | null | undefined): string {
   if (!path) return "";
   if (path.startsWith("http")) return path;

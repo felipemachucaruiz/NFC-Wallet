@@ -209,7 +209,7 @@ function ImageUploadField({
 
   const rawDisplayUrl = removed ? null : (previewUrl || currentUrl || null);
   const displayUrl = rawDisplayUrl && rawDisplayUrl.length > 1 ? rawDisplayUrl : null;
-  const resolvedSrc = displayUrl?.startsWith("http") || displayUrl?.startsWith("blob:") ? displayUrl : displayUrl ? `https://prod.tapee.app${displayUrl}` : "";
+  const resolvedSrc = displayUrl?.startsWith("http") || displayUrl?.startsWith("blob:") ? displayUrl : displayUrl ? `${import.meta.env.BASE_URL}_srv${displayUrl}` : "";
   const isCover = imageType === "cover";
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);

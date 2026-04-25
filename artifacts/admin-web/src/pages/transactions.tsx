@@ -19,9 +19,7 @@ import { Search, Eye, Receipt } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 
-const API_BASE = import.meta.env.PROD
-  ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app").replace(/\/+$/, "")
-  : `${import.meta.env.BASE_URL}_srv`;
+const API_BASE = `${import.meta.env.BASE_URL}_srv`;
 
 function getToken() {
   return localStorage.getItem("tapee_admin_token") ?? "";

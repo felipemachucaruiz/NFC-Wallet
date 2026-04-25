@@ -16,9 +16,7 @@ import {
   Smartphone, Users, Timer, Cpu, Terminal,
 } from "lucide-react";
 
-const API = import.meta.env.PROD
-  ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app")
-  : `${import.meta.env.BASE_URL}_srv`;
+const API = `${import.meta.env.BASE_URL}_srv`;
 
 function getToken() { return localStorage.getItem(AUTH_TOKEN_KEY) ?? ""; }
 

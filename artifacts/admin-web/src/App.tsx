@@ -60,11 +60,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-setBaseUrl(
-  import.meta.env.PROD
-    ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app")
-    : `${import.meta.env.BASE_URL}_srv`,
-);
+setBaseUrl(`${import.meta.env.BASE_URL}_srv`);
 setAuthTokenGetter(() => localStorage.getItem(AUTH_TOKEN_KEY));
 
 import NotFound from "@/pages/not-found";

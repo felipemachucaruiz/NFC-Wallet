@@ -23,9 +23,7 @@ import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
-const _API_BASE = import.meta.env.PROD
-  ? (import.meta.env.VITE_API_URL || "https://prod.tapee.app").replace(/\/+$/, "")
-  : `${import.meta.env.BASE_URL}_srv`;
+const _API_BASE = `${import.meta.env.BASE_URL}_srv`;
 function apiUrl(path: string): string { return `${_API_BASE}${path}`; }
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("tapee_admin_token");
