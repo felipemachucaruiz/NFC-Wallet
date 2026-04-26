@@ -168,6 +168,8 @@ export default function HomeScreen() {
     setNfcAvailable(isNfcSupported());
   }, []);
 
+  const normalizeUid = (uid: string) => uid.replace(/[:\s]/g, "").toUpperCase();
+
   const handleNfcScan = async () => {
     if (scanning) return;
     setNfcFeedback(null);
@@ -176,7 +178,7 @@ export default function HomeScreen() {
       const uid = await scanBraceletUID();
       if (uid) {
         setSelectedUid(uid);
-        const matched = bracelets.find((b) => b.uid === uid);
+        const matched = bracelets.find((b) => normalizeUid(b.uid) === normalizeUid(uid));
         if (matched) {
           setNfcFeedback("already");
           setTimeout(() => setNfcFeedback(null), 3000);
@@ -185,9 +187,18 @@ export default function HomeScreen() {
             { uid },
             {
               onSuccess: (res) => {
+                refetch();
+                const transferred = (res as { transferredFromBlocked?: number }).transferredFromBlocked ?? 0;
                 setNfcFeedback("success");
                 setTimeout(() => setNfcFeedback(null), 3000);
-                if (pendingWalletBalance > 0) {
+                if (transferred > 0) {
+                  showAlert(
+                    t("addBracelet.balanceRecoveredTitle"),
+                    t("addBracelet.balanceRecoveredMsg", {
+                      amount: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(transferred),
+                    })
+                  );
+                } else if (pendingWalletBalance > 0) {
                   showAlert(
                     t("addBracelet.transferPendingTitle"),
                     t("addBracelet.transferPendingMsg", {
@@ -212,12 +223,20 @@ export default function HomeScreen() {
                 }
               },
               onError: (err) => {
-                if (err.message === "ONE_BRACELET_PER_EVENT") {
-                  setNfcFeedback("event_limit");
+                if (err.message === "ONE_BRACELET_PER_EVENT" || err.message === "BRACELET_ALREADY_LINKED") {
+                  setNfcFeedback("already");
+                  setTimeout(() => setNfcFeedback(null), 3000);
+                } else if (
+                  err.message === "BRACELET_NOT_FOUND" ||
+                  err.message === "BRACELET_NOT_REGISTERED" ||
+                  err.message === "NEEDS_EVENT_SELECTION" ||
+                  err.message?.includes("eventId is required")
+                ) {
+                  router.push({ pathname: "/select-event" as never, params: { uid } });
                 } else {
                   setNfcFeedback("error");
+                  setTimeout(() => setNfcFeedback(null), 3000);
                 }
-                setTimeout(() => setNfcFeedback(null), 3000);
               },
             }
           );
