@@ -108,7 +108,7 @@ export default function HomeScreen() {
     b.pendingRefund || b.refundStatus === "disbursement_completed" || (b.event && !b.event.active);
   const activeBracelets = bracelets.filter((b) => !isArchived(b));
   const archivedBracelets = bracelets.filter((b) => isArchived(b));
-  const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balance, 0);
+  const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balance + (b.pendingTopUpAmount ?? 0), 0);
   const activeBracelet = activeBracelets.find((b) => b.event?.active) ?? activeBracelets[0] ?? null;
 
   const [manualRefreshing, setManualRefreshing] = useState(false);
@@ -426,7 +426,7 @@ export default function HomeScreen() {
                           </Text>
                         )}
                         <View style={{ marginTop: 4 }}>
-                          <CopAmount amount={b.balance} size={18} />
+                          <CopAmount amount={b.balance + (b.pendingTopUpAmount ?? 0)} size={18} />
                         </View>
                         {(b.pendingTopUpAmount ?? 0) > 0 && (
                           <View style={[styles.pendingTopUpRow, { backgroundColor: C.primaryLight }]}>

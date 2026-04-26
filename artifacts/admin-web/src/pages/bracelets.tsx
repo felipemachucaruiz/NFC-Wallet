@@ -218,7 +218,9 @@ export default function Bracelets() {
                 <TableHead>{t("wristbands.colNfcUid")}</TableHead>
                 {isAllEvents && <TableHead>{t("nav.events", "Evento")}</TableHead>}
                 <TableHead>{t("wristbands.colOwner")}</TableHead>
-                <TableHead>{t("wristbands.colBalance")}</TableHead>
+                <TableHead>{t("wristbands.colBalanceChip")}</TableHead>
+                <TableHead>{t("wristbands.colBalancePending")}</TableHead>
+                <TableHead>{t("wristbands.colBalanceTotal")}</TableHead>
                 <TableHead>{t("wristbands.colStatus")}</TableHead>
                 <TableHead>{t("wristbands.colRegistered")}</TableHead>
                 <TableHead className="w-24">{t("wristbands.colActions")}</TableHead>
@@ -227,13 +229,13 @@ export default function Bracelets() {
             <TableBody>
               {braceletsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={isAllEvents ? 7 : 6} className="text-center py-8">
+                  <TableCell colSpan={isAllEvents ? 9 : 8} className="text-center py-8">
                     {t("common.loading")}
                   </TableCell>
                 </TableRow>
               ) : filteredBracelets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isAllEvents ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAllEvents ? 9 : 8} className="text-center py-8 text-muted-foreground">
                     {t("wristbands.noBracelets")}
                   </TableCell>
                 </TableRow>
@@ -261,6 +263,18 @@ export default function Bracelets() {
                     </TableCell>
                     <TableCell className="text-sm font-medium">
                       {(bracelet.lastKnownBalance ?? 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {(bracelet.pendingTopUpAmount ?? 0) > 0 ? (
+                        <span className="text-yellow-500 font-medium">
+                          {(bracelet.pendingTopUpAmount ?? 0).toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm font-semibold">
+                      {((bracelet.lastKnownBalance ?? 0) + (bracelet.pendingTopUpAmount ?? 0)).toLocaleString()}
                     </TableCell>
                     <TableCell>
                       {bracelet.flagged ? (
