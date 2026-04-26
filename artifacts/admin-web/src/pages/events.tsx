@@ -46,6 +46,7 @@ type EventAdminForm = {
 type EventForm = {
   name: string;
   description: string;
+  category: string;
   venueAddress: string;
   capacity: string;
   startsAt: string;
@@ -71,6 +72,7 @@ const emptyAdmin: EventAdminForm = { email: "", password: "", firstName: "", las
 const emptyForm: EventForm = {
   name: "",
   description: "",
+  category: "",
   venueAddress: "",
   capacity: "",
   startsAt: "",
@@ -108,6 +110,16 @@ const NFC_CHIP_OPTIONS = [
   { value: "mifare_classic", label: "Mifare Classic" },
   { value: "desfire_ev3", label: "DESFire EV3" },
   { value: "mifare_ultralight_c", label: "Mifare Ultralight C" },
+];
+
+const EVENT_CATEGORY_OPTIONS = [
+  { value: "concert", labelKey: "events.categoryConcert" },
+  { value: "festival", labelKey: "events.categoryFestival" },
+  { value: "sports", labelKey: "events.categorySports" },
+  { value: "theater", labelKey: "events.categoryTheater" },
+  { value: "conference", labelKey: "events.categoryConference" },
+  { value: "party", labelKey: "events.categoryParty" },
+  { value: "other", labelKey: "events.categoryOther" },
 ];
 
 type RawEvent = Event & {
@@ -318,6 +330,24 @@ function FormFields({
       <div className="space-y-1">
         <Label>{t("events.description")}</Label>
         <Input data-testid="input-event-description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+      </div>
+
+      <div className="space-y-1">
+        <Label>{t("events.category")}</Label>
+        <Select
+          value={form.category || "__none__"}
+          onValueChange={(v) => setForm((f) => ({ ...f, category: v === "__none__" ? "" : v }))}
+        >
+          <SelectTrigger data-testid="select-event-category">
+            <SelectValue placeholder={t("events.categoryPlaceholder")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">{t("events.categoryPlaceholder")}</SelectItem>
+            {EVENT_CATEGORY_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{t(opt.labelKey)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -648,6 +678,7 @@ export default function Events() {
     setForm({
       name: event.name,
       description: event.description ?? "",
+      category: (raw as any).category ?? "",
       venueAddress: event.venueAddress ?? "",
       capacity: raw.capacity != null ? String(raw.capacity) : "",
       startsAt: event.startsAt ? toLocalDatetimeInput(event.startsAt) : "",
@@ -700,6 +731,7 @@ export default function Events() {
       pulepId: form.pulepId || undefined,
       nfcChipType: form.nfcChipType || undefined,
       currencyCode: form.currencyCode || "COP",
+      category: form.category || undefined,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
       ...(hasAdmin ? {
@@ -756,6 +788,7 @@ export default function Events() {
       pulepId: form.pulepId || null,
       nfcChipType: form.nfcChipType || undefined,
       currencyCode: form.currencyCode || undefined,
+      category: form.category || null,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
       coverImageUrl: form.coverImageUrl || null,
