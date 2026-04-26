@@ -326,7 +326,31 @@
     "walletHintNoBracelet": "Link a wristband to transfer this balance",
     "transferToWristband": "Transfer",
     "preloadTitle": "Pre-load balance",
-    "preloadHint": "Pay now, receive balance when you enter the event"
+    "preloadHint": "Pay now, receive balance when you enter the event",
+    "refund": "Refund"
+  },
+  "refund": {
+    "title": "Request a refund",
+    "method": "Refund method",
+    "nequi": "Nequi",
+    "bancolombia": "Bancolombia",
+    "bankTransfer": "Bank transfer",
+    "cash": "Cash at box office",
+    "other": "Other",
+    "accountDetails": "Account number or phone",
+    "accountDetailsHint": "Number where you'll receive the money",
+    "accountDetailsPlaceholder": "e.g. 3001234567",
+    "accountDetailsPlaceholderBank": "e.g. Bancolombia – Savings 12345678",
+    "notes": "Additional notes (optional)",
+    "notesPlaceholder": "Any additional detail",
+    "balance": "Wristband balance",
+    "refundAmount": "Amount to refund",
+    "submit": "Request refund",
+    "successTitle": "Request submitted",
+    "successHint": "The team will review your request and process the refund within the next business days.",
+    "deadlinePassed": "The refund deadline for this event has passed.",
+    "alreadyPending": "You already have a pending refund request for this wristband.",
+    "disclaimer": "The refund is subject to review and approval by the organizer."
   },
   "topUp": {
     "topUpTitle": "Top up wristband",

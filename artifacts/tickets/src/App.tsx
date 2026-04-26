@@ -19,6 +19,7 @@ import Account from "@/pages/account";
 import MyBracelets from "@/pages/my-bracelets";
 import BraceletTopup from "@/pages/bracelet-topup";
 import BraceletPaymentStatus from "@/pages/bracelet-payment-status";
+import BraceletRefund from "@/pages/bracelet-refund";
 import MyTransactions from "@/pages/my-transactions";
 import NotFound from "@/pages/not-found";
 import GuestListPage from "@/pages/guest-list";
@@ -70,6 +71,7 @@ function Router() {
           <Route path="/my-bracelets" component={MyBracelets} />
           <Route path="/bracelet-topup" component={BraceletTopup} />
           <Route path="/bracelet-payment-status" component={BraceletPaymentStatus} />
+          <Route path="/bracelet-refund" component={BraceletRefund} />
           <Route path="/my-transactions" component={MyTransactions} />
           <Route path="/account" component={Account} />
           <Route path="/guest-list/:slug" component={GuestListPage} />

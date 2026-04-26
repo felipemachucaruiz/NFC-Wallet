@@ -185,6 +185,7 @@ export default function MyBracelets() {
                 key={b.uid}
                 bracelet={b}
                 onTopUp={() => navigate(`/bracelet-topup?uid=${encodeURIComponent(b.uid)}`)}
+                onRefund={() => navigate(`/bracelet-refund?uid=${encodeURIComponent(b.uid)}`)}
                 onUnlink={() => setUnlinkConfirm(b.uid)}
               />
             ))}
@@ -302,10 +303,11 @@ export default function MyBracelets() {
 }
 
 function BraceletCard({
-  bracelet, onTopUp, onUnlink,
+  bracelet, onTopUp, onRefund, onUnlink,
 }: {
   bracelet: ApiBracelet;
   onTopUp: () => void;
+  onRefund: () => void;
   onUnlink: () => void;
 }) {
   const { t } = useTranslation();
@@ -363,6 +365,16 @@ function BraceletCard({
           >
             {t("myBracelets.topUp")}
           </Button>
+          {bracelet.balance > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-zinc-400 border-zinc-700 hover:bg-yellow-500/10 hover:border-yellow-500/40 hover:text-yellow-400 text-xs px-3"
+              onClick={onRefund}
+            >
+              {t("myBracelets.refund")}
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"

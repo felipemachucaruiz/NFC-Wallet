@@ -559,3 +559,18 @@ export async function fetchMyTransactions(cursor?: string): Promise<{ transactio
   const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
   return apiFetch(`/attendee/me/transactions${qs}`);
 }
+
+export interface RefundRequest {
+  braceletUid: string;
+  refundMethod: "nequi" | "bancolombia" | "bank_transfer" | "cash" | "other";
+  accountDetails?: string;
+  notes?: string;
+}
+
+export async function requestBraceletRefund(data: RefundRequest): Promise<{ id: string }> {
+  return apiFetch("/attendee/me/refund-request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
