@@ -227,6 +227,7 @@ export default function EventDetail() {
   }
 
   const isSoldOut = event.status === "sold_out";
+  const isEventEnded = event.endsAt ? new Date(event.endsAt) < new Date() : false;
   const salesNotStarted = event.salesStartAt && new Date(event.salesStartAt) > new Date();
 
   const handleTicketSelect = (ticket: TicketType, sectionName: string) => {
@@ -459,7 +460,11 @@ export default function EventDetail() {
                   }}
                 />
                 <Separator className="my-4" />
-                {isSoldOut ? (
+                {isEventEnded ? (
+                  <Button disabled className="w-full" size="lg">
+                    {t("event.ended")}
+                  </Button>
+                ) : isSoldOut ? (
                   <Button disabled className="w-full" size="lg">
                     {t("event.soldOut")}
                   </Button>

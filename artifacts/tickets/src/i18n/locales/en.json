@@ -77,7 +77,8 @@
     "close": "Close",
     "nextStage": "Next",
     "generalSection": "General",
-    "fromPrice": "from {{price}}"
+    "fromPrice": "from {{price}}",
+    "ended": "Event Ended"
   },
   "venueMap": {
     "title": "Venue Map",

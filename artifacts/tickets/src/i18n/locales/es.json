@@ -77,7 +77,8 @@
     "close": "Cerrar",
     "nextStage": "Próximo",
     "generalSection": "General",
-    "fromPrice": "desde {{price}}"
+    "fromPrice": "desde {{price}}",
+    "ended": "Evento finalizado"
   },
   "venueMap": {
     "title": "Mapa del venue",
