@@ -29,7 +29,7 @@ export default function PendingBalanceScreen() {
 
   const pendingBalance = (walletData as { pendingWalletBalance?: number } | undefined)?.pendingWalletBalance ?? 0;
   const bracelets = ((braceletData as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
-  const activeBracelet = bracelets.find((b) => b.event?.active && !b.flagged && !b.pendingRefund) ?? null;
+  const activeBracelet = bracelets.find((b) => !b.flagged && !b.pendingRefund) ?? null;
   const hasActiveBracelet = activeBracelet !== null;
 
   const handleClaim = async () => {

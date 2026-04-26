@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+import * as Sentry from "@sentry/react-native";
 
 let SecureStore: typeof import("expo-secure-store") | null = null;
 try {
@@ -112,6 +113,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Promise queue: when a refresh is in-flight, concurrent 401 callers await
   // the same promise instead of returning null immediately.
   const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      Sentry.setUser({
+        id: user.id,
+        email: user.email ?? undefined,
+        username: user.phone ?? user.email ?? undefined,
+      });
+    } else {
+      Sentry.setUser(null);
+    }
+  }, [user]);
 
   const setAuthToken = useCallback((t: string | null) => {
     tokenRef.current = t;

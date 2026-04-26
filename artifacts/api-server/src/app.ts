@@ -134,6 +134,17 @@ app.use(AUTH_RATE_LIMITED_PATHS, authLimiter);
 
 app.use(authMiddleware);
 
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (req.user) {
+    Sentry.setUser({
+      id: req.user.id,
+      email: req.user.email ?? undefined,
+      username: req.user.email ?? undefined,
+    });
+  }
+  next();
+});
+
 if (process.env.DOCS_ENABLED === "true") {
   const docsUsername = process.env.DOCS_USERNAME;
   const docsPassword = process.env.DOCS_PASSWORD;
