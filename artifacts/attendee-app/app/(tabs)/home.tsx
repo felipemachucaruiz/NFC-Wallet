@@ -105,7 +105,10 @@ export default function HomeScreen() {
   const pendingWalletBalance = (walletData as { pendingWalletBalance?: number } | undefined)?.pendingWalletBalance ?? 0;
   const bracelets = ((data as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
   const isArchived = (b: BraceletItem) =>
-    b.pendingRefund || b.refundStatus === "disbursement_completed" || (b.event && !b.event.active);
+    b.pendingRefund ||
+    b.refundStatus === "disbursement_completed" ||
+    (b.event && !b.event.active) ||
+    (b.flagged && b.flagReason === "replaced");
   const activeBracelets = bracelets.filter((b) => !isArchived(b));
   const archivedBracelets = bracelets.filter((b) => isArchived(b));
   const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balance + (b.pendingTopUpAmount ?? 0), 0);
@@ -576,6 +579,7 @@ export default function HomeScreen() {
               const isRefundDone = b.refundStatus === "disbursement_completed";
               const hasActiveRefund = b.refundStatus && b.refundStatus !== "disbursement_completed" && b.refundStatus !== "rejected";
               const refundCfg = b.refundStatus ? REFUND_STATUS_MAP[b.refundStatus] : null;
+              const isReplaced = b.flagged && b.flagReason === "replaced";
               return (
                 <View
                   key={b.uid}
@@ -583,12 +587,16 @@ export default function HomeScreen() {
                 >
                   <View style={styles.archivedCardInner}>
                     <View style={[styles.archivedIconWrap, {
-                      backgroundColor: isRefundDone ? "rgba(34,197,94,0.10)" : "rgba(107,114,128,0.10)"
+                      backgroundColor: isRefundDone
+                        ? "rgba(34,197,94,0.10)"
+                        : isReplaced
+                        ? "rgba(245,158,11,0.10)"
+                        : "rgba(107,114,128,0.10)"
                     }]}>
                       <Feather
-                        name={isRefundDone ? "check-circle" : "calendar"}
+                        name={isRefundDone ? "check-circle" : isReplaced ? "shield" : "calendar"}
                         size={20}
-                        color={isRefundDone ? "#22c55e" : "#6b7280"}
+                        color={isRefundDone ? "#22c55e" : isReplaced ? "#f59e0b" : "#6b7280"}
                       />
                     </View>
                     <View style={{ flex: 1, gap: 3 }}>
@@ -614,7 +622,15 @@ export default function HomeScreen() {
                         </Text>
                       </View>
                     )}
-                    {!isRefundDone && !hasActiveRefund && (
+                    {isReplaced && !isRefundDone && (
+                      <View style={[styles.archivedBadge, { backgroundColor: "rgba(245,158,11,0.12)", borderColor: "rgba(245,158,11,0.3)" }]}>
+                        <Feather name="shield" size={11} color="#f59e0b" />
+                        <Text style={[styles.archivedBadgeText, { color: "#f59e0b" }]}>
+                          {t("home.archivedReplaced")}
+                        </Text>
+                      </View>
+                    )}
+                    {!isRefundDone && !isReplaced && !hasActiveRefund && (
                       <View style={[styles.archivedBadge, { backgroundColor: "rgba(107,114,128,0.12)", borderColor: "rgba(107,114,128,0.3)" }]}>
                         <Feather name="calendar" size={11} color="#6b7280" />
                         <Text style={[styles.archivedBadgeText, { color: "#6b7280" }]}>

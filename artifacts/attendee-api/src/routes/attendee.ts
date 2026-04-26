@@ -510,25 +510,6 @@ router.post(
       return;
     }
 
-    // One bracelet per event per user — prevents a bad actor from linking
-    // another person's bracelet and claiming their refund
-    if (bracelet.eventId) {
-      const [eventConflict] = await db
-        .select({ id: braceletsTable.id })
-        .from(braceletsTable)
-        .where(
-          and(
-            eq(braceletsTable.attendeeUserId, userId),
-            eq(braceletsTable.eventId, bracelet.eventId),
-            ne(braceletsTable.nfcUid, uid)
-          )
-        );
-      if (eventConflict) {
-        res.status(409).json({ error: "ONE_BRACELET_PER_EVENT" });
-        return;
-      }
-    }
-
     // Fetch the authenticated user to auto-populate bracelet owner info
     const [user] = await db
       .select({
@@ -550,6 +531,67 @@ router.post(
       email: user?.email ?? undefined,
       phone: user?.phone ?? undefined,
     };
+
+    // One bracelet per event per user — prevents a bad actor from linking
+    // another person's bracelet and claiming their refund.
+    // Exception: if the conflicting bracelet is flagged (blocked), allow replacement
+    // and automatically transfer its balance to the new bracelet.
+    if (bracelet.eventId) {
+      const [eventConflict] = await db
+        .select()
+        .from(braceletsTable)
+        .where(
+          and(
+            eq(braceletsTable.attendeeUserId, userId),
+            eq(braceletsTable.eventId, bracelet.eventId),
+            ne(braceletsTable.nfcUid, uid)
+          )
+        );
+      if (eventConflict) {
+        if (!eventConflict.flagged) {
+          res.status(409).json({ error: "ONE_BRACELET_PER_EVENT" });
+          return;
+        }
+
+        // Blocked bracelet replacement: transfer balance to the new bracelet
+        const transferredBalance =
+          (eventConflict.lastKnownBalance ?? 0) + (eventConflict.pendingTopUpAmount ?? 0);
+
+        // Archive the blocked bracelet: zero its balance and mark as replaced
+        await db
+          .update(braceletsTable)
+          .set({ lastKnownBalance: 0, pendingTopUpAmount: 0, flagReason: "replaced", updatedAt: new Date() })
+          .where(eq(braceletsTable.nfcUid, eventConflict.nfcUid));
+
+        // Put transferred balance into new bracelet's pendingTopUpAmount (gate will write to chip)
+        updates.pendingTopUpAmount = (bracelet.pendingTopUpAmount ?? 0) + transferredBalance;
+
+        // Also add to user's pendingWalletBalance so gate staff can write it to the chip
+        if (transferredBalance > 0) {
+          await db
+            .update(usersTable)
+            .set({
+              pendingWalletBalance: sql`${usersTable.pendingWalletBalance} + ${transferredBalance}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(usersTable.id, userId));
+        }
+
+        const [linked] = await db
+          .update(braceletsTable)
+          .set(updates)
+          .where(eq(braceletsTable.nfcUid, uid))
+          .returning();
+
+        res.json({
+          uid: linked.nfcUid,
+          balance: linked.lastKnownBalance,
+          attendeeName: linked.attendeeName,
+          transferredFromBlocked: transferredBalance,
+        });
+        return;
+      }
+    }
 
     const [updated] = await db
       .update(braceletsTable)

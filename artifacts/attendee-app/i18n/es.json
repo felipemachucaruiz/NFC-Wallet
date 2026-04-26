@@ -93,6 +93,7 @@
     "refundStatusRejectedHint": "Tu solicitud fue rechazada. Puedes enviar una nueva si lo consideras necesario.",
     "archivedBracelets": "Pulseras archivadas",
     "archivedRefundCompleted": "Devolución completada",
+    "archivedReplaced": "Reemplazada",
     "eventEnded": "Evento finalizado",
     "noActiveBracelets": "No tienes pulseras activas",
     "checkArchivedForRefunds": "Revisa tus pulseras archivadas para solicitar devoluciones de saldo.",
@@ -150,7 +151,9 @@
     "transferNow": "Transferir ahora",
     "transferLater": "Después",
     "transferSuccessTitle": "¡Saldo transferido!",
-    "transferSuccessMsg": "Tu saldo se aplicará automáticamente en tu próxima compra en cualquier punto de venta."
+    "transferSuccessMsg": "Tu saldo se aplicará automáticamente en tu próxima compra en cualquier punto de venta.",
+    "balanceRecoveredTitle": "¡Saldo recuperado!",
+    "balanceRecoveredMsg": "Se recuperaron {{amount}} de tu pulsera anterior bloqueada. Se aplicarán automáticamente en tu próxima compra."
   },
   "selectEvent": {
     "title": "Seleccionar Evento",

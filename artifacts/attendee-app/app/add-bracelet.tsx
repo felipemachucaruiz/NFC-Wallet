@@ -76,7 +76,15 @@ export default function AddBraceletScreen() {
         onSuccess: (res) => {
           setLinkedUid(res.uid);
           setState("success");
-          if (pendingWalletBalance > 0) {
+          const transferred = (res as { transferredFromBlocked?: number }).transferredFromBlocked ?? 0;
+          if (transferred > 0) {
+            showAlert(
+              t("addBracelet.balanceRecoveredTitle"),
+              t("addBracelet.balanceRecoveredMsg", {
+                amount: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(transferred),
+              })
+            );
+          } else if (pendingWalletBalance > 0) {
             showAlert(
               t("addBracelet.transferPendingTitle"),
               t("addBracelet.transferPendingMsg", {

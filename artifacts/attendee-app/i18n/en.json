@@ -93,6 +93,7 @@
     "refundStatusRejectedHint": "Your request was rejected. You may submit a new one if needed.",
     "archivedBracelets": "Archived wristbands",
     "archivedRefundCompleted": "Refund completed",
+    "archivedReplaced": "Replaced",
     "eventEnded": "Event ended",
     "noActiveBracelets": "No active wristbands",
     "checkArchivedForRefunds": "Check your archived wristbands to request balance refunds.",
@@ -151,7 +152,9 @@
     "transferNow": "Transfer now",
     "transferLater": "Later",
     "transferSuccessTitle": "Balance transferred!",
-    "transferSuccessMsg": "Your balance will be applied automatically on your next purchase at any point of sale."
+    "transferSuccessMsg": "Your balance will be applied automatically on your next purchase at any point of sale.",
+    "balanceRecoveredTitle": "Balance recovered!",
+    "balanceRecoveredMsg": "{{amount}} was recovered from your previous blocked wristband. It will be applied automatically on your next purchase."
   },
   "selectEvent": {
     "title": "Select Event",
