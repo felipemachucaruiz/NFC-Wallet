@@ -16,6 +16,9 @@ import PaymentReturn from "@/pages/payment-return";
 import MyTickets from "@/pages/my-tickets";
 import MyOrders from "@/pages/my-orders";
 import Account from "@/pages/account";
+import MyBracelets from "@/pages/my-bracelets";
+import BraceletTopup from "@/pages/bracelet-topup";
+import BraceletPaymentStatus from "@/pages/bracelet-payment-status";
 import NotFound from "@/pages/not-found";
 import GuestListPage from "@/pages/guest-list";
 import Terms from "@/pages/terms";
@@ -63,6 +66,9 @@ function Router() {
           <Route path="/payment-return" component={PaymentReturn} />
           <Route path="/my-tickets" component={MyTickets} />
           <Route path="/my-orders" component={MyOrders} />
+          <Route path="/my-bracelets" component={MyBracelets} />
+          <Route path="/bracelet-topup" component={BraceletTopup} />
+          <Route path="/bracelet-payment-status" component={BraceletPaymentStatus} />
           <Route path="/account" component={Account} />
           <Route path="/guest-list/:slug" component={GuestListPage} />
           <Route path="/terminos" component={Terms} />

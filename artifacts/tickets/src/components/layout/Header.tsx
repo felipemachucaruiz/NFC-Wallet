@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Globe, User, Ticket, LogOut, ShoppingBag } from "lucide-react";
+import { Menu, X, Globe, User, Ticket, LogOut, ShoppingBag, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -43,9 +43,14 @@ export function Header() {
                 <Button variant="ghost" size="sm">{t("nav.home")}</Button>
               </Link>
               {isAuthenticated && (
-                <Link href="/my-tickets">
-                  <Button variant="ghost" size="sm">{t("nav.myTickets")}</Button>
-                </Link>
+                <>
+                  <Link href="/my-tickets">
+                    <Button variant="ghost" size="sm">{t("nav.myTickets")}</Button>
+                  </Link>
+                  <Link href="/my-bracelets">
+                    <Button variant="ghost" size="sm">{t("nav.myBracelets")}</Button>
+                  </Link>
+                </>
               )}
             </nav>
           </div>
@@ -82,6 +87,10 @@ export function Header() {
                   <DropdownMenuItem onClick={() => navigate("/my-tickets")}>
                     <Ticket className="w-4 h-4 mr-2" />
                     {t("nav.myTickets")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/my-bracelets")}>
+                    <Wifi className="w-4 h-4 mr-2" />
+                    {t("nav.myBracelets")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/my-orders")}>
                     <ShoppingBag className="w-4 h-4 mr-2" />
@@ -129,6 +138,9 @@ export function Header() {
                 <>
                   <Link href="/my-tickets" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.myTickets")}</Button>
+                  </Link>
+                  <Link href="/my-bracelets" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.myBracelets")}</Button>
                   </Link>
                   <Link href="/my-orders" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.myOrders")}</Button>
