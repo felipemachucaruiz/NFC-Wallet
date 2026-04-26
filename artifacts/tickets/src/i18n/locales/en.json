@@ -344,6 +344,8 @@
     "idNumber": "ID number",
     "savedCards": "Saved cards",
     "newCard": "+ New card",
+    "cardNumber": "Card number",
+    "expiry": "Expiry (MM/YY)",
     "cardReady": "Card validated",
     "validateCard": "Validate card",
     "cardHolder": "Card holder name",

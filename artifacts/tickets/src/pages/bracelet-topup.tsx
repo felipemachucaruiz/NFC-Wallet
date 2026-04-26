@@ -1,11 +1,110 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useSearch } from "wouter";
-import { ArrowLeft, Loader2, CreditCard, Smartphone, Building2, ChevronDown } from "lucide-react";
+import { ArrowLeft, Loader2, CreditCard, Check, ChevronDown } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { initiateTopUp, getWompiConfig, fetchSavedCards, type SavedCard } from "@/lib/api";
+
+// ─── Branded payment icons ────────────────────────────────────────────────────
+
+function PseIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38 38" className={className} fill="currentColor">
+      <path d="M12.17,15.02h0s.54.01.54.01l.07-.4h-.73l-.05.2s0,.09.03.12.07.06.12.06Z"/>
+      <path d="M28.26,16.97h.01s-2.23.01-2.23.01c-.42,0-.77.29-.85.7l-.27,1.46h3.97l.23-1.14c.05-.25-.01-.51-.18-.71-.17-.2-.41-.32-.67-.32Z"/>
+      <path d="M15.11,16.98h-1.93c-.5,0-.92.35-1.01.84l-.15.79-.46,2.53c-.06.29.02.6.22.84.19.24.48.36.78.36h1.94c.5,0,.92-.35,1.01-.84l.6-3.32c.06-.29-.02-.6-.22-.84-.19-.24-.48-.36-.78-.36Z"/>
+      <path d="M18.99,3.85c-6.1,0-11.39,3.46-14.03,8.51.37.02.68.33.68.71s-.32.73-.73.73c-.22,0-.4-.1-.53-.25-.15.33-.26.68-.38,1.03l-.03.09c.18.14.29.33.29.57,0,.37-.29.68-.66.7-.1.41-.18.83-.25,1.25h2.02l1.67,2.04h3.28v.57h-1.69l-1.29,2.32h-1.76c-.11.26-.36.44-.66.44-.4,0-.73-.32-.73-.73s.32-.73.73-.73c.29,0,.56.18.66.44h1.43l.97-1.76H3.17c0,1.2.16,2.37.43,3.5.26.1.45.36.45.67,0,.17-.07.32-.16.44.14.45.31.9.49,1.33.14-.17.33-.28.56-.28.4,0,.73.32.73.73s-.32.73-.73.73h-.01c2.63,5.11,7.93,8.61,14.08,8.61,8.74,0,15.83-7.08,15.83-15.83S27.74,3.85,18.99,3.85ZM6.27,15.97c-.4,0-.73-.32-.73-.73s.32-.73.73-.73.73.32.73.73-.32.73-.73.73ZM6.36,24.7c-.4,0-.73-.32-.73-.73s.32-.73.73-.73.73.32.73.73-.32.73-.73.73ZM14.64,13.31c.01-.06.07-.1.14-.09.06.01.1.07.09.14l-.09.49s.06-.03.09-.03h.36c.11,0,.23.05.29.14s.1.2.08.32l-.17.91s-.06.09-.11.09h-.02c-.06-.01-.1-.07-.09-.14l.17-.91s0-.09-.03-.12-.07-.06-.12-.06h-.36c-.08,0-.14.06-.15.12l-.19,1.01c-.01.06-.07.1-.14.09-.06-.01-.1-.07-.09-.14l.16-.8.19-1.01ZM13.22,14.11h.01c.03-.17.19-.31.37-.31h.62c.07,0,.11.05.11.11s-.05.11-.11.11h-.62c-.08,0-.14.06-.15.12l-.14.68s0,.09.03.12.07.06.11.06h.6c.07,0,.11.05.11.11s-.05.11-.11.11h-.6c-.11,0-.23-.05-.29-.14-.07-.09-.1-.2-.08-.32l.12-.68ZM11.84,14.58c.02-.09.1-.16.19-.16h.79l.03-.19s0-.09-.03-.12-.07-.06-.11-.06h-.6c-.07,0-.11-.05-.11-.11s.05-.11.11-.11h.6c.11,0,.23.05.29.14.07.09.1.2.08.32l-.05.23-.14.75h-.74c-.11.01-.23-.03-.29-.12s-.1-.2-.08-.32l.05-.23ZM14.53,23.5h-.01s-1.94-.01-1.94-.01c-.5,0-.96-.17-1.34-.48l-.57,3.09c-.05.27-.28.46-.56.46h-.1c-.31-.06-.51-.35-.45-.66l.91-4.95.6-3.32c.18-1.02,1.08-1.77,2.12-1.77h1.94c.65,0,1.25.28,1.65.77.41.49.58,1.13.46,1.77l-.6,3.32c-.18,1.02-1.08,1.77-2.12,1.77ZM19.15,19.01h2.31c.6,0,1.73.45,1.73,2.15,0,1.37-1.48,2.37-2.12,2.37h-3.85c-.32,0-.57-.25-.57-.57s.25-.57.57-.57h3.85c.17-.05.99-.61.99-1.24,0-.96-.5-1.02-.6-1.02h-2.31c-.68,0-1.69-.54-1.69-2.06,0-1.43,1.36-2.22,2.3-2.22h3.07c.32,0,.57.25.57.57s-.25.57-.57.57h-3.07c-.33,0-1.17.33-1.17,1.09,0,.92.56.93.56.93ZM29.98,19.46h0c-.09.5-.52.84-1.01.84h-4.27l-.22,1.07c-.05.25.01.51.18.71s.41.32.67.32h3.21c.32,0,.57.25.57.57s-.25.57-.57.57h-3.21c-.6,0-1.16-.26-1.54-.73-.39-.46-.53-1.07-.42-1.65l.24-1.22.02-.05.43-2.38c.17-.95,1-1.64,1.96-1.64h2.23c.6,0,1.16.26,1.54.73.39.46.53,1.07.42,1.65l-.24,1.22Z"/>
+      <path d="M5.12,17.77h-1.82c-.06.49-.09.97-.1,1.47h3.13l-1.2-1.47Z"/>
+    </svg>
+  );
+}
+
+function NequiIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 38.15 30">
+      <path fill="#ca0080" d="M8.38,3.86h-3.93c-.46,0-.83.37-.83.83v3.34c0,.46.37.83.83.83h3.93c.46,0,.83-.37.83-.83v-3.34c0-.46-.37-.83-.83-.83Z"/>
+      <path fill="currentColor" d="M32.4,3.86h-3.39c-.46,0-.83.38-.83.83v13.55c0,.28-.36.38-.49.13l-7.88-14.15c-.13-.23-.36-.36-.64-.36h-5.64c-.46,0-.83.38-.83.83v21.65c0,.46.38.83.83.83h3.39c.46,0,.83-.38.83-.83v-13.96c0-.28.36-.38.49-.13l8.1,14.57c.13.23.36.36.64.36h5.39c.46,0,.83-.38.83-.83V4.68c0-.46-.38-.83-.83-.83h.03Z"/>
+    </svg>
+  );
+}
+
+function BancolombiaIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110.54 110.83" fill="currentColor">
+      <path d="M82.66.03c-21.47,2.65-42.21,6.56-63,12.59-2.71.85-4.37,3.88-3.69,6.57,1.52,5.99,2.29,8.99,3.83,15,.65,2.54,3.21,3.84,5.8,2.98,21.24-6.54,42.53-11.01,64.51-14.27,2.52-.34,3.89-2.94,2.97-5.55-1.95-5.51-2.93-8.25-4.92-13.73-.86-2.32-3.15-3.85-5.5-3.59ZM100.62,33.37c-33.61,4.29-66.35,12.6-97.39,26.34-2.26,1.07-3.62,3.92-3.14,6.43,1.22,6.42,1.83,9.64,3.07,16.07.53,2.75,3.1,4.02,5.63,2.78,31.53-14.45,64.84-23.64,99.01-29.12,2.17-.36,3.28-2.85,2.45-5.41-1.72-5.32-2.59-7.98-4.37-13.27-.81-2.46-3.04-4.11-5.26-3.82ZM100.22,69.19c-20.99,4.56-41.51,10.05-61.83,17.03-2.58.95-4.03,3.66-3.35,6.17,1.62,5.96,2.42,8.95,4.06,14.93.77,2.81,3.93,4.25,6.83,3.14,20.31-7.28,40.83-13.63,61.79-18.73,2.01-.49,3-2.85,2.26-5.28-1.65-5.37-2.48-8.05-4.18-13.39-.83-2.63-3.27-4.35-5.58-3.87Z"/>
+    </svg>
+  );
+}
+
+function DaviplataIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 41" fill="none">
+      <path d="M12.3535 17.4629C12.3776 17.3699 12.3937 17.2787 12.4104 17.1876C12.4271 17.1048 12.4431 17.0226 12.4561 16.9366C12.5 16.6073 12.5081 16.2934 12.4846 15.9988C12.4827 15.9815 12.4802 15.9642 12.4784 15.9468C12.471 15.8653 12.4574 15.7864 12.445 15.7068C12.3553 15.1939 12.2008 14.7285 11.9874 14.31C11.9825 14.3004 11.9769 14.2927 11.9726 14.2831C11.9163 14.1752 11.8557 14.0725 11.792 13.9711C11.7494 13.9031 11.7073 13.8383 11.6634 13.776C11.6344 13.7336 11.6034 13.6913 11.5731 13.6502C11.5107 13.5648 11.4495 13.4859 11.3889 13.4127C11.3209 13.3325 11.2522 13.2522 11.1805 13.1765C11.165 13.1604 11.1508 13.1437 11.1354 13.129C8.38623 10.3092 2.39762 10.5974 0.68606 11.3465C-0.471469 11.8516 -0.0720232 13.3414 1.19557 12.7599C3.25773 12.2182 5.24692 12.2291 7.28249 12.7599C8.94397 13.1925 10.6858 14.7022 10.6858 16.3236C10.5671 20.361 5.42191 20.5215 3.33626 19.9958V14.9731C3.33626 13.7741 1.84915 13.7644 1.84915 14.9635V20.0138C1.84915 21.0273 2.3531 21.3951 3.01905 21.5536C4.58963 21.9266 11.1811 22.3252 12.3522 17.4629H12.3535Z" fill="currentColor"/>
+      <path d="M40.1317 20.7905V11.9357C40.1311 10.5358 38.4368 10.5435 38.4368 11.9126V20.7404C38.4368 22.0639 40.1317 22.114 40.1317 20.7905Z" fill="currentColor"/>
+      <path d="M35.8887 11.4254C35.1491 13.6104 32.6127 19.7115 31.0768 19.7275C29.539 19.7429 26.9166 13.6951 26.1362 11.5243C25.6675 10.2232 24.2367 11.1687 24.7042 12.4698C25.5433 14.8043 28.6955 21.8444 31.1108 21.7565C33.5241 21.795 36.5423 14.6913 37.3387 12.3408C37.7814 11.0307 36.3351 10.1147 35.8881 11.4254H35.8887Z" fill="currentColor"/>
+      <path d="M19.4786 10.8452C16.8649 10.7682 13.4912 17.8192 12.5971 20.1576C12.095 21.4619 13.6483 22.3996 14.1504 21.096C14.9808 18.9239 17.8177 12.8658 19.4817 12.8748C21.1432 12.8851 23.8855 18.9765 24.6955 21.157C25.1815 22.4664 26.7447 21.5466 26.2574 20.2365C25.3881 17.8885 22.0886 10.7983 19.4786 10.8445V10.8452Z" fill="currentColor"/>
+      <path d="M47.1857 11.4839C45.9682 10.419 43.9963 8.88103 43.1331 8.21412C43.2259 7.25259 43.3934 6.23457 43.6012 5.37959C43.8621 4.31792 44.0847 3.11119 43.4182 2.22026C42.9717 1.62395 42.2662 1.33382 41.2614 1.33382H37.795C36.8292 1.33382 36.1113 1.64513 35.6624 2.25813C35.4806 2.50654 35.3557 2.79217 35.2895 3.10605C31.6951 1.13484 28.6554 0.00962818 26.8659 0C23.8366 0.016047 16.6355 3.64138 10.4719 8.25392C10.2344 8.43172 10.1813 8.77512 10.3519 9.02096C10.5226 9.2668 10.854 9.32265 11.0908 9.14549C17.7101 4.19147 24.4358 1.11173 26.8659 1.0989C28.5774 1.10852 31.8175 2.37559 35.5325 4.4893L36.4569 5.01564L36.311 3.93151C36.256 3.52006 36.3227 3.17152 36.5052 2.92247C36.7432 2.59704 37.1767 2.43208 37.7944 2.43208H41.2608C41.9169 2.43208 42.3491 2.58292 42.5816 2.89359C42.955 3.39233 42.7831 4.26015 42.5741 5.10871C42.3311 6.11197 42.1401 7.32063 42.0504 8.42466L42.0257 8.73019L42.2631 8.91249C42.9229 9.41957 45.1773 11.1642 46.5031 12.3241C48.4892 14.0616 49.2844 15.6509 48.8033 16.9193C48.2839 18.2878 46.1976 19.1145 43.6074 18.9771C43.2729 18.9605 42.9421 18.9438 42.6168 18.9264L42.0183 18.895L42.0622 19.5157C42.1735 21.0992 42.7207 23.5634 44.6926 26.3106L44.7105 26.3344C46.8085 28.9423 47.1257 32.0901 45.5595 34.7532C43.6989 37.9164 39.0601 40.4769 32.8897 39.0667L32.75 39.0346L32.6139 39.0801C30.822 39.6777 28.1403 39.9005 26.8708 39.9005C25.6014 39.9005 22.919 39.6777 21.1289 39.0801L20.9929 39.0346L20.8532 39.0667C14.6815 40.4769 10.0415 37.9158 8.18094 34.7526C6.61469 32.0894 6.93189 28.9423 9.02991 26.3344C9.21727 26.1014 9.18759 25.7547 8.96313 25.5603C8.73868 25.3658 8.40478 25.3966 8.21742 25.6296C5.81518 28.6162 5.46334 32.2409 7.27754 35.3252C9.34484 38.8851 13.9486 40.9397 19.9021 40.9397C20.8981 40.9397 21.9257 40.8706 22.9641 40.7165C24.1718 40.9455 25.5536 41 26.8714 41C28.1893 41 29.5711 40.9455 30.7788 40.7165C31.8172 40.8706 32.8448 40.9397 33.8408 40.9397C39.7943 40.9397 44.3987 38.8851 46.4635 35.3258C48.2752 32.2454 47.9271 28.6259 45.5335 26.3306L45.5156 26.3068C43.5437 23.5596 42.9952 21.0954 42.8852 19.5119C43.1547 19.526 43.4274 19.5414 43.7051 19.5567C46.7177 19.7184 49.3011 18.6944 50 16.8615C50.6335 15.1791 49.5848 13.1431 47.1863 11.4839H47.1857Z" fill="currentColor"/>
+      <path d="M14.3365 35.1794V32.3083C14.739 32.4027 15.1416 32.4431 15.5441 32.4431C17.4789 32.4431 19.0241 31.2974 19.0241 28.588C19.0241 26.1752 17.8425 25.0833 16.3752 25.0833C15.4792 25.0833 14.7131 25.5551 14.2066 26.2695C14.1287 25.8786 14.0119 25.5551 13.8171 25.2316H13.012C13.0899 26.1213 13.1029 26.8357 13.1029 27.5231V35.1794H14.3365ZM14.3365 26.8215C14.8559 26.498 15.4792 26.2554 16.0635 26.2554C17.1413 26.2554 17.8165 26.8485 17.8165 28.6817C17.8165 30.8249 16.7387 31.3641 15.5571 31.3641C15.1935 31.3641 14.765 31.3237 14.3365 31.2024V26.8215Z" fill="currentColor"/>
+      <path d="M20.2892 22.1981V30.5284C20.2892 31.9707 20.9515 32.456 21.9124 32.456C22.224 32.456 22.5746 32.4155 22.9642 32.3077V31.2158C22.6525 31.2698 22.3928 31.3237 22.198 31.3237C21.7046 31.3237 21.5228 31.0676 21.5228 30.3397V22.1981H20.2892Z" fill="currentColor"/>
+      <path d="M23.6103 30.7447C23.6103 31.9039 24.4024 32.4431 25.3503 32.4431C26.3891 32.4431 27.2202 31.877 27.5838 30.8391C27.6617 31.4591 27.8045 31.85 27.9863 32.2948H28.7914C28.6745 31.3378 28.6615 30.7043 28.6615 30.0438V27.9814C28.6615 25.9191 27.5318 25.0833 25.9217 25.0833C25.3114 25.0833 24.6362 25.2046 23.922 25.4338V26.5526C24.5582 26.4043 25.2075 26.256 25.7918 26.256C26.7008 26.256 27.4929 26.5526 27.5059 27.8197C26.3891 28.7632 23.6103 28.4128 23.6103 30.7447ZM27.5059 28.8171V29.3294C27.5059 30.583 26.48 31.4052 25.61 31.4052C25.1036 31.4052 24.779 31.1491 24.779 30.6234C24.779 29.3294 26.3891 29.6259 27.5059 28.8171Z" fill="currentColor"/>
+      <path d="M32.7908 32.4431C33.3102 32.4431 33.8815 32.3353 34.5308 32.1331V31.0278C33.9595 31.1895 33.4401 31.2704 33.0115 31.2704C32.2065 31.2704 31.726 30.9065 31.726 29.7203V26.2426H34.388V25.2316H31.726V23.2097H30.5574V25.2855C30.0769 25.3529 29.6354 25.4608 29.2848 25.5956V26.2426H30.4924V29.7068C30.4924 31.6074 31.3235 32.4431 32.7908 32.4431Z" fill="currentColor"/>
+      <path d="M35.5238 25.4332V26.552C36.1601 26.4037 36.8094 26.2554 37.3937 26.2554C38.3027 26.2554 39.0948 26.552 39.1077 27.819C37.991 28.7626 35.2122 28.4121 35.2122 30.7441C35.2122 31.9033 36.0043 32.4425 36.9522 32.4425C37.991 32.4425 38.8221 31.8763 39.1857 30.8384C39.2636 31.4585 39.4064 31.8494 39.5882 32.2942H40.3933C40.2764 31.3372 40.2634 30.7036 40.2634 30.0431V27.9808C40.2634 25.9184 39.1337 25.0827 37.5236 25.0827C36.9133 25.0827 36.238 25.204 35.5238 25.4332ZM39.1084 29.3294C39.1084 30.5829 38.0825 31.4052 37.2125 31.4052C36.7061 31.4052 36.3815 31.1491 36.3815 30.6234C36.3815 29.3294 37.9916 29.6259 39.1084 28.8171V29.3294Z" fill="currentColor"/>
+    </svg>
+  );
+}
+
+// ─── Card brand utilities ─────────────────────────────────────────────────────
+
+type CardBrand = "visa" | "mastercard" | "amex" | null;
+
+function detectCardBrand(raw: string): CardBrand {
+  const n = raw.replace(/\D/g, "");
+  if (/^4/.test(n)) return "visa";
+  if (/^(5[1-5]|2[2-7]\d{2})/.test(n)) return "mastercard";
+  if (/^3[47]/.test(n)) return "amex";
+  return null;
+}
+
+function formatCardNumber(raw: string, brand: CardBrand): string {
+  const digits = raw.replace(/\D/g, "");
+  if (brand === "amex") {
+    const p1 = digits.slice(0, 4);
+    const p2 = digits.slice(4, 10);
+    const p3 = digits.slice(10, 15);
+    return [p1, p2, p3].filter(Boolean).join(" ");
+  }
+  return (digits.match(/.{1,4}/g) || []).join(" ").slice(0, 19);
+}
+
+const CARD_LOGOS: Record<NonNullable<CardBrand>, string> = {
+  visa: `${import.meta.env.BASE_URL}card-visa.png`,
+  mastercard: `${import.meta.env.BASE_URL}card-mastercard.png`,
+  amex: `${import.meta.env.BASE_URL}card-amex.png`,
+};
+
+function CardBrandLogo({ brand, className }: { brand: CardBrand; className?: string }) {
+  if (!brand) return null;
+  return (
+    <img
+      src={CARD_LOGOS[brand]}
+      alt={brand}
+      className={className ?? "h-7 w-auto object-contain shrink-0 drop-shadow-sm"}
+    />
+  );
+}
+
+function brandLabel(brand: string): string {
+  switch (brand.toLowerCase()) {
+    case "visa": return "Visa";
+    case "mastercard": return "Mastercard";
+    case "amex": return "American Express";
+    default: return brand;
+  }
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const AMOUNT_PRESETS = [20_000, 50_000, 100_000, 200_000, 300_000, 500_000];
 
@@ -40,6 +139,8 @@ function getBrowserInfo() {
 
 type PaymentMethod = "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata";
 
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function BraceletTopup() {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading, openAuthModal } = useAuth();
@@ -65,10 +166,13 @@ export default function BraceletTopup() {
   // Card
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string>("");
+  const [showNewCardForm, setShowNewCardForm] = useState(false);
   const [wompiKey, setWompiKey] = useState("");
   const [wompiBase, setWompiBase] = useState("");
-  const [cardToken, setCardToken] = useState("");
-  const [cardTokenError, setCardTokenError] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
 
   const [error, setError] = useState("");
 
@@ -81,16 +185,28 @@ export default function BraceletTopup() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    fetchSavedCards().then((r) => setSavedCards(r.cards)).catch(() => {});
+    fetchSavedCards().then((r) => {
+      setSavedCards(r.cards);
+      if (r.cards.length > 0) setSelectedCardId(r.cards[0].id);
+    }).catch(() => {});
     getWompiConfig().then((r) => { setWompiKey(r.publicKey); setWompiBase(r.baseUrl); }).catch(() => {});
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (method !== "card") {
+      setSelectedCardId(savedCards.length > 0 ? savedCards[0].id : "");
+      setShowNewCardForm(false);
+    }
+  }, [method]);
 
   const finalAmount = useCustom
     ? Math.max(0, parseInt(customAmount.replace(/\D/g, ""), 10) || 0)
     : amount;
 
+  const cardBrand = detectCardBrand(cardNumber);
+
   const { mutate: submit, isPending } = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       setError("");
       if (finalAmount < 1000) throw new Error(t("topUp.minAmount"));
       const base = {
@@ -113,9 +229,29 @@ export default function BraceletTopup() {
         return initiateTopUp({ ...base });
       }
       if (method === "card") {
-        if (selectedCardId) return initiateTopUp({ ...base, savedCardId: selectedCardId });
-        if (!cardToken) throw new Error(t("topUp.cardRequired"));
-        return initiateTopUp({ ...base, cardToken });
+        if (selectedCardId && !showNewCardForm) {
+          return initiateTopUp({ ...base, savedCardId: selectedCardId });
+        }
+        // Tokenize new card
+        if (!cardNumber || !cardExpiry || !cardCvc || !cardHolder) throw new Error(t("topUp.cardRequired"));
+        const [expMonth, expYear] = cardExpiry.split("/");
+        const res = await fetch(`${wompiBase}/tokens/cards`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${wompiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            number: cardNumber.replace(/\s/g, ""),
+            exp_month: expMonth?.trim() ?? "",
+            exp_year: expYear?.trim()?.length === 2 ? `20${expYear.trim()}` : (expYear?.trim() ?? ""),
+            cvc: cardCvc,
+            card_holder: cardHolder.trim(),
+          }),
+        });
+        const data = await res.json() as { data?: { id: string }; error?: { messages: Record<string, string[]> } };
+        if (data.data?.id) {
+          return initiateTopUp({ ...base, cardToken: data.data.id });
+        }
+        const msgs = data.error?.messages;
+        throw new Error(msgs ? Object.values(msgs).flat()[0] ?? t("topUp.cardError") : t("topUp.cardError"));
       }
       throw new Error("Unknown method");
     },
@@ -139,13 +275,23 @@ export default function BraceletTopup() {
     );
   }
 
+  const usingNewCard = method === "card" && (savedCards.length === 0 || showNewCardForm || !selectedCardId);
+
+  const methods: { id: PaymentMethod; label: string }[] = [
+    { id: "nequi", label: "Nequi" },
+    { id: "daviplata", label: "Daviplata" },
+    { id: "pse", label: "PSE" },
+    { id: "bancolombia_transfer", label: "Bancolombia" },
+    { id: "card", label: t("topUp.card") },
+  ];
+
   return (
     <div className="min-h-screen">
       <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(braceletUid ? `/my-bracelets` : "/my-bracelets")}
+            onClick={() => navigate("/my-bracelets")}
             className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -210,32 +356,27 @@ export default function BraceletTopup() {
         {/* Payment method */}
         <div className="rounded-2xl bg-zinc-900 border border-zinc-800 p-5 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{t("topUp.paymentMethod")}</p>
-          <div className="grid grid-cols-2 gap-2">
-            {(["nequi", "daviplata", "pse", "bancolombia_transfer", "card"] as PaymentMethod[]).map((m) => {
-              const labels: Record<PaymentMethod, string> = {
-                nequi: "Nequi",
-                daviplata: "Daviplata",
-                pse: "PSE",
-                bancolombia_transfer: "Bancolombia",
-                card: t("topUp.card"),
-              };
-              return (
-                <button
-                  key={m}
-                  onClick={() => setMethod(m)}
-                  className={`py-2.5 px-3 rounded-xl text-sm font-semibold border transition-colors flex items-center justify-center gap-2 ${
-                    method === m
-                      ? "bg-cyan-500 border-cyan-500 text-black"
-                      : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500"
-                  }`}
-                >
-                  {(m === "card") && <CreditCard className="w-3.5 h-3.5" />}
-                  {(m === "nequi" || m === "daviplata") && <Smartphone className="w-3.5 h-3.5" />}
-                  {(m === "pse" || m === "bancolombia_transfer") && <Building2 className="w-3.5 h-3.5" />}
-                  {labels[m]}
-                </button>
-              );
-            })}
+
+          <div className="space-y-2">
+            {methods.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setMethod(m.id)}
+                className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                  method === m.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                }`}
+              >
+                {m.id === "nequi" && <NequiIcon className="w-5 h-5" />}
+                {m.id === "bancolombia_transfer" && <BancolombiaIcon className="w-5 h-5" />}
+                {m.id === "daviplata" && <DaviplataIcon className="h-4 w-auto" />}
+                {m.id === "pse" && <PseIcon className="w-5 h-5" />}
+                {m.id === "card" && <CreditCard className="w-5 h-5" />}
+                <span className="text-sm font-medium flex-1">{m.label}</span>
+                {method === m.id && <Check className="w-4 h-4 text-primary ml-auto" />}
+              </button>
+            ))}
           </div>
 
           {/* Nequi / Daviplata */}
@@ -320,59 +461,114 @@ export default function BraceletTopup() {
             </div>
           )}
 
-          {/* Card */}
-          {method === "card" && (
+          {/* Bancolombia */}
+          {method === "bancolombia_transfer" && (
+            <div className="p-3 bg-zinc-800/60 rounded-lg text-sm text-zinc-400">
+              Serás redirigido a Bancolombia para autorizar la transferencia.
+            </div>
+          )}
+
+          {/* Card — saved cards list */}
+          {method === "card" && savedCards.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">{t("topUp.savedCards")}</p>
+              {savedCards.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => { setSelectedCardId(c.id); setShowNewCardForm(false); }}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                    selectedCardId === c.id && !showNewCardForm
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <CardBrandLogo brand={c.brand as CardBrand} className="h-6 w-auto" />
+                  <span className="text-sm font-medium flex-1">
+                    {c.alias || brandLabel(c.brand)} •••• {c.lastFour}
+                  </span>
+                  {selectedCardId === c.id && !showNewCardForm && (
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                  )}
+                </button>
+              ))}
+              <button
+                onClick={() => { setShowNewCardForm(true); setSelectedCardId(""); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                  showNewCardForm ? "border-primary bg-primary/5" : "border-dashed border-border hover:border-primary/50"
+                }`}
+              >
+                <CreditCard className="w-4 h-4 text-zinc-400" />
+                <span className="text-sm">{t("topUp.newCard")}</span>
+                {showNewCardForm && <Check className="w-4 h-4 text-primary ml-auto" />}
+              </button>
+            </div>
+          )}
+
+          {/* Card — new card form */}
+          {usingNewCard && (
             <div className="space-y-3">
-              {savedCards.length > 0 && (
-                <div>
-                  <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.savedCards")}</label>
-                  <div className="space-y-2">
-                    {savedCards.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => { setSelectedCardId(c.id); setCardToken(""); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
-                          selectedCardId === c.id
-                            ? "border-cyan-500 bg-cyan-500/10"
-                            : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
-                        }`}
-                      >
-                        <CreditCard className="w-4 h-4 text-zinc-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{c.brand} •••• {c.lastFour}</p>
-                          <p className="text-xs text-zinc-500">{c.cardHolderName}</p>
-                        </div>
-                        {selectedCardId === c.id && <div className="w-2 h-2 rounded-full bg-cyan-400 flex-shrink-0" />}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setSelectedCardId("")}
-                      className={`w-full px-4 py-2.5 rounded-xl border text-sm transition-colors ${
-                        !selectedCardId ? "border-cyan-500 text-cyan-400 bg-cyan-500/10" : "border-zinc-700 text-zinc-400 bg-zinc-800"
-                      }`}
-                    >
-                      {t("topUp.newCard")}
-                    </button>
+              <div>
+                <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.cardNumber")}</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm font-mono pr-16 focus:outline-none focus:border-cyan-500 transition-colors"
+                    placeholder="1234 5678 9012 3456"
+                    value={cardNumber}
+                    maxLength={cardBrand === "amex" ? 17 : 19}
+                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value, detectCardBrand(e.target.value)))}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <CardBrandLogo brand={cardBrand} />
                   </div>
                 </div>
-              )}
-              {!selectedCardId && wompiKey && (
-                <WompiCardWidget
-                  publicKey={wompiKey}
-                  baseUrl={wompiBase}
-                  amount={finalAmount}
-                  onToken={(token) => { setCardToken(token); setCardTokenError(""); }}
-                  onError={(msg) => setCardTokenError(msg)}
-                />
-              )}
-              {cardTokenError && (
-                <p className="text-xs text-red-400">{cardTokenError}</p>
-              )}
-              {cardToken && !selectedCardId && (
-                <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-                  ✓ {t("topUp.cardReady")}
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.expiry")}</label>
+                  <input
+                    type="text"
+                    autoComplete="cc-exp"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:border-cyan-500 transition-colors"
+                    placeholder="MM/AA"
+                    value={cardExpiry}
+                    maxLength={5}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^\d/]/g, "");
+                      if (v.length === 2 && !v.includes("/") && cardExpiry.length === 1) v = v + "/";
+                      setCardExpiry(v.slice(0, 5));
+                    }}
+                  />
                 </div>
-              )}
+                <div className="w-28">
+                  <label className="text-xs text-zinc-400 mb-1 block">CVC</label>
+                  <input
+                    type="password"
+                    autoComplete="cc-csc"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:border-cyan-500 transition-colors"
+                    placeholder="•••"
+                    value={cardCvc}
+                    maxLength={4}
+                    onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.cardHolder")}</label>
+                <input
+                  type="text"
+                  autoComplete="cc-name"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm uppercase focus:outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="NOMBRE APELLIDO"
+                  value={cardHolder}
+                  onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                />
+              </div>
+              <p className="text-xs text-zinc-500">
+                Los datos de tu tarjeta se cifran con TLS y se tokenizan por Wompi.
+              </p>
             </div>
           )}
         </div>
@@ -395,110 +591,6 @@ export default function BraceletTopup() {
           )}
         </Button>
       </div>
-    </div>
-  );
-}
-
-function WompiCardWidget({
-  publicKey, baseUrl, amount, onToken, onError,
-}: {
-  publicKey: string;
-  baseUrl: string;
-  amount: number;
-  onToken: (token: string) => void;
-  onError: (msg: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [number, setNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvc, setCvc] = useState("");
-  const [name, setName] = useState("");
-  const [tokenizing, setTokenizing] = useState(false);
-
-  const formatCardNumber = (v: string) =>
-    v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
-
-  const formatExpiry = (v: string) => {
-    const d = v.replace(/\D/g, "").slice(0, 4);
-    return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
-  };
-
-  const tokenize = async () => {
-    const cardNumber = number.replace(/\s/g, "");
-    const [expMonth, expYear] = expiry.split("/");
-    if (!cardNumber || cardNumber.length < 13 || !expMonth || !expYear || !cvc || !name) {
-      onError(t("topUp.incompleteCard"));
-      return;
-    }
-    setTokenizing(true);
-    try {
-      const res = await fetch(`${baseUrl}/tokens/cards`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${publicKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          number: cardNumber,
-          exp_month: expMonth,
-          exp_year: expYear.length === 2 ? `20${expYear}` : expYear,
-          cvc,
-          card_holder: name,
-        }),
-      });
-      const data = await res.json() as { data?: { id: string }; error?: { messages: Record<string, string[]> } };
-      if (data.data?.id) {
-        onToken(data.data.id);
-      } else {
-        const msgs = data.error?.messages;
-        onError(msgs ? Object.values(msgs).flat()[0] ?? t("topUp.cardError") : t("topUp.cardError"));
-      }
-    } catch {
-      onError(t("topUp.cardError"));
-    } finally {
-      setTokenizing(false);
-    }
-  };
-
-  return (
-    <div className="space-y-3 p-4 rounded-xl bg-zinc-800/50 border border-zinc-700">
-      <input
-        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:border-cyan-500 transition-colors"
-        placeholder="0000 0000 0000 0000"
-        value={number}
-        onChange={(e) => setNumber(formatCardNumber(e.target.value))}
-        inputMode="numeric"
-      />
-      <div className="flex gap-2">
-        <input
-          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:border-cyan-500 transition-colors"
-          placeholder="MM/YY"
-          value={expiry}
-          onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-          inputMode="numeric"
-        />
-        <input
-          className="w-24 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:border-cyan-500 transition-colors"
-          placeholder="CVC"
-          value={cvc}
-          onChange={(e) => setCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
-          inputMode="numeric"
-          type="password"
-        />
-      </div>
-      <input
-        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm uppercase focus:outline-none focus:border-cyan-500 transition-colors"
-        placeholder={t("topUp.cardHolder")}
-        value={name}
-        onChange={(e) => setName(e.target.value.toUpperCase())}
-      />
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="w-full border-zinc-600 text-zinc-300"
-        onClick={tokenize}
-        disabled={tokenizing}
-      >
-        {tokenizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t("topUp.validateCard")}
-      </Button>
     </div>
   );
 }

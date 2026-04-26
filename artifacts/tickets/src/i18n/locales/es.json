@@ -344,6 +344,8 @@
     "idNumber": "Número de identificación",
     "savedCards": "Tarjetas guardadas",
     "newCard": "+ Nueva tarjeta",
+    "cardNumber": "Número de tarjeta",
+    "expiry": "Vencimiento (MM/AA)",
     "cardReady": "Tarjeta validada",
     "validateCard": "Validar tarjeta",
     "cardHolder": "Nombre del titular",
