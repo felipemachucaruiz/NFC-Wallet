@@ -89,6 +89,12 @@ export default function BraceletRefund() {
   const bracelet = braceletData?.bracelets.find((b) => b.uid === braceletUid) ?? null;
   const hasPendingRefund = bracelet?.pendingRefund ?? false;
   const balance = bracelet?.balance ?? 0;
+  const refundDeadline = bracelet?.event?.refundDeadline ?? null;
+  const isDeadlinePassed = refundDeadline ? new Date() > new Date(refundDeadline) : false;
+
+  const deadlineFormatted = refundDeadline
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeStyle: "short" }).format(new Date(refundDeadline))
+    : null;
 
   const buildBankAccountDetails = () =>
     [
@@ -155,6 +161,28 @@ export default function BraceletRefund() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (isDeadlinePassed && step !== "success") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+            <Clock className="w-10 h-10 text-destructive" />
+          </div>
+          <h2 className="text-xl font-bold">{t("refund.deadlinePassedTitle")}</h2>
+          <p className="text-sm text-muted-foreground">{t("refund.deadlinePassedMessage")}</p>
+          {deadlineFormatted && (
+            <p className="text-xs text-muted-foreground">
+              {t("refund.deadlineWas")} {deadlineFormatted}
+            </p>
+          )}
+          <Button variant="outline" className="w-full" onClick={() => navigate("/my-bracelets")}>
+            {t("common.back")}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -381,7 +409,11 @@ export default function BraceletRefund() {
         {/* Info banner */}
         <div className="bg-card rounded-2xl border border-border p-4 flex gap-3 items-start">
           <Info className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-muted-foreground">{t("refund.pendingInfo")}</p>
+          <p className="text-sm text-muted-foreground">
+            {deadlineFormatted
+              ? t("refund.pendingInfoWithDeadline", { date: deadlineFormatted })
+              : t("refund.pendingInfo")}
+          </p>
         </div>
 
         {/* Submit */}

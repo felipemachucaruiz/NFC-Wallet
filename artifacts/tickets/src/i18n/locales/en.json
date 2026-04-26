@@ -355,7 +355,9 @@
     "docTypePlaceholder": "Document type",
     "docTypePickerTitle": "Document type",
     "docNumberPlaceholder": "Document number",
-    "bankTransferIncomplete": "Please complete all bank account fields."
+    "bankTransferIncomplete": "Please complete all bank account fields.",
+    "pendingInfoWithDeadline": "Your request will be reviewed. The refund deadline for this event is {{date}}.",
+    "deadlineWas": "The deadline was"
   },
   "topUp": {
     "topUpTitle": "Top up wristband",
