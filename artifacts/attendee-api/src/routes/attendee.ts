@@ -82,6 +82,7 @@ router.get(
       return {
         uid: b.nfcUid,
         balance: b.lastKnownBalance,
+        pendingTopUpAmount: b.pendingTopUpAmount ?? 0,
         flagged: b.flagged,
         flagReason: b.flagReason,
         pendingRefund: refundStatus !== null && refundStatus !== "rejected",

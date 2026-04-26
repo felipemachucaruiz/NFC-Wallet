@@ -114,6 +114,7 @@
     "braceletLinked": "¡Pulsera vinculada!",
     "transfer": "Transferir",
     "preloadBalance": "Pre-cargar saldo",
+    "pendingTopUp": "+{{amount}} pendiente — se cargará en el próximo cobro",
     "pendingBalanceTitle": "Saldo pendiente",
     "pendingBalanceWithBracelet": "Se acreditará automáticamente a tu pulsera al registrarte en el evento.",
     "pendingBalanceNoBracelet": "Se transferirá a tu pulsera cuando te registres en el evento."

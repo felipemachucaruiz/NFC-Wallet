@@ -24,6 +24,7 @@ const NFC_TAG_IMAGE = require("@/assets/images/tapee-nfc-tag.png");
 type BraceletItem = {
   uid: string;
   balance: number;
+  pendingTopUpAmount?: number;
   flagged: boolean;
   flagReason?: string | null;
   pendingRefund?: boolean;
@@ -427,6 +428,16 @@ export default function HomeScreen() {
                         <View style={{ marginTop: 4 }}>
                           <CopAmount amount={b.balance} size={18} />
                         </View>
+                        {(b.pendingTopUpAmount ?? 0) > 0 && (
+                          <View style={[styles.pendingTopUpRow, { backgroundColor: C.primaryLight }]}>
+                            <Feather name="clock" size={11} color={C.primary} />
+                            <Text style={[styles.pendingTopUpText, { color: C.primary }]}>
+                              {t("home.pendingTopUp", {
+                                amount: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(b.pendingTopUpAmount ?? 0),
+                              })}
+                            </Text>
+                          </View>
+                        )}
                         {b.flagged && !hasActiveRefund && (
                           <View style={{ marginTop: 6 }}>
                             <Badge label={t("home.blocked")} variant="danger" />
@@ -822,6 +833,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   braceletEvent: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  pendingTopUpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  pendingTopUpText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   braceletActions: {
     flexDirection: "row",
     flexWrap: "wrap",
