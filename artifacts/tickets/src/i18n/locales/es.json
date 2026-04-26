@@ -335,7 +335,7 @@
     "customAmount": "Otro monto",
     "total": "Total a pagar",
     "paymentMethod": "Método de pago",
-    "card": "Tarjeta",
+    "card": "Tarjeta débito o crédito",
     "phoneNumber": "Número de celular",
     "bank": "Banco",
     "selectBank": "Selecciona un banco",

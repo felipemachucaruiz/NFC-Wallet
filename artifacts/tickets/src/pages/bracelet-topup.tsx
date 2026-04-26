@@ -59,6 +59,29 @@ function DaviplataIcon({ className }: { className?: string }) {
   );
 }
 
+function PuntosColombiaIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 54.25 19.66">
+      <path fill="#5e00cc" d="M8.82.17C4.25.08.51,3.72.43,8.25h0v10.75c0,.27.22.48.48.48h4.02c.27,0,.48-.22.48-.48v-2.71c0-.15.15-.26.3-.2.91.35,1.9.54,2.94.54,4.58,0,8.29-3.75,8.23-8.35C16.82,3.86,13.23.25,8.82.17Z"/>
+      <path fill="#fff" d="M5.87,11.51c-.72-.77-1.08-1.81-1.08-3.12s.37-2.34,1.11-3.12c.74-.77,1.74-1.16,3.01-1.16.99,0,1.81.28,2.47.84.65.57,1.03,1.31,1.14,2.23h-1.82c-.22-.96-.9-1.55-1.88-1.55-.67,0-1.2.25-1.6.76-.39.51-.59,1.17-.59,1.99s.19,1.48.58,1.99c.39.51.92.76,1.58.76,1,0,1.69-.59,1.91-1.55h1.81c-.1.92-.49,1.66-1.16,2.22-.67.57-1.53.85-2.55.85-1.24,0-2.22-.39-2.93-1.16Z"/>
+      <path fill="currentColor" d="M19.96,15.59c-.32-.35-.49-.82-.49-1.41s.17-1.05.5-1.41c.33-.35.78-.53,1.34-.53.43,0,.8.12,1.09.36s.47.56.53.97h-.65c-.13-.49-.49-.78-1-.78-.36,0-.64.13-.85.38-.21.26-.32.59-.32,1.01s.1.75.31,1c.21.26.49.39.84.39.52,0,.89-.29,1.01-.78h.65c-.06.4-.24.72-.54.97-.3.24-.67.36-1.12.36-.55,0-.99-.18-1.32-.53h0Z"/>
+      <path fill="currentColor" d="M24.65,16.12c-.43,0-.77-.13-1.03-.39-.26-.26-.39-.6-.39-1.03s.13-.77.39-1.04c.26-.26.6-.39,1.03-.39s.77.13,1.03.4c.26.26.39.61.39,1.03s-.13.77-.39,1.03c-.26.26-.61.39-1.03.39h0ZM24.65,15.62c.24,0,.44-.09.6-.26.15-.17.23-.39.23-.67s-.07-.49-.23-.67c-.15-.17-.35-.26-.6-.26s-.44.08-.59.26c-.15.17-.23.39-.23.67s.07.49.23.67c.15.17.35.26.59.26h0Z"/>
+      <path fill="currentColor" d="M26.49,16.09v-3.82h.59v3.82h-.59Z"/>
+      <path fill="currentColor" d="M28.92,16.12c-.43,0-.77-.13-1.03-.39-.26-.26-.39-.6-.39-1.03s.13-.77.39-1.04c.26-.26.6-.39,1.03-.39s.77.13,1.03.4c.26.26.39.61.39,1.03s-.13.77-.39,1.03c-.26.26-.61.39-1.03.39h0ZM28.92,15.62c.24,0,.44-.09.6-.26.15-.17.23-.39.23-.67s-.07-.49-.23-.67c-.15-.17-.35-.26-.6-.26s-.44.08-.59.26c-.15.17-.23.39-.23.67s.07.49.23.67c.15.17.35.26.59.26h0Z"/>
+      <path fill="currentColor" d="M35.02,14.48v1.61h-.59v-1.57c0-.49-.2-.75-.58-.75-.2,0-.36.07-.48.22-.12.14-.18.34-.18.59v1.51h-.59v-1.57c0-.49-.2-.75-.59-.75-.2,0-.36.07-.48.22s-.18.35-.18.6v1.49h-.59v-2.79h.51l.07.37c.2-.26.47-.4.82-.4.38,0,.7.17.86.51.19-.32.51-.51.96-.51.58,0,1.05.33,1.05,1.22h0Z"/>
+      <path fill="currentColor" d="M37.95,13.65c.24.26.36.6.36,1.05s-.12.77-.37,1.03c-.25.26-.56.39-.95.39s-.71-.15-.91-.44l-.07.4h-.51v-3.82h.59v1.44c.22-.3.52-.45.9-.45s.71.13.95.38h0ZM37.49,15.37c.15-.17.22-.4.22-.67s-.07-.49-.23-.67c-.15-.17-.35-.26-.59-.26s-.44.08-.59.26c-.15.17-.22.39-.22.67s.07.5.22.68c.15.17.35.26.59.26s.44-.08.59-.26h0Z"/>
+      <path fill="currentColor" d="M39.03,12.91c-.1,0-.19-.03-.26-.1-.07-.07-.1-.15-.1-.25s.03-.19.1-.26c.07-.07.15-.1.26-.1s.19.03.26.1c.07.07.1.15.1.26s-.03.19-.1.25c-.07.07-.15.1-.26.1ZM38.73,16.09v-2.79h.59v2.79h-.59Z"/>
+      <path fill="currentColor" d="M42.51,15.57v.51h-.31c-.36,0-.51-.16-.51-.45-.21.32-.52.48-.92.48-.31,0-.56-.07-.75-.22-.19-.14-.28-.34-.28-.6,0-.57.42-.89,1.19-.89h.7v-.17c0-.31-.23-.5-.61-.5-.34,0-.59.16-.63.41h-.58c.03-.27.15-.49.38-.65.22-.16.51-.24.86-.24.75,0,1.17.36,1.17,1.01v1.12c0,.14.05.18.18.18h.12ZM41.63,14.85h-.73c-.38,0-.57.14-.57.42,0,.24.2.4.52.4.24,0,.43-.07.57-.2.14-.13.21-.3.21-.52v-.1h0Z"/>
+      <path fill="currentColor" d="M29.92,8.01c0,.96-.34,1.43-1.12,1.43s-1.12-.47-1.12-1.43v-3.08h-1.58v3.08c0,2.04,1.1,2.73,2.7,2.73s2.7-.69,2.7-2.73v-3.08h-1.58v3.08h0Z"/>
+      <path fill="currentColor" d="M22.44,2.84h-2.97v7.84h1.68v-2.41h1.29c1.77,0,2.94-1.06,2.94-2.71s-1.17-2.72-2.94-2.72h0ZM22.28,6.87h-1.13v-2.63h1.13c.85,0,1.4.5,1.4,1.32s-.55,1.31-1.4,1.31Z"/>
+      <path fill="currentColor" d="M35.56,4.86c-.89,0-1.41.34-1.78.79l-.15-.72h-1.38v5.76h1.58v-2.95c0-1,.47-1.58,1.29-1.58s1.17.52,1.17,1.49v3.04h1.58v-3.19c0-1.97-1.06-2.63-2.31-2.63h0Z"/>
+      <path fill="currentColor" d="M40.69,8.78v-2.52h1.32v-1.33h-1.32v-1.61h-1.58v1.61h-.95v1.33h.95v2.78c0,1.1.55,1.65,1.65,1.65h1.29v-1.33h-.78c-.41,0-.57-.17-.57-.57Z"/>
+      <path fill="currentColor" d="M51.65,7.14c-.83-.1-1.32-.15-1.32-.58,0-.37.4-.59,1.02-.59s1.08.28,1.12.74h1.51c-.08-1.18-1.14-1.86-2.69-1.86-1.48-.01-2.48.74-2.48,1.88s1.04,1.49,2.39,1.65c.93.12,1.32.16,1.32.63,0,.4-.4.62-1.06.62-.77,0-1.21-.35-1.27-.85h-1.5c.07,1.23,1.15,1.98,2.76,1.98s2.62-.73,2.62-1.87c0-1.3-1.1-1.6-2.42-1.74h0Z"/>
+      <path fill="currentColor" d="M45.34,10.79c-.92,0-1.66-.27-2.21-.81-.55-.54-.84-1.25-.84-2.14s.28-1.6.84-2.15c.55-.54,1.29-.81,2.21-.81s1.66.27,2.22.81c.55.54.83,1.26.83,2.15s-.27,1.61-.83,2.15c-.55.54-1.3.81-2.22.81ZM45.34,9.5c.44,0,.79-.15,1.05-.46.26-.31.39-.71.39-1.2s-.13-.9-.39-1.2c-.26-.31-.62-.46-1.05-.46s-.79.15-1.04.46c-.26.31-.38.71-.38,1.2s.13.9.38,1.2c.26.31.6.46,1.04.46Z"/>
+    </svg>
+  );
+}
+
 // ─── Card brand utilities ─────────────────────────────────────────────────────
 
 type CardBrand = "visa" | "mastercard" | "amex" | null;
@@ -129,7 +152,7 @@ function getBrowserInfo() {
   };
 }
 
-type PaymentMethod = "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata";
+type PaymentMethod = "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia";
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -149,6 +172,10 @@ export default function BraceletTopup() {
 
   // Nequi / Daviplata
   const [phone, setPhone] = useState("");
+  // Puntos Colombia
+  const [puntosPhone, setPuntosPhone] = useState("");
+  const [puntosLegalId, setPuntosLegalId] = useState("");
+  const [puntosLegalIdType, setPuntosLegalIdType] = useState("CC");
   // PSE
   const [bankCode, setBankCode] = useState("");
   const [pseType, setPseType] = useState<"0" | "1">("0");
@@ -223,6 +250,11 @@ export default function BraceletTopup() {
         if (!phone || phone.replace(/\D/g, "").length !== 10) throw new Error(t("topUp.phoneRequired"));
         return initiateTopUp({ ...base, phoneNumber: phone.replace(/\D/g, "") });
       }
+      if (method === "puntoscolombia") {
+        if (!puntosPhone || puntosPhone.replace(/\D/g, "").length !== 10) throw new Error(t("topUp.phoneRequired"));
+        if (!puntosLegalId.trim()) throw new Error(t("topUp.idRequired"));
+        return initiateTopUp({ ...base, phoneNumber: puntosPhone.replace(/\D/g, ""), userLegalIdType: puntosLegalIdType as any, userLegalId: puntosLegalId.trim() });
+      }
       if (method === "pse") {
         if (!bankCode) throw new Error(t("topUp.bankRequired"));
         if (!pseEmail) throw new Error(t("topUp.emailRequired"));
@@ -285,6 +317,7 @@ export default function BraceletTopup() {
     { id: "daviplata", label: "Daviplata" },
     { id: "pse", label: "PSE" },
     { id: "bancolombia_transfer", label: "Bancolombia" },
+    { id: "puntoscolombia", label: "Puntos Colombia" },
     { id: "card", label: t("topUp.card") },
   ];
 
@@ -411,6 +444,7 @@ export default function BraceletTopup() {
                     {m.id === "bancolombia_transfer" && <BancolombiaIcon className="w-5 h-5" />}
                     {m.id === "daviplata" && <DaviplataIcon className="h-4 w-auto" />}
                     {m.id === "pse" && <PseIcon className="w-5 h-5" />}
+                    {m.id === "puntoscolombia" && <PuntosColombiaIcon className="h-4 w-auto" />}
                     {m.id === "card" && <CreditCard className="w-5 h-5" />}
                     <span className="text-sm font-medium">{m.label}</span>
                     {method === m.id && <Check className="w-4 h-4 text-primary ml-auto" />}
@@ -502,6 +536,48 @@ export default function BraceletTopup() {
               {method === "bancolombia_transfer" && (
                 <div className="p-3 bg-muted/40 rounded-lg text-sm text-muted-foreground">
                   Serás redirigido a Bancolombia para autorizar la transferencia. No se requieren datos adicionales.
+                </div>
+              )}
+
+              {/* Puntos Colombia */}
+              {method === "puntoscolombia" && (
+                <div className="space-y-4">
+                  <div>
+                    <Label className="mb-1 block">Número celular Puntos Colombia</Label>
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="3001234567"
+                      value={puntosPhone}
+                      onChange={(e) => setPuntosPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Recibirás una notificación en tu app Puntos Colombia para aprobar el pago.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="mb-1 block">Tipo de documento</Label>
+                      <Select value={puntosLegalIdType} onValueChange={setPuntosLegalIdType}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {["CC", "CE", "NIT", "PP", "TI"].map((v) => (
+                            <SelectItem key={v} value={v}>{v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="mb-1 block">{t("topUp.idNumber")}</Label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="1234567890"
+                        value={puntosLegalId}
+                        onChange={(e) => setPuntosLegalId(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 

@@ -335,7 +335,7 @@
     "customAmount": "Custom amount",
     "total": "Total to pay",
     "paymentMethod": "Payment method",
-    "card": "Card",
+    "card": "Debit or credit card",
     "phoneNumber": "Phone number",
     "bank": "Bank",
     "selectBank": "Select a bank",
