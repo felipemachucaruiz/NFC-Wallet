@@ -1063,16 +1063,21 @@ router.get("/logout", async (req: Request, res: Response) => {
     // Session cleanup failed — continue to redirect anyway
   }
 
-  try {
-    const config = await getOidcConfig();
-    const endSessionUrl = oidc.buildEndSessionUrl(config, {
-      client_id: (process.env.CLIENT_ID ?? process.env.REPL_ID)!,
-      post_logout_redirect_uri: origin,
-    });
-    res.redirect(endSessionUrl.href);
-  } catch {
-    res.redirect(origin);
+  const oidcClientId = process.env.CLIENT_ID ?? process.env.REPL_ID;
+  if (oidcClientId) {
+    try {
+      const config = await getOidcConfig();
+      const endSessionUrl = oidc.buildEndSessionUrl(config, {
+        client_id: oidcClientId,
+        post_logout_redirect_uri: origin,
+      });
+      res.redirect(endSessionUrl.href);
+      return;
+    } catch {
+      // OIDC end-session failed — fall through to plain redirect
+    }
   }
+  res.redirect(origin);
 });
 
 router.post(

@@ -369,6 +369,7 @@
     "writeError": "Error escribiendo pulsera",
     "readError": "Error leyendo pulsera",
     "eventEnded": "Este evento ya ha finalizado. No se pueden procesar más cobros.",
+    "counterReplay": "Esta pulsera ya fue cobrada recientemente. Por favor vuelve a escanearla.",
     "moreItems": "+{{count}} más",
     "currentBalance": "Saldo actual",
     "newBalance": "Nuevo saldo",
