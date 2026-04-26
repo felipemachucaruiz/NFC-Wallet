@@ -316,9 +316,20 @@ function BraceletCard({
   return (
     <div className="rounded-2xl bg-zinc-900 border border-zinc-800 overflow-hidden">
       <div className="p-4 flex items-start gap-4">
-        <div className="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <Wifi className="w-5 h-5 text-cyan-400" />
+        {/* Bracelet graphic */}
+        <div className="relative flex-shrink-0" style={{ width: 160, height: 91 }}>
+          <img
+            src={`${import.meta.env.BASE_URL}tapee-nfc-tag.png`}
+            alt="bracelet"
+            className="w-full h-full object-contain rounded-lg"
+          />
+          <div className="absolute bottom-2.5 left-0 right-0 flex justify-center pointer-events-none">
+            <span className="text-[9px] font-semibold tracking-wide text-white/70 font-mono">
+              {bracelet.uid.replace(/:/g, "")}
+            </span>
+          </div>
         </div>
+
         <div className="flex-1 min-w-0">
           {bracelet.event && (
             <p className="text-xs text-zinc-500 mb-1">{bracelet.event.name}</p>
@@ -334,10 +345,8 @@ function BraceletCard({
               </div>
             </div>
           )}
-          <p className="text-xs text-zinc-500 mt-1.5 font-mono">
-            {bracelet.uid.replace(/:/g, "")}
-          </p>
         </div>
+
         {bracelet.flagged && (
           <Badge className="bg-red-500/15 text-red-400 border-red-500/30 text-xs flex-shrink-0">
             {t("myBracelets.blocked")}
