@@ -17,7 +17,7 @@ import {
   venueSectionsTable,
   eventDaysTable,
 } from "@workspace/db";
-import { eq, and, ne, desc, inArray, lte, sql } from "drizzle-orm";
+import { eq, and, ne, desc, inArray, lte, sql, gt } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { notifyBraceletBlocked } from "../lib/pushNotifications";
@@ -510,11 +510,12 @@ router.post(
       return;
     }
 
-    // One bracelet per event per user — prevents a bad actor from linking
-    // another person's bracelet and claiming their refund
+    // One bracelet per event per user — blocked bracelets are exempt so the
+    // user can get a replacement. Active (non-blocked) duplicates are still rejected.
+    let blockedReplacement: { nfcUid: string; balance: number } | null = null;
     if (bracelet.eventId) {
       const [eventConflict] = await db
-        .select({ id: braceletsTable.id })
+        .select({ id: braceletsTable.id, flagged: braceletsTable.flagged, nfcUid: braceletsTable.nfcUid, lastKnownBalance: braceletsTable.lastKnownBalance })
         .from(braceletsTable)
         .where(
           and(
@@ -524,8 +525,12 @@ router.post(
           )
         );
       if (eventConflict) {
-        res.status(409).json({ error: "ONE_BRACELET_PER_EVENT" });
-        return;
+        if (!eventConflict.flagged) {
+          res.status(409).json({ error: "ONE_BRACELET_PER_EVENT" });
+          return;
+        }
+        // Blocked bracelet found — will recover its balance during link
+        blockedReplacement = { nfcUid: eventConflict.nfcUid, balance: eventConflict.lastKnownBalance };
       }
     }
 
@@ -551,16 +556,40 @@ router.post(
       phone: user?.phone ?? undefined,
     };
 
-    const [updated] = await db
-      .update(braceletsTable)
-      .set(updates)
-      .where(eq(braceletsTable.nfcUid, uid))
-      .returning();
+    let transferredFromBlocked = 0;
+
+    const [updated] = await db.transaction(async (tx) => {
+      const [linked] = await tx
+        .update(braceletsTable)
+        .set(updates)
+        .where(eq(braceletsTable.nfcUid, uid))
+        .returning();
+
+      // If replacing a blocked bracelet, move its balance to pendingWalletBalance
+      // so the gate writes it to the new chip on first scan
+      if (blockedReplacement && blockedReplacement.balance > 0) {
+        transferredFromBlocked = blockedReplacement.balance;
+        await tx
+          .update(braceletsTable)
+          .set({ lastKnownBalance: 0, updatedAt: new Date() })
+          .where(eq(braceletsTable.nfcUid, blockedReplacement.nfcUid));
+        await tx
+          .update(usersTable)
+          .set({
+            pendingWalletBalance: sql`GREATEST(0, ${usersTable.pendingWalletBalance} + ${blockedReplacement.balance})`,
+            updatedAt: new Date(),
+          })
+          .where(eq(usersTable.id, userId));
+      }
+
+      return [linked];
+    });
 
     res.json({
       uid: updated.nfcUid,
       balance: updated.lastKnownBalance,
       attendeeName: updated.attendeeName,
+      ...(transferredFromBlocked > 0 ? { transferredFromBlocked } : {}),
     });
   }
 );

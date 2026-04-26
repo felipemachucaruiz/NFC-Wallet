@@ -75,7 +75,17 @@ export default function AddBraceletScreen() {
         onSuccess: (res) => {
           setLinkedUid(res.uid);
           setState("success");
-          if (pendingWalletBalance > 0) {
+          const transferred = (res as { transferredFromBlocked?: number }).transferredFromBlocked ?? 0;
+          if (transferred > 0) {
+            // Balance was recovered from the old blocked bracelet into pendingWalletBalance.
+            // The gate will write it to the new chip automatically on first scan.
+            showAlert(
+              t("addBracelet.balanceRecoveredTitle"),
+              t("addBracelet.balanceRecoveredMsg", {
+                amount: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(transferred),
+              })
+            );
+          } else if (pendingWalletBalance > 0) {
             showAlert(
               t("addBracelet.transferPendingTitle"),
               t("addBracelet.transferPendingMsg", {

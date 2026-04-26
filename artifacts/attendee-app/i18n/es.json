@@ -150,7 +150,9 @@
     "transferNow": "Transferir ahora",
     "transferLater": "Después",
     "transferSuccessTitle": "¡Saldo transferido!",
-    "transferSuccessMsg": "Tu saldo se aplicará automáticamente en tu próxima compra en cualquier punto de venta."
+    "transferSuccessMsg": "Tu saldo se aplicará automáticamente en tu próxima compra en cualquier punto de venta.",
+    "balanceRecoveredTitle": "¡Saldo rescatado!",
+    "balanceRecoveredMsg": "{{amount}} de tu pulsera anterior bloqueada fueron transferidos a esta nueva pulsera. Se cargarán automáticamente cuando pases por la entrada."
   },
   "selectEvent": {
     "title": "Seleccionar Evento",

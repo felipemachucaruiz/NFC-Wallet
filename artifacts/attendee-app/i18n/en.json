@@ -151,7 +151,9 @@
     "transferNow": "Transfer now",
     "transferLater": "Later",
     "transferSuccessTitle": "Balance transferred!",
-    "transferSuccessMsg": "Your balance will be applied automatically on your next purchase at any point of sale."
+    "transferSuccessMsg": "Your balance will be applied automatically on your next purchase at any point of sale.",
+    "balanceRecoveredTitle": "Balance recovered!",
+    "balanceRecoveredMsg": "{{amount}} from your previous blocked wristband has been transferred to this new one. It will be loaded automatically when you pass through the entrance."
   },
   "selectEvent": {
     "title": "Select Event",
