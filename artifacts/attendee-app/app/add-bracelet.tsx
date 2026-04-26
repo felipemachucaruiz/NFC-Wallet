@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
-import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
+import { isNfcSupported, scanBraceletUID, cancelNfcScan } from "@/utils/nfc";
 import { useLinkBracelet, usePendingWalletBalance, useClaimWalletBalance } from "@/hooks/useAttendeeApi";
 import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
@@ -45,6 +45,7 @@ export default function AddBraceletScreen() {
   const [linkedUid, setLinkedUid] = useState("");
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const scanSessionRef = useRef(0);
   const { show: showAlert } = useAlert();
   const { mutate: linkBracelet } = useLinkBracelet();
   const { data: walletData } = usePendingWalletBalance();
@@ -127,14 +128,22 @@ export default function AddBraceletScreen() {
   const handleNfcScan = async () => {
     if (state === "scanning" || state === "linking") return;
     setState("scanning");
+    const sessionId = ++scanSessionRef.current;
     try {
       const uid = await scanBraceletUID();
+      if (scanSessionRef.current !== sessionId) return;
       if (uid) {
         doLink(uid);
       } else {
         setState("idle");
       }
     } catch (err: unknown) {
+      if (scanSessionRef.current !== sessionId) return;
+      const msg = String((err as { message?: string }).message ?? err ?? "");
+      if (/cancel|invalidat|user/i.test(msg)) {
+        setState("idle");
+        return;
+      }
       console.error("[Tapee] bracelet link error:", err);
       setErrorMsg(t("addBracelet.scanFailed"));
       setState("error");
@@ -150,6 +159,8 @@ export default function AddBraceletScreen() {
   };
 
   const handleReset = () => {
+    scanSessionRef.current++;
+    cancelNfcScan();
     setState("idle");
     setUidInput("");
     setErrorMsg("");
