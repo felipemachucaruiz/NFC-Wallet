@@ -7,7 +7,8 @@ import type { AuthUser } from "@workspace/api-zod";
 import { z } from "zod";
 import { getEventInventoryMode } from "./events";
 import { runFraudDetection, runSyncFraudDetection } from "../lib/fraudDetection";
-import { deriveEventKey, verifyBraceletHmac } from "../lib/kdf";
+import { deriveEventKey, verifyBraceletHmac, computeBraceletHmac } from "../lib/kdf";
+import { resolveHmacKey } from "../lib/hmacKeys";
 import { notifyLowStock } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
@@ -552,10 +553,25 @@ async function processTransaction(
     transactionTime: new Date(),
   });
 
+  // When the bracelet had an unsynced pending top-up, return a signed payload so the POS
+  // can immediately write the full corrected balance to the chip without a second server round-trip.
+  let pendingSyncPayload: { balance: number; counter: number; hmac: string } | null = null;
+  if (hasPendingTopUp) {
+    try {
+      const { primaryKey } = await resolveHmacKey(bracelet.eventId ?? merchant.eventId ?? null);
+      const syncCounter = input.counter + 1;
+      const hmac = computeBraceletHmac(correctedNewBalance, syncCounter, primaryKey, input.nfcUid);
+      pendingSyncPayload = { balance: correctedNewBalance, counter: syncCounter, hmac };
+    } catch {
+      // Non-fatal: POS can call GET /api/bracelets/pending-sync-payload separately
+    }
+  }
+
   return {
     status: "created",
     transaction: { ...txLog, lineItems: insertedLineItems },
     flagged: wasFlagged,
+    pendingSyncPayload,
   };
 }
 

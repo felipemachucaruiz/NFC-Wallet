@@ -4,7 +4,8 @@ import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { requireAttestation } from "../middlewares/requireAttestation";
 import { z } from "zod";
-import { deriveEventKey, computeBraceletHmac, verifyBraceletHmac } from "../lib/kdf";
+import { computeBraceletHmac, verifyBraceletHmac } from "../lib/kdf";
+import { resolveHmacKey } from "../lib/hmacKeys";
 import { captureError } from "../lib/captureError";
 
 const router: IRouter = Router();
@@ -18,58 +19,6 @@ const createTopUpSchema = z.object({
   wompiTransactionId: z.string().optional(),
 });
 
-interface HmacKeyResult {
-  /** Primary signing key (used for computing new HMAC values to write to bracelets) */
-  primaryKey: string;
-  /** All candidate keys for verification, in priority order (primary first, then legacy fallbacks) */
-  candidateKeys: string[];
-  useKdf: boolean;
-}
-
-/**
- * Resolve HMAC keys for an event.
- * - Primary key: used when computing new HMAC values to write to bracelets
- * - Candidate keys: all keys tried during verification (primary + legacy fallbacks)
- *   so existing bracelets continue working during migration from legacy → KDF keys
- * - Event-null path always falls back to HMAC_SECRET (not HMAC_MASTER_KEY) to stay
- *   consistent with the key that those bracelets were originally signed with
- */
-async function resolveHmacKey(eventId: string | null): Promise<HmacKeyResult> {
-  const globalSecret = process.env.HMAC_SECRET ?? null;
-
-  if (!eventId) {
-    // No event: bracelets were signed with the global HMAC_SECRET
-    if (!globalSecret) throw new Error("HMAC_SECRET not configured");
-    return { primaryKey: globalSecret, candidateKeys: [globalSecret], useKdf: false };
-  }
-
-  const [event] = await db
-    .select({ useKdf: eventsTable.useKdf, hmacSecret: eventsTable.hmacSecret })
-    .from(eventsTable)
-    .where(eq(eventsTable.id, eventId));
-
-  if (event?.useKdf) {
-    const masterKey = process.env.HMAC_MASTER_KEY;
-    if (!masterKey) throw new Error("HMAC_MASTER_KEY not configured");
-    const derivedKey = deriveEventKey(masterKey, eventId);
-    // Candidate keys: derived (primary) + pre-KDF per-event key + global secret
-    // Allows existing bracelets signed before KDF was enabled to still verify
-    const candidates: string[] = [derivedKey];
-    if (event.hmacSecret) candidates.push(event.hmacSecret);
-    if (globalSecret) candidates.push(globalSecret);
-    return { primaryKey: derivedKey, candidateKeys: candidates, useKdf: true };
-  }
-
-  if (event?.hmacSecret) {
-    const candidates: string[] = [event.hmacSecret];
-    if (globalSecret) candidates.push(globalSecret);
-    return { primaryKey: event.hmacSecret, candidateKeys: candidates, useKdf: false };
-  }
-
-  // Event exists but has no per-event key — use global fallback
-  if (!globalSecret) throw new Error("HMAC_SECRET not configured and event has no per-event key");
-  return { primaryKey: globalSecret, candidateKeys: [globalSecret], useKdf: false };
-}
 
 router.post(
   "/topups",

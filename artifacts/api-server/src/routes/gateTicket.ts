@@ -1310,7 +1310,15 @@ router.post(
 
         await tx
           .update(braceletsTable)
-          .set({ lastKnownBalance: newBalance, lastCounter: newCounter, updatedAt: new Date() })
+          .set({
+            lastKnownBalance: newBalance,
+            lastCounter: newCounter,
+            // Gate write syncs the full DB balance to the chip — clear any pending top-up state
+            pendingSync: false,
+            pendingBalance: 0,
+            pendingTopUpAmount: 0,
+            updatedAt: new Date(),
+          })
           .where(eq(braceletsTable.nfcUid, braceletNfcUid));
 
         await tx.insert(topUpsTable).values({
