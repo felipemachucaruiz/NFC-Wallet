@@ -522,7 +522,7 @@ export async function initiateTopUp(data: TopUpRequest): Promise<TopUpResponse> 
 
 export interface TopUpStatus {
   intentId: string;
-  status: "pending" | "confirmed" | "failed" | "cancelled";
+  status: "pending" | "confirmed" | "success" | "failed" | "cancelled";
   purposeType: "topup" | "preload";
   topUpId: string | null;
   threeDsAuth: {

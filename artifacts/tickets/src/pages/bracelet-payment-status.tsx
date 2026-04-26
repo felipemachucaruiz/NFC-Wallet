@@ -38,7 +38,7 @@ export default function BraceletPaymentStatus() {
           setThreeDsContent(status.threeDsAuth.iframe_content);
         }
 
-        if (status.status === "confirmed") {
+        if (status.status === "confirmed" || status.status === "success") {
           stopPolling();
           setPhase("confirmed");
         } else if (status.status === "failed" || status.status === "cancelled") {
