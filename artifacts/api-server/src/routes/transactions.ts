@@ -156,11 +156,12 @@ async function processTransaction(
   if (bracelet.lastCounter !== null && input.counter <= bracelet.lastCounter) {
     return { status: "error", error: `Counter replay detected: submitted ${input.counter} ≤ stored ${bracelet.lastCounter}` };
   }
-  // Balance consistency: newBalance should equal lastKnownBalance minus gross
+  // Balance consistency: chip's new balance must not exceed the chip's current balance.
+  // When there is a pending top-up, lastKnownBalance > chip balance — use chip balance for check.
   // (skip when lastKnownBalance is null — first use on server side)
   if (bracelet.lastKnownBalance !== null) {
-    const expectedNewBalance = bracelet.lastKnownBalance - input.newBalance;
-    if (expectedNewBalance < 0) {
+    const effectiveChipBalance = bracelet.lastKnownBalance - (bracelet.pendingTopUpAmount ?? 0);
+    if (input.newBalance > effectiveChipBalance) {
       return { status: "error", error: "Insufficient bracelet balance" };
     }
   }
@@ -296,26 +297,50 @@ async function processTransaction(
   // Merchant receives net items amount plus the full tip (tip is not subject to commission)
   const netAmount = grossAmount - commissionAmount + tipAmount;
 
+  // When there is an unsynced pending top-up the chip balance is lower than lastKnownBalance.
+  // input.newBalance is the chip's new balance after the purchase and does NOT include the
+  // pending amount. We must derive how much was actually charged on the chip and apply that
+  // deduction to the full DB balance, preserving the pending amount until the gate syncs it.
+  const pendingTopUp = bracelet.pendingTopUpAmount ?? 0;
+  const hasPendingTopUp = pendingTopUp > 0 && bracelet.lastKnownBalance !== null;
+  // Chip balance before this transaction (excludes pending top-up not yet written to chip)
+  const chipBalanceBefore = hasPendingTopUp
+    ? bracelet.lastKnownBalance! - pendingTopUp
+    : (bracelet.lastKnownBalance ?? input.newBalance);
+  // Amount the chip actually deducted
+  const chipAmountCharged = chipBalanceBefore - input.newBalance;
+  // Correct DB balance: full DB balance minus what was charged on the chip
+  const correctedNewBalance = hasPendingTopUp
+    ? bracelet.lastKnownBalance! - chipAmountCharged
+    : input.newBalance;
+
   // Compute bracelet update fields before entering the transaction so we can
   // determine the final state (flagged vs clean) consistently.
   let wasFlagged = false;
   let braceletUpdate: Record<string, unknown> = {
-    lastKnownBalance: input.newBalance,
+    lastKnownBalance: correctedNewBalance,
     lastCounter: input.counter,
-    pendingSync: false,
-    pendingBalance: 0,
-    pendingTopUpAmount: sql`GREATEST(${braceletsTable.pendingTopUpAmount} - ${bracelet.pendingTopUpAmount}, 0)`,
+    // Keep pendingSync true when there is still a top-up pending chip write
+    pendingSync: hasPendingTopUp,
+    pendingBalance: hasPendingTopUp ? correctedNewBalance : 0,
+    pendingTopUpAmount: hasPendingTopUp ? pendingTopUp : 0,
     updatedAt: new Date(),
   };
 
   if (isSyncBatch && bracelet.lastKnownBalance !== null) {
     if (bracelet.pendingSync && bracelet.pendingTopUpAmount > 0) {
+      // Offline batch with an unsynced pending top-up: discrepancy check against chip balance.
+      const expectedChipBalance = chipBalanceBefore - chargedAmount;
+      const discrepancy = Math.abs(expectedChipBalance - input.newBalance);
+      if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
+        wasFlagged = true;
+      }
       braceletUpdate = {
-        lastKnownBalance: input.newBalance,
+        lastKnownBalance: correctedNewBalance,
         lastCounter: input.counter,
-        pendingSync: false,
-        pendingBalance: 0,
-        pendingTopUpAmount: sql`GREATEST(${braceletsTable.pendingTopUpAmount} - ${bracelet.pendingTopUpAmount}, 0)`,
+        pendingSync: true,
+        pendingBalance: correctedNewBalance,
+        pendingTopUpAmount: pendingTopUp,
         updatedAt: new Date(),
       };
     } else {
@@ -336,10 +361,13 @@ async function processTransaction(
   if (wasFlagged) {
     let flagReason = "";
     if (isSyncBatch && bracelet.lastKnownBalance !== null) {
-      const expectedNewBalance = bracelet.lastKnownBalance - chargedAmount;
-      const discrepancy = Math.abs(expectedNewBalance - input.newBalance);
+      // Use chip-aware expected balance for the discrepancy message
+      const expectedBalance = (bracelet.pendingSync && pendingTopUp > 0)
+        ? chipBalanceBefore - chargedAmount
+        : bracelet.lastKnownBalance - chargedAmount;
+      const discrepancy = Math.abs(expectedBalance - input.newBalance);
       if (discrepancy > BALANCE_DISCREPANCY_THRESHOLD) {
-        flagReason = `Balance discrepancy during sync: expected ${expectedNewBalance} COP but device reported ${input.newBalance} COP (diff: ${discrepancy} COP).`;
+        flagReason = `Balance discrepancy during sync: expected ${expectedBalance} COP (chip) but device reported ${input.newBalance} COP (diff: ${discrepancy} COP).`;
       }
     }
     if (isSyncBatch && bracelet.maxOfflineSpend !== null && bracelet.maxOfflineSpend !== undefined && chargedAmount > bracelet.maxOfflineSpend) {
@@ -350,11 +378,11 @@ async function processTransaction(
     braceletUpdate = {
       flagged: true,
       flagReason,
-      lastKnownBalance: input.newBalance,
+      lastKnownBalance: correctedNewBalance,
       lastCounter: input.counter,
-      pendingSync: false,
-      pendingBalance: 0,
-      pendingTopUpAmount: sql`GREATEST(${braceletsTable.pendingTopUpAmount} - ${bracelet.pendingTopUpAmount}, 0)`,
+      pendingSync: hasPendingTopUp,
+      pendingBalance: hasPendingTopUp ? correctedNewBalance : 0,
+      pendingTopUpAmount: hasPendingTopUp ? pendingTopUp : 0,
       updatedAt: new Date(),
     };
   }
