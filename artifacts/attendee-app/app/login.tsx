@@ -1,5 +1,8 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { TapeeLogo } from "@/components/TapeeLogo";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { WhatsAppOtpModal } from "@/components/WhatsAppOtpModal";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -8,6 +11,7 @@ import { Dimensions, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable,
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { COUNTRY_CODES } from "@/constants/countryCodes";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -44,28 +48,6 @@ function LoginVideoBackground({ source }: { source: import("expo-video").VideoSo
 
 type AuthTab = "login" | "register";
 
-const COUNTRY_CODES = [
-  { code: "+57", flag: "🇨🇴", name: "Colombia" },
-  { code: "+1", flag: "🇺🇸", name: "Estados Unidos" },
-  { code: "+52", flag: "🇲🇽", name: "México" },
-  { code: "+54", flag: "🇦🇷", name: "Argentina" },
-  { code: "+55", flag: "🇧🇷", name: "Brasil" },
-  { code: "+56", flag: "🇨🇱", name: "Chile" },
-  { code: "+51", flag: "🇵🇪", name: "Perú" },
-  { code: "+58", flag: "🇻🇪", name: "Venezuela" },
-  { code: "+593", flag: "🇪🇨", name: "Ecuador" },
-  { code: "+595", flag: "🇵🇾", name: "Paraguay" },
-  { code: "+598", flag: "🇺🇾", name: "Uruguay" },
-  { code: "+591", flag: "🇧🇴", name: "Bolivia" },
-  { code: "+34", flag: "🇪🇸", name: "España" },
-  { code: "+44", flag: "🇬🇧", name: "Reino Unido" },
-  { code: "+49", flag: "🇩🇪", name: "Alemania" },
-  { code: "+33", flag: "🇫🇷", name: "Francia" },
-  { code: "+39", flag: "🇮🇹", name: "Italia" },
-  { code: "+81", flag: "🇯🇵", name: "Japón" },
-  { code: "+86", flag: "🇨🇳", name: "China" },
-];
-
 export default function LoginScreen() {
   const { t } = useTranslation();
   const { login, register, isAuthenticated, isLoading } = useAuth();
@@ -82,10 +64,15 @@ export default function LoginScreen() {
   const [countryCode, setCountryCode] = useState(COUNTRY_CODES[0]);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
+  const { googleClientId } = useAuth();
+  const hasSocial = !!googleClientId;
 
 
   useEffect(() => {
@@ -102,6 +89,10 @@ export default function LoginScreen() {
     }
     if (password.length < 6) {
       setError(t("auth.passwordMinLength"));
+      return;
+    }
+    if (tab === "register" && password !== confirmPassword) {
+      setError(t("auth.passwordMismatch"));
       return;
     }
     if (tab === "register" && (!firstName.trim() || !lastName.trim())) {
@@ -162,7 +153,7 @@ export default function LoginScreen() {
             {(["login", "register"] as AuthTab[]).map((t_) => (
               <Pressable
                 key={t_}
-                onPress={() => { setTab(t_); setError(null); }}
+                onPress={() => { setTab(t_); setError(null); setConfirmPassword(""); }}
                 style={[styles.tabBtn, tab === t_ && { backgroundColor: C.primaryLight }]}
               >
                 <Text style={[styles.tabText, { color: tab === t_ ? C.primary : "rgba(255,255,255,0.5)" }]}>
@@ -240,6 +231,26 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
+          {tab === "register" && (
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[inputStyle, { flex: 1 }]}
+                placeholder={t("auth.confirmPasswordPlaceholder")}
+                placeholderTextColor={C.textMuted}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+                autoComplete="new-password"
+              />
+              <Pressable
+                onPress={() => setShowConfirmPassword((v) => !v)}
+                style={[styles.eyeBtn, { backgroundColor: C.inputBg, borderColor: C.border }]}
+              >
+                <Feather name={showConfirmPassword ? "eye-off" : "eye"} size={18} color={C.textSecondary} />
+              </Pressable>
+            </View>
+          )}
+
           {tab === "login" && (
             <Pressable
               onPress={() => setKeepLoggedIn((v) => !v)}
@@ -296,6 +307,27 @@ export default function LoginScreen() {
           )}
         </View>
 
+        {/* Social login section */}
+        {hasSocial && (
+          <View style={styles.socialSection}>
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>{t("auth.orContinueWith")}</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <GoogleSignInButton onError={(msg) => setError(msg)} />
+
+            <Pressable
+              onPress={() => setShowWhatsApp(true)}
+              style={({ pressed }) => [styles.whatsappBtn, pressed && { opacity: 0.75 }]}
+            >
+              <WhatsAppIcon size={20} />
+              <Text style={styles.whatsappBtnText}>{t("auth.whatsappLogin")}</Text>
+            </Pressable>
+          </View>
+        )}
+
         <View style={styles.features}>
           {[
             { icon: "shield" as const, text: "Pagos NFC seguros" },
@@ -311,6 +343,8 @@ export default function LoginScreen() {
           ))}
         </View>
       </KeyboardAvoidingView>
+
+      <WhatsAppOtpModal visible={showWhatsApp} onClose={() => setShowWhatsApp(false)} />
 
       {/* Country code picker modal */}
       <Modal
@@ -503,6 +537,42 @@ const styles = StyleSheet.create({
   dialCodeText: {
     fontSize: 13,
     fontFamily: "Inter_600SemiBold",
+  },
+  socialSection: {
+    gap: 10,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  dividerText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.35)",
+  },
+  whatsappBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(37,211,102,0.25)",
+    backgroundColor: "rgba(37,211,102,0.06)",
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    minHeight: 48,
+  },
+  whatsappBtnText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: "rgba(255,255,255,0.9)",
   },
   modalOverlay: {
     flex: 1,

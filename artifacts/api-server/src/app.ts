@@ -50,15 +50,23 @@ const app: Express = express();
 app.disable("x-powered-by");
 app.use(compression());
 
-app.use((_req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
-  );
+  res.setHeader("Cache-Control", "no-store");
+  if (req.path.startsWith("/api/docs")) {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'",
+    );
+  } else {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
+    );
+  }
   next();
 });
 
@@ -126,6 +134,17 @@ app.use(AUTH_RATE_LIMITED_PATHS, authLimiter);
 
 app.use(authMiddleware);
 
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (req.user) {
+    Sentry.setUser({
+      id: req.user.id,
+      email: req.user.email ?? undefined,
+      username: req.user.email ?? undefined,
+    });
+  }
+  next();
+});
+
 if (process.env.DOCS_ENABLED === "true") {
   const docsUsername = process.env.DOCS_USERNAME;
   const docsPassword = process.env.DOCS_PASSWORD;
@@ -185,6 +204,11 @@ app.use("/api", router);
 
 app.get("/debug-sentry", (_req, _res) => {
   throw new Error("My first Sentry error!");
+});
+
+// Catch-all 404 — must come before Sentry error handler so our headers are applied
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not Found" });
 });
 
 Sentry.setupExpressErrorHandler(app);

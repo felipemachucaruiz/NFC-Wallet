@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, braceletsTable, usersTable, accessZonesTable, eventsTable, ticketCheckinsTable, ticketsTable, ticketTypesTable, venueSectionsTable, eventDaysTable, pool, deletedBraceletUidsTable } from "@workspace/db";
+import { db, braceletsTable, usersTable, accessZonesTable, eventsTable, ticketCheckinsTable, ticketsTable, ticketTypesTable, venueSectionsTable, eventDaysTable, pool, deletedBraceletUidsTable, topUpsTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -329,6 +329,7 @@ router.post(
         email: usersTable.email,
         phone: usersTable.phone,
         profileImageUrl: usersTable.profileImageUrl,
+        pendingWalletBalance: usersTable.pendingWalletBalance,
       })
       .from(usersTable)
       .where(eq(usersTable.id, ticket.uid));
@@ -532,6 +533,7 @@ router.post(
           : null,
         todayDayIndex,
         checkinHistory,
+        pendingWalletBalance: attendee.pendingWalletBalance ?? 0,
       });
     } catch (err) {
       await client.query("ROLLBACK").catch(() => {});
@@ -1249,6 +1251,82 @@ router.post(
       zoneGranted,
       zoneId: zoneGranted ? gateZoneId : null,
     });
+  },
+);
+
+const confirmNfcWriteSchema = z.object({
+  braceletNfcUid: z.string().min(1),
+  attendeeUserId: z.string().min(1),
+  transferredAmount: z.number().int().min(1),
+});
+
+// Called by the staff app after a successful NFC write that included pending wallet balance.
+// Zeroes the user's pendingWalletBalance and creates a top-up record for audit/reconciliation.
+router.post(
+  "/gate/confirm-nfc-write",
+  requireRole("gate", "admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const parsed = confirmNfcWriteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const { braceletNfcUid, attendeeUserId, transferredAmount } = parsed.data;
+
+    const [user] = await db
+      .select({ pendingWalletBalance: usersTable.pendingWalletBalance })
+      .from(usersTable)
+      .where(eq(usersTable.id, attendeeUserId));
+
+    if (!user) {
+      res.status(404).json({ error: "Attendee not found" });
+      return;
+    }
+
+    // Guard: don't clear more than what's actually pending
+    const amountToTransfer = Math.min(transferredAmount, user.pendingWalletBalance);
+    if (amountToTransfer <= 0) {
+      res.json({ ok: true, transferred: 0 });
+      return;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(usersTable)
+        .set({
+          pendingWalletBalance: sql`GREATEST(0, ${usersTable.pendingWalletBalance} - ${amountToTransfer})`,
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, attendeeUserId));
+
+      const [bracelet] = await tx
+        .select({ lastKnownBalance: braceletsTable.lastKnownBalance, lastCounter: braceletsTable.lastCounter })
+        .from(braceletsTable)
+        .where(eq(braceletsTable.nfcUid, braceletNfcUid));
+
+      if (bracelet) {
+        const newBalance = bracelet.lastKnownBalance + amountToTransfer;
+        const newCounter = bracelet.lastCounter + 1;
+
+        await tx
+          .update(braceletsTable)
+          .set({ lastKnownBalance: newBalance, lastCounter: newCounter, updatedAt: new Date() })
+          .where(eq(braceletsTable.nfcUid, braceletNfcUid));
+
+        await tx.insert(topUpsTable).values({
+          braceletUid: braceletNfcUid,
+          amount: amountToTransfer,
+          paymentMethod: "card_external",
+          performedByUserId: req.user!.id,
+          status: "completed",
+          newBalance,
+          newCounter,
+          activationFeeAmount: 0,
+        });
+      }
+    });
+
+    res.json({ ok: true, transferred: amountToTransfer });
   },
 );
 

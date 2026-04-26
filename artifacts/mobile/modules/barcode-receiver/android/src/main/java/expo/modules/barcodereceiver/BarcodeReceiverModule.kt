@@ -4,11 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Handler
-import android.os.Looper
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.ReactContext
-import com.facebook.react.modules.core.DeviceEventManagerModule
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -17,6 +12,13 @@ class BarcodeReceiverModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("BarcodeReceiver")
+
+    // CRITICAL: Must use Expo's sendEvent() + Events() declaration.
+    // nativeModule.addListener() in src/index.ts only connects to the Expo
+    // events channel — DeviceEventManagerModule/RCTDeviceEventEmitter will
+    // NOT reach the JS listener. Do not revert to emitBarcode() or
+    // RCTDeviceEventEmitter (regression introduced in commit 16af252).
+    Events("onBarcodeScanned")
 
     OnCreate {
       registerReceiver()
@@ -27,21 +29,11 @@ class BarcodeReceiverModule : Module() {
     AsyncFunction("stopListening") { }
 
     AsyncFunction("sendTestScan") { barcode: String ->
-      emitBarcode(barcode)
+      sendEvent("onBarcodeScanned", mapOf("data" to barcode))
     }
 
     OnDestroy {
       unregisterReceiver()
-    }
-  }
-
-  private fun emitBarcode(barcode: String) {
-    val reactContext = appContext.reactContext as? ReactContext ?: return
-    val params = Arguments.createMap().apply { putString("data", barcode) }
-    Handler(Looper.getMainLooper()).post {
-      reactContext
-        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-        ?.emit("BarcodeReceiverEvent", params)
     }
   }
 
@@ -52,7 +44,7 @@ class BarcodeReceiverModule : Module() {
     val receiver = object : BroadcastReceiver() {
       override fun onReceive(context: Context, intent: Intent) {
         val barcode = intent.getStringExtra("barcodeData") ?: return
-        emitBarcode(barcode)
+        sendEvent("onBarcodeScanned", mapOf("data" to barcode))
       }
     }
 

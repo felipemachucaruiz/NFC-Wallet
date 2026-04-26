@@ -438,3 +438,101 @@ export interface ApiAd {
 export async function fetchAds(): Promise<{ ads: ApiAd[] }> {
   return apiFetch("/public/ads");
 }
+
+// ─── Bracelets ────────────────────────────────────────────────────────────────
+
+export interface ApiBracelet {
+  uid: string;
+  balance: number;
+  pendingTopUpAmount: number;
+  flagged: boolean;
+  flagReason?: string | null;
+  pendingRefund?: boolean;
+  refundStatus?: string | null;
+  attendeeName?: string | null;
+  event?: { id: string; name: string; active: boolean; refundDeadline?: string | null } | null;
+  updatedAt: string;
+}
+
+export async function fetchMyBracelets(): Promise<{ bracelets: ApiBracelet[] }> {
+  return apiFetch("/attendee/me/bracelets");
+}
+
+export async function fetchPendingWalletBalance(): Promise<{ pendingWalletBalance: number }> {
+  return apiFetch("/user/wallet");
+}
+
+export async function linkBracelet(uid: string): Promise<{ uid: string; message: string }> {
+  return apiFetch("/attendee/me/bracelets/link", {
+    method: "POST",
+    body: JSON.stringify({ uid }),
+  });
+}
+
+export async function unlinkBracelet(uid: string): Promise<{ success: boolean }> {
+  return apiFetch(`/attendee/me/bracelets/${encodeURIComponent(uid)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function claimWalletBalance(uid: string): Promise<{ transferred: number }> {
+  return apiFetch(`/attendee/me/bracelets/${encodeURIComponent(uid)}/claim-wallet-balance`, {
+    method: "POST",
+  });
+}
+
+export interface TopUpRequest {
+  braceletUid?: string;
+  amount: number;
+  paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia";
+  phoneNumber?: string;
+  bankCode?: string;
+  pseUserType?: 0 | 1;
+  pseEmail?: string;
+  userLegalIdType?: "CC" | "CE" | "NIT" | "PP" | "TI";
+  userLegalId?: string;
+  cardToken?: string;
+  savedCardId?: string;
+  installments?: number;
+  browserInfo?: {
+    browser_color_depth: string;
+    browser_screen_height: string;
+    browser_screen_width: string;
+    browser_language: string;
+    browser_user_agent: string;
+    browser_tz: string;
+  };
+}
+
+export interface TopUpResponse {
+  intentId: string;
+  status: string;
+  paymentMethod: string;
+  purposeType: "topup" | "preload";
+  wompiTransactionId: string | null;
+  redirectUrl: string | null;
+}
+
+export async function initiateTopUp(data: TopUpRequest): Promise<TopUpResponse> {
+  return apiFetch("/payments/initiate", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export interface TopUpStatus {
+  intentId: string;
+  status: "pending" | "confirmed" | "failed" | "cancelled";
+  purposeType: "topup" | "preload";
+  topUpId: string | null;
+  threeDsAuth: {
+    current_step: string;
+    current_step_status: string;
+    three_ds_method_data?: string;
+    iframe_content?: string;
+  } | null;
+}
+
+export async function fetchTopUpStatus(intentId: string): Promise<TopUpStatus> {
+  return apiFetch(`/payments/${intentId}/status`);
+}

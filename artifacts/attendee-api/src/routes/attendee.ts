@@ -82,6 +82,7 @@ router.get(
       return {
         uid: b.nfcUid,
         balance: b.lastKnownBalance,
+        pendingTopUpAmount: b.pendingTopUpAmount ?? 0,
         flagged: b.flagged,
         flagReason: b.flagReason,
         pendingRefund: refundStatus !== null && refundStatus !== "rejected",
@@ -134,16 +135,48 @@ router.get(
       .from(braceletsTable)
       .where(eq(braceletsTable.attendeeUserId, userId));
 
-    const uids = bracelets.map((b) => b.nfcUid);
+    const currentUids = new Set(bracelets.map((b) => b.nfcUid));
 
-    const txEventIds = [...new Set(bracelets.map((b) => b.eventId).filter(Boolean) as string[])];
+    // Historical ownership: bracelet_transfer_logs records each unlink with its timestamp.
+    // We use the latest unlink date per bracelet as the cutoff — transactions after that
+    // belong to whoever linked the bracelet next.
+    const historicalTransfers = await db
+      .select({ braceletUid: braceletTransferLogsTable.braceletUid, createdAt: braceletTransferLogsTable.createdAt })
+      .from(braceletTransferLogsTable)
+      .where(eq(braceletTransferLogsTable.fromUserId, userId));
+
+    const historicalCutoffs = new Map<string, Date>();
+    for (const t of historicalTransfers) {
+      const existing = historicalCutoffs.get(t.braceletUid);
+      if (!existing || t.createdAt > existing) historicalCutoffs.set(t.braceletUid, t.createdAt);
+    }
+
+    const pureHistoricalUids = [...historicalCutoffs.keys()].filter((uid) => !currentUids.has(uid));
+
+    const historicalBracelets = pureHistoricalUids.length > 0
+      ? await db
+          .select({ nfcUid: braceletsTable.nfcUid, eventId: braceletsTable.eventId })
+          .from(braceletsTable)
+          .where(inArray(braceletsTable.nfcUid, pureHistoricalUids))
+      : [];
+
+    const allBracelets = [...bracelets, ...historicalBracelets];
+    const uids = allBracelets.map((b) => b.nfcUid);
+
+    const txEventIds = [...new Set(allBracelets.map((b) => b.eventId).filter(Boolean) as string[])];
     const txEvents = txEventIds.length > 0
       ? await db.select({ id: eventsTable.id, name: eventsTable.name }).from(eventsTable).where(inArray(eventsTable.id, txEventIds))
       : [];
     const txEventsById = new Map(txEvents.map((e) => [e.id, e.name]));
-    const uidToEvent = new Map(bracelets.map((b) => [b.nfcUid, b.eventId ? { eventId: b.eventId, eventName: txEventsById.get(b.eventId) ?? null } : null]));
+    const uidToEvent = new Map(allBracelets.map((b) => [b.nfcUid, b.eventId ? { eventId: b.eventId, eventName: txEventsById.get(b.eventId) ?? null } : null]));
 
-    const txLogRows = uids.length > 0
+    const isBeforeOwnershipCutoff = (braceletUid: string, createdAt: Date) => {
+      if (currentUids.has(braceletUid)) return true;
+      const cutoff = historicalCutoffs.get(braceletUid);
+      return cutoff ? createdAt <= cutoff : true;
+    };
+
+    const rawTxLogRows = uids.length > 0
       ? await db
           .select()
           .from(transactionLogsTable)
@@ -154,10 +187,11 @@ router.get(
             )
           )
           .orderBy(desc(transactionLogsTable.createdAt))
-          .limit(limit * 2)
+          .limit(limit * 4)
       : [];
+    const txLogRows = rawTxLogRows.filter((tx) => isBeforeOwnershipCutoff(tx.braceletUid, tx.createdAt));
 
-    const topUpRows = uids.length > 0
+    const rawTopUpRows = uids.length > 0
       ? await db
           .select()
           .from(topUpsTable)
@@ -168,8 +202,9 @@ router.get(
             )
           )
           .orderBy(desc(topUpsTable.createdAt))
-          .limit(limit * 2)
+          .limit(limit * 4)
       : [];
+    const topUpRows = rawTopUpRows.filter((tu) => isBeforeOwnershipCutoff(tu.braceletUid, tu.createdAt));
 
     const refundRows = await db
       .select()
@@ -891,6 +926,58 @@ router.post(
 
     res.status(400).json({ error: "Invalid platform" });
   },
+);
+
+router.post(
+  "/attendee/me/bracelets/:uid/claim-wallet-balance",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const rawUid = (req.params as { uid: string }).uid;
+    const uid = normalizeUidLocal(rawUid);
+    if (!uid) {
+      res.status(400).json({ error: "Invalid UID format" });
+      return;
+    }
+
+    const [bracelet] = await db
+      .select()
+      .from(braceletsTable)
+      .where(and(eq(braceletsTable.nfcUid, uid), eq(braceletsTable.attendeeUserId, userId)));
+
+    if (!bracelet) {
+      res.status(404).json({ error: "Bracelet not found or not linked to your account" });
+      return;
+    }
+
+    const [user] = await db
+      .select({ pendingWalletBalance: usersTable.pendingWalletBalance })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+
+    const amount = user?.pendingWalletBalance ?? 0;
+    if (amount <= 0) {
+      res.json({ transferred: 0 });
+      return;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(usersTable)
+        .set({ pendingWalletBalance: 0, updatedAt: new Date() })
+        .where(eq(usersTable.id, userId));
+
+      await tx
+        .update(braceletsTable)
+        .set({
+          pendingTopUpAmount: sql`${braceletsTable.pendingTopUpAmount} + ${amount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(braceletsTable.nfcUid, uid));
+    });
+
+    res.json({ transferred: amount });
+  }
 );
 
 export default router;

@@ -176,7 +176,7 @@ export function useInitiateTopUp() {
   const apiFetch = useApiFetch();
   return useMutation({
     mutationFn: (data: {
-      braceletUid: string;
+      braceletUid?: string;
       amount: number;
       paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia";
       phoneNumber?: string;
@@ -197,11 +197,22 @@ export function useInitiateTopUp() {
         browser_tz: string;
       };
     }) =>
-      apiFetch<{ intentId: string; status: string; redirectUrl?: string | null }>(
+      apiFetch<{ intentId: string; status: string; purposeType?: string; redirectUrl?: string | null }>(
         `${API_BASE_URL}/api/payments/initiate`,
         headers,
         { method: "POST", body: JSON.stringify(data) },
       ),
+  });
+}
+
+export function usePendingWalletBalance() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useQuery({
+    queryKey: ["wallet", "pending"],
+    queryFn: () =>
+      apiFetch<{ pendingWalletBalance: number }>(`${API_BASE_URL}/api/user/wallet`, headers),
+    staleTime: 30_000,
   });
 }
 
@@ -321,6 +332,24 @@ export function useUpdateCardAlias() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["savedCards"] });
+    },
+  });
+}
+
+export function useClaimWalletBalance() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (uid: string) =>
+      apiFetch<{ transferred: number }>(
+        `${API_BASE_URL}/api/attendee/me/bracelets/${encodeURIComponent(uid)}/claim-wallet-balance`,
+        headers,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["wallet", "pending"] });
+      void queryClient.invalidateQueries({ queryKey: ["attendee", "bracelets"] });
     },
   });
 }

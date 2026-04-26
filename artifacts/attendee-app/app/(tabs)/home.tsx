@@ -14,7 +14,8 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyBracelets, useLinkBracelet } from "@/hooks/useAttendeeApi";
+import { useMyBracelets, useLinkBracelet, usePendingWalletBalance, useClaimWalletBalance } from "@/hooks/useAttendeeApi";
+import { useAlert } from "@/components/CustomAlert";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
 import { API_BASE_URL } from "@/constants/domain";
 
@@ -23,6 +24,7 @@ const NFC_TAG_IMAGE = require("@/assets/images/tapee-nfc-tag.png");
 type BraceletItem = {
   uid: string;
   balance: number;
+  pendingTopUpAmount?: number;
   flagged: boolean;
   flagReason?: string | null;
   pendingRefund?: boolean;
@@ -99,12 +101,14 @@ export default function HomeScreen() {
   const { user, token } = useAuth();
 
   const { data, isPending, refetch } = useMyBracelets();
+  const { data: walletData, refetch: refetchWallet } = usePendingWalletBalance();
+  const pendingWalletBalance = (walletData as { pendingWalletBalance?: number } | undefined)?.pendingWalletBalance ?? 0;
   const bracelets = ((data as { bracelets?: BraceletItem[] } | undefined)?.bracelets ?? []);
   const isArchived = (b: BraceletItem) =>
     b.pendingRefund || b.refundStatus === "disbursement_completed" || (b.event && !b.event.active);
   const activeBracelets = bracelets.filter((b) => !isArchived(b));
   const archivedBracelets = bracelets.filter((b) => isArchived(b));
-  const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balance, 0);
+  const totalBalance = activeBracelets.reduce((sum, b) => sum + b.balance + (b.pendingTopUpAmount ?? 0), 0);
   const activeBracelet = activeBracelets.find((b) => b.event?.active) ?? activeBracelets[0] ?? null;
 
   const [manualRefreshing, setManualRefreshing] = useState(false);
@@ -112,17 +116,18 @@ export default function HomeScreen() {
   const handleManualRefresh = useCallback(async () => {
     setManualRefreshing(true);
     try {
-      await refetch();
+      await Promise.all([refetch(), refetchWallet()]);
     } finally {
       setManualRefreshing(false);
     }
-  }, [refetch]);
+  }, [refetch, refetchWallet]);
 
   const appState = useRef(AppState.currentState);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && nextState === "active") {
         refetch();
+        refetchWallet();
       }
       appState.current = nextState;
     });
@@ -155,7 +160,9 @@ export default function HomeScreen() {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [nfcFeedback, setNfcFeedback] = useState<"success" | "already" | "event_limit" | "error" | null>(null);
 
+  const { show: showAlert } = useAlert();
   const { mutate: linkBracelet } = useLinkBracelet();
+  const { mutateAsync: claimWalletBalance } = useClaimWalletBalance();
 
   useEffect(() => {
     setNfcAvailable(isNfcSupported());
@@ -177,9 +184,32 @@ export default function HomeScreen() {
           linkBracelet(
             { uid },
             {
-              onSuccess: () => {
+              onSuccess: (res) => {
                 setNfcFeedback("success");
                 setTimeout(() => setNfcFeedback(null), 3000);
+                if (pendingWalletBalance > 0) {
+                  showAlert(
+                    t("addBracelet.transferPendingTitle"),
+                    t("addBracelet.transferPendingMsg", {
+                      amount: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pendingWalletBalance),
+                    }),
+                    [
+                      { text: t("addBracelet.transferLater"), variant: "cancel" },
+                      {
+                        text: t("addBracelet.transferNow"),
+                        variant: "primary",
+                        onPress: async () => {
+                          try {
+                            await claimWalletBalance(res.uid);
+                            showAlert(t("addBracelet.transferSuccessTitle"), t("addBracelet.transferSuccessMsg"));
+                          } catch {
+                            // silent
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }
               },
               onError: (err) => {
                 if (err.message === "ONE_BRACELET_PER_EVENT") {
@@ -301,6 +331,12 @@ export default function HomeScreen() {
                 variant="primary"
                 style={styles.addBraceletBtn}
               />
+              <Button
+                title={t("home.preloadBalance")}
+                onPress={() => router.push({ pathname: "/top-up", params: { preload: "true" } })}
+                variant="secondary"
+                style={styles.addBraceletBtn}
+              />
             </View>
           )}
         </View>
@@ -332,6 +368,29 @@ export default function HomeScreen() {
               <Feather name="x" size={16} color="rgba(234,179,8,0.6)" />
             </Pressable>
           </View>
+        )}
+
+        {pendingWalletBalance > 0 && (
+          <Pressable
+            onPress={() => router.push("/pending-balance")}
+            style={[styles.pendingBalanceBanner, { backgroundColor: "rgba(0,241,255,0.08)", borderColor: "rgba(0,241,255,0.28)" }]}
+          >
+            <View style={[styles.pendingBalanceIconWrap, { backgroundColor: "rgba(0,241,255,0.12)" }]}>
+              <Feather name="clock" size={18} color={C.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[styles.pendingBalanceTitle, { color: C.primary }]}>
+                {t("home.pendingBalanceTitle")}
+              </Text>
+              <Text style={[styles.pendingBalanceAmount, { color: C.text }]}>
+                {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(pendingWalletBalance)}
+              </Text>
+              <Text style={[styles.pendingBalanceHint, { color: C.textSecondary }]}>
+                {activeBracelets.length > 0 ? t("home.pendingBalanceWithBracelet") : t("home.pendingBalanceNoBracelet")}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={C.primary} />
+          </Pressable>
         )}
 
         {activeBracelets.length > 0 && (
@@ -367,8 +426,18 @@ export default function HomeScreen() {
                           </Text>
                         )}
                         <View style={{ marginTop: 4 }}>
-                          <CopAmount amount={b.balance} size={18} />
+                          <CopAmount amount={b.balance + (b.pendingTopUpAmount ?? 0)} size={18} />
                         </View>
+                        {(b.pendingTopUpAmount ?? 0) > 0 && (
+                          <View style={[styles.pendingTopUpRow, { backgroundColor: C.primaryLight }]}>
+                            <Feather name="clock" size={11} color={C.primary} />
+                            <Text style={[styles.pendingTopUpText, { color: C.primary }]}>
+                              {t("home.pendingTopUp", {
+                                amount: new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(b.pendingTopUpAmount ?? 0),
+                              })}
+                            </Text>
+                          </View>
+                        )}
                         {b.flagged && !hasActiveRefund && (
                           <View style={{ marginTop: 6 }}>
                             <Badge label={t("home.blocked")} variant="danger" />
@@ -764,6 +833,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   braceletEvent: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  pendingTopUpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  pendingTopUpText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   braceletActions: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -877,4 +957,24 @@ const styles = StyleSheet.create({
   },
   emptyActiveTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   emptyActiveHint: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 19 },
+  pendingBalanceBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  pendingBalanceIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  pendingBalanceTitle: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5 },
+  pendingBalanceAmount: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  pendingBalanceHint: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
 });

@@ -47,7 +47,21 @@
     "keepMeLoggedInHint": "Tu sesión se guardará de forma segura en este dispositivo.",
     "phone": "Número celular",
     "phonePlaceholder": "300 000 0000",
-    "selectCountry": "Seleccionar país"
+    "selectCountry": "Seleccionar país",
+    "orContinueWith": "O continuar con",
+    "googleSignIn": "Continuar con Google",
+    "whatsappLogin": "Continuar con WhatsApp",
+    "whatsappLoginTitle": "Acceder con WhatsApp",
+    "whatsappLoginDesc": "Ingresa tu número y te enviaremos un código de verificación por WhatsApp",
+    "otpSent": "Código enviado a",
+    "otpFailed": "Código incorrecto o expirado. Intenta de nuevo.",
+    "otpSendFailed": "No se pudo enviar el código. Intenta de nuevo.",
+    "sendCode": "Enviar código",
+    "verifyCode": "Verificar código",
+    "resendCode": "Reenviar código",
+    "googleFailed": "No se pudo iniciar sesión con Google",
+    "confirmPasswordPlaceholder": "Confirmar contraseña",
+    "passwordMismatch": "Las contraseñas no coinciden"
   },
   "home": {
     "tab": "Inicio",
@@ -98,7 +112,12 @@
     "addBraceletAction": "Vincular a mi cuenta",
     "topUpAction": "Recargar",
     "braceletLinked": "¡Pulsera vinculada!",
-    "transfer": "Transferir"
+    "transfer": "Transferir",
+    "preloadBalance": "Pre-cargar saldo",
+    "pendingTopUp": "{{amount}} del total está pendiente — se aplicará en el próximo cobro",
+    "pendingBalanceTitle": "Saldo pendiente",
+    "pendingBalanceWithBracelet": "Se acreditará automáticamente a tu pulsera al registrarte en el evento.",
+    "pendingBalanceNoBracelet": "Se transferirá a tu pulsera cuando te registres en el evento."
   },
   "addBracelet": {
     "title": "Agregar pulsera",
@@ -125,7 +144,13 @@
     "eventLimitMsg": "Ya tienes una pulsera vinculada para este evento. Solo se permite una por persona.",
     "scanFailed": "El escaneo NFC falló. Por favor intenta de nuevo.",
     "unknownBracelet": "Esta pulsera no está registrada. Busquemos tu evento.",
-    "selectingEvent": "Seleccionando evento..."
+    "selectingEvent": "Seleccionando evento...",
+    "transferPendingTitle": "¿Transferir saldo pendiente?",
+    "transferPendingMsg": "Tienes {{amount}} de saldo pre-cargado. ¿Quieres transferirlo a esta pulsera ahora? Se aplicará automáticamente en tu próxima compra.",
+    "transferNow": "Transferir ahora",
+    "transferLater": "Después",
+    "transferSuccessTitle": "¡Saldo transferido!",
+    "transferSuccessMsg": "Tu saldo se aplicará automáticamente en tu próxima compra en cualquier punto de venta."
   },
   "selectEvent": {
     "title": "Seleccionar Evento",
@@ -178,6 +203,8 @@
   },
   "topUp": {
     "title": "Recargar pulsera",
+    "preloadTitle": "Pre-cargar saldo",
+    "preloadHint": "Tu saldo quedará pendiente y se cargará automáticamente a tu pulsera cuando te registres en el evento.",
     "amount": "Monto a recargar",
     "orCustom": "O ingresa un monto",
     "amountPlaceholder": "Ej: 75000",
@@ -437,5 +464,18 @@
     "successTitle": "¡Contraseña actualizada!",
     "successMsg": "Ya puedes iniciar sesión con tu nueva contraseña.",
     "goToLogin": "Ir a iniciar sesión"
+  },
+  "pendingBalance": {
+    "title": "Saldo pendiente",
+    "subtitle": "Tienes saldo pre-cargado listo para tu evento.",
+    "availableAmount": "Monto disponible",
+    "paymentConfirmed": "Pago confirmado",
+    "hintWithBracelet": "Tu pulsera está vinculada. Este saldo se transferirá automáticamente cuando te registres en la entrada del evento.",
+    "hintNoBracelet": "Cuando llegues al evento y el agente de entrada vincule tu pulsera, este saldo se transferirá automáticamente.",
+    "autoTransferHint": "No necesitas hacer nada — la transferencia ocurre automáticamente cuando el agente escanea tu pulsera.",
+    "noBraceletHint": "Si aún no ves tu pulsera en la app, agrégala manualmente escaneándola con tu teléfono o ingresando los números impresos en ella.",
+    "addBraceletAction": "Agregar pulsera →",
+    "transferToBracelet": "Transferir a mi pulsera",
+    "addMore": "Cargar más saldo"
   }
 }

@@ -561,9 +561,13 @@ router.get("/callback", async (req: Request, res: Response) => {
     return;
   }
 
-  const dbUser = await upsertUser(
-    claims as unknown as Record<string, unknown>,
-  );
+  let dbUser: Awaited<ReturnType<typeof upsertUser>>;
+  try {
+    dbUser = await upsertUser(claims as unknown as Record<string, unknown>);
+  } catch {
+    res.redirect("/api/login");
+    return;
+  }
 
   const now = Math.floor(Date.now() / 1000);
   const sessionData: SessionData = {
@@ -583,7 +587,13 @@ router.get("/callback", async (req: Request, res: Response) => {
     expires_at: tokens.expiresIn() ? now + tokens.expiresIn()! : claims.exp,
   };
 
-  const sid = await createSession(sessionData);
+  let sid: string;
+  try {
+    sid = await createSession(sessionData);
+  } catch {
+    res.redirect("/api/login");
+    return;
+  }
   setSessionCookie(res, sid);
   res.redirect(returnTo);
 });

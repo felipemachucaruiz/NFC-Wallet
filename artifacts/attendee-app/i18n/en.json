@@ -47,7 +47,21 @@
     "keepMeLoggedInHint": "Your session will be saved securely on this device.",
     "phone": "Phone number",
     "phonePlaceholder": "300 000 0000",
-    "selectCountry": "Select country"
+    "selectCountry": "Select country",
+    "orContinueWith": "Or continue with",
+    "googleSignIn": "Continue with Google",
+    "whatsappLogin": "Continue with WhatsApp",
+    "whatsappLoginTitle": "Sign in with WhatsApp",
+    "whatsappLoginDesc": "Enter your number and we'll send a verification code via WhatsApp",
+    "otpSent": "Code sent to",
+    "otpFailed": "Incorrect or expired code. Please try again.",
+    "otpSendFailed": "Could not send the code. Please try again.",
+    "sendCode": "Send code",
+    "verifyCode": "Verify code",
+    "resendCode": "Resend code",
+    "googleFailed": "Could not sign in with Google",
+    "confirmPasswordPlaceholder": "Confirm password",
+    "passwordMismatch": "Passwords do not match"
   },
   "home": {
     "tab": "Home",
@@ -99,7 +113,12 @@
     "addBraceletAction": "Link to my account",
     "topUpAction": "Top up",
     "braceletLinked": "Wristband linked!",
-    "transfer": "Transfer"
+    "transfer": "Transfer",
+    "preloadBalance": "Pre-load balance",
+    "pendingTopUp": "{{amount}} of total is pending — will be applied on next purchase",
+    "pendingBalanceTitle": "Pending balance",
+    "pendingBalanceWithBracelet": "Will be automatically loaded to your wristband at the event gate.",
+    "pendingBalanceNoBracelet": "Will be transferred to your wristband when you check in at the event."
   },
   "addBracelet": {
     "title": "Add Wristband",
@@ -126,7 +145,13 @@
     "eventLimitMsg": "You already have a wristband linked for this event. Only one is allowed per person.",
     "scanFailed": "NFC scan failed. Please try again.",
     "unknownBracelet": "This wristband is not registered. Let's find your event.",
-    "selectingEvent": "Selecting event..."
+    "selectingEvent": "Selecting event...",
+    "transferPendingTitle": "Transfer pending balance?",
+    "transferPendingMsg": "You have {{amount}} of pre-loaded balance. Do you want to transfer it to this wristband now? It will be applied automatically on your next purchase.",
+    "transferNow": "Transfer now",
+    "transferLater": "Later",
+    "transferSuccessTitle": "Balance transferred!",
+    "transferSuccessMsg": "Your balance will be applied automatically on your next purchase at any point of sale."
   },
   "selectEvent": {
     "title": "Select Event",
@@ -179,6 +204,8 @@
   },
   "topUp": {
     "title": "Top up wristband",
+    "preloadTitle": "Pre-load balance",
+    "preloadHint": "Your balance will be held and automatically transferred to your wristband when you check in at the event.",
     "amount": "Amount to top up",
     "orCustom": "Or enter a custom amount",
     "amountPlaceholder": "E.g.: 75000",
@@ -438,5 +465,18 @@
     "successTitle": "Password updated!",
     "successMsg": "You can now sign in with your new password.",
     "goToLogin": "Go to sign in"
+  },
+  "pendingBalance": {
+    "title": "Pending balance",
+    "subtitle": "You have pre-loaded balance ready for your event.",
+    "availableAmount": "Available amount",
+    "paymentConfirmed": "Payment confirmed",
+    "hintWithBracelet": "Your wristband is linked. This balance will be automatically transferred when you check in at the event gate.",
+    "hintNoBracelet": "When you arrive at the event and the gate agent links your wristband, this balance will be transferred automatically.",
+    "autoTransferHint": "No action needed — the transfer happens automatically when the gate agent scans your wristband.",
+    "noBraceletHint": "If you don't see your wristband in the app yet, add it manually by scanning it with your phone or entering the numbers printed on it.",
+    "addBraceletAction": "Add wristband →",
+    "transferToBracelet": "Transfer to my wristband",
+    "addMore": "Add more balance"
   }
 }

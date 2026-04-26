@@ -49,6 +49,7 @@ Sentry.init({
 });
 
 const app: Express = express();
+app.disable("x-powered-by");
 
 // Disable ETags — prevents Replit proxy from caching GET responses and returning stale 304s
 app.set("etag", false);
@@ -108,6 +109,25 @@ app.use((req, res, next) => {
     })(req, res, next);
   }
 });
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (req.path.startsWith("/api/docs") || req.path.startsWith("/attendee-api/docs")) {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'",
+    );
+  } else {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; frame-ancestors 'none'; form-action 'none'",
+    );
+  }
+  next();
+});
+
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -143,6 +163,17 @@ app.use("/api", staticRouter);
 app.use("/attendee-api/api", staticRouter);
 
 app.use(authMiddleware);
+
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (req.user) {
+    Sentry.setUser({
+      id: req.user.id,
+      email: req.user.email ?? undefined,
+      username: req.user.email ?? undefined,
+    });
+  }
+  next();
+});
 
 if (process.env.DOCS_ENABLED === "true") {
   const docsUsername = process.env.DOCS_USERNAME;
@@ -209,6 +240,11 @@ app.use("/api", router);
 app.use("/attendee-api/api", router);
 app.use("/api", notificationsRouter);
 app.use("/attendee-api/api", notificationsRouter);
+
+// Catch-all 404 — prevents Express finalhandler from sending HTML (which lacks frame-ancestors/form-action)
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not Found" });
+});
 
 Sentry.setupExpressErrorHandler(app);
 

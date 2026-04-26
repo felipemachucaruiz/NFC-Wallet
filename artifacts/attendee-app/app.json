@@ -3,7 +3,7 @@
     "name": "Tapee Wallet",
     "slug": "attendee-app",
     "owner": "felipemachucadj",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tapee-attendee",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tapee.attendee",
-      "buildNumber": "26",
+      "buildNumber": "28",
       "infoPlist": {
         "NFCReaderUsageDescription": "Used to read NFC wristbands for cashless payments.",
         "ITSAppUsesNonExemptEncryption": false
@@ -25,11 +25,11 @@
     },
     "android": {
       "package": "com.tapee.attendee",
-      "versionCode": 26,
+      "versionCode": 28,
       "minSdkVersion": 29,
       "allowBackup": false,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0a0a0a"
       },
       "permissions": [
@@ -64,6 +64,7 @@
       ],
       "expo-updates",
       "./plugins/withAndroidBackup",
+      "./plugins/withAdiRegistration",
       "./plugins/withNetworkSecurity",
       "./plugins/withPermissions"
     ],

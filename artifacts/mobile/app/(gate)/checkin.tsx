@@ -485,6 +485,9 @@ export default function EntranceCheckinScreen() {
       attendeeName: "",
       zoneName: "",
       historyItem: null as CheckinHistoryListItem | null,
+      pendingWalletBalance: 0,
+      attendeeUserId: "",
+      braceletNfcUid: "",
     };
 
     try {
@@ -506,10 +509,6 @@ export default function EntranceCheckinScreen() {
           const newZoneMask = gateZoneBitIndex >= 0
             ? (braceletPayload.zoneMask ?? 0) | (1 << gateZoneBitIndex)
             : (braceletPayload.zoneMask ?? 0);
-          const newHmac = hmacSecret
-            ? await computeHmac(braceletPayload.balance, braceletPayload.counter, hmacSecret, uid, newZoneMask || undefined)
-            : braceletPayload.hmac;
-          const newPayload = { ...braceletPayload, hmac: newHmac, zoneMask: newZoneMask };
 
           try {
             const res = await fetchWithTimeout(`${API_BASE_URL}/api/gate/ticket-checkin`, {
@@ -537,8 +536,18 @@ export default function EntranceCheckinScreen() {
               return null;
             }
 
+            const pendingWallet = (payload.pendingWalletBalance as number | undefined) ?? 0;
+            const finalBalance = braceletPayload.balance + pendingWallet;
+            const newHmac = hmacSecret
+              ? await computeHmac(finalBalance, braceletPayload.counter, hmacSecret, uid, newZoneMask || undefined)
+              : braceletPayload.hmac;
+            const newPayload = { ...braceletPayload, balance: finalBalance, hmac: newHmac, zoneMask: newZoneMask };
+
             outcomeRef.attendeeName = (payload.attendee as { fullName?: string } | null)?.fullName ?? "";
             outcomeRef.zoneName = (payload.zone as { name?: string } | null)?.name ?? "";
+            outcomeRef.pendingWalletBalance = pendingWallet;
+            outcomeRef.attendeeUserId = (payload.attendee as { id?: string } | null)?.id ?? "";
+            outcomeRef.braceletNfcUid = uid;
             outcomeRef.historyItem = {
               id: (payload.checkin as { id?: string } | null)?.id ?? Date.now().toString(),
               ticketId: (payload.ticket as { ticketId?: string } | null)?.ticketId ?? "",
@@ -594,6 +603,18 @@ export default function EntranceCheckinScreen() {
       }
 
       if (outcomeRef.historyItem) {
+        // NFC write succeeded — confirm wallet balance transfer if any
+        if (outcomeRef.pendingWalletBalance > 0 && outcomeRef.attendeeUserId && outcomeRef.braceletNfcUid) {
+          void fetchWithTimeout(`${API_BASE_URL}/api/gate/confirm-nfc-write`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              braceletNfcUid: outcomeRef.braceletNfcUid,
+              attendeeUserId: outcomeRef.attendeeUserId,
+              transferredAmount: outcomeRef.pendingWalletBalance,
+            }),
+          }, 5000).catch(() => {});
+        }
         setSuccessName(outcomeRef.attendeeName);
         setSuccessZone(outcomeRef.zoneName);
         setSessionHistory((prev) => [outcomeRef.historyItem!, ...prev]);

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { X, ArrowLeft, Mail, MessageCircle } from "lucide-react";
+import { X, ArrowLeft, Mail } from "lucide-react";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,7 +108,7 @@ function LoginForm() {
           className="w-full border-green-600/50 text-green-500 hover:bg-green-600/10 hover:text-green-400"
           onClick={() => setShowPhoneLogin(true)}
         >
-          <MessageCircle className="w-4 h-4 mr-2" />
+          <WhatsAppIcon className="w-4 h-4 mr-2" />
           {t("auth.phoneLogin")}
         </Button>
         {googleEnabled && (
@@ -313,7 +314,7 @@ function RegisterForm() {
           className="w-full border-green-600/50 text-green-500 hover:bg-green-600/10 hover:text-green-400"
           onClick={() => setShowPhoneLogin(true)}
         >
-          <MessageCircle className="w-4 h-4 mr-2" />
+          <WhatsAppIcon className="w-4 h-4 mr-2" />
           {t("auth.phoneLogin")}
         </Button>
         {googleEnabled && (

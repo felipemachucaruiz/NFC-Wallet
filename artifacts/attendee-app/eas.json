@@ -29,7 +29,7 @@
     },
     "production-apk": {
       "distribution": "internal",
-      "channel": "production-apk",
+      "channel": "production",
       "resourceClass": "large",
       "credentialsSource": "remote",
       "prebuildCommand": "npx expo prebuild --clean --no-install",
@@ -44,6 +44,7 @@
     },
     "production": {
       "channel": "production",
+      "credentialsSource": "remote",
       "ios": {
         "distribution": "store"
       },
@@ -52,17 +53,15 @@
       },
       "env": {
         "EXPO_PUBLIC_DOMAIN": "prod.tapee.app",
-        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app"
+        "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
+        "EXPO_PUBLIC_WOMPI_PUBLIC_KEY": "pub_test_Di9jS6XJ4JF3G5PtBgTs4x43b86i3xGd"
       }
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "6761638236",
-        "ascApiKeyIssuerId": "41770ddd-55fb-4de3-ac0f-2424d7349470",
-        "ascApiKeyId": "KLY7W9NG7H",
-        "ascApiKeyPath": "./keys/AuthKey_KLY7W9NG7H.p8"
+        "ascAppId": "6761638236"
       }
     }
   }

@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+import * as Sentry from "@sentry/react-native";
 
 let SecureStore: typeof import("expo-secure-store") | null = null;
 try {
@@ -42,8 +43,13 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   sessionExpired: boolean;
   clearSessionExpired: () => void;
+  googleClientId: string | null;
   login: (identifier: string, password: string, keepMeLoggedIn?: boolean) => Promise<string | null>;
   register: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<string | null>;
+  loginWithGoogle: (idToken: string) => Promise<string | null>;
+  loginWithSessionToken: (sessionToken: string) => Promise<string | null>;
+  sendWhatsAppOtp: (phone: string) => Promise<{ expiresIn: number }>;
+  verifyWhatsAppOtp: (phone: string, code: string) => Promise<string | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /** Intercept a 401 response: attempt a token refresh, return new token or null */
@@ -100,6 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
   const tokenRef = useRef<string | null>(null);
@@ -107,9 +114,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // the same promise instead of returning null immediately.
   const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
 
+  useEffect(() => {
+    if (user) {
+      Sentry.setUser({
+        id: user.id,
+        email: user.email ?? undefined,
+        username: user.phone ?? user.email ?? undefined,
+      });
+    } else {
+      Sentry.setUser(null);
+    }
+  }, [user]);
+
   const setAuthToken = useCallback((t: string | null) => {
     tokenRef.current = t;
     setToken(t);
+  }, []);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/auth/providers`)
+      .then((r) => r.json())
+      .then((d: { providers?: { google?: string } }) => {
+        if (d.providers?.google) setGoogleClientId(d.providers.google);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -197,6 +225,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const u = await fetchCurrentUser(sid);
       if (!u) return "No se pudo cargar el perfil";
       if (u === "network_error") return "Error de red";
+      await storeToken(sid);
+      setAuthToken(sid);
+      setUser(u as AuthUser);
+      return null;
+    } catch {
+      return "Error de red";
+    }
+  }, [setAuthToken]);
+
+  const loginWithGoogle = useCallback(async (idToken: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: idToken }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return (body as { error?: string }).error ?? "Google login failed";
+      }
+      const { token: sid } = await res.json() as { token: string };
+      const u = await fetchCurrentUser(sid);
+      if (!u) return "No se pudo cargar el perfil";
+      if (u === "network_error") return "Error de red";
+      if (u.role !== "attendee") return "StaffNotAllowed";
+      await storeToken(sid);
+      setAuthToken(sid);
+      setUser(u as AuthUser);
+      return null;
+    } catch {
+      return "Error de red";
+    }
+  }, [setAuthToken]);
+
+  const loginWithSessionToken = useCallback(async (sessionToken: string): Promise<string | null> => {
+    try {
+      const u = await fetchCurrentUser(sessionToken);
+      if (!u) return "No se pudo cargar el perfil";
+      if (u === "network_error") return "Error de red";
+      if (u.role !== "attendee") return "StaffNotAllowed";
+      await storeToken(sessionToken);
+      setAuthToken(sessionToken);
+      setUser(u as AuthUser);
+      return null;
+    } catch {
+      return "Error de red";
+    }
+  }, [setAuthToken]);
+
+  const sendWhatsAppOtp = useCallback(async (phone: string): Promise<{ expiresIn: number }> => {
+    const res = await fetch(`${API_BASE_URL}/api/auth/whatsapp-otp/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error((body as { error?: string }).error ?? "Failed to send OTP");
+    }
+    return res.json() as Promise<{ expiresIn: number }>;
+  }, []);
+
+  const verifyWhatsAppOtp = useCallback(async (phone: string, code: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/whatsapp-otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, code }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return (body as { error?: string }).error ?? "Código incorrecto";
+      }
+      const { token: sid } = await res.json() as { token: string };
+      const u = await fetchCurrentUser(sid);
+      if (!u) return "No se pudo cargar el perfil";
+      if (u === "network_error") return "Error de red";
+      if (u.role !== "attendee") return "StaffNotAllowed";
       await storeToken(sid);
       setAuthToken(sid);
       setUser(u as AuthUser);
@@ -304,8 +410,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: !!user,
       sessionExpired,
       clearSessionExpired,
+      googleClientId,
       login,
       register,
+      loginWithGoogle,
+      loginWithSessionToken,
+      sendWhatsAppOtp,
+      verifyWhatsAppOtp,
       logout,
       refreshUser,
       handleUnauthorized,

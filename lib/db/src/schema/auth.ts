@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, jsonb, pgEnum, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", [
   "attendee",
@@ -49,6 +49,8 @@ export const usersTable = pgTable("users", {
    * App logic validates zone existence and ownership during assignment.
    */
   gateZoneId: varchar("gate_zone_id"),
+  // Pre-load wallet: balance paid online before bracelet is assigned at the event
+  pendingWalletBalance: integer("pending_wallet_balance").notNull().default(0),
   isBlocked: boolean("is_blocked").notNull().default(false),
   isSuspended: boolean("is_suspended").notNull().default(false),
   // Email verification

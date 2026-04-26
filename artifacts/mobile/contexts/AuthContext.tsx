@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+import * as Sentry from "@sentry/react-native";
 
 let SecureStore: typeof import("expo-secure-store") | null = null;
 try {
@@ -117,6 +118,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setAuthTokenGetter(() => tokenRef.current);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      Sentry.setUser({
+        id: user.id,
+        email: user.email ?? undefined,
+        username: user.email ?? undefined,
+      });
+    } else {
+      Sentry.setUser(null);
+    }
+  }, [user]);
 
   const setAuthToken = useCallback((t: string | null) => {
     tokenRef.current = t;
