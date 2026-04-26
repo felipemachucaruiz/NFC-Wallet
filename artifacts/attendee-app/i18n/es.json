@@ -289,7 +289,9 @@
     "docTypePlaceholder": "Tipo de documento",
     "docTypePickerTitle": "Tipo de documento",
     "docNumberPlaceholder": "Número de documento",
-    "bankTransferIncomplete": "Por favor completa todos los campos de la cuenta bancaria."
+    "bankTransferIncomplete": "Por favor completa todos los campos de la cuenta bancaria.",
+    "pendingInfoWithDeadline": "Tu solicitud será revisada. El plazo para solicitar devoluciones vence el {{date}}.",
+    "deadlineWas": "El plazo venció el"
   },
   "update": {
     "downloading": "Descargando actualización…",

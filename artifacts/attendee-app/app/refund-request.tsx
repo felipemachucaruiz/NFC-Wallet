@@ -165,9 +165,15 @@ export default function RefundRequestScreen() {
   const balance = parseInt(params.balance ?? "0", 10);
 
   const { data: braceletsData } = useMyBracelets();
-  const braceletInfo = (braceletsData as { bracelets?: { uid: string; pendingRefund?: boolean }[] } | undefined)
-    ?.bracelets?.find((b) => b.uid === uid);
+  const braceletInfo = (braceletsData as {
+    bracelets?: { uid: string; pendingRefund?: boolean; event?: { refundDeadline?: string | null } | null }[]
+  } | undefined)?.bracelets?.find((b) => b.uid === uid);
   const hasPendingRefund = braceletInfo?.pendingRefund ?? false;
+  const refundDeadline = braceletInfo?.event?.refundDeadline ?? null;
+  const isDeadlinePassed = refundDeadline ? new Date() > new Date(refundDeadline) : false;
+  const deadlineFormatted = refundDeadline
+    ? new Intl.DateTimeFormat("es-CO", { dateStyle: "long", timeStyle: "short" }).format(new Date(refundDeadline))
+    : null;
 
   const [refundMethod, setRefundMethod] = useState<RefundMethod>("nequi");
   const [phoneCountry, setPhoneCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
@@ -253,6 +259,24 @@ export default function RefundRequestScreen() {
       ]
     );
   };
+
+  if (isDeadlinePassed && step !== "success") {
+    return (
+      <View style={[styles.center, { backgroundColor: C.background }]}>
+        <View style={[styles.iconBox, { backgroundColor: "rgba(239,68,68,0.12)" }]}>
+          <Feather name="clock" size={52} color="#ef4444" />
+        </View>
+        <Text style={[styles.successTitle, { color: C.text }]}>{t("refund.deadlinePassedTitle")}</Text>
+        <Text style={[styles.successSubtitle, { color: C.textSecondary }]}>{t("refund.deadlinePassedMessage")}</Text>
+        {deadlineFormatted && (
+          <Text style={[styles.successSubtitle, { color: C.textMuted, fontSize: 12 }]}>
+            {t("refund.deadlineWas")} {deadlineFormatted}
+          </Text>
+        )}
+        <Button title={t("common.back")} onPress={() => router.back()} variant="outline" size="lg" fullWidth />
+      </View>
+    );
+  }
 
   if (step === "success" || hasPendingRefund) {
     return (
@@ -439,7 +463,9 @@ export default function RefundRequestScreen() {
         <View style={styles.infoRow}>
           <Feather name="info" size={14} color={C.primary} />
           <Text style={[styles.infoText, { color: C.textSecondary }]}>
-            {t("refund.pendingInfo")}
+            {deadlineFormatted
+              ? t("refund.pendingInfoWithDeadline", { date: deadlineFormatted })
+              : t("refund.pendingInfo")}
           </Text>
         </View>
       </Card>
