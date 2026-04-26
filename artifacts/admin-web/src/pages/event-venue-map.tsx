@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Pencil, Trash2, Map, Square, Loader2, ImageIcon, MapPin, Save, X, Plus } from "lucide-react";
+import { Upload, Pencil, Trash2, Map, Square, Loader2, ImageIcon, MapPin, Save, X, Plus, Pen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
 import { apiFetchVenues, apiFetchSections, apiCreateSection, apiUpdateSection, apiDeleteSection, apiCreateVenue, apiUploadVenueFloorplan, apiFetchTicketTypes, apiFetchTicketTypeUnits, apiUpdateUnitPositions } from "@/lib/api";
 
 const DEFAULT_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
+const SNAP_RADIUS = 3; // percent units
 const EMPTY_ARRAY: readonly { id: string; ticketTypeId: string; unitNumber: number; unitLabel: string; status: string; mapX: string | null; mapY: string | null }[] = [];
 
 function safe(v: unknown): string {
@@ -27,6 +28,20 @@ function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("/api/")) return `${import.meta.env.BASE_URL}_srv${url}`;
   return url;
+}
+
+/** Works for both rectangles and arbitrary polygons stored as SVG path data. */
+function getSvgPathCenter(pathData: string): { cx: number; cy: number } | null {
+  const nums = pathData.match(/-?[\d.]+/g)?.map(Number) ?? [];
+  if (nums.length < 4) return null;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) { xs.push(nums[i]); ys.push(nums[i + 1]); }
+  if (xs.length === 0) return null;
+  return {
+    cx: (Math.min(...xs) + Math.max(...xs)) / 2,
+    cy: (Math.min(...ys) + Math.max(...ys)) / 2,
+  };
 }
 
 export default function EventVenueMap() {
@@ -56,17 +71,9 @@ export default function EventVenueMap() {
     const eventName = (event.name as string) || "Venue";
     const venueAddress = (event.venueAddress as string) || undefined;
     const city = (event.city as string) || undefined;
-    apiCreateVenue(resolvedEventId, {
-      name: eventName,
-      address: venueAddress,
-      city,
-    })
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["venues", resolvedEventId] });
-      })
-      .catch((err) => {
-        toast({ title: t("common.error"), description: safe(err.message || err), variant: "destructive" });
-      });
+    apiCreateVenue(resolvedEventId, { name: eventName, address: venueAddress, city })
+      .then(() => { queryClient.invalidateQueries({ queryKey: ["venues", resolvedEventId] }); })
+      .catch((err) => { toast({ title: t("common.error"), description: safe(err.message || err), variant: "destructive" }); });
   }, [venuesLoading, venues.length, resolvedEventId, event, queryClient, toast, t]);
 
   const firstVenue = venues[0];
@@ -89,6 +96,9 @@ export default function EventVenueMap() {
       setDrawStart(null);
       setDrawCurrent(null);
       drawnRectRef.current = null;
+      drawnPolyRef.current = null;
+      setPolyPoints([]);
+      setPolyMousePos(null);
     },
     onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
   });
@@ -106,8 +116,7 @@ export default function EventVenueMap() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (sectionId: string) =>
-      apiDeleteSection(resolvedEventId, firstVenueId, sectionId),
+    mutationFn: (sectionId: string) => apiDeleteSection(resolvedEventId, firstVenueId, sectionId),
     onSuccess: () => {
       toast({ title: t("venueMap.sectionDeleted", "Section deleted") });
       queryClient.invalidateQueries({ queryKey: ["sections", resolvedEventId, firstVenueId] });
@@ -133,13 +142,20 @@ export default function EventVenueMap() {
   const [editForm, setEditForm] = useState({ name: "", color: "#3b82f6", capacity: "", sectionType: "" });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // ─── Drawing state ───────────────────────────────────────────────────────────
+  const [drawMode, setDrawMode] = useState<"rect" | "polygon" | false>(false);
+  // Rect mode
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
-  const [drawMode, setDrawMode] = useState(false);
   const drawnRectRef = useRef<{ start: { x: number; y: number }; end: { x: number; y: number } } | null>(null);
   const isDrawingRef = useRef(false);
+  // Polygon mode
+  const [polyPoints, setPolyPoints] = useState<{ x: number; y: number }[]>([]);
+  const [polyMousePos, setPolyMousePos] = useState<{ x: number; y: number } | null>(null);
+  const drawnPolyRef = useRef<{ x: number; y: number }[] | null>(null);
 
+  // ─── Unit placement state ─────────────────────────────────────────────────────
   const [unitPlaceMode, setUnitPlaceMode] = useState(false);
   const [selectedTicketTypeId, setSelectedTicketTypeId] = useState<string>("");
   const [placingUnitId, setPlacingUnitId] = useState<string | null>(null);
@@ -177,12 +193,30 @@ export default function EventVenueMap() {
     }
   }, [units]);
 
+  // Cancel drawing on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (drawMode === "polygon") {
+        setPolyPoints([]);
+        setPolyMousePos(null);
+        setDrawMode(false);
+      } else if (drawMode === "rect") {
+        isDrawingRef.current = false;
+        setIsDrawing(false);
+        setDrawStart(null);
+        setDrawCurrent(null);
+        setDrawMode(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [drawMode]);
+
   const savePositionsMutation = useMutation({
     mutationFn: () => {
       const positions = Object.entries(unitPositions).map(([unitId, pos]) => ({
-        unitId,
-        mapX: pos.mapX,
-        mapY: pos.mapY,
+        unitId, mapX: pos.mapX, mapY: pos.mapY,
       }));
       return apiUpdateUnitPositions(resolvedEventId, selectedTicketTypeId, positions);
     },
@@ -194,12 +228,32 @@ export default function EventVenueMap() {
     onError: (e: Error) => toast({ title: t("common.error"), description: e.message, variant: "destructive" }),
   });
 
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const bgImage = savedFloorplan;
+
+  // ─── Snap detection ───────────────────────────────────────────────────────────
+  const nearFirstPoint =
+    drawMode === "polygon" && polyPoints.length >= 3 && polyMousePos != null
+      ? Math.hypot(polyMousePos.x - polyPoints[0].x, polyMousePos.y - polyPoints[0].y) < SNAP_RADIUS
+      : false;
+
+  // ─── Canvas coordinate helper ─────────────────────────────────────────────────
+  function toPercent(e: React.MouseEvent): { x: number; y: number } | null {
+    if (!canvasRef.current) return null;
+    const rect = canvasRef.current.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+  }
+
+  // ─── Event handlers ───────────────────────────────────────────────────────────
   const handleMapClickForUnit = useCallback((e: React.MouseEvent) => {
     if (!unitPlaceMode || !placingUnitId || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setUnitPositions((prev) => ({ ...prev, [placingUnitId]: { mapX: Math.round(x * 100) / 100, mapY: Math.round(y * 100) / 100 } }));
+    const pos = toPercent(e);
+    if (!pos) return;
+    setUnitPositions((prev) => ({ ...prev, [placingUnitId]: { mapX: Math.round(pos.x * 100) / 100, mapY: Math.round(pos.y * 100) / 100 } }));
     setUnitPositionsDirty(true);
     const currentIdx = units.findIndex((u) => u.id === placingUnitId);
     const nextUnplaced = units.find((u, i) => i > currentIdx && !unitPositions[u.id] && u.id !== placingUnitId);
@@ -215,73 +269,87 @@ export default function EventVenueMap() {
 
   const handleMapMouseMoveForDrag = useCallback((e: React.MouseEvent) => {
     if (!draggingUnitId || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setUnitPositions((prev) => ({ ...prev, [draggingUnitId]: { mapX: Math.round(x * 100) / 100, mapY: Math.round(y * 100) / 100 } }));
+    const pos = toPercent(e);
+    if (!pos) return;
+    setUnitPositions((prev) => ({ ...prev, [draggingUnitId]: { mapX: Math.round(pos.x * 100) / 100, mapY: Math.round(pos.y * 100) / 100 } }));
     setUnitPositionsDirty(true);
   }, [draggingUnitId]);
 
-  const handleMapMouseUpForDrag = useCallback(() => {
-    setDraggingUnitId(null);
-  }, []);
+  const handleMapMouseUpForDrag = useCallback(() => { setDraggingUnitId(null); }, []);
 
-  const existingTypes = [...new Set(sections.map((s: any) => safe(s.sectionType)).filter(Boolean))];
-
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const bgImage = savedFloorplan;
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast({ title: t("common.error"), description: "Only image files are allowed", variant: "destructive" });
-      return;
-    }
-    uploadMutation.mutate(file);
-  };
-
+  // Rect: mousedown starts drawing
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!drawMode || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    if (drawMode !== "rect" || !canvasRef.current) return;
+    const pos = toPercent(e);
+    if (!pos) return;
     isDrawingRef.current = true;
     drawnRectRef.current = null;
     setIsDrawing(true);
-    setDrawStart({ x, y });
-    setDrawCurrent({ x, y });
+    setDrawStart(pos);
+    setDrawCurrent(pos);
   }, [drawMode]);
 
+  // Track mouse for both rect and polygon
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDrawingRef.current || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    setDrawCurrent({ x, y });
-  }, []);
+    const pos = toPercent(e);
+    if (!pos) return;
+    if (drawMode === "polygon") {
+      setPolyMousePos(pos);
+      return;
+    }
+    if (isDrawingRef.current) setDrawCurrent(pos);
+  }, [drawMode]);
 
+  // Rect: mouseup commits
   const handleCanvasMouseUp = useCallback(() => {
-    if (!isDrawingRef.current || !drawStart || !drawCurrent) return;
+    if (drawMode !== "rect" || !isDrawingRef.current || !drawStart || !drawCurrent) return;
     isDrawingRef.current = false;
     setIsDrawing(false);
-
     const width = Math.abs(drawCurrent.x - drawStart.x);
     const height = Math.abs(drawCurrent.y - drawStart.y);
-
     if (width < 2 || height < 2) {
       setDrawStart(null);
       setDrawCurrent(null);
       return;
     }
-
     drawnRectRef.current = { start: { ...drawStart }, end: { ...drawCurrent } };
     setForm({ name: "", color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length], capacity: "", sectionType: "" });
     setDialogOpen(true);
     setDrawMode(false);
-  }, [drawStart, drawCurrent, sections.length]);
+  }, [drawMode, drawStart, drawCurrent, sections.length]);
+
+  // Polygon: click adds an anchor or closes the shape
+  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    if (drawMode !== "polygon" || !canvasRef.current) return;
+    const pos = toPercent(e);
+    if (!pos) return;
+
+    if (polyPoints.length >= 3) {
+      const dist = Math.hypot(pos.x - polyPoints[0].x, pos.y - polyPoints[0].y);
+      if (dist < SNAP_RADIUS) {
+        drawnPolyRef.current = polyPoints;
+        setPolyPoints([]);
+        setPolyMousePos(null);
+        setForm({ name: "", color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length], capacity: "", sectionType: "" });
+        setDialogOpen(true);
+        setDrawMode(false);
+        return;
+      }
+    }
+
+    setPolyPoints((prev) => [...prev, pos]);
+  }, [drawMode, polyPoints, sections.length]);
+
+  // Finish polygon via button (when >= 3 points)
+  const closePolygon = useCallback(() => {
+    if (polyPoints.length < 3) return;
+    drawnPolyRef.current = polyPoints;
+    setPolyPoints([]);
+    setPolyMousePos(null);
+    setForm({ name: "", color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length], capacity: "", sectionType: "" });
+    setDialogOpen(true);
+    setDrawMode(false);
+  }, [polyPoints, sections.length]);
 
   const handleSaveSection = () => {
     if (!form.name) {
@@ -291,13 +359,19 @@ export default function EventVenueMap() {
     const cap = parseInt(form.capacity) || 0;
 
     let svgPathData: string | undefined;
-    const saved = drawnRectRef.current;
-    if (saved) {
-      const x = Math.min(saved.start.x, saved.end.x);
-      const y = Math.min(saved.start.y, saved.end.y);
-      const w = Math.abs(saved.end.x - saved.start.x);
-      const h = Math.abs(saved.end.y - saved.start.y);
+
+    const savedRect = drawnRectRef.current;
+    if (savedRect) {
+      const x = Math.min(savedRect.start.x, savedRect.end.x);
+      const y = Math.min(savedRect.start.y, savedRect.end.y);
+      const w = Math.abs(savedRect.end.x - savedRect.start.x);
+      const h = Math.abs(savedRect.end.y - savedRect.start.y);
       svgPathData = `M ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} L ${x} ${y + h} Z`;
+    }
+
+    const savedPoly = drawnPolyRef.current;
+    if (savedPoly && savedPoly.length >= 3) {
+      svgPathData = `M ${savedPoly.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ")} Z`;
     }
 
     createMutation.mutate({
@@ -309,6 +383,7 @@ export default function EventVenueMap() {
     });
   };
 
+  // Live rect preview
   const drawRect = drawStart && drawCurrent && isDrawing ? {
     x: Math.min(drawStart.x, drawCurrent.x),
     y: Math.min(drawStart.y, drawCurrent.y),
@@ -316,6 +391,12 @@ export default function EventVenueMap() {
     height: Math.abs(drawCurrent.y - drawStart.y),
   } : null;
 
+  // Live polygon preview: edges + cursor line
+  const polyPreviewPoints = polyPoints.length > 0 && polyMousePos
+    ? [...polyPoints, nearFirstPoint ? polyPoints[0] : polyMousePos]
+    : polyPoints;
+
+  const existingTypes = [...new Set(sections.map((s: any) => safe(s.sectionType)).filter(Boolean))];
   const isLoading = venuesLoading || sectionsLoading;
 
   if (isLoading) {
@@ -343,6 +424,11 @@ export default function EventVenueMap() {
     );
   }
 
+  const canvasCursor =
+    (drawMode === "polygon" && nearFirstPoint) ? "cursor-pointer" :
+    (drawMode !== false || (unitPlaceMode && placingUnitId)) ? "cursor-crosshair" :
+    "";
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -351,23 +437,45 @@ export default function EventVenueMap() {
           <p className="text-muted-foreground mt-1">{t("venueMap.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            if (!file.type.startsWith("image/")) {
+              toast({ title: t("common.error"), description: "Only image files are allowed", variant: "destructive" });
+              return;
+            }
+            uploadMutation.mutate(file);
+          }} className="hidden" />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadMutation.isPending}>
-            {uploadMutation.isPending ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Upload className="w-4 h-4 mr-2" />
-            )}
+            {uploadMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
             {bgImage ? t("venueMap.changeImage", "Change Floorplan") : t("venueMap.uploadImage")}
           </Button>
           {bgImage && (
             <>
               <Button
-                variant={drawMode ? "default" : "outline"}
-                onClick={() => { setDrawMode(!drawMode); if (!drawMode) setUnitPlaceMode(false); }}
-                data-testid="button-draw-mode"
+                variant={drawMode === "rect" ? "default" : "outline"}
+                onClick={() => {
+                  setDrawMode(drawMode === "rect" ? false : "rect");
+                  setUnitPlaceMode(false);
+                  setPolyPoints([]);
+                  setPolyMousePos(null);
+                }}
+                data-testid="button-draw-rect"
               >
-                <Square className="w-4 h-4 mr-2" /> {t("venueMap.drawSection")}
+                <Square className="w-4 h-4 mr-2" />
+                {t("venueMap.drawRect", "Rectángulo")}
+              </Button>
+              <Button
+                variant={drawMode === "polygon" ? "default" : "outline"}
+                onClick={() => {
+                  setDrawMode(drawMode === "polygon" ? false : "polygon");
+                  setUnitPlaceMode(false);
+                  if (drawMode === "polygon") { setPolyPoints([]); setPolyMousePos(null); }
+                }}
+                data-testid="button-draw-polygon"
+              >
+                <Pen className="w-4 h-4 mr-2" />
+                {t("venueMap.drawPolygon", "Polígono")}
               </Button>
             </>
           )}
@@ -386,17 +494,35 @@ export default function EventVenueMap() {
             <CardContent>
               <div
                 ref={canvasRef}
-                className={`relative w-full aspect-[16/10] bg-muted/50 rounded-lg border-2 border-dashed overflow-hidden ${drawMode ? "cursor-crosshair" : ""} ${unitPlaceMode && placingUnitId ? "cursor-crosshair" : ""}`}
-                onMouseDown={(e) => { if (unitPlaceMode && placingUnitId && !draggingUnitId) { handleMapClickForUnit(e); } else { handleCanvasMouseDown(e); } }}
-                onMouseMove={(e) => { if (draggingUnitId) { handleMapMouseMoveForDrag(e); } else { handleCanvasMouseMove(e); } }}
-                onMouseUp={(e) => { if (draggingUnitId) { handleMapMouseUpForDrag(); } else { handleCanvasMouseUp(); } }}
-                onMouseLeave={() => { if (isDrawingRef.current) { isDrawingRef.current = false; setIsDrawing(false); setDrawStart(null); setDrawCurrent(null); } if (draggingUnitId) setDraggingUnitId(null); }}
+                className={`relative w-full aspect-[16/10] bg-muted/50 rounded-lg border-2 border-dashed overflow-hidden select-none ${canvasCursor}`}
+                onMouseDown={(e) => {
+                  if (unitPlaceMode && placingUnitId && !draggingUnitId) return; // handled by onClick
+                  handleCanvasMouseDown(e);
+                }}
+                onMouseMove={(e) => {
+                  if (draggingUnitId) { handleMapMouseMoveForDrag(e); }
+                  else { handleCanvasMouseMove(e); }
+                }}
+                onMouseUp={(e) => {
+                  if (draggingUnitId) { handleMapMouseUpForDrag(); }
+                  else { handleCanvasMouseUp(); }
+                }}
+                onClick={(e) => {
+                  if (unitPlaceMode && placingUnitId && !draggingUnitId) { handleMapClickForUnit(e); return; }
+                  handleCanvasClick(e);
+                }}
+                onMouseLeave={() => {
+                  if (isDrawingRef.current) { isDrawingRef.current = false; setIsDrawing(false); setDrawStart(null); setDrawCurrent(null); }
+                  if (draggingUnitId) setDraggingUnitId(null);
+                  setPolyMousePos(null);
+                }}
               >
+                {/* Floorplan background */}
                 {bgImage ? (
                   <img
                     src={bgImage}
                     alt="Venue"
-                    className="absolute inset-0 w-full h-full object-contain select-none pointer-events-none"
+                    className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                     style={{ zIndex: 0 }}
                     draggable={false}
                   />
@@ -412,42 +538,105 @@ export default function EventVenueMap() {
                   </div>
                 )}
 
+                {/* SVG overlay — section shapes + drawing previews */}
+                <svg
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  style={{ zIndex: 5 }}
+                >
+                  {/* Existing sections */}
+                  {sections.map((section: any) => {
+                    if (!section.svgPathData) return null;
+                    return (
+                      <path
+                        key={section.id}
+                        d={section.svgPathData}
+                        fill={`${section.colorHex || "#3b82f6"}33`}
+                        stroke={section.colorHex || "#3b82f6"}
+                        strokeWidth="0.5"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    );
+                  })}
+
+                  {/* Rect preview */}
+                  {drawRect && (
+                    <rect
+                      x={drawRect.x}
+                      y={drawRect.y}
+                      width={drawRect.width}
+                      height={drawRect.height}
+                      fill="hsl(221 83% 53% / 0.2)"
+                      stroke="hsl(221 83% 53%)"
+                      strokeWidth="0.6"
+                      strokeDasharray="3 1.5"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+
+                  {/* Polygon preview */}
+                  {drawMode === "polygon" && polyPoints.length > 0 && (
+                    <>
+                      {/* Filled area preview */}
+                      {polyPreviewPoints.length >= 3 && (
+                        <polygon
+                          points={polyPreviewPoints.map((p) => `${p.x},${p.y}`).join(" ")}
+                          fill="hsl(221 83% 53% / 0.15)"
+                          stroke="none"
+                        />
+                      )}
+                      {/* Edge polyline */}
+                      <polyline
+                        points={polyPreviewPoints.map((p) => `${p.x},${p.y}`).join(" ")}
+                        fill="none"
+                        stroke="hsl(221 83% 53%)"
+                        strokeWidth="0.6"
+                        strokeDasharray={nearFirstPoint ? "none" : "3 1.5"}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      {/* Anchor dots */}
+                      {polyPoints.map((p, i) => (
+                        <circle
+                          key={i}
+                          cx={p.x}
+                          cy={p.y}
+                          r={i === 0 && polyPoints.length >= 3 ? 1.8 : 1}
+                          fill={i === 0 && nearFirstPoint ? "#22c55e" : "hsl(221 83% 53%)"}
+                          stroke="white"
+                          strokeWidth="0.4"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      ))}
+                    </>
+                  )}
+                </svg>
+
+                {/* Section name labels — positioned by bounding-box centroid */}
                 {sections.map((section: any) => {
                   if (!section.svgPathData) return null;
-                  const rect = parseSvgRect(section.svgPathData);
-                  if (!rect) return null;
+                  const center = getSvgPathCenter(section.svgPathData);
+                  if (!center) return null;
                   return (
                     <div
-                      key={section.id}
-                      className="absolute border-2 rounded-sm flex items-center justify-center pointer-events-none"
+                      key={`label-${section.id}`}
+                      className="absolute pointer-events-none flex items-center justify-center"
                       style={{
-                        left: `${rect.x}%`,
-                        top: `${rect.y}%`,
-                        width: `${rect.w}%`,
-                        height: `${rect.h}%`,
-                        borderColor: section.colorHex || "#3b82f6",
-                        backgroundColor: `${section.colorHex || "#3b82f6"}33`,
-                        zIndex: 5,
+                        left: `${center.cx}%`,
+                        top: `${center.cy}%`,
+                        transform: "translate(-50%, -50%)",
+                        zIndex: 6,
+                        maxWidth: "30%",
                       }}
                     >
-                      <span className="text-xs font-semibold text-white drop-shadow-md truncate px-1">{safe(section.name)}</span>
+                      <span className="text-xs font-semibold text-white drop-shadow-md truncate px-1 text-center">
+                        {safe(section.name)}
+                      </span>
                     </div>
                   );
                 })}
 
-                {drawRect && (
-                  <div
-                    className="absolute border-2 border-primary bg-primary/20 rounded-sm pointer-events-none"
-                    style={{
-                      left: `${drawRect.x}%`,
-                      top: `${drawRect.y}%`,
-                      width: `${drawRect.width}%`,
-                      height: `${drawRect.height}%`,
-                      zIndex: 10,
-                    }}
-                  />
-                )}
-
+                {/* Unit markers */}
                 {unitPlaceMode && units.map((unit) => {
                   const pos = unitPositions[unit.id];
                   if (!pos) return null;
@@ -457,11 +646,7 @@ export default function EventVenueMap() {
                     <div
                       key={unit.id}
                       className={`absolute flex flex-col items-center cursor-grab active:cursor-grabbing select-none ${isActive ? "z-30" : "z-20"}`}
-                      style={{
-                        left: `${pos.mapX}%`,
-                        top: `${pos.mapY}%`,
-                        transform: "translate(-50%, -100%)",
-                      }}
+                      style={{ left: `${pos.mapX}%`, top: `${pos.mapY}%`, transform: "translate(-50%, -100%)" }}
                       onMouseDown={(e) => handleUnitDragStart(unit.id, e)}
                       onClick={(e) => { e.stopPropagation(); if (unitPlaceMode) setPlacingUnitId(unit.id); }}
                     >
@@ -476,8 +661,31 @@ export default function EventVenueMap() {
                   );
                 })}
               </div>
-              {drawMode && (
+
+              {/* Hints */}
+              {drawMode === "rect" && (
                 <p className="text-xs text-primary mt-2">{t("venueMap.drawHint")}</p>
+              )}
+              {drawMode === "polygon" && (
+                <div className="flex items-center gap-3 mt-2">
+                  <p className="text-xs text-primary flex-1">
+                    {polyPoints.length === 0
+                      ? t("venueMap.polygonHintStart", "Haz clic en el mapa para agregar vértices.")
+                      : nearFirstPoint
+                        ? t("venueMap.polygonHintClose", "Haz clic para cerrar la figura.")
+                        : t("venueMap.polygonHint", `${polyPoints.length} vértice(s). Haz clic en el primer punto para cerrar, o usa el botón.`)}
+                  </p>
+                  {polyPoints.length >= 3 && (
+                    <Button size="sm" variant="outline" className="h-6 text-xs shrink-0" onClick={closePolygon}>
+                      {t("venueMap.closeShape", "Cerrar figura")}
+                    </Button>
+                  )}
+                  {polyPoints.length > 0 && (
+                    <Button size="sm" variant="ghost" className="h-6 text-xs shrink-0 text-destructive" onClick={() => { setPolyPoints([]); setPolyMousePos(null); setDrawMode(false); }}>
+                      {t("common.cancel")}
+                    </Button>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -493,6 +701,7 @@ export default function EventVenueMap() {
                 className="h-7 text-xs"
                 onClick={() => {
                   drawnRectRef.current = null;
+                  drawnPolyRef.current = null;
                   setForm({ name: "", color: DEFAULT_COLORS[sections.length % DEFAULT_COLORS.length], capacity: "", sectionType: "" });
                   setDialogOpen(true);
                 }}
@@ -507,10 +716,7 @@ export default function EventVenueMap() {
               ) : (
                 <div className="space-y-2">
                   {sections.map((section: any) => (
-                    <div
-                      key={section.id}
-                      className="flex items-center justify-between p-2 rounded-md border text-sm"
-                    >
+                    <div key={section.id} className="flex items-center justify-between p-2 rounded-md border text-sm">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: section.colorHex || "#3b82f6" }} />
                         <div className="min-w-0">
@@ -563,11 +769,7 @@ export default function EventVenueMap() {
                   <Label className="text-xs">{t("venueMap.selectTicketType", "Ticket Type")}</Label>
                   <Select
                     value={selectedTicketTypeId}
-                    onValueChange={(val) => {
-                      setSelectedTicketTypeId(val);
-                      setPlacingUnitId(null);
-                      setUnitPlaceMode(false);
-                    }}
+                    onValueChange={(val) => { setSelectedTicketTypeId(val); setPlacingUnitId(null); setUnitPlaceMode(false); }}
                   >
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder={t("venueMap.selectTicketTypePlaceholder", "Select a numbered ticket type...")} />
@@ -632,11 +834,9 @@ export default function EventVenueMap() {
                             key={unit.id}
                             type="button"
                             className={`relative text-[10px] font-medium px-1 py-1 rounded border text-center transition-all ${
-                              isSelected
-                                ? "border-primary bg-primary/20 text-primary"
-                                : hasPosition
-                                  ? "border-green-500/50 bg-green-500/10 text-green-400"
-                                  : "border-muted-foreground/30 bg-muted/50 text-muted-foreground"
+                              isSelected ? "border-primary bg-primary/20 text-primary" :
+                              hasPosition ? "border-green-500/50 bg-green-500/10 text-green-400" :
+                              "border-muted-foreground/30 bg-muted/50 text-muted-foreground"
                             }`}
                             onClick={() => { if (unitPlaceMode) setPlacingUnitId(unit.id); }}
                             title={safe(unit.unitLabel)}
@@ -648,11 +848,7 @@ export default function EventVenueMap() {
                                 className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full flex items-center justify-center"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setUnitPositions((prev) => {
-                                    const next = { ...prev };
-                                    delete next[unit.id];
-                                    return next;
-                                  });
+                                  setUnitPositions((prev) => { const next = { ...prev }; delete next[unit.id]; return next; });
                                   setUnitPositionsDirty(true);
                                 }}
                               >
@@ -672,9 +868,7 @@ export default function EventVenueMap() {
                 )}
 
                 {selectedTicketTypeId && unitsLoading && (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  </div>
+                  <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin" /></div>
                 )}
               </CardContent>
             </Card>
@@ -682,12 +876,14 @@ export default function EventVenueMap() {
         </div>
       </div>
 
+      {/* New section dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => {
         setDialogOpen(open);
         if (!open) {
           setDrawStart(null);
           setDrawCurrent(null);
           drawnRectRef.current = null;
+          drawnPolyRef.current = null;
         }
       }}>
         <DialogContent>
@@ -752,6 +948,7 @@ export default function EventVenueMap() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit section dialog */}
       <Dialog open={editDialogOpen} onOpenChange={(open) => { setEditDialogOpen(open); if (!open) setEditingSection(null); }}>
         <DialogContent>
           <DialogHeader>
@@ -823,6 +1020,7 @@ export default function EventVenueMap() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete confirm dialog */}
       <Dialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
         <DialogContent>
           <DialogHeader>
@@ -846,14 +1044,4 @@ export default function EventVenueMap() {
       </Dialog>
     </div>
   );
-}
-
-function parseSvgRect(pathData: string): { x: number; y: number; w: number; h: number } | null {
-  const nums = pathData.match(/[\d.]+/g)?.map(Number);
-  if (!nums || nums.length < 8) return null;
-  const xs = [nums[0], nums[2], nums[4], nums[6]];
-  const ys = [nums[1], nums[3], nums[5], nums[7]];
-  const x = Math.min(...xs);
-  const y = Math.min(...ys);
-  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
 }
