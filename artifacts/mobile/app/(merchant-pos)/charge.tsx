@@ -207,6 +207,19 @@ export default function ChargeScreen() {
     return 0;
   };
 
+  // Returns lastKnownBalance + pendingTopUpAmount from the server — used when chip HMAC
+  // fails (stale data from a previous event) so we can fall back to the server's record.
+  const fetchServerBalance = async (uid: string): Promise<number> => {
+    try {
+      const data = await customFetch(`/api/bracelets/${encodeURIComponent(uid)}`) as {
+        lastKnownBalance?: number | null;
+        pendingTopUpAmount?: number | null;
+      } | null;
+      return (data?.lastKnownBalance ?? 0) + (data?.pendingTopUpAmount ?? 0);
+    } catch {}
+    return 0;
+  };
+
   const logAndFinish = async (uid: string, newBalance: number, newCounter: number, newHmac?: string) => {
     setStep("logging");
     const lineItems = snapshotItems.map((i) => ({
@@ -398,15 +411,37 @@ export default function ChargeScreen() {
               hmacOk = await verifyHmac(payload.balance, payload.counter, payload.hmac, hmacSecret, payload.uid, legacyKeysForScan);
             }
             if (!hmacOk) {
-              setStep("hmac_fail");
-              aborted = true;
-              setNfcModalVisible(false);
-              try {
-                await reportTamper.mutateAsync({
-                  data: { nfcUid: payload.uid, reason: "HMAC mismatch detected at merchant POS" },
-                });
-              } catch {}
-              return null;
+              // HMAC failed — chip may have stale data from a previous event.
+              // Fall back to server balance (lastKnownBalance + pendingTopUpAmount).
+              // If the server has no balance either, treat it as genuine tampering.
+              const serverBalance = await fetchServerBalance(payload.uid);
+              if (serverBalance <= 0) {
+                setStep("hmac_fail");
+                aborted = true;
+                setNfcModalVisible(false);
+                try {
+                  await reportTamper.mutateAsync({
+                    data: { nfcUid: payload.uid, reason: "HMAC mismatch detected at merchant POS" },
+                  });
+                } catch {}
+                return null;
+              }
+              // Server has balance — use it and rewrite chip with correct HMAC
+              if (serverBalance < chargeTotal) {
+                setBraceletBalance(serverBalance);
+                setBraceletUid(payload.uid);
+                setStep("insufficient");
+                aborted = true;
+                setNfcModalVisible(false);
+                return null;
+              }
+              uid = payload.uid;
+              newBalance = serverBalance - chargeTotal;
+              newCounter = (payload.counter ?? 0) + 1;
+              readSucceeded = true;
+              setStep("writing");
+              writtenHmac = await computeHmac(newBalance, newCounter, hmacSecret, uid, payload.zoneMask || undefined);
+              return { uid, balance: newBalance, counter: newCounter, hmac: writtenHmac, zoneMask: payload.zoneMask };
             }
 
             const pendingTopUp = await fetchServerPendingTopUp(payload.uid);
@@ -496,7 +531,9 @@ export default function ChargeScreen() {
   const handleManualConfirm = async () => {
     if (!manualUid.trim()) return;
     setStep("reading");
-    await processCharge(manualUid.trim(), 0, 0, "");
+    const uid = manualUid.trim();
+    const serverBalance = await fetchServerBalance(uid);
+    await processCharge(uid, serverBalance, 0, "");
     setManualUid("");
   };
 
