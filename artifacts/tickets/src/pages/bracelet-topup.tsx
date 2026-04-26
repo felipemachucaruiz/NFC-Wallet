@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
-import { initiateTopUp, getWompiConfig, fetchSavedCards, type SavedCard } from "@/lib/api";
+import { initiateTopUp, getWompiConfig, fetchSavedCards, getPseBanks, type SavedCard, type PseBank } from "@/lib/api";
 
 // ─── Branded payment icons ────────────────────────────────────────────────────
 
@@ -112,18 +112,6 @@ function brandLabel(brand: string): string {
 
 const AMOUNT_PRESETS = [20_000, 50_000, 100_000, 200_000, 300_000, 500_000];
 
-const PSE_BANKS = [
-  { code: "1007", name: "Bancolombia" },
-  { code: "1022", name: "BBVA Colombia" },
-  { code: "1006", name: "Banco de Bogotá" },
-  { code: "1009", name: "Citibank" },
-  { code: "1051", name: "Davivienda" },
-  { code: "1040", name: "Banco Agrario" },
-  { code: "1023", name: "Banco de Occidente" },
-  { code: "1062", name: "Banco Falabella" },
-  { code: "1060", name: "Banco Pichincha" },
-];
-
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", {
     style: "currency", currency: "COP", maximumFractionDigits: 0,
@@ -178,6 +166,9 @@ export default function BraceletTopup() {
   const [cardCvc, setCardCvc] = useState("");
   const [cardHolder, setCardHolder] = useState("");
 
+  const [pseBanks, setPseBanks] = useState<PseBank[]>([]);
+  const [pseBanksLoading, setPseBanksLoading] = useState(false);
+
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -201,6 +192,15 @@ export default function BraceletTopup() {
       setSelectedCardId(savedCards.length > 0 ? savedCards[0].id : "");
       setShowNewCardForm(false);
     }
+  }, [method]);
+
+  useEffect(() => {
+    if (method !== "pse" || pseBanks.length > 0 || pseBanksLoading) return;
+    setPseBanksLoading(true);
+    getPseBanks()
+      .then((banks) => setPseBanks(banks))
+      .catch(() => {})
+      .finally(() => setPseBanksLoading(false));
   }, [method]);
 
   const finalAmount = useCustom
@@ -449,13 +449,15 @@ export default function BraceletTopup() {
                   </div>
                   <div>
                     <Label className="mb-1 block">{t("topUp.bank")}</Label>
-                    <Select value={bankCode} onValueChange={setBankCode}>
+                    <Select value={bankCode} onValueChange={setBankCode} disabled={pseBanksLoading}>
                       <SelectTrigger>
-                        <SelectValue placeholder={t("topUp.selectBank")} />
+                        <SelectValue placeholder={pseBanksLoading ? "Cargando bancos…" : t("topUp.selectBank")} />
                       </SelectTrigger>
                       <SelectContent>
-                        {PSE_BANKS.map((b) => (
-                          <SelectItem key={b.code} value={b.code}>{b.name}</SelectItem>
+                        {pseBanks.map((b) => (
+                          <SelectItem key={b.financial_institution_code} value={b.financial_institution_code}>
+                            {b.financial_institution_name}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
