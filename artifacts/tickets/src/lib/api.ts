@@ -536,3 +536,26 @@ export interface TopUpStatus {
 export async function fetchTopUpStatus(intentId: string): Promise<TopUpStatus> {
   return apiFetch(`/payments/${intentId}/status`);
 }
+
+// ─── Transactions ─────────────────────────────────────────────────────────────
+
+export interface ApiTransaction {
+  id: string;
+  type: "purchase" | "top_up" | "refund" | "transfer";
+  braceletUid: string;
+  amount: number;
+  newBalance: number;
+  merchantName: string | null;
+  locationName: string | null;
+  eventId: string | null;
+  eventName: string | null;
+  lineItems: { name: string; quantity: number; unitPrice: number }[];
+  createdAt: string;
+  refundStatus?: "pending" | "approved" | "rejected" | null;
+  refundChipZeroed?: boolean | null;
+}
+
+export async function fetchMyTransactions(cursor?: string): Promise<{ transactions: ApiTransaction[]; nextCursor: string | null }> {
+  const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return apiFetch(`/attendee/me/transactions${qs}`);
+}

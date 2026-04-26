@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Globe, User, Ticket, LogOut, ShoppingBag, Wifi } from "lucide-react";
+import { Menu, X, Globe, User, Ticket, LogOut, ShoppingBag, Wifi, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -50,6 +50,9 @@ export function Header() {
                   <Link href="/my-bracelets">
                     <Button variant="ghost" size="sm">{t("nav.myBracelets")}</Button>
                   </Link>
+                  <Link href="/my-transactions">
+                    <Button variant="ghost" size="sm">{t("nav.myTransactions")}</Button>
+                  </Link>
                 </>
               )}
             </nav>
@@ -91,6 +94,10 @@ export function Header() {
                   <DropdownMenuItem onClick={() => navigate("/my-bracelets")}>
                     <Wifi className="w-4 h-4 mr-2" />
                     {t("nav.myBracelets")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/my-transactions")}>
+                    <Receipt className="w-4 h-4 mr-2" />
+                    {t("nav.myTransactions")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate("/my-orders")}>
                     <ShoppingBag className="w-4 h-4 mr-2" />
@@ -141,6 +148,9 @@ export function Header() {
                   </Link>
                   <Link href="/my-bracelets" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.myBracelets")}</Button>
+                  </Link>
+                  <Link href="/my-transactions" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.myTransactions")}</Button>
                   </Link>
                   <Link href="/my-orders" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" size="sm" className="w-full justify-start">{t("nav.myOrders")}</Button>

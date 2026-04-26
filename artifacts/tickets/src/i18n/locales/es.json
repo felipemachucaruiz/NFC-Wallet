@@ -5,6 +5,7 @@
     "myTickets": "Mis Boletas",
     "myOrders": "Mis Órdenes",
     "myBracelets": "Mi Pulsera",
+    "myTransactions": "Mis Movimientos",
     "login": "Iniciar sesión",
     "register": "Registrarse",
     "logout": "Cerrar sesión",
@@ -367,5 +368,26 @@
     "failedHint": "No pudimos procesar tu pago. Intenta de nuevo con otro método.",
     "tryAgain": "Intentar de nuevo",
     "viewBracelets": "Ver mis pulseras"
+  },
+  "transactions": {
+    "title": "Mis Movimientos",
+    "subtitle": "Compras, recargas y devoluciones de tu pulsera NFC",
+    "all": "Todos",
+    "empty": "Sin movimientos",
+    "emptyHint": "Aquí aparecerán tus compras, recargas y devoluciones una vez uses la pulsera",
+    "loadMore": "Cargar más",
+    "endOfList": "No hay más movimientos",
+    "balance": "Saldo",
+    "purchase": "Compra",
+    "topUp": "Recarga",
+    "refund": "Devolución",
+    "transfer": "Transferencia",
+    "at": "en",
+    "refundStatus": {
+      "pending": "Pendiente",
+      "approved": "Aprobado",
+      "rejected": "Rechazado",
+      "paid": "Pagado"
+    }
   }
 }

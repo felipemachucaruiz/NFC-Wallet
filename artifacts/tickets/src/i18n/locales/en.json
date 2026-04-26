@@ -5,6 +5,7 @@
     "myTickets": "My Tickets",
     "myOrders": "My Orders",
     "myBracelets": "My Wristband",
+    "myTransactions": "My Transactions",
     "login": "Log In",
     "register": "Sign Up",
     "logout": "Log Out",
@@ -367,5 +368,26 @@
     "failedHint": "We couldn't process your payment. Try again with a different method.",
     "tryAgain": "Try again",
     "viewBracelets": "View my wristbands"
+  },
+  "transactions": {
+    "title": "My Transactions",
+    "subtitle": "Purchases, top-ups and refunds from your NFC wristband",
+    "all": "All",
+    "empty": "No transactions yet",
+    "emptyHint": "Your purchases, top-ups and refunds will appear here once you use your wristband",
+    "loadMore": "Load more",
+    "endOfList": "No more transactions",
+    "balance": "Balance",
+    "purchase": "Purchase",
+    "topUp": "Top-up",
+    "refund": "Refund",
+    "transfer": "Transfer",
+    "at": "at",
+    "refundStatus": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "paid": "Paid"
+    }
   }
 }
