@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useSearch } from "wouter";
-import { ArrowLeft, Loader2, CreditCard, Check, ChevronDown } from "lucide-react";
+import { ArrowLeft, Loader2, CreditCard, Check } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
 import { initiateTopUp, getWompiConfig, fetchSavedCards, type SavedCard } from "@/lib/api";
 
@@ -159,7 +163,7 @@ export default function BraceletTopup() {
   const [phone, setPhone] = useState("");
   // PSE
   const [bankCode, setBankCode] = useState("");
-  const [pseType, setPseType] = useState<0 | 1>(0);
+  const [pseType, setPseType] = useState<"0" | "1">("0");
   const [pseEmail, setPseEmail] = useState("");
   const [legalIdType, setLegalIdType] = useState("CC");
   const [legalId, setLegalId] = useState("");
@@ -223,7 +227,7 @@ export default function BraceletTopup() {
         if (!bankCode) throw new Error(t("topUp.bankRequired"));
         if (!pseEmail) throw new Error(t("topUp.emailRequired"));
         if (!legalId) throw new Error(t("topUp.idRequired"));
-        return initiateTopUp({ ...base, bankCode, pseUserType: pseType, pseEmail, userLegalIdType: legalIdType as any, userLegalId: legalId });
+        return initiateTopUp({ ...base, bankCode, pseUserType: parseInt(pseType, 10) as 0 | 1, pseEmail, userLegalIdType: legalIdType as any, userLegalId: legalId });
       }
       if (method === "bancolombia_transfer") {
         return initiateTopUp({ ...base });
@@ -232,7 +236,6 @@ export default function BraceletTopup() {
         if (selectedCardId && !showNewCardForm) {
           return initiateTopUp({ ...base, savedCardId: selectedCardId });
         }
-        // Tokenize new card
         if (!cardNumber || !cardExpiry || !cardCvc || !cardHolder) throw new Error(t("topUp.cardRequired"));
         const [expMonth, expYear] = cardExpiry.split("/");
         const res = await fetch(`${wompiBase}/tokens/cards`, {
@@ -287,309 +290,319 @@ export default function BraceletTopup() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate("/my-bracelets")}
-            className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center hover:bg-zinc-700 transition-colors"
+            className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center hover:bg-muted/70 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-xl font-bold">
+            <h1 className="text-2xl font-bold">
               {isPreload ? t("topUp.preloadTitle") : t("topUp.topUpTitle")}
             </h1>
             {braceletUid && (
-              <p className="text-xs text-zinc-500 font-mono mt-0.5">{braceletUid.replace(/:/g, "")}</p>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">{braceletUid.replace(/:/g, "")}</p>
             )}
           </div>
-        </div>
-
-        {/* Amount */}
-        <div className="rounded-2xl bg-zinc-900 border border-zinc-800 p-5 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{t("topUp.amount")}</p>
-          <div className="grid grid-cols-3 gap-2">
-            {AMOUNT_PRESETS.map((p) => (
-              <button
-                key={p}
-                onClick={() => { setAmount(p); setUseCustom(false); }}
-                className={`py-2.5 rounded-xl text-sm font-semibold border transition-colors ${
-                  !useCustom && amount === p
-                    ? "bg-cyan-500 border-cyan-500 text-black"
-                    : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-500"
-                }`}
-              >
-                {formatCOP(p)}
-              </button>
-            ))}
-          </div>
-          <div>
-            <button
-              onClick={() => setUseCustom(true)}
-              className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm transition-colors ${
-                useCustom
-                  ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-400"
-                  : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500"
-              }`}
-            >
-              <span className="flex-1 text-left">{t("topUp.customAmount")}</span>
-            </button>
-            {useCustom && (
-              <input
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                className="mt-2 w-full bg-zinc-800 border border-cyan-500/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                placeholder="Ej: 75000"
-                value={customAmount}
-                onChange={(e) => setCustomAmount(e.target.value.replace(/\D/g, ""))}
-              />
-            )}
-          </div>
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-xs text-zinc-500">{t("topUp.total")}</span>
-            <span className="text-lg font-bold text-white">{formatCOP(finalAmount)}</span>
-          </div>
-        </div>
-
-        {/* Payment method */}
-        <div className="rounded-2xl bg-zinc-900 border border-zinc-800 p-5 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{t("topUp.paymentMethod")}</p>
-
-          <div className="space-y-2">
-            {methods.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setMethod(m.id)}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
-                  method === m.id
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
-                }`}
-              >
-                {m.id === "nequi" && <NequiIcon className="w-5 h-5" />}
-                {m.id === "bancolombia_transfer" && <BancolombiaIcon className="w-5 h-5" />}
-                {m.id === "daviplata" && <DaviplataIcon className="h-4 w-auto" />}
-                {m.id === "pse" && <PseIcon className="w-5 h-5" />}
-                {m.id === "card" && <CreditCard className="w-5 h-5" />}
-                <span className="text-sm font-medium flex-1">{m.label}</span>
-                {method === m.id && <Check className="w-4 h-4 text-primary ml-auto" />}
-              </button>
-            ))}
-          </div>
-
-          {/* Nequi / Daviplata */}
-          {(method === "nequi" || method === "daviplata") && (
-            <div className="space-y-2">
-              <label className="text-xs text-zinc-400">{t("topUp.phoneNumber")}</label>
-              <input
-                type="tel"
-                inputMode="numeric"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                placeholder="3001234567"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              />
-            </div>
-          )}
-
-          {/* PSE */}
-          {method === "pse" && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.bank")}</label>
-                <div className="relative">
-                  <select
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm appearance-none focus:outline-none focus:border-cyan-500 transition-colors"
-                    value={bankCode}
-                    onChange={(e) => setBankCode(e.target.value)}
-                  >
-                    <option value="">{t("topUp.selectBank")}</option>
-                    {PSE_BANKS.map((b) => (
-                      <option key={b.code} value={b.code}>{b.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.personType")}</label>
-                <div className="flex gap-2">
-                  {([0, 1] as const).map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setPseType(v)}
-                      className={`flex-1 py-2 rounded-xl text-sm border transition-colors ${
-                        pseType === v ? "bg-cyan-500 border-cyan-500 text-black font-semibold" : "bg-zinc-800 border-zinc-700 text-zinc-300"
-                      }`}
-                    >
-                      {v === 0 ? t("topUp.naturalPerson") : t("topUp.legalEntity")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.email")}</label>
-                <input
-                  type="email"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                  value={pseEmail}
-                  onChange={(e) => setPseEmail(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2">
-                <div className="relative w-28">
-                  <select
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm appearance-none focus:outline-none focus:border-cyan-500 transition-colors"
-                    value={legalIdType}
-                    onChange={(e) => setLegalIdType(e.target.value)}
-                  >
-                    {["CC", "CE", "NIT", "PP", "TI"].map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-zinc-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                  placeholder={t("topUp.idNumber")}
-                  value={legalId}
-                  onChange={(e) => setLegalId(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Bancolombia */}
-          {method === "bancolombia_transfer" && (
-            <div className="p-3 bg-zinc-800/60 rounded-lg text-sm text-zinc-400">
-              Serás redirigido a Bancolombia para autorizar la transferencia.
-            </div>
-          )}
-
-          {/* Card — saved cards list */}
-          {method === "card" && savedCards.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">{t("topUp.savedCards")}</p>
-              {savedCards.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => { setSelectedCardId(c.id); setShowNewCardForm(false); }}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
-                    selectedCardId === c.id && !showNewCardForm
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <CardBrandLogo brand={c.brand as CardBrand} className="h-6 w-auto" />
-                  <span className="text-sm font-medium flex-1">
-                    {c.alias || brandLabel(c.brand)} •••• {c.lastFour}
-                  </span>
-                  {selectedCardId === c.id && !showNewCardForm && (
-                    <Check className="w-4 h-4 text-primary shrink-0" />
-                  )}
-                </button>
-              ))}
-              <button
-                onClick={() => { setShowNewCardForm(true); setSelectedCardId(""); }}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
-                  showNewCardForm ? "border-primary bg-primary/5" : "border-dashed border-border hover:border-primary/50"
-                }`}
-              >
-                <CreditCard className="w-4 h-4 text-zinc-400" />
-                <span className="text-sm">{t("topUp.newCard")}</span>
-                {showNewCardForm && <Check className="w-4 h-4 text-primary ml-auto" />}
-              </button>
-            </div>
-          )}
-
-          {/* Card — new card form */}
-          {usingNewCard && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.cardNumber")}</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="cc-number"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm font-mono pr-16 focus:outline-none focus:border-cyan-500 transition-colors"
-                    placeholder="1234 5678 9012 3456"
-                    value={cardNumber}
-                    maxLength={cardBrand === "amex" ? 17 : 19}
-                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value, detectCardBrand(e.target.value)))}
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <CardBrandLogo brand={cardBrand} />
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.expiry")}</label>
-                  <input
-                    type="text"
-                    autoComplete="cc-exp"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:border-cyan-500 transition-colors"
-                    placeholder="MM/AA"
-                    value={cardExpiry}
-                    maxLength={5}
-                    onChange={(e) => {
-                      let v = e.target.value.replace(/[^\d/]/g, "");
-                      if (v.length === 2 && !v.includes("/") && cardExpiry.length === 1) v = v + "/";
-                      setCardExpiry(v.slice(0, 5));
-                    }}
-                  />
-                </div>
-                <div className="w-28">
-                  <label className="text-xs text-zinc-400 mb-1 block">CVC</label>
-                  <input
-                    type="password"
-                    autoComplete="cc-csc"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:border-cyan-500 transition-colors"
-                    placeholder="•••"
-                    value={cardCvc}
-                    maxLength={4}
-                    onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-zinc-400 mb-1 block">{t("topUp.cardHolder")}</label>
-                <input
-                  type="text"
-                  autoComplete="cc-name"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm uppercase focus:outline-none focus:border-cyan-500 transition-colors"
-                  placeholder="NOMBRE APELLIDO"
-                  value={cardHolder}
-                  onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
-                />
-              </div>
-              <p className="text-xs text-zinc-500">
-                Los datos de tu tarjeta se cifran con TLS y se tokenizan por Wompi.
-              </p>
-            </div>
-          )}
         </div>
 
         {error && (
-          <div className="rounded-xl bg-red-500/10 border border-red-500/25 px-4 py-3 text-sm text-red-400">
+          <div className="p-4 bg-destructive/10 text-destructive text-sm rounded-lg mb-6 flex items-center gap-2">
             {error}
           </div>
         )}
 
-        <Button
-          className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3 text-base rounded-2xl"
-          disabled={isPending || finalAmount < 1000}
-          onClick={() => submit()}
-        >
-          {isPending ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            `${t("topUp.pay")} ${formatCOP(finalAmount)}`
-          )}
-        </Button>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-3 space-y-6">
+
+            {/* Amount */}
+            <div className="bg-card rounded-xl border border-border p-5">
+              <h2 className="font-semibold mb-4">{t("topUp.amount")}</h2>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {AMOUNT_PRESETS.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => { setAmount(p); setUseCustom(false); }}
+                    className={`py-2.5 rounded-lg text-sm font-semibold border transition-colors ${
+                      !useCustom && amount === p
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {formatCOP(p)}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setUseCustom(true)}
+                className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm transition-colors mb-2 ${
+                  useCustom
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border hover:border-primary/50 text-muted-foreground"
+                }`}
+              >
+                <span className="flex-1 text-left">{t("topUp.customAmount")}</span>
+                {useCustom && <Check className="w-4 h-4 text-primary" />}
+              </button>
+              {useCustom && (
+                <Input
+                  autoFocus
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ej: 75000"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value.replace(/\D/g, ""))}
+                />
+              )}
+            </div>
+
+            {/* Payment method */}
+            <div className="bg-card rounded-xl border border-border p-5">
+              <h2 className="font-semibold mb-4">{t("topUp.paymentMethod")}</h2>
+
+              {/* Saved cards (shown when card method selected and cards exist) */}
+              {method === "card" && savedCards.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("topUp.savedCards")}</p>
+                  {savedCards.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => { setSelectedCardId(c.id); setShowNewCardForm(false); }}
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                        selectedCardId === c.id && !showNewCardForm
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <CardBrandLogo brand={c.brand as CardBrand} className="h-6 w-auto" />
+                      <span className="text-sm font-medium flex-1">
+                        {c.alias || brandLabel(c.brand)} •••• {c.lastFour}
+                      </span>
+                      {selectedCardId === c.id && !showNewCardForm && (
+                        <Check className="w-4 h-4 text-primary shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => { setShowNewCardForm(true); setSelectedCardId(""); }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                      showNewCardForm ? "border-primary bg-primary/5" : "border-dashed border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{t("topUp.newCard")}</span>
+                    {showNewCardForm && <Check className="w-4 h-4 text-primary ml-auto" />}
+                  </button>
+                </div>
+              )}
+
+              <div className="space-y-2 mb-4">
+                {methods.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setMethod(m.id)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                      method === m.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {m.id === "nequi" && <NequiIcon className="w-5 h-5" />}
+                    {m.id === "bancolombia_transfer" && <BancolombiaIcon className="w-5 h-5" />}
+                    {m.id === "daviplata" && <DaviplataIcon className="h-4 w-auto" />}
+                    {m.id === "pse" && <PseIcon className="w-5 h-5" />}
+                    {m.id === "card" && <CreditCard className="w-5 h-5" />}
+                    <span className="text-sm font-medium">{m.label}</span>
+                    {method === m.id && <Check className="w-4 h-4 text-primary ml-auto" />}
+                  </button>
+                ))}
+              </div>
+
+              {/* Nequi / Daviplata */}
+              {(method === "nequi" || method === "daviplata") && (
+                <div className="space-y-2">
+                  <Label>{t("topUp.phoneNumber")}</Label>
+                  <Input
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="3001234567"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  />
+                </div>
+              )}
+
+              {/* PSE */}
+              {method === "pse" && (
+                <div className="space-y-4">
+                  <div>
+                    <Label className="mb-1 block">{t("topUp.personType")}</Label>
+                    <Select value={pseType} onValueChange={(v) => setPseType(v as "0" | "1")}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">{t("topUp.naturalPerson")}</SelectItem>
+                        <SelectItem value="1">{t("topUp.legalEntity")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="mb-1 block">{t("topUp.bank")}</Label>
+                    <Select value={bankCode} onValueChange={setBankCode}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("topUp.selectBank")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PSE_BANKS.map((b) => (
+                          <SelectItem key={b.code} value={b.code}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="mb-1 block">{t("topUp.email")}</Label>
+                    <Input
+                      type="email"
+                      value={pseEmail}
+                      onChange={(e) => setPseEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="mb-1 block">Tipo de documento</Label>
+                      <Select value={legalIdType} onValueChange={setLegalIdType}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["CC", "CE", "NIT", "PP", "TI"].map((v) => (
+                            <SelectItem key={v} value={v}>{v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="mb-1 block">{t("topUp.idNumber")}</Label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={legalId}
+                        onChange={(e) => setLegalId(e.target.value)}
+                        placeholder="1234567890"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bancolombia */}
+              {method === "bancolombia_transfer" && (
+                <div className="p-3 bg-muted/40 rounded-lg text-sm text-muted-foreground">
+                  Serás redirigido a Bancolombia para autorizar la transferencia. No se requieren datos adicionales.
+                </div>
+              )}
+
+              {/* Card — new card form */}
+              {usingNewCard && (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="mb-1 block">{t("topUp.cardNumber")}</Label>
+                    <div className="relative">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="cc-number"
+                        className="font-mono pr-16"
+                        placeholder="1234 5678 9012 3456"
+                        value={cardNumber}
+                        maxLength={cardBrand === "amex" ? 17 : 19}
+                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value, detectCardBrand(e.target.value)))}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
+                        <CardBrandLogo brand={cardBrand} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="mb-1 block">{t("topUp.expiry")}</Label>
+                      <Input
+                        type="text"
+                        autoComplete="cc-exp"
+                        className="font-mono"
+                        placeholder="MM/AA"
+                        value={cardExpiry}
+                        maxLength={5}
+                        onChange={(e) => {
+                          let v = e.target.value.replace(/[^\d/]/g, "");
+                          if (v.length === 2 && !v.includes("/") && cardExpiry.length === 1) v = v + "/";
+                          setCardExpiry(v.slice(0, 5));
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-1 block">CVC</Label>
+                      <Input
+                        type="password"
+                        autoComplete="cc-csc"
+                        className="font-mono"
+                        placeholder="•••"
+                        value={cardCvc}
+                        maxLength={4}
+                        onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="mb-1 block">{t("topUp.cardHolder")}</Label>
+                    <Input
+                      type="text"
+                      autoComplete="cc-name"
+                      className="uppercase"
+                      placeholder="NOMBRE APELLIDO"
+                      value={cardHolder}
+                      onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Los datos de tu tarjeta se cifran con TLS y se tokenizan por Wompi.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right column — total + pay */}
+          <div className="lg:col-span-2">
+            <div className="sticky top-20 bg-card rounded-xl border border-border p-5 space-y-4">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("topUp.amount")}</span>
+                  <span>{formatCOP(finalAmount)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold text-lg">
+                  <span>{t("topUp.total")}</span>
+                  <span className="text-primary">{formatCOP(finalAmount)}</span>
+                </div>
+              </div>
+
+              <Button
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                size="lg"
+                disabled={isPending || finalAmount < 1000}
+                onClick={() => submit()}
+              >
+                {isPending ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  `${t("topUp.pay")} ${formatCOP(finalAmount)}`
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
