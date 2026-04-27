@@ -6,7 +6,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, Percent, Receipt } from "lucide-react";
+import { DollarSign, TrendingUp, Percent, Receipt, Zap, RefreshCcw, ArrowDownCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 import { useEventContext } from "@/contexts/event-context";
@@ -41,6 +41,14 @@ export default function EventSettlement() {
   const currency = report.currencyCode ?? "COP";
   const isNonCop = currency !== "COP";
   const cop = report.copConversion;
+  const r = report as typeof report & {
+    totalActivationFees?: number;
+    activatedBraceletCount?: number;
+    totalTopUps?: number;
+    topUpCount?: number;
+    totalRefunds?: number;
+    netSettlement?: number;
+  };
 
   return (
     <div className="space-y-6">
@@ -116,6 +124,56 @@ export default function EventSettlement() {
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" /> {t("settlement.totalTopUps")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{fmt(r.totalTopUps, currency)}</p>
+            <p className="text-xs text-muted-foreground">{t("settlement.totalTopUpsDesc", { count: (r.topUpCount ?? 0).toLocaleString() })}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <RefreshCcw className="w-4 h-4" /> {t("settlement.totalRefunds")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{fmt(r.totalRefunds, currency)}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-amber-200 dark:border-amber-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500" /> {t("settlement.activationFees")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{fmt(r.totalActivationFees, currency)}</p>
+            <p className="text-xs text-muted-foreground">{t("settlement.activationFeesDesc")}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("settlement.activatedBracelets", { count: (r.activatedBraceletCount ?? 0).toLocaleString() })}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-green-200 dark:border-green-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <ArrowDownCircle className="w-4 h-4 text-green-600" /> {t("settlement.netSettlement")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-3xl font-bold text-green-700 dark:text-green-400">{fmt(r.netSettlement, currency)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("settlement.netSettlementDesc")}</p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

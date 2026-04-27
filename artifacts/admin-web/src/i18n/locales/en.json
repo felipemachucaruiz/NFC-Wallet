@@ -602,7 +602,15 @@
     "colNet": "Net Payout",
     "colTransactions": "Transactions",
     "noMerchants": "No merchants.",
-    "currency": "Currency"
+    "currency": "Currency",
+    "activationFees": "Activation Fees",
+    "activationFeesDesc": "retained by Tapee",
+    "activatedBracelets": "{{count}} bracelets activated",
+    "netSettlement": "Net Settlement to Promoter",
+    "netSettlementDesc": "gross sales − commissions − refunds − activation fees",
+    "totalTopUps": "Total Top-Ups",
+    "totalTopUpsDesc": "{{count}} top-ups processed",
+    "totalRefunds": "Total Refunds"
   },
   "reports": {
     "title": "Reports",

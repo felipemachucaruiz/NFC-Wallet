@@ -602,7 +602,15 @@
     "colNet": "Pago Neto",
     "colTransactions": "Transacciones",
     "noMerchants": "Sin comerciantes.",
-    "currency": "Moneda"
+    "currency": "Moneda",
+    "activationFees": "Fees de Activación",
+    "activationFeesDesc": "retenidos por Tapee",
+    "activatedBracelets": "{{count}} pulseras activadas",
+    "netSettlement": "Liquidación Neta al Promotor",
+    "netSettlementDesc": "ventas brutas − comisiones − reembolsos − fees de activación",
+    "totalTopUps": "Total Recargas",
+    "totalTopUpsDesc": "{{count}} recargas procesadas",
+    "totalRefunds": "Total Reembolsos"
   },
   "reports": {
     "title": "Reportes",
