@@ -566,17 +566,6 @@ router.post(
         // Put transferred balance into new bracelet's pendingTopUpAmount (gate will write to chip)
         updates.pendingTopUpAmount = (bracelet.pendingTopUpAmount ?? 0) + transferredBalance;
 
-        // Also add to user's pendingWalletBalance so gate staff can write it to the chip
-        if (transferredBalance > 0) {
-          await db
-            .update(usersTable)
-            .set({
-              pendingWalletBalance: sql`${usersTable.pendingWalletBalance} + ${transferredBalance}`,
-              updatedAt: new Date(),
-            })
-            .where(eq(usersTable.id, userId));
-        }
-
         const [linked] = await db
           .update(braceletsTable)
           .set(updates)
