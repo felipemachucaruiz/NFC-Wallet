@@ -266,6 +266,7 @@ router.get(
         lastCounter: braceletsTable.lastCounter,
         pendingTopUpAmount: braceletsTable.pendingTopUpAmount,
         eventId: braceletsTable.eventId,
+        activatedAt: braceletsTable.activatedAt,
       })
       .from(braceletsTable)
       .where(eq(braceletsTable.nfcUid, nfcUid));
@@ -278,19 +279,32 @@ router.get(
       return;
     }
 
+    // Activation fee: deducted on first physical write (activatedAt not yet set)
+    const isFirstActivation = !bracelet.activatedAt;
+    let activationFeeAmount = 0;
+    if (isFirstActivation && bracelet.eventId) {
+      const [event] = await db
+        .select({ braceletActivationFee: eventsTable.braceletActivationFee })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, bracelet.eventId));
+      activationFeeAmount = event?.braceletActivationFee ?? 3000;
+    }
+
     try {
       const { primaryKey } = await resolveHmacKey(bracelet.eventId ?? null);
       // Cloud balance mode: pendingTopUp >= lkb means the chip has no valid balance yet
       // (e.g. Wompi topup or blocked-bracelet replacement). Total balance = lkb + pending.
       const isCloudMode = pendingTopUp >= bracelet.lastKnownBalance;
-      const syncBalance = isCloudMode
+      const grossBalance = isCloudMode
         ? bracelet.lastKnownBalance + pendingTopUp
         : bracelet.lastKnownBalance;
+      const syncBalance = Math.max(0, grossBalance - activationFeeAmount);
       const syncCounter = bracelet.lastCounter + 1;
       const hmac = computeBraceletHmac(syncBalance, syncCounter, primaryKey, nfcUid);
       res.json({
         needsSync: true,
         pendingAmount: pendingTopUp,
+        activationFeeAmount,
         signedPayload: { balance: syncBalance, counter: syncCounter, hmac },
       });
     } catch (err) {
@@ -325,6 +339,8 @@ router.post(
       .select({
         pendingTopUpAmount: braceletsTable.pendingTopUpAmount,
         lastKnownBalance: braceletsTable.lastKnownBalance,
+        activatedAt: braceletsTable.activatedAt,
+        eventId: braceletsTable.eventId,
       })
       .from(braceletsTable)
       .where(eq(braceletsTable.nfcUid, nfcUid));
@@ -337,6 +353,18 @@ router.post(
       return;
     }
 
+    // Recompute activation fee server-side (don't trust client)
+    const isFirstActivation = !bracelet.activatedAt;
+    let activationFeeAmount = 0;
+    if (isFirstActivation && bracelet.eventId) {
+      const [event] = await db
+        .select({ braceletActivationFee: eventsTable.braceletActivationFee })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, bracelet.eventId));
+      activationFeeAmount = event?.braceletActivationFee ?? 3000;
+    }
+
+    const now = new Date();
     await db.transaction(async (tx) => {
       await tx
         .update(braceletsTable)
@@ -346,7 +374,8 @@ router.post(
           pendingSync: false,
           pendingBalance: 0,
           pendingTopUpAmount: 0,
-          updatedAt: new Date(),
+          activatedAt: bracelet.activatedAt ?? now,
+          updatedAt: now,
         })
         .where(eq(braceletsTable.nfcUid, nfcUid));
 
@@ -358,11 +387,11 @@ router.post(
         status: "completed",
         newBalance,
         newCounter,
-        activationFeeAmount: 0,
+        activationFeeAmount,
       });
     });
 
-    res.json({ ok: true, synced: pendingTopUp });
+    res.json({ ok: true, synced: pendingTopUp, activationFeeAmount });
   },
 );
 

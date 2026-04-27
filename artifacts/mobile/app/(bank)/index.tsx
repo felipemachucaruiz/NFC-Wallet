@@ -375,6 +375,7 @@ export default function BankLookupScreen() {
       const syncData = await customFetch<{
         needsSync: boolean;
         pendingAmount?: number;
+        activationFeeAmount?: number;
         signedPayload?: { balance: number; counter: number; hmac: string };
       }>(`/api/bracelets/pending-sync-payload?nfcUid=${encodeURIComponent(expectedUid)}`);
 
@@ -382,7 +383,7 @@ export default function BankLookupScreen() {
         showAlert(t("common.error"), "No hay saldo pendiente para activar");
         return;
       }
-      const { signedPayload } = syncData;
+      const { signedPayload, activationFeeAmount = 0 } = syncData;
 
       const chipHint: NfcChipTypeHint =
         tagInfo?.type === "MIFARE_CLASSIC" ? "mifare_classic" :
@@ -416,7 +417,8 @@ export default function BankLookupScreen() {
         }),
       });
 
-      showAlert("¡Pulsera activada!", `${fmt(signedPayload.balance)} escritos en el chip. El asistente puede usarla en cualquier punto de venta.`);
+      const feeNote = activationFeeAmount > 0 ? ` (se descontaron ${fmt(activationFeeAmount)} de activación)` : "";
+      showAlert("¡Pulsera activada!", `${fmt(signedPayload.balance)} escritos en el chip${feeNote}. El asistente puede usarla en cualquier punto de venta.`);
       setBracelet((prev) => prev ? { ...prev, balance: signedPayload.balance, counter: signedPayload.counter, hmac: signedPayload.hmac } : prev);
       setFetchUid(null);
       setTimeout(() => setFetchUid(expectedUid), 50);
@@ -424,7 +426,7 @@ export default function BankLookupScreen() {
       if (!cancelledRef.current) {
         const msg = extractErrorMessage(e, "");
         if (!/cancel/i.test(msg)) {
-          showAlert(t("common.error"), "Error al activar la pulsera. Intenta de nuevo.");
+          showAlert(t("common.error"), msg || "Error al activar la pulsera. Intenta de nuevo.");
         }
       }
     } finally {
