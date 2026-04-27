@@ -244,6 +244,128 @@ router.get(
   },
 );
 
+const PENDING_SYNC_ROLES = ["bank", "box_office", "merchant_staff", "merchant_admin", "gate", "admin", "event_admin"] as const;
+
+/**
+ * GET /api/bracelets/pending-sync-payload?nfcUid=xxx
+ * Returns an HMAC-signed payload to write the pending top-up balance to the chip.
+ * Accessible to bank, box_office, merchant, gate — any role that physically has the chip.
+ * MUST be registered before GET /bracelets/:nfcUid to avoid the static path being
+ * captured by the dynamic param route.
+ */
+router.get(
+  "/bracelets/pending-sync-payload",
+  requireRole(...PENDING_SYNC_ROLES),
+  async (req: Request, res: Response) => {
+    const nfcUid = req.query.nfcUid as string | undefined;
+    if (!nfcUid) { res.status(400).json({ error: "nfcUid query param required" }); return; }
+
+    const [bracelet] = await db
+      .select({
+        lastKnownBalance: braceletsTable.lastKnownBalance,
+        lastCounter: braceletsTable.lastCounter,
+        pendingTopUpAmount: braceletsTable.pendingTopUpAmount,
+        eventId: braceletsTable.eventId,
+      })
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+
+    if (!bracelet) { res.status(404).json({ error: "Bracelet not found" }); return; }
+
+    const pendingTopUp = bracelet.pendingTopUpAmount ?? 0;
+    if (pendingTopUp <= 0) {
+      res.json({ needsSync: false });
+      return;
+    }
+
+    try {
+      const { primaryKey } = await resolveHmacKey(bracelet.eventId ?? null);
+      // Cloud balance mode: pendingTopUp >= lkb means the chip has no valid balance yet
+      // (e.g. Wompi topup or blocked-bracelet replacement). Total balance = lkb + pending.
+      const isCloudMode = pendingTopUp >= bracelet.lastKnownBalance;
+      const syncBalance = isCloudMode
+        ? bracelet.lastKnownBalance + pendingTopUp
+        : bracelet.lastKnownBalance;
+      const syncCounter = bracelet.lastCounter + 1;
+      const hmac = computeBraceletHmac(syncBalance, syncCounter, primaryKey, nfcUid);
+      res.json({
+        needsSync: true,
+        pendingAmount: pendingTopUp,
+        signedPayload: { balance: syncBalance, counter: syncCounter, hmac },
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Could not compute HMAC for sync payload" });
+    }
+  },
+);
+
+const confirmPendingSyncSchema = z.object({
+  nfcUid: z.string().min(1),
+  newBalance: z.number().int().min(0),
+  newCounter: z.number().int().min(1),
+});
+
+/**
+ * POST /api/bracelets/confirm-pending-sync
+ * Called after the chip has been physically written with the pending sync payload.
+ * Clears pendingTopUpAmount and pendingSync, creates a top-up audit record.
+ */
+router.post(
+  "/bracelets/confirm-pending-sync",
+  requireRole(...PENDING_SYNC_ROLES),
+  async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const parsed = confirmPendingSyncSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+    const { nfcUid, newBalance, newCounter } = parsed.data;
+
+    const [bracelet] = await db
+      .select({
+        pendingTopUpAmount: braceletsTable.pendingTopUpAmount,
+        lastKnownBalance: braceletsTable.lastKnownBalance,
+      })
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, nfcUid));
+
+    if (!bracelet) { res.status(404).json({ error: "Bracelet not found" }); return; }
+
+    const pendingTopUp = bracelet.pendingTopUpAmount ?? 0;
+    if (pendingTopUp <= 0) {
+      res.json({ ok: true, synced: 0 });
+      return;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(braceletsTable)
+        .set({
+          lastKnownBalance: newBalance,
+          lastCounter: newCounter,
+          pendingSync: false,
+          pendingBalance: 0,
+          pendingTopUpAmount: 0,
+          updatedAt: new Date(),
+        })
+        .where(eq(braceletsTable.nfcUid, nfcUid));
+
+      await tx.insert(topUpsTable).values({
+        braceletUid: nfcUid,
+        amount: pendingTopUp,
+        paymentMethod: "card_external",
+        performedByUserId: req.user!.id,
+        status: "completed",
+        newBalance,
+        newCounter,
+        activationFeeAmount: 0,
+      });
+    });
+
+    res.json({ ok: true, synced: pendingTopUp });
+  },
+);
+
 /**
  * @summary Get bracelet by NFC UID — any authenticated user can check a bracelet
  */
@@ -540,126 +662,6 @@ router.patch(
       .returning();
 
     res.json(updated);
-  },
-);
-
-const PENDING_SYNC_ROLES = ["bank", "box_office", "merchant_staff", "merchant_admin", "gate", "admin", "event_admin"] as const;
-
-/**
- * GET /api/bracelets/pending-sync-payload?nfcUid=xxx
- * Returns an HMAC-signed payload to write the pending top-up balance to the chip.
- * Accessible to bank, box_office, merchant, gate — any role that physically has the chip.
- */
-router.get(
-  "/bracelets/pending-sync-payload",
-  requireRole(...PENDING_SYNC_ROLES),
-  async (req: Request, res: Response) => {
-    const nfcUid = req.query.nfcUid as string | undefined;
-    if (!nfcUid) { res.status(400).json({ error: "nfcUid query param required" }); return; }
-
-    const [bracelet] = await db
-      .select({
-        lastKnownBalance: braceletsTable.lastKnownBalance,
-        lastCounter: braceletsTable.lastCounter,
-        pendingTopUpAmount: braceletsTable.pendingTopUpAmount,
-        eventId: braceletsTable.eventId,
-      })
-      .from(braceletsTable)
-      .where(eq(braceletsTable.nfcUid, nfcUid));
-
-    if (!bracelet) { res.status(404).json({ error: "Bracelet not found" }); return; }
-
-    const pendingTopUp = bracelet.pendingTopUpAmount ?? 0;
-    if (pendingTopUp <= 0) {
-      res.json({ needsSync: false });
-      return;
-    }
-
-    try {
-      const { primaryKey } = await resolveHmacKey(bracelet.eventId ?? null);
-      // Cloud balance mode: pendingTopUp >= lkb means the chip has no valid balance yet
-      // (e.g. Wompi topup or blocked-bracelet replacement). Total balance = lkb + pending.
-      const isCloudMode = pendingTopUp >= bracelet.lastKnownBalance;
-      const syncBalance = isCloudMode
-        ? bracelet.lastKnownBalance + pendingTopUp
-        : bracelet.lastKnownBalance;
-      const syncCounter = bracelet.lastCounter + 1;
-      const hmac = computeBraceletHmac(syncBalance, syncCounter, primaryKey, nfcUid);
-      res.json({
-        needsSync: true,
-        pendingAmount: pendingTopUp,
-        signedPayload: { balance: syncBalance, counter: syncCounter, hmac },
-      });
-    } catch (err) {
-      res.status(500).json({ error: "Could not compute HMAC for sync payload" });
-    }
-  },
-);
-
-const confirmPendingSyncSchema = z.object({
-  nfcUid: z.string().min(1),
-  newBalance: z.number().int().min(0),
-  newCounter: z.number().int().min(1),
-});
-
-/**
- * POST /api/bracelets/confirm-pending-sync
- * Called after the chip has been physically written with the pending sync payload.
- * Clears pendingTopUpAmount and pendingSync, creates a top-up audit record.
- */
-router.post(
-  "/bracelets/confirm-pending-sync",
-  requireRole(...PENDING_SYNC_ROLES),
-  async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) { res.status(401).json({ error: "Unauthorized" }); return; }
-
-    const parsed = confirmPendingSyncSchema.safeParse(req.body);
-    if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-
-    const { nfcUid, newBalance, newCounter } = parsed.data;
-
-    const [bracelet] = await db
-      .select({
-        pendingTopUpAmount: braceletsTable.pendingTopUpAmount,
-        lastKnownBalance: braceletsTable.lastKnownBalance,
-      })
-      .from(braceletsTable)
-      .where(eq(braceletsTable.nfcUid, nfcUid));
-
-    if (!bracelet) { res.status(404).json({ error: "Bracelet not found" }); return; }
-
-    const pendingTopUp = bracelet.pendingTopUpAmount ?? 0;
-    if (pendingTopUp <= 0) {
-      res.json({ ok: true, synced: 0 });
-      return;
-    }
-
-    await db.transaction(async (tx) => {
-      await tx
-        .update(braceletsTable)
-        .set({
-          lastKnownBalance: newBalance,
-          lastCounter: newCounter,
-          pendingSync: false,
-          pendingBalance: 0,
-          pendingTopUpAmount: 0,
-          updatedAt: new Date(),
-        })
-        .where(eq(braceletsTable.nfcUid, nfcUid));
-
-      await tx.insert(topUpsTable).values({
-        braceletUid: nfcUid,
-        amount: pendingTopUp,
-        paymentMethod: "card_external",
-        performedByUserId: req.user!.id,
-        status: "completed",
-        newBalance,
-        newCounter,
-        activationFeeAmount: 0,
-      });
-    });
-
-    res.json({ ok: true, synced: pendingTopUp });
   },
 );
 
