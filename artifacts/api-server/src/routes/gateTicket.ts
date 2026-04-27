@@ -534,6 +534,14 @@ router.post(
         todayDayIndex,
         checkinHistory,
         pendingWalletBalance: attendee.pendingWalletBalance ?? 0,
+        // Activation fee charged on first physical chip write (activatedAt not yet set).
+        // Only applied when there is pending balance to write; zero if balance doesn't cover it.
+        activationFeeAmount: (() => {
+          const pending = attendee.pendingWalletBalance ?? 0;
+          if (bracelet?.activatedAt || pending <= 0) return 0;
+          const fee = event.braceletActivationFee ?? 3000;
+          return pending > fee ? fee : 0;
+        })(),
       });
     } catch (err) {
       await client.query("ROLLBACK").catch(() => {});
@@ -1284,25 +1292,44 @@ router.post(
     }
 
     // Guard: don't clear more than what's actually pending
-    const amountToTransfer = Math.min(transferredAmount, user.pendingWalletBalance);
+    if (user.pendingWalletBalance <= 0) {
+      res.json({ ok: true, transferred: 0 });
+      return;
+    }
+
+    const [bracelet] = await db
+      .select({ lastKnownBalance: braceletsTable.lastKnownBalance, lastCounter: braceletsTable.lastCounter, activatedAt: braceletsTable.activatedAt, eventId: braceletsTable.eventId })
+      .from(braceletsTable)
+      .where(eq(braceletsTable.nfcUid, braceletNfcUid));
+
+    // Activation fee: re-derived server-side (don't trust client amount)
+    let activationFeeAmount = 0;
+    if (bracelet && !bracelet.activatedAt && bracelet.eventId) {
+      const [ev] = await db
+        .select({ braceletActivationFee: eventsTable.braceletActivationFee })
+        .from(eventsTable)
+        .where(eq(eventsTable.id, bracelet.eventId));
+      const fee = ev?.braceletActivationFee ?? 3000;
+      // Only charge if pending balance covers the fee
+      if (user.pendingWalletBalance > fee) activationFeeAmount = fee;
+    }
+
+    const netToTransfer = user.pendingWalletBalance - activationFeeAmount;
+    const amountToTransfer = Math.min(transferredAmount, netToTransfer);
     if (amountToTransfer <= 0) {
       res.json({ ok: true, transferred: 0 });
       return;
     }
 
+    const now = new Date();
     await db.transaction(async (tx) => {
       await tx
         .update(usersTable)
         .set({
-          pendingWalletBalance: sql`GREATEST(0, ${usersTable.pendingWalletBalance} - ${amountToTransfer})`,
-          updatedAt: new Date(),
+          pendingWalletBalance: 0,
+          updatedAt: now,
         })
         .where(eq(usersTable.id, attendeeUserId));
-
-      const [bracelet] = await tx
-        .select({ lastKnownBalance: braceletsTable.lastKnownBalance, lastCounter: braceletsTable.lastCounter })
-        .from(braceletsTable)
-        .where(eq(braceletsTable.nfcUid, braceletNfcUid));
 
       if (bracelet) {
         const newBalance = bracelet.lastKnownBalance + amountToTransfer;
@@ -1313,28 +1340,28 @@ router.post(
           .set({
             lastKnownBalance: newBalance,
             lastCounter: newCounter,
-            // Gate write syncs the full DB balance to the chip — clear any pending top-up state
             pendingSync: false,
             pendingBalance: 0,
             pendingTopUpAmount: 0,
-            updatedAt: new Date(),
+            activatedAt: bracelet.activatedAt ?? now,
+            updatedAt: now,
           })
           .where(eq(braceletsTable.nfcUid, braceletNfcUid));
 
         await tx.insert(topUpsTable).values({
           braceletUid: braceletNfcUid,
-          amount: amountToTransfer,
+          amount: user.pendingWalletBalance,
           paymentMethod: "card_external",
           performedByUserId: req.user!.id,
           status: "completed",
           newBalance,
           newCounter,
-          activationFeeAmount: 0,
+          activationFeeAmount,
         });
       }
     });
 
-    res.json({ ok: true, transferred: amountToTransfer });
+    res.json({ ok: true, transferred: amountToTransfer, activationFeeAmount });
   },
 );
 

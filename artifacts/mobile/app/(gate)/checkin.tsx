@@ -537,7 +537,9 @@ export default function EntranceCheckinScreen() {
             }
 
             const pendingWallet = (payload.pendingWalletBalance as number | undefined) ?? 0;
-            const finalBalance = braceletPayload.balance + pendingWallet;
+            const activationFee = (payload.activationFeeAmount as number | undefined) ?? 0;
+            const netPending = Math.max(0, pendingWallet - activationFee);
+            const finalBalance = braceletPayload.balance + netPending;
             const newHmac = hmacSecret
               ? await computeHmac(finalBalance, braceletPayload.counter, hmacSecret, uid, newZoneMask || undefined)
               : braceletPayload.hmac;
@@ -545,7 +547,7 @@ export default function EntranceCheckinScreen() {
 
             outcomeRef.attendeeName = (payload.attendee as { fullName?: string } | null)?.fullName ?? "";
             outcomeRef.zoneName = (payload.zone as { name?: string } | null)?.name ?? "";
-            outcomeRef.pendingWalletBalance = pendingWallet;
+            outcomeRef.pendingWalletBalance = netPending;
             outcomeRef.attendeeUserId = (payload.attendee as { id?: string } | null)?.id ?? "";
             outcomeRef.braceletNfcUid = uid;
             outcomeRef.historyItem = {
