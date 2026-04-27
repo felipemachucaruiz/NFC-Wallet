@@ -43,7 +43,7 @@ export default function Home() {
 
   const events = data?.events ?? [];
 
-  const categories = ["all", "concerts", "festivals", "sports", "theater"];
+  const categories = ["all", "concert", "festival", "sports", "theater", "conference", "party"];
   const cities = useMemo(() => {
     const c = new Set<string>();
     const countryNames = new Set(["colombia", "argentina", "mexico", "méxico", "brasil", "brazil", "chile", "peru", "perú", "ecuador", "usa", "united states", "venezuela", "panamá", "panama"]);

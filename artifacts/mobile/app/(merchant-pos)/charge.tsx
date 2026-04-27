@@ -258,6 +258,11 @@ export default function ChargeScreen() {
         setStep("waiting");
         return;
       }
+      if (errMsg.includes("Counter replay")) {
+        showAlert(t("common.error"), t("pos.counterReplay"));
+        setStep("waiting");
+        return;
+      }
       try {
         await enqueue({
           locationId,

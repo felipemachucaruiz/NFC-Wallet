@@ -369,6 +369,7 @@
     "writeError": "Error writing bracelet",
     "readError": "Error reading bracelet",
     "eventEnded": "This event has ended. No more charges can be processed.",
+    "counterReplay": "This bracelet was already charged recently. Please re-scan it.",
     "moreItems": "+{{count}} more",
     "currentBalance": "Current balance",
     "newBalance": "New balance",

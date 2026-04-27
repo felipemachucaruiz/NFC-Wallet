@@ -17,7 +17,7 @@ import {
   venueSectionsTable,
   eventDaysTable,
 } from "@workspace/db";
-import { eq, and, ne, desc, inArray, lte, sql } from "drizzle-orm";
+import { eq, and, ne, desc, inArray, lte, sql, gt } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { notifyBraceletBlocked } from "../lib/pushNotifications";
