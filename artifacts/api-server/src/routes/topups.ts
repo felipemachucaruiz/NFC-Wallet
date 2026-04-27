@@ -109,7 +109,14 @@ router.post(
 
     const effectiveEventId = bracelet.eventId ?? bankEventId;
     const braceletAmount = amount - activationFeeAmount;
-    const newBalance = bracelet.lastKnownBalance + braceletAmount;
+    // When pendingTopUpAmount >= lastKnownBalance the chip has no valid balance (Wompi topup
+    // before gate write). Use the full server total as the topup base so the chip gets
+    // the correct balance including the pending online topup.
+    const topupPending = bracelet.pendingTopUpAmount ?? 0;
+    const topupBase = topupPending > 0 && topupPending >= bracelet.lastKnownBalance
+      ? bracelet.lastKnownBalance + topupPending
+      : bracelet.lastKnownBalance;
+    const newBalance = topupBase + braceletAmount;
     const newCounter = bracelet.lastCounter + 1;
 
     let hmac: string;

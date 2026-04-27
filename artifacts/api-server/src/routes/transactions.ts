@@ -157,12 +157,18 @@ async function processTransaction(
   if (bracelet.lastCounter !== null && input.counter <= bracelet.lastCounter) {
     return { status: "error", error: `Counter replay detected: submitted ${input.counter} ≤ stored ${bracelet.lastCounter}` };
   }
-  // Balance consistency: chip's new balance must not exceed the chip's current balance.
-  // When there is a pending top-up, lastKnownBalance > chip balance — use chip balance for check.
+  // Balance consistency: chip's new balance must not exceed the available balance.
+  // Two modes:
+  //   Normal: gate already wrote pendingTopUp to chip → lkb = chipBalance + pending → check chip balance
+  //   Cloud:  Wompi topup set pending without gate write (pending >= lkb) → merchant charged from
+  //           total server balance (lkb + pending) → validate against the full total.
   // (skip when lastKnownBalance is null — first use on server side)
   if (bracelet.lastKnownBalance !== null) {
-    const effectiveChipBalance = bracelet.lastKnownBalance - (bracelet.pendingTopUpAmount ?? 0);
-    if (input.newBalance > effectiveChipBalance) {
+    const checkPending = bracelet.pendingTopUpAmount ?? 0;
+    const effectiveBalance = checkPending > 0 && checkPending >= bracelet.lastKnownBalance
+      ? bracelet.lastKnownBalance + checkPending
+      : bracelet.lastKnownBalance - checkPending;
+    if (input.newBalance > effectiveBalance) {
       return { status: "error", error: "Insufficient bracelet balance" };
     }
   }
@@ -298,22 +304,35 @@ async function processTransaction(
   // Merchant receives net items amount plus the full tip (tip is not subject to commission)
   const netAmount = grossAmount - commissionAmount + tipAmount;
 
-  // When there is an unsynced pending top-up the chip balance is lower than lastKnownBalance.
-  // input.newBalance is the chip's new balance after the purchase and does NOT include the
-  // pending amount. We must derive how much was actually charged on the chip and apply that
-  // deduction to the full DB balance, preserving the pending amount until the gate syncs it.
+  // Determine how to compute the corrected server balance after this charge.
+  //
+  // Cloud balance mode (pending >= lkb): the Wompi topup invariant is broken — chip had no
+  // valid balance so the merchant charged from total server balance (lkb + pending). The
+  // newBalance sent is already the final server balance; pending is now fully consumed.
+  //
+  // Normal pending mode (pending < lkb): chip balance = lkb - pending. The merchant wrote
+  // effectiveBalance (chip + pending) to chip and sent that as newBalance. We must recover
+  // how much was actually deducted on chip and apply it to lkb while preserving pending.
+  //
+  // No pending: straightforward — newBalance is the new lkb.
   const pendingTopUp = bracelet.pendingTopUpAmount ?? 0;
-  const hasPendingTopUp = pendingTopUp > 0 && bracelet.lastKnownBalance !== null;
-  // Chip balance before this transaction (excludes pending top-up not yet written to chip)
-  const chipBalanceBefore = hasPendingTopUp
-    ? bracelet.lastKnownBalance! - pendingTopUp
-    : (bracelet.lastKnownBalance ?? input.newBalance);
-  // Amount the chip actually deducted
+  const isCloudBalanceMode = pendingTopUp > 0 && bracelet.lastKnownBalance !== null && pendingTopUp >= bracelet.lastKnownBalance!;
+  const hasPendingTopUp = pendingTopUp > 0 && bracelet.lastKnownBalance !== null && !isCloudBalanceMode;
+  // Effective balance before this transaction (what the merchant started from)
+  const chipBalanceBefore = isCloudBalanceMode
+    ? bracelet.lastKnownBalance! + pendingTopUp
+    : hasPendingTopUp
+      ? bracelet.lastKnownBalance! - pendingTopUp
+      : (bracelet.lastKnownBalance ?? input.newBalance);
+  // Amount deducted from that balance
   const chipAmountCharged = chipBalanceBefore - input.newBalance;
-  // Correct DB balance: full DB balance minus what was charged on the chip
-  const correctedNewBalance = hasPendingTopUp
-    ? bracelet.lastKnownBalance! - chipAmountCharged
-    : input.newBalance;
+  // In cloud mode newBalance is already the final server balance; in normal mode
+  // apply the chip deduction to lkb while the pending offset is preserved.
+  const correctedNewBalance = isCloudBalanceMode
+    ? input.newBalance
+    : hasPendingTopUp
+      ? bracelet.lastKnownBalance! - chipAmountCharged
+      : input.newBalance;
 
   // Compute bracelet update fields before entering the transaction so we can
   // determine the final state (flagged vs clean) consistently.

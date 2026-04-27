@@ -220,6 +220,7 @@ export default function BankLookupScreen() {
     lastKnownBalance?: number;
     pendingSync?: boolean;
     pendingBalance?: number;
+    pendingTopUpAmount?: number | null;
     eventId?: string | null;
     accessZoneIds?: string[];
   } | undefined;
@@ -228,13 +229,22 @@ export default function BankLookupScreen() {
   // written to the chip. We must use the server balance as the source of truth —
   // even when NFC was scanned — so the bank operator topups from the correct base.
   const hasPendingSync = apiRecord?.pendingSync === true;
-  const serverBalance = apiRecord?.pendingBalance
-    ? apiRecord.pendingBalance
-    : (apiRecord?.lastKnownBalance ?? apiRecord?.balance);
+  // When pendingTopUpAmount >= lastKnownBalance the invariant is broken: a Wompi online
+  // topup was applied but the chip was never written at the gate. Use the full server
+  // total (lkb + pending) as the base balance for display and bank topup.
+  const onlinePending = apiRecord?.pendingTopUpAmount ?? 0;
+  const lkb = apiRecord?.lastKnownBalance ?? 0;
+  const hasPendingOnlineTopUp = onlinePending > 0 && onlinePending >= lkb;
+  const serverBalance = hasPendingOnlineTopUp
+    ? lkb + onlinePending
+    : apiRecord?.pendingBalance
+      ? apiRecord.pendingBalance
+      : (apiRecord?.lastKnownBalance ?? apiRecord?.balance);
 
   const resolveStartBalance = () => {
     if (!bracelet) return 0;
     if (hasPendingSync && serverBalance !== undefined) return serverBalance;
+    if (hasPendingOnlineTopUp && serverBalance !== undefined) return serverBalance;
     return tagInfo
       ? bracelet.balance
       : (apiRecord?.lastKnownBalance ?? apiRecord?.balance ?? bracelet.balance);
@@ -356,10 +366,10 @@ export default function BankLookupScreen() {
     });
   };
 
-  // When pendingSync=true use server balance as display so operator sees correct balance.
+  // When pendingSync, local pending writes, or online topup pending → use server balance.
   // Otherwise trust the NFC chip (scanned) or fall back to server (manual entry).
   const displayBalance =
-    (hasPendingSync || hasLocalPendingWrites) && serverBalance !== undefined
+    (hasPendingSync || hasLocalPendingWrites || hasPendingOnlineTopUp) && serverBalance !== undefined
       ? serverBalance
       : tagInfo
         ? (bracelet?.balance ?? 0)
@@ -444,6 +454,7 @@ export default function BankLookupScreen() {
                 {isFlagged && <Badge label={t("bank.flagged")} variant="danger" />}
                 {isWrongEvent && <Badge label={t("bank.wrongEvent")} variant="danger" />}
                 {hasPendingSync && <Badge label="Recarga pendiente" variant="warning" />}
+                {hasPendingOnlineTopUp && !hasPendingSync && <Badge label="Saldo online" variant="warning" />}
               </View>
 
               <View style={[styles.divider, { backgroundColor: C.separator }]} />
@@ -456,6 +467,14 @@ export default function BankLookupScreen() {
                   </Text>
                 </View>
               )}
+              {hasPendingOnlineTopUp && !hasPendingSync && (
+                <View style={[styles.alertBox, { backgroundColor: C.warningLight, borderColor: C.warning }]}>
+                  <Feather name="smartphone" size={15} color={C.warning} />
+                  <Text style={[styles.alertText, { color: C.warning }]}>
+                    Saldo cargado online ({fmt(onlinePending)}) no escrito en el chip aún. El saldo mostrado ya incluye este monto. Al recargar aquí se escribirá todo en el chip.
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.balanceSection}>
                 <Text style={[styles.balanceLabel, { color: C.textSecondary }]}>
@@ -465,6 +484,11 @@ export default function BankLookupScreen() {
                 {hasPendingSync && (
                   <Text style={[styles.pendingSyncNote, { color: C.warning }]}>
                     Incluye recarga self-service • se sincronizará al tocar
+                  </Text>
+                )}
+                {hasPendingOnlineTopUp && !hasPendingSync && (
+                  <Text style={[styles.pendingSyncNote, { color: C.warning }]}>
+                    Incluye recarga online • se escribirá en chip al recargar
                   </Text>
                 )}
               </View>
