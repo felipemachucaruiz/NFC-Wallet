@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useGetBracelet, useGetEvent } from "@workspace/api-client-react";
+import { useGetBracelet, useGetEvent, customFetch } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useFocusEffect } from "expo-router";
-import { isNfcSupported, scanBracelet, cancelNfc, resetAndRekeyUltralightC, type TagInfo, type TagType, type NfcChipTypeHint } from "@/utils/nfc";
+import { isNfcSupported, scanBracelet, scanAndWriteBracelet, cancelNfc, resetAndRekeyUltralightC, type TagInfo, type TagType, type NfcChipTypeHint } from "@/utils/nfc";
 import { readDesfireBracelet } from "@/utils/desfire";
 import { useGetSigningKey } from "@workspace/api-client-react";
 import { OfflineBanner } from "@/components/OfflineBanner";
@@ -107,6 +107,8 @@ export default function BankLookupScreen() {
   const [tagInfo, setTagInfo] = useState<TagInfo | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [pendingNfcWrites, setPendingNfcWrites] = useState<PendingNfcWrite[]>([]);
+  const [isActivating, setIsActivating] = useState(false);
+  const [activateModalVisible, setActivateModalVisible] = useState(false);
   const scanningRef = useRef(false);
   const cancelledRef = useRef(false);
 
@@ -366,6 +368,71 @@ export default function BankLookupScreen() {
     });
   };
 
+  const handleActivateBracelet = async () => {
+    if (!bracelet) return;
+    const expectedUid = bracelet.uid;
+    try {
+      const syncData = await customFetch<{
+        needsSync: boolean;
+        pendingAmount?: number;
+        signedPayload?: { balance: number; counter: number; hmac: string };
+      }>(`/api/bracelets/pending-sync-payload?nfcUid=${encodeURIComponent(expectedUid)}`);
+
+      if (!syncData.needsSync || !syncData.signedPayload) {
+        showAlert(t("common.error"), "No hay saldo pendiente para activar");
+        return;
+      }
+      const { signedPayload } = syncData;
+
+      const chipHint: NfcChipTypeHint =
+        tagInfo?.type === "MIFARE_CLASSIC" ? "mifare_classic" :
+        tagInfo?.type === "MIFARE_ULTRALIGHT_C" ? "mifare_ultralight_c" :
+        configuredChipType === "mifare_classic" ? "mifare_classic" :
+        configuredChipType === "mifare_ultralight_c" ? "mifare_ultralight_c" :
+        "ntag_21x";
+
+      setActivateModalVisible(true);
+      setIsActivating(true);
+
+      await scanAndWriteBracelet(async (chipPayload) => {
+        if (chipPayload.uid !== expectedUid) {
+          showAlert(t("common.error"), "Pulsera incorrecta. Acerca la pulsera del asistente.");
+          return null;
+        }
+        return {
+          uid: chipPayload.uid,
+          balance: signedPayload.balance,
+          counter: signedPayload.counter,
+          hmac: signedPayload.hmac,
+        };
+      }, { expectedChipType: chipHint });
+
+      await customFetch("/api/bracelets/confirm-pending-sync", {
+        method: "POST",
+        body: JSON.stringify({
+          nfcUid: expectedUid,
+          newBalance: signedPayload.balance,
+          newCounter: signedPayload.counter,
+        }),
+      });
+
+      showAlert("¡Pulsera activada!", `${fmt(signedPayload.balance)} escritos en el chip. El asistente puede usarla en cualquier punto de venta.`);
+      setBracelet((prev) => prev ? { ...prev, balance: signedPayload.balance, counter: signedPayload.counter, hmac: signedPayload.hmac } : prev);
+      setFetchUid(null);
+      setTimeout(() => setFetchUid(expectedUid), 50);
+    } catch (e: unknown) {
+      if (!cancelledRef.current) {
+        const msg = extractErrorMessage(e, "");
+        if (!/cancel/i.test(msg)) {
+          showAlert(t("common.error"), "Error al activar la pulsera. Intenta de nuevo.");
+        }
+      }
+    } finally {
+      setActivateModalVisible(false);
+      setIsActivating(false);
+    }
+  };
+
   // When pendingSync, local pending writes, or online topup pending → use server balance.
   // Otherwise trust the NFC chip (scanned) or fall back to server (manual entry).
   const displayBalance =
@@ -488,7 +555,7 @@ export default function BankLookupScreen() {
                 )}
                 {hasPendingOnlineTopUp && !hasPendingSync && (
                   <Text style={[styles.pendingSyncNote, { color: C.warning }]}>
-                    Incluye recarga online • se escribirá en chip al recargar
+                    Incluye recarga online • usa "Activar pulsera" para escribir al chip
                   </Text>
                 )}
               </View>
@@ -521,6 +588,17 @@ export default function BankLookupScreen() {
                         </Text>
                       </View>
                     </View>
+                  )}
+                  {hasPendingOnlineTopUp && !hasLocalPendingWrites && (
+                    <Button
+                      title={isActivating ? "Activando..." : "Activar pulsera"}
+                      onPress={handleActivateBracelet}
+                      variant="primary"
+                      size="lg"
+                      fullWidth
+                      loading={isActivating}
+                      icon="zap"
+                    />
                   )}
                   <View style={styles.actionButtons}>
                     {hasLocalPendingWrites ? (
@@ -703,6 +781,32 @@ export default function BankLookupScreen() {
               </Text>
             </View>
             <Pressable onPress={handleCancelScan} style={[styles.cancelBtn, { borderColor: C.border }]}>
+              <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("common.cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={activateModalVisible} transparent animationType="fade">
+        <View style={[styles.overlay, { backgroundColor: "rgba(0,0,0,0.6)" }]}>
+          <View style={[styles.modalBox, { backgroundColor: C.card, alignItems: "center", gap: 24 }]}>
+            <Animated.View
+              style={[styles.nfcPulse, { backgroundColor: C.primaryLight, transform: [{ scale: pulseAnim }] }]}
+            >
+              <Feather name="zap" size={48} color={C.primary} />
+            </Animated.View>
+            <View style={{ alignItems: "center", gap: 6 }}>
+              <Text style={[styles.modalTitle, { color: C.text, textAlign: "center" }]}>
+                Acercar pulsera para activar
+              </Text>
+              <Text style={[styles.scanHint, { color: C.textSecondary }]}>
+                Mantén la pulsera firme contra el teléfono
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => { cancelledRef.current = true; cancelNfc().catch(() => {}); setActivateModalVisible(false); setIsActivating(false); }}
+              style={[styles.cancelBtn, { borderColor: C.border }]}
+            >
               <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("common.cancel")}</Text>
             </Pressable>
           </View>

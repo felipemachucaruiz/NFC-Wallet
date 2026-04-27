@@ -577,7 +577,12 @@ router.get(
 
     try {
       const { primaryKey } = await resolveHmacKey(bracelet.eventId ?? null);
-      const syncBalance = bracelet.lastKnownBalance;
+      // Cloud balance mode: pendingTopUp >= lkb means the chip has no valid balance yet
+      // (e.g. Wompi topup or blocked-bracelet replacement). Total balance = lkb + pending.
+      const isCloudMode = pendingTopUp >= bracelet.lastKnownBalance;
+      const syncBalance = isCloudMode
+        ? bracelet.lastKnownBalance + pendingTopUp
+        : bracelet.lastKnownBalance;
       const syncCounter = bracelet.lastCounter + 1;
       const hmac = computeBraceletHmac(syncBalance, syncCounter, primaryKey, nfcUid);
       res.json({
