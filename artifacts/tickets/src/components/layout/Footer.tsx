@@ -117,7 +117,7 @@ export function Footer() {
               aria-label="Descargar en Google Play"
             >
               <img
-                src={`${import.meta.env.BASE_URL}google-play-badge.svg`}
+                src={`${import.meta.env.BASE_URL}google-play-badge.png`}
                 alt="Disponible en Google Play"
                 className="h-10 w-auto"
               />
