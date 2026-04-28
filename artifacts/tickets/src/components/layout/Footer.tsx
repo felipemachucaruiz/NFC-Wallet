@@ -109,6 +109,19 @@ export function Footer() {
                 <FacebookIcon />
               </a>
             </div>
+            <h4 className="font-semibold text-sm mt-6 mb-3">Descarga la app</h4>
+            <a
+              href="https://play.google.com/store/apps/details?id=com.tapee.attendee"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Descargar en Google Play"
+            >
+              <img
+                src={`${import.meta.env.BASE_URL}google-play-badge.svg`}
+                alt="Disponible en Google Play"
+                className="h-10 w-auto"
+              />
+            </a>
           </div>
         </div>
 
