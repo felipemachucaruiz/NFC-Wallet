@@ -99,6 +99,7 @@ export default function AddBraceletScreen() {
                     try {
                       await claimWalletBalance(res.uid);
                       showAlert(t("addBracelet.transferSuccessTitle"), t("addBracelet.transferSuccessMsg"));
+                      router.replace("/(tabs)/home" as never);
                     } catch {
                       // silent — user can retry from pending-balance screen
                     }

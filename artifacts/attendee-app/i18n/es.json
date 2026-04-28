@@ -330,7 +330,11 @@
     "male": "Masculino",
     "female": "Femenino",
     "idDocument": "Núm. de identificación",
-    "savedCards": "Tarjetas guardadas"
+    "savedCards": "Tarjetas guardadas",
+    "deleteAccount": "Eliminar cuenta",
+    "deleteAccountConfirm": "¿Eliminar tu cuenta permanentemente?",
+    "deleteAccountWarning": "Esta acción es irreversible. Se borrarán tus datos personales y se desvinculará tu pulsera. Cualquier saldo pendiente se perderá.",
+    "deleteAccountConfirmBtn": "Eliminar cuenta"
   },
   "events": {
     "tab": "Eventos",

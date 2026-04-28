@@ -19,7 +19,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CopAmount } from "@/components/CopAmount";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyRefundRequests, useUpdateProfile } from "@/hooks/useAttendeeApi";
+import { useMyRefundRequests, useUpdateProfile, useDeleteAccount } from "@/hooks/useAttendeeApi";
 import { setStoredLanguage } from "@/i18n";
 import i18n from "@/i18n";
 import { formatDate } from "@/utils/format";
@@ -50,6 +50,8 @@ export default function ProfileScreen() {
   const [currentLang, setCurrentLang] = useState(i18n.language);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
@@ -63,6 +65,7 @@ export default function ProfileScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const updateProfile = useUpdateProfile();
+  const deleteAccount = useDeleteAccount();
 
   const handleLanguage = async (lang: string) => {
     await setStoredLanguage(lang);
@@ -74,6 +77,18 @@ export default function ProfileScreen() {
     setLoggingOut(true);
     await logout();
     router.replace("/login");
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      await deleteAccount.mutateAsync();
+      await logout();
+      router.replace("/login");
+    } catch {
+      setDeletingAccount(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   const startEditing = () => {
@@ -419,6 +434,46 @@ export default function ProfileScreen() {
           </View>
         </View>
       )}
+
+      {!showDeleteConfirm ? (
+        <Pressable
+          onPress={() => setShowDeleteConfirm(true)}
+          style={[styles.deleteAccountBtn, { borderColor: C.border }]}
+        >
+          <Feather name="trash-2" size={16} color={C.textMuted} />
+          <Text style={[styles.deleteAccountText, { color: C.textMuted }]}>{t("profile.deleteAccount")}</Text>
+        </Pressable>
+      ) : (
+        <View style={[styles.logoutConfirm, { backgroundColor: C.dangerLight, borderColor: C.danger }]}>
+          <Feather name="alert-triangle" size={22} color={C.danger} style={{ alignSelf: "center" }} />
+          <Text style={[styles.logoutConfirmText, { color: C.danger }]}>
+            {t("profile.deleteAccountConfirm")}
+          </Text>
+          <Text style={[styles.deleteAccountWarning, { color: C.textSecondary }]}>
+            {t("profile.deleteAccountWarning")}
+          </Text>
+          <View style={styles.logoutConfirmBtns}>
+            <Pressable
+              onPress={() => setShowDeleteConfirm(false)}
+              style={[styles.logoutCancelBtn, { backgroundColor: C.card, borderColor: C.border }]}
+            >
+              <Text style={[styles.logoutCancelText, { color: C.textSecondary }]}>
+                {t("common.cancel")}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleDeleteAccount}
+              disabled={deletingAccount}
+              style={[styles.logoutConfirmBtn, { backgroundColor: C.danger, opacity: deletingAccount ? 0.6 : 1 }]}
+            >
+              <Feather name="trash-2" size={15} color="#fff" />
+              <Text style={styles.logoutConfirmBtnText}>
+                {deletingAccount ? "..." : t("profile.deleteAccountConfirmBtn")}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -552,4 +607,15 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     color: "#fff",
   },
+  deleteAccountBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  deleteAccountText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  deleteAccountWarning: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
 });

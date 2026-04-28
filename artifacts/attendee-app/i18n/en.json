@@ -331,7 +331,11 @@
     "male": "Male",
     "female": "Female",
     "idDocument": "ID number",
-    "savedCards": "Saved cards"
+    "savedCards": "Saved cards",
+    "deleteAccount": "Delete account",
+    "deleteAccountConfirm": "Permanently delete your account?",
+    "deleteAccountWarning": "This action is irreversible. Your personal data will be erased and your bracelet unlinked. Any pending balance will be lost.",
+    "deleteAccountConfirmBtn": "Delete account"
   },
   "events": {
     "tab": "Events",

@@ -21,6 +21,7 @@ import { eq, and, ne, desc, inArray, lte, sql, gt } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import { notifyBraceletBlocked } from "../lib/pushNotifications";
+import { deleteSession, getSessionId, SESSION_COOKIE } from "../lib/auth";
 import { buildAppleWalletUrl } from "./appleWallet";
 import { generateGoogleWalletSaveLink } from "../lib/walletPasses";
 
@@ -1008,6 +1009,43 @@ router.post(
     });
 
     res.json({ transferred: amount });
+  }
+);
+
+router.delete(
+  "/attendee/me",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const now = new Date();
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(braceletsTable)
+        .set({ attendeeUserId: null, updatedAt: now })
+        .where(eq(braceletsTable.attendeeUserId, userId));
+
+      await tx
+        .update(usersTable)
+        .set({
+          email: `deleted_${userId}@deleted.tapee.app`,
+          firstName: null,
+          lastName: null,
+          phone: null,
+          dateOfBirth: null,
+          sex: null,
+          idDocument: null,
+          pendingWalletBalance: 0,
+          updatedAt: now,
+        })
+        .where(eq(usersTable.id, userId));
+    });
+
+    const sid = getSessionId(req);
+    if (sid) await deleteSession(sid);
+    res.clearCookie(SESSION_COOKIE, { path: "/" });
+
+    res.json({ success: true });
   }
 );
 

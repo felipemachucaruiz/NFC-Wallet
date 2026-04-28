@@ -368,3 +368,14 @@ export function useDeleteCard() {
     },
   });
 }
+
+export function useDeleteAccount() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ success: boolean }>(`${API_BASE_URL}/api/attendee/me`, headers, {
+        method: "DELETE",
+      }),
+  });
+}
