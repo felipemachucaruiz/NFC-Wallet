@@ -308,9 +308,10 @@ export default function ChargeScreen() {
     await logAndFinish(uid, newBalance, newCounter);
   };
 
-  const startNfcScan = async () => {
+  const startNfcScan = async (overrideTotal?: number) => {
     if (scanningRef.current) return;
     cancelledRef.current = false;
+    const effectiveTotal = overrideTotal ?? chargeTotal;
     if (isOfflineLimitReached) {
       setNfcModalVisible(false);
       setStep("offline_limit");
@@ -349,7 +350,7 @@ export default function ChargeScreen() {
           const pendingTopUp = await fetchServerPendingTopUp(payload.uid);
           const effectiveBalance = payload.balance + pendingTopUp;
 
-          if (effectiveBalance < chargeTotal) {
+          if (effectiveBalance < effectiveTotal) {
             setBraceletBalance(effectiveBalance);
             setBraceletUid(payload.uid);
             setStep("insufficient");
@@ -359,7 +360,7 @@ export default function ChargeScreen() {
           }
 
           uid = payload.uid;
-          newBalance = effectiveBalance - chargeTotal;
+          newBalance = effectiveBalance - effectiveTotal;
           newCounter = payload.counter + 1;
           setStep("writing");
           return { uid, balance: newBalance, counter: newCounter, hmac: payload.hmac };
@@ -369,7 +370,7 @@ export default function ChargeScreen() {
           const errMsg = e instanceof Error ? e.message : String(e ?? "unknown");
           Sentry.captureException(e instanceof Error ? e : new Error(errMsg), {
             tags: { screen: "charge", errorCode: errMsg.split(":")[0] || "unknown", chipVariant: "desfire" },
-            extra: { nfcUid: uid, amount: chargeTotal },
+            extra: { nfcUid: uid, amount: effectiveTotal },
           });
           scanningRef.current = false;
           setNfcModalVisible(false);
@@ -452,7 +453,7 @@ export default function ChargeScreen() {
             const pendingTopUp = await fetchServerPendingTopUp(payload.uid);
             const effectiveBalance = payload.balance + pendingTopUp;
 
-            if (effectiveBalance < chargeTotal) {
+            if (effectiveBalance < effectiveTotal) {
               setBraceletBalance(effectiveBalance);
               setBraceletUid(payload.uid);
               setStep("insufficient");
@@ -462,7 +463,7 @@ export default function ChargeScreen() {
             }
 
             uid = payload.uid;
-            newBalance = effectiveBalance - chargeTotal;
+            newBalance = effectiveBalance - effectiveTotal;
             newCounter = payload.counter + 1;
             readSucceeded = true;
             setStep("writing");
@@ -503,7 +504,7 @@ export default function ChargeScreen() {
         if (!/TAG_LOST|NFC_CANCELLED|USER_CANCELLED/i.test(errMsg)) {
           Sentry.captureException(lastScanError instanceof Error ? lastScanError : new Error(errMsg), {
             tags: { screen: "charge", errorCode: errMsg.split(":")[0] || "unknown" },
-            extra: { nfcUid: uid, amount: chargeTotal, retriesAttempted: writeRetryRef.current, readSucceeded },
+            extra: { nfcUid: uid, amount: effectiveTotal, retriesAttempted: writeRetryRef.current, readSucceeded },
           });
         }
         scanningRef.current = false;
@@ -567,14 +568,13 @@ export default function ChargeScreen() {
   );
 
   const handleTipConfirm = (noTip?: boolean) => {
-    if (noTip) {
-      setConfirmedTipAmount(0);
-      setConfirmedTipPercent(null);
-    } else {
-      setConfirmedTipAmount(previewTipAmount);
-      setConfirmedTipPercent(activeTipPercent);
-    }
-    setStep("waiting");
+    const tipAmount = noTip ? 0 : previewTipAmount;
+    const tipPercent = noTip ? null : activeTipPercent;
+    setConfirmedTipAmount(tipAmount);
+    setConfirmedTipPercent(tipPercent);
+    setNfcModalVisible(true);
+    scanningRef.current = false;
+    startNfcScan(total + tipAmount);
   };
 
   const StepIcon = () => {
@@ -793,7 +793,7 @@ export default function ChargeScreen() {
             onPress={() => {
               setNfcModalVisible(true);
               scanningRef.current = false;
-              startNfcScan();
+              startNfcScan(chargeTotal);
             }}
             variant="primary"
             size="lg"
