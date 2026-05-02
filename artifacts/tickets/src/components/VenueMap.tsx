@@ -11,14 +11,18 @@ interface VenueMapProps {
   selectedUnitId?: string | null;
 }
 
-function parseSvgRect(pathData: string): { x: number; y: number; w: number; h: number } | null {
+function getSvgPathCenter(pathData: string): { cx: number; cy: number } | null {
   const nums = pathData.match(/[\d.]+/g)?.map(Number);
-  if (!nums || nums.length < 8) return null;
-  const xs = [nums[0], nums[2], nums[4], nums[6]];
-  const ys = [nums[1], nums[3], nums[5], nums[7]];
-  const x = Math.min(...xs);
-  const y = Math.min(...ys);
-  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+  if (!nums || nums.length < 4) return null;
+  const xs: number[] = [], ys: number[] = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) {
+    xs.push(nums[i]);
+    ys.push(nums[i + 1]);
+  }
+  return {
+    cx: xs.reduce((a, b) => a + b, 0) / xs.length,
+    cy: ys.reduce((a, b) => a + b, 0) / ys.length,
+  };
 }
 
 function useZoomPan() {
@@ -204,28 +208,44 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
           <span className="text-sm font-semibold" style={{ color: "hsl(0, 0%, 50%)" }}>STAGE</span>
         </div>
       )}
+      {hasSvgPaths && (
+        <svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          style={{ zIndex: 5 }}
+        >
+          {event.sections.map((section) => {
+            if (!section.svgPath) return null;
+            return (
+              <path
+                key={section.id}
+                d={section.svgPath}
+                fill={getSectionColor(section.color, section.status, false)}
+                stroke={section.color || "#22c55e"}
+                strokeWidth="0.5"
+                className="cursor-pointer transition-all duration-150"
+                style={{ filter: "brightness(1)" }}
+                onClick={() => handleSectionClick(section)}
+                onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.3)")}
+                onMouseLeave={(e) => (e.currentTarget.style.filter = "brightness(1)")}
+              />
+            );
+          })}
+        </svg>
+      )}
       {hasSvgPaths && event.sections.map((section) => {
         if (!section.svgPath) return null;
-        const rect = parseSvgRect(section.svgPath);
-        if (!rect) return null;
+        const center = getSvgPathCenter(section.svgPath);
+        if (!center) return null;
         return (
           <div
-            key={section.id}
-            className="absolute border-2 rounded-sm flex items-center justify-center cursor-pointer transition-all duration-150 hover:brightness-125"
-            style={{
-              left: `${rect.x}%`,
-              top: `${rect.y}%`,
-              width: `${rect.w}%`,
-              height: `${rect.h}%`,
-              borderColor: section.color || "#22c55e",
-              backgroundColor: getSectionColor(section.color, section.status, false),
-              zIndex: 5,
-              borderWidth: 2,
-            }}
-            onClick={() => handleSectionClick(section)}
+            key={`label-${section.id}`}
+            className="absolute pointer-events-none"
+            style={{ left: `${center.cx}%`, top: `${center.cy}%`, transform: "translate(-50%, -50%)", zIndex: 6 }}
           >
             <span
-              className="text-sm sm:text-base md:text-lg font-extrabold text-white truncate px-2 pointer-events-none"
+              className="text-xs sm:text-sm font-extrabold text-white whitespace-nowrap"
               style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)" }}
             >
               {section.name}
