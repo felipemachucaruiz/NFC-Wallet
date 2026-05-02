@@ -1950,6 +1950,76 @@ export const GetTopUpReportResponse = zod.object({
 });
 
 /**
+ * @summary Float analysis — loaded vs. spent vs. unclaimed balance (admin or event_admin)
+ */
+export const GetFloatReportQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const GetFloatReportResponse = zod.object({
+  totalLoaded: zod.number(),
+  totalSpent: zod.number(),
+  unclaimed: zod.number(),
+  utilizationRate: zod
+    .number()
+    .describe("Percentage of loaded funds that have been spent (0-100)"),
+  braceletsWithBalance: zod.number(),
+  uniqueBracelets: zod.number(),
+});
+
+/**
+ * @summary Hourly sales heatmap — transaction volume by hour of day (admin or event_admin)
+ */
+export const GetSalesHeatmapQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const getSalesHeatmapResponseByHourItemHourMin = 0;
+export const getSalesHeatmapResponseByHourItemHourMax = 23;
+
+export const GetSalesHeatmapResponse = zod.object({
+  byHour: zod.array(
+    zod.object({
+      hour: zod
+        .number()
+        .min(getSalesHeatmapResponseByHourItemHourMin)
+        .max(getSalesHeatmapResponseByHourItemHourMax),
+      totalAmount: zod.number(),
+      transactionCount: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Hourly top-up heatmap — recharge activity by hour of day (admin or event_admin)
+ */
+export const GetTopupsHeatmapQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const getTopupsHeatmapResponseByHourItemHourMin = 0;
+export const getTopupsHeatmapResponseByHourItemHourMax = 23;
+
+export const GetTopupsHeatmapResponse = zod.object({
+  byHour: zod.array(
+    zod.object({
+      hour: zod
+        .number()
+        .min(getTopupsHeatmapResponseByHourItemHourMin)
+        .max(getTopupsHeatmapResponseByHourItemHourMax),
+      totalAmount: zod.number(),
+      count: zod.number(),
+    }),
+  ),
+});
+
+/**
  * @summary Tips breakdown per merchant staff / merchant admin (admin or event_admin)
  */
 export const GetTipsByStaffReportQueryParams = zod.object({

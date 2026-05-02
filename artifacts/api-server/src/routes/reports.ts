@@ -836,6 +836,177 @@ router.get(
 );
 
 router.get(
+  "/reports/float",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId, from, to } = req.query as Record<string, string | undefined>;
+    const user = req.user!;
+
+    const empty = { totalLoaded: 0, totalSpent: 0, unclaimed: 0, utilizationRate: 0, braceletsWithBalance: 0, uniqueBracelets: 0 };
+
+    let scopedEventId: string | null = null;
+    if (user.role === "event_admin") {
+      if (!user.eventId) { res.json(empty); return; }
+      scopedEventId = user.eventId;
+    } else {
+      scopedEventId = eventId ?? null;
+    }
+
+    // Resolve bracelet UIDs for this event so we can filter top-ups
+    let topUpBraceletUids: string[] | null = null;
+    if (scopedEventId) {
+      const bracelets = await db.select({ nfcUid: braceletsTable.nfcUid }).from(braceletsTable).where(eq(braceletsTable.eventId, scopedEventId));
+      topUpBraceletUids = bracelets.map((b) => b.nfcUid);
+      if (topUpBraceletUids.length === 0) { res.json(empty); return; }
+    }
+
+    const topUpConds = [eq(topUpsTable.status, "completed")];
+    if (topUpBraceletUids && topUpBraceletUids.length > 0) topUpConds.push(inArray(topUpsTable.braceletUid, topUpBraceletUids));
+    if (from) topUpConds.push(gte(topUpsTable.createdAt, new Date(from)));
+    if (to) topUpConds.push(lte(topUpsTable.createdAt, new Date(to)));
+
+    const txConds = [];
+    if (scopedEventId) txConds.push(eq(transactionLogsTable.eventId, scopedEventId));
+    if (from) txConds.push(gte(transactionLogsTable.createdAt, new Date(from)));
+    if (to) txConds.push(lte(transactionLogsTable.createdAt, new Date(to)));
+
+    const [[topUpAgg], [txAgg], [balAgg]] = await Promise.all([
+      db.select({
+        totalLoaded: sql<number>`COALESCE(SUM(${topUpsTable.amount}), 0)`.mapWith(Number),
+        uniqueBracelets: sql<number>`COUNT(DISTINCT ${topUpsTable.braceletUid})`.mapWith(Number),
+      }).from(topUpsTable).where(and(...topUpConds)),
+      db.select({
+        totalSpent: sql<number>`COALESCE(SUM(${transactionLogsTable.grossAmount} + COALESCE(${transactionLogsTable.tipAmount}, 0)), 0)`.mapWith(Number),
+      }).from(transactionLogsTable).where(txConds.length > 0 ? and(...txConds) : undefined),
+      db.select({
+        unclaimed: sql<number>`COALESCE(SUM(${braceletsTable.lastKnownBalance}), 0)`.mapWith(Number),
+        braceletsWithBalance: sql<number>`COUNT(*) FILTER (WHERE ${braceletsTable.lastKnownBalance} > 0)`.mapWith(Number),
+      }).from(braceletsTable).where(scopedEventId ? eq(braceletsTable.eventId, scopedEventId) : undefined),
+    ]);
+
+    const totalLoaded = topUpAgg?.totalLoaded ?? 0;
+    const totalSpent = txAgg?.totalSpent ?? 0;
+    const unclaimed = balAgg?.unclaimed ?? 0;
+    const utilizationRate = totalLoaded > 0 ? Math.round((totalSpent / totalLoaded) * 100) : 0;
+
+    res.json({ totalLoaded, totalSpent, unclaimed, utilizationRate, braceletsWithBalance: balAgg?.braceletsWithBalance ?? 0, uniqueBracelets: topUpAgg?.uniqueBracelets ?? 0 });
+  },
+);
+
+router.get(
+  "/reports/sales-heatmap",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId, from, to } = req.query as Record<string, string | undefined>;
+    const user = req.user!;
+
+    const emptyHours = Array.from({ length: 24 }, (_, h) => ({ hour: h, totalAmount: 0, transactionCount: 0 }));
+    const empty = { byHour: emptyHours };
+
+    let scopedEventId: string | null = null;
+    if (user.role === "event_admin") {
+      if (!user.eventId) { res.json(empty); return; }
+      scopedEventId = user.eventId;
+    } else {
+      scopedEventId = eventId ?? null;
+    }
+
+    let eventTz = "America/Bogota";
+    if (scopedEventId) {
+      const [evRow] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, scopedEventId));
+      eventTz = evRow?.timezone ?? "America/Bogota";
+    }
+
+    const conditions = [];
+    if (scopedEventId) conditions.push(eq(transactionLogsTable.eventId, scopedEventId));
+    if (from) conditions.push(gte(transactionLogsTable.createdAt, new Date(from)));
+    if (to) conditions.push(lte(transactionLogsTable.createdAt, new Date(to)));
+
+    const hourExpr = sql`EXTRACT(HOUR FROM ${transactionLogsTable.createdAt} AT TIME ZONE ${eventTz})::int`;
+
+    const rows = await db
+      .select({
+        hour: hourExpr.mapWith(Number),
+        totalAmount: sql<number>`COALESCE(SUM(${transactionLogsTable.grossAmount}), 0)`.mapWith(Number),
+        transactionCount: sql<number>`COUNT(*)`.mapWith(Number),
+      })
+      .from(transactionLogsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(hourExpr);
+
+    const byHourMap = new Map<number, { totalAmount: number; transactionCount: number }>();
+    for (const row of rows) byHourMap.set(row.hour, { totalAmount: row.totalAmount, transactionCount: row.transactionCount });
+
+    const byHour = Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      ...(byHourMap.get(h) ?? { totalAmount: 0, transactionCount: 0 }),
+    }));
+
+    res.json({ byHour });
+  },
+);
+
+router.get(
+  "/reports/topups-heatmap",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId, from, to } = req.query as Record<string, string | undefined>;
+    const user = req.user!;
+
+    const emptyHours = Array.from({ length: 24 }, (_, h) => ({ hour: h, totalAmount: 0, count: 0 }));
+    const empty = { byHour: emptyHours };
+
+    let scopedEventId: string | null = null;
+    if (user.role === "event_admin") {
+      if (!user.eventId) { res.json(empty); return; }
+      scopedEventId = user.eventId;
+    } else {
+      scopedEventId = eventId ?? null;
+    }
+
+    let eventTz = "America/Bogota";
+    if (scopedEventId) {
+      const [evRow] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, scopedEventId));
+      eventTz = evRow?.timezone ?? "America/Bogota";
+    }
+
+    let braceletUids: string[] | null = null;
+    if (scopedEventId) {
+      const bs = await db.select({ nfcUid: braceletsTable.nfcUid }).from(braceletsTable).where(eq(braceletsTable.eventId, scopedEventId));
+      braceletUids = bs.map((b) => b.nfcUid);
+      if (braceletUids.length === 0) { res.json(empty); return; }
+    }
+
+    const conditions = [eq(topUpsTable.status, "completed")];
+    if (braceletUids && braceletUids.length > 0) conditions.push(inArray(topUpsTable.braceletUid, braceletUids));
+    if (from) conditions.push(gte(topUpsTable.createdAt, new Date(from)));
+    if (to) conditions.push(lte(topUpsTable.createdAt, new Date(to)));
+
+    const hourExpr = sql`EXTRACT(HOUR FROM ${topUpsTable.createdAt} AT TIME ZONE ${eventTz})::int`;
+
+    const rows = await db
+      .select({
+        hour: hourExpr.mapWith(Number),
+        totalAmount: sql<number>`COALESCE(SUM(${topUpsTable.amount}), 0)`.mapWith(Number),
+        count: sql<number>`COUNT(*)`.mapWith(Number),
+      })
+      .from(topUpsTable)
+      .where(and(...conditions))
+      .groupBy(hourExpr);
+
+    const byHourMap = new Map<number, { totalAmount: number; count: number }>();
+    for (const row of rows) byHourMap.set(row.hour, { totalAmount: row.totalAmount, count: row.count });
+
+    const byHour = Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      ...(byHourMap.get(h) ?? { totalAmount: 0, count: 0 }),
+    }));
+
+    res.json({ byHour });
+  },
+);
+
+router.get(
   "/reports/tips-by-staff",
   requireRole("admin", "event_admin"),
   async (req: Request, res: Response) => {

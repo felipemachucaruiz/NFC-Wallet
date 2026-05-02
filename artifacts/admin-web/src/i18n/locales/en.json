@@ -638,7 +638,18 @@
     "tipsByStaffSubtitle": "Total tips collected per cashier",
     "totalTips": "Total tips",
     "transactions": "transactions",
-    "noTips": "No tips recorded in this period"
+    "noTips": "No tips recorded in this period",
+    "floatAnalysis": "Float Analysis",
+    "floatSubtitle": "Loaded vs. spent vs. unclaimed balance",
+    "totalLoaded": "Total Loaded",
+    "totalSpent": "Total Spent",
+    "unclaimed": "Unclaimed Balance",
+    "utilizationRate": "Utilization Rate",
+    "braceletsWithBalance": "Bracelets with Balance",
+    "uniqueBracelets": "Unique Bracelets",
+    "salesHeatmap": "Sales by Hour",
+    "topupsHeatmap": "Top-ups by Hour",
+    "noActivity": "No activity recorded"
   },
   "inventory": {
     "title": "Inventory",

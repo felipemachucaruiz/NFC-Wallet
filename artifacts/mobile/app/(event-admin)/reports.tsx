@@ -11,6 +11,9 @@ import {
   useGetUnclaimedBalances,
   useGetRefundsReport,
   useGetTipsByStaffReport,
+  useGetFloatReport,
+  useGetSalesHeatmap,
+  useGetTopupsHeatmap,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
@@ -19,7 +22,7 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
 
-type ReportTab = "revenue" | "topups" | "inventory" | "unclaimed" | "refunds" | "tips";
+type ReportTab = "revenue" | "topups" | "inventory" | "unclaimed" | "refunds" | "tips" | "float" | "heatmap";
 type UnclaimedFilter = "all" | "pending" | "refunded";
 
 interface RefundRecord {
@@ -80,6 +83,18 @@ export default function EventAdminReportsScreen() {
     eventId ? { eventId } : {},
     { query: { enabled: activeTab === "tips" } },
   );
+  const { data: floatData, isLoading: floatLoading } = useGetFloatReport(
+    eventId ? { eventId } : {},
+    { query: { enabled: activeTab === "float" } },
+  );
+  const { data: salesHeatmapData, isLoading: salesHeatmapLoading } = useGetSalesHeatmap(
+    eventId ? { eventId } : {},
+    { query: { enabled: activeTab === "heatmap" } },
+  );
+  const { data: topupsHeatmapData, isLoading: topupsHeatmapLoading } = useGetTopupsHeatmap(
+    eventId ? { eventId } : {},
+    { query: { enabled: activeTab === "heatmap" } },
+  );
 
   type RevenueResponse = {
     totalSales?: number;
@@ -107,6 +122,16 @@ export default function EventAdminReportsScreen() {
   type TipsStaffRow = { userId: string | null; firstName: string | null; lastName: string | null; role: string | null; merchantId: string; merchantName: string | null; totalTips: number; transactionCount: number };
   const tips = tipsData as { totals?: { totalTips?: number; transactionCount?: number }; byStaff?: TipsStaffRow[] } | undefined;
 
+  type FloatData = { totalLoaded?: number; totalSpent?: number; unclaimed?: number; utilizationRate?: number; braceletsWithBalance?: number; uniqueBracelets?: number };
+  const float = floatData as FloatData | undefined;
+
+  type HourBucket = { hour: number; totalAmount: number; transactionCount: number };
+  type TopupHourBucket = { hour: number; totalAmount: number; count: number };
+  const salesHours = (salesHeatmapData as { byHour?: HourBucket[] } | undefined)?.byHour ?? [];
+  const topupHours = (topupsHeatmapData as { byHour?: TopupHourBucket[] } | undefined)?.byHour ?? [];
+  const salesMax = Math.max(...salesHours.map((h) => h.totalAmount), 1);
+  const topupsMax = Math.max(...topupHours.map((h) => h.totalAmount), 1);
+
   const tabs: { key: ReportTab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
     { key: "revenue", label: t("admin.revenueReport"), icon: "trending-up" },
     { key: "topups", label: t("admin.topUpReport"), icon: "plus-circle" },
@@ -114,6 +139,8 @@ export default function EventAdminReportsScreen() {
     { key: "unclaimed", label: t("eventAdmin.unclaimed"), icon: "rotate-ccw" },
     { key: "refunds", label: t("eventAdmin.refundsReport"), icon: "corner-down-left" },
     { key: "tips", label: t("eventAdmin.tipsReport"), icon: "gift" },
+    { key: "float", label: t("eventAdmin.floatReport"), icon: "droplet" },
+    { key: "heatmap", label: t("eventAdmin.heatmapReport"), icon: "bar-chart-2" },
   ];
 
   const isLoading = revLoading || topUpLoading || invLoading;
@@ -391,6 +418,102 @@ export default function EventAdminReportsScreen() {
             </View>
           )}
 
+          {activeTab === "float" && (
+            <View style={{ gap: 12 }}>
+              <Text style={[styles.unclaimedSubtitle, { color: C.textSecondary }]}>
+                {t("eventAdmin.floatSubtitle")}
+              </Text>
+              {floatLoading ? (
+                <Loading label={t("common.loading")} />
+              ) : (
+                <>
+                  {[
+                    { label: t("eventAdmin.totalLoaded"), value: float?.totalLoaded, positive: true },
+                    { label: t("eventAdmin.totalSpent"), value: float?.totalSpent, positive: true },
+                    { label: t("eventAdmin.unclaimed"), value: float?.unclaimed, positive: false },
+                  ].map((row) => (
+                    <Card key={row.label} padding={16}>
+                      <View style={styles.reportRow}>
+                        <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{row.label}</Text>
+                        <CopAmount amount={row.value} size={18} positive={row.positive} />
+                      </View>
+                    </Card>
+                  ))}
+                  {[
+                    { label: t("eventAdmin.utilizationRate"), value: `${float?.utilizationRate ?? 0}%`, isText: true },
+                    { label: t("eventAdmin.braceletsWithBalance"), value: float?.braceletsWithBalance, isText: false },
+                    { label: t("eventAdmin.uniqueBracelets"), value: float?.uniqueBracelets, isText: false },
+                  ].map((row) => (
+                    <Card key={row.label} padding={16}>
+                      <View style={styles.reportRow}>
+                        <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{row.label}</Text>
+                        <Text style={[styles.countValue, { color: C.text }]}>{row.isText ? row.value : (row.value ?? "—")}</Text>
+                      </View>
+                    </Card>
+                  ))}
+                </>
+              )}
+            </View>
+          )}
+
+          {activeTab === "heatmap" && (
+            <View style={{ gap: 16 }}>
+              {(salesHeatmapLoading || topupsHeatmapLoading) ? (
+                <Loading label={t("common.loading")} />
+              ) : (
+                <>
+                  <Card padding={16}>
+                    <Text style={[styles.sectionHeader, { color: C.textSecondary, marginBottom: 12 }]}>
+                      {t("eventAdmin.heatmapSalesLabel")}
+                    </Text>
+                    {salesHours.every((h) => h.totalAmount === 0) ? (
+                      <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("eventAdmin.noActivity")}</Text>
+                    ) : (
+                      <View style={{ gap: 4 }}>
+                        {salesHours.map((h) => {
+                          const intensity = h.totalAmount / salesMax;
+                          return (
+                            <View key={h.hour} style={styles.heatRow}>
+                              <Text style={[styles.heatHour, { color: C.textMuted }]}>{`${String(h.hour).padStart(2, "0")}h`}</Text>
+                              <View style={[styles.heatBar, { backgroundColor: C.inputBg, flex: 1 }]}>
+                                <View style={{ width: `${Math.max(intensity * 100, h.totalAmount > 0 ? 2 : 0)}%`, height: "100%", backgroundColor: C.primary, opacity: 0.3 + intensity * 0.7, borderRadius: 4 }} />
+                              </View>
+                              <CopAmount amount={h.totalAmount} size={12} />
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </Card>
+
+                  <Card padding={16}>
+                    <Text style={[styles.sectionHeader, { color: C.textSecondary, marginBottom: 12 }]}>
+                      {t("eventAdmin.heatmapTopupsLabel")}
+                    </Text>
+                    {topupHours.every((h) => h.totalAmount === 0) ? (
+                      <Text style={[styles.emptyText, { color: C.textMuted }]}>{t("eventAdmin.noActivity")}</Text>
+                    ) : (
+                      <View style={{ gap: 4 }}>
+                        {topupHours.map((h) => {
+                          const intensity = h.totalAmount / topupsMax;
+                          return (
+                            <View key={h.hour} style={styles.heatRow}>
+                              <Text style={[styles.heatHour, { color: C.textMuted }]}>{`${String(h.hour).padStart(2, "0")}h`}</Text>
+                              <View style={[styles.heatBar, { backgroundColor: C.inputBg, flex: 1 }]}>
+                                <View style={{ width: `${Math.max(intensity * 100, h.totalAmount > 0 ? 2 : 0)}%`, height: "100%", backgroundColor: "#22c55e", opacity: 0.3 + intensity * 0.7, borderRadius: 4 }} />
+                              </View>
+                              <CopAmount amount={h.totalAmount} size={12} />
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </Card>
+                </>
+              )}
+            </View>
+          )}
+
           {activeTab === "tips" && (
             <View style={{ gap: 12 }}>
               <Text style={[styles.unclaimedSubtitle, { color: C.textSecondary }]}>
@@ -472,4 +595,7 @@ const styles = StyleSheet.create({
   methodRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   methodName: { fontSize: 14, fontFamily: "Inter_500Medium" },
   methodCount: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+  heatRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  heatHour: { fontSize: 11, fontFamily: "Inter_400Regular", width: 28, textAlign: "right" },
+  heatBar: { height: 14, borderRadius: 4, overflow: "hidden" },
 });

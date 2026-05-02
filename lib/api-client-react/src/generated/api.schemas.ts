@@ -1094,6 +1094,44 @@ export interface TopUpReport {
   bySource: TopUpReportBySource;
 }
 
+export interface FloatReport {
+  totalLoaded: number;
+  totalSpent: number;
+  unclaimed: number;
+  /** Percentage of loaded funds that have been spent (0-100) */
+  utilizationRate: number;
+  braceletsWithBalance: number;
+  uniqueBracelets: number;
+}
+
+export interface HourBucket {
+  /**
+   * @minimum 0
+   * @maximum 23
+   */
+  hour: number;
+  totalAmount: number;
+  transactionCount: number;
+}
+
+export interface TopupHourBucket {
+  /**
+   * @minimum 0
+   * @maximum 23
+   */
+  hour: number;
+  totalAmount: number;
+  count: number;
+}
+
+export interface SalesHeatmap {
+  byHour: HourBucket[];
+}
+
+export interface TopupsHeatmap {
+  byHour: TopupHourBucket[];
+}
+
 export type TipsByStaffReportTotals = {
   totalTips: number;
   transactionCount: number;
@@ -1756,6 +1794,24 @@ export type GetTopUpReportParams = {
   from?: string;
   to?: string;
   promoterCompanyId?: string;
+};
+
+export type GetFloatReportParams = {
+  eventId?: string;
+  from?: string;
+  to?: string;
+};
+
+export type GetSalesHeatmapParams = {
+  eventId?: string;
+  from?: string;
+  to?: string;
+};
+
+export type GetTopupsHeatmapParams = {
+  eventId?: string;
+  from?: string;
+  to?: string;
 };
 
 export type GetTipsByStaffReportParams = {

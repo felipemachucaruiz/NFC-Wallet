@@ -50,6 +50,7 @@ import type {
   DamagedGoodsEntry,
   ErrorEnvelope,
   Event,
+  FloatReport,
   ForbiddenResponse,
   FraudAlert,
   FraudAlertsListResponse,
@@ -61,15 +62,18 @@ import type {
   GetAnalyticsTopProductsParams,
   GetFiscalSummary200,
   GetFiscalSummaryParams,
+  GetFloatReportParams,
   GetFraudAlertsParams,
   GetInventoryReportParams,
   GetLocationInventory200,
   GetMerchantEarningsParams,
   GetRefundsReportParams,
   GetRevenueReportParams,
+  GetSalesHeatmapParams,
   GetSnapshotParams,
   GetTipsByStaffReportParams,
   GetTopUpReportParams,
+  GetTopupsHeatmapParams,
   GetWarehouseInventory200,
   HandleBrowserLoginCallbackParams,
   HandleWompiWebhookBody,
@@ -133,6 +137,7 @@ import type {
   ResetUserPasswordBody,
   RestockOrder,
   RevenueReport,
+  SalesHeatmap,
   ShiftTopUpSummary,
   SigningKeyResponse,
   SnapshotExport,
@@ -147,6 +152,7 @@ import type {
   TipsByStaffReport,
   TopUpReport,
   TopUpResult,
+  TopupsHeatmap,
   TransactionLog,
   TransferBetweenLocations201,
   UnauthorizedResponse,
@@ -6902,6 +6908,297 @@ export function useGetTopUpReport<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetTopUpReportQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Float analysis — loaded vs. spent vs. unclaimed balance (admin or event_admin)
+ */
+export const getGetFloatReportUrl = (params?: GetFloatReportParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/float?${stringifiedParams}`
+    : `/api/reports/float`;
+};
+
+export const getFloatReport = async (
+  params?: GetFloatReportParams,
+  options?: RequestInit,
+): Promise<FloatReport> => {
+  return customFetch<FloatReport>(getGetFloatReportUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetFloatReportQueryKey = (params?: GetFloatReportParams) => {
+  return [`/api/reports/float`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetFloatReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFloatReport>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetFloatReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getFloatReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetFloatReportQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFloatReport>>> = ({
+    signal,
+  }) => getFloatReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFloatReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetFloatReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFloatReport>>
+>;
+export type GetFloatReportQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Float analysis — loaded vs. spent vs. unclaimed balance (admin or event_admin)
+ */
+
+export function useGetFloatReport<
+  TData = Awaited<ReturnType<typeof getFloatReport>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetFloatReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getFloatReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetFloatReportQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Hourly sales heatmap — transaction volume by hour of day (admin or event_admin)
+ */
+export const getGetSalesHeatmapUrl = (params?: GetSalesHeatmapParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/sales-heatmap?${stringifiedParams}`
+    : `/api/reports/sales-heatmap`;
+};
+
+export const getSalesHeatmap = async (
+  params?: GetSalesHeatmapParams,
+  options?: RequestInit,
+): Promise<SalesHeatmap> => {
+  return customFetch<SalesHeatmap>(getGetSalesHeatmapUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSalesHeatmapQueryKey = (params?: GetSalesHeatmapParams) => {
+  return [`/api/reports/sales-heatmap`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetSalesHeatmapQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSalesHeatmap>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetSalesHeatmapParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSalesHeatmap>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSalesHeatmapQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSalesHeatmap>>> = ({
+    signal,
+  }) => getSalesHeatmap(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSalesHeatmap>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSalesHeatmapQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSalesHeatmap>>
+>;
+export type GetSalesHeatmapQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Hourly sales heatmap — transaction volume by hour of day (admin or event_admin)
+ */
+
+export function useGetSalesHeatmap<
+  TData = Awaited<ReturnType<typeof getSalesHeatmap>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetSalesHeatmapParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSalesHeatmap>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSalesHeatmapQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Hourly top-up heatmap — recharge activity by hour of day (admin or event_admin)
+ */
+export const getGetTopupsHeatmapUrl = (params?: GetTopupsHeatmapParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/topups-heatmap?${stringifiedParams}`
+    : `/api/reports/topups-heatmap`;
+};
+
+export const getTopupsHeatmap = async (
+  params?: GetTopupsHeatmapParams,
+  options?: RequestInit,
+): Promise<TopupsHeatmap> => {
+  return customFetch<TopupsHeatmap>(getGetTopupsHeatmapUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTopupsHeatmapQueryKey = (
+  params?: GetTopupsHeatmapParams,
+) => {
+  return [`/api/reports/topups-heatmap`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetTopupsHeatmapQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTopupsHeatmap>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetTopupsHeatmapParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTopupsHeatmap>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetTopupsHeatmapQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTopupsHeatmap>>
+  > = ({ signal }) => getTopupsHeatmap(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTopupsHeatmap>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTopupsHeatmapQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTopupsHeatmap>>
+>;
+export type GetTopupsHeatmapQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Hourly top-up heatmap — recharge activity by hour of day (admin or event_admin)
+ */
+
+export function useGetTopupsHeatmap<
+  TData = Awaited<ReturnType<typeof getTopupsHeatmap>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetTopupsHeatmapParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTopupsHeatmap>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTopupsHeatmapQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

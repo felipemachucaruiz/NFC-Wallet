@@ -638,7 +638,18 @@
     "tipsByStaffSubtitle": "Total de propinas recaudadas por cajero",
     "totalTips": "Total propinas",
     "transactions": "transacciones",
-    "noTips": "Sin propinas en este período"
+    "noTips": "Sin propinas en este período",
+    "floatAnalysis": "Análisis de Float",
+    "floatSubtitle": "Cargado vs. gastado vs. saldo sin reclamar",
+    "totalLoaded": "Total Cargado",
+    "totalSpent": "Total Gastado",
+    "unclaimed": "Saldo Sin Reclamar",
+    "utilizationRate": "Tasa de Uso",
+    "braceletsWithBalance": "Manillas con Saldo",
+    "uniqueBracelets": "Manillas Únicas",
+    "salesHeatmap": "Ventas por Hora",
+    "topupsHeatmap": "Recargas por Hora",
+    "noActivity": "Sin actividad registrada"
   },
   "inventory": {
     "title": "Inventario",

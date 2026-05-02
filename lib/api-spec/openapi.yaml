@@ -2011,6 +2011,111 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /reports/float:
+    get:
+      tags: [Reports]
+      operationId: getFloatReport
+      summary: Float analysis — loaded vs. spent vs. unclaimed balance (admin or event_admin)
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Float report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FloatReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/sales-heatmap:
+    get:
+      tags: [Reports]
+      operationId: getSalesHeatmap
+      summary: Hourly sales heatmap — transaction volume by hour of day (admin or event_admin)
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Sales heatmap.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesHeatmap'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/topups-heatmap:
+    get:
+      tags: [Reports]
+      operationId: getTopupsHeatmap
+      summary: Hourly top-up heatmap — recharge activity by hour of day (admin or event_admin)
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Top-ups heatmap.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopupsHeatmap'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /reports/tips-by-staff:
     get:
       tags: [Reports]
@@ -4779,6 +4884,68 @@ components:
                   type: integer
                 count:
                   type: integer
+
+    FloatReport:
+      type: object
+      required: [totalLoaded, totalSpent, unclaimed, utilizationRate, braceletsWithBalance, uniqueBracelets]
+      properties:
+        totalLoaded:
+          type: integer
+        totalSpent:
+          type: integer
+        unclaimed:
+          type: integer
+        utilizationRate:
+          type: integer
+          description: Percentage of loaded funds that have been spent (0-100)
+        braceletsWithBalance:
+          type: integer
+        uniqueBracelets:
+          type: integer
+
+    HourBucket:
+      type: object
+      required: [hour, totalAmount, transactionCount]
+      properties:
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        totalAmount:
+          type: integer
+        transactionCount:
+          type: integer
+
+    TopupHourBucket:
+      type: object
+      required: [hour, totalAmount, count]
+      properties:
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        totalAmount:
+          type: integer
+        count:
+          type: integer
+
+    SalesHeatmap:
+      type: object
+      required: [byHour]
+      properties:
+        byHour:
+          type: array
+          items:
+            $ref: '#/components/schemas/HourBucket'
+
+    TopupsHeatmap:
+      type: object
+      required: [byHour]
+      properties:
+        byHour:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopupHourBucket'
 
     TipsByStaffReport:
       type: object
