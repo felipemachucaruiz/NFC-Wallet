@@ -45,15 +45,8 @@ router.post(
     // Auto-register new bracelets on first top-up
     const bankEventId = (req.user as { eventId?: string | null }).eventId ?? null;
     if (!bracelet) {
-      // Refuse to recreate a bracelet that was hard-deleted by an admin
-      const [tombstone] = await db
-        .select()
-        .from(deletedBraceletUidsTable)
-        .where(eq(deletedBraceletUidsTable.nfcUid, nfcUid));
-      if (tombstone) {
-        res.status(404).json({ error: "BRACELET_DELETED: Esta pulsera fue eliminada y no puede usarse" });
-        return;
-      }
+      // Clear any tombstone so a previously-deleted bracelet can be reused
+      await db.delete(deletedBraceletUidsTable).where(eq(deletedBraceletUidsTable.nfcUid, nfcUid));
       const [created] = await db
         .insert(braceletsTable)
         .values({ nfcUid, lastKnownBalance: 0, lastCounter: 0, eventId: bankEventId })
@@ -211,15 +204,8 @@ router.post(
     // Auto-register new bracelets
     const syncBankEventId = (req.user as { eventId?: string | null }).eventId ?? null;
     if (!bracelet) {
-      // Refuse to recreate a bracelet that was hard-deleted by an admin
-      const [syncTombstone] = await db
-        .select()
-        .from(deletedBraceletUidsTable)
-        .where(eq(deletedBraceletUidsTable.nfcUid, nfcUid));
-      if (syncTombstone) {
-        res.status(404).json({ error: "BRACELET_DELETED: Esta pulsera fue eliminada y no puede usarse" });
-        return;
-      }
+      // Clear any tombstone so a previously-deleted bracelet can be reused
+      await db.delete(deletedBraceletUidsTable).where(eq(deletedBraceletUidsTable.nfcUid, nfcUid));
       const [created] = await db
         .insert(braceletsTable)
         .values({ nfcUid, lastKnownBalance: 0, lastCounter: 0, eventId: syncBankEventId })
