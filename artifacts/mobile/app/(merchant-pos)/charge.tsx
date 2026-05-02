@@ -167,6 +167,7 @@ export default function ChargeScreen() {
   const [selectedTipPercent, setSelectedTipPercent] = useState<number | null>(null);
   const [customTipPercent, setCustomTipPercent] = useState("");
   const [confirmedTipAmount, setConfirmedTipAmount] = useState(0);
+  const confirmedTipAmountRef = useRef(0);
   const [confirmedTipPercent, setConfirmedTipPercent] = useState<number | null>(null);
 
   const parsedCustomPct = customTipPercent !== "" ? parseFloat(customTipPercent) : NaN;
@@ -238,7 +239,7 @@ export default function ChargeScreen() {
           newBalance,
           counter: newCounter,
           lineItems: lineItems.map((li) => ({ productId: li.productId, quantity: li.quantity })),
-          ...(confirmedTipAmount > 0 ? { tipAmount: confirmedTipAmount } : {}),
+          ...(confirmedTipAmountRef.current > 0 ? { tipAmount: confirmedTipAmountRef.current } : {}),
           offlineCreatedAt: new Date().toISOString(),
           ...(newHmac ? { hmac: newHmac } : {}),
         },
@@ -271,7 +272,7 @@ export default function ChargeScreen() {
           counter: newCounter,
           lineItems,
           grossAmount: total,
-          tipAmount: confirmedTipAmount,
+          tipAmount: confirmedTipAmountRef.current,
           hmac: newHmac,
         });
       } catch {}
@@ -570,6 +571,7 @@ export default function ChargeScreen() {
   const handleTipConfirm = (noTip?: boolean) => {
     const tipAmount = noTip ? 0 : previewTipAmount;
     const tipPercent = noTip ? null : activeTipPercent;
+    confirmedTipAmountRef.current = tipAmount;
     setConfirmedTipAmount(tipAmount);
     setConfirmedTipPercent(tipPercent);
     setNfcModalVisible(true);
