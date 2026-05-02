@@ -1,6 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { TapeeLogo } from "@/components/TapeeLogo";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { AppleSignInButton } from "@/components/AppleSignInButton";
 import { WhatsAppOtpModal } from "@/components/WhatsAppOtpModal";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Feather } from "@expo/vector-icons";
@@ -71,8 +72,8 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
-  const { googleClientId } = useAuth();
-  const hasSocial = !!googleClientId;
+  const { googleClientId, appleSignInEnabled } = useAuth();
+  const hasSocial = !!googleClientId || (Platform.OS === "ios" && appleSignInEnabled);
 
 
   useEffect(() => {
@@ -317,6 +318,8 @@ export default function LoginScreen() {
             </View>
 
             <GoogleSignInButton onError={(msg) => setError(msg)} />
+
+            <AppleSignInButton onError={(msg) => setError(msg)} />
 
             <Pressable
               onPress={() => setShowWhatsApp(true)}

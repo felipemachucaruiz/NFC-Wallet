@@ -44,9 +44,11 @@ interface AuthContextValue {
   sessionExpired: boolean;
   clearSessionExpired: () => void;
   googleClientId: string | null;
+  appleSignInEnabled: boolean;
   login: (identifier: string, password: string, keepMeLoggedIn?: boolean) => Promise<string | null>;
   register: (email: string, password: string, firstName: string, lastName: string, phone?: string) => Promise<string | null>;
   loginWithGoogle: (idToken: string) => Promise<string | null>;
+  loginWithApple: (identityToken: string, firstName?: string, lastName?: string) => Promise<string | null>;
   loginWithSessionToken: (sessionToken: string) => Promise<string | null>;
   sendWhatsAppOtp: (phone: string) => Promise<{ expiresIn: number }>;
   verifyWhatsAppOtp: (phone: string, code: string) => Promise<string | null>;
@@ -107,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [appleSignInEnabled, setAppleSignInEnabled] = useState(false);
 
   const queryClient = useQueryClient();
   const tokenRef = useRef<string | null>(null);
@@ -134,8 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/auth/providers`)
       .then((r) => r.json())
-      .then((d: { providers?: { google?: string } }) => {
+      .then((d: { providers?: { google?: string; apple?: boolean } }) => {
         if (d.providers?.google) setGoogleClientId(d.providers.google);
+        if (d.providers?.apple) setAppleSignInEnabled(true);
       })
       .catch(() => {});
   }, []);
@@ -244,6 +248,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         return (body as { error?: string }).error ?? "Google login failed";
+      }
+      const { token: sid } = await res.json() as { token: string };
+      const u = await fetchCurrentUser(sid);
+      if (!u) return "No se pudo cargar el perfil";
+      if (u === "network_error") return "Error de red";
+      if (u.role !== "attendee") return "StaffNotAllowed";
+      await storeToken(sid);
+      setAuthToken(sid);
+      setUser(u as AuthUser);
+      return null;
+    } catch {
+      return "Error de red";
+    }
+  }, [setAuthToken]);
+
+  const loginWithApple = useCallback(async (identityToken: string, firstName?: string, lastName?: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/apple`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identityToken, firstName, lastName }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return (body as { error?: string }).error ?? "Apple login failed";
       }
       const { token: sid } = await res.json() as { token: string };
       const u = await fetchCurrentUser(sid);
@@ -411,9 +440,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionExpired,
       clearSessionExpired,
       googleClientId,
+      appleSignInEnabled,
       login,
       register,
       loginWithGoogle,
+      loginWithApple,
       loginWithSessionToken,
       sendWhatsAppOtp,
       verifyWhatsAppOtp,

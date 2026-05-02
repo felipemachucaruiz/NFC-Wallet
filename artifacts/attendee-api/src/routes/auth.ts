@@ -1,6 +1,7 @@
 import * as oidc from "openid-client";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { hashPassword, comparePassword } from "../lib/bcryptWorker";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
@@ -106,12 +107,95 @@ async function upsertUser(claims: Record<string, unknown>) {
   return user;
 }
 
+const APPLE_JWKS = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
+
 router.get("/auth/providers", (_req: Request, res: Response) => {
-  const providers: { google?: string } = {};
+  const providers: { google?: string; apple?: boolean } = {};
   if (process.env.GOOGLE_CLIENT_ID) {
     providers.google = process.env.GOOGLE_CLIENT_ID;
   }
+  providers.apple = true;
   res.json({ providers });
+});
+
+const AppleAuthBody = z.object({
+  identityToken: z.string().min(1),
+  firstName: z.string().max(100).optional(),
+  lastName: z.string().max(100).optional(),
+});
+
+router.post("/auth/apple", async (req: Request, res: Response) => {
+  const parsed = AppleAuthBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Identity token is required" });
+    return;
+  }
+
+  const { identityToken, firstName, lastName } = parsed.data;
+  const audience = process.env.APPLE_CLIENT_ID ?? "com.tapee.attendee";
+
+  try {
+    const { payload } = await jwtVerify(identityToken, APPLE_JWKS, {
+      issuer: "https://appleid.apple.com",
+      audience,
+    });
+
+    const email = payload.email as string | undefined;
+    if (!email) {
+      res.status(400).json({ error: "Email is required. Please allow email access when signing in with Apple." });
+      return;
+    }
+
+    const appleEmail = email.toLowerCase().trim();
+    const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, appleEmail));
+
+    let userId: string;
+
+    if (existingUser) {
+      if (existingUser.role !== "attendee") {
+        res.status(403).json({ error: "Staff accounts must log in via the staff portal" });
+        return;
+      }
+      userId = existingUser.id;
+      if (!existingUser.emailVerified) {
+        await db.update(usersTable).set({ emailVerified: true, updatedAt: new Date() }).where(eq(usersTable.id, existingUser.id));
+      }
+      if (!existingUser.firstName && firstName) {
+        await db.update(usersTable).set({ firstName, lastName: lastName ?? null, updatedAt: new Date() }).where(eq(usersTable.id, existingUser.id));
+      }
+    } else {
+      const [newUser] = await db.insert(usersTable).values({
+        email: appleEmail,
+        firstName: firstName ?? null,
+        lastName: lastName ?? null,
+        role: "attendee",
+        emailVerified: true,
+      }).returning();
+      userId = newUser.id;
+    }
+
+    const [freshUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+
+    const sessionData = {
+      user: {
+        id: freshUser.id,
+        email: freshUser.email,
+        firstName: freshUser.firstName,
+        lastName: freshUser.lastName,
+        profileImageUrl: freshUser.profileImageUrl,
+        role: freshUser.role,
+        merchantId: freshUser.merchantId ?? null,
+        eventId: freshUser.eventId ?? null,
+        promoterCompanyId: freshUser.promoterCompanyId ?? null,
+      },
+    };
+
+    const sid = await createSession(sessionData);
+    res.json({ token: sid });
+  } catch (err) {
+    req.log.error({ err }, "Apple auth error");
+    res.status(401).json({ error: "Apple authentication failed" });
+  }
 });
 
 router.get("/auth/user", async (req: Request, res: Response) => {
