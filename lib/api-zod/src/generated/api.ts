@@ -41,7 +41,6 @@ export const GetCurrentAuthUserResponse = zod.object({
         "warehouse_admin",
         "event_admin",
         "admin",
-        "ticketing_auditor",
       ]),
       merchantId: zod
         .string()
@@ -175,7 +174,6 @@ export const ListUsersResponse = zod.object({
         "warehouse_admin",
         "event_admin",
         "admin",
-        "ticketing_auditor",
       ]),
       eventId: zod.string().nullish(),
       merchantId: zod.string().nullish(),
@@ -206,7 +204,6 @@ export const UpdateUserRoleBody = zod.object({
     "warehouse_admin",
     "event_admin",
     "admin",
-    "ticketing_auditor",
   ]),
 });
 
@@ -226,7 +223,6 @@ export const UpdateUserRoleResponse = zod.object({
     "warehouse_admin",
     "event_admin",
     "admin",
-    "ticketing_auditor",
   ]),
   eventId: zod.string().nullish(),
   merchantId: zod.string().nullish(),
@@ -259,7 +255,6 @@ export const ListMerchantStaffResponse = zod.object({
         "warehouse_admin",
         "event_admin",
         "admin",
-        "ticketing_auditor",
       ]),
       eventId: zod.string().nullish(),
       merchantId: zod.string().nullish(),
@@ -1955,6 +1950,35 @@ export const GetTopUpReportResponse = zod.object({
 });
 
 /**
+ * @summary Tips breakdown per merchant staff / merchant admin (admin or event_admin)
+ */
+export const GetTipsByStaffReportQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  merchantId: zod.coerce.string().optional(),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const GetTipsByStaffReportResponse = zod.object({
+  totals: zod.object({
+    totalTips: zod.number(),
+    transactionCount: zod.number(),
+  }),
+  byStaff: zod.array(
+    zod.object({
+      userId: zod.string(),
+      firstName: zod.string().nullish(),
+      lastName: zod.string().nullish(),
+      role: zod.string().nullish(),
+      merchantId: zod.string(),
+      merchantName: zod.string().nullish(),
+      totalTips: zod.number(),
+      transactionCount: zod.number(),
+    }),
+  ),
+});
+
+/**
  * @summary Initiate a digital top-up via Nequi or PSE (Wompi)
  */
 
@@ -2631,7 +2655,6 @@ export const AssignUserToEventResponse = zod.object({
     "warehouse_admin",
     "event_admin",
     "admin",
-    "ticketing_auditor",
   ]),
   eventId: zod.string().nullish(),
   merchantId: zod.string().nullish(),
@@ -2681,7 +2704,6 @@ export const CreateAccountBody = zod.object({
     "warehouse_admin",
     "event_admin",
     "admin",
-    "ticketing_auditor",
   ]),
   eventId: zod.string().optional(),
   gateZoneId: zod.string().nullish(),

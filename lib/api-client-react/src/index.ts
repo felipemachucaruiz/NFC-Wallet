@@ -10,4 +10,8 @@ export {
   customFetch,
   ApiError,
 } from "./custom-fetch";
-export type { AuthTokenGetter, AttestationTokenGetter, ErrorType } from "./custom-fetch";
+export type {
+  AuthTokenGetter,
+  AttestationTokenGetter,
+  ErrorType,
+} from "./custom-fetch";

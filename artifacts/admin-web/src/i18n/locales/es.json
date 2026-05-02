@@ -633,7 +633,12 @@
     "ivaCollected": "IVA cobrado",
     "retencion": "Retención: ${{value}}",
     "revenueByMerchant": "Ingresos por Comerciante",
-    "gross": "bruto"
+    "gross": "bruto",
+    "tipsByStaff": "Propinas por Cajero",
+    "tipsByStaffSubtitle": "Total de propinas recaudadas por cajero",
+    "totalTips": "Total propinas",
+    "transactions": "transacciones",
+    "noTips": "Sin propinas en este período"
   },
   "inventory": {
     "title": "Inventario",

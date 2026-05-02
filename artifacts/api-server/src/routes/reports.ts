@@ -835,4 +835,79 @@ router.get(
   },
 );
 
+router.get(
+  "/reports/tips-by-staff",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId, merchantId, from, to } = req.query as Record<string, string | undefined>;
+    const user = req.user!;
+
+    const empty = { totals: { totalTips: 0, transactionCount: 0 }, byStaff: [] };
+    const conditions = [];
+
+    if (user.role === "event_admin") {
+      const userCompanyId = (user as { promoterCompanyId?: string | null }).promoterCompanyId;
+      if (userCompanyId) {
+        const companyEventIds = await getEventIdsByPromoterCompany(userCompanyId);
+        if (companyEventIds.length === 0) { res.json(empty); return; }
+        conditions.push(inArray(transactionLogsTable.eventId, companyEventIds));
+        if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
+      } else {
+        if (!user.eventId) { res.json(empty); return; }
+        conditions.push(eq(transactionLogsTable.eventId, user.eventId));
+      }
+    } else {
+      if (eventId) conditions.push(eq(transactionLogsTable.eventId, eventId));
+    }
+
+    if (merchantId) conditions.push(eq(transactionLogsTable.merchantId, merchantId));
+    if (from) conditions.push(gte(transactionLogsTable.createdAt, new Date(from)));
+    if (to) conditions.push(lte(transactionLogsTable.createdAt, new Date(to)));
+    conditions.push(sql`${transactionLogsTable.tipAmount} > 0`);
+
+    const rows = await db
+      .select({
+        performedByUserId: transactionLogsTable.performedByUserId,
+        merchantId: transactionLogsTable.merchantId,
+        totalTips: sql<number>`COALESCE(SUM(${transactionLogsTable.tipAmount}), 0)`.mapWith(Number),
+        transactionCount: sql<number>`COUNT(*)`.mapWith(Number),
+      })
+      .from(transactionLogsTable)
+      .where(and(...conditions))
+      .groupBy(transactionLogsTable.performedByUserId, transactionLogsTable.merchantId);
+
+    if (rows.length === 0) { res.json(empty); return; }
+
+    const userIds = [...new Set(rows.map((r) => r.performedByUserId).filter(Boolean) as string[])];
+    const merchantIds = [...new Set(rows.map((r) => r.merchantId).filter(Boolean) as string[])];
+
+    const [staffUsers, staffMerchants] = await Promise.all([
+      userIds.length > 0 ? db.select().from(usersTable).where(inArray(usersTable.id, userIds)) : Promise.resolve([]),
+      merchantIds.length > 0 ? db.select().from(merchantsTable).where(inArray(merchantsTable.id, merchantIds)) : Promise.resolve([]),
+    ]);
+
+    const byStaff = rows
+      .map((row) => {
+        const usr = staffUsers.find((u) => u.id === row.performedByUserId);
+        const merchant = staffMerchants.find((m) => m.id === row.merchantId);
+        return {
+          userId: row.performedByUserId,
+          firstName: usr?.firstName ?? null,
+          lastName: usr?.lastName ?? null,
+          role: usr?.role ?? null,
+          merchantId: row.merchantId,
+          merchantName: merchant?.name ?? null,
+          totalTips: row.totalTips,
+          transactionCount: row.transactionCount,
+        };
+      })
+      .sort((a, b) => b.totalTips - a.totalTips);
+
+    const totalTips = byStaff.reduce((s, r) => s + r.totalTips, 0);
+    const transactionCount = byStaff.reduce((s, r) => s + r.transactionCount, 0);
+
+    res.json({ totals: { totalTips, transactionCount }, byStaff });
+  },
+);
+
 export default router;

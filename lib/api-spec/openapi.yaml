@@ -2011,6 +2011,46 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /reports/tips-by-staff:
+    get:
+      tags: [Reports]
+      operationId: getTipsByStaffReport
+      summary: Tips breakdown per merchant staff / merchant admin (admin or event_admin)
+      parameters:
+        - name: eventId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: merchantId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Tips by staff report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TipsByStaffReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   # ── Digital Payments (Wompi) ─────────────────────────────────────────────────
   /payments/initiate:
     post:
@@ -4739,6 +4779,41 @@ components:
                   type: integer
                 count:
                   type: integer
+
+    TipsByStaffReport:
+      type: object
+      required: [totals, byStaff]
+      properties:
+        totals:
+          type: object
+          required: [totalTips, transactionCount]
+          properties:
+            totalTips:
+              type: integer
+            transactionCount:
+              type: integer
+        byStaff:
+          type: array
+          items:
+            type: object
+            required: [userId, merchantId, totalTips, transactionCount]
+            properties:
+              userId:
+                type: string
+              firstName:
+                type: [string, 'null']
+              lastName:
+                type: [string, 'null']
+              role:
+                type: [string, 'null']
+              merchantId:
+                type: string
+              merchantName:
+                type: [string, 'null']
+              totalTips:
+                type: integer
+              transactionCount:
+                type: integer
 
     WompiPaymentIntentResult:
       type: object
