@@ -10,6 +10,7 @@ import {
   useGetInventoryReport,
   useGetUnclaimedBalances,
   useGetRefundsReport,
+  useGetTipsByStaffReport,
 } from "@workspace/api-client-react";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
@@ -18,7 +19,7 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useAuth } from "@/contexts/AuthContext";
 
-type ReportTab = "revenue" | "topups" | "inventory" | "unclaimed" | "refunds";
+type ReportTab = "revenue" | "topups" | "inventory" | "unclaimed" | "refunds" | "tips";
 type UnclaimedFilter = "all" | "pending" | "refunded";
 
 interface RefundRecord {
@@ -75,6 +76,10 @@ export default function EventAdminReportsScreen() {
     eventId ? { eventId } : {},
     { query: { enabled: activeTab === "refunds" } },
   );
+  const { data: tipsData, isLoading: tipsLoading } = useGetTipsByStaffReport(
+    eventId ? { eventId } : {},
+    { query: { enabled: activeTab === "tips" } },
+  );
 
   type RevenueResponse = {
     totalSales?: number;
@@ -99,12 +104,16 @@ export default function EventAdminReportsScreen() {
 
   const refunds = refundsData as { totalRefunded?: number; count?: number; byRefundMethod?: Record<string, RefundMethodBreakdown> } | undefined;
 
+  type TipsStaffRow = { userId: string | null; firstName: string | null; lastName: string | null; role: string | null; merchantId: string; merchantName: string | null; totalTips: number; transactionCount: number };
+  const tips = tipsData as { totals?: { totalTips?: number; transactionCount?: number }; byStaff?: TipsStaffRow[] } | undefined;
+
   const tabs: { key: ReportTab; label: string; icon: React.ComponentProps<typeof Feather>["name"] }[] = [
     { key: "revenue", label: t("admin.revenueReport"), icon: "trending-up" },
     { key: "topups", label: t("admin.topUpReport"), icon: "plus-circle" },
     { key: "inventory", label: t("admin.inventoryReport"), icon: "package" },
     { key: "unclaimed", label: t("eventAdmin.unclaimed"), icon: "rotate-ccw" },
     { key: "refunds", label: t("eventAdmin.refundsReport"), icon: "corner-down-left" },
+    { key: "tips", label: t("eventAdmin.tipsReport"), icon: "gift" },
   ];
 
   const isLoading = revLoading || topUpLoading || invLoading;
@@ -374,6 +383,56 @@ export default function EventAdminReportsScreen() {
                     <Card padding={24}>
                       <Text style={[styles.emptyText, { color: C.textMuted }]}>
                         {t("eventAdmin.noRefunds")}
+                      </Text>
+                    </Card>
+                  )}
+                </>
+              )}
+            </View>
+          )}
+
+          {activeTab === "tips" && (
+            <View style={{ gap: 12 }}>
+              <Text style={[styles.unclaimedSubtitle, { color: C.textSecondary }]}>
+                {t("eventAdmin.tipsReportSubtitle")}
+              </Text>
+
+              {tipsLoading ? (
+                <Loading label={t("common.loading")} />
+              ) : (
+                <>
+                  <Card padding={16}>
+                    <View style={styles.reportRow}>
+                      <Text style={[styles.reportLabel, { color: C.textSecondary }]}>{t("eventAdmin.totalTipsGrand")}</Text>
+                      <CopAmount amount={tips?.totals?.totalTips} size={18} positive />
+                    </View>
+                  </Card>
+
+                  {tips?.byStaff && tips.byStaff.length > 0 ? (
+                    <Card padding={16}>
+                      <Text style={[styles.sectionHeader, { color: C.textSecondary, marginBottom: 12 }]}>
+                        {t("eventAdmin.tipsReportTitle")}
+                      </Text>
+                      <View style={{ gap: 10 }}>
+                        {tips.byStaff.map((row, i) => (
+                          <View key={i} style={styles.methodRow}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.methodName, { color: C.text }]}>
+                                {[row.firstName, row.lastName].filter(Boolean).join(" ") || row.userId || "—"}
+                              </Text>
+                              <Text style={[styles.methodCount, { color: C.textMuted }]}>
+                                {row.merchantName ?? "—"} · {t("eventAdmin.txCount", { count: row.transactionCount })}
+                              </Text>
+                            </View>
+                            <CopAmount amount={row.totalTips} size={16} positive />
+                          </View>
+                        ))}
+                      </View>
+                    </Card>
+                  ) : (
+                    <Card padding={24}>
+                      <Text style={[styles.emptyText, { color: C.textMuted }]}>
+                        {t("eventAdmin.noTips")}
                       </Text>
                     </Card>
                   )}

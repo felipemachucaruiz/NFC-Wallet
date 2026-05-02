@@ -14,6 +14,4 @@ export const InitiateDigitalTopUpBodyPaymentMethod = {
   pse: "pse",
   card: "card",
   bancolombia_transfer: "bancolombia_transfer",
-  daviplata: "daviplata",
-  puntoscolombia: "puntoscolombia",
 } as const;

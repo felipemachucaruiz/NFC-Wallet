@@ -5,11 +5,12 @@ import {
   useGetRevenueReport,
   useGetTopUpReport,
   useGetRefundsReport,
+  useGetTipsByStaffReport,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
-import { DollarSign, TrendingUp, RefreshCcw } from "lucide-react";
+import { DollarSign, TrendingUp, RefreshCcw, Gift } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 import { useEventContext } from "@/contexts/event-context";
@@ -27,6 +28,7 @@ export default function EventReports() {
   const { data: revenue, isLoading: revLoading } = useGetRevenueReport(params);
   const { data: topups, isLoading: topupLoading } = useGetTopUpReport(params);
   const { data: refunds, isLoading: refundLoading } = useGetRefundsReport(params);
+  const { data: tipsReport, isLoading: tipsLoading } = useGetTipsByStaffReport({ eventId: eventId || undefined, from: startDate || undefined, to: endDate || undefined });
   const { data: eventData } = useGetEvent(eventId || "");
   const currency = (eventData as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
 
@@ -120,6 +122,40 @@ export default function EventReports() {
           </CardContent>
         </Card>
       )}
+
+      <Card data-testid="card-tips-by-staff">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Gift className="w-4 h-4" /> {t("reports.tipsByStaff")}
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">{t("reports.tipsByStaffSubtitle")}</p>
+        </CardHeader>
+        <CardContent>
+          {tipsLoading ? (
+            <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
+          ) : !tipsReport?.byStaff || tipsReport.byStaff.length === 0 ? (
+            <p className="text-muted-foreground text-sm">{t("reports.noTips")}</p>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">{t("reports.totalTips")}</span>
+                <span className="text-xl font-bold">{fmt(tipsReport.totals.totalTips)}</span>
+              </div>
+              <div className="space-y-2">
+                {tipsReport.byStaff.map((row, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0 last:pb-0">
+                    <div>
+                      <p className="font-medium">{[row.firstName, row.lastName].filter(Boolean).join(" ") || row.userId || "—"}</p>
+                      <p className="text-xs text-muted-foreground">{row.merchantName ?? "—"} · {row.transactionCount} {t("reports.transactions")}</p>
+                    </div>
+                    <span className="font-mono font-semibold">{fmt(row.totalTips)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

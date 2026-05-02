@@ -633,7 +633,12 @@
     "ivaCollected": "IVA collected",
     "retencion": "Retención: ${{value}}",
     "revenueByMerchant": "Revenue by Merchant",
-    "gross": "gross"
+    "gross": "gross",
+    "tipsByStaff": "Tips by Staff",
+    "tipsByStaffSubtitle": "Total tips collected per cashier",
+    "totalTips": "Total tips",
+    "transactions": "transactions",
+    "noTips": "No tips recorded in this period"
   },
   "inventory": {
     "title": "Inventory",

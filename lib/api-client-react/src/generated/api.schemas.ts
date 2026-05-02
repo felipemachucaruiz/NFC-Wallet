@@ -34,7 +34,6 @@ export const UserRole = {
   warehouse_admin: "warehouse_admin",
   event_admin: "event_admin",
   admin: "admin",
-  ticketing_auditor: "ticketing_auditor",
 } as const;
 
 export interface AuthUser {
@@ -1095,6 +1094,31 @@ export interface TopUpReport {
   bySource: TopUpReportBySource;
 }
 
+export type TipsByStaffReportTotals = {
+  totalTips: number;
+  transactionCount: number;
+};
+
+export type TipsByStaffReportByStaffItem = {
+  userId: string;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+  /** @nullable */
+  role?: string | null;
+  merchantId: string;
+  /** @nullable */
+  merchantName?: string | null;
+  totalTips: number;
+  transactionCount: number;
+};
+
+export interface TipsByStaffReport {
+  totals: TipsByStaffReportTotals;
+  byStaff: TipsByStaffReportByStaffItem[];
+}
+
 export type WompiPaymentIntentResultStatus =
   (typeof WompiPaymentIntentResultStatus)[keyof typeof WompiPaymentIntentResultStatus];
 
@@ -1732,6 +1756,13 @@ export type GetTopUpReportParams = {
   from?: string;
   to?: string;
   promoterCompanyId?: string;
+};
+
+export type GetTipsByStaffReportParams = {
+  eventId?: string;
+  merchantId?: string;
+  from?: string;
+  to?: string;
 };
 
 export type HandleWompiWebhookBody = { [key: string]: unknown };

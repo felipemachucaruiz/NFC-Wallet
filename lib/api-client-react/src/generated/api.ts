@@ -68,6 +68,7 @@ import type {
   GetRefundsReportParams,
   GetRevenueReportParams,
   GetSnapshotParams,
+  GetTipsByStaffReportParams,
   GetTopUpReportParams,
   GetWarehouseInventory200,
   HandleBrowserLoginCallbackParams,
@@ -143,6 +144,7 @@ import type {
   SyncTransactionsBody,
   SyncTransactionsResult,
   TamperReportBody,
+  TipsByStaffReport,
   TopUpReport,
   TopUpResult,
   TransactionLog,
@@ -6900,6 +6902,108 @@ export function useGetTopUpReport<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetTopUpReportQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Tips breakdown per merchant staff / merchant admin (admin or event_admin)
+ */
+export const getGetTipsByStaffReportUrl = (
+  params?: GetTipsByStaffReportParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/tips-by-staff?${stringifiedParams}`
+    : `/api/reports/tips-by-staff`;
+};
+
+export const getTipsByStaffReport = async (
+  params?: GetTipsByStaffReportParams,
+  options?: RequestInit,
+): Promise<TipsByStaffReport> => {
+  return customFetch<TipsByStaffReport>(getGetTipsByStaffReportUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTipsByStaffReportQueryKey = (
+  params?: GetTipsByStaffReportParams,
+) => {
+  return [`/api/reports/tips-by-staff`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetTipsByStaffReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTipsByStaffReport>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetTipsByStaffReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTipsByStaffReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetTipsByStaffReportQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTipsByStaffReport>>
+  > = ({ signal }) =>
+    getTipsByStaffReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTipsByStaffReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTipsByStaffReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTipsByStaffReport>>
+>;
+export type GetTipsByStaffReportQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Tips breakdown per merchant staff / merchant admin (admin or event_admin)
+ */
+
+export function useGetTipsByStaffReport<
+  TData = Awaited<ReturnType<typeof getTipsByStaffReport>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: GetTipsByStaffReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTipsByStaffReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTipsByStaffReportQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
