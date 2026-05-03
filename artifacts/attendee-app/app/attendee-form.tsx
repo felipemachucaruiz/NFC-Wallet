@@ -3,6 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +19,7 @@ import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
+import { DatePickerInput } from "@/components/ui/DatePickerInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency } from "@/utils/format";
 import { usePurchaseTickets } from "@/hooks/useEventsApi";
@@ -35,6 +37,19 @@ function parseStoredPhone(full: string): { country: CountryCode; local: string }
     }
   }
   return { country: COUNTRY_CODES[0], local: full };
+}
+
+function parseDDMMYYYY(s: string): Date | null {
+  if (!s || s.length < 8) return null;
+  const parts = s.split("/");
+  if (parts.length !== 3) return null;
+  const [dd, mm, yyyy] = parts.map(Number);
+  const d = new Date(yyyy, mm - 1, dd);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function toDDMMYYYY(d: Date): string {
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
 export default function AttendeeFormScreen() {
@@ -220,6 +235,10 @@ export default function AttendeeFormScreen() {
         <View style={{ width: 30 }} />
       </View>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
@@ -305,23 +324,12 @@ export default function AttendeeFormScreen() {
                     </Text>
                   )}
 
-                  <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
-                    {t("tickets.dateOfBirth", "Fecha de nacimiento")} *
-                  </Text>
-                  <TextInput
-                    style={inputStyle(`${index}_dateOfBirth`)}
-                    placeholder="DD/MM/AAAA"
-                    placeholderTextColor={C.textMuted}
-                    value={attendees[index]?.dateOfBirth ?? ""}
-                    onChangeText={(v) => {
-                      const digits = v.replace(/\D/g, "").slice(0, 8);
-                      let formatted = digits;
-                      if (digits.length > 4) formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-                      else if (digits.length > 2) formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
-                      updateAttendee(index, "dateOfBirth", formatted);
-                    }}
-                    keyboardType="numeric"
-                    maxLength={10}
+                  <DatePickerInput
+                    label={`${t("tickets.dateOfBirth", "Fecha de nacimiento")} *`}
+                    value={parseDDMMYYYY(attendees[index]?.dateOfBirth ?? "")}
+                    onChange={(d) => updateAttendee(index, "dateOfBirth", toDDMMYYYY(d))}
+                    maximumDate={new Date()}
+                    error={!!errors[`${index}_dateOfBirth`]}
                   />
                   {errors[`${index}_dateOfBirth`] && (
                     <Text style={[styles.errorText, { color: C.danger }]}>
@@ -333,36 +341,24 @@ export default function AttendeeFormScreen() {
                     {t("tickets.sex", "Género")} *
                   </Text>
                   <View style={styles.sexRow}>
-                    <Pressable
-                      style={[
-                        styles.sexBtn,
-                        {
-                          borderColor: attendees[index]?.sex === "male" ? C.primary : C.border,
-                          backgroundColor: attendees[index]?.sex === "male" ? C.primaryLight : C.inputBg,
-                        },
-                      ]}
-                      onPress={() => updateAttendee(index, "sex", "male")}
-                    >
-                      <Feather name="user" size={14} color={attendees[index]?.sex === "male" ? C.primary : C.textSecondary} />
-                      <Text style={[styles.sexBtnText, { color: attendees[index]?.sex === "male" ? C.primary : C.textSecondary }]}>
-                        {t("tickets.male", "Masculino")}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        styles.sexBtn,
-                        {
-                          borderColor: attendees[index]?.sex === "female" ? C.primary : C.border,
-                          backgroundColor: attendees[index]?.sex === "female" ? C.primaryLight : C.inputBg,
-                        },
-                      ]}
-                      onPress={() => updateAttendee(index, "sex", "female")}
-                    >
-                      <Feather name="user" size={14} color={attendees[index]?.sex === "female" ? C.primary : C.textSecondary} />
-                      <Text style={[styles.sexBtnText, { color: attendees[index]?.sex === "female" ? C.primary : C.textSecondary }]}>
-                        {t("tickets.female", "Femenino")}
-                      </Text>
-                    </Pressable>
+                    {(["male", "female", "non_binary"] as const).map((s) => (
+                      <Pressable
+                        key={s}
+                        style={[
+                          styles.sexBtn,
+                          {
+                            borderColor: attendees[index]?.sex === s ? C.primary : C.border,
+                            backgroundColor: attendees[index]?.sex === s ? C.primaryLight : C.inputBg,
+                          },
+                        ]}
+                        onPress={() => updateAttendee(index, "sex", attendees[index]?.sex === s ? "" : s)}
+                      >
+                        <Feather name="user" size={14} color={attendees[index]?.sex === s ? C.primary : C.textSecondary} />
+                        <Text style={[styles.sexBtnText, { color: attendees[index]?.sex === s ? C.primary : C.textSecondary }]}>
+                          {s === "male" ? t("tickets.male", "Masculino") : s === "female" ? t("tickets.female", "Femenino") : t("tickets.non_binary", "No binario")}
+                        </Text>
+                      </Pressable>
+                    ))}
                   </View>
                   {errors[`${index}_sex`] && (
                     <Text style={[styles.errorText, { color: C.danger }]}>
@@ -429,6 +425,7 @@ export default function AttendeeFormScreen() {
           size="lg"
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -516,10 +513,12 @@ const styles = StyleSheet.create({
   },
   sexRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
+    flexWrap: "wrap",
   },
   sexBtn: {
     flex: 1,
+    minWidth: 90,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -529,7 +528,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   sexBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "Inter_500Medium",
   },
 });

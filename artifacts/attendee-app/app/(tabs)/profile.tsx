@@ -4,6 +4,9 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -23,6 +26,48 @@ import { useMyRefundRequests, useUpdateProfile, useDeleteAccount } from "@/hooks
 import { setStoredLanguage } from "@/i18n";
 import i18n from "@/i18n";
 import { formatDate } from "@/utils/format";
+import { DatePickerInput } from "@/components/ui/DatePickerInput";
+import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
+
+function parseStoredPhone(full: string): { country: CountryCode; local: string } {
+  for (const c of COUNTRY_CODES) {
+    if (full.startsWith(c.code)) return { country: c, local: full.slice(c.code.length) };
+  }
+  return { country: COUNTRY_CODES[0], local: full };
+}
+
+function parseDDMMYYYY(s: string): Date | null {
+  if (!s || s.length < 8) return null;
+  const parts = s.split("/");
+  if (parts.length !== 3) return null;
+  const [dd, mm, yyyy] = parts.map(Number);
+  const d = new Date(yyyy, mm - 1, dd);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function toDDMMYYYY(d: Date): string {
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+const ID_TYPES = [
+  { code: "CC", label: "Cédula de ciudadanía" },
+  { code: "CE", label: "Cédula de extranjería" },
+  { code: "TI", label: "Tarjeta de identidad" },
+  { code: "PP", label: "Pasaporte" },
+  { code: "RC", label: "Registro civil" },
+  { code: "NIT", label: "NIT" },
+  { code: "VEN", label: "Doc. venezolano" },
+  { code: "DIP", label: "Carnet diplomático" },
+];
+
+function parseIdDocument(stored: string): { idType: string; idNumber: string } {
+  for (const t of ID_TYPES) {
+    if (stored.startsWith(t.code + ": ")) {
+      return { idType: t.code, idNumber: stored.slice(t.code.length + 2) };
+    }
+  }
+  return { idType: "CC", idNumber: stored };
+}
 
 type RefundRequest = {
   id: string;
@@ -56,12 +101,15 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
   const [lastName, setLastName] = useState(user?.lastName ?? "");
-  const [phone, setPhone] = useState(user?.phone ?? "");
-  const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth ?? "");
-  const [sex, setSex] = useState<"male" | "female" | "">(
-    (user?.sex as "male" | "female") ?? ""
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>(() => parseStoredPhone(user?.phone ?? "").country);
+  const [phoneLocal, setPhoneLocal] = useState(() => parseStoredPhone(user?.phone ?? "").local);
+  const [dateOfBirthDate, setDateOfBirthDate] = useState<Date | null>(() => parseDDMMYYYY(user?.dateOfBirth ?? ""));
+  const [sex, setSex] = useState<"male" | "female" | "non_binary" | "">(
+    (user?.sex as "male" | "female" | "non_binary") ?? ""
   );
-  const [idDocument, setIdDocument] = useState(user?.idDocument ?? "");
+  const [idType, setIdType] = useState(() => parseIdDocument(user?.idDocument ?? "").idType);
+  const [idNumber, setIdNumber] = useState(() => parseIdDocument(user?.idDocument ?? "").idNumber);
+  const [showIdTypePicker, setShowIdTypePicker] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const updateProfile = useUpdateProfile();
@@ -94,10 +142,14 @@ export default function ProfileScreen() {
   const startEditing = () => {
     setFirstName(user?.firstName ?? "");
     setLastName(user?.lastName ?? "");
-    setPhone(user?.phone ?? "");
-    setDateOfBirth(user?.dateOfBirth ?? "");
-    setSex((user?.sex as "male" | "female") ?? "");
-    setIdDocument(user?.idDocument ?? "");
+    const parsed = parseStoredPhone(user?.phone ?? "");
+    setPhoneCountry(parsed.country);
+    setPhoneLocal(parsed.local);
+    setDateOfBirthDate(parseDDMMYYYY(user?.dateOfBirth ?? ""));
+    setSex((user?.sex as "male" | "female" | "non_binary") ?? "");
+    const parsedId = parseIdDocument(user?.idDocument ?? "");
+    setIdType(parsedId.idType);
+    setIdNumber(parsedId.idNumber);
     setSaveError(null);
     setIsEditing(true);
   };
@@ -110,13 +162,15 @@ export default function ProfileScreen() {
   const handleSave = async () => {
     setSaveError(null);
     try {
+      const fullPhone = phoneLocal.trim() ? phoneCountry.code + phoneLocal.trim() : null;
+      const fullId = idNumber.trim() ? `${idType}: ${idNumber.trim()}` : null;
       await updateProfile.mutateAsync({
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
-        phone: phone.trim() || null,
-        dateOfBirth: dateOfBirth.trim() || null,
+        phone: fullPhone,
+        dateOfBirth: dateOfBirthDate ? toDDMMYYYY(dateOfBirthDate) : null,
         sex: sex || null,
-        idDocument: idDocument.trim() || null,
+        idDocument: fullId,
       });
       await refreshUser();
       setIsEditing(false);
@@ -140,6 +194,10 @@ export default function ProfileScreen() {
   };
 
   return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
@@ -148,6 +206,7 @@ export default function ProfileScreen() {
         paddingHorizontal: 20,
         gap: 20,
       }}
+      keyboardShouldPersistTaps="handled"
     >
       <Text style={[styles.pageTitle, { color: C.text }]}>{t("profile.title")}</Text>
 
@@ -186,7 +245,7 @@ export default function ProfileScreen() {
                   <View style={styles.infoRow}>
                     <Feather name="users" size={14} color={C.textMuted} />
                     <Text style={[styles.infoText, { color: C.textSecondary }]}>
-                      {user.sex === "male" ? t("profile.male") : t("profile.female")}
+                      {user.sex === "male" ? t("profile.male") : user.sex === "non_binary" ? t("profile.non_binary") : t("profile.female")}
                     </Text>
                   </View>
                 ) : null}
@@ -245,33 +304,26 @@ export default function ProfileScreen() {
 
               <View style={{ gap: 4 }}>
                 <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.phone")}</Text>
-                <TextInput
-                  value={phone}
-                  onChangeText={setPhone}
-                  placeholder={t("profile.phonePlaceholder")}
-                  placeholderTextColor={C.textMuted}
-                  keyboardType="phone-pad"
-                  style={[styles.input, { backgroundColor: C.card, borderColor: C.border, color: C.text }]}
+                <PhoneInput
+                  number={phoneLocal}
+                  country={phoneCountry}
+                  onNumberChange={setPhoneLocal}
+                  onCountryChange={setPhoneCountry}
+                  inputStyle={{ borderColor: C.border, backgroundColor: C.card }}
                 />
               </View>
 
-              <View style={{ gap: 4 }}>
-                <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.dateOfBirth")}</Text>
-                <TextInput
-                  value={dateOfBirth}
-                  onChangeText={setDateOfBirth}
-                  placeholder="DD/MM/AAAA"
-                  placeholderTextColor={C.textMuted}
-                  keyboardType="numeric"
-                  maxLength={10}
-                  style={[styles.input, { backgroundColor: C.card, borderColor: C.border, color: C.text }]}
-                />
-              </View>
+              <DatePickerInput
+                label={t("profile.dateOfBirth")}
+                value={dateOfBirthDate}
+                onChange={setDateOfBirthDate}
+                maximumDate={new Date()}
+              />
 
               <View style={{ gap: 4 }}>
                 <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.sex")}</Text>
                 <View style={styles.sexRow}>
-                  {(["male", "female"] as const).map((s) => (
+                  {(["male", "female", "non_binary"] as const).map((s) => (
                     <Pressable
                       key={s}
                       onPress={() => setSex(sex === s ? "" : s)}
@@ -284,7 +336,7 @@ export default function ProfileScreen() {
                       ]}
                     >
                       <Text style={[styles.sexBtnText, { color: sex === s ? C.primary : C.textSecondary }]}>
-                        {s === "male" ? t("profile.male") : t("profile.female")}
+                        {s === "male" ? t("profile.male") : s === "female" ? t("profile.female") : t("profile.non_binary")}
                       </Text>
                     </Pressable>
                   ))}
@@ -292,16 +344,50 @@ export default function ProfileScreen() {
               </View>
 
               <View style={{ gap: 4 }}>
+                <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.idType")}</Text>
+                <Pressable
+                  onPress={() => setShowIdTypePicker(true)}
+                  style={[styles.input, { backgroundColor: C.card, borderColor: C.border, flexDirection: "row", alignItems: "center" }]}
+                >
+                  <Text style={{ flex: 1, color: C.text, fontSize: 15, fontFamily: "Inter_400Regular" }}>
+                    {ID_TYPES.find(t => t.code === idType)?.label ?? idType}
+                  </Text>
+                  <Feather name="chevron-down" size={16} color={C.textMuted} />
+                </Pressable>
+              </View>
+
+              <View style={{ gap: 4 }}>
                 <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>{t("profile.idDocument")}</Text>
                 <TextInput
-                  value={idDocument}
-                  onChangeText={setIdDocument}
+                  value={idNumber}
+                  onChangeText={setIdNumber}
                   placeholder="123456789"
                   placeholderTextColor={C.textMuted}
                   keyboardType="numeric"
                   style={[styles.input, { backgroundColor: C.card, borderColor: C.border, color: C.text }]}
                 />
               </View>
+
+              <Modal visible={showIdTypePicker} transparent animationType="slide">
+                <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setShowIdTypePicker(false)} />
+                <View style={[styles.pickerSheet, { backgroundColor: C.card }]}>
+                  <View style={[styles.pickerHandle, { backgroundColor: C.border }]} />
+                  <Text style={[styles.pickerTitle, { color: C.text }]}>{t("profile.idType")}</Text>
+                  <FlatList
+                    data={ID_TYPES}
+                    keyExtractor={item => item.code}
+                    renderItem={({ item }) => (
+                      <Pressable
+                        onPress={() => { setIdType(item.code); setShowIdTypePicker(false); }}
+                        style={[styles.pickerOption, { backgroundColor: item.code === idType ? C.primary + "18" : "transparent" }]}
+                      >
+                        <Text style={[styles.pickerOptionText, { color: C.text }]}>{item.label}</Text>
+                        {item.code === idType && <Feather name="check" size={16} color={C.primary} />}
+                      </Pressable>
+                    )}
+                  />
+                </View>
+              </Modal>
             </View>
 
             {saveError ? (
@@ -475,6 +561,7 @@ export default function ProfileScreen() {
         </View>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -519,9 +606,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
   },
-  sexRow: { flexDirection: "row", gap: 10 },
-  sexBtn: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 12, borderWidth: 1.5 },
-  sexBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  sexRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  sexBtn: { flex: 1, minWidth: 90, paddingVertical: 12, alignItems: "center", borderRadius: 12, borderWidth: 1.5 },
+  sexBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  pickerSheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+    maxHeight: "60%",
+  },
+  pickerHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginTop: 10, marginBottom: 14 },
+  pickerTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 8 },
+  pickerOption: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 8, borderRadius: 8 },
+  pickerOptionText: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
   saveBtn: {
     paddingVertical: 14,
     borderRadius: 12,

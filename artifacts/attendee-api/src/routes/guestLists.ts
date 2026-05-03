@@ -85,7 +85,7 @@ const signupSchema = z.object({
   phone: z.string().max(30).optional(),
   idDocument: z.string().max(50).optional(),
   dateOfBirth: z.string().max(10).optional(),
-  sex: z.enum(["male", "female"]).optional(),
+  sex: z.enum(["male", "female", "non_binary"]).optional(),
 });
 
 router.post(

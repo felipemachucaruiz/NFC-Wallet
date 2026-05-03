@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import i18n, { setStoredLanguage, SUPPORTED_LANGUAGES } from "@/i18n";
@@ -95,6 +95,10 @@ export function ProfileSettings() {
   };
 
   return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
@@ -103,6 +107,7 @@ export function ProfileSettings() {
         paddingHorizontal: 20,
         gap: 20,
       }}
+      keyboardShouldPersistTaps="handled"
     >
       <Pressable
         onPress={() => router.back()}
@@ -335,6 +340,7 @@ export function ProfileSettings() {
         </View>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

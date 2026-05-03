@@ -273,7 +273,7 @@ const UpdateProfileBody = z.object({
   lastName: z.string().min(1).max(100).optional(),
   phone: z.string().max(30).nullable().optional(),
   dateOfBirth: z.string().max(10).nullable().optional(),
-  sex: z.enum(["male", "female"]).nullable().optional(),
+  sex: z.enum(["male", "female", "non_binary"]).nullable().optional(),
   idDocument: z.string().max(50).nullable().optional(),
 });
 

@@ -18,7 +18,9 @@
     "unknownError": "Unknown error",
     "bracelet": "Wristband",
     "endOfList": "No more items",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "accept": "Accept",
+    "selectDate": "Select date"
   },
   "auth": {
     "title": "Tapee",
@@ -332,6 +334,8 @@
     "sex": "Gender",
     "male": "Male",
     "female": "Female",
+    "non_binary": "Non-binary",
+    "idType": "ID type",
     "idDocument": "ID number",
     "savedCards": "Saved cards",
     "deleteAccount": "Delete account",
@@ -409,6 +413,7 @@
     "sex": "Sex",
     "male": "Male",
     "female": "Female",
+    "non_binary": "Non-binary",
     "idDocument": "ID number",
     "invalidEmail": "Invalid email address",
     "orderSummary": "Order summary",

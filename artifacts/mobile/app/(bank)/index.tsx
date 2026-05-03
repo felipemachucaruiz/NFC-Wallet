@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useGetBracelet, useGetEvent, customFetch } from "@workspace/api-client-react";
@@ -466,6 +466,10 @@ export default function BankLookupScreen() {
   return (
     <>
     <OfflineBanner syncIssuesRoute={"/(bank)/sync-issues"} />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
@@ -474,6 +478,7 @@ export default function BankLookupScreen() {
         paddingHorizontal: 20,
         gap: 20,
       }}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: C.text }]}>{t("bank.title")}</Text>
@@ -912,6 +917,7 @@ export default function BankLookupScreen() {
         </View>
       </Modal>
     </ScrollView>
+    </KeyboardAvoidingView>
     </>
   );
 }

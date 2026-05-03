@@ -3,6 +3,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -309,6 +310,10 @@ export default function RefundRequestScreen() {
   ];
 
   return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
@@ -317,6 +322,7 @@ export default function RefundRequestScreen() {
         paddingHorizontal: 20,
         gap: 20,
       }}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.back()}>
@@ -500,6 +506,7 @@ export default function RefundRequestScreen() {
         C={C}
       />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

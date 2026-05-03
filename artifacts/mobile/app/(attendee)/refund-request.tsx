@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -109,6 +109,10 @@ export default function AttendeeRefundRequestScreen() {
   }
 
   return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
     <ScrollView
       style={{ flex: 1, backgroundColor: C.background }}
       contentContainerStyle={{
@@ -117,6 +121,7 @@ export default function AttendeeRefundRequestScreen() {
         paddingHorizontal: 20,
         gap: 20,
       }}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.back()}>
@@ -227,6 +232,7 @@ export default function AttendeeRefundRequestScreen() {
         testID="submit-refund-request-btn"
       />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

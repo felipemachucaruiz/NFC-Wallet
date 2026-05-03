@@ -18,7 +18,9 @@
     "unknownError": "Error desconocido",
     "bracelet": "Pulsera",
     "endOfList": "No hay más elementos",
-    "processing": "Procesando..."
+    "processing": "Procesando...",
+    "accept": "Aceptar",
+    "selectDate": "Seleccionar fecha"
   },
   "auth": {
     "title": "Tapee",
@@ -331,6 +333,8 @@
     "sex": "Género",
     "male": "Masculino",
     "female": "Femenino",
+    "non_binary": "No binario",
+    "idType": "Tipo de identificación",
     "idDocument": "Núm. de identificación",
     "savedCards": "Tarjetas guardadas",
     "deleteAccount": "Eliminar cuenta",
@@ -408,6 +412,7 @@
     "sex": "Género",
     "male": "Masculino",
     "female": "Femenino",
+    "non_binary": "No binario",
     "idDocument": "Núm. de identificación",
     "invalidEmail": "Correo electrónico inválido",
     "orderSummary": "Resumen de orden",

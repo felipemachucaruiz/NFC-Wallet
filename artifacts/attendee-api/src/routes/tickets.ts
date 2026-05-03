@@ -72,7 +72,7 @@ const attendeeDataSchema = z.object({
   email: z.string().email(),
   phone: z.string().max(30).optional(),
   dateOfBirth: z.string().max(10).optional(),
-  sex: z.enum(["male", "female"]).optional(),
+  sex: z.enum(["male", "female", "non_binary"]).optional(),
   idDocument: z.string().max(50).optional(),
   ticketTypeId: z.string().min(1),
 });
@@ -84,7 +84,7 @@ const legacyTicketSchema = z.object({
     email: z.string().email(),
     phone: z.string().max(30).optional(),
     dateOfBirth: z.string().max(10).optional(),
-    sex: z.enum(["male", "female"]).optional(),
+    sex: z.enum(["male", "female", "non_binary"]).optional(),
     idDocument: z.string().max(50).optional(),
   }),
 });

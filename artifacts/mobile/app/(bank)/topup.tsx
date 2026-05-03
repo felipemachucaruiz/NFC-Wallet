@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -894,6 +894,10 @@ export default function TopUpScreen() {
   return (
     <>
       <OfflineBanner syncIssuesRoute={"/(bank)/sync-issues"} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         style={{ flex: 1, backgroundColor: C.background }}
         contentContainerStyle={{
@@ -902,6 +906,7 @@ export default function TopUpScreen() {
           paddingHorizontal: 20,
           gap: 20,
         }}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.headerRow}>
           <Pressable onPress={() => router.back()}>
@@ -1010,6 +1015,7 @@ export default function TopUpScreen() {
           testID="confirm-topup-btn"
         />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* ── NFC Write Modal (tap_write + writing steps) ── */}
       <Modal
