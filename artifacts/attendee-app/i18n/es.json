@@ -60,6 +60,7 @@
     "verifyCode": "Verificar código",
     "resendCode": "Reenviar código",
     "googleFailed": "No se pudo iniciar sesión con Google",
+    "appleSignIn": "Continuar con Apple",
     "appleFailed": "No se pudo iniciar sesión con Apple",
     "confirmPasswordPlaceholder": "Confirmar contraseña",
     "passwordMismatch": "Las contraseñas no coinciden"

@@ -60,6 +60,7 @@
     "verifyCode": "Verify code",
     "resendCode": "Resend code",
     "googleFailed": "Could not sign in with Google",
+    "appleSignIn": "Continue with Apple",
     "appleFailed": "Could not sign in with Apple",
     "confirmPasswordPlaceholder": "Confirm password",
     "passwordMismatch": "Passwords do not match"
