@@ -1,7 +1,7 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -112,6 +112,22 @@ export default function ProfileScreen() {
   const [showIdTypePicker, setShowIdTypePicker] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Sync fields when user data loads asynchronously (only when not editing)
+  useEffect(() => {
+    if (isEditing) return;
+    setFirstName(user?.firstName ?? "");
+    setLastName(user?.lastName ?? "");
+    const parsedPhone = parseStoredPhone(user?.phone ?? "");
+    setPhoneCountry(parsedPhone.country);
+    setPhoneLocal(parsedPhone.local);
+    setDateOfBirthDate(parseDDMMYYYY(user?.dateOfBirth ?? ""));
+    setSex((user?.sex as "male" | "female" | "non_binary") ?? "");
+    const parsedId = parseIdDocument(user?.idDocument ?? "");
+    setIdType(parsedId.idType);
+    setIdNumber(parsedId.idNumber);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const updateProfile = useUpdateProfile();
   const deleteAccount = useDeleteAccount();
 
@@ -172,8 +188,8 @@ export default function ProfileScreen() {
         sex: sex || null,
         idDocument: fullId,
       });
-      await refreshUser();
       setIsEditing(false);
+      await refreshUser();
     } catch {
       setSaveError(t("profile.saveError") || "Error al guardar el perfil.");
     }

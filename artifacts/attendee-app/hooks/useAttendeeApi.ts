@@ -267,7 +267,7 @@ export function useUpdateProfile() {
       sex?: string | null;
       idDocument?: string | null;
     }) =>
-      apiFetch<{ user: Record<string, unknown> }>(`${API_BASE_URL}/auth/profile`, headers, {
+      apiFetch<{ user: Record<string, unknown> }>(`${API_BASE_URL}/api/auth/profile`, headers, {
         method: "PATCH",
         body: JSON.stringify(data),
       }),

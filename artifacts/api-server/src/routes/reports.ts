@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, transactionLogsTable, transactionLineItemsTable, topUpsTable, merchantsTable, locationsTable, locationInventoryTable, productsTable, merchantPayoutsTable, braceletsTable, eventsTable, usersTable, inventoryAuditsTable, inventoryAuditItemsTable, damagedGoodsTable } from "@workspace/db";
+import { db, transactionLogsTable, transactionLineItemsTable, topUpsTable, merchantsTable, locationsTable, locationInventoryTable, productsTable, merchantPayoutsTable, braceletsTable, eventsTable, usersTable, inventoryAuditsTable, inventoryAuditItemsTable, damagedGoodsTable, ticketsTable, ticketCheckInsTable, ticketTypesTable, ticketOrdersTable, guestListsTable } from "@workspace/db";
 import { eq, and, gte, lte, sql, inArray, desc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -1078,6 +1078,113 @@ router.get(
     const transactionCount = byStaff.reduce((s, r) => s + r.transactionCount, 0);
 
     res.json({ totals: { totalTips, transactionCount }, byStaff });
+  },
+);
+
+router.get(
+  "/reports/tickets-summary",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId, from, to } = req.query as Record<string, string | undefined>;
+    const user = req.user!;
+
+    const emptyHours = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
+    const empty = {
+      totals: { ticketsSold: 0, ticketsCheckedIn: 0, checkInRate: 0, ticketRevenue: 0, guestListRegistrations: 0 },
+      byType: [] as { ticketTypeId: string | null; ticketTypeName: string; price: number; sold: number; checkedIn: number }[],
+      guestLists: [] as { id: string; name: string; maxGuests: number; currentCount: number; status: string }[],
+      checkInsByHour: emptyHours,
+    };
+
+    let scopedEventId: string | null = null;
+    if (user.role === "event_admin") {
+      if (!user.eventId) { res.json(empty); return; }
+      scopedEventId = user.eventId;
+    } else {
+      scopedEventId = eventId ?? null;
+    }
+
+    if (!scopedEventId) { res.json(empty); return; }
+
+    let eventTz = "America/Bogota";
+    const [evRow] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, scopedEventId));
+    if (evRow?.timezone) eventTz = evRow.timezone;
+
+    const ticketConds = [
+      eq(ticketsTable.eventId, scopedEventId),
+      inArray(ticketsTable.status, ["valid", "used"]),
+    ];
+    if (from) ticketConds.push(gte(ticketsTable.createdAt, new Date(from)));
+    if (to) ticketConds.push(lte(ticketsTable.createdAt, new Date(to)));
+
+    const orderConds = [
+      eq(ticketOrdersTable.eventId, scopedEventId),
+      eq(ticketOrdersTable.paymentStatus, "confirmed"),
+    ];
+    if (from) orderConds.push(gte(ticketOrdersTable.createdAt, new Date(from)));
+    if (to) orderConds.push(lte(ticketOrdersTable.createdAt, new Date(to)));
+
+    const hourExpr = sql`EXTRACT(HOUR FROM ${ticketCheckInsTable.checkedInAt} AT TIME ZONE ${eventTz})::int`;
+
+    const [ticketRows, typeRows, checkinRows, revenueAggRows, guestListRows, checkInHourRows] = await Promise.all([
+      db.select({ id: ticketsTable.id, ticketTypeId: ticketsTable.ticketTypeId })
+        .from(ticketsTable).where(and(...ticketConds)),
+      db.select({ id: ticketTypesTable.id, name: ticketTypesTable.name, price: ticketTypesTable.price })
+        .from(ticketTypesTable).where(eq(ticketTypesTable.eventId, scopedEventId)),
+      db.select({ ticketId: ticketCheckInsTable.ticketId })
+        .from(ticketCheckInsTable)
+        .innerJoin(ticketsTable, eq(ticketCheckInsTable.ticketId, ticketsTable.id))
+        .where(eq(ticketsTable.eventId, scopedEventId)),
+      db.select({ revenue: sql<number>`COALESCE(SUM(${ticketOrdersTable.totalAmount}), 0)`.mapWith(Number) })
+        .from(ticketOrdersTable).where(and(...orderConds)),
+      db.select({ id: guestListsTable.id, name: guestListsTable.name, maxGuests: guestListsTable.maxGuests, currentCount: guestListsTable.currentCount, status: guestListsTable.status })
+        .from(guestListsTable).where(eq(guestListsTable.eventId, scopedEventId)),
+      db.select({ hour: hourExpr.mapWith(Number), count: sql<number>`COUNT(*)`.mapWith(Number) })
+        .from(ticketCheckInsTable)
+        .innerJoin(ticketsTable, eq(ticketCheckInsTable.ticketId, ticketsTable.id))
+        .where(eq(ticketsTable.eventId, scopedEventId))
+        .groupBy(hourExpr),
+    ]);
+
+    const checkedInIds = new Set(checkinRows.map((r) => r.ticketId));
+    const soldByType = new Map<string, number>();
+    const checkedByType = new Map<string, number>();
+
+    for (const t of ticketRows) {
+      const key = t.ticketTypeId ?? "__none__";
+      soldByType.set(key, (soldByType.get(key) ?? 0) + 1);
+      if (checkedInIds.has(t.id)) {
+        checkedByType.set(key, (checkedByType.get(key) ?? 0) + 1);
+      }
+    }
+
+    const byType = typeRows.map((tt) => ({
+      ticketTypeId: tt.id,
+      ticketTypeName: tt.name,
+      price: tt.price,
+      sold: soldByType.get(tt.id) ?? 0,
+      checkedIn: checkedByType.get(tt.id) ?? 0,
+    }));
+
+    const untypedSold = soldByType.get("__none__") ?? 0;
+    if (untypedSold > 0) {
+      byType.push({ ticketTypeId: null, ticketTypeName: "Lista de invitados", price: 0, sold: untypedSold, checkedIn: checkedByType.get("__none__") ?? 0 });
+    }
+
+    const ticketsSold = ticketRows.length;
+    const ticketsCheckedIn = ticketRows.filter((t) => checkedInIds.has(t.id)).length;
+    const checkInRate = ticketsSold > 0 ? Math.round((ticketsCheckedIn / ticketsSold) * 100) : 0;
+    const guestListRegistrations = guestListRows.reduce((s, gl) => s + gl.currentCount, 0);
+
+    const checkInsByHourMap = new Map(checkInHourRows.map((r) => [r.hour, r.count]));
+    const checkInsByHour = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: checkInsByHourMap.get(h) ?? 0 }));
+
+    res.json({
+      totals: { ticketsSold, ticketsCheckedIn, checkInRate, ticketRevenue: revenueAggRows[0]?.revenue ?? 0, guestListRegistrations },
+      byType,
+      guestLists: guestListRows,
+      checkInsByHour,
+    });
   },
 );
 
