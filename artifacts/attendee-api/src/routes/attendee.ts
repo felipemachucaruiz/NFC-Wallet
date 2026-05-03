@@ -36,7 +36,7 @@ router.get(
     const bracelets = await db
       .select()
       .from(braceletsTable)
-      .where(eq(braceletsTable.attendeeUserId, userId));
+      .where(and(eq(braceletsTable.attendeeUserId, userId), eq(braceletsTable.flagged, false)));
 
     // Batch-fetch events and pending refunds to avoid N+1 queries
     const braceletUids = bracelets.map((b) => b.nfcUid);
