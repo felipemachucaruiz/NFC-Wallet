@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useRoute, useLocation } from "wouter";
-import { Calendar, MapPin, Shield, User as UserIcon, ChevronDown, ChevronUp, ExternalLink, X, Loader2, Briefcase, DoorOpen, Info } from "lucide-react";
+import { Calendar, MapPin, Shield, User as UserIcon, ChevronDown, ChevronUp, ExternalLink, X, Briefcase, DoorOpen, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -201,8 +201,18 @@ export default function EventDetail() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen">
+        <div className="h-[300px] md:h-[420px] bg-card animate-pulse" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
+          <div className="h-24 bg-card rounded-xl animate-pulse" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="h-40 bg-card rounded-xl animate-pulse" />
+              <div className="h-60 bg-card rounded-xl animate-pulse" />
+            </div>
+            <div className="h-80 bg-card rounded-xl animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -255,21 +265,23 @@ export default function EventDetail() {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto flex items-end justify-between gap-6">
           <div className="flex-1 min-w-0">
-            {event.category && (
-              <Badge variant="secondary" className="mb-2">{t(`home.filters.${event.category}`, event.category)}</Badge>
-            )}
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">{event.name}</h1>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              {event.startsAt && (
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" />
-                  {formatFullDate(event.startsAt)}
-                </span>
+            <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl p-5 max-w-xl shadow-xl">
+              {event.category && (
+                <Badge variant="secondary" className="mb-3 bg-primary/10 border-primary/40 text-primary">{t(`home.filters.${event.category}`, event.category)}</Badge>
               )}
-              <span className="flex items-center gap-1.5">
-                <MapPin className="w-4 h-4" />
-                {event.venueName ? `${event.venueName}, ` : ""}{event.city || event.venueAddress}
-              </span>
+              <h1 className="text-2xl md:text-4xl font-bold mb-3 leading-tight tracking-tight">{event.name}</h1>
+              <div className="flex flex-col gap-1.5 text-sm text-white/70">
+                {event.startsAt && (
+                  <span className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+                    {formatFullDate(event.startsAt)}
+                  </span>
+                )}
+                <span className="flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                  {event.venueName ? `${event.venueName}, ` : ""}{event.city || event.venueAddress}
+                </span>
+              </div>
             </div>
           </div>
           {event.flyerImage && (
@@ -476,7 +488,7 @@ export default function EventDetail() {
                 ) : (
                   <Button
                     size="lg"
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(0,241,255,0.25)] hover:shadow-[0_0_28px_rgba(0,241,255,0.4)] transition-shadow"
                     onClick={() => {
                       const ticketToUse = selectedTicket || event.ticketTypes.find((tt) => tt.status !== "sold_out");
                       if (ticketToUse) {

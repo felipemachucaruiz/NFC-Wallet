@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, Link } from "wouter";
-import { Check, AlertCircle, Ticket, CreditCard, Star } from "lucide-react";
+import { Check, AlertCircle, Ticket, CreditCard, Star, Shield } from "lucide-react";
 
 function PseIcon({ className }: { className?: string }) {
   return (
@@ -859,47 +859,68 @@ export default function Checkout() {
           </div>
 
           <div className="lg:col-span-2">
-            <div className="sticky top-20 bg-card rounded-xl border border-border p-5 space-y-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("checkout.unitPrice")} x {data.quantity}</span>
-                  <span>{formatPrice(data.subtotal, data.currencyCode)}</span>
+            <div className="sticky top-20 space-y-3">
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="bg-primary/5 border-b border-border px-5 py-4 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Ticket className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">{t("checkout.orderSummary")}</p>
+                    <p className="font-semibold text-sm truncate">{data.eventName}</p>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("checkout.serviceFee")}</span>
-                  <span>{formatPrice(data.serviceFee, data.currencyCode)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-bold text-lg">
-                  <span>{t("checkout.total")}</span>
-                  <span className="text-primary">{formatPrice(data.total, data.currencyCode)}</span>
+                <div className="p-5 space-y-4">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">{data.ticketTypeName} × {data.quantity}</span>
+                      <span>{formatPrice(data.subtotal, data.currencyCode)}</span>
+                    </div>
+                    {data.serviceFee > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">{t("checkout.serviceFee")}</span>
+                        <span>{formatPrice(data.serviceFee, data.currencyCode)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold">{t("checkout.total")}</span>
+                    <span className="text-primary font-bold text-xl">{formatPrice(data.total, data.currencyCode)}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  id="terms"
-                  checked={termsAccepted}
-                  onCheckedChange={(checked) => setTermsAccepted(!!checked)}
-                  disabled={processing}
-                />
-                <label htmlFor="terms" className="text-xs text-muted-foreground cursor-pointer leading-tight">
-                  {t("checkout.terms")}
-                </label>
+              <div className="bg-card rounded-xl border border-border p-5 space-y-4">
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="terms"
+                    checked={termsAccepted}
+                    onCheckedChange={(checked) => setTermsAccepted(!!checked)}
+                    disabled={processing}
+                  />
+                  <label htmlFor="terms" className="text-xs text-muted-foreground cursor-pointer leading-tight">
+                    {t("checkout.terms")}
+                  </label>
+                </div>
+
+                {isGuest && (
+                  <Turnstile onToken={setTurnstileToken} />
+                )}
+
+                <Button
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(0,241,255,0.2)] hover:shadow-[0_0_28px_rgba(0,241,255,0.35)] transition-shadow"
+                  size="lg"
+                  disabled={!termsAccepted || processing || !isPaymentValid() || (isGuest && !turnstileToken)}
+                  onClick={handlePayNow}
+                >
+                  {processing ? t("checkout.processing") : t("checkout.payNow")}
+                </Button>
+                <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                  <Shield className="w-3 h-3" />
+                  <span>Pago seguro con cifrado TLS · Wompi</span>
+                </div>
               </div>
-
-              {isGuest && (
-                <Turnstile onToken={setTurnstileToken} />
-              )}
-
-              <Button
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                size="lg"
-                disabled={!termsAccepted || processing || !isPaymentValid() || (isGuest && !turnstileToken)}
-                onClick={handlePayNow}
-              >
-                {processing ? t("checkout.processing") : t("checkout.payNow")}
-              </Button>
             </div>
           </div>
         </div>
