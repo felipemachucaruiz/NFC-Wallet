@@ -110,7 +110,7 @@ export function Footer() {
               </a>
             </div>
             <h4 className="font-semibold text-sm mt-6 mb-3">Descarga la app</h4>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-row gap-2 items-center">
               <a
                 href="https://play.google.com/store/apps/details?id=com.tapee.attendee"
                 target="_blank"
