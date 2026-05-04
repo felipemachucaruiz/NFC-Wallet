@@ -190,7 +190,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <Check className="w-3 h-3 text-primary-foreground" />
                           </div>
                         )}
-                        <p className="text-xs text-muted-foreground">{unit.unitLabel}</p>
+                        <p className="text-xs text-muted-foreground">{ticketType.unitLabel || unit.unitLabel}</p>
                         <p className="text-lg font-bold">{unit.unitNumber}</p>
                         {!isAvailable && (
                           <Badge variant="secondary" className="text-[9px] px-1 py-0 mt-1">
