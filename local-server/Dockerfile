@@ -9,6 +9,7 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json tsconfig
 # Copy workspace packages the api-server depends on
 COPY lib/db/ ./lib/db/
 COPY lib/api-zod/ ./lib/api-zod/
+COPY lib/api-spec/ ./lib/api-spec/
 COPY artifacts/api-server/ ./artifacts/api-server/
 
 # Install deps and build
