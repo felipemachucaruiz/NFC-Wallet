@@ -126,45 +126,52 @@ export default function PaymentStatus() {
       )}
       <div className="max-w-md w-full text-center">
         {status === "processing" && (
-          <div className="space-y-6">
-            <div className="relative w-20 h-20 mx-auto">
-              <Loader2 className="w-20 h-20 text-primary animate-spin" />
+          <div className="space-y-8">
+            <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border border-primary/20 animate-ping" style={{ animationDuration: "1.8s" }} />
+              <div className="absolute inset-3 rounded-full border border-primary/30 animate-ping" style={{ animationDuration: "1.8s", animationDelay: "0.4s" }} />
+              <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center shadow-[0_0_24px_rgba(0,241,255,0.15)]">
+                <Ticket className="w-8 h-8 text-primary" />
+              </div>
             </div>
             <div>
               <h1 className="text-2xl font-bold mb-2">{t("checkout.paymentPending")}</h1>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 {is3DsFingerprint
                   ? "Verificando tu dispositivo con el banco..."
                   : t("checkout.paymentProcessing")}
               </p>
-            </div>
-            <div className="flex gap-2 justify-center">
-              <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
-              <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
-              <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
             </div>
           </div>
         )}
 
         {status === "confirmed" && (
           <div className="space-y-6">
-            <div className="w-20 h-20 mx-auto rounded-full bg-emerald-600/20 flex items-center justify-center">
-              <CheckCircle className="w-12 h-12 text-emerald-400" />
+            <div className="relative w-28 h-28 mx-auto flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping" style={{ animationDuration: "2.5s" }} />
+              <div className="w-28 h-28 rounded-full bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center shadow-[0_0_40px_rgba(34,197,94,0.25)]">
+                <CheckCircle className="w-14 h-14 text-emerald-400" />
+              </div>
             </div>
             <div>
-              <h1 className="text-2xl font-bold mb-2">{t("checkout.paymentSuccess")}</h1>
-              <p className="text-muted-foreground mb-4">
-                {t("checkout.orderNumber")}:{" "}
-                <span className="font-mono font-bold text-foreground">{orderId.slice(0, 8).toUpperCase()}</span>
-              </p>
-              <div className="bg-card rounded-lg border border-border p-4 text-sm text-muted-foreground">
-                <Ticket className="w-8 h-8 text-primary mx-auto mb-2" />
-                <p>{t("checkout.qrSent")}</p>
+              <h1 className="text-2xl font-bold mb-1">{t("checkout.paymentSuccess")}</h1>
+              <p className="text-muted-foreground text-sm mb-5">Tu compra fue procesada exitosamente</p>
+              <div className="bg-card rounded-xl border border-border p-4 text-left space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Ticket className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("checkout.orderNumber")}</p>
+                    <p className="font-mono font-bold text-xl tracking-widest">{orderId.slice(0, 8).toUpperCase()}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground border-t border-border pt-3">{t("checkout.qrSent")}</p>
               </div>
             </div>
             <div className="flex flex-col gap-3">
               <Link href="/my-tickets">
-                <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(0,241,255,0.2)]">
                   {t("checkout.viewTickets")}
                 </Button>
               </Link>

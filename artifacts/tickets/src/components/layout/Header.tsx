@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Globe, User, Ticket, LogOut, ShoppingBag, Wifi, Receipt } from "lucide-react";
@@ -19,6 +19,13 @@ export function Header() {
   const [, navigate] = useLocation();
   const { user, isAuthenticated, logout, openAuthModal } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const switchLanguage = (lang: string) => {
     i18n.changeLanguage(lang);
@@ -26,7 +33,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
+    <header className={`sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b transition-all duration-300 ${scrolled ? "border-primary/20 shadow-[0_1px_24px_rgba(0,241,255,0.07)]" : "border-border"}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-6">

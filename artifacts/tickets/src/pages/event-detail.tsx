@@ -818,7 +818,7 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 
 function EventInfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 border-l-2 border-primary pl-3">
       <div className="shrink-0">{icon}</div>
       <div className="min-w-0">
         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>

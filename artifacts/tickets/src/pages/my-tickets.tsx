@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "wouter";
-import { Ticket, MapPin, QrCode, Loader2, Tag, Send, X, Archive, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
+import { Ticket, MapPin, QrCode, Loader2, Tag, Send, X, Archive, ChevronDown, ChevronUp, CheckCircle, ChevronRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,8 +37,25 @@ export default function MyTickets() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen">
+        <div className="max-w-lg mx-auto px-4 py-8">
+          <div className="h-8 w-40 bg-card rounded animate-pulse mb-6" />
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 animate-pulse">
+                <div className="aspect-square bg-zinc-800" />
+                <div className="px-4 py-3 flex items-center gap-3">
+                  <div className="w-14 h-14 bg-zinc-800 rounded-lg shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-zinc-800 rounded w-3/4" />
+                    <div className="h-3 bg-zinc-800 rounded w-1/2" />
+                    <div className="h-3 bg-zinc-800 rounded w-1/3" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -53,8 +70,25 @@ export default function MyTickets() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen">
+        <div className="max-w-lg mx-auto px-4 py-8">
+          <div className="h-8 w-40 bg-card rounded animate-pulse mb-6" />
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 animate-pulse">
+                <div className="aspect-square bg-zinc-800" />
+                <div className="px-4 py-3 flex items-center gap-3">
+                  <div className="w-14 h-14 bg-zinc-800 rounded-lg shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-zinc-800 rounded w-3/4" />
+                    <div className="h-3 bg-zinc-800 rounded w-1/2" />
+                    <div className="h-3 bg-zinc-800 rounded w-1/3" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -66,11 +100,16 @@ export default function MyTickets() {
 
         {allTickets.length === 0 ? (
           <div className="text-center py-16">
-            <Ticket className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <div className="w-20 h-20 mx-auto mb-5 rounded-full bg-primary/10 flex items-center justify-center shadow-[0_0_32px_rgba(0,241,255,0.15)]">
+              <Ticket className="w-10 h-10 text-primary" />
+            </div>
             <h2 className="text-xl font-semibold mb-2">{t("myTickets.noTickets")}</h2>
-            <p className="text-muted-foreground mb-4">{t("myTickets.noTicketsDesc")}</p>
+            <p className="text-muted-foreground text-sm mb-6">{t("myTickets.noTicketsDesc")}</p>
             <Link href="/">
-              <Button>{t("myTickets.browseEvents")}</Button>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
+                {t("myTickets.browseEvents")}
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </Link>
           </div>
         ) : (
