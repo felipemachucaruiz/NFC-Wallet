@@ -15,6 +15,7 @@
       "env": {
         "EXPO_PUBLIC_DOMAIN": "prod.tapee.app",
         "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
+        "EXPO_PUBLIC_TICKETS_URL": "https://tapeetickets.com",
         "GOOGLE_MAPS_API_KEY": "AIzaSyCyI7QJ3J5_Peqnr4bqFXAIqaeac1DuT_c"
       }
     },
@@ -27,6 +28,7 @@
       "env": {
         "EXPO_PUBLIC_DOMAIN": "prod.tapee.app",
         "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
+        "EXPO_PUBLIC_TICKETS_URL": "https://tapeetickets.com",
         "GOOGLE_MAPS_API_KEY": "AIzaSyCyI7QJ3J5_Peqnr4bqFXAIqaeac1DuT_c"
       }
     },
@@ -41,6 +43,7 @@
       "env": {
         "EXPO_PUBLIC_DOMAIN": "prod.tapee.app",
         "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
+        "EXPO_PUBLIC_TICKETS_URL": "https://tapeetickets.com",
         "GOOGLE_MAPS_API_KEY": "AIzaSyCyI7QJ3J5_Peqnr4bqFXAIqaeac1DuT_c"
       }
     },
@@ -54,6 +57,7 @@
       "env": {
         "EXPO_PUBLIC_DOMAIN": "prod.tapee.app",
         "EXPO_PUBLIC_ATTENDEE_DOMAIN": "attendee.tapee.app",
+        "EXPO_PUBLIC_TICKETS_URL": "https://tapeetickets.com",
         "GOOGLE_MAPS_API_KEY": "AIzaSyCyI7QJ3J5_Peqnr4bqFXAIqaeac1DuT_c"
       }
     }

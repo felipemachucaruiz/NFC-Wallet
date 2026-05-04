@@ -167,7 +167,7 @@ export default function GuestListsScreen() {
   };
 
   const shareLink = (gl: GuestList) => {
-    const url = `https://tickets.tapee.app/guest/${gl.slug}`;
+    const url = `${process.env.EXPO_PUBLIC_TICKETS_URL ?? "https://tapeetickets.com"}/guest/${gl.slug}`;
     Share.share({ message: url, url });
   };
 

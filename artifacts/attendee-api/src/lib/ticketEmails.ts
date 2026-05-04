@@ -445,7 +445,7 @@ export async function sendTicketTransferEmail(data: TransferEmailData): Promise<
     <h2 style="color: #1a1a1a; font-size: 20px; margin: 0 0 16px;">🎟️ ${isEs ? "Te han transferido una entrada" : "You received a ticket transfer"}</h2>
     <p style="color: #52525b; margin: 0 0 24px;">${greeting} ${intro}</p>
     <div style="text-align: center; margin: 24px 0;">
-      <a href="https://tickets.tapee.app/my-tickets" style="display: inline-block; background-color: #00f1ff; color: #000000; font-weight: bold; font-size: 16px; padding: 14px 32px; border-radius: 8px; text-decoration: none;">${isEs ? "Ver mi entrada" : "View my ticket"}</a>
+      <a href="${process.env.TICKETS_URL ?? "https://tapeetickets.com"}/my-tickets" style="display: inline-block; background-color: #00f1ff; color: #000000; font-weight: bold; font-size: 16px; padding: 14px 32px; border-radius: 8px; text-decoration: none;">${isEs ? "Ver mi entrada" : "View my ticket"}</a>
     </div>
     <p style="color: #71717a; font-size: 13px; margin: 24px 0 0;">${isEs ? "Tu entrada ya esta vinculada a tu cuenta. Presenta el codigo QR en la puerta del evento." : "Your ticket is already linked to your account. Present the QR code at the event gate."}</p>
   `;

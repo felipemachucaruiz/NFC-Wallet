@@ -271,7 +271,7 @@ export function generateGoogleWalletSaveLink(data: WalletPassData): string | nul
     const payload = {
       iss: serviceAccountEmail,
       aud: "google",
-      origins: ["https://tickets.tapee.app", "https://attendee.tapee.app"],
+      origins: [process.env.TICKETS_URL ?? "https://tapeetickets.com", "https://attendee.tapee.app"],
       typ: "savetowallet",
       iat: now,
       exp: now + 3600,

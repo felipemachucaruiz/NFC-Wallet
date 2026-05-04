@@ -235,7 +235,7 @@ export function buildActivateAccountPage(token: string, appUrl: string): string 
     .then(function(res) {
       if (res.ok) {
         form.style.display = 'none';
-        showMsg('¡Cuenta activada! Ya puedes iniciar sesión con tu email y contraseña en la app o en tickets.tapee.app.', false);
+        showMsg('¡Cuenta activada! Ya puedes iniciar sesión con tu email y contraseña en la app o en ${escapeJs(process.env.TICKETS_URL ?? "https://tapeetickets.com")}.', false);
       } else {
         showMsg(res.data.error || 'Error al activar la cuenta. Intenta de nuevo.', true);
         btn.disabled = false;

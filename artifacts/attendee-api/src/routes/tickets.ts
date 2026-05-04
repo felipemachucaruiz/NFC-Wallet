@@ -588,7 +588,7 @@ router.post(
           reference,
           acceptance_token: acceptanceToken,
           acceptance_personal_auth_token: personalAuthToken,
-          redirect_url: `${process.env.APP_URL ?? "https://tickets.tapee.app"}/payment-return`,
+          redirect_url: `${process.env.TICKETS_URL ?? "https://tapeetickets.com"}/payment-return`,
         };
       } else {
         const pseCustomerEmail = pseEmail ?? customerEmail;
@@ -611,7 +611,7 @@ router.post(
           reference,
           acceptance_token: acceptanceToken,
           acceptance_personal_auth_token: personalAuthToken,
-          redirect_url: `${process.env.APP_URL ?? "https://tickets.tapee.app"}/payment-return`,
+          redirect_url: `${process.env.TICKETS_URL ?? "https://tapeetickets.com"}/payment-return`,
         };
       }
 
