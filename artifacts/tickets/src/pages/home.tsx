@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearch } from "wouter";
-import { Calendar, MapPin, Search, X, ChevronRight, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Search, X, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,8 +108,27 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <div className="min-h-screen">
+        <div className="h-[420px] md:h-[500px] bg-card animate-pulse" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex gap-3 mb-6">
+            <div className="h-10 flex-1 rounded-lg bg-card animate-pulse" />
+            <div className="h-10 w-48 rounded-lg bg-card animate-pulse" />
+            <div className="h-10 w-48 rounded-lg bg-card animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-card rounded-xl overflow-hidden border border-border animate-pulse">
+                <div className="aspect-square bg-muted" />
+                <div className="p-4 space-y-2">
+                  <div className="h-5 bg-muted rounded w-3/4" />
+                  <div className="h-4 bg-muted rounded w-1/2" />
+                  <div className="h-4 bg-muted rounded w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -140,48 +159,50 @@ export default function Home() {
             style={{ opacity: heroFade ? 1 : 0 }}
           >
             <div className="flex-1 min-w-0">
-              <Badge variant="outline" className="w-fit mb-3 border-primary text-primary">
-                {t("home.featured")}
-              </Badge>
-              <h1 className="text-3xl md:text-5xl font-bold mb-2 max-w-2xl">{currentHero.name}</h1>
-              <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-4">
-                {currentHero.startsAt && (
-                  <span className="flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4" />
-                    {formatDateRange(currentHero.startsAt, currentHero.endsAt || currentHero.startsAt, currentHero.dayCount > 1)}
-                  </span>
-                )}
-                {currentHero.venueAddress && (
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4" />
-                    {currentHero.venueAddress}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <Link href={`/event/${currentHero.slug || currentHero.id}`}>
-                  <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
-                    {t("home.hero.cta")}
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </Link>
-                {currentHero.priceFrom > 0 && (
-                  <span className="text-lg font-semibold">
-                    {t("home.from")} {formatPrice(currentHero.priceFrom)}
-                  </span>
-                )}
-              </div>
-              {heroCount > 1 && (
-                <div className="flex items-center gap-2 mt-5">
-                  {heroEvents.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleDotClick(i)}
-                      className={`rounded-full transition-all duration-300 ${i === heroIndex ? "w-8 h-2.5 bg-primary" : "w-2.5 h-2.5 bg-white/40 hover:bg-white/60"}`}
-                    />
-                  ))}
+              <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-5 md:p-7 max-w-xl shadow-xl">
+                <Badge variant="outline" className="w-fit mb-3 border-primary/60 text-primary bg-primary/10">
+                  {t("home.featured")}
+                </Badge>
+                <h1 className="text-2xl md:text-4xl font-bold mb-3 leading-tight tracking-tight">{currentHero.name}</h1>
+                <div className="flex flex-col gap-1.5 text-sm text-white/70 mb-5">
+                  {currentHero.startsAt && (
+                    <span className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
+                      {formatDateRange(currentHero.startsAt, currentHero.endsAt || currentHero.startsAt, currentHero.dayCount > 1)}
+                    </span>
+                  )}
+                  {currentHero.venueAddress && (
+                    <span className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                      {currentHero.venueAddress}
+                    </span>
+                  )}
                 </div>
-              )}
+                <div className="flex items-center gap-3">
+                  <Link href={`/event/${currentHero.slug || currentHero.id}`}>
+                    <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2 shadow-[0_0_20px_rgba(0,241,255,0.3)]">
+                      {t("home.hero.cta")}
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                  {currentHero.priceFrom > 0 && (
+                    <span className="text-base font-semibold text-white">
+                      {t("home.from")} <span className="text-primary">{formatPrice(currentHero.priceFrom)}</span>
+                    </span>
+                  )}
+                </div>
+                {heroCount > 1 && (
+                  <div className="flex items-center gap-2 mt-5">
+                    {heroEvents.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleDotClick(i)}
+                        className={`rounded-full transition-all duration-300 ${i === heroIndex ? "w-8 h-2 bg-primary shadow-[0_0_8px_rgba(0,241,255,0.6)]" : "w-2 h-2 bg-white/30 hover:bg-white/50"}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             {resolveImageUrl(currentHero.flyerImageUrl) && (
               <div className="hidden md:block flex-shrink-0 ml-8">
@@ -348,45 +369,51 @@ function EventCard({ event }: { event: ApiEvent }) {
 
   return (
     <Link href={`/event/${event.slug || event.id}`}>
-      <div className="group bg-card border border-card-border rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-200 cursor-pointer">
+      <div className="group bg-card border border-border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(0,241,255,0.1)] hover:-translate-y-0.5">
         <div className="relative aspect-square overflow-hidden">
           <img
             src={resolveImageUrl(event.flyerImageUrl || event.coverImageUrl)}
             alt={event.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
           />
-          <div className="absolute bottom-3 left-3">
-            {event.category && (
-              <Badge variant="secondary" className="bg-background/80 backdrop-blur-sm text-xs">
-                {t(`home.filters.${event.category}`, event.category)}
-              </Badge>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+            {event.startsAt && (
+              <div className="flex items-center gap-1.5 text-xs text-white/90 mb-1">
+                <Calendar className="w-3 h-3 shrink-0" />
+                <span>{formatDateRange(event.startsAt, event.endsAt || event.startsAt, event.dayCount > 1)}</span>
+              </div>
+            )}
+            {event.venueAddress && (
+              <div className="flex items-center gap-1.5 text-xs text-white/70">
+                <MapPin className="w-3 h-3 shrink-0" />
+                <span className="truncate">{event.venueAddress}</span>
+              </div>
             )}
           </div>
+          {event.category && (
+            <div className="absolute top-3 left-3">
+              <Badge variant="secondary" className="bg-black/60 backdrop-blur-sm text-xs border-white/10">
+                {t(`home.filters.${event.category}`, event.category)}
+              </Badge>
+            </div>
+          )}
         </div>
         <div className="p-4">
-          <h3 className="font-semibold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors">
+          <h3 className="font-semibold text-base mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug tracking-tight">
             {event.name}
           </h3>
-          {event.startsAt && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-1">
-              <Calendar className="w-3.5 h-3.5 shrink-0" />
-              <span>{formatDateRange(event.startsAt, event.endsAt || event.startsAt, event.dayCount > 1)}</span>
-            </div>
-          )}
-          {event.venueAddress && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
-              <MapPin className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{event.venueAddress}</span>
-            </div>
-          )}
-          {event.priceFrom > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">
+          <div className="flex items-center justify-between">
+            {event.priceFrom > 0 ? (
+              <span className="text-sm text-muted-foreground">
                 {t("home.from")} <span className="text-primary font-bold">{formatPrice(event.priceFrom)}</span>
               </span>
-            </div>
-          )}
+            ) : (
+              <span className="text-sm font-medium text-emerald-400">Gratis</span>
+            )}
+            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-200" />
+          </div>
         </div>
       </div>
     </Link>
