@@ -220,9 +220,11 @@ async function seedEventData(): Promise<void> {
   if (!syncPool) return;
   const localClient = await pool.connect();
   try {
-    // Resolve active event IDs for scoping large tables
+    // Resolve event IDs for scoping large tables.
+    // Includes: active events, events with no end date (demo/permanent), and
+    // recently-ended events (30-day window for post-event reporting).
     const { rows: eventRows } = await syncPool.query<{ id: string }>(
-      `SELECT id FROM events WHERE active = true OR ends_at > now() - interval '2 days'`,
+      `SELECT id FROM events WHERE active = true OR ends_at IS NULL OR ends_at > now() - interval '30 days'`,
     );
     const activeEventIds = eventRows.map((r) => r.id);
 
@@ -685,7 +687,7 @@ export async function initSyncPool(railwaySyncUrl: string): Promise<void> {
   if (!process.env.HMAC_MASTER_KEY) {
     try {
       const { rows } = await syncPool.query<{ id: string; name: string }>(
-        `SELECT id, name FROM events WHERE (active = true OR ends_at > now() - interval '2 days') AND use_kdf = true LIMIT 5`,
+        `SELECT id, name FROM events WHERE (active = true OR ends_at IS NULL OR ends_at > now() - interval '30 days') AND use_kdf = true LIMIT 5`,
       );
       if (rows.length > 0) {
         const names = rows.map((r) => r.name).join(", ");
