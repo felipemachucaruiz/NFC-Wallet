@@ -28,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import { LocationMapPicker } from "@/components/LocationMapPicker";
 import { apiUploadEventImage } from "@/lib/api";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { useEventContext } from "@/contexts/event-context";
 
 function toLocalDatetimeInput(utcString: string): string {
@@ -335,7 +336,10 @@ function FormFields({
 
       <div className="space-y-1">
         <Label>{t("events.description")}</Label>
-        <Input data-testid="input-event-description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+        <RichTextEditor
+          value={form.description}
+          onChange={(html) => setForm((f) => ({ ...f, description: html }))}
+        />
       </div>
 
       <div className="space-y-1">
