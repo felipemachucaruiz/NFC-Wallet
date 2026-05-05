@@ -301,7 +301,7 @@ export default function EventDetail() {
       <div className="fixed inset-0 z-0 backdrop-blur-3xl bg-background/80" />
 
       <div className="relative z-10">
-      <div className="relative aspect-video overflow-hidden">
+      <div className="relative aspect-[1920/500] overflow-hidden">
         <img
           src={event.coverImage}
           alt={event.name}

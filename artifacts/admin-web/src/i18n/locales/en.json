@@ -253,7 +253,7 @@
     "categoryParty": "Party / Club",
     "categoryOther": "Other",
     "coverImage": "Cover Image",
-    "coverImageHint": "1920×1080px recommended",
+    "coverImageHint": "1920×500px recommended",
     "flyerImage": "Flyer Image",
     "flyerImageHint": "1080×1920px recommended",
     "clickToUpload": "Click to upload",
