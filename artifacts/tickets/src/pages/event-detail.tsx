@@ -11,34 +11,67 @@ import { formatPrice, formatFullDate } from "@/lib/format";
 import type { EventData, TicketType } from "@/data/types";
 import { VenueMap } from "@/components/VenueMap";
 import { TicketSelector } from "@/components/TicketSelector";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import { fetchEventDetail, resolveImageUrl, ApiError, type ApiEventDetail } from "@/lib/api";
 
-function DarkMapEmbed({ lat, lng }: { lat: number; lng: number }) {
+const GOOGLE_MAPS_API_KEY = "AIzaSyCyI7QJ3J5_Peqnr4bqFXAIqaeac1DuT_c";
+
+const TAPEE_MAP_STYLES = [
+  { elementType: "geometry", stylers: [{ color: "#0a0a0a" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0a0a0a" }] },
+  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
+  { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#4b5563" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#7dd3fc" }] },
+  { featureType: "poi", elementType: "geometry", stylers: [{ color: "#111111" }] },
+  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#4b5563" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#0d1a0d" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1e1e2e" }] },
+  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#111111" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#4b5563" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#252538" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#00f1ff", weight: 0.4 }] },
+  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#111111" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#040d12" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#00f1ff", lightness: -60 }] },
+];
+
+// Singleton loader — avoids appending the script more than once per page
+let gmapsReady = typeof window !== "undefined" && !!(window as any).google?.maps;
+const gmapsCallbacks: Array<() => void> = [];
+function loadGoogleMaps(cb: () => void) {
+  if (gmapsReady) { cb(); return; }
+  gmapsCallbacks.push(cb);
+  if (document.querySelector(`script[src*="maps.googleapis.com"]`)) return;
+  const s = document.createElement("script");
+  s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
+  s.async = true;
+  s.onload = () => { gmapsReady = true; gmapsCallbacks.splice(0).forEach((f) => f()); };
+  document.head.appendChild(s);
+}
+
+function GoogleMapEmbed({ lat, lng }: { lat: number; lng: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<any>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, {
-      center: [lat, lng],
-      zoom: 15,
-      zoomControl: true,
-      attributionControl: false,
+    loadGoogleMaps(() => {
+      if (!containerRef.current || mapRef.current) return;
+      const g = (window as any).google.maps;
+      const map = new g.Map(containerRef.current, {
+        center: { lat, lng },
+        zoom: 15,
+        styles: TAPEE_MAP_STYLES,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        zoomControl: true,
+      });
+      new g.Marker({ position: { lat, lng }, map });
+      mapRef.current = map;
     });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      maxZoom: 19,
-    }).addTo(map);
-    const icon = L.divIcon({
-      className: "",
-      html: `<div style="width:22px;height:22px;border-radius:50%;background:#00f1ff;border:3px solid #0891b2;box-shadow:0 0 16px rgba(0,241,255,0.6),0 0 32px rgba(0,241,255,0.25)"></div>`,
-      iconSize: [22, 22],
-      iconAnchor: [11, 11],
-    });
-    L.marker([lat, lng], { icon }).addTo(map);
-    mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
+    return () => { mapRef.current = null; };
   }, [lat, lng]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "250px", backgroundColor: "#0a0a0a", position: "relative", zIndex: 0 }} />;
@@ -451,7 +484,7 @@ export default function EventDetail() {
                     {event.venueName && <p className="font-medium">{event.venueName}</p>}
                     {event.venueAddress && <p className="text-sm text-muted-foreground">{event.venueAddress}</p>}
                   </div>
-                  <DarkMapEmbed lat={event.latitude} lng={event.longitude} />
+                  <GoogleMapEmbed lat={event.latitude} lng={event.longitude} />
                   <div className="p-3">
                     <a
                       href={`https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}`}
