@@ -349,17 +349,31 @@ export default function EventDetail() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* Venue — own card so the full name wraps instead of truncating */}
+        {(event.venueName || event.venueAddress) && (
+          <div className="bg-card rounded-xl border border-border p-4 mb-4">
+            <div className="flex items-start gap-3 border-l-2 border-primary pl-3">
+              <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">{t("event.venue", "Lugar")}</p>
+                <p className="text-sm font-semibold leading-snug break-words">
+                  {event.venueName && event.venueName.toLowerCase() !== event.name.toLowerCase()
+                    ? event.venueName
+                    : event.venueAddress || event.venueName}
+                </p>
+                {event.venueAddress
+                  && event.venueName
+                  && event.venueName.toLowerCase() !== event.name.toLowerCase()
+                  && event.venueAddress !== event.venueName && (
+                  <p className="text-xs text-muted-foreground mt-0.5 break-words">{event.venueAddress}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-card rounded-xl border border-border p-4 mb-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <EventInfoItem
-              icon={<MapPin className="w-5 h-5 text-primary" />}
-              label={t("event.venue", "Lugar")}
-              value={
-                event.venueName && event.venueName.toLowerCase() !== event.name.toLowerCase()
-                  ? event.venueName
-                  : event.venueAddress || event.venueName || "—"
-              }
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <EventInfoItem
               icon={<Calendar className="w-5 h-5 text-primary" />}
               label={t("event.date", "Fecha")}
