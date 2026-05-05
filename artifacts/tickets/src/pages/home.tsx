@@ -370,7 +370,7 @@ function EventCard({ event }: { event: ApiEvent }) {
   return (
     <Link href={`/event/${event.slug || event.id}`}>
       <div className="group bg-card border border-border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(0,241,255,0.1)] hover:-translate-y-0.5">
-        <div className="relative aspect-[3/4] overflow-hidden">
+        <div className="relative aspect-video overflow-hidden">
           <img
             src={resolveImageUrl(event.flyerImageUrl || event.coverImageUrl)}
             alt={event.name}
