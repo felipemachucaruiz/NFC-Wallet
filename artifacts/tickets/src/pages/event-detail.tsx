@@ -306,22 +306,24 @@ export default function EventDetail() {
       {event.floatingGraphicUrl && <FloatingGraphics url={event.floatingGraphicUrl} />}
 
       <div className="relative z-10">
-      <div className="relative aspect-[1920/500] overflow-hidden">
+      {/* min-h-[320px] ensures the hero is never shorter than 320px on mobile;
+          the 1920/500 aspect ratio takes over once the viewport is wide enough (~1230px) */}
+      <div className="relative min-h-[320px] aspect-[1920/500] overflow-hidden">
         <img
           src={event.coverImage}
           alt={event.name}
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
           loading="eager"
         />
         {/* Fade the cover image into the frosted background below */}
-        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-background via-background/60 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-40 sm:h-48 bg-gradient-to-t from-background via-background/60 to-transparent pointer-events-none" />
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto flex items-end justify-between gap-6">
           <div className="flex-1 min-w-0">
-            <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl p-5 max-w-xl shadow-xl">
+            <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl p-3 sm:p-5 max-w-xl shadow-xl">
               {event.category && (
                 <Badge variant="secondary" className="mb-3 bg-primary/10 border-primary/40 text-primary">{t(`home.filters.${event.category}`, event.category)}</Badge>
               )}
-              <h1 className="text-2xl md:text-4xl font-bold mb-3 leading-tight tracking-tight">{event.name}</h1>
+              <h1 className="text-xl sm:text-2xl md:text-4xl font-bold mb-2 sm:mb-3 leading-tight tracking-tight">{event.name}</h1>
               <div className="flex flex-col gap-1.5 text-sm text-white/70">
                 {event.startsAt && (
                   <span className="flex items-center gap-2">
