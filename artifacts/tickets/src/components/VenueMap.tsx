@@ -197,10 +197,14 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
   }, [tappedUnitId]);
 
   // Unit marker radius in SVG units (viewBox 0–100). Adjust for density.
-  const UNIT_R = 3.2;
-  const UNIT_R_ACTIVE = 4.0;
+  const UNIT_R = 2.0;
+  const UNIT_R_ACTIVE = 2.6;
 
-  const renderMapContent = (hasFloorplan: boolean) => (
+  const renderMapContent = (hasFloorplan: boolean) => {
+    // With preserveAspectRatio="none" on a 16:10 container, 1 SVG x-unit is 1.6×
+    // wider in pixels than 1 y-unit, so shrink rx to get a visually circular marker.
+    const ar = hasFloorplan ? 10 / 16 : 1;
+    return (
     <>
       {hasFloorplan && (
         <img
@@ -262,11 +266,11 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
                 y={center.cy}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fontSize="3.5"
+                fontSize="2.5"
                 fontWeight="800"
                 fill="white"
                 pointerEvents="none"
-                style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.9))" }}
+                style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.9))" }}
               >
                 {section.name}
               </text>
@@ -295,13 +299,14 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
                   filter: isActive && !isSold ? "drop-shadow(0 0 4px rgba(0,241,255,0.6))" : undefined,
                 }}
               >
-                <circle
+                <ellipse
                   cx={unit.mapX}
                   cy={unit.mapY}
-                  r={r}
+                  rx={r * ar}
+                  ry={r}
                   fill={color}
                   stroke={strokeColor}
-                  strokeWidth="0.6"
+                  strokeWidth="0.5"
                 />
                 <text
                   x={unit.mapX}
@@ -352,7 +357,8 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
         );
       })}
     </>
-  );
+    );
+  };
 
   const hasMap = event.floorplanImage || hasSvgPaths;
   if (!hasMap && mappedUnits.length === 0) {
