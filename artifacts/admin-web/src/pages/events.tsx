@@ -64,6 +64,7 @@ type EventForm = {
   nfcBraceletsEnabled: boolean;
   coverImageUrl: string;
   flyerImageUrl: string;
+  floatingGraphicUrl: string;
   eventAdmin: EventAdminForm;
 };
 
@@ -90,6 +91,7 @@ const emptyForm: EventForm = {
   nfcBraceletsEnabled: true,
   coverImageUrl: "",
   flyerImageUrl: "",
+  floatingGraphicUrl: "",
   eventAdmin: { ...emptyAdmin },
 };
 
@@ -138,6 +140,7 @@ type RawEvent = Event & {
   nfcBraceletsEnabled?: boolean;
   coverImageUrl?: string | null;
   flyerImageUrl?: string | null;
+  floatingGraphicUrl?: string | null;
 };
 
 type FormFieldsProps = {
@@ -150,8 +153,8 @@ type FormFieldsProps = {
   adminOpen: boolean;
   setAdminOpen: (open: boolean) => void;
   eventId?: string;
-  pendingImages?: { cover: File | null; flyer: File | null };
-  setPendingImages?: React.Dispatch<React.SetStateAction<{ cover: File | null; flyer: File | null }>>;
+  pendingImages?: { cover: File | null; flyer: File | null; floatingGraphic: File | null };
+  setPendingImages?: React.Dispatch<React.SetStateAction<{ cover: File | null; flyer: File | null; floatingGraphic: File | null }>>;
 };
 
 function ImageUploadField({
@@ -169,7 +172,7 @@ function ImageUploadField({
   hint?: string;
   currentUrl: string;
   eventId?: string;
-  imageType: "cover" | "flyer";
+  imageType: "cover" | "flyer" | "floating_graphic";
   isCreate: boolean;
   pendingFile?: File | null;
   onPendingFileChange?: (f: File | null) => void;
@@ -374,6 +377,18 @@ function FormFields({
           onUploaded={(url) => setForm((f) => ({ ...f, flyerImageUrl: url }))}
         />
       </div>
+
+      <ImageUploadField
+        label={t("events.floatingGraphic", "Gráfico flotante")}
+        hint={t("events.floatingGraphicHint", "PNG transparente recomendado — se anima flotando en la página del evento")}
+        currentUrl={form.floatingGraphicUrl}
+        eventId={eventId}
+        imageType="floating_graphic"
+        isCreate={isCreate}
+        pendingFile={pendingImages?.floatingGraphic}
+        onPendingFileChange={(f) => setPendingImages?.((prev) => ({ ...prev, floatingGraphic: f }))}
+        onUploaded={(url) => setForm((f) => ({ ...f, floatingGraphicUrl: url }))}
+      />
 
       <div className="space-y-1">
         <Label>{t("events.venueAddress")}</Label>
@@ -652,7 +667,7 @@ export default function Events() {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [form, setForm] = useState<EventForm>(emptyForm);
-  const [pendingImages, setPendingImages] = useState<{ cover: File | null; flyer: File | null }>({ cover: null, flyer: null });
+  const [pendingImages, setPendingImages] = useState<{ cover: File | null; flyer: File | null; floatingGraphic: File | null }>({ cover: null, flyer: null, floatingGraphic: null });
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
 
@@ -696,6 +711,7 @@ export default function Events() {
       nfcBraceletsEnabled: raw.nfcBraceletsEnabled ?? true,
       coverImageUrl: raw.coverImageUrl ?? "",
       flyerImageUrl: raw.flyerImageUrl ?? "",
+      floatingGraphicUrl: raw.floatingGraphicUrl ?? "",
       eventAdmin: { ...emptyAdmin },
     });
     setEditOpen(true);
@@ -752,9 +768,10 @@ export default function Events() {
             const uploads: Promise<unknown>[] = [];
             if (pendingImages.cover) uploads.push(apiUploadEventImage(newEventId, "cover", pendingImages.cover).catch(() => {}));
             if (pendingImages.flyer) uploads.push(apiUploadEventImage(newEventId, "flyer", pendingImages.flyer).catch(() => {}));
+            if (pendingImages.floatingGraphic) uploads.push(apiUploadEventImage(newEventId, "floating_graphic", pendingImages.floatingGraphic).catch(() => {}));
             if (uploads.length) await Promise.all(uploads);
           }
-          setPendingImages({ cover: null, flyer: null });
+          setPendingImages({ cover: null, flyer: null, floatingGraphic: null });
           toast({ title: t("events.created") });
           setCreateOpen(false);
           invalidate();

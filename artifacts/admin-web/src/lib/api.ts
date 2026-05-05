@@ -63,7 +63,7 @@ export async function apiForgotPassword(email: string, source: "admin" | "attend
 
 export async function apiUploadEventImage(
   eventId: string,
-  imageType: "cover" | "flyer",
+  imageType: "cover" | "flyer" | "floating_graphic",
   file: File,
 ): Promise<{ imageUrl: string }> {
   const token = localStorage.getItem("tapee_admin_token");
