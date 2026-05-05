@@ -192,7 +192,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     salesStartAt: null,
     status: allSoldOut ? "sold_out" : anyLimited ? "limited" : "available",
     active: true,
-    floatingGraphicUrl: event.floatingGraphicUrl || null,
+    floatingGraphicUrl: resolveImageUrl(event.floatingGraphicUrl) || null,
   };
 }
 
