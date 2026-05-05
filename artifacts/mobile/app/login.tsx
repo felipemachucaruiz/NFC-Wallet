@@ -584,7 +584,7 @@ export default function LoginScreen() {
         onRequestClose={() => setServerConfigModal(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setServerConfigModal(false)}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ width: "100%" }}>
+          <KeyboardAvoidingView behavior="padding" style={{ width: "100%" }}>
             <View style={[styles.totpSheet, { backgroundColor: "#161b22", borderColor: "rgba(255,255,255,0.1)" }]}>
               <View style={[styles.totpIcon, { backgroundColor: "rgba(255,255,255,0.06)" }]}>
                 <Feather name="settings" size={28} color="rgba(255,255,255,0.7)" />
