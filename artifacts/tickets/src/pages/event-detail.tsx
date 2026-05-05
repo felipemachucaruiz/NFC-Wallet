@@ -255,14 +255,21 @@ export default function EventDetail() {
 
   return (
     <div className="min-h-screen">
-      <div className="relative h-[300px] md:h-[420px] overflow-hidden">
-        <img
-          src={event.coverImage}
-          alt={event.name}
-          className="w-full h-full object-cover"
-          loading="eager"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+      {/* Full-viewport flyer background */}
+      <div
+        className="fixed inset-0 z-0"
+        style={{
+          backgroundImage: `url(${event.flyerImage ?? event.coverImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      />
+      {/* Frosted glass overlay */}
+      <div className="fixed inset-0 z-0 backdrop-blur-3xl bg-background/80" />
+
+      <div className="relative z-10">
+      <div className="relative h-[300px] md:h-[420px]">
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto flex items-end justify-between gap-6">
           <div className="flex-1 min-w-0">
             <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl p-5 max-w-xl shadow-xl">
@@ -549,6 +556,7 @@ export default function EventDetail() {
           preSelectedUnitId={preSelectedUnitId}
         />
       )}
+      </div>
     </div>
   );
 }
