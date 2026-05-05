@@ -244,8 +244,7 @@ export default function EventDetail() {
   const [, params] = useRoute("/event/:id");
   const [, navigate] = useLocation();
   const [showFlyer, setShowFlyer] = useState(false);
-  const [showDescription, setShowDescription] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
+const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [selectedSectionName, setSelectedSectionName] = useState("");
   const [preSelectedUnitId, setPreSelectedUnitId] = useState<string | null>(null);
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
@@ -496,19 +495,13 @@ export default function EventDetail() {
 
             {event.description && (
               <div>
-                <button
-                  className="flex items-center gap-2 text-xl font-semibold mb-3 hover:text-primary transition-colors"
-                  onClick={() => setShowDescription(!showDescription)}
-                >
-                  {t("event.description")}
-                  {showDescription ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                </button>
-                {showDescription && (
+                <h2 className="text-xl font-semibold mb-3">{t("event.description")}</h2>
+                <div className="rounded-xl border border-border bg-white/5 px-5 py-4">
                   <div
                     className="prose prose-invert max-w-none text-muted-foreground"
                     dangerouslySetInnerHTML={{ __html: event.description }}
                   />
-                )}
+                </div>
               </div>
             )}
 
