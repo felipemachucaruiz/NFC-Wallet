@@ -85,6 +85,41 @@ function extractVimeoId(url: string): string | null {
   return null;
 }
 
+function VimeoEmbed({ videoId, title }: { videoId: string; title: string }) {
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    fetch(`https://vimeo.com/api/oembed.json?url=https://vimeo.com/${videoId}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.width && d.height) setDims({ w: d.width, h: d.height }); })
+      .catch(() => {});
+  }, [videoId]);
+
+  const isPortrait = dims ? dims.h > dims.w : false;
+  const ratio = dims ? `${dims.w} / ${dims.h}` : "16 / 9";
+
+  return (
+    <div className="flex justify-center">
+      <div
+        className="rounded-xl overflow-hidden border border-border bg-black"
+        style={{
+          aspectRatio: ratio,
+          // Portrait: cap height so it doesn't fill the whole screen; landscape: full width
+          ...(isPortrait ? { maxHeight: "75vh", width: "auto" } : { width: "100%" }),
+        }}
+      >
+        <iframe
+          src={`https://player.vimeo.com/video/${videoId}?color=00f1ff&title=0&byline=0&portrait=0&dnt=1&background=0`}
+          className="w-full h-full"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowFullScreen
+          title={title}
+        />
+      </div>
+    </div>
+  );
+}
+
 function mapApiToEventData(detail: ApiEventDetail): EventData {
   const { event, eventDays, venues, sections, ticketTypes } = detail;
   const venue = venues[0];
@@ -480,15 +515,7 @@ export default function EventDetail() {
             {event.vimeoUrl && extractVimeoId(event.vimeoUrl) && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">{t("event.video", "Video")}</h2>
-                <div className="rounded-xl overflow-hidden border border-border aspect-video bg-black">
-                  <iframe
-                    src={`https://player.vimeo.com/video/${extractVimeoId(event.vimeoUrl!)}?color=00f1ff&title=0&byline=0&portrait=0&dnt=1`}
-                    className="w-full h-full"
-                    allow="autoplay; fullscreen; picture-in-picture"
-                    allowFullScreen
-                    title={event.name}
-                  />
-                </div>
+                <VimeoEmbed videoId={extractVimeoId(event.vimeoUrl!)!} title={event.name} />
               </div>
             )}
 
