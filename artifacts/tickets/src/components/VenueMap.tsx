@@ -161,8 +161,18 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
     return result;
   }, [event]);
 
-  const availableCount = mappedUnits.filter((m) => m.unit.status === "available").length;
-  const soldCount = mappedUnits.filter((m) => m.unit.status !== "available").length;
+  // Group numbered units by ticket type name for the legend
+  const unitGroups = useMemo(() => {
+    const groups = new Map<string, { name: string; available: number; sold: number }>();
+    for (const { unit, ticketType } of mappedUnits) {
+      const key = ticketType.id;
+      const existing = groups.get(key) ?? { name: ticketType.name, available: 0, sold: 0 };
+      if (unit.status === "available") existing.available++;
+      else existing.sold++;
+      groups.set(key, existing);
+    }
+    return [...groups.values()];
+  }, [mappedUnits]);
 
   const handleSectionClick = (section: VenueSection) => {
     if (onSectionClick) onSectionClick(section.id);
@@ -186,6 +196,10 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
     return undefined;
   }, [tappedUnitId]);
 
+  // Unit marker radius in SVG units (viewBox 0–100). Adjust for density.
+  const UNIT_R = 3.2;
+  const UNIT_R_ACTIVE = 4.0;
+
   const renderMapContent = (hasFloorplan: boolean) => (
     <>
       {hasFloorplan && (
@@ -208,14 +222,17 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
           <span className="text-sm font-semibold" style={{ color: "hsl(0, 0%, 50%)" }}>STAGE</span>
         </div>
       )}
-      {hasSvgPaths && (
+
+      {/* Single SVG layer for paths, section labels, and unit markers — scales with container */}
+      {(hasSvgPaths || mappedUnits.length > 0) && (
         <svg
           className="absolute inset-0 w-full h-full"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           style={{ zIndex: 5 }}
         >
-          {event.sections.map((section) => {
+          {/* Section fill paths */}
+          {hasSvgPaths && event.sections.map((section) => {
             if (!section.svgPath) return null;
             return (
               <path
@@ -232,73 +249,105 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
               />
             );
           })}
+
+          {/* Section name labels */}
+          {hasSvgPaths && event.sections.map((section) => {
+            if (!section.svgPath) return null;
+            const center = getSvgPathCenter(section.svgPath);
+            if (!center) return null;
+            return (
+              <text
+                key={`label-${section.id}`}
+                x={center.cx}
+                y={center.cy}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize="3.5"
+                fontWeight="800"
+                fill="white"
+                pointerEvents="none"
+                style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.9))" }}
+              >
+                {section.name}
+              </text>
+            );
+          })}
+
+          {/* Numbered unit markers */}
+          {mappedUnits.map(({ unit, ticketType }) => {
+            const isSold = unit.status !== "available";
+            const isSelected = selectedUnitId === unit.id;
+            const isTapped = tappedUnitId === unit.id;
+            const isHovered = hoveredUnitId === unit.id;
+            const isActive = isSelected || isTapped || isHovered;
+            const color = isSold ? "#6b7280" : isActive ? "#00f1ff" : "#f59e0b";
+            const r = isActive ? UNIT_R_ACTIVE : UNIT_R;
+            const strokeColor = isActive ? "#ffffff" : "rgba(0,0,0,0.5)";
+            return (
+              <g
+                key={unit.id}
+                onClick={(e) => { e.stopPropagation(); handleUnitTap(ticketType, unit); }}
+                onMouseEnter={() => !isSold && setHoveredUnitId(unit.id)}
+                onMouseLeave={() => setHoveredUnitId(null)}
+                style={{
+                  cursor: isSold ? "not-allowed" : "pointer",
+                  opacity: isSold ? 0.5 : 1,
+                  filter: isActive && !isSold ? "drop-shadow(0 0 4px rgba(0,241,255,0.6))" : undefined,
+                }}
+              >
+                <circle
+                  cx={unit.mapX}
+                  cy={unit.mapY}
+                  r={r}
+                  fill={color}
+                  stroke={strokeColor}
+                  strokeWidth="0.6"
+                />
+                <text
+                  x={unit.mapX}
+                  y={unit.mapY}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={r * 0.9}
+                  fontWeight="700"
+                  fill="white"
+                  pointerEvents="none"
+                >
+                  {unit.unitNumber}
+                </text>
+              </g>
+            );
+          })}
         </svg>
       )}
-      {hasSvgPaths && event.sections.map((section) => {
-        if (!section.svgPath) return null;
-        const center = getSvgPathCenter(section.svgPath);
-        if (!center) return null;
-        return (
-          <div
-            key={`label-${section.id}`}
-            className="absolute pointer-events-none"
-            style={{ left: `${center.cx}%`, top: `${center.cy}%`, transform: "translate(-50%, -50%)", zIndex: 6 }}
-          >
-            <span
-              className="text-xs sm:text-sm font-extrabold text-white whitespace-nowrap"
-              style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)" }}
-            >
-              {section.name}
-            </span>
-          </div>
-        );
-      })}
+
+      {/* HTML tooltip overlay — positioned by % to align with SVG coordinates */}
       {mappedUnits.map(({ unit, ticketType }) => {
-        const isSelected = selectedUnitId === unit.id;
         const isTapped = tappedUnitId === unit.id;
+        const isSelected = selectedUnitId === unit.id;
         const isHovered = hoveredUnitId === unit.id;
         const isSold = unit.status !== "available";
-        const markerColor = isSold ? "#6b7280" : isSelected ? "#00f1ff" : isTapped ? "#00f1ff" : "#f59e0b";
-        const showTooltip = isHovered || isSelected || isTapped;
+        if (!(isHovered || isSelected || isTapped)) return null;
         return (
           <div
-            key={unit.id}
-            className={`absolute flex flex-col items-center transition-transform duration-150 ${isSold ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+            key={`tooltip-${unit.id}`}
+            className="absolute pointer-events-none"
             style={{
               left: `${unit.mapX}%`,
               top: `${unit.mapY}%`,
-              transform: `translate(-50%, -100%) ${showTooltip ? "scale(1.3)" : "scale(1)"}`,
-              zIndex: isSelected ? 25 : isTapped ? 24 : isHovered ? 22 : 15,
+              transform: "translate(-50%, calc(-100% - 12px))",
+              zIndex: 30,
             }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleUnitTap(ticketType, unit);
-            }}
-            onMouseEnter={() => !isSold && setHoveredUnitId(unit.id)}
-            onMouseLeave={() => setHoveredUnitId(null)}
           >
-            <div
-              className={`rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white border-2 shadow-lg ${showTooltip ? "w-8 h-8 sm:w-9 sm:h-9" : "w-6 h-6 sm:w-7 sm:h-7"}`}
-              style={{
-                backgroundColor: markerColor,
-                borderColor: isSelected || isTapped ? "#fff" : "rgba(0,0,0,0.4)",
-                boxShadow: isSelected || isTapped ? "0 0 12px rgba(0,241,255,0.5)" : undefined,
-              }}
-            >
-              {unit.unitNumber}
+            <div className="bg-popover border border-border rounded-md px-2 py-1 text-[10px] whitespace-nowrap shadow-xl">
+              <span className="font-semibold">{unit.unitLabel}</span>
+              {isSold && <span className="ml-1 text-red-400">({t("venueMap.legend.soldOut")})</span>}
+              {!isSold && isTapped && (
+                <span className="ml-1 text-primary">
+                  {t("venueMap.tapToSelect", "Tap again to select")}
+                </span>
+              )}
             </div>
-            <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent" style={{ borderTopColor: markerColor }} />
-            {showTooltip && (
-              <div className="absolute top-full mt-1 bg-popover border border-border rounded-md px-2 py-1 text-[10px] whitespace-nowrap shadow-xl z-30">
-                <span className="font-semibold">{unit.unitLabel}</span>
-                {isSold && <span className="ml-1 text-red-400">({t("venueMap.legend.soldOut")})</span>}
-                {!isSold && isTapped && (
-                  <span className="ml-1 text-primary">
-                    {t("venueMap.tapToSelect", "Tap again to select")}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         );
       })}
@@ -313,18 +362,20 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-4 text-xs">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
           <LegendItem color="#22c55e" label={t("venueMap.legend.available")} />
           <LegendItem color="#eab308" label={t("venueMap.legend.limited")} />
           <LegendItem color="#ef4444" label={t("venueMap.legend.soldOut")} />
-          {mappedUnits.length > 0 && (
-            <>
-              <LegendItem color="#f59e0b" label={`${t("venueMap.legend.vipTable", "VIP Table")} (${availableCount})`} isCircle />
-              {soldCount > 0 && (
-                <LegendItem color="#6b7280" label={`${t("venueMap.legend.soldOut")} (${soldCount})`} isCircle />
+          {unitGroups.map((g) => (
+            <span key={g.name} className="flex flex-wrap gap-x-3 gap-y-1">
+              {g.available > 0 && (
+                <LegendItem color="#f59e0b" label={`${g.name} (${g.available})`} isCircle />
               )}
-            </>
-          )}
+              {g.sold > 0 && (
+                <LegendItem color="#6b7280" label={`${g.name} — ${t("venueMap.legend.soldOut")} (${g.sold})`} isCircle />
+              )}
+            </span>
+          ))}
         </div>
       </div>
 
@@ -400,7 +451,7 @@ export function VenueMap({ event, onSelectTicket, onSelectUnit, onSectionClick, 
 function LegendItem({ color, label, isCircle }: { color: string; label: string; isCircle?: boolean }) {
   return (
     <div className="flex items-center gap-1.5">
-      <div className={`w-3 h-3 ${isCircle ? "rounded-full" : "rounded-sm"}`} style={{ backgroundColor: color }} />
+      <div className={`w-3 h-3 flex-shrink-0 ${isCircle ? "rounded-full" : "rounded-sm"}`} style={{ backgroundColor: color }} />
       <span className="text-muted-foreground">{label}</span>
     </div>
   );
