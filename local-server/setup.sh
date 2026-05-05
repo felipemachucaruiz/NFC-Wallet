@@ -15,12 +15,12 @@ prompt() {
   local var="$1" label="$2" default="${3:-}" secret="${4:-}"
   local value=""
   if [[ -n "$default" ]]; then
-    echo -e "${CYAN}$label${NC} [default: $default]: \c"
+    echo -e "${CYAN}$label${NC} [default: $default]: \c" >&2
   else
-    echo -e "${CYAN}$label${NC}: \c"
+    echo -e "${CYAN}$label${NC}: \c" >&2
   fi
   if [[ "$secret" == "secret" ]]; then
-    read -rs value; echo
+    read -rs value; echo >&2
   else
     read -r value
   fi
