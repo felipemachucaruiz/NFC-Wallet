@@ -14,7 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { setBaseUrl, setFetchImplementation } from "@workspace/api-client-react";
-import { API_BASE_URL } from "@/constants/domain";
+import { API_BASE_URL, setCurrentStaffApiUrl } from "@/constants/domain";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { PasscodeScreen } from "@/components/PasscodeScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -119,6 +119,7 @@ AsyncStorage.getItem("@tapee_local_server_url").then(async (saved) => {
     clearTimeout(timer);
     if (res.ok) {
       setBaseUrl(saved);
+      setCurrentStaffApiUrl(saved);
     } else {
       await AsyncStorage.removeItem("@tapee_local_server_url").catch(() => {});
     }

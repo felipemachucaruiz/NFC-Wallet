@@ -22,3 +22,14 @@ export const ATTENDEE_API_BASE_URL: string =
   rawAttendeeDomain && rawAttendeeDomain !== "undefined"
     ? `https://${rawAttendeeDomain}`
     : `https://${ATTENDEE_PRODUCTION_DOMAIN}`;
+
+// Runtime-mutable staff API URL — updated when a local server is configured.
+// Auth calls (login, demoLogin) must use this instead of the hardcoded API_BASE_URL
+// so that sessions are created on whichever server the app is pointed at.
+let _currentStaffApiUrl: string = API_BASE_URL;
+export function setCurrentStaffApiUrl(url: string | null): void {
+  _currentStaffApiUrl = url ?? API_BASE_URL;
+}
+export function getCurrentStaffApiUrl(): string {
+  return _currentStaffApiUrl;
+}

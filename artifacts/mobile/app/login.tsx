@@ -8,6 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { setBaseUrl } from "@workspace/api-client-react";
+import { setCurrentStaffApiUrl } from "@/constants/domain";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePasscode } from "@/contexts/PasscodeContext";
 import { PasscodeScreen } from "@/components/PasscodeScreen";
@@ -86,10 +87,12 @@ export default function LoginScreen() {
     if (url) {
       await AsyncStorage.setItem(LOCAL_SERVER_URL_KEY, url).catch(() => {});
       setBaseUrl(url);
+      setCurrentStaffApiUrl(url);
       setSavedServerUrl(url);
     } else {
       await AsyncStorage.removeItem(LOCAL_SERVER_URL_KEY).catch(() => {});
       setBaseUrl(API_BASE_URL);
+      setCurrentStaffApiUrl(null);
       setSavedServerUrl(null);
     }
     setServerConfigModal(false);
@@ -98,6 +101,7 @@ export default function LoginScreen() {
   const handleResetServerUrl = async () => {
     await AsyncStorage.removeItem(LOCAL_SERVER_URL_KEY).catch(() => {});
     setBaseUrl(API_BASE_URL);
+    setCurrentStaffApiUrl(null);
     setSavedServerUrl(null);
     setServerUrlInput("");
   };

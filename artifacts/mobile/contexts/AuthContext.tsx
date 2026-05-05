@@ -18,7 +18,7 @@ try {
   SecureStore = null;
 }
 import { setAuthTokenGetter } from "@workspace/api-client-react";
-import { ATTENDEE_API_BASE_URL, API_BASE_URL } from "@/constants/domain";
+import { ATTENDEE_API_BASE_URL, API_BASE_URL, getCurrentStaffApiUrl } from "@/constants/domain";
 import { clearSigningKeyCache } from "@/utils/signingKeyCache";
 import { clearInMemoryCachedHmacSecret } from "@/contexts/OfflineQueueContext";
 
@@ -223,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Attendee API unreachable — fall through to staff API
       }
       if (!res || res.status < 200 || res.status > 299) {
-        res = await fetchWithTimeout(`${API_BASE_URL}/api/auth/login`, {
+        res = await fetchWithTimeout(`${getCurrentStaffApiUrl()}/api/auth/login`, {
           method: "POST", headers, body,
         });
       }
@@ -256,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verify2fa = useCallback(async (partialToken: string, code: string, rememberMe = true): Promise<string | null> => {
     try {
-      const res = await fetchWithTimeout(`${API_BASE_URL}/api/auth/2fa/verify`, {
+      const res = await fetchWithTimeout(`${getCurrentStaffApiUrl()}/api/auth/2fa/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ partial_token: partialToken, code }),
@@ -284,7 +284,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const demoLogin = useCallback(async (role: string, secret: string): Promise<string | null> => {
     try {
-      const res = await fetchWithTimeout(`${API_BASE_URL}/api/auth/demo-login`, {
+      const res = await fetchWithTimeout(`${getCurrentStaffApiUrl()}/api/auth/demo-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role, secret }),
