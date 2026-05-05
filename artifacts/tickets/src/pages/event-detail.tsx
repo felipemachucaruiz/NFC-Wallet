@@ -350,7 +350,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
       <div className="relative z-10">
       {/* min-h-[320px] ensures the hero is never shorter than 320px on mobile;
           the 1920/500 aspect ratio takes over once the viewport is wide enough (~1230px) */}
-      <div className="relative min-h-[320px] aspect-[1920/500] overflow-hidden">
+      <div className="relative h-[380px] lg:h-[460px] overflow-hidden">
         <img
           src={event.coverImage}
           alt={event.name}
