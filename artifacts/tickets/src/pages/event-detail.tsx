@@ -86,7 +86,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     dayNumber: i + 1,
     label: d.label || `Day ${i + 1}`,
     date: d.date,
-    doorTime: d.doorsOpenAt ? new Date(d.doorsOpenAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" }) : "N/A",
+    doorTime: d.doorsOpenAt ? new Date(d.doorsOpenAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) : "N/A",
   }));
 
   const dayIdToLabel = new Map(eventDays.map((d) => [d.id, d.label || d.date]));
