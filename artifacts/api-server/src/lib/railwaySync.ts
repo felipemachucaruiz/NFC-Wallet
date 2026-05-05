@@ -152,12 +152,12 @@ const PULL_EXCLUDED: Set<string> = new Set([
 const SEED_ORDER: string[] = [
   "promoter_companies",
   "exchange_rates",
-  "users",
-  "warehouses",
-  "venues",
-  "events",
+  "events",              // no app FKs — must be before warehouses, venues, access_zones
+  "access_zones",        // event_id → events; must be before users
+  "users",               // gate_zone_id → access_zones
+  "warehouses",          // event_id → events
+  "venues",              // event_id → events
   "merchants",
-  "access_zones",
   "locations",
   "products",
   "product_categories",
@@ -169,11 +169,12 @@ const SEED_ORDER: string[] = [
   "guest_lists",
   "event_days",
   "ticket_types",
+  "ticket_orders",       // buyer_user_id → users; must be before tickets
   "bracelets",
   "deleted_bracelet_uids",
   "push_tokens",
   "guest_list_entries",
-  "tickets",
+  "tickets",             // order_id → ticket_orders
   "whatsapp_templates",
   "whatsapp_trigger_mappings",
   "whatsapp_message_log",
