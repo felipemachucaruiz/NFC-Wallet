@@ -78,6 +78,13 @@ function GoogleMapEmbed({ lat, lng }: { lat: number; lng: number }) {
   return <div ref={containerRef} style={{ width: "100%", height: "250px", backgroundColor: "#0a0a0a", position: "relative", zIndex: 0 }} />;
 }
 
+function extractVimeoId(url: string): string | null {
+  const match = url.match(/(?:vimeo\.com\/(?:[^/]+\/)*)(\d+)/);
+  if (match) return match[1];
+  if (/^\d+$/.test(url.trim())) return url.trim();
+  return null;
+}
+
 function mapApiToEventData(detail: ApiEventDetail): EventData {
   const { event, eventDays, venues, sections, ticketTypes } = detail;
   const venue = venues[0];
@@ -193,6 +200,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     status: allSoldOut ? "sold_out" : anyLimited ? "limited" : "available",
     active: true,
     floatingGraphicUrl: resolveImageUrl(event.floatingGraphicUrl) || null,
+    vimeoUrl: event.vimeoUrl || null,
   };
 }
 
@@ -466,6 +474,21 @@ export default function EventDetail() {
                     dangerouslySetInnerHTML={{ __html: event.description }}
                   />
                 )}
+              </div>
+            )}
+
+            {event.vimeoUrl && extractVimeoId(event.vimeoUrl) && (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">{t("event.video", "Video")}</h2>
+                <div className="rounded-xl overflow-hidden border border-border aspect-video bg-black">
+                  <iframe
+                    src={`https://player.vimeo.com/video/${extractVimeoId(event.vimeoUrl!)}?color=00f1ff&title=0&byline=0&portrait=0&dnt=1`}
+                    className="w-full h-full"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowFullScreen
+                    title={event.name}
+                  />
+                </div>
               </div>
             )}
 

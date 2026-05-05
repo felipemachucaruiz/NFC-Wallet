@@ -65,6 +65,7 @@ type EventForm = {
   coverImageUrl: string;
   flyerImageUrl: string;
   floatingGraphicUrl: string;
+  vimeoUrl: string;
   eventAdmin: EventAdminForm;
 };
 
@@ -92,6 +93,7 @@ const emptyForm: EventForm = {
   coverImageUrl: "",
   flyerImageUrl: "",
   floatingGraphicUrl: "",
+  vimeoUrl: "",
   eventAdmin: { ...emptyAdmin },
 };
 
@@ -141,6 +143,7 @@ type RawEvent = Event & {
   coverImageUrl?: string | null;
   flyerImageUrl?: string | null;
   floatingGraphicUrl?: string | null;
+  vimeoUrl?: string | null;
 };
 
 type FormFieldsProps = {
@@ -389,6 +392,18 @@ function FormFields({
         onPendingFileChange={(f) => setPendingImages?.((prev) => ({ ...prev, floatingGraphic: f }))}
         onUploaded={(url) => setForm((f) => ({ ...f, floatingGraphicUrl: url }))}
       />
+
+      <div className="space-y-1">
+        <div className="flex items-center gap-1.5">
+          <Label>{t("events.vimeoUrl", "Video de Vimeo")}</Label>
+          <span className="text-[10px] text-muted-foreground">(URL o ID del video)</span>
+        </div>
+        <Input
+          value={form.vimeoUrl}
+          onChange={(e) => setForm((f) => ({ ...f, vimeoUrl: e.target.value }))}
+          placeholder="https://vimeo.com/123456789"
+        />
+      </div>
 
       <div className="space-y-1">
         <Label>{t("events.venueAddress")}</Label>
@@ -712,6 +727,7 @@ export default function Events() {
       coverImageUrl: raw.coverImageUrl ?? "",
       flyerImageUrl: raw.flyerImageUrl ?? "",
       floatingGraphicUrl: raw.floatingGraphicUrl ?? "",
+      vimeoUrl: raw.vimeoUrl ?? "",
       eventAdmin: { ...emptyAdmin },
     });
     setEditOpen(true);
@@ -810,6 +826,7 @@ export default function Events() {
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
       coverImageUrl: form.coverImageUrl || null,
       flyerImageUrl: form.flyerImageUrl || null,
+      vimeoUrl: form.vimeoUrl || null,
     };
     updateEvent.mutate(
       { eventId: selectedEvent.id, data: payload },

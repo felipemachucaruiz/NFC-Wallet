@@ -84,6 +84,7 @@ export interface EventData {
   status: "available" | "limited" | "sold_out";
   active: boolean;
   floatingGraphicUrl?: string | null;
+  vimeoUrl?: string | null;
 }
 
 export interface AttendeeData {
