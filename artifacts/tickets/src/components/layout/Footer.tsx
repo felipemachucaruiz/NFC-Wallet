@@ -143,7 +143,7 @@ export function Footer() {
           <p className="text-xs text-muted-foreground">{t("footer.paymentMethods", "Métodos de pago aceptados")}</p>
           <img
             src={`${import.meta.env.BASE_URL}metodos-pago.png`}
-            alt="Amex, Visa, Mastercard, Addi, Efecty, Nequi, Apple Pay, Google Pay"
+            alt="Amex, Visa, Mastercard, Daviplata, Efecty, Nequi, PSE, Puntos Colombia"
             className="h-11 object-contain"
           />
         </div>
