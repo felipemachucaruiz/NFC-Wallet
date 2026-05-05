@@ -57,7 +57,7 @@ export function FloatingGraphics({ url }: Props) {
         left:     r(0) * 92,
         top:      r(1) * 92,
         size:     34 + r(2) * 50,        // 34px – 84px
-        opacity:  0.10 + r(3) * 0.13,    // 0.10 – 0.23
+        opacity:  0.28 + r(3) * 0.22,    // 0.28 – 0.50
         duration: 24 + r(4) * 20,        // 24s – 44s
         delay:    -(r(5) * 22),          // start mid-cycle so they don't all move together
         anim:     ANIMS[Math.floor(r(6) * ANIMS.length)],

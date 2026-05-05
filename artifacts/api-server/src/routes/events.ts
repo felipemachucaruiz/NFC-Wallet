@@ -208,6 +208,8 @@ const SAFE_EVENT_FIELDS = {
   salesChannel: eventsTable.salesChannel,
   saleStartsAt: eventsTable.saleStartsAt,
   saleEndsAt: eventsTable.saleEndsAt,
+  floatingGraphicUrl: eventsTable.floatingGraphicUrl,
+  vimeoUrl: eventsTable.vimeoUrl,
   createdAt: eventsTable.createdAt,
   updatedAt: eventsTable.updatedAt,
 };
