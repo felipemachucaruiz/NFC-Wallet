@@ -1529,8 +1529,8 @@ router.post(
     const eventId = req.params.eventId as string;
     const imageType = req.params.imageType as string;
 
-    if (imageType !== "cover" && imageType !== "flyer") {
-      res.status(400).json({ error: "imageType must be 'cover' or 'flyer'" });
+    if (imageType !== "cover" && imageType !== "flyer" && imageType !== "floating_graphic") {
+      res.status(400).json({ error: "imageType must be 'cover', 'flyer', or 'floating_graphic'" });
       return;
     }
 
@@ -1582,7 +1582,9 @@ router.post(
       const updateData =
         imageType === "cover"
           ? { coverImageUrl: imageUrl, updatedAt: new Date() }
-          : { flyerImageUrl: imageUrl, updatedAt: new Date() };
+          : imageType === "flyer"
+          ? { flyerImageUrl: imageUrl, updatedAt: new Date() }
+          : { floatingGraphicUrl: imageUrl, updatedAt: new Date() };
 
       await db.update(eventsTable).set(updateData).where(eq(eventsTable.id, eventId));
 

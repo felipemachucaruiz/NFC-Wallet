@@ -10,6 +10,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { formatPrice, formatFullDate } from "@/lib/format";
 import type { EventData, TicketType } from "@/data/types";
 import { VenueMap } from "@/components/VenueMap";
+import { FloatingGraphics } from "@/components/FloatingGraphics";
 import { TicketSelector } from "@/components/TicketSelector";
 import { fetchEventDetail, resolveImageUrl, ApiError, type ApiEventDetail } from "@/lib/api";
 
@@ -191,6 +192,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     salesStartAt: null,
     status: allSoldOut ? "sold_out" : anyLimited ? "limited" : "available",
     active: true,
+    floatingGraphicUrl: event.floatingGraphicUrl || null,
   };
 }
 
@@ -299,6 +301,9 @@ export default function EventDetail() {
       />
       {/* Frosted glass overlay */}
       <div className="fixed inset-0 z-0 backdrop-blur-3xl bg-background/80" />
+
+      {/* Floating graphic layer — above frosted overlay, below content cards */}
+      {event.floatingGraphicUrl && <FloatingGraphics url={event.floatingGraphicUrl} />}
 
       <div className="relative z-10">
       <div className="relative aspect-[1920/500] overflow-hidden">

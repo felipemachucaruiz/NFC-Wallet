@@ -164,6 +164,7 @@ router.get(
           longDescription: eventsTable.longDescription,
           coverImageUrl: eventsTable.coverImageUrl,
           flyerImageUrl: eventsTable.flyerImageUrl,
+          floatingGraphicUrl: eventsTable.floatingGraphicUrl,
           category: eventsTable.category,
           tags: eventsTable.tags,
           minAge: eventsTable.minAge,

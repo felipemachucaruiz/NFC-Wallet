@@ -85,6 +85,7 @@ export interface ApiEventDetail {
     longDescription: string | null;
     coverImageUrl: string | null;
     flyerImageUrl: string | null;
+    floatingGraphicUrl?: string | null;
     category: string | null;
     tags: string[] | null;
     minAge: number | null;

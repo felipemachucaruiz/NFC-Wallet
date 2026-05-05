@@ -43,6 +43,7 @@ export const eventsTable = pgTable("events", {
   timezone: varchar("timezone", { length: 100 }).notNull().default("UTC"),
   coverImageUrl: varchar("cover_image_url", { length: 1000 }),
   flyerImageUrl: varchar("flyer_image_url", { length: 1000 }),
+  floatingGraphicUrl: varchar("floating_graphic_url", { length: 1000 }),
   longDescription: text("long_description"),
   category: varchar("category", { length: 100 }),
   tags: jsonb("tags").$type<string[]>().default(sql`'[]'::jsonb`),

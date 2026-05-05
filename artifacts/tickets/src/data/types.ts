@@ -83,6 +83,7 @@ export interface EventData {
   salesStartAt: string | null;
   status: "available" | "limited" | "sold_out";
   active: boolean;
+  floatingGraphicUrl?: string | null;
 }
 
 export interface AttendeeData {
