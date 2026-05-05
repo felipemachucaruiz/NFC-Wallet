@@ -203,6 +203,24 @@ export async function apiUpdateTicketType(eventId: string, typeId: string, body:
   return data;
 }
 
+export async function apiFetchTicketServiceSummary(eventId: string) {
+  const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-service-summary`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch ticket service summary");
+  return data as {
+    byTicketType: Array<{
+      ticketTypeId: string;
+      name: string;
+      serviceFee: number;
+      serviceFeeType: string;
+      ticketsSold: number;
+      totalUnitRevenue: number;
+      totalFeeCollected: number;
+    }>;
+    totalCollected: number;
+  };
+}
+
 export async function apiFetchTicketOrders(eventId: string) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-orders`), { headers: authHeaders() });
   const data = await res.json();

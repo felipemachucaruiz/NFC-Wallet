@@ -144,6 +144,8 @@ export const ticketsTable = pgTable("tickets", {
   attendeeUserId: varchar("attendee_user_id").references(() => usersTable.id),
   qrCodeToken: varchar("qr_code_token", { length: 512 }).unique(),
   status: ticketStatusEnum("status").notNull().default("valid"),
+  unitPrice: integer("unit_price").notNull().default(0),
+  serviceFeeAmount: integer("service_fee_amount").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

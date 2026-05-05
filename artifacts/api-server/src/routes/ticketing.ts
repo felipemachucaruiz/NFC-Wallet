@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketsTable, ticketCheckInsTable, ticketOrdersTable, ticketPricingStagesTable, usersTable } from "@workspace/db";
-import { eq, and, asc, sql } from "drizzle-orm";
+import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { requireTicketingEnabled } from "../middlewares/featureGating";
 import { z } from "zod";
@@ -1123,6 +1123,75 @@ router.get(
     }));
 
     res.json({ days: dayStats, totalTickets, sections: sectionStats });
+  },
+);
+
+// Returns the actual service fees collected per ticket type based on confirmed orders.
+// Only tickets in confirmed orders contribute (cancelled tickets have service_fee_amount = 0 by default).
+router.get(
+  "/events/:eventId/ticket-service-summary",
+  requireRole("admin", "event_admin"),
+  requireTicketingEnabled((req) => req.params.eventId as string),
+  async (req: Request, res: Response) => {
+    const { eventId } = req.params as { eventId: string };
+    if (!(await canAccessEvent(req, eventId))) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const ticketTypes = await db
+      .select({
+        id: ticketTypesTable.id,
+        name: ticketTypesTable.name,
+        serviceFee: ticketTypesTable.serviceFee,
+        serviceFeeType: ticketTypesTable.serviceFeeType,
+      })
+      .from(ticketTypesTable)
+      .where(eq(ticketTypesTable.eventId, eventId))
+      .orderBy(asc(ticketTypesTable.createdAt));
+
+    if (ticketTypes.length === 0) {
+      res.json({ byTicketType: [], totalCollected: 0 });
+      return;
+    }
+
+    const typeIds = ticketTypes.map((tt) => tt.id);
+
+    // Sum actual collected fees from confirmed-order tickets only
+    const feeRows = await db
+      .select({
+        ticketTypeId: ticketsTable.ticketTypeId,
+        ticketsSold: sql<number>`count(*)::int`,
+        totalUnitRevenue: sql<number>`sum(${ticketsTable.unitPrice})::bigint`,
+        totalFeeCollected: sql<number>`sum(${ticketsTable.serviceFeeAmount})::bigint`,
+      })
+      .from(ticketsTable)
+      .innerJoin(ticketOrdersTable, eq(ticketsTable.orderId, ticketOrdersTable.id))
+      .where(and(
+        inArray(ticketsTable.ticketTypeId, typeIds),
+        eq(ticketOrdersTable.paymentStatus, "confirmed"),
+        sql`${ticketsTable.status} != 'cancelled'`,
+      ))
+      .groupBy(ticketsTable.ticketTypeId);
+
+    const feeMap = new Map(feeRows.map((r) => [r.ticketTypeId, r]));
+
+    const byTicketType = ticketTypes.map((tt) => {
+      const row = feeMap.get(tt.id);
+      return {
+        ticketTypeId: tt.id,
+        name: tt.name,
+        serviceFee: tt.serviceFee,
+        serviceFeeType: tt.serviceFeeType,
+        ticketsSold: row?.ticketsSold ?? 0,
+        totalUnitRevenue: row?.totalUnitRevenue ?? 0,
+        totalFeeCollected: row?.totalFeeCollected ?? 0,
+      };
+    });
+
+    const totalCollected = byTicketType.reduce((sum, r) => sum + r.totalFeeCollected, 0);
+
+    res.json({ byTicketType, totalCollected });
   },
 );
 

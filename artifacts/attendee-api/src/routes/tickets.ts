@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable, pendingWhatsappDocumentsTable, savedCardsTable } from "@workspace/db";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketOrdersTable, ticketsTable, ticketPricingStagesTable, wompiPaymentIntentsTable, usersTable, pendingWhatsappDocumentsTable, savedCardsTable } from "@workspace/db";
+import { eq, and, sql, inArray, asc } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
 import crypto from "crypto";
@@ -15,6 +15,16 @@ import { logger } from "../lib/logger";
 import { captureError } from "../lib/captureError";
 
 const router: IRouter = Router();
+
+function resolveActiveStagePrice(
+  stages: { price: number; startsAt: Date; endsAt: Date; displayOrder: number }[],
+  fallback: number,
+): number {
+  const now = new Date();
+  const sorted = [...stages].sort((a, b) => a.displayOrder - b.displayOrder || a.startsAt.getTime() - b.startsAt.getTime());
+  const active = sorted.find((s) => now >= s.startsAt && now <= s.endsAt);
+  return active ? active.price : fallback;
+}
 
 const WOMPI_BASE_URL = process.env.WOMPI_BASE_URL || "https://sandbox.wompi.co/v1";
 const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY || "";
@@ -312,11 +322,42 @@ router.post(
       }
     }
 
+    // Fetch active pricing stages for all ticket types in this order
+    const allStages = ticketTypeIds.length > 0
+      ? await db
+          .select({
+            ticketTypeId: ticketPricingStagesTable.ticketTypeId,
+            price: ticketPricingStagesTable.price,
+            startsAt: ticketPricingStagesTable.startsAt,
+            endsAt: ticketPricingStagesTable.endsAt,
+            displayOrder: ticketPricingStagesTable.displayOrder,
+          })
+          .from(ticketPricingStagesTable)
+          .where(inArray(ticketPricingStagesTable.ticketTypeId, ticketTypeIds))
+          .orderBy(asc(ticketPricingStagesTable.displayOrder), asc(ticketPricingStagesTable.startsAt))
+      : [];
+
+    const stagesByType = new Map<string, typeof allStages>();
+    for (const s of allStages) {
+      const arr = stagesByType.get(s.ticketTypeId) ?? [];
+      arr.push(s);
+      stagesByType.set(s.ticketTypeId, arr);
+    }
+
+    // currentPriceByType: the price actually charged per unit, respecting active stage
+    const currentPriceByType = new Map<string, number>();
+    for (const tt of ticketTypes) {
+      const stages = stagesByType.get(tt.id) ?? [];
+      currentPriceByType.set(tt.id, resolveActiveStagePrice(stages, Number(tt.price)));
+    }
+
     let totalAmount = 0;
+    const feeByType = new Map<string, number>(); // total fee amount per ticket type
     for (const [typeId, qty] of quantityByType) {
       const tt = ticketTypeMap.get(typeId)!;
+      const currentPrice = currentPriceByType.get(typeId)!;
       // Subtotal per type: numbered units have a single per-unit price; non-numbered multiply by quantity
-      const subtotal = tt.isNumberedUnits ? Number(tt.price) : Number(tt.price) * qty;
+      const subtotal = tt.isNumberedUnits ? currentPrice : currentPrice * qty;
       const serviceFee = Number(tt.serviceFee ?? 0);
       // Mirror storefront (TicketSelector.tsx): percentage rounds on aggregate subtotal;
       // fixed fee applies once per unit for numbered types, once per ticket for non-numbered
@@ -324,6 +365,7 @@ router.post(
         tt.serviceFeeType === "percentage"
           ? Math.round(subtotal * serviceFee / 100)
           : serviceFee * (tt.isNumberedUnits ? 1 : qty);
+      feeByType.set(typeId, feeAmount);
       totalAmount += subtotal + feeAmount;
     }
 
@@ -440,6 +482,7 @@ router.post(
     }
 
     if (paymentMethod === "free") {
+      const insertedCountByType = new Map<string, number>();
       for (const attendee of attendees) {
         const normalizedEmail = attendee.email.toLowerCase().trim();
         const { userId: attendeeUserId } = await findOrCreateAttendeeAccount(
@@ -448,13 +491,32 @@ router.post(
           attendee.phone,
         );
 
+        const typeId = attendee.ticketTypeId;
+        const tt = ticketTypeMap.get(typeId)!;
+        const currentPrice = currentPriceByType.get(typeId)!;
+        const totalFeeForType = feeByType.get(typeId) ?? 0;
+        const qty = quantityByType.get(typeId)!;
+        const insertedSoFar = insertedCountByType.get(typeId) ?? 0;
+        let unitPrice: number;
+        let serviceFeeAmount: number;
+        if (tt.isNumberedUnits) {
+          unitPrice = insertedSoFar === 0 ? currentPrice : 0;
+          serviceFeeAmount = insertedSoFar === 0 ? totalFeeForType : 0;
+        } else {
+          unitPrice = currentPrice;
+          const basePerTicket = Math.floor(totalFeeForType / qty);
+          const remainder = totalFeeForType - basePerTicket * qty;
+          serviceFeeAmount = insertedSoFar === qty - 1 ? basePerTicket + remainder : basePerTicket;
+        }
+        insertedCountByType.set(typeId, insertedSoFar + 1);
+
         await db
           .insert(ticketsTable)
           .values({
             orderId: order.id,
-            ticketTypeId: attendee.ticketTypeId,
+            ticketTypeId: typeId,
             eventId,
-            unitId: unitSelMap.get(attendee.ticketTypeId) ?? null,
+            unitId: unitSelMap.get(typeId) ?? null,
             attendeeName: attendee.name,
             attendeeEmail: normalizedEmail,
             attendeePhone: attendee.phone ?? null,
@@ -463,6 +525,8 @@ router.post(
             attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId,
             status: "valid",
+            unitPrice,
+            serviceFeeAmount,
           });
       }
 
@@ -682,6 +746,7 @@ router.post(
           purposeType: "ticket",
         });
 
+      const insertedCountByTypePaid = new Map<string, number>();
       for (const attendee of attendees) {
         const normalizedEmail = attendee.email.toLowerCase().trim();
         const { userId: attendeeUserId } = await findOrCreateAttendeeAccount(
@@ -690,13 +755,32 @@ router.post(
           attendee.phone,
         );
 
+        const typeId = attendee.ticketTypeId;
+        const tt = ticketTypeMap.get(typeId)!;
+        const currentPrice = currentPriceByType.get(typeId)!;
+        const totalFeeForType = feeByType.get(typeId) ?? 0;
+        const qty = quantityByType.get(typeId)!;
+        const insertedSoFar = insertedCountByTypePaid.get(typeId) ?? 0;
+        let unitPrice: number;
+        let serviceFeeAmount: number;
+        if (tt.isNumberedUnits) {
+          unitPrice = insertedSoFar === 0 ? currentPrice : 0;
+          serviceFeeAmount = insertedSoFar === 0 ? totalFeeForType : 0;
+        } else {
+          unitPrice = currentPrice;
+          const basePerTicket = Math.floor(totalFeeForType / qty);
+          const remainder = totalFeeForType - basePerTicket * qty;
+          serviceFeeAmount = insertedSoFar === qty - 1 ? basePerTicket + remainder : basePerTicket;
+        }
+        insertedCountByTypePaid.set(typeId, insertedSoFar + 1);
+
         await db
           .insert(ticketsTable)
           .values({
             orderId: order.id,
-            ticketTypeId: attendee.ticketTypeId,
+            ticketTypeId: typeId,
             eventId,
-            unitId: unitSelMap.get(attendee.ticketTypeId) ?? null,
+            unitId: unitSelMap.get(typeId) ?? null,
             attendeeName: attendee.name,
             attendeeEmail: normalizedEmail,
             attendeePhone: attendee.phone ?? null,
@@ -705,6 +789,8 @@ router.post(
             attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId: attendeeUserId,
             status: "valid",
+            unitPrice,
+            serviceFeeAmount,
           });
       }
     } catch (postWompiErr) {
@@ -1538,6 +1624,56 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         idDocument?: string;
         ticketTypeId: string;
       }>;
+
+      // Recompute pricing at recovery time (webhook is near-instant after purchase,
+      // so active stage price should match what was charged)
+      const recoveryTypeIds = [...new Set(storedAttendees.map((a) => a.ticketTypeId))];
+      const recoveryTypes = recoveryTypeIds.length > 0
+        ? await db.select().from(ticketTypesTable).where(inArray(ticketTypesTable.id, recoveryTypeIds))
+        : [];
+      const recoveryTypeMap = new Map(recoveryTypes.map((tt) => [tt.id, tt]));
+      const recoveryStages = recoveryTypeIds.length > 0
+        ? await db
+            .select({
+              ticketTypeId: ticketPricingStagesTable.ticketTypeId,
+              price: ticketPricingStagesTable.price,
+              startsAt: ticketPricingStagesTable.startsAt,
+              endsAt: ticketPricingStagesTable.endsAt,
+              displayOrder: ticketPricingStagesTable.displayOrder,
+            })
+            .from(ticketPricingStagesTable)
+            .where(inArray(ticketPricingStagesTable.ticketTypeId, recoveryTypeIds))
+            .orderBy(asc(ticketPricingStagesTable.displayOrder), asc(ticketPricingStagesTable.startsAt))
+        : [];
+      const recoveryStagesByType = new Map<string, typeof recoveryStages>();
+      for (const s of recoveryStages) {
+        const arr = recoveryStagesByType.get(s.ticketTypeId) ?? [];
+        arr.push(s);
+        recoveryStagesByType.set(s.ticketTypeId, arr);
+      }
+      const recoveryCurrentPrice = new Map<string, number>();
+      for (const tt of recoveryTypes) {
+        const stages = recoveryStagesByType.get(tt.id) ?? [];
+        recoveryCurrentPrice.set(tt.id, resolveActiveStagePrice(stages, Number(tt.price)));
+      }
+      const recoveryQtyByType = new Map<string, number>();
+      for (const a of storedAttendees) {
+        recoveryQtyByType.set(a.ticketTypeId, (recoveryQtyByType.get(a.ticketTypeId) ?? 0) + 1);
+      }
+      const recoveryFeeByType = new Map<string, number>();
+      for (const [typeId, qty] of recoveryQtyByType) {
+        const tt = recoveryTypeMap.get(typeId);
+        if (!tt) continue;
+        const currentPrice = recoveryCurrentPrice.get(typeId)!;
+        const subtotal = tt.isNumberedUnits ? currentPrice : currentPrice * qty;
+        const rate = Number(tt.serviceFee ?? 0);
+        const fee = tt.serviceFeeType === "percentage"
+          ? Math.round(subtotal * rate / 100)
+          : rate * (tt.isNumberedUnits ? 1 : qty);
+        recoveryFeeByType.set(typeId, fee);
+      }
+
+      const recoveryInsertedCount = new Map<string, number>();
       for (const attendee of storedAttendees) {
         const normalizedEmail = attendee.email.toLowerCase().trim();
         const { userId: attendeeUserId } = await findOrCreateAttendeeAccount(
@@ -1545,11 +1681,31 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
           attendee.name,
           attendee.phone,
         );
+
+        const typeId = attendee.ticketTypeId;
+        const tt = recoveryTypeMap.get(typeId);
+        const currentPrice = recoveryCurrentPrice.get(typeId) ?? 0;
+        const totalFee = recoveryFeeByType.get(typeId) ?? 0;
+        const qty = recoveryQtyByType.get(typeId) ?? 1;
+        const insertedSoFar = recoveryInsertedCount.get(typeId) ?? 0;
+        let unitPrice: number;
+        let serviceFeeAmount: number;
+        if (tt?.isNumberedUnits) {
+          unitPrice = insertedSoFar === 0 ? currentPrice : 0;
+          serviceFeeAmount = insertedSoFar === 0 ? totalFee : 0;
+        } else {
+          unitPrice = currentPrice;
+          const basePerTicket = Math.floor(totalFee / qty);
+          const remainder = totalFee - basePerTicket * qty;
+          serviceFeeAmount = insertedSoFar === qty - 1 ? basePerTicket + remainder : basePerTicket;
+        }
+        recoveryInsertedCount.set(typeId, insertedSoFar + 1);
+
         const [ticket] = await db
           .insert(ticketsTable)
           .values({
             orderId: order.id,
-            ticketTypeId: attendee.ticketTypeId,
+            ticketTypeId: typeId,
             eventId: order.eventId,
             unitId: null,
             attendeeName: attendee.name,
@@ -1560,6 +1716,8 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
             attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId: attendeeUserId,
             status: "valid",
+            unitPrice,
+            serviceFeeAmount,
           })
           .returning();
         existingTickets.push(ticket);

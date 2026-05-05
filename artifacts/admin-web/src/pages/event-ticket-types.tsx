@@ -26,6 +26,7 @@ import {
   apiCreatePricingStage,
   apiUpdatePricingStage,
   apiDeletePricingStage,
+  apiFetchTicketServiceSummary,
 } from "@/lib/api";
 
 type TicketForm = {
@@ -82,6 +83,12 @@ export default function EventTicketTypes() {
   const { data: ticketTypes = [], isLoading, isError, error: fetchError } = useQuery({
     queryKey: ["ticketTypes", resolvedEventId],
     queryFn: () => apiFetchTicketTypes(resolvedEventId),
+    enabled: !!resolvedEventId,
+  });
+
+  const { data: serviceSummary } = useQuery({
+    queryKey: ["ticketServiceSummary", resolvedEventId],
+    queryFn: () => apiFetchTicketServiceSummary(resolvedEventId),
     enabled: !!resolvedEventId,
   });
 
@@ -309,28 +316,49 @@ export default function EventTicketTypes() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {ticketTypes.map((tt) => {
-                const feePerTicket = tt.serviceFeeType === "percentage"
-                  ? Math.round(tt.price * tt.serviceFee / 100)
-                  : tt.serviceFee;
-                const feeLabel = tt.serviceFeeType === "percentage"
-                  ? `${tt.serviceFee}% = ${formatPrice(feePerTicket)}`
-                  : formatPrice(tt.serviceFee);
-                return (
-                  <div key={tt.id} className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{tt.name} ({tt.quantity.toLocaleString()} × {feeLabel})</span>
-                    <span className="font-mono">{formatPrice(tt.quantity * feePerTicket)}</span>
-                  </div>
-                );
-              })}
+              {serviceSummary ? (
+                <>
+                  {serviceSummary.byTicketType.filter((r) => r.ticketsSold > 0).map((r) => {
+                    const feeLabel = r.serviceFeeType === "percentage"
+                      ? `${r.serviceFee}%`
+                      : formatPrice(r.serviceFee);
+                    return (
+                      <div key={r.ticketTypeId} className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {r.name} ({r.ticketsSold.toLocaleString()} × {feeLabel})
+                        </span>
+                        <span className="font-mono">{formatPrice(r.totalFeeCollected)}</span>
+                      </div>
+                    );
+                  })}
+                  {serviceSummary.byTicketType.every((r) => r.ticketsSold === 0) && (
+                    <p className="text-sm text-muted-foreground">{t("ticketTypes.noSalesYet", "Sin ventas aún")}</p>
+                  )}
+                </>
+              ) : (
+                ticketTypes.map((tt) => {
+                  const feePerTicket = tt.serviceFeeType === "percentage"
+                    ? Math.round(tt.price * tt.serviceFee / 100)
+                    : tt.serviceFee;
+                  const feeLabel = tt.serviceFeeType === "percentage"
+                    ? `${tt.serviceFee}%`
+                    : formatPrice(tt.serviceFee);
+                  return (
+                    <div key={tt.id} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{tt.name} ({tt.soldCount.toLocaleString()} × {feeLabel})</span>
+                      <span className="font-mono">{formatPrice(tt.soldCount * feePerTicket)}</span>
+                    </div>
+                  );
+                })
+              )}
               <div className="border-t pt-2 flex items-center justify-between font-semibold">
                 <span>{t("ticketTypes.totalServiceFee")}</span>
                 <span className="font-mono text-primary">
-                  {formatPrice(ticketTypes.reduce((sum, tt) => {
+                  {formatPrice(serviceSummary?.totalCollected ?? ticketTypes.reduce((sum, tt) => {
                     const feePerTicket = tt.serviceFeeType === "percentage"
                       ? Math.round(tt.price * tt.serviceFee / 100)
                       : tt.serviceFee;
-                    return sum + tt.quantity * feePerTicket;
+                    return sum + tt.soldCount * feePerTicket;
                   }, 0))}
                 </span>
               </div>
