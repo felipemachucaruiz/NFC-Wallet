@@ -216,6 +216,10 @@ Sentry.setupExpressErrorHandler(app);
 // Global error handler
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err && typeof err === "object" && (err as { code?: string }).code === "LIMIT_FILE_SIZE") {
+    res.status(413).json({ error: "La imagen es demasiado grande. El tamaño máximo es 15 MB." });
+    return;
+  }
   logger.error({ err }, "Unhandled route error");
   res.status(500).json({ error: "An unexpected error occurred" });
 });
