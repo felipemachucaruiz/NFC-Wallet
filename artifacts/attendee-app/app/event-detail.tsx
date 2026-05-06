@@ -15,11 +15,11 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
-  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
   withRepeat,
+  withSequence,
   withTiming,
 } from "react-native-reanimated";
 import { WebView } from "react-native-webview";
@@ -71,32 +71,45 @@ interface FloatingItemData {
   left: number;
   top: number;
   size: number;
-  duration: number;
+  // 4 waypoints for x, y, rotation — mirrors web CSS keyframe variants
+  xs: [number, number, number, number];
+  ys: [number, number, number, number];
+  rots: [number, number, number, number];
+  // duration per segment (ms)
+  segDur: [number, number, number, number];
   delay: number;
-  dx: number;
-  dy: number;
-  rot: number;
 }
 
+const EASING = Easing.inOut(Easing.sin);
+
 function FloatingGraphicItem({ item }: { item: FloatingItemData }) {
-  const progress = useSharedValue(0);
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const rot = useSharedValue(0);
 
   useEffect(() => {
-    progress.value = withDelay(
-      item.delay,
+    const makeSeq = (vals: [number, number, number, number]) =>
       withRepeat(
-        withTiming(1, { duration: item.duration, easing: Easing.inOut(Easing.sin) }),
+        withSequence(
+          withTiming(vals[0], { duration: item.segDur[0], easing: EASING }),
+          withTiming(vals[1], { duration: item.segDur[1], easing: EASING }),
+          withTiming(vals[2], { duration: item.segDur[2], easing: EASING }),
+          withTiming(vals[3], { duration: item.segDur[3], easing: EASING }),
+        ),
         -1,
-        true,
-      ),
-    );
+        false,
+      );
+
+    tx.value = withDelay(item.delay, makeSeq(item.xs));
+    ty.value = withDelay(item.delay, makeSeq(item.ys));
+    rot.value = withDelay(item.delay, makeSeq(item.rots));
   }, []);
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: interpolate(progress.value, [0, 1], [0, item.dx]) },
-      { translateY: interpolate(progress.value, [0, 1], [0, item.dy]) },
-      { rotate: `${interpolate(progress.value, [0, 1], [0, item.rot])}deg` },
+      { translateX: tx.value },
+      { translateY: ty.value },
+      { rotate: `${rot.value}deg` },
     ],
   }));
 
@@ -124,17 +137,41 @@ function FloatingGraphics({ graphics }: { graphics: Array<{ url: string; opacity
     graphics.flatMap((g, gi) =>
       Array.from({ length: 8 }, (_, i) => {
         const r = (o: number) => seededRand((gi * 100 + i) * 7 + o);
+        // Total duration 24–44 s, split into 4 segments with slight variation
+        const totalMs = (24 + r(4) * 20) * 1000;
+        const s0 = totalMs * (0.20 + r(20) * 0.05);
+        const s1 = totalMs * (0.25 + r(21) * 0.05);
+        const s2 = totalMs * (0.20 + r(22) * 0.05);
+        const s3 = totalMs - s0 - s1 - s2;
         return {
           url: g.url,
           opacity: g.opacity,
           left: r(0) * 92,
           top: r(1) * 92,
-          size: 30 + r(2) * 44,
-          duration: (22 + r(4) * 18) * 1000,
-          delay: r(5) * 12000,
-          dx: (r(6) - 0.5) * 60,
-          dy: -40 - r(7) * 60,
-          rot: (r(8) - 0.5) * 28,
+          size: 34 + r(2) * 50,
+          delay: r(5) * 14000,
+          // x: alternating directions like web keyframes
+          xs: [
+            (r(6) - 0.5) * 56,
+            (r(7) - 0.5) * 84,
+            (r(8) - 0.5) * 42,
+            0,
+          ],
+          // y: always drifts upward (negative), returns to 0
+          ys: [
+            -r(9) * 48,
+            -r(10) * 82,
+            -r(11) * 58,
+            0,
+          ],
+          // rotation: alternating sign
+          rots: [
+            (r(12) - 0.5) * 32,
+            (r(13) - 0.5) * 44,
+            (r(14) - 0.5) * 28,
+            0,
+          ],
+          segDur: [s0, s1, s2, s3],
         };
       }),
     ),
@@ -314,7 +351,8 @@ export default function EventDetailScreen() {
             <View style={[styles.heroImage, { backgroundColor: "#111" }]} />
           )}
           <LinearGradient
-            colors={["transparent", "rgba(0,0,0,0.92)"]}
+            colors={["rgba(0,0,0,0)", "rgba(0,0,0,0)", "rgba(0,0,0,0.55)", DARK_BG]}
+            locations={[0, 0.45, 0.75, 1]}
             style={styles.heroGradient}
           />
           {/* Back button */}
