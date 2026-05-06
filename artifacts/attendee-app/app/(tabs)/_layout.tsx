@@ -11,7 +11,7 @@ try {
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
-import Svg, { Path, Ellipse } from "react-native-svg";
+import Svg, { Path, Rect } from "react-native-svg";
 
 const ICON_MIC_VARIANT = "M9,3A4,4 0 0,1 13,7H5A4,4 0 0,1 9,3M11.84,9.82L11,18H10V19A2,2 0 0,0 12,21A2,2 0 0,0 14,19V14A4,4 0 0,1 18,10H20L19,11L20,12H18A2,2 0 0,0 16,14V19A4,4 0 0,1 12,23A4,4 0 0,1 8,19V18H7L6.16,9.82C5.67,9.32 5.31,8.7 5.13,8H12.87C12.69,8.7 12.33,9.32 11.84,9.82M9,11A1,1 0 0,0 8,12A1,1 0 0,0 9,13A1,1 0 0,0 10,12A1,1 0 0,0 9,11Z";
 const ICON_TICKET = "M22 10V6C22 4.89 21.1 4 20 4H4C2.9 4 2 4.89 2 6V10C3.11 10 4 10.9 4 12S3.11 14 2 14V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V14C20.9 14 20 13.1 20 12S20.9 10 22 10M20 8.54C18.81 9.23 18 10.53 18 12S18.81 14.77 20 15.46V18H4V15.46C5.19 14.77 6 13.47 6 12C6 10.5 5.2 9.23 4 8.54L4 6H20V8.54M11 15H13V17H11M11 11H13V13H11M11 7H13V9H11Z";
@@ -28,24 +28,15 @@ function MdiIcon({ path, color, size = 24 }: { path: string; color: string; size
   );
 }
 
-function BraceletIcon({ color, size = 22 }: { color: string; size?: number }) {
+function BraceletIcon({ color, size = 28 }: { color: string; size?: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 512 512" fill="none">
-      <Ellipse cx="256" cy="340" rx="210" ry="80" stroke={color} strokeWidth="28" fill="none" />
+    <Svg width={size} height={size * (154.6 / 328.64)} viewBox="0 0 328.64 154.6">
       <Path
-        d="M46 340 C46 220 130 140 220 118 M466 340 C466 220 382 140 292 118"
-        stroke={color}
-        strokeWidth="28"
-        strokeLinecap="round"
-        fill="none"
+        d="M249.45,18.39H82.56c-5.97,0-10.81,4.84-10.81,10.81v96.2c0,5.97,4.84,10.81,10.81,10.81h166.9c5.97,0,10.81-4.84,10.81-10.81V29.2c0-5.97-4.84-10.81-10.81-10.81ZM100.1,110.29c0,3.9-3.17,7.07-7.07,7.07s-7.07-3.17-7.07-7.07V44.31c0-3.9,3.17-7.07,7.07-7.07s7.07,3.17,7.07,7.07v65.98ZM246.14,110.29c0,3.9-3.17,7.07-7.07,7.07s-7.07-3.17-7.07-7.07V44.31c0-3.9,3.17-7.07,7.07-7.07s7.07,3.17,7.07,7.07v65.98Z"
+        fill={color}
       />
-      <Path
-        d="M220 118 C230 115 243 113 256 113 C269 113 282 115 292 118"
-        stroke={color}
-        strokeWidth="28"
-        strokeLinecap="round"
-        fill="none"
-      />
+      <Rect x="11.48" y="42.85" width="86.62" height="68.91" fill={color} />
+      <Rect x="234.13" y="42.85" width="85.62" height="68.91" fill={color} />
     </Svg>
   );
 }
