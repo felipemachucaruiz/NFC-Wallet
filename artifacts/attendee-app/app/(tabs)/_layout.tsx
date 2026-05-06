@@ -10,11 +10,34 @@ try {
 } catch {}
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
+import Svg, { Path, Ellipse } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { router } from "expo-router";
+
+function BraceletIcon({ color, size = 22 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 512 512" fill="none">
+      <Ellipse cx="256" cy="340" rx="210" ry="80" stroke={color} strokeWidth="28" fill="none" />
+      <Path
+        d="M46 340 C46 220 130 140 220 118 M466 340 C466 220 382 140 292 118"
+        stroke={color}
+        strokeWidth="28"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <Path
+        d="M220 118 C230 115 243 113 256 113 C269 113 282 115 292 118"
+        stroke={color}
+        strokeWidth="28"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}
 
 export default function TabsLayout() {
   const { t } = useTranslation();
@@ -66,28 +89,32 @@ export default function TabsLayout() {
           title: t("events.tab"),
           tabBarIcon: ({ color }) =>
             isIOS && SymbolView
-              ? <SymbolView name="ticket.fill" tintColor={color} size={22} />
-              : <Feather name="calendar" size={22} color={color} />,
+              ? <SymbolView name="mic.fill" tintColor={color} size={22} />
+              : <Feather name="mic" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="home"
         options={{
           title: t("home.tab"),
-          tabBarIcon: ({ color }) =>
-            isIOS && SymbolView
-              ? <SymbolView name="house.fill" tintColor={color} size={22} />
-              : <Feather name="home" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <BraceletIcon color={color} size={22} />,
         }}
       />
       <Tabs.Screen
         name="my-tickets"
         options={{
           title: t("tickets.tab"),
-          tabBarIcon: ({ color }) =>
-            isIOS && SymbolView
-              ? <SymbolView name="ticket.fill" tintColor={color} size={22} />
-              : <Feather name="tag" size={22} color={color} />,
+          tabBarIcon: ({ color: _color, focused }) => (
+            <View style={[styles.floatingBtn, { backgroundColor: C.primary }]}>
+              <Feather name="tag" size={26} color={focused ? C.card : "#000"} />
+            </View>
+          ),
+          tabBarButton: (props) => (
+            <Pressable
+              {...props}
+              style={[props.style as object, styles.floatingBtnWrapper]}
+            />
+          ),
         }}
       />
       <Tabs.Screen
@@ -119,3 +146,23 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  floatingBtnWrapper: {
+    top: -20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  floatingBtn: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+});
