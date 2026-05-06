@@ -37,7 +37,7 @@ export function Footer() {
               />
             </div>
             <p className="text-muted-foreground text-sm max-w-md">
-              La plataforma de boletas más segura de Colombia. Compra tus entradas de forma rápida y segura con tecnología NFC.
+              {t("footer.tagline")}
             </p>
           </div>
 
@@ -61,7 +61,7 @@ export function Footer() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 pt-8 border-t border-border">
           <div>
-            <h4 className="font-semibold text-sm mb-4">Contacto</h4>
+            <h4 className="font-semibold text-sm mb-4">{t("footer.contact")}</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
@@ -79,7 +79,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-semibold text-sm mb-4">Síguenos</h4>
+            <h4 className="font-semibold text-sm mb-4">{t("footer.followUs")}</h4>
             <div className="flex gap-3">
               <a
                 href="https://instagram.com/tapee.app"
@@ -109,7 +109,7 @@ export function Footer() {
                 <FacebookIcon />
               </a>
             </div>
-            <h4 className="font-semibold text-sm mt-6 mb-3">Descarga la app</h4>
+            <h4 className="font-semibold text-sm mt-6 mb-3">{t("footer.downloadApp")}</h4>
             <div className="flex flex-row gap-2 items-center">
               <a
                 href="https://play.google.com/store/apps/details?id=com.tapee.attendee"

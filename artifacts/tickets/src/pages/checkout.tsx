@@ -776,7 +776,7 @@ export default function Checkout() {
               {paymentMethod === "card" && usingNewCard && (
                 <div className="space-y-3">
                   <div>
-                    <Label>Número de tarjeta</Label>
+                    <Label>{t("checkout.cardNumber")}</Label>
                     <div className="relative mt-1">
                       <Input
                         ref={cardInputRef}
@@ -800,7 +800,7 @@ export default function Checkout() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Vencimiento (MM/AA)</Label>
+                      <Label>{t("checkout.expiry")}</Label>
                       <Input
                         type="text"
                         autoComplete="cc-exp"
@@ -833,7 +833,7 @@ export default function Checkout() {
                     </div>
                   </div>
                   <div>
-                    <Label>Titular de la tarjeta</Label>
+                    <Label>{t("checkout.cardHolder")}</Label>
                     <Input
                       type="text"
                       autoComplete="cc-name"
@@ -845,7 +845,7 @@ export default function Checkout() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Los datos de tu tarjeta se cifran con TLS y se tokenizarán por Wompi.
+                    {t("checkout.cardSecurity")}
                   </p>
                 </div>
               )}
@@ -918,7 +918,7 @@ export default function Checkout() {
                 </Button>
                 <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
                   <Shield className="w-3 h-3" />
-                  <span>Pago seguro con cifrado TLS · Wompi</span>
+                  <span>{t("checkout.securePayment")}</span>
                 </div>
               </div>
             </div>

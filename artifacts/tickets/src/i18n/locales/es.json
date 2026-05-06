@@ -193,7 +193,12 @@
     "errorProcessing": "Error al procesar la compra",
     "errorCardTokenize": "No se pudo procesar la tarjeta. Verifica los datos e intenta de nuevo.",
     "verifyHuman": "Verificación de seguridad",
-    "processingFreeOrder": "Confirmando tu entrada gratuita..."
+    "processingFreeOrder": "Confirmando tu entrada gratuita...",
+    "cardNumber": "Número de tarjeta",
+    "expiry": "Vencimiento (MM/AA)",
+    "cardHolder": "Titular de la tarjeta",
+    "cardSecurity": "Los datos de tu tarjeta se cifran con TLS y se tokenizarán por Wompi.",
+    "securePayment": "Pago seguro con cifrado TLS · Wompi"
   },
   "myTickets": {
     "title": "Mis Boletas",
@@ -256,7 +261,12 @@
     "privacy": "Política de privacidad",
     "returns": "Política de devoluciones",
     "help": "Ayuda",
-    "about": "Sobre nosotros"
+    "about": "Sobre nosotros",
+    "tagline": "La plataforma de boletas más segura de Colombia. Compra tus entradas de forma rápida y segura con tecnología NFC.",
+    "contact": "Contacto",
+    "followUs": "Síguenos",
+    "downloadApp": "Descarga la app",
+    "paymentMethods": "Métodos de pago aceptados"
   },
   "common": {
     "loading": "Cargando...",

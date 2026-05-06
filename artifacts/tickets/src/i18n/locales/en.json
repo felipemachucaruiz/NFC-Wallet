@@ -193,7 +193,12 @@
     "errorProcessing": "Error processing purchase",
     "errorCardTokenize": "Could not process card. Please check your details and try again.",
     "verifyHuman": "Security verification",
-    "processingFreeOrder": "Confirming your free ticket..."
+    "processingFreeOrder": "Confirming your free ticket...",
+    "cardNumber": "Card number",
+    "expiry": "Expiry (MM/YY)",
+    "cardHolder": "Card holder name",
+    "cardSecurity": "Your card details are encrypted with TLS and will be tokenized by Wompi.",
+    "securePayment": "Secure payment with TLS encryption · Wompi"
   },
   "myTickets": {
     "title": "My Tickets",
@@ -256,7 +261,12 @@
     "privacy": "Privacy Policy",
     "returns": "Returns Policy",
     "help": "Help",
-    "about": "About Us"
+    "about": "About Us",
+    "tagline": "Colombia's safest ticketing platform. Buy your tickets quickly and securely with NFC technology.",
+    "contact": "Contact",
+    "followUs": "Follow Us",
+    "downloadApp": "Download the app",
+    "paymentMethods": "Accepted payment methods"
   },
   "common": {
     "loading": "Loading...",
