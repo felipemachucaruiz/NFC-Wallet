@@ -159,6 +159,47 @@ Existe un panel oculto en la pantalla de login (5 toques al logo) que permite ca
 
 ---
 
+## Windows — Compatibilidad
+
+Los comandos de este documento usan sintaxis bash (macOS/Linux). En Windows hay tres opciones:
+
+### Opción A — Git Bash o WSL (recomendado)
+
+Abrir **Git Bash** (incluido con Git for Windows) o una terminal **WSL**. Todos los comandos de este archivo funcionan sin cambios.
+
+### Opción B — PowerShell
+
+La sintaxis `VAR=value command` no existe en PowerShell. Usar `;` para separar la asignación del comando:
+
+```powershell
+# En lugar de:
+EXPO_TOKEN=<token> npx eas-cli@latest update ...
+
+# Usar:
+$env:EXPO_TOKEN="<token>"; npx eas-cli@latest update ...
+```
+
+Para la DB con `psql`:
+```powershell
+# En lugar de:
+psql "$RAILWAY_DATABASE_URL"
+
+# Usar:
+psql $env:RAILWAY_DATABASE_URL
+```
+
+### Opción C — CMD
+
+```cmd
+set EXPO_TOKEN=<token> && npx eas-cli@latest update ...
+```
+
+### Nota sobre el Bash tool de Claude Code
+
+Cuando Claude Code ejecuta comandos vía el **Bash tool**, usa un shell bash interno independiente del OS — los comandos funcionan igual en macOS, Linux y Windows sin adaptación.
+
+---
+
 ## Variables de Entorno (nombres — valores en memoria local de Claude)
 
 - `EXPO_TOKEN` — EAS CLI authentication
