@@ -341,7 +341,16 @@
     "deleteAccount": "Delete account",
     "deleteAccountConfirm": "Permanently delete your account?",
     "deleteAccountWarning": "This action is irreversible. Your personal data will be erased and your bracelet unlinked. Any pending balance will be lost.",
-    "deleteAccountConfirmBtn": "Delete account"
+    "deleteAccountConfirmBtn": "Delete account",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "passwordChanged": "Password changed!",
+    "passwordTooShort": "Minimum 8 characters",
+    "passwordMismatch": "Passwords do not match",
+    "wrongPassword": "Incorrect current password",
+    "noPassword": "Your account uses social login"
   },
   "events": {
     "tab": "Events",
