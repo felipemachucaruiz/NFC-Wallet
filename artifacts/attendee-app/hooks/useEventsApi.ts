@@ -170,10 +170,16 @@ interface PublicEventDetailRaw {
   event: PublicEventRaw & {
     minAge?: number;
     longDescription?: string;
+    descriptionEn?: string;
     ticketingEnabled?: boolean;
     currencyCode?: string;
+    vimeoUrl?: string | null;
+    floatingGraphicUrl?: string | null;
+    floatingGraphics?: Array<{ url: string; opacity: number }> | null;
+    pulepId?: string | null;
   };
-  eventDays?: Array<{ id: string; date: string; label: string; dayNumber?: number }>;
+  eventDays?: Array<{ id: string; date: string; label: string; dayNumber?: number; doorsOpenAt?: string | null }>;
+  promoterCompany?: { companyName: string; nit?: string | null } | null;
   venues?: Array<{ name: string; address?: string; city?: string; latitude?: string | number; longitude?: string | number; floorplanImageUrl?: string }>;
   sections?: Array<{ id: string; name: string; svgPathData?: string; colorHex?: string; soldTickets: number; totalTickets: number }>;
   ticketTypes?: Array<{
@@ -260,6 +266,15 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
     };
   }
 
+  const doorsOpenAt = raw.eventDays?.[0]?.doorsOpenAt ?? null;
+
+  const floatingGraphics = e.floatingGraphics?.length
+    ? e.floatingGraphics.map((g) => ({
+        url: g.url.startsWith("http") ? g.url : `${STAFF_API_BASE_URL}${g.url}`,
+        opacity: g.opacity,
+      }))
+    : null;
+
   return {
     id: e.id,
     name: e.name,
@@ -283,6 +298,12 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
     days: days?.map((d, i) => ({ dayNumber: d.dayNumber ?? i + 1, label: d.label, date: d.date })),
     description: e.longDescription ?? e.description,
     minAge: e.minAge,
+    vimeoUrl: e.vimeoUrl ?? null,
+    floatingGraphics,
+    pulepId: e.pulepId ?? null,
+    promoterCompanyName: raw.promoterCompany?.companyName ?? null,
+    promoterNit: raw.promoterCompany?.nit ?? null,
+    doorsOpenAt,
     latitude: lat != null ? Number(lat) : undefined,
     longitude: lng != null ? Number(lng) : undefined,
     timezone: "America/Bogota",

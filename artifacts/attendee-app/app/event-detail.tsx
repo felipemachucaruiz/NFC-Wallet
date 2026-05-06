@@ -1,20 +1,58 @@
-import { useColorScheme } from "@/hooks/useColorScheme";
 import { Image } from 'expo-image';
-import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
-import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
+import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useEventDetail } from "@/hooks/useEventsApi";
 import { formatCurrency } from "@/utils/format";
 import type { TicketAvailability } from "@/types/events";
+
+// ─── Palette ─────────────────────────────────────────────────────────────────
+const CYAN = "#00f1ff";
+const DARK_BG = "#0a0a0a";
+const CARD_BG = "rgba(17,17,17,0.80)";
+const CARD_BORDER = "rgba(255,255,255,0.08)";
+const TEXT = "#ffffff";
+const TEXT_SECONDARY = "rgba(255,255,255,0.60)";
+const TEXT_MUTED = "rgba(255,255,255,0.35)";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function seededRand(seed: number): number {
+  const x = Math.sin(seed + 1) * 10000;
+  return x - Math.floor(x);
+}
+
+function extractVimeoId(url: string): string | null {
+  const match = url.match(/(?:vimeo\.com\/(?:[^/]+\/)*)(\d+)/);
+  if (match) return match[1];
+  if (/^\d+$/.test(url.trim())) return url.trim();
+  return null;
+}
 
 function availabilityVariant(a: TicketAvailability): "success" | "warning" | "danger" {
   if (a === "available") return "success";
@@ -26,39 +64,158 @@ function getDateLocale(lang: string): string {
   return lang === "en" ? "en-US" : "es-CO";
 }
 
+// ─── Floating Graphics ────────────────────────────────────────────────────────
+interface FloatingItemData {
+  url: string;
+  opacity: number;
+  left: number;
+  top: number;
+  size: number;
+  duration: number;
+  delay: number;
+  dx: number;
+  dy: number;
+  rot: number;
+}
+
+function FloatingGraphicItem({ item }: { item: FloatingItemData }) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withDelay(
+      item.delay,
+      withRepeat(
+        withTiming(1, { duration: item.duration, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true,
+      ),
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(progress.value, [0, 1], [0, item.dx]) },
+      { translateY: interpolate(progress.value, [0, 1], [0, item.dy]) },
+      { rotate: `${interpolate(progress.value, [0, 1], [0, item.rot])}deg` },
+    ],
+  }));
+
+  return (
+    <Animated.Image
+      source={{ uri: item.url }}
+      style={[
+        {
+          position: "absolute",
+          left: `${item.left}%` as any,
+          top: `${item.top}%` as any,
+          width: item.size,
+          height: item.size,
+          opacity: item.opacity,
+        },
+        animStyle,
+      ]}
+      resizeMode="contain"
+    />
+  );
+}
+
+function FloatingGraphics({ graphics }: { graphics: Array<{ url: string; opacity: number }> }) {
+  const items = useMemo<FloatingItemData[]>(() =>
+    graphics.flatMap((g, gi) =>
+      Array.from({ length: 8 }, (_, i) => {
+        const r = (o: number) => seededRand((gi * 100 + i) * 7 + o);
+        return {
+          url: g.url,
+          opacity: g.opacity,
+          left: r(0) * 92,
+          top: r(1) * 92,
+          size: 30 + r(2) * 44,
+          duration: (22 + r(4) * 18) * 1000,
+          delay: r(5) * 12000,
+          dx: (r(6) - 0.5) * 60,
+          dy: -40 - r(7) * 60,
+          rot: (r(8) - 0.5) * 28,
+        };
+      }),
+    ),
+  [graphics]);
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {items.map((item, i) => (
+        <FloatingGraphicItem key={i} item={item} />
+      ))}
+    </View>
+  );
+}
+
+// ─── Rich Text (WebView-based) ─────────────────────────────────────────────────
+function RichTextView({ html }: { html: string }) {
+  const [height, setHeight] = useState(0);
+
+  const styledHtml = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>
+    * { box-sizing: border-box; }
+    body { margin:0; padding:0; background:transparent; color:rgba(255,255,255,0.75);
+      font-family:-apple-system,Helvetica,sans-serif; font-size:14px; line-height:22px; }
+    h1,h2,h3 { color:#fff; margin-top:16px; margin-bottom:8px; }
+    strong,b { color:#fff; }
+    a { color:${CYAN}; }
+    p { margin:0 0 10px; }
+    ul,ol { padding-left:20px; margin:0 0 10px; }
+    li { margin-bottom:4px; }
+    img { max-width:100%; border-radius:8px; }
+  </style></head><body>${html}</body></html>`;
+
+  return (
+    <WebView
+      originWhitelist={["*"]}
+      source={{ html: styledHtml }}
+      style={{ height: Math.max(height, 10), backgroundColor: "transparent" }}
+      scrollEnabled={false}
+      showsVerticalScrollIndicator={false}
+      onMessage={(e) => setHeight(Number(e.nativeEvent.data) + 8)}
+      injectedJavaScript="window.ReactNativeWebView.postMessage(document.documentElement.scrollHeight + '');"
+    />
+  );
+}
+
+// ─── Vimeo Player ─────────────────────────────────────────────────────────────
+function VimeoPlayer({ videoId, title }: { videoId: string; title: string }) {
+  const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000}iframe{display:block;width:100%;height:100vh;border:0}</style></head><body><iframe src="https://player.vimeo.com/video/${videoId}?color=00f1ff&title=0&byline=0&portrait=0&dnt=1" allow="autoplay;fullscreen;picture-in-picture" allowfullscreen title="${title.replace(/"/g, "")}"></iframe></body></html>`;
+  return (
+    <WebView
+      originWhitelist={["*"]}
+      source={{ html }}
+      style={styles.videoPlayer}
+      allowsFullscreenVideo
+      mediaPlaybackRequiresUserAction={false}
+    />
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function EventDetailScreen() {
   const { t, i18n } = useTranslation();
   const locale = getDateLocale(i18n.language);
-  const scheme = useColorScheme();
-  const C = scheme === "dark" ? Colors.dark : Colors.light;
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
   const params = useLocalSearchParams<{ eventId: string }>();
   const eventId = params.eventId ?? "";
 
   const { data: event, isPending, isError } = useEventDetail(eventId);
-
   const [flyerVisible, setFlyerVisible] = useState(false);
 
   if (isPending) return <Loading label={t("common.loading")} />;
   if (isError || !event) {
     return (
-      <View style={[styles.container, { backgroundColor: C.background }]}>
-        <View style={[styles.topBar, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color={C.text} />
-          </Pressable>
-        </View>
+      <View style={[styles.container, { backgroundColor: DARK_BG }]}>
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 24 }}>
-          <Feather name="wifi-off" size={40} color={C.textMuted} />
-          <Text style={{ color: C.textSecondary, textAlign: "center", fontSize: 15, fontFamily: "Inter_500Medium" }}>
+          <Feather name="wifi-off" size={40} color={TEXT_MUTED} />
+          <Text style={{ color: TEXT_SECONDARY, textAlign: "center", fontSize: 15, fontFamily: "Inter_500Medium" }}>
             {t("common.loadError", "No se pudo cargar el evento")}
           </Text>
-          <Pressable
-            onPress={() => router.back()}
-            style={{ backgroundColor: C.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
-          >
-            <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 14 }}>
+          <Pressable onPress={() => router.back()} style={styles.errorBack}>
+            <Text style={{ color: DARK_BG, fontFamily: "Inter_600SemiBold", fontSize: 14 }}>
               {t("common.goBack", "Volver")}
             </Text>
           </Pressable>
@@ -74,7 +231,7 @@ export default function EventDetailScreen() {
     if (event.venueMap) {
       router.push({ pathname: "/venue-map", params: { eventId: event.id } });
     } else if (event.ticketTypes.length > 0) {
-      const tt = event.ticketTypes.find((t) => t.availability !== "sold_out") ?? event.ticketTypes[0];
+      const tt = event.ticketTypes.find((x) => x.availability !== "sold_out") ?? event.ticketTypes[0];
       router.push({
         pathname: "/ticket-quantity",
         params: {
@@ -100,184 +257,235 @@ export default function EventDetailScreen() {
   const openMaps = () => {
     if (!event.latitude || !event.longitude) return;
     const label = encodeURIComponent(event.venueName);
-    const url =
-      Platform.OS === "ios"
-        ? `maps:0,0?q=${label}@${event.latitude},${event.longitude}`
-        : `geo:${event.latitude},${event.longitude}?q=${event.latitude},${event.longitude}(${label})`;
-    Linking.openURL(url).catch(() => {
-      Linking.openURL(
-        `https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`,
-      );
-    });
+    const url = Platform.OS === "ios"
+      ? `maps:0,0?q=${label}@${event.latitude},${event.longitude}`
+      : `geo:${event.latitude},${event.longitude}?q=${event.latitude},${event.longitude}(${label})`;
+    Linking.openURL(url).catch(() =>
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`),
+    );
   };
 
+  const bgUrl = event.flyerImageUrl ?? event.coverImageUrl;
   const startDate = new Date(event.startsAt);
+  const doorsTime = event.doorsOpenAt
+    ? new Date(event.doorsOpenAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+    : null;
+  const vimeoId = event.vimeoUrl ? extractVimeoId(event.vimeoUrl) : null;
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
+    <View style={styles.container}>
+      {/* ── Fixed blurred background ── */}
+      <View style={StyleSheet.absoluteFill}>
+        {bgUrl ? (
+          <Image
+            source={{ uri: bgUrl }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            blurRadius={22}
+          />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: DARK_BG }]} />
+        )}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.78)" }]} />
+      </View>
+
+      {/* ── Floating graphics ── */}
+      {event.floatingGraphics?.length ? (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 1 }]} pointerEvents="none">
+          <FloatingGraphics graphics={event.floatingGraphics} />
+        </View>
+      ) : null}
+
+      {/* ── Scrollable content ── */}
+      <ScrollView
+        style={{ zIndex: 2 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero */}
         <View style={styles.heroWrap}>
           {event.coverImageUrl ? (
-            <Image source={{ uri: event.coverImageUrl }} style={styles.heroImage} contentFit="cover" />
+            <Image
+              source={{ uri: event.coverImageUrl }}
+              style={styles.heroImage}
+              contentFit="cover"
+            />
           ) : (
-            <View style={[styles.heroImage, { backgroundColor: C.inputBg }]} />
+            <View style={[styles.heroImage, { backgroundColor: "#111" }]} />
           )}
           <LinearGradient
-            colors={["transparent", "rgba(0,0,0,0.85)"]}
+            colors={["transparent", "rgba(0,0,0,0.92)"]}
             style={styles.heroGradient}
           />
-          <View style={[styles.heroContent, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
+          {/* Back button */}
+          <View style={[styles.heroTop, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
             <Pressable onPress={() => router.back()} style={styles.heroBackBtn}>
               <Feather name="arrow-left" size={22} color="#fff" />
             </Pressable>
           </View>
+          {/* Title + meta */}
           <View style={styles.heroBottom}>
             <Text style={styles.heroTitle}>{event.name}</Text>
             <View style={styles.heroMeta}>
-              <Feather name="calendar" size={14} color="rgba(255,255,255,0.8)" />
+              <Feather name="calendar" size={13} color={CYAN} />
               <Text style={styles.heroMetaText}>
-                {startDate.toLocaleDateString(locale, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                {startDate.toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
                 {" · "}
                 {startDate.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
               </Text>
             </View>
             <View style={styles.heroMeta}>
-              <Feather name="map-pin" size={14} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.heroMetaText}>
-                {event.venueName} · {event.city}
-              </Text>
+              <Feather name="map-pin" size={13} color={CYAN} />
+              <Text style={styles.heroMetaText}>{event.venueName}{event.city ? ` · ${event.city}` : ""}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.body}>
+          {/* Flyer thumbnail */}
           {event.flyerImageUrl && (
             <Pressable onPress={() => setFlyerVisible(true)}>
-              <Card style={{ padding: 0, overflow: "hidden" }}>
-                <Image
-                  source={{ uri: event.flyerImageUrl }}
-                  style={styles.flyerThumb}
-                  contentFit="cover"
-                />
-                <LinearGradient
-                  colors={["transparent", C.background]}
-                  style={styles.flyerGradient}
-                />
+              <View style={styles.glassCard}>
+                <Image source={{ uri: event.flyerImageUrl }} style={styles.flyerThumb} contentFit="cover" />
+                <LinearGradient colors={["transparent", "rgba(0,0,0,0.7)"]} style={styles.flyerGradient} />
                 <View style={styles.flyerOverlay}>
-                  <Feather name="maximize-2" size={16} color="#fff" />
+                  <Feather name="maximize-2" size={14} color="#fff" />
                   <Text style={styles.flyerOverlayText}>{t("events.viewFlyer")}</Text>
                 </View>
-              </Card>
+              </View>
             </Pressable>
           )}
 
-          <Card style={{ gap: 10 }}>
-            <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
-              {t("events.eventInfo").toUpperCase()}
-            </Text>
-            <InfoRow icon="tag" label={t(`events.category_${event.category}`)} color={C} />
-            {event.minAge != null && event.minAge > 0 && (
-              <InfoRow icon="alert-circle" label={`${t("events.minAge")}: ${event.minAge}+`} color={C} />
-            )}
-            <InfoRow icon="map-pin" label={event.venueAddress} color={C} />
-          </Card>
+          {/* Info grid: date, doors, age */}
+          <View style={styles.glassCard}>
+            <Text style={styles.sectionLabel}>{t("events.eventInfo").toUpperCase()}</Text>
+            <View style={styles.infoGrid}>
+              <InfoItem icon="calendar" label={t("event.date", "Fecha")} value={
+                event.days && event.days.length > 0
+                  ? event.days.map((d) => new Date(d.date).toLocaleDateString(locale, { day: "numeric", month: "short" })).join(", ")
+                  : startDate.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })
+              } />
+              {doorsTime && (
+                <InfoItem icon="log-in" label={t("event.doorOpening", "Apertura de Puertas")} value={doorsTime} />
+              )}
+              <InfoItem
+                icon="shield"
+                label={t("event.minAge", "Edad Mínima")}
+                value={event.minAge ? `${event.minAge}+` : t("event.allAges", "Todas las edades")}
+              />
+              <InfoItem icon="tag" label={t("events.category")} value={t(`events.category_${event.category}`, event.category)} />
+            </View>
+          </View>
 
+          {/* Promoter / Pulep */}
+          {(event.promoterCompanyName || event.promoterNit || event.pulepId) && (
+            <View style={styles.glassCard}>
+              <Text style={styles.sectionLabel}>{t("event.promoter", "Responsable").toUpperCase()}</Text>
+              <View style={styles.infoGrid}>
+                {event.promoterCompanyName && (
+                  <InfoItem icon="briefcase" label={t("event.promoter", "Responsable")} value={event.promoterCompanyName} />
+                )}
+                {event.promoterNit && (
+                  <InfoItem icon="hash" label="NIT" value={event.promoterNit} />
+                )}
+                {event.pulepId && (
+                  <InfoItem icon="info" label="Pulep" value={event.pulepId} />
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Description — rich text via WebView */}
+          {event.description && event.description.trim().length > 0 && (
+            <View style={styles.glassCard}>
+              <Text style={styles.sectionLabel}>{t("events.details").toUpperCase()}</Text>
+              {event.description.includes("<") ? (
+                <RichTextView html={event.description} />
+              ) : (
+                <Text style={styles.plainText}>{event.description}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Vimeo video */}
+          {vimeoId && (
+            <View style={styles.glassCard}>
+              <Text style={styles.sectionLabel}>{t("event.video", "Video").toUpperCase()}</Text>
+              <View style={styles.videoWrap}>
+                <VimeoPlayer videoId={vimeoId} title={event.name} />
+              </View>
+            </View>
+          )}
+
+          {/* Multi-day schedule */}
           {event.multiDay && event.days && event.days.length > 0 && (
-            <Card style={{ gap: 8 }}>
-              <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
-                {t("events.schedule").toUpperCase()}
-              </Text>
+            <View style={styles.glassCard}>
+              <Text style={styles.sectionLabel}>{t("events.schedule").toUpperCase()}</Text>
               {event.days.map((day) => (
-                <View key={day.dayNumber} style={[styles.dayRow, { borderColor: C.border }]}>
-                  <View style={[styles.dayBadge, { backgroundColor: C.primaryLight }]}>
-                    <Text style={[styles.dayBadgeText, { color: C.primary }]}>
-                      {t("events.dayLabel", { n: day.dayNumber })}
+                <View key={day.dayNumber} style={styles.dayRow}>
+                  <View style={styles.dayBadge}>
+                    <Text style={styles.dayBadgeText}>{t("events.dayLabel", { n: day.dayNumber })}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dayLabel}>{day.label}</Text>
+                    <Text style={styles.dayDate}>
+                      {new Date(day.date).toLocaleDateString(locale, { weekday: "short", month: "short", day: "numeric" })}
                     </Text>
                   </View>
-                  <Text style={[styles.dayLabel, { color: C.text }]}>{day.label}</Text>
-                  <Text style={[styles.dayDate, { color: C.textSecondary }]}>
-                    {new Date(day.date).toLocaleDateString(locale, {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </Text>
                 </View>
               ))}
-            </Card>
+            </View>
           )}
 
-          {event.description && (
-            <Card style={{ gap: 8 }}>
-              <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
-                {t("events.details").toUpperCase()}
-              </Text>
-              {event.description.split("\n").map((paragraph, idx) => (
-                <Text key={idx} style={[styles.descriptionText, { color: C.text }]}>
-                  {paragraph}
-                </Text>
-              ))}
-            </Card>
-          )}
-
+          {/* Location */}
           {event.latitude != null && event.longitude != null && (
-            <Card style={{ padding: 0, overflow: "hidden" }}>
-              <Pressable onPress={openMaps}>
-                <View style={[styles.mapFallback, { backgroundColor: "#0a0a0a" }]}>
-                  <Feather name="map" size={24} color={C.primary} />
-                  <Text style={[styles.mapText, { color: C.primary }]}>
-                    {t("events.openMaps")}
-                  </Text>
-                  <Text style={[styles.mapCoords, { color: C.textMuted }]}>
-                    {event.latitude?.toFixed(4)}, {event.longitude?.toFixed(4)}
-                  </Text>
+            <Pressable onPress={openMaps}>
+              <View style={[styles.glassCard, styles.locationRow]}>
+                <View style={styles.locationIcon}>
+                  <Feather name="map-pin" size={20} color={CYAN} />
                 </View>
-              </Pressable>
-            </Card>
+                <View style={{ flex: 1 }}>
+                  {event.venueName ? <Text style={styles.locationName}>{event.venueName}</Text> : null}
+                  {event.venueAddress ? <Text style={styles.locationAddress}>{event.venueAddress}</Text> : null}
+                </View>
+                <Feather name="external-link" size={16} color={TEXT_MUTED} />
+              </View>
+            </Pressable>
           )}
 
-          <Card style={{ gap: 8 }}>
-            <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>
-              {t("events.pricing").toUpperCase()}
-            </Text>
-            {event.ticketTypes.map((tt) => (
-              <View key={tt.id} style={[styles.pricingRow, { borderColor: C.border }]}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={[styles.pricingName, { color: C.text }]}>{tt.name}</Text>
-                  {tt.sectionName && (
-                    <Text style={[styles.pricingSection, { color: C.textMuted }]}>
-                      {tt.sectionName}
-                    </Text>
-                  )}
-                  {tt.validDays && tt.validDays.length > 0 && (
-                    <Text style={[styles.pricingDays, { color: C.textSecondary }]}>
-                      {t("events.validDays")}: {tt.validDays.map((d) => t("events.dayLabel", { n: d })).join(", ")}
-                    </Text>
-                  )}
+          {/* Ticket pricing */}
+          {event.ticketTypes.length > 0 && (
+            <View style={styles.glassCard}>
+              <Text style={styles.sectionLabel}>{t("events.pricing").toUpperCase()}</Text>
+              {event.ticketTypes.map((tt) => (
+                <View key={tt.id} style={styles.pricingRow}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.pricingName}>{tt.name}</Text>
+                    {tt.sectionName && <Text style={styles.pricingSection}>{tt.sectionName}</Text>}
+                    {tt.validDays && tt.validDays.length > 0 && (
+                      <Text style={styles.pricingDays}>
+                        {t("events.validDays")}: {tt.validDays.map((d) => t("events.dayLabel", { n: d })).join(", ")}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 4 }}>
+                    <Text style={styles.pricingPrice}>{formatCurrency(tt.price, event.currencyCode)}</Text>
+                    <Badge
+                      label={t(`events.availability_${tt.availability}`)}
+                      variant={availabilityVariant(tt.availability)}
+                      size="sm"
+                    />
+                  </View>
                 </View>
-                <View style={{ alignItems: "flex-end", gap: 4 }}>
-                  <Text style={[styles.pricingPrice, { color: C.text }]}>
-                    {formatCurrency(tt.price, event.currencyCode)}
-                  </Text>
-                  <Badge
-                    label={t(`events.availability_${tt.availability}`)}
-                    variant={availabilityVariant(tt.availability)}
-                    size="sm"
-                  />
-                </View>
-              </View>
-            ))}
-          </Card>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
+      {/* ── Fixed CTA ── */}
       {!salesNotStarted && (
-        <View style={[styles.ctaBar, { paddingBottom: insets.bottom + 16, backgroundColor: C.background }]}>
+        <View style={[styles.ctaBar, { paddingBottom: insets.bottom + 16, zIndex: 3 }]}>
           <Button
             title={allSoldOut ? t("events.soldOut") : t("events.buyTickets")}
             onPress={handleBuyTickets}
@@ -289,17 +497,14 @@ export default function EventDetailScreen() {
         </View>
       )}
 
+      {/* ── Flyer modal ── */}
       <Modal visible={flyerVisible} transparent animationType="fade">
         <View style={styles.flyerModal}>
           <Pressable style={styles.flyerModalClose} onPress={() => setFlyerVisible(false)}>
             <Feather name="x" size={28} color="#fff" />
           </Pressable>
           {event.flyerImageUrl && (
-            <Image
-              source={{ uri: event.flyerImageUrl }}
-              style={styles.flyerFullImage}
-              contentFit="contain"
-            />
+            <Image source={{ uri: event.flyerImageUrl }} style={styles.flyerFullImage} contentFit="contain" />
           )}
         </View>
       </Modal>
@@ -307,209 +512,104 @@ export default function EventDetailScreen() {
   );
 }
 
-function InfoRow({ icon, label, color: C }: { icon: React.ComponentProps<typeof Feather>["name"]; label: string; color: typeof Colors.dark }) {
+// ─── InfoItem ─────────────────────────────────────────────────────────────────
+function InfoItem({ icon, label, value }: { icon: React.ComponentProps<typeof Feather>["name"]; label: string; value: string }) {
   return (
-    <View style={styles.infoRow}>
-      <Feather name={icon} size={14} color={C.textSecondary} />
-      <Text style={[styles.infoRowText, { color: C.text }]}>{label}</Text>
+    <View style={styles.infoItem}>
+      <View style={styles.infoItemBorder} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.infoItemLabel}>{label}</Text>
+        <Text style={styles.infoItemValue} numberOfLines={2}>{value}</Text>
+      </View>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  topBar: { paddingHorizontal: 20, paddingBottom: 8 },
-  backBtn: { padding: 4 },
-  heroWrap: { position: "relative", height: 320 },
+  container: { flex: 1, backgroundColor: DARK_BG },
+
+  heroWrap: { position: "relative", height: 340 },
   heroImage: { width: "100%", height: "100%" },
-  heroGradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 200,
-  },
-  heroContent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-  },
+  heroGradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: 220 },
+  heroTop: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 20 },
   heroBackBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center", justifyContent: "center",
   },
-  heroBottom: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    gap: 6,
+  heroBottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, gap: 6 },
+  heroTitle: { fontSize: 26, fontFamily: "Inter_700Bold", color: TEXT, lineHeight: 32 },
+  heroMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
+  heroMetaText: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.75)", flex: 1 },
+
+  body: { padding: 16, gap: 12 },
+
+  glassCard: {
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: CARD_BORDER,
+    borderRadius: 16,
+    padding: 16,
+    overflow: "hidden",
   },
-  heroTitle: {
-    fontSize: 24,
-    fontFamily: "Inter_700Bold",
-    color: "#fff",
-    lineHeight: 30,
-  },
-  heroMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  heroMetaText: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.8)",
-  },
-  body: { padding: 20, gap: 16 },
-  sectionTitle: {
-    fontSize: 11,
+
+  sectionLabel: {
+    fontSize: 10,
     fontFamily: "Inter_600SemiBold",
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 0.9,
+    color: TEXT_SECONDARY,
+    marginBottom: 12,
   },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  infoRowText: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    flex: 1,
-  },
-  dayRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-  },
-  dayBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  dayBadgeText: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-  },
-  dayLabel: {
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-    flex: 1,
-  },
-  dayDate: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  descriptionText: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 22,
-  },
-  mapImage: {
-    width: "100%",
-    height: 150,
-  },
-  mapFallback: {
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    justifyContent: "center",
-  },
-  mapText: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  mapCoords: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-  },
-  pricingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    gap: 12,
-  },
-  pricingName: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  pricingSection: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  pricingDays: {
-    fontSize: 11,
-    fontFamily: "Inter_400Regular",
-  },
-  pricingPrice: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-  },
+
+  infoGrid: { gap: 10 },
+  infoItem: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  infoItemBorder: { width: 2, borderRadius: 1, backgroundColor: CYAN, alignSelf: "stretch" },
+  infoItemLabel: { fontSize: 10, fontFamily: "Inter_400Regular", color: TEXT_SECONDARY, textTransform: "uppercase", letterSpacing: 0.5 },
+  infoItemValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: TEXT, marginTop: 1 },
+
+  plainText: { fontSize: 14, fontFamily: "Inter_400Regular", color: TEXT_SECONDARY, lineHeight: 22 },
+
+  videoWrap: { width: "100%", aspectRatio: 16 / 9, borderRadius: 12, overflow: "hidden", backgroundColor: "#000" },
+  videoPlayer: { flex: 1, backgroundColor: "#000" },
+
+  dayRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: CARD_BORDER },
+  dayBadge: { backgroundColor: "rgba(0,241,255,0.10)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  dayBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: CYAN },
+  dayLabel: { fontSize: 14, fontFamily: "Inter_500Medium", color: TEXT },
+  dayDate: { fontSize: 12, fontFamily: "Inter_400Regular", color: TEXT_SECONDARY },
+
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  locationIcon: { width: 40, height: 40, borderRadius: 10, backgroundColor: "rgba(0,241,255,0.10)", alignItems: "center", justifyContent: "center" },
+  locationName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: TEXT },
+  locationAddress: { fontSize: 12, fontFamily: "Inter_400Regular", color: TEXT_SECONDARY, marginTop: 2 },
+
+  pricingRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: CARD_BORDER, gap: 12 },
+  pricingName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: TEXT },
+  pricingSection: { fontSize: 12, fontFamily: "Inter_400Regular", color: TEXT_SECONDARY },
+  pricingDays: { fontSize: 11, fontFamily: "Inter_400Regular", color: TEXT_SECONDARY },
+  pricingPrice: { fontSize: 16, fontFamily: "Inter_700Bold", color: CYAN },
+
   ctaBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.05)",
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 16, paddingTop: 12,
+    backgroundColor: "rgba(10,10,10,0.92)",
+    borderTopWidth: 1, borderTopColor: CARD_BORDER,
   },
-  flyerThumb: {
-    width: "100%",
-    height: 200,
-  },
-  flyerGradient: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-  },
+
+  flyerThumb: { width: "100%", height: 200 },
+  flyerGradient: { position: "absolute", bottom: 0, left: 0, right: 0, height: 80 },
   flyerOverlay: {
-    position: "absolute",
-    bottom: 8,
-    right: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    position: "absolute", bottom: 10, right: 10,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "rgba(0,0,0,0.65)", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
-  flyerOverlayText: {
-    color: "#fff",
-    fontSize: 12,
-    fontFamily: "Inter_500Medium",
-  },
-  flyerModal: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.95)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  flyerModalClose: {
-    position: "absolute",
-    top: 50,
-    right: 20,
-    zIndex: 10,
-    padding: 8,
-  },
-  flyerFullImage: {
-    width: "90%",
-    height: "80%",
-  },
+  flyerOverlayText: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium" },
+
+  flyerModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.95)", justifyContent: "center", alignItems: "center" },
+  flyerModalClose: { position: "absolute", top: 50, right: 20, zIndex: 10, padding: 8 },
+  flyerFullImage: { width: "90%", height: "80%" },
+
+  errorBack: { backgroundColor: CYAN, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
 });
