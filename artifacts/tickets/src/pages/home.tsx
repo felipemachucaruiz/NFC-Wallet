@@ -370,14 +370,15 @@ function EventCard({ event }: { event: ApiEvent }) {
   return (
     <Link href={`/event/${event.slug || event.id}`}>
       <div className="group bg-card border border-border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:border-primary/40 hover:shadow-[0_0_24px_rgba(0,241,255,0.1)] hover:-translate-y-0.5">
-        <div className="relative aspect-video overflow-hidden">
+        {/* Image — portrait aspect ratio */}
+        <div className="relative aspect-[3/4] overflow-hidden">
           <img
             src={resolveImageUrl(event.flyerImageUrl || event.coverImageUrl)}
             alt={event.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
             {event.startsAt && (
               <div className="flex items-center gap-1.5 text-xs text-white/90 mb-1">
@@ -400,19 +401,33 @@ function EventCard({ event }: { event: ApiEvent }) {
             </div>
           )}
         </div>
-        <div className="p-4">
-          <h3 className="font-semibold text-base mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug tracking-tight">
-            {event.name}
-          </h3>
-          <div className="flex items-center justify-between">
-            {event.priceFrom > 0 ? (
-              <span className="text-sm text-muted-foreground">
-                {t("home.from")} <span className="text-primary font-bold">{formatPrice(event.priceFrom)}</span>
-              </span>
-            ) : (
-              <span className="text-sm font-medium text-emerald-400">Gratis</span>
-            )}
-            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-200" />
+        {/* Bottom strip — blurred flyer as background */}
+        <div className="relative overflow-hidden p-4">
+          <div
+            className="absolute inset-0 scale-110"
+            style={{
+              backgroundImage: `url(${resolveImageUrl(event.flyerImageUrl || event.coverImageUrl)})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              filter: "blur(20px)",
+              opacity: 0.35,
+            }}
+          />
+          <div className="absolute inset-0 bg-card/70" />
+          <div className="relative z-10">
+            <h3 className="font-semibold text-base mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug tracking-tight">
+              {event.name}
+            </h3>
+            <div className="flex items-center justify-between">
+              {event.priceFrom > 0 ? (
+                <span className="text-sm text-muted-foreground">
+                  {t("home.from")} <span className="text-primary font-bold">{formatPrice(event.priceFrom)}</span>
+                </span>
+              ) : (
+                <span className="text-sm font-medium text-emerald-400">Gratis</span>
+              )}
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-200" />
+            </div>
           </div>
         </div>
       </div>
