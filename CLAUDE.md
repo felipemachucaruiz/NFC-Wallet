@@ -88,7 +88,7 @@ cd artifacts/attendee-app
 EXPO_TOKEN=<token> npx eas-cli@latest update --channel production --message "descripción" --non-interactive
 ```
 
-> **Workaround pnpm:** La attendee app **requiere `eas-cli@latest`** (con `@latest` explícito). Sin él, la resolución de npm dentro del monorepo pnpm puede tomar una versión cacheada o incompatible y fallar silenciosamente o con errores de resolución de paquetes. El canal también es distinto: `production` (no `production-apk`).
+> **Workaround pnpm (Windows):** Si el comando falla con `Cannot find module 'expo/config-plugins'`, los junctions del virtual store de pnpm están desactualizados. Solución: correr `pnpm install --frozen-lockfile --ignore-scripts` desde la raíz del monorepo, luego reintentar el comando OTA. El canal también es distinto: `production` (no `production-apk`).
 
 Las OTAs solo aplican a dispositivos con el mismo `runtimeVersion`.
 
