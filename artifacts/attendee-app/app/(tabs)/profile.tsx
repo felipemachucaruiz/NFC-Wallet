@@ -22,7 +22,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CopAmount } from "@/components/CopAmount";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyRefundRequests, useUpdateProfile, useDeleteAccount } from "@/hooks/useAttendeeApi";
+import { useMyRefundRequests, useUpdateProfile, useDeleteAccount, useChangePassword } from "@/hooks/useAttendeeApi";
 import { setStoredLanguage } from "@/i18n";
 import i18n from "@/i18n";
 import { formatDate } from "@/utils/format";
@@ -98,6 +98,13 @@ export default function ProfileScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNext, setPwNext] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwSaved, setPwSaved] = useState(false);
+
   const [isEditing, setIsEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
   const [lastName, setLastName] = useState(user?.lastName ?? "");
@@ -130,6 +137,28 @@ export default function ProfileScreen() {
 
   const updateProfile = useUpdateProfile();
   const deleteAccount = useDeleteAccount();
+  const changePasswordMutation = useChangePassword();
+
+  const handleChangePassword = async () => {
+    setPwError("");
+    if (pwNext.length < 8) { setPwError(t("profile.passwordTooShort") || "Mínimo 8 caracteres"); return; }
+    if (pwNext !== pwConfirm) { setPwError(t("profile.passwordMismatch") || "Las contraseñas no coinciden"); return; }
+    try {
+      await changePasswordMutation.mutateAsync({ currentPassword: pwCurrent, newPassword: pwNext });
+      setPwSaved(true);
+      setPwCurrent(""); setPwNext(""); setPwConfirm("");
+      setTimeout(() => { setPwSaved(false); setShowChangePw(false); }, 2000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("incorrecta") || msg.includes("incorrect")) {
+        setPwError(t("profile.wrongPassword") || "Contraseña actual incorrecta.");
+      } else if (msg.includes("no tiene contraseña")) {
+        setPwError(t("profile.noPassword") || "Tu cuenta usa inicio de sesión social.");
+      } else {
+        setPwError(msg || "Error al cambiar la contraseña.");
+      }
+    }
+  };
 
   const handleLanguage = async (lang: string) => {
     await setStoredLanguage(lang);
@@ -501,6 +530,69 @@ export default function ProfileScreen() {
         <Feather name="chevron-right" size={16} color={C.textMuted} />
       </Pressable>
 
+      <Pressable
+        onPress={() => { setShowChangePw(true); setPwError(""); setPwCurrent(""); setPwNext(""); setPwConfirm(""); }}
+        style={[styles.navLink, { backgroundColor: C.card, borderColor: C.border }]}
+      >
+        <Feather name="lock" size={18} color={C.primary} />
+        <Text style={[styles.navLinkText, { color: C.text }]}>{t("profile.changePassword") || "Cambiar contraseña"}</Text>
+        <Feather name="chevron-right" size={16} color={C.textMuted} />
+      </Pressable>
+
+      <Modal visible={showChangePw} transparent animationType="slide" onRequestClose={() => setShowChangePw(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+          <Pressable style={styles.modalOverlay} onPress={() => setShowChangePw(false)}>
+            <Pressable style={[styles.modalSheet, { backgroundColor: C.card }]} onPress={() => {}}>
+              <Text style={[styles.modalTitle, { color: C.text }]}>{t("profile.changePassword") || "Cambiar contraseña"}</Text>
+              <Text style={[styles.idTypeLabel, { color: C.textSecondary }]}>{t("profile.currentPassword") || "Contraseña actual"}</Text>
+              <TextInput
+                style={[styles.idNumberInput, { color: C.text, borderColor: C.border, backgroundColor: C.background }]}
+                value={pwCurrent}
+                onChangeText={setPwCurrent}
+                secureTextEntry
+                autoComplete="current-password"
+                placeholderTextColor={C.textMuted}
+                placeholder="••••••••"
+              />
+              <Text style={[styles.idTypeLabel, { color: C.textSecondary, marginTop: 12 }]}>{t("profile.newPassword") || "Nueva contraseña"}</Text>
+              <TextInput
+                style={[styles.idNumberInput, { color: C.text, borderColor: C.border, backgroundColor: C.background }]}
+                value={pwNext}
+                onChangeText={setPwNext}
+                secureTextEntry
+                autoComplete="new-password"
+                placeholderTextColor={C.textMuted}
+                placeholder="••••••••"
+              />
+              <Text style={[styles.idTypeLabel, { color: C.textSecondary, marginTop: 12 }]}>{t("profile.confirmNewPassword") || "Confirmar nueva contraseña"}</Text>
+              <TextInput
+                style={[styles.idNumberInput, { color: C.text, borderColor: C.border, backgroundColor: C.background }]}
+                value={pwConfirm}
+                onChangeText={setPwConfirm}
+                secureTextEntry
+                autoComplete="new-password"
+                placeholderTextColor={C.textMuted}
+                placeholder="••••••••"
+              />
+              {pwError ? <Text style={[styles.saveError, { color: C.danger }]}>{pwError}</Text> : null}
+              {pwSaved ? <Text style={[styles.saveError, { color: C.primary }]}>{t("profile.passwordChanged") || "¡Contraseña cambiada!"}</Text> : null}
+              <Pressable
+                onPress={handleChangePassword}
+                disabled={changePasswordMutation.isPending}
+                style={[styles.saveBtn, { backgroundColor: C.primary, opacity: changePasswordMutation.isPending ? 0.6 : 1, marginTop: 16 }]}
+              >
+                <Text style={styles.saveBtnText}>
+                  {changePasswordMutation.isPending ? "..." : (t("common.save") || "Guardar")}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => setShowChangePw(false)} style={{ marginTop: 12, alignItems: "center" }}>
+                <Text style={[styles.cancelText, { color: C.textSecondary }]}>{t("common.cancel") || "Cancelar"}</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {!showLogoutConfirm ? (
         <Pressable
           onPress={() => setShowLogoutConfirm(true)}
@@ -736,4 +828,23 @@ const styles = StyleSheet.create({
   },
   deleteAccountText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   deleteAccountWarning: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  modalTitle: { fontSize: 17, fontFamily: "Inter_700Bold", marginBottom: 16 },
+  idTypeLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 6 },
+  idNumberInput: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  saveError: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 8 },
+  cancelText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 });

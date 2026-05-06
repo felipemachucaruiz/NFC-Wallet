@@ -224,6 +224,18 @@ export async function logoutApi(): Promise<void> {
   await apiFetch("/auth/logout", { method: "POST" });
 }
 
+export async function deleteAccount(): Promise<void> {
+  await apiFetch("/attendee/me", { method: "DELETE" });
+}
+
+export async function changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
+  await apiFetch("/auth/change-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
 export interface SavedCard {
   id: string;
   brand: string;

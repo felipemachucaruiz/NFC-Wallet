@@ -121,6 +121,7 @@
     "male": "Male",
     "female": "Female",
     "idDocument": "ID number",
+    "nonBinary": "Non-binary",
     "yourTicket": "Your ticket"
   },
   "auth": {
@@ -276,7 +277,21 @@
     "profile": "Profile",
     "save": "Save",
     "saved": "Saved",
-    "saveError": "Error saving. Please try again."
+    "saveError": "Error saving. Please try again.",
+    "idType": "Document type",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "passwordChanged": "Password changed",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Minimum 8 characters",
+    "wrongPassword": "Current password is incorrect.",
+    "noPassword": "Your account uses social login and has no password.",
+    "deleteAccount": "Delete account",
+    "deleteConfirmTitle": "Delete account?",
+    "deleteConfirmDesc": "This action is irreversible. All your data, tickets and linked wristbands will be deleted.",
+    "deleting": "Deleting..."
   },
   "footer": {
     "rights": "All rights reserved",
