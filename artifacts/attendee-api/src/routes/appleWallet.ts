@@ -81,7 +81,7 @@ function extractCerts(): { signerCert: string; signerKey: string } {
 
 function generateWalletToken(ticketId: string): string {
   if (!HMAC_SECRET) throw new Error("HMAC_SECRET not configured");
-  const exp = Math.floor(Date.now() / 1000) + 3600;
+  const exp = Math.floor(Date.now() / 1000) + 86400 * 365;
   const payload = `${ticketId}:${exp}`;
   const sig = crypto.createHmac("sha256", HMAC_SECRET).update(payload).digest("hex");
   return Buffer.from(`${payload}:${sig}`).toString("base64url");
