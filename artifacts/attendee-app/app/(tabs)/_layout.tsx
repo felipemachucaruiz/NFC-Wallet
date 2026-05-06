@@ -9,10 +9,12 @@ try {
   SymbolView = require("expo-symbols").SymbolView;
 } catch {}
 import { Feather } from "@expo/vector-icons";
-import { mdiMicrophoneVariant, mdiTicketConfirmationOutline } from "@mdi/js";
 import React from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import Svg, { Path, Ellipse } from "react-native-svg";
+
+const ICON_MIC_VARIANT = "M9,3A4,4 0 0,1 13,7H5A4,4 0 0,1 9,3M11.84,9.82L11,18H10V19A2,2 0 0,0 12,21A2,2 0 0,0 14,19V14A4,4 0 0,1 18,10H20L19,11L20,12H18A2,2 0 0,0 16,14V19A4,4 0 0,1 12,23A4,4 0 0,1 8,19V18H7L6.16,9.82C5.67,9.32 5.31,8.7 5.13,8H12.87C12.69,8.7 12.33,9.32 11.84,9.82M9,11A1,1 0 0,0 8,12A1,1 0 0,0 9,13A1,1 0 0,0 10,12A1,1 0 0,0 9,11Z";
+const ICON_TICKET = "M22 10V6C22 4.89 21.1 4 20 4H4C2.9 4 2 4.89 2 6V10C3.11 10 4 10.9 4 12S3.11 14 2 14V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V14C20.9 14 20 13.1 20 12S20.9 10 22 10M20 8.54C18.81 9.23 18 10.53 18 12S18.81 14.77 20 15.46V18H4V15.46C5.19 14.77 6 13.47 6 12C6 10.5 5.2 9.23 4 8.54L4 6H20V8.54M11 15H13V17H11M11 11H13V13H11M11 7H13V9H11Z";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
@@ -99,7 +101,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) =>
             isIOS && SymbolView
               ? <SymbolView name="mic.fill" tintColor={color} size={22} />
-              : <MdiIcon path={mdiMicrophoneVariant} color={color} size={24} />,
+              : <MdiIcon path={ICON_MIC_VARIANT} color={color} size={24} />,
         }}
       />
       <Tabs.Screen
@@ -113,9 +115,10 @@ export default function TabsLayout() {
         name="my-tickets"
         options={{
           title: t("tickets.tab"),
+          tabBarShowLabel: false,
           tabBarIcon: () => (
             <View style={[styles.circleBtn, { backgroundColor: C.primary }]}>
-              <MdiIcon path={mdiTicketConfirmationOutline} color="#000" size={28} />
+              <MdiIcon path={ICON_TICKET} color="#000" size={28} />
             </View>
           ),
         }}
