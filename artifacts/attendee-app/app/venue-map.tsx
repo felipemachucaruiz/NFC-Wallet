@@ -14,6 +14,7 @@ import Svg, { Path, G, Ellipse, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -297,7 +298,7 @@ export default function VenueMapScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <ScreenBackground style={styles.container}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={C.text} />
@@ -427,7 +428,7 @@ export default function VenueMapScreen() {
           ))}
         </Card>
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }
 

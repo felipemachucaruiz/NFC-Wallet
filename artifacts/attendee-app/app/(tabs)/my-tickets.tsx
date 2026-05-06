@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Loading } from "@/components/ui/Loading";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { Empty } from "@/components/ui/Empty";
 import { useMyTickets, useTransferTicket, useAddToWallet } from "@/hooks/useEventsApi";
 import QRCode from "react-native-qrcode-svg";
@@ -473,7 +474,7 @@ export default function MyTicketsScreen() {
     : activeTickets;
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <ScreenBackground style={styles.container}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
         <Text style={[styles.title, { color: C.text }]}>{t("tickets.myTickets")}</Text>
       </View>
@@ -561,7 +562,7 @@ export default function MyTicketsScreen() {
         visible={!!selectedTicket}
         onClose={() => setSelectedTicket(null)}
       />
-    </View>
+    </ScreenBackground>
   );
 }
 

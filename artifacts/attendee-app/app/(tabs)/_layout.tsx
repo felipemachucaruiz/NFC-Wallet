@@ -78,9 +78,9 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: C.tabIconDefault,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : C.card,
+          backgroundColor: isIOS ? "transparent" : "rgba(10,10,10,0.96)",
           borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: C.border,
+          borderTopColor: "rgba(255,255,255,0.06)",
           elevation: 0,
           ...(isWeb ? { height: 84 } : {}),
         },
@@ -88,7 +88,7 @@ export default function TabsLayout() {
           isIOS ? (
             <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
           ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: C.card }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(10,10,10,0.96)" }]} />
           ) : null,
       }}
     >

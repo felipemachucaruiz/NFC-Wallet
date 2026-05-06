@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Loading } from "@/components/ui/Loading";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { Empty } from "@/components/ui/Empty";
 import { useEventCatalogue } from "@/hooks/useEventsApi";
 import { useQuery } from "@tanstack/react-query";
@@ -221,7 +222,7 @@ export default function EventsScreen() {
   if (isPending) return <Loading label={t("common.loading")} />;
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <ScreenBackground style={styles.container}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
         <Text style={[styles.title, { color: C.text }]}>{t("events.title")}</Text>
         <Pressable onPress={() => router.push("/my-tickets")} style={styles.ticketsBtn}>
@@ -369,7 +370,7 @@ export default function EventsScreen() {
           />
         }
       />
-    </View>
+    </ScreenBackground>
   );
 }
 

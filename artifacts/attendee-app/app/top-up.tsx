@@ -21,6 +21,7 @@ import { ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform, Pressabl
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -313,8 +314,8 @@ export default function TopUpScreen() {
 
   if (pendingCardSave) {
     return (
-      <View style={[{ flex: 1, backgroundColor: C.background, alignItems: "center", justifyContent: "center", padding: 24 }]}>
-        <View style={[{ width: "100%", maxWidth: 360, backgroundColor: C.card, borderRadius: 20, padding: 24, gap: 16 }]}>
+      <ScreenBackground style={{ alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <View style={[{ width: "100%", maxWidth: 360, backgroundColor: scheme === "dark" ? "#1c1c1e" : "#ffffff", borderRadius: 20, padding: 24, gap: 16 }]}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: C.primaryLight, alignItems: "center", justifyContent: "center" }}>
               <Feather name="star" size={20} color={C.primary} />
@@ -366,6 +367,7 @@ export default function TopUpScreen() {
           </View>
         </View>
       </View>
+      </ScreenBackground>
     );
   }
 
@@ -375,7 +377,7 @@ export default function TopUpScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background, paddingTop: isWeb ? 67 : insets.top + 8 }]}>
+    <ScreenBackground style={{ paddingTop: isWeb ? 67 : insets.top + 8 }}>
       <View style={[styles.header, { paddingHorizontal: 20 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={C.text} />
@@ -986,7 +988,7 @@ export default function TopUpScreen() {
         />
       </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </ScreenBackground>
   );
 }
 

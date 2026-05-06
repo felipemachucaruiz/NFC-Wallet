@@ -21,6 +21,7 @@ import { Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, Styl
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -243,7 +244,7 @@ export default function TicketCheckoutScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background, paddingTop: isWeb ? 67 : insets.top + 8 }]}>
+    <ScreenBackground style={{ paddingTop: isWeb ? 67 : insets.top + 8 }}>
       <View style={[styles.header, { paddingHorizontal: 20 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={C.text} />
@@ -608,7 +609,7 @@ export default function TicketCheckoutScreen() {
         />
       </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </ScreenBackground>
   );
 }
 
