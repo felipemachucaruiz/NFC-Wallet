@@ -31,6 +31,12 @@ import { apiUploadEventImage } from "@/lib/api";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { useEventContext } from "@/contexts/event-context";
 
+const ADMIN_API_BASE = `${import.meta.env.BASE_URL}_srv`;
+function resolveAdminUrl(url: string): string {
+  if (!url) return url;
+  return url.startsWith("/") ? `${ADMIN_API_BASE}${url}` : url;
+}
+
 function toLocalDatetimeInput(utcString: string): string {
   const d = new Date(utcString);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -400,7 +406,7 @@ function FormFields({
           {/* Saved graphics (edit mode) */}
           {form.floatingGraphics.map((g, idx) => (
             <div key={idx} className="flex items-center gap-3 p-2 rounded-lg border border-border bg-card/50">
-              <img src={g.url} alt="" className="w-10 h-10 object-contain rounded shrink-0 bg-white/5" />
+              <img src={resolveAdminUrl(g.url)} alt="" className="w-10 h-10 object-contain rounded shrink-0 bg-white/5" />
               <div className="flex items-center gap-1.5 shrink-0">
                 <Label className="text-xs whitespace-nowrap">{t("events.opacity", "Opacidad")}</Label>
                 <input
