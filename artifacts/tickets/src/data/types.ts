@@ -57,6 +57,7 @@ export interface EventData {
   id: string;
   name: string;
   description: string;
+  descriptionEn?: string | null;
   coverImage: string;
   flyerImage: string;
   floorplanImage: string;

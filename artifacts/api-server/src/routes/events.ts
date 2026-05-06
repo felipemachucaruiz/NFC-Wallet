@@ -160,6 +160,7 @@ const updateEventSchema = z.object({
   coverImageUrl: z.string().nullable().optional(),
   flyerImageUrl: z.string().nullable().optional(),
   longDescription: z.string().nullable().optional(),
+  descriptionEn: z.string().nullable().optional(),
   category: z.string().max(100).nullable().optional(),
   tags: z.array(z.string()).optional(),
   minAge: z.number().int().min(0).nullable().optional(),
@@ -201,6 +202,7 @@ const SAFE_EVENT_FIELDS = {
   coverImageUrl: eventsTable.coverImageUrl,
   flyerImageUrl: eventsTable.flyerImageUrl,
   longDescription: eventsTable.longDescription,
+  descriptionEn: eventsTable.descriptionEn,
   category: eventsTable.category,
   tags: eventsTable.tags,
   minAge: eventsTable.minAge,
@@ -436,7 +438,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, descriptionEn, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics } = parsed.data;
 
   if (refundDeadline !== undefined && refundDeadline !== null) {
     const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, eventId)))[0]?.endsAt;
@@ -488,6 +490,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(coverImageUrl !== undefined && { coverImageUrl }),
     ...(flyerImageUrl !== undefined && { flyerImageUrl }),
     ...(longDescription !== undefined && { longDescription }),
+    ...(descriptionEn !== undefined && { descriptionEn }),
     ...(category !== undefined && { category }),
     ...(tags !== undefined && { tags }),
     ...(minAge !== undefined && { minAge }),

@@ -53,6 +53,7 @@ type EventAdminForm = {
 type EventForm = {
   name: string;
   description: string;
+  descriptionEn: string;
   category: string;
   venueAddress: string;
   capacity: string;
@@ -81,6 +82,7 @@ const emptyAdmin: EventAdminForm = { email: "", password: "", firstName: "", las
 const emptyForm: EventForm = {
   name: "",
   description: "",
+  descriptionEn: "",
   category: "",
   venueAddress: "",
   capacity: "",
@@ -149,6 +151,7 @@ type RawEvent = Event & {
   nfcBraceletsEnabled?: boolean;
   coverImageUrl?: string | null;
   flyerImageUrl?: string | null;
+  descriptionEn?: string | null;
   floatingGraphics?: Array<{ url: string; opacity: number }> | null;
   floatingGraphicUrl?: string | null;
   vimeoUrl?: string | null;
@@ -306,6 +309,7 @@ function FormFields({
 }: FormFieldsProps) {
   const { t } = useTranslation();
   const [promoterOpen, setPromoterOpen] = useState(false);
+  const [descTab, setDescTab] = useState<"es" | "en">("es");
   const selectedCompany = promoterCompanies.find((pc) => pc.id === form.promoterCompanyId);
   const atLeastOneModule = form.ticketingEnabled || form.nfcBraceletsEnabled;
   return (
@@ -346,11 +350,39 @@ function FormFields({
       </div>
 
       <div className="space-y-1">
-        <Label>{t("events.description")}</Label>
-        <RichTextEditor
-          value={form.description}
-          onChange={(html) => setForm((f) => ({ ...f, description: html }))}
-        />
+        <div className="flex items-center justify-between">
+          <Label>{t("events.description")}</Label>
+          <div className="flex rounded-md border border-border overflow-hidden text-xs">
+            <button
+              type="button"
+              onClick={() => setDescTab("es")}
+              className={cn("px-2.5 py-1 transition-colors", descTab === "es" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+            >
+              Español
+            </button>
+            <button
+              type="button"
+              onClick={() => setDescTab("en")}
+              className={cn("px-2.5 py-1 transition-colors border-l border-border", descTab === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+            >
+              English
+            </button>
+          </div>
+        </div>
+        {descTab === "es" ? (
+          <RichTextEditor
+            key="desc-es"
+            value={form.description}
+            onChange={(html) => setForm((f) => ({ ...f, description: html }))}
+          />
+        ) : (
+          <RichTextEditor
+            key="desc-en"
+            value={form.descriptionEn}
+            onChange={(html) => setForm((f) => ({ ...f, descriptionEn: html }))}
+            placeholder="English description..."
+          />
+        )}
       </div>
 
       <div className="space-y-1">
@@ -808,6 +840,7 @@ export default function Events() {
     setForm({
       name: event.name,
       description: event.description ?? "",
+      descriptionEn: (raw as any).descriptionEn ?? "",
       category: (raw as any).category ?? "",
       venueAddress: event.venueAddress ?? "",
       capacity: raw.capacity != null ? String(raw.capacity) : "",
@@ -852,6 +885,7 @@ export default function Events() {
     const payload: any = {
       name: form.name,
       description: form.description || undefined,
+      descriptionEn: form.descriptionEn || null,
       venueAddress: form.venueAddress || undefined,
       startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : undefined,
       endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : undefined,
@@ -921,6 +955,7 @@ export default function Events() {
     const payload: any = {
       name: form.name,
       description: form.description || undefined,
+      descriptionEn: form.descriptionEn || null,
       venueAddress: form.venueAddress || undefined,
       startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : undefined,
       endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : undefined,

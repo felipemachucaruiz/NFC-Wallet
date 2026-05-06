@@ -208,6 +208,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     id: event.id,
     name: event.name,
     description: event.longDescription || event.description || "",
+    descriptionEn: event.descriptionEn || null,
     coverImage: resolveImageUrl(event.coverImageUrl),
     flyerImage: resolveImageUrl(event.flyerImageUrl),
     floorplanImage: venue?.floorplanImageUrl ? resolveImageUrl(venue.floorplanImageUrl) : "",
@@ -498,17 +499,22 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
               </div>
             )}
 
-            {event.description && (
-              <div>
-                <h2 className="text-xl font-semibold mb-3">{t("event.description")}</h2>
-                <div className="rounded-xl border border-border bg-card/80 px-5 py-4">
-                  <div
-                    className="prose prose-invert max-w-none text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: event.description }}
-                  />
+            {(event.description || event.descriptionEn) && (() => {
+              const desc = i18n.language.startsWith("en") && event.descriptionEn
+                ? event.descriptionEn
+                : event.description;
+              return desc ? (
+                <div>
+                  <h2 className="text-xl font-semibold mb-3">{t("event.description")}</h2>
+                  <div className="rounded-xl border border-border bg-card/80 px-5 py-4">
+                    <div
+                      className="prose prose-invert max-w-none text-muted-foreground"
+                      dangerouslySetInnerHTML={{ __html: desc }}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : null;
+            })()}
 
             {event.vimeoUrl && extractVimeoId(event.vimeoUrl) && (
               <div>

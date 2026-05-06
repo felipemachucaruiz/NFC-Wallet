@@ -162,6 +162,7 @@ router.get(
           slug: eventsTable.slug,
           description: eventsTable.description,
           longDescription: eventsTable.longDescription,
+          descriptionEn: eventsTable.descriptionEn,
           coverImageUrl: eventsTable.coverImageUrl,
           flyerImageUrl: eventsTable.flyerImageUrl,
           floatingGraphicUrl: eventsTable.floatingGraphicUrl,

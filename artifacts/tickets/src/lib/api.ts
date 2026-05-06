@@ -83,6 +83,7 @@ export interface ApiEventDetail {
     slug: string | null;
     description: string | null;
     longDescription: string | null;
+    descriptionEn?: string | null;
     coverImageUrl: string | null;
     flyerImageUrl: string | null;
     floatingGraphicUrl?: string | null;

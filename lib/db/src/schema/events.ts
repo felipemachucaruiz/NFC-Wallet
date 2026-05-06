@@ -47,6 +47,7 @@ export const eventsTable = pgTable("events", {
   floatingGraphics: jsonb("floating_graphics").$type<Array<{ url: string; opacity: number }>>(),
   vimeoUrl: varchar("vimeo_url", { length: 500 }),
   longDescription: text("long_description"),
+  descriptionEn: text("description_en"),
   category: varchar("category", { length: 100 }),
   tags: jsonb("tags").$type<string[]>().default(sql`'[]'::jsonb`),
   minAge: integer("min_age"),
