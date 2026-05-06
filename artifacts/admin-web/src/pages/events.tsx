@@ -65,7 +65,7 @@ type EventForm = {
   nfcBraceletsEnabled: boolean;
   coverImageUrl: string;
   flyerImageUrl: string;
-  floatingGraphicUrl: string;
+  floatingGraphics: Array<{ url: string; opacity: number }>;
   vimeoUrl: string;
   eventAdmin: EventAdminForm;
 };
@@ -93,7 +93,7 @@ const emptyForm: EventForm = {
   nfcBraceletsEnabled: true,
   coverImageUrl: "",
   flyerImageUrl: "",
-  floatingGraphicUrl: "",
+  floatingGraphics: [],
   vimeoUrl: "",
   eventAdmin: { ...emptyAdmin },
 };
@@ -143,6 +143,7 @@ type RawEvent = Event & {
   nfcBraceletsEnabled?: boolean;
   coverImageUrl?: string | null;
   flyerImageUrl?: string | null;
+  floatingGraphics?: Array<{ url: string; opacity: number }> | null;
   floatingGraphicUrl?: string | null;
   vimeoUrl?: string | null;
 };
@@ -157,8 +158,10 @@ type FormFieldsProps = {
   adminOpen: boolean;
   setAdminOpen: (open: boolean) => void;
   eventId?: string;
-  pendingImages?: { cover: File | null; flyer: File | null; floatingGraphic: File | null };
-  setPendingImages?: React.Dispatch<React.SetStateAction<{ cover: File | null; flyer: File | null; floatingGraphic: File | null }>>;
+  pendingImages?: { cover: File | null; flyer: File | null };
+  setPendingImages?: React.Dispatch<React.SetStateAction<{ cover: File | null; flyer: File | null }>>;
+  pendingGraphics?: Array<{ file: File; opacity: number; previewUrl: string }>;
+  setPendingGraphics?: React.Dispatch<React.SetStateAction<Array<{ file: File; opacity: number; previewUrl: string }>>>;
 };
 
 function ImageUploadField({
@@ -292,6 +295,8 @@ function FormFields({
   eventId,
   pendingImages,
   setPendingImages,
+  pendingGraphics,
+  setPendingGraphics,
 }: FormFieldsProps) {
   const { t } = useTranslation();
   const [promoterOpen, setPromoterOpen] = useState(false);
@@ -385,17 +390,100 @@ function FormFields({
         />
       </div>
 
-      <ImageUploadField
-        label={t("events.floatingGraphic", "Gráfico flotante")}
-        hint={t("events.floatingGraphicHint", "PNG transparente recomendado — se anima flotando en la página del evento")}
-        currentUrl={form.floatingGraphicUrl}
-        eventId={eventId}
-        imageType="floating_graphic"
-        isCreate={isCreate}
-        pendingFile={pendingImages?.floatingGraphic}
-        onPendingFileChange={(f) => setPendingImages?.((prev) => ({ ...prev, floatingGraphic: f }))}
-        onUploaded={(url) => setForm((f) => ({ ...f, floatingGraphicUrl: url }))}
-      />
+      {/* Floating graphics manager */}
+      <div className="space-y-2">
+        <div>
+          <Label>{t("events.floatingGraphics", "Gráficos flotantes")}</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("events.floatingGraphicsHint", "PNG transparente recomendado — cada gráfico flota animado en la página del evento")}</p>
+        </div>
+        <div className="space-y-2">
+          {/* Saved graphics (edit mode) */}
+          {form.floatingGraphics.map((g, idx) => (
+            <div key={idx} className="flex items-center gap-3 p-2 rounded-lg border border-border bg-card/50">
+              <img src={g.url} alt="" className="w-10 h-10 object-contain rounded shrink-0 bg-white/5" />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Label className="text-xs whitespace-nowrap">{t("events.opacity", "Opacidad")}</Label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={Math.round(g.opacity * 100)}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.min(100, parseInt(e.target.value) || 1));
+                    setForm((f) => ({
+                      ...f,
+                      floatingGraphics: f.floatingGraphics.map((item, i) => i === idx ? { ...item, opacity: v / 100 } : item),
+                    }));
+                  }}
+                  className="w-14 h-7 text-sm text-center rounded border border-input bg-transparent px-1"
+                />
+                <span className="text-xs text-muted-foreground">%</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, floatingGraphics: f.floatingGraphics.filter((_, i) => i !== idx) }))}
+                className="ml-auto p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          {/* Pending graphics (create mode) */}
+          {isCreate && pendingGraphics?.map((pg, idx) => (
+            <div key={`p-${idx}`} className="flex items-center gap-3 p-2 rounded-lg border border-border bg-card/50">
+              <img src={pg.previewUrl} alt="" className="w-10 h-10 object-contain rounded shrink-0 bg-white/5" />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Label className="text-xs whitespace-nowrap">{t("events.opacity", "Opacidad")}</Label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={Math.round(pg.opacity * 100)}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.min(100, parseInt(e.target.value) || 1));
+                    setPendingGraphics?.((prev) => prev.map((item, i) => i === idx ? { ...item, opacity: v / 100 } : item));
+                  }}
+                  className="w-14 h-7 text-sm text-center rounded border border-input bg-transparent px-1"
+                />
+                <span className="text-xs text-muted-foreground">%</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingGraphics?.((prev) => prev.filter((_, i) => i !== idx))}
+                className="ml-auto p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+        {/* Add graphic button */}
+        <label className="flex items-center gap-2 cursor-pointer w-fit">
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              e.target.value = "";
+              if (isCreate) {
+                const previewUrl = URL.createObjectURL(file);
+                setPendingGraphics?.((prev) => [...prev, { file, opacity: 0.4, previewUrl }]);
+              } else if (eventId) {
+                try {
+                  const { imageUrl } = await apiUploadEventImage(eventId, "floating_graphic", file);
+                  setForm((f) => ({ ...f, floatingGraphics: [...f.floatingGraphics, { url: imageUrl, opacity: 0.4 }] }));
+                } catch {}
+              }
+            }}
+          />
+          <span className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors">
+            <Upload className="w-4 h-4" />
+            {t("events.addFloatingGraphic", "Agregar gráfico")}
+          </span>
+        </label>
+      </div>
 
       <div className="space-y-1">
         <div className="flex items-center gap-1.5">
@@ -686,7 +774,8 @@ export default function Events() {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [form, setForm] = useState<EventForm>(emptyForm);
-  const [pendingImages, setPendingImages] = useState<{ cover: File | null; flyer: File | null; floatingGraphic: File | null }>({ cover: null, flyer: null, floatingGraphic: null });
+  const [pendingImages, setPendingImages] = useState<{ cover: File | null; flyer: File | null }>({ cover: null, flyer: null });
+  const [pendingGraphics, setPendingGraphics] = useState<Array<{ file: File; opacity: number; previewUrl: string }>>([]);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
 
@@ -702,6 +791,7 @@ export default function Events() {
 
   const openCreate = () => {
     setForm({ ...emptyForm, eventAdmin: { ...emptyAdmin } });
+    setPendingGraphics([]);
     setAdminOpen(false);
     setCreateOpen(true);
   };
@@ -730,7 +820,9 @@ export default function Events() {
       nfcBraceletsEnabled: raw.nfcBraceletsEnabled ?? true,
       coverImageUrl: raw.coverImageUrl ?? "",
       flyerImageUrl: raw.flyerImageUrl ?? "",
-      floatingGraphicUrl: raw.floatingGraphicUrl ?? "",
+      floatingGraphics: raw.floatingGraphics?.length
+        ? raw.floatingGraphics
+        : (raw.floatingGraphicUrl ? [{ url: raw.floatingGraphicUrl, opacity: 0.4 }] : []),
       vimeoUrl: raw.vimeoUrl ?? "",
       eventAdmin: { ...emptyAdmin },
     });
@@ -788,10 +880,21 @@ export default function Events() {
             const uploads: Promise<unknown>[] = [];
             if (pendingImages.cover) uploads.push(apiUploadEventImage(newEventId, "cover", pendingImages.cover).catch(() => {}));
             if (pendingImages.flyer) uploads.push(apiUploadEventImage(newEventId, "flyer", pendingImages.flyer).catch(() => {}));
-            if (pendingImages.floatingGraphic) uploads.push(apiUploadEventImage(newEventId, "floating_graphic", pendingImages.floatingGraphic).catch(() => {}));
             if (uploads.length) await Promise.all(uploads);
+            if (pendingGraphics.length) {
+              const graphicResults = await Promise.allSettled(
+                pendingGraphics.map((pg) => apiUploadEventImage(newEventId, "floating_graphic", pg.file))
+              );
+              const floatingGraphics = graphicResults
+                .map((r, i) => r.status === "fulfilled" ? { url: r.value.imageUrl, opacity: pendingGraphics[i].opacity } : null)
+                .filter(Boolean) as Array<{ url: string; opacity: number }>;
+              if (floatingGraphics.length) {
+                await apiUpdateEvent(newEventId, { floatingGraphics }).catch(() => {});
+              }
+            }
           }
-          setPendingImages({ cover: null, flyer: null, floatingGraphic: null });
+          setPendingImages({ cover: null, flyer: null });
+          setPendingGraphics([]);
           toast({ title: t("events.created") });
           setCreateOpen(false);
           invalidate();
@@ -831,6 +934,7 @@ export default function Events() {
       coverImageUrl: form.coverImageUrl || null,
       flyerImageUrl: form.flyerImageUrl || null,
       vimeoUrl: form.vimeoUrl || null,
+      floatingGraphics: form.floatingGraphics.length ? form.floatingGraphics : null,
     };
     updateEvent.mutate(
       { eventId: selectedEvent.id, data: payload },
@@ -963,6 +1067,8 @@ export default function Events() {
             setAdminOpen={setAdminOpen}
             pendingImages={pendingImages}
             setPendingImages={setPendingImages}
+            pendingGraphics={pendingGraphics}
+            setPendingGraphics={setPendingGraphics}
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>

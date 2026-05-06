@@ -235,6 +235,9 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
     status: allSoldOut ? "sold_out" : anyLimited ? "limited" : "available",
     active: true,
     floatingGraphicUrl: resolveImageUrl(event.floatingGraphicUrl) || null,
+    floatingGraphics: event.floatingGraphics?.length
+      ? event.floatingGraphics.map((g) => ({ url: resolveImageUrl(g.url) || g.url, opacity: g.opacity }))
+      : null,
     vimeoUrl: event.vimeoUrl || null,
   };
 }
@@ -345,7 +348,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
       <div className="fixed inset-0 z-0 backdrop-blur-3xl bg-background/80" />
 
       {/* Floating graphic layer — above frosted overlay, below content cards */}
-      {event.floatingGraphicUrl && <FloatingGraphics url={event.floatingGraphicUrl} />}
+      {event.floatingGraphics?.length && <FloatingGraphics graphics={event.floatingGraphics} />}
 
       <div className="relative z-10">
       {/* min-h-[320px] ensures the hero is never shorter than 320px on mobile;

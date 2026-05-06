@@ -165,6 +165,7 @@ router.get(
           coverImageUrl: eventsTable.coverImageUrl,
           flyerImageUrl: eventsTable.flyerImageUrl,
           floatingGraphicUrl: eventsTable.floatingGraphicUrl,
+          floatingGraphics: eventsTable.floatingGraphics,
           vimeoUrl: eventsTable.vimeoUrl,
           category: eventsTable.category,
           tags: eventsTable.tags,

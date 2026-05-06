@@ -86,6 +86,7 @@ export interface ApiEventDetail {
     coverImageUrl: string | null;
     flyerImageUrl: string | null;
     floatingGraphicUrl?: string | null;
+    floatingGraphics?: Array<{ url: string; opacity: number }> | null;
     vimeoUrl?: string | null;
     category: string | null;
     tags: string[] | null;

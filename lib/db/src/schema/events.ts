@@ -44,6 +44,7 @@ export const eventsTable = pgTable("events", {
   coverImageUrl: varchar("cover_image_url", { length: 1000 }),
   flyerImageUrl: varchar("flyer_image_url", { length: 1000 }),
   floatingGraphicUrl: varchar("floating_graphic_url", { length: 1000 }),
+  floatingGraphics: jsonb("floating_graphics").$type<Array<{ url: string; opacity: number }>>(),
   vimeoUrl: varchar("vimeo_url", { length: 500 }),
   longDescription: text("long_description"),
   category: varchar("category", { length: 100 }),

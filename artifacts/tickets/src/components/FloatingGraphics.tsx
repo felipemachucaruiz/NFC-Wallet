@@ -38,32 +38,40 @@ const KEYFRAMES = `
 `;
 
 const ANIMS = ["fl-a", "fl-b", "fl-c", "fl-d", "fl-e"] as const;
-const COUNT = 14;
+const COUNT_PER_GRAPHIC = 10;
 
 function seededRand(seed: number): number {
   const x = Math.sin(seed + 1) * 10000;
   return x - Math.floor(x);
 }
 
-interface Props {
+interface FloatingGraphic {
   url: string;
+  opacity: number;
 }
 
-export function FloatingGraphics({ url }: Props) {
+interface Props {
+  graphics: FloatingGraphic[];
+}
+
+export function FloatingGraphics({ graphics }: Props) {
   const items = useMemo(() =>
-    Array.from({ length: COUNT }, (_, i) => {
-      const r = (o: number) => seededRand(i * 7 + o);
-      return {
-        left:     r(0) * 92,
-        top:      r(1) * 92,
-        size:     34 + r(2) * 50,        // 34px – 84px
-        opacity:  0.28 + r(3) * 0.22,    // 0.28 – 0.50
-        duration: 24 + r(4) * 20,        // 24s – 44s
-        delay:    -(r(5) * 22),          // start mid-cycle so they don't all move together
-        anim:     ANIMS[Math.floor(r(6) * ANIMS.length)],
-      };
-    }),
-  []);
+    graphics.flatMap((g, gi) =>
+      Array.from({ length: COUNT_PER_GRAPHIC }, (_, i) => {
+        const r = (o: number) => seededRand((gi * 100 + i) * 7 + o);
+        return {
+          url: g.url,
+          opacity: g.opacity,
+          left: r(0) * 92,
+          top: r(1) * 92,
+          size: 34 + r(2) * 50,
+          duration: 24 + r(4) * 20,
+          delay: -(r(5) * 22),
+          anim: ANIMS[Math.floor(r(6) * ANIMS.length)],
+        };
+      })
+    ),
+  [graphics]);
 
   return (
     <>
@@ -76,7 +84,7 @@ export function FloatingGraphics({ url }: Props) {
         {items.map((item, i) => (
           <img
             key={i}
-            src={url}
+            src={item.url}
             alt=""
             draggable={false}
             style={{
