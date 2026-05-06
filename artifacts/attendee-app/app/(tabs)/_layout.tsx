@@ -8,9 +8,9 @@ let SymbolView: React.ComponentType<{ name: string; tintColor: string; size: num
 try {
   SymbolView = require("expo-symbols").SymbolView;
 } catch {}
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import Svg, { Path, Ellipse } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -90,7 +90,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) =>
             isIOS && SymbolView
               ? <SymbolView name="mic.fill" tintColor={color} size={22} />
-              : <Feather name="mic" size={22} color={color} />,
+              : <MaterialCommunityIcons name="microphone" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -104,16 +104,10 @@ export default function TabsLayout() {
         name="my-tickets"
         options={{
           title: t("tickets.tab"),
-          tabBarIcon: ({ color: _color, focused }) => (
-            <View style={[styles.floatingBtn, { backgroundColor: C.primary }]}>
-              <Feather name="tag" size={26} color={focused ? C.card : "#000"} />
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.circleBtn, { backgroundColor: C.primary }]}>
+              <Feather name="tag" size={22} color={focused ? C.card : "#000"} />
             </View>
-          ),
-          tabBarButton: (props) => (
-            <Pressable
-              {...props}
-              style={[props.style as object, styles.floatingBtnWrapper]}
-            />
           ),
         }}
       />
@@ -148,21 +142,16 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  floatingBtnWrapper: {
-    top: -20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  floatingBtn: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+  circleBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });
