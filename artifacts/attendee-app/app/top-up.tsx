@@ -366,7 +366,6 @@ export default function TopUpScreen() {
             </Pressable>
           </View>
         </View>
-      </View>
       </ScreenBackground>
     );
   }
