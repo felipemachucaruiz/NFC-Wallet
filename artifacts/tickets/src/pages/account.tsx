@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { Check, Loader2, ChevronDown, ChevronUp, Trash2, Lock } from "lucide-react";
+import { Check, Loader2, ChevronDown, ChevronUp, Trash2, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +58,9 @@ export default function Account() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwSaved, setPwSaved] = useState(false);
   const [pwError, setPwError] = useState("");
+  const [showPwCurrent, setShowPwCurrent] = useState(false);
+  const [showPwNext, setShowPwNext] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
 
   // Delete account state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -265,15 +268,30 @@ export default function Account() {
             <form onSubmit={handleChangePassword} className="px-5 pb-5 space-y-3 border-t border-border pt-4">
               <div>
                 <Label>{t("account.currentPassword")}</Label>
-                <Input type="password" value={pwForm.current} onChange={(e) => setPwForm((f) => ({ ...f, current: e.target.value }))} className="mt-1" autoComplete="current-password" />
+                <div className="relative mt-1">
+                  <Input type={showPwCurrent ? "text" : "password"} value={pwForm.current} onChange={(e) => setPwForm((f) => ({ ...f, current: e.target.value }))} className="pr-10" autoComplete="current-password" />
+                  <button type="button" onClick={() => setShowPwCurrent((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                    {showPwCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
               <div>
                 <Label>{t("account.newPassword")}</Label>
-                <Input type="password" value={pwForm.next} onChange={(e) => setPwForm((f) => ({ ...f, next: e.target.value }))} className="mt-1" autoComplete="new-password" />
+                <div className="relative mt-1">
+                  <Input type={showPwNext ? "text" : "password"} value={pwForm.next} onChange={(e) => setPwForm((f) => ({ ...f, next: e.target.value }))} className="pr-10" autoComplete="new-password" />
+                  <button type="button" onClick={() => setShowPwNext((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                    {showPwNext ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
               <div>
                 <Label>{t("account.confirmNewPassword")}</Label>
-                <Input type="password" value={pwForm.confirm} onChange={(e) => setPwForm((f) => ({ ...f, confirm: e.target.value }))} className="mt-1" autoComplete="new-password" />
+                <div className="relative mt-1">
+                  <Input type={showPwConfirm ? "text" : "password"} value={pwForm.confirm} onChange={(e) => setPwForm((f) => ({ ...f, confirm: e.target.value }))} className="pr-10" autoComplete="new-password" />
+                  <button type="button" onClick={() => setShowPwConfirm((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                    {showPwConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
               {pwError && <p className="text-sm text-destructive">{pwError}</p>}
               <Button type="submit" disabled={pwSaving} className="gap-2">

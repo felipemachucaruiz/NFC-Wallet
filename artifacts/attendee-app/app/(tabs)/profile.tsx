@@ -104,6 +104,9 @@ export default function ProfileScreen() {
   const [pwConfirm, setPwConfirm] = useState("");
   const [pwError, setPwError] = useState("");
   const [pwSaved, setPwSaved] = useState(false);
+  const [showPwCurrent, setShowPwCurrent] = useState(false);
+  const [showPwNext, setShowPwNext] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? "");
@@ -545,35 +548,50 @@ export default function ProfileScreen() {
             <Pressable style={[styles.modalSheet, { backgroundColor: C.card }]} onPress={() => {}}>
               <Text style={[styles.modalTitle, { color: C.text }]}>{t("profile.changePassword") || "Cambiar contraseña"}</Text>
               <Text style={[styles.idTypeLabel, { color: C.textSecondary }]}>{t("profile.currentPassword") || "Contraseña actual"}</Text>
-              <TextInput
-                style={[styles.idNumberInput, { color: C.text, borderColor: C.border, backgroundColor: C.background }]}
-                value={pwCurrent}
-                onChangeText={setPwCurrent}
-                secureTextEntry
-                autoComplete="current-password"
-                placeholderTextColor={C.textMuted}
-                placeholder="••••••••"
-              />
+              <View style={styles.pwInputWrap}>
+                <TextInput
+                  style={[styles.idNumberInput, styles.pwInput, { color: C.text, borderColor: C.border, backgroundColor: C.background }]}
+                  value={pwCurrent}
+                  onChangeText={setPwCurrent}
+                  secureTextEntry={!showPwCurrent}
+                  autoComplete="current-password"
+                  placeholderTextColor={C.textMuted}
+                  placeholder="••••••••"
+                />
+                <Pressable style={styles.pwEyeBtn} onPress={() => setShowPwCurrent((v) => !v)}>
+                  <Feather name={showPwCurrent ? "eye-off" : "eye"} size={18} color={C.textMuted} />
+                </Pressable>
+              </View>
               <Text style={[styles.idTypeLabel, { color: C.textSecondary, marginTop: 12 }]}>{t("profile.newPassword") || "Nueva contraseña"}</Text>
-              <TextInput
-                style={[styles.idNumberInput, { color: C.text, borderColor: C.border, backgroundColor: C.background }]}
-                value={pwNext}
-                onChangeText={setPwNext}
-                secureTextEntry
-                autoComplete="new-password"
-                placeholderTextColor={C.textMuted}
-                placeholder="••••••••"
-              />
+              <View style={styles.pwInputWrap}>
+                <TextInput
+                  style={[styles.idNumberInput, styles.pwInput, { color: C.text, borderColor: C.border, backgroundColor: C.background }]}
+                  value={pwNext}
+                  onChangeText={setPwNext}
+                  secureTextEntry={!showPwNext}
+                  autoComplete="new-password"
+                  placeholderTextColor={C.textMuted}
+                  placeholder="••••••••"
+                />
+                <Pressable style={styles.pwEyeBtn} onPress={() => setShowPwNext((v) => !v)}>
+                  <Feather name={showPwNext ? "eye-off" : "eye"} size={18} color={C.textMuted} />
+                </Pressable>
+              </View>
               <Text style={[styles.idTypeLabel, { color: C.textSecondary, marginTop: 12 }]}>{t("profile.confirmNewPassword") || "Confirmar nueva contraseña"}</Text>
-              <TextInput
-                style={[styles.idNumberInput, { color: C.text, borderColor: C.border, backgroundColor: C.background }]}
-                value={pwConfirm}
-                onChangeText={setPwConfirm}
-                secureTextEntry
-                autoComplete="new-password"
-                placeholderTextColor={C.textMuted}
-                placeholder="••••••••"
-              />
+              <View style={styles.pwInputWrap}>
+                <TextInput
+                  style={[styles.idNumberInput, styles.pwInput, { color: C.text, borderColor: C.border, backgroundColor: C.background }]}
+                  value={pwConfirm}
+                  onChangeText={setPwConfirm}
+                  secureTextEntry={!showPwConfirm}
+                  autoComplete="new-password"
+                  placeholderTextColor={C.textMuted}
+                  placeholder="••••••••"
+                />
+                <Pressable style={styles.pwEyeBtn} onPress={() => setShowPwConfirm((v) => !v)}>
+                  <Feather name={showPwConfirm ? "eye-off" : "eye"} size={18} color={C.textMuted} />
+                </Pressable>
+              </View>
               {pwError ? <Text style={[styles.saveError, { color: C.danger }]}>{pwError}</Text> : null}
               {pwSaved ? <Text style={[styles.saveError, { color: C.primary }]}>{t("profile.passwordChanged") || "¡Contraseña cambiada!"}</Text> : null}
               <Pressable
@@ -845,6 +863,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_400Regular",
   },
+  pwInputWrap: { position: "relative" },
+  pwInput: { paddingRight: 46 },
+  pwEyeBtn: { position: "absolute", right: 12, top: 0, bottom: 0, justifyContent: "center", paddingHorizontal: 4 },
   saveError: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 8 },
   cancelText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 });
