@@ -194,6 +194,7 @@
     "errorCardTokenize": "No se pudo procesar la tarjeta. Verifica los datos e intenta de nuevo.",
     "verifyHuman": "Verificación de seguridad",
     "processingFreeOrder": "Confirmando tu entrada gratuita...",
+    "paymentSuccessDesc": "Tu compra fue procesada exitosamente",
     "cardNumber": "Número de tarjeta",
     "expiry": "Vencimiento (MM/AA)",
     "cardHolder": "Titular de la tarjeta",

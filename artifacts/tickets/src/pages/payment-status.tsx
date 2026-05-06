@@ -155,7 +155,7 @@ export default function PaymentStatus() {
             </div>
             <div>
               <h1 className="text-2xl font-bold mb-1">{t("checkout.paymentSuccess")}</h1>
-              <p className="text-muted-foreground text-sm mb-5">Tu compra fue procesada exitosamente</p>
+              <p className="text-muted-foreground text-sm mb-5">{t("checkout.paymentSuccessDesc")}</p>
               <div className="bg-card rounded-xl border border-border p-4 text-left space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">

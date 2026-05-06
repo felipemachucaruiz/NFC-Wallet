@@ -343,12 +343,12 @@ export default function EventGuestLists() {
             {allTicketTypes.length > 0 && (
               <div className="space-y-1">
                 <Label>{t("guestLists.zoneLabel")}</Label>
-                <Select value={formTicketTypeId} onValueChange={setFormTicketTypeId}>
+                <Select value={formTicketTypeId || "__none__"} onValueChange={(v) => setFormTicketTypeId(v === "__none__" ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder={t("guestLists.noZone")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">{t("guestLists.noZone")}</SelectItem>
+                    <SelectItem value="__none__">{t("guestLists.noZone")}</SelectItem>
                     {allTicketTypes.map((tt) => (
                       <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>
                     ))}
