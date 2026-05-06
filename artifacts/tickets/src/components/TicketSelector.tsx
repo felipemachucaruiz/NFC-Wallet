@@ -66,7 +66,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
     const count = isNumbered ? (ticketType.ticketsPerUnit || 1) : quantity;
     const initial: AttendeeData[] = Array.from({ length: count }, (_, i) => {
       if (i === 0 && user) {
-        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: user.sex || "", idDocument: user.idDocument || "" };
+        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: (user.sex || "") as AttendeeData["sex"], idDocument: user.idDocument || "" };
       }
       return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocument: "" };
     });
@@ -300,7 +300,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         <ReadOnlyField label={t("ticketSelection.dateOfBirth", "Fecha de nacimiento")} value={fmtDisplayDate(attendee.dateOfBirth)} />
                         <ReadOnlyField
                           label={t("ticketSelection.sex", "Género")}
-                          value={attendee.sex === "male" ? t("ticketSelection.male", "Masculino") : attendee.sex === "female" ? t("ticketSelection.female", "Femenino") : "—"}
+                          value={attendee.sex === "male" ? t("ticketSelection.male", "Masculino") : attendee.sex === "female" ? t("ticketSelection.female", "Femenino") : attendee.sex === "non_binary" ? t("ticketSelection.nonBinary", "No binario") : "—"}
                         />
                         <ReadOnlyField label={t("ticketSelection.idDocument", "Núm. de identificación")} value={attendee.idDocument} />
                       </>
@@ -375,6 +375,13 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                               className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${attendee.sex === "female" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
                             >
                               {t("ticketSelection.female", "Femenino")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateAttendee(index, "sex", "non_binary")}
+                              className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${attendee.sex === "non_binary" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+                            >
+                              {t("ticketSelection.nonBinary", "No binario")}
                             </button>
                           </div>
                           {errors[`${index}-sex`] && (

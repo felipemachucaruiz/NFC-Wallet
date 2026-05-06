@@ -120,6 +120,7 @@
     "sex": "Género",
     "male": "Masculino",
     "female": "Femenino",
+    "nonBinary": "No binario",
     "idDocument": "Núm. de identificación",
     "yourTicket": "Tu entrada"
   },
@@ -276,7 +277,21 @@
     "profile": "Perfil",
     "save": "Guardar",
     "saved": "Guardado",
-    "saveError": "Error al guardar. Inténtalo de nuevo."
+    "saveError": "Error al guardar. Inténtalo de nuevo.",
+    "idType": "Tipo de documento",
+    "changePassword": "Cambiar contraseña",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmNewPassword": "Confirmar nueva contraseña",
+    "passwordChanged": "Contraseña cambiada",
+    "passwordMismatch": "Las contraseñas no coinciden",
+    "passwordTooShort": "Mínimo 8 caracteres",
+    "wrongPassword": "La contraseña actual es incorrecta.",
+    "noPassword": "Tu cuenta usa inicio de sesión social y no tiene contraseña.",
+    "deleteAccount": "Eliminar cuenta",
+    "deleteConfirmTitle": "¿Eliminar cuenta?",
+    "deleteConfirmDesc": "Esta acción es irreversible. Se eliminarán todos tus datos, boletas y pulseras vinculadas.",
+    "deleting": "Eliminando..."
   },
   "footer": {
     "rights": "Todos los derechos reservados",

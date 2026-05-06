@@ -329,6 +329,45 @@ router.patch("/auth/profile", requireAuth, async (req: Request, res: Response) =
   }
 });
 
+const ChangePasswordBody = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(128),
+});
+
+router.post("/auth/change-password", requireAuth, async (req: Request, res: Response) => {
+  const parsed = ChangePasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid data", issues: parsed.error.issues });
+    return;
+  }
+  const { currentPassword, newPassword } = parsed.data;
+  const userId = req.user!.id;
+  try {
+    const [user] = await db
+      .select({ passwordHash: usersTable.passwordHash })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (!user?.passwordHash) {
+      res.status(400).json({ error: "Tu cuenta no tiene contraseña configurada." });
+      return;
+    }
+    const valid = await comparePassword(currentPassword, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "La contraseña actual es incorrecta." });
+      return;
+    }
+    const newHash = await hashPassword(newPassword);
+    await db
+      .update(usersTable)
+      .set({ passwordHash: newHash, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[POST /auth/change-password]", err);
+    res.status(500).json({ error: "Error al cambiar la contraseña." });
+  }
+});
+
 const PasswordLoginBody = z.object({
   identifier: z.string().min(1),
   password: z.string().min(1),

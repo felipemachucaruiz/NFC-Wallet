@@ -379,3 +379,16 @@ export function useDeleteAccount() {
       }),
   });
 }
+
+export function useChangePassword() {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useMutation({
+    mutationFn: (data: { currentPassword: string; newPassword: string }) =>
+      apiFetch<{ success: boolean }>(`${API_BASE_URL}/api/auth/change-password`, headers, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+  });
+}

@@ -94,7 +94,7 @@ export interface AttendeeData {
   email: string;
   phone: string;
   dateOfBirth: string;
-  sex: "male" | "female" | "";
+  sex: "male" | "female" | "non_binary" | "";
   idDocument: string;
 }
 

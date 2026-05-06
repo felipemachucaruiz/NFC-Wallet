@@ -223,9 +223,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Attendee API unreachable — fall through to staff API
       }
       if (!res || res.status < 200 || res.status > 299) {
-        res = await fetchWithTimeout(`${getCurrentStaffApiUrl()}/api/auth/login`, {
-          method: "POST", headers, body,
-        });
+        const staffUrl = getCurrentStaffApiUrl();
+        try {
+          res = await fetchWithTimeout(`${staffUrl}/api/auth/login`, {
+            method: "POST", headers, body,
+          });
+        } catch {
+          // Local server unreachable — fall back to production
+          if (staffUrl !== API_BASE_URL) {
+            res = await fetchWithTimeout(`${API_BASE_URL}/api/auth/login`, {
+              method: "POST", headers, body,
+            });
+          } else {
+            return "Network error";
+          }
+        }
       }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -284,11 +296,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const demoLogin = useCallback(async (role: string, secret: string): Promise<string | null> => {
     try {
-      const res = await fetchWithTimeout(`${getCurrentStaffApiUrl()}/api/auth/demo-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role, secret }),
-      });
+      const staffUrl = getCurrentStaffApiUrl();
+      let res: Response;
+      try {
+        res = await fetchWithTimeout(`${staffUrl}/api/auth/demo-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role, secret }),
+        });
+      } catch {
+        // Local server unreachable — fall back to production
+        if (staffUrl !== API_BASE_URL) {
+          res = await fetchWithTimeout(`${API_BASE_URL}/api/auth/demo-login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ role, secret }),
+          });
+        } else {
+          return "Network error";
+        }
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         return (data as { error?: string }).error ?? "Demo login failed";
