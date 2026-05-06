@@ -371,7 +371,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
                 {event.startsAt && (
                   <span className="flex items-center gap-2">
                     <Calendar className="w-3.5 h-3.5 text-primary shrink-0" />
-                    {formatFullDate(event.startsAt)}
+                    {formatFullDate(event.startsAt, i18n.language)}
                   </span>
                 )}
                 <span className="flex items-center gap-2">
