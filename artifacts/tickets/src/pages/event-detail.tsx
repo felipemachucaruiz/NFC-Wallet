@@ -502,14 +502,12 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
                 ? event.descriptionEn
                 : event.description;
               return desc ? (
-                <div>
+                <div className="rounded-xl border border-border bg-card/80 px-5 py-4">
                   <h2 className="text-xl font-semibold mb-3">{t("event.description")}</h2>
-                  <div className="rounded-xl border border-border bg-card/80 px-5 py-4">
-                    <div
-                      className="prose prose-invert max-w-none text-muted-foreground"
-                      dangerouslySetInnerHTML={{ __html: desc }}
-                    />
-                  </div>
+                  <div
+                    className="prose prose-invert max-w-none text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: desc }}
+                  />
                 </div>
               ) : null;
             })()}
