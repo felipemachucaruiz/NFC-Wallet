@@ -229,8 +229,8 @@ router.get(
         buffers["logo@2x.png"] = _cachedLogo;
       }
 
-      // Background image: event flyer covers the full pass face
-      const flyerUrl = event?.flyerImageUrl ?? null;
+      // Background image: prefer flyerImageUrl, fall back to coverImageUrl
+      const flyerUrl = event?.flyerImageUrl ?? event?.coverImageUrl ?? null;
       if (flyerUrl) {
         try {
           const flyerRes = await fetch(flyerUrl, { signal: AbortSignal.timeout(8000) });
