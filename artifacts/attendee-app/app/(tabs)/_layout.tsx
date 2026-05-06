@@ -101,7 +101,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) =>
             isIOS && SymbolView
               ? <SymbolView name="mic.fill" tintColor={color} size={22} />
-              : <MdiIcon path={ICON_MIC_VARIANT} color={color} size={24} />,
+              : <MdiIcon path={ICON_MIC_VARIANT} color={color} size={28} />,
         }}
       />
       <Tabs.Screen
@@ -115,7 +115,7 @@ export default function TabsLayout() {
         name="my-tickets"
         options={{
           title: t("tickets.tab"),
-          tabBarShowLabel: false,
+          tabBarLabel: () => null,
           tabBarIcon: () => (
             <View style={[styles.circleBtn, { backgroundColor: C.primary }]}>
               <MdiIcon path={ICON_TICKET} color="#000" size={28} />
