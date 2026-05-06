@@ -95,10 +95,12 @@ function VimeoEmbed({ videoId, title }: { videoId: string; title: string }) {
       .catch(() => {});
   }, [videoId]);
 
-  // padding-bottom trick: most reliable cross-browser aspect ratio that works on mobile Safari
   const paddingBottom = dims ? `${(dims.h / dims.w) * 100}%` : "56.25%";
+  const isPortrait = dims ? dims.h > dims.w : false;
 
   return (
+    // On desktop cap portrait videos to phone-width so they don't fill the whole column
+    <div className="w-full mx-auto" style={{ maxWidth: isPortrait ? "360px" : "100%" }}>
     <div
       className="relative w-full rounded-xl overflow-hidden border border-border bg-black"
       style={{ paddingBottom }}
@@ -111,6 +113,7 @@ function VimeoEmbed({ videoId, title }: { videoId: string; title: string }) {
         allowFullScreen
         title={title}
       />
+    </div>
     </div>
   );
 }
