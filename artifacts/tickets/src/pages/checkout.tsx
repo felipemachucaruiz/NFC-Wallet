@@ -622,7 +622,7 @@ export default function Checkout() {
 
               {paymentMethod === "nequi" && (
                 <div className="space-y-2">
-                  <Label>Número Nequi</Label>
+                  <Label>{t("checkout.nequiPhone")}</Label>
                   <Input
                     type="tel"
                     value={nequiPhone}
@@ -631,13 +631,13 @@ export default function Checkout() {
                     maxLength={10}
                     disabled={processing}
                   />
-                  <p className="text-xs text-muted-foreground">Ingresa tu número de teléfono Nequi (10 dígitos)</p>
+                  <p className="text-xs text-muted-foreground">{t("checkout.nequiHint")}</p>
                 </div>
               )}
 
               {paymentMethod === "daviplata" && (
                 <div className="space-y-2">
-                  <Label>Número Daviplata</Label>
+                  <Label>{t("checkout.daviplataPhone")}</Label>
                   <Input
                     type="tel"
                     value={daviplataPhone}
@@ -646,14 +646,14 @@ export default function Checkout() {
                     maxLength={10}
                     disabled={processing}
                   />
-                  <p className="text-xs text-muted-foreground">Recibirás una notificación en tu app Daviplata para aprobar el pago.</p>
+                  <p className="text-xs text-muted-foreground">{t("checkout.daviplataHint")}</p>
                 </div>
               )}
 
               {paymentMethod === "puntoscolombia" && (
                 <div className="space-y-4">
                   <div>
-                    <Label>Número celular Puntos Colombia</Label>
+                    <Label>{t("checkout.puntosPhone")}</Label>
                     <Input
                       type="tel"
                       value={puntosPhone}
@@ -663,26 +663,26 @@ export default function Checkout() {
                       disabled={processing}
                       className="mt-1"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Recibirás una notificación en tu app Puntos Colombia para aprobar el pago.</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("checkout.puntosHint")}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Tipo de documento</Label>
+                      <Label>{t("checkout.docType")}</Label>
                       <Select value={puntosLegalIdType} onValueChange={(v) => setPuntosLegalIdType(v as "CC" | "CE" | "NIT" | "PP" | "TI")} disabled={processing}>
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
-                          <SelectItem value="CE">Cédula de Extranjería</SelectItem>
+                          <SelectItem value="CC">{t("checkout.cc")}</SelectItem>
+                          <SelectItem value="CE">{t("checkout.ce")}</SelectItem>
                           <SelectItem value="NIT">NIT</SelectItem>
-                          <SelectItem value="PP">Pasaporte</SelectItem>
-                          <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
+                          <SelectItem value="PP">{t("checkout.passport")}</SelectItem>
+                          <SelectItem value="TI">{t("checkout.ti")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label>Número de documento</Label>
+                      <Label>{t("checkout.docNumber")}</Label>
                       <Input
                         value={puntosLegalId}
                         onChange={(e) => setPuntosLegalId(e.target.value)}
@@ -698,22 +698,22 @@ export default function Checkout() {
               {paymentMethod === "pse" && (
                 <div className="space-y-4">
                   <div>
-                    <Label>Tipo de persona</Label>
+                    <Label>{t("checkout.personType")}</Label>
                     <Select value={pseUserType} onValueChange={(v) => setPseUserType(v as "0" | "1")} disabled={processing}>
                       <SelectTrigger className="mt-1">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="0">Persona natural</SelectItem>
-                        <SelectItem value="1">Persona jurídica</SelectItem>
+                        <SelectItem value="0">{t("checkout.naturalPerson")}</SelectItem>
+                        <SelectItem value="1">{t("checkout.legalEntity")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label>Banco</Label>
+                    <Label>{t("checkout.bank")}</Label>
                     <Select value={pseBank} onValueChange={setPseBank} disabled={processing || pseBanksLoading}>
                       <SelectTrigger className="mt-1">
-                        <SelectValue placeholder={pseBanksLoading ? "Cargando bancos…" : "Selecciona un banco"} />
+                        <SelectValue placeholder={pseBanksLoading ? t("checkout.loadingBanks") : t("checkout.selectBank")} />
                       </SelectTrigger>
                       <SelectContent>
                         {pseBanks.map((bank) => (
@@ -723,7 +723,7 @@ export default function Checkout() {
                     </Select>
                   </div>
                   <div>
-                    <Label>Teléfono de contacto</Label>
+                    <Label>{t("checkout.contactPhone")}</Label>
                     <Input
                       type="tel"
                       inputMode="numeric"
@@ -736,7 +736,7 @@ export default function Checkout() {
                     />
                   </div>
                   <div>
-                    <Label>Correo electrónico</Label>
+                    <Label>{t("checkout.pseEmail")}</Label>
                     <Input
                       type="email"
                       inputMode="email"
@@ -746,26 +746,26 @@ export default function Checkout() {
                       className="mt-1"
                       disabled={processing}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">PSE enviará el enlace de pago a este correo.</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("checkout.pseEmailHint")}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Tipo de documento</Label>
+                      <Label>{t("checkout.docType")}</Label>
                       <Select value={pseLegalIdType} onValueChange={(v) => setPseLegalIdType(v as typeof pseLegalIdType)} disabled={processing}>
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
-                          <SelectItem value="CE">Cédula de Extranjería</SelectItem>
+                          <SelectItem value="CC">{t("checkout.cc")}</SelectItem>
+                          <SelectItem value="CE">{t("checkout.ce")}</SelectItem>
                           <SelectItem value="NIT">NIT</SelectItem>
-                          <SelectItem value="PP">Pasaporte</SelectItem>
-                          <SelectItem value="TI">Tarjeta de Identidad</SelectItem>
+                          <SelectItem value="PP">{t("checkout.passport")}</SelectItem>
+                          <SelectItem value="TI">{t("checkout.ti")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label>Número de documento</Label>
+                      <Label>{t("checkout.docNumber")}</Label>
                       <Input
                         type="text"
                         value={pseLegalId}
@@ -858,7 +858,7 @@ export default function Checkout() {
 
               {paymentMethod === "bancolombia_transfer" && (
                 <div className="p-3 bg-muted/40 rounded-lg text-sm text-muted-foreground">
-                  Serás redirigido a Bancolombia para autorizar la transferencia. No se requieren datos adicionales.
+                  {t("checkout.bancolombiaHint")}
                 </div>
               )}
             </div>
