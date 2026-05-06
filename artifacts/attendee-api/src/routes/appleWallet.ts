@@ -185,7 +185,7 @@ router.get(
         description: `${eventName} — ${ticketTypeName}`,
         backgroundColor: "rgb(0, 0, 0)",
         foregroundColor: "rgb(255, 255, 255)",
-        labelColor: "rgb(0, 229, 255)",
+        labelColor: "rgb(200, 200, 200)",
         eventTicket: {
           headerFields: [
             { key: "event", value: eventName, label: "EVENTO" },
@@ -227,6 +227,42 @@ router.get(
       if (_cachedLogo) {
         buffers["logo.png"] = _cachedLogo;
         buffers["logo@2x.png"] = _cachedLogo;
+      }
+
+      // Background image: event flyer covers the full pass face
+      const flyerUrl = event?.flyerImageUrl ?? null;
+      if (flyerUrl) {
+        try {
+          const flyerRes = await fetch(flyerUrl, { signal: AbortSignal.timeout(8000) });
+          if (flyerRes.ok) {
+            const flyerBuf = Buffer.from(await flyerRes.arrayBuffer());
+            const { default: sharp } = await import("sharp");
+            const makeBackground = async (w: number, h: number) => {
+              const gradientSvg = Buffer.from(
+                `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+                  <defs>
+                    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#000000" stop-opacity="0.20"/>
+                      <stop offset="70%" stop-color="#000000" stop-opacity="0.40"/>
+                      <stop offset="100%" stop-color="#000000" stop-opacity="0.75"/>
+                    </linearGradient>
+                  </defs>
+                  <rect width="${w}" height="${h}" fill="url(#g)"/>
+                </svg>`
+              );
+              return sharp(flyerBuf)
+                .resize(w, h, { fit: "cover", position: "center" })
+                .composite([{ input: gradientSvg, blend: "over" }])
+                .png()
+                .toBuffer();
+            };
+            buffers["background.png"] = await makeBackground(180, 220);
+            buffers["background@2x.png"] = await makeBackground(360, 440);
+            buffers["background@3x.png"] = await makeBackground(540, 660);
+          }
+        } catch (err) {
+          console.warn("[appleWallet] Skipping flyer background — fetch/process failed:", err);
+        }
       }
 
       if (!_cachedWwdr) {
