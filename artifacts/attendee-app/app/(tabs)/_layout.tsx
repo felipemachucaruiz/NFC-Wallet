@@ -118,7 +118,7 @@ export default function TabsLayout() {
           tabBarLabel: () => null,
           tabBarIcon: () => (
             <View style={[styles.circleBtn, { backgroundColor: C.primary }]}>
-              <TicketIcon color="#000" size={28} />
+              <TicketIcon color="#000" size={38} />
             </View>
           ),
         }}
