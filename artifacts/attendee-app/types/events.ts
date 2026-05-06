@@ -79,6 +79,12 @@ export interface EventDetail extends EventListItem {
   venueMap?: VenueMap;
   salesStartAt?: string;
   salesEndAt?: string;
+  vimeoUrl?: string | null;
+  floatingGraphics?: Array<{ url: string; opacity: number }> | null;
+  pulepId?: string | null;
+  promoterCompanyName?: string | null;
+  promoterNit?: string | null;
+  doorsOpenAt?: string | null;
 }
 
 export interface AttendeeInfo {
