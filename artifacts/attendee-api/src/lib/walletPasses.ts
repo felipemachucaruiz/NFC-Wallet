@@ -101,7 +101,7 @@ export async function generateAppleWalletPass(data: WalletPassData): Promise<Buf
           description: `${data.eventName} — ${data.sectionName || "Entrada"}`,
           backgroundColor: "rgb(10, 10, 10)",
           foregroundColor: "rgb(255, 255, 255)",
-          labelColor: "rgb(0, 229, 255)",
+          labelColor: "rgb(200, 200, 200)",
           eventTicket: {
             headerFields: [
               { key: "event", value: data.eventName, label: "EVENTO" },
@@ -144,7 +144,7 @@ export async function generateAppleWalletPass(data: WalletPassData): Promise<Buf
       buffers["logo@2x.png"] = _cachedLogo;
     }
 
-    // Strip image: event flyer with gradient overlay
+    // Background image: event flyer covers the full pass face
     if (data.flyerUrl) {
       try {
         const res = await fetch(data.flyerUrl, { signal: AbortSignal.timeout(8000) });
@@ -152,15 +152,16 @@ export async function generateAppleWalletPass(data: WalletPassData): Promise<Buf
           const flyerBuf = Buffer.from(await res.arrayBuffer());
           const { default: sharp } = await import("sharp");
 
-          // Apple Wallet strip image: 375×123 pt @1x, 750×246 @2x
-          const makeStrip = async (w: number, h: number) => {
+          // Apple Wallet background image: 180×220 pt @1x, 360×440 @2x, 540×660 @3x
+          // A subtle dark overlay ensures text fields remain readable
+          const makeBackground = async (w: number, h: number) => {
             const gradientSvg = Buffer.from(
               `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
                 <defs>
                   <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#0a0a0a" stop-opacity="0.35"/>
-                    <stop offset="60%" stop-color="#0a0a0a" stop-opacity="0.55"/>
-                    <stop offset="100%" stop-color="#0a0a0a" stop-opacity="0.88"/>
+                    <stop offset="0%" stop-color="#000000" stop-opacity="0.20"/>
+                    <stop offset="70%" stop-color="#000000" stop-opacity="0.40"/>
+                    <stop offset="100%" stop-color="#000000" stop-opacity="0.75"/>
                   </linearGradient>
                 </defs>
                 <rect width="${w}" height="${h}" fill="url(#g)"/>
@@ -173,12 +174,12 @@ export async function generateAppleWalletPass(data: WalletPassData): Promise<Buf
               .toBuffer();
           };
 
-          buffers["strip.png"] = await makeStrip(375, 123);
-          buffers["strip@2x.png"] = await makeStrip(750, 246);
-          buffers["strip@3x.png"] = await makeStrip(1125, 369);
+          buffers["background.png"] = await makeBackground(180, 220);
+          buffers["background@2x.png"] = await makeBackground(360, 440);
+          buffers["background@3x.png"] = await makeBackground(540, 660);
         }
       } catch (err) {
-        logger.warn({ err }, "[walletPasses] Skipping flyer strip — fetch/process failed");
+        logger.warn({ err }, "[walletPasses] Skipping flyer background — fetch/process failed");
       }
     }
 
