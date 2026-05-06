@@ -74,11 +74,23 @@ El patch de `version` siempre coincide con `buildNumber` y `versionCode`.
 
 ### 4. OTA Updates
 
-Publicar OTA (sin nuevo APK) cuando el cambio es solo JS/TS — no toca código nativo:
+Publicar OTA (sin nuevo APK) cuando el cambio es solo JS/TS — no toca código nativo.
+
+#### App Staff (`artifacts/mobile/`)
 ```bash
+cd artifacts/mobile
 EXPO_TOKEN=<token> npx eas-cli update --channel production-apk --message "descripción" --non-interactive
 ```
-Ejecutar desde `artifacts/mobile/`. Las OTAs solo aplican a dispositivos con el mismo `runtimeVersion`.
+
+#### App Asistentes (`artifacts/attendee-app/`)
+```bash
+cd artifacts/attendee-app
+EXPO_TOKEN=<token> npx eas-cli@latest update --channel production --message "descripción" --non-interactive
+```
+
+> **Workaround pnpm:** La attendee app **requiere `eas-cli@latest`** (con `@latest` explícito). Sin él, la resolución de npm dentro del monorepo pnpm puede tomar una versión cacheada o incompatible y fallar silenciosamente o con errores de resolución de paquetes. El canal también es distinto: `production` (no `production-apk`).
+
+Las OTAs solo aplican a dispositivos con el mismo `runtimeVersion`.
 
 **Cambios que REQUIEREN APK nuevo (no son OTA-bles):**
 - Cambios en módulos nativos (`modules/barcode-receiver/android/`)
