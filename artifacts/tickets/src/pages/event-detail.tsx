@@ -95,27 +95,22 @@ function VimeoEmbed({ videoId, title }: { videoId: string; title: string }) {
       .catch(() => {});
   }, [videoId]);
 
-  const isPortrait = dims ? dims.h > dims.w : false;
-  const ratio = dims ? `${dims.w} / ${dims.h}` : "16 / 9";
+  // padding-bottom trick: most reliable cross-browser aspect ratio that works on mobile Safari
+  const paddingBottom = dims ? `${(dims.h / dims.w) * 100}%` : "56.25%";
 
   return (
-    <div className="flex justify-center">
-      <div
-        className="rounded-xl overflow-hidden border border-border bg-black"
-        style={{
-          aspectRatio: ratio,
-          // Portrait: cap height so it doesn't fill the whole screen; landscape: full width
-          ...(isPortrait ? { maxHeight: "75vh", width: "auto" } : { width: "100%" }),
-        }}
-      >
-        <iframe
-          src={`https://player.vimeo.com/video/${videoId}?color=00f1ff&title=0&byline=0&portrait=0&dnt=1&background=0`}
-          className="w-full h-full"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowFullScreen
-          title={title}
-        />
-      </div>
+    <div
+      className="relative w-full rounded-xl overflow-hidden border border-border bg-black"
+      style={{ paddingBottom }}
+    >
+      <iframe
+        src={`https://player.vimeo.com/video/${videoId}?color=00f1ff&title=0&byline=0&portrait=0&dnt=1&background=0`}
+        className="absolute inset-0 w-full h-full"
+        style={{ border: 0, display: "block", backgroundColor: "black" }}
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowFullScreen
+        title={title}
+      />
     </div>
   );
 }
