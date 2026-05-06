@@ -187,6 +187,10 @@ interface PublicEventDetailRaw {
     saleEnd?: string;
     validEventDayIds?: string[];
     sectionId?: string;
+    isNumberedUnits?: boolean;
+    unitLabel?: string;
+    ticketsPerUnit?: number;
+    units?: Array<{ id: string; unitNumber: number; unitLabel?: string; status: string; mapX: number | null; mapY: number | null }>;
   }>;
 }
 
@@ -216,6 +220,17 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
       maxPerOrder: 10,
       validDays,
       sectionId: tt.sectionId,
+      isNumberedUnits: tt.isNumberedUnits,
+      unitLabel: tt.unitLabel,
+      ticketsPerUnit: tt.ticketsPerUnit,
+      units: tt.units?.map((u) => ({
+        id: u.id,
+        unitNumber: u.unitNumber,
+        unitLabel: u.unitLabel,
+        status: u.status as "available" | "reserved" | "sold",
+        mapX: u.mapX,
+        mapY: u.mapY,
+      })),
     };
   });
 

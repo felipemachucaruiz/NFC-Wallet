@@ -2,7 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -10,6 +10,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import Svg, { Path, G, Ellipse, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -19,29 +20,24 @@ import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
 import { useEventDetail } from "@/hooks/useEventsApi";
 import { formatCurrency } from "@/utils/format";
-import type { VenueSection, TicketType, TicketAvailability } from "@/types/events";
+import type { VenueSection, TicketType, TicketUnit, TicketAvailability } from "@/types/events";
 
-function parseSvgRect(pathData: string): { x: number; y: number; w: number; h: number } | null {
+function getSvgPathCenter(pathData: string): { cx: number; cy: number } | null {
   const nums = pathData.match(/[\d.]+/g)?.map(Number);
   if (!nums || nums.length < 4) return null;
-  const xs = nums.filter((_, i) => i % 2 === 0);
-  const ys = nums.filter((_, i) => i % 2 === 1);
-  if (xs.length === 0 || ys.length === 0) return null;
-  const x = Math.min(...xs);
-  const y = Math.min(...ys);
-  const w = Math.max(...xs) - x;
-  const h = Math.max(...ys) - y;
-  if (w <= 0 || h <= 0) return null;
-  return { x, y, w, h };
+  const xs: number[] = [], ys: number[] = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) {
+    xs.push(nums[i]);
+    ys.push(nums[i + 1]);
+  }
+  if (xs.length === 0) return null;
+  return {
+    cx: xs.reduce((a, b) => a + b, 0) / xs.length,
+    cy: ys.reduce((a, b) => a + b, 0) / ys.length,
+  };
 }
 
-function hexToRgba(hex: string, opacity: number): string {
-  const h = hex.replace("#", "");
-  const r = parseInt(h.substring(0, 2), 16);
-  const g = parseInt(h.substring(2, 4), 16);
-  const b = parseInt(h.substring(4, 6), 16);
-  return `rgba(${r},${g},${b},${opacity})`;
-}
+type MappedUnit = { unit: TicketUnit; ticketType: TicketType; section: VenueSection };
 
 function availabilityVariant(a: TicketAvailability): "success" | "warning" | "danger" {
   if (a === "available") return "success";
@@ -49,16 +45,21 @@ function availabilityVariant(a: TicketAvailability): "success" | "warning" | "da
   return "danger";
 }
 
+const UNIT_R = 2.0;
+const AR_CORRECT = 10 / 16; // compensate for 16:10 container with 100×100 viewBox
+
 function ZoomableMap({
   floorplanImageUrl,
   sections,
   selectedId,
   onSelect,
+  mappedUnits,
 }: {
   floorplanImageUrl?: string;
   sections: VenueSection[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  mappedUnits: MappedUnit[];
 }) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -120,7 +121,8 @@ function ZoomableMap({
   };
 
   const hasFloorplan = !!floorplanImageUrl;
-  const hasSections = sections.some((s) => !!s.svgPathData);
+  const hasSvgPaths = sections.some((s) => !!s.svgPathData);
+  const hasOverlay = hasSvgPaths || mappedUnits.length > 0;
 
   return (
     <View style={mapStyles.wrapper}>
@@ -139,47 +141,89 @@ function ZoomableMap({
                 <Text style={mapStyles.stageText}>STAGE</Text>
               </View>
             )}
-            {hasSections &&
-              sections.map((section) => {
-                const rect = section.svgPathData ? parseSvgRect(section.svgPathData) : null;
-                if (!rect) return null;
-                const isSelected = selectedId === section.id;
-                const isSoldOut = section.availability === "sold_out";
-                const color = section.color || "#22c55e";
-                const bg = isSoldOut
-                  ? "rgba(63,63,70,0.5)"
-                  : isSelected
-                  ? hexToRgba(color, 0.65)
-                  : hexToRgba(color, 0.35);
-                return (
-                  <Pressable
-                    key={section.id}
-                    onPress={() => {
-                      if (!isSoldOut) onSelect(isSelected ? null : section.id);
-                    }}
-                    style={[
-                      mapStyles.sectionOverlay,
-                      {
-                        left: `${rect.x}%`,
-                        top: `${rect.y}%`,
-                        width: `${rect.w}%`,
-                        height: `${rect.h}%`,
-                        backgroundColor: bg,
-                        borderColor: isSoldOut ? "#3f3f46" : color,
-                        borderWidth: isSelected ? 2.5 : 1.5,
-                        opacity: isSoldOut ? 0.5 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[mapStyles.sectionLabel, { color: "#fff" }]}
-                      numberOfLines={2}
+
+            {/* SVG overlay: section polygons + unit markers */}
+            {hasOverlay && (
+              <Svg
+                style={StyleSheet.absoluteFill}
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                {/* Section fill paths */}
+                {hasSvgPaths && sections.map((section) => {
+                  if (!section.svgPathData) return null;
+                  const isSelected = selectedId === section.id;
+                  const isSoldOut = section.availability === "sold_out";
+                  const color = section.color || "#22c55e";
+                  const fillOpacity = isSoldOut ? 0.25 : isSelected ? 0.65 : 0.35;
+                  const center = getSvgPathCenter(section.svgPathData);
+                  return (
+                    <G
+                      key={section.id}
+                      onPress={() => { if (!isSoldOut) onSelect(isSelected ? null : section.id); }}
                     >
-                      {section.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Path
+                        d={section.svgPathData}
+                        fill={isSoldOut ? "#3f3f46" : color}
+                        fillOpacity={fillOpacity}
+                        stroke={isSoldOut ? "#3f3f46" : color}
+                        strokeWidth={isSelected ? "0.8" : "0.5"}
+                        opacity={isSoldOut ? 0.5 : 1}
+                      />
+                      {center && (
+                        <SvgText
+                          x={center.cx}
+                          y={center.cy}
+                          textAnchor="middle"
+                          dy="1"
+                          fontSize="2.5"
+                          fontWeight="bold"
+                          fill="white"
+                        >
+                          {section.name}
+                        </SvgText>
+                      )}
+                    </G>
+                  );
+                })}
+
+                {/* Numbered unit markers (VIP tables, seats, etc.) */}
+                {mappedUnits.map(({ unit, section }) => {
+                  if (unit.mapX == null || unit.mapY == null) return null;
+                  const isSold = unit.status !== "available";
+                  const isSecSelected = selectedId === section.id;
+                  const color = isSold ? "#6b7280" : isSecSelected ? "#00f1ff" : "#f59e0b";
+                  return (
+                    <G
+                      key={unit.id}
+                      onPress={() => { if (!isSold) onSelect(section.id); }}
+                      opacity={isSold ? 0.5 : 1}
+                    >
+                      <Ellipse
+                        cx={unit.mapX}
+                        cy={unit.mapY}
+                        rx={UNIT_R * AR_CORRECT}
+                        ry={UNIT_R}
+                        fill={color}
+                        stroke="rgba(0,0,0,0.5)"
+                        strokeWidth="0.4"
+                      />
+                      <SvgText
+                        x={unit.mapX}
+                        y={unit.mapY}
+                        textAnchor="middle"
+                        dy="0.8"
+                        fontSize={UNIT_R * 0.85}
+                        fontWeight="bold"
+                        fill="white"
+                      >
+                        {unit.unitNumber}
+                      </SvgText>
+                    </G>
+                  );
+                })}
+              </Svg>
+            )}
           </Animated.View>
         </View>
       </GestureDetector>
@@ -214,6 +258,21 @@ export default function VenueMapScreen() {
   const floorplanImageUrl = event.venueMap?.floorplanImageUrl;
   const selectedSection = sections.find((s) => s.id === selectedSectionId);
   const hasMap = sections.length > 0;
+
+  const mappedUnits = useMemo<MappedUnit[]>(() => {
+    const result: MappedUnit[] = [];
+    for (const section of sections) {
+      for (const tt of section.ticketTypes) {
+        if (!tt.isNumberedUnits || !tt.units) continue;
+        for (const u of tt.units) {
+          if (u.mapX != null && u.mapY != null) {
+            result.push({ unit: u, ticketType: tt, section });
+          }
+        }
+      }
+    }
+    return result;
+  }, [sections]);
 
   const handleSelectTicketType = (tt: TicketType, section: VenueSection) => {
     router.push({
@@ -259,6 +318,7 @@ export default function VenueMapScreen() {
               sections={sections}
               selectedId={selectedSectionId}
               onSelect={setSelectedSectionId}
+              mappedUnits={mappedUnits}
             />
           ) : (
             <View style={mapStyles.emptyMap}>
@@ -415,21 +475,6 @@ const mapStyles = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     fontFamily: "Inter_700Bold",
     fontSize: 11,
-  },
-  sectionOverlay: {
-    position: "absolute",
-    borderRadius: 4,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  sectionLabel: {
-    fontSize: 9,
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   zoomBtns: {
     position: "absolute",
