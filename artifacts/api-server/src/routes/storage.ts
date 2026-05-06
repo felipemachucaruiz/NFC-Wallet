@@ -33,7 +33,7 @@ router.get("/storage/objects/*objectPath", async (req: Request, res: Response) =
     return;
   }
 
-  const allowedPrefixes = ["product-images/", "event-images/", "venue-floorplans/", "ads/"];
+  const allowedPrefixes = ["product-images/", "event-images/", "venue-floorplans/", "ads/", "city-images/"];
   if (!allowedPrefixes.some((p) => objectName.startsWith(p))) {
     res.status(403).json({ error: "Forbidden" });
     return;

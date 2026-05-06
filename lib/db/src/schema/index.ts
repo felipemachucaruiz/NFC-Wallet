@@ -15,3 +15,4 @@ export * from "./ticketing";
 export * from "./ticketCheckins";
 export * from "./whatsapp";
 export * from "./ads";
+export * from "./cityCoverPhotos";
