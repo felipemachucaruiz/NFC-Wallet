@@ -216,7 +216,7 @@
     "contactPhone": "Teléfono de contacto",
     "pseEmail": "Correo electrónico",
     "pseEmailHint": "PSE enviará el enlace de pago a este correo.",
-    "bancolombiaHint": "Serás redirigido a Bancolombia para autorizar la transferencia. No se requieren datos adicionales."
+    "bancolombiaHint": "Serás redirigido a Bancolombia para autorizar la transferencia. No se requieren datos adicionales.",
     "cardNumber": "Número de tarjeta",
     "expiry": "Vencimiento (MM/AA)",
     "cardHolder": "Titular de la tarjeta",

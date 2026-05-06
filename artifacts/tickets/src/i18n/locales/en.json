@@ -216,7 +216,7 @@
     "contactPhone": "Contact phone",
     "pseEmail": "Email",
     "pseEmailHint": "PSE will send the payment link to this email.",
-    "bancolombiaHint": "You'll be redirected to Bancolombia to authorize the transfer. No additional data required."
+    "bancolombiaHint": "You'll be redirected to Bancolombia to authorize the transfer. No additional data required.",
     "cardNumber": "Card number",
     "expiry": "Expiry (MM/YY)",
     "cardHolder": "Card holder name",
