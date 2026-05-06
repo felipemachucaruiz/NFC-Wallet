@@ -8,7 +8,8 @@ let SymbolView: React.ComponentType<{ name: string; tintColor: string; size: num
 try {
   SymbolView = require("expo-symbols").SymbolView;
 } catch {}
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
+import { mdiMicrophoneVariant, mdiTicketConfirmationOutline } from "@mdi/js";
 import React from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import Svg, { Path, Ellipse } from "react-native-svg";
@@ -16,6 +17,14 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { router } from "expo-router";
+
+function MdiIcon({ path, color, size = 24 }: { path: string; color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d={path} fill={color} />
+    </Svg>
+  );
+}
 
 function BraceletIcon({ color, size = 22 }: { color: string; size?: number }) {
   return (
@@ -90,7 +99,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) =>
             isIOS && SymbolView
               ? <SymbolView name="mic.fill" tintColor={color} size={22} />
-              : <MaterialCommunityIcons name="microphone" size={24} color={color} />,
+              : <MdiIcon path={mdiMicrophoneVariant} color={color} size={24} />,
         }}
       />
       <Tabs.Screen
@@ -104,9 +113,9 @@ export default function TabsLayout() {
         name="my-tickets"
         options={{
           title: t("tickets.tab"),
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: () => (
             <View style={[styles.circleBtn, { backgroundColor: C.primary }]}>
-              <Feather name="tag" size={22} color={focused ? C.card : "#000"} />
+              <MdiIcon path={mdiTicketConfirmationOutline} color="#000" size={28} />
             </View>
           ),
         }}
@@ -143,15 +152,16 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   circleBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: -16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
   },
 });
