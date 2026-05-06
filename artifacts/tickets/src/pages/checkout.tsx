@@ -345,6 +345,7 @@ export default function Checkout() {
     setError("");
 
     try {
+      let cardSaveInfo: PendingCardSave | null = null;
       const purchaseData: Parameters<typeof purchaseTickets>[0] = {
         eventId: data.eventId,
         attendees: data.attendees.map((a) => ({
@@ -410,15 +411,17 @@ export default function Checkout() {
           purchaseData.installments = 1;
 
           const brand = detectCardBrand(cardNumber) ?? (tokenData.data.brand?.toLowerCase() ?? "");
+          // Store card info locally — do NOT setState here to avoid showing the
+          // save-card prompt before the purchase API call completes.
           if (!isGuest && tokenData.data.id) {
-            setPendingCardSave({
+            cardSaveInfo = {
               wompiToken: tokenData.data.id,
               brand,
               lastFour: cardNumber.replace(/\s/g, "").slice(-4),
               cardHolderName: cardHolder.trim(),
               expiryMonth: expMonth?.trim() ?? "",
               expiryYear: expYear?.trim() ?? "",
-            });
+            };
           }
         }
       }
@@ -435,8 +438,11 @@ export default function Checkout() {
         return;
       }
 
-      if (pendingCardSave || (!isGuest && paymentMethod === "card" && usingNewCard)) {
+      // Only show the save-card prompt after the purchase is confirmed and
+      // sessionStorage is populated, so "No" always lands on a valid status page.
+      if (cardSaveInfo) {
         pendingNavRef.current = "/payment-status";
+        setPendingCardSave(cardSaveInfo);
         setProcessing(false);
         return;
       }
