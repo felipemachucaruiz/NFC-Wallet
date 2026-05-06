@@ -279,15 +279,15 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   if (isLoading) {
     return (
       <div className="min-h-screen">
-        <div className="h-[300px] md:h-[420px] bg-card animate-pulse" />
+        <div className="h-[300px] md:h-[420px] bg-card/80 animate-pulse" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
-          <div className="h-24 bg-card rounded-xl animate-pulse" />
+          <div className="h-24 bg-card/80 rounded-xl animate-pulse" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-4">
-              <div className="h-40 bg-card rounded-xl animate-pulse" />
-              <div className="h-60 bg-card rounded-xl animate-pulse" />
+              <div className="h-40 bg-card/80 rounded-xl animate-pulse" />
+              <div className="h-60 bg-card/80 rounded-xl animate-pulse" />
             </div>
-            <div className="h-80 bg-card rounded-xl animate-pulse" />
+            <div className="h-80 bg-card/80 rounded-xl animate-pulse" />
           </div>
         </div>
       </div>
@@ -402,7 +402,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Venue — own card so the full name wraps instead of truncating */}
         {(event.venueName || event.venueAddress) && (
-          <div className="bg-card rounded-xl border border-border p-4 mb-4">
+          <div className="bg-card/80 rounded-xl border border-border p-4 mb-4">
             <div className="flex items-start gap-3 border-l-2 border-primary pl-3">
               <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <div>
@@ -423,7 +423,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
           </div>
         )}
 
-        <div className="bg-card rounded-xl border border-border p-4 mb-4">
+        <div className="bg-card/80 rounded-xl border border-border p-4 mb-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <EventInfoItem
               icon={<Calendar className="w-5 h-5 text-primary" />}
@@ -454,7 +454,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
         </div>
 
         {(event.promoterCompanyName || event.promoterNit || event.pulepId) && (
-          <div className="bg-card rounded-xl border border-border p-4 mb-6">
+          <div className="bg-card/80 rounded-xl border border-border p-4 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {event.promoterCompanyName && (
                 <EventInfoItem
@@ -498,7 +498,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
             {event.description && (
               <div>
                 <h2 className="text-xl font-semibold mb-3">{t("event.description")}</h2>
-                <div className="rounded-xl border border-border bg-black/80 px-5 py-4">
+                <div className="rounded-xl border border-border bg-card/80 px-5 py-4">
                   <div
                     className="prose prose-invert max-w-none text-muted-foreground"
                     dangerouslySetInnerHTML={{ __html: event.description }}
@@ -519,7 +519,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
                 <h2 className="text-xl font-semibold mb-4">{t("event.schedule")}</h2>
                 <div className="space-y-3">
                   {event.days.map((day) => (
-                    <div key={day.dayNumber} className="flex items-center gap-4 p-3 bg-card rounded-lg border border-border">
+                    <div key={day.dayNumber} className="flex items-center gap-4 p-3 bg-card/80 rounded-lg border border-border">
                       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
                         {day.dayNumber}
                       </div>
@@ -545,7 +545,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
             {event.latitude !== 0 && event.longitude !== 0 && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">{t("event.location")}</h2>
-                <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <div className="bg-card/80 rounded-lg border border-border overflow-hidden">
                   <div className="p-4">
                     {event.venueName && <p className="font-medium">{event.venueName}</p>}
                     {event.venueAddress && <p className="text-sm text-muted-foreground">{event.venueAddress}</p>}
@@ -569,7 +569,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
 
           <div className="lg:col-span-1">
             <div className="sticky top-20 space-y-6">
-              <div className="bg-card rounded-xl border border-border p-5">
+              <div className="bg-card/80 rounded-xl border border-border p-5">
                 <h2 className="text-lg font-semibold mb-4">{t("event.pricing")}</h2>
                 <SectionTicketGroups
                   event={event}
@@ -618,7 +618,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
               </div>
 
               {detail?.guestLists && detail.guestLists.length > 0 && (
-                <div className="bg-card rounded-xl border border-border p-5 mt-6">
+                <div className="bg-card/80 rounded-xl border border-border p-5 mt-6">
                   <h2 className="text-lg font-semibold mb-4">{t("event.guestLists", "Guest Lists")}</h2>
                   <div className="space-y-3">
                     {detail.guestLists.map((gl) => (
