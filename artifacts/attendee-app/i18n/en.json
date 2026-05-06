@@ -380,7 +380,7 @@
     "schedule": "Schedule",
     "dayLabel": "Day {{n}}",
     "details": "Details",
-    "openMaps": "Open in maps",
+    "openMaps": "Open location in...",
     "pricing": "Pricing",
     "validDays": "Valid days",
     "availability_available": "Available",

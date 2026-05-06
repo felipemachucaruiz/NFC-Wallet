@@ -379,7 +379,7 @@
     "schedule": "Programación",
     "dayLabel": "Día {{n}}",
     "details": "Detalles",
-    "openMaps": "Abrir en mapa",
+    "openMaps": "Abrir ubicación en...",
     "pricing": "Precios",
     "validDays": "Días válidos",
     "availability_available": "Disponible",

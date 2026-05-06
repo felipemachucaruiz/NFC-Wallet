@@ -4,6 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Linking,
   Modal,
   Platform,
@@ -293,13 +294,27 @@ export default function EventDetailScreen() {
 
   const openMaps = () => {
     if (!event.latitude || !event.longitude) return;
+    const lat = event.latitude;
+    const lng = event.longitude;
     const label = encodeURIComponent(event.venueName);
-    const url = Platform.OS === "ios"
-      ? `maps:0,0?q=${label}@${event.latitude},${event.longitude}`
-      : `geo:${event.latitude},${event.longitude}?q=${event.latitude},${event.longitude}(${label})`;
-    Linking.openURL(url).catch(() =>
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`),
-    );
+
+    const openGoogle = () =>
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+    const openWaze = () =>
+      Linking.openURL(`waze://ul?ll=${lat},${lng}&navigate=yes`).catch(() =>
+        Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`),
+      );
+    const openApple = () =>
+      Linking.openURL(`maps://?q=${label}@${lat},${lng}`);
+
+    const buttons = [
+      { text: "Google Maps", onPress: openGoogle },
+      { text: "Waze", onPress: openWaze },
+      ...(Platform.OS === "ios" ? [{ text: "Apple Maps", onPress: openApple }] : []),
+      { text: t("common.cancel"), style: "cancel" as const },
+    ];
+
+    Alert.alert(t("events.openMaps"), undefined, buttons);
   };
 
   const bgUrl = event.flyerImageUrl ?? event.coverImageUrl;
