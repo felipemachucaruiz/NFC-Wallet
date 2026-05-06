@@ -305,7 +305,7 @@ export default function EventDetailScreen() {
   const bgUrl = event.flyerImageUrl ?? event.coverImageUrl;
   const startDate = new Date(event.startsAt);
   const doorsTime = event.doorsOpenAt
-    ? new Date(event.doorsOpenAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+    ? new Date(event.doorsOpenAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })
     : null;
   const vimeoId = event.vimeoUrl ? extractVimeoId(event.vimeoUrl) : null;
 
