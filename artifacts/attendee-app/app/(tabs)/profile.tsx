@@ -547,7 +547,7 @@ export default function ProfileScreen() {
       <Modal visible={showChangePw} transparent animationType="slide" onRequestClose={() => setShowChangePw(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <Pressable style={styles.modalOverlay} onPress={() => setShowChangePw(false)}>
-            <Pressable style={[styles.modalSheet, { backgroundColor: C.card }]} onPress={() => {}}>
+            <Pressable style={[styles.modalSheet, { backgroundColor: scheme === "dark" ? "#1c1c1e" : "#ffffff" }]} onPress={() => {}}>
               <Text style={[styles.modalTitle, { color: C.text }]}>{t("profile.changePassword") || "Cambiar contraseña"}</Text>
               <Text style={[styles.idTypeLabel, { color: C.textSecondary }]}>{t("profile.currentPassword") || "Contraseña actual"}</Text>
               <View style={styles.pwInputWrap}>
