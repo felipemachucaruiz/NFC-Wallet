@@ -4,7 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, ImageBackground } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -263,11 +263,15 @@ export default function EventsScreen() {
                   onPress={() => setCityFilter(isActive ? "" : city.id)}
                   style={styles.cityCard}
                 >
-                  <ImageBackground
-                    source={city.coverImageUrl ? { uri: city.coverImageUrl } : undefined}
-                    style={styles.cityCardBg}
-                    imageStyle={styles.cityCardImage}
-                  >
+                  <View style={styles.cityCardBg}>
+                    {city.coverImageUrl ? (
+                      <Image
+                        source={{ uri: city.coverImageUrl }}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                      />
+                    ) : null}
                     <LinearGradient
                       colors={["transparent", "rgba(0,0,0,0.72)"]}
                       style={styles.cityCardGradient}
@@ -278,7 +282,7 @@ export default function EventsScreen() {
                       </View>
                     )}
                     <Text style={styles.cityCardName} numberOfLines={1}>{city.name}</Text>
-                  </ImageBackground>
+                  </View>
                 </Pressable>
               );
             })}
@@ -446,8 +450,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     backgroundColor: "#222",
-  },
-  cityCardImage: {
+    overflow: "hidden",
     borderRadius: 14,
   },
   cityCardGradient: {
