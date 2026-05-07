@@ -26,7 +26,7 @@ declare module "pdfkit" {
     rect(x: number, y: number, w: number, h: number): this;
     roundedRect(x: number, y: number, w: number, h: number, r: number): this;
     circle(x: number, y: number, r: number): this;
-    fill(color: string): this;
+    fill(color: string | PDFLinearGradient): this;
     stroke(): this;
     clip(): this;
     path(d: string): this;
@@ -46,6 +46,11 @@ declare module "pdfkit" {
     image(src: Buffer | string, x?: number, y?: number, options?: Record<string, unknown>): this;
     openImage(src: Buffer | string): ImageOpenResult;
     on(event: string, listener: (...args: any[]) => void): this;
+    linearGradient(x1: number, y1: number, x2: number, y2: number): PDFLinearGradient;
+  }
+
+  interface PDFLinearGradient {
+    stop(offset: number, color: string, opacity?: number): this;
   }
 
   export = PDFDocument;
