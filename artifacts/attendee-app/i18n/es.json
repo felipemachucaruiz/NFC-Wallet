@@ -439,6 +439,8 @@
     "cardDetails": "Datos de la tarjeta",
     "cardNumber": "Número de tarjeta",
     "cardHolder": "Nombre en la tarjeta",
+    "savedCards": "Tarjetas guardadas",
+    "newCard": "Usar una tarjeta nueva",
     "docNumber": "Número de documento",
     "confirmPayment": "Confirmar pago",
     "paymentStatus": "Estado del pago",

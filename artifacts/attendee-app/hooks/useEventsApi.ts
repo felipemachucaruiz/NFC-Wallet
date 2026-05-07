@@ -356,6 +356,7 @@ export function usePurchaseTickets() {
       userLegalIdType?: string;
       userLegalId?: string;
       cardToken?: string;
+      savedCardId?: string;
       browserInfo?: {
         browser_color_depth: string;
         browser_screen_height: string;

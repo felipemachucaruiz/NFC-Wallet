@@ -440,6 +440,8 @@
     "cardDetails": "Card details",
     "cardNumber": "Card number",
     "cardHolder": "Name on card",
+    "savedCards": "Saved cards",
+    "newCard": "Use a new card",
     "docNumber": "Document number",
     "confirmPayment": "Confirm payment",
     "paymentStatus": "Payment status",
