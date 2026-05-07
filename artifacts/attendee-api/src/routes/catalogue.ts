@@ -51,6 +51,9 @@ router.get(
     if (dateTo) {
       conditions.push(lte(eventsTable.startsAt, new Date(dateTo)));
     }
+    if (city) {
+      conditions.push(eq(eventsTable.cityId, city));
+    }
 
     const events = await db
       .select({
@@ -123,23 +126,6 @@ router.get(
         };
       }),
     );
-
-    if (city) {
-      const filteredEvents = [];
-      for (const event of eventsWithPricing) {
-        const [venue] = await db
-          .select({ city: venuesTable.city })
-          .from(venuesTable)
-          .where(and(eq(venuesTable.eventId, event.id), ilike(venuesTable.city, `%${city}%`)))
-          .limit(1);
-        if (venue) filteredEvents.push(event);
-        else if (event.venueAddress && event.venueAddress.toLowerCase().includes(city.toLowerCase())) {
-          filteredEvents.push(event);
-        }
-      }
-      res.json({ events: filteredEvents, page: pageNum, limit: limitNum });
-      return;
-    }
 
     res.json({ events: eventsWithPricing, page: pageNum, limit: limitNum });
   },

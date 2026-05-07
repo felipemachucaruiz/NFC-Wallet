@@ -119,6 +119,7 @@ const createEventSchema = z.object({
   flyerImageUrl: z.string().url().optional(),
   longDescription: z.string().optional(),
   category: z.string().max(100).optional(),
+  cityId: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
   minAge: z.number().int().min(0).nullable().optional(),
   ticketingEnabled: z.boolean().optional(),
@@ -162,6 +163,7 @@ const updateEventSchema = z.object({
   longDescription: z.string().nullable().optional(),
   descriptionEn: z.string().nullable().optional(),
   category: z.string().max(100).nullable().optional(),
+  cityId: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
   minAge: z.number().int().min(0).nullable().optional(),
   ticketingEnabled: z.boolean().optional(),
@@ -204,6 +206,7 @@ const SAFE_EVENT_FIELDS = {
   longDescription: eventsTable.longDescription,
   descriptionEn: eventsTable.descriptionEn,
   category: eventsTable.category,
+  cityId: eventsTable.cityId,
   tags: eventsTable.tags,
   minAge: eventsTable.minAge,
   ticketingEnabled: eventsTable.ticketingEnabled,
@@ -306,7 +309,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, eventAdmin } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, platformCommissionRate, capacity, promoterCompanyId, pulepId, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, category, cityId: createCityId, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, eventAdmin } = parsed.data;
 
   if (refundDeadline && endsAt) {
     const deadlineDate = new Date(refundDeadline);
@@ -365,6 +368,7 @@ router.post("/events", requireRole("admin"), async (req: Request, res: Response)
         ...(flyerImageUrl !== undefined && { flyerImageUrl }),
         ...(longDescription !== undefined && { longDescription }),
         ...(category !== undefined && { category }),
+        ...(createCityId !== undefined && { cityId: createCityId }),
         ...(tags !== undefined && { tags }),
         ...(minAge !== undefined && { minAge }),
         ...(ticketingEnabled !== undefined && { ticketingEnabled }),
@@ -438,7 +442,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, descriptionEn, category, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, descriptionEn, category, cityId, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics } = parsed.data;
 
   if (refundDeadline !== undefined && refundDeadline !== null) {
     const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, eventId)))[0]?.endsAt;
@@ -492,6 +496,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(longDescription !== undefined && { longDescription }),
     ...(descriptionEn !== undefined && { descriptionEn }),
     ...(category !== undefined && { category }),
+    ...(cityId !== undefined && { cityId }),
     ...(tags !== undefined && { tags }),
     ...(minAge !== undefined && { minAge }),
     ...(ticketingEnabled !== undefined && { ticketingEnabled }),

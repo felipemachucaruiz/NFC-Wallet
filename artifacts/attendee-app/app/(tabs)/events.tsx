@@ -256,11 +256,11 @@ export default function EventsScreen() {
             contentContainerStyle={styles.citiesScroll}
           >
             {cities.map((city) => {
-              const isActive = cityFilter === city.name;
+              const isActive = cityFilter === city.id;
               return (
                 <Pressable
                   key={city.id}
-                  onPress={() => setCityFilter(isActive ? "" : city.name)}
+                  onPress={() => setCityFilter(isActive ? "" : city.id)}
                   style={styles.cityCard}
                 >
                   <ImageBackground
@@ -293,7 +293,9 @@ export default function EventsScreen() {
             style={[styles.filterChip, { backgroundColor: C.primaryLight, borderColor: C.primary }]}
           >
             <Feather name="map-pin" size={11} color={C.primary} />
-            <Text style={[styles.filterChipText, { color: C.primary }]}>{cityFilter} ✕</Text>
+            <Text style={[styles.filterChipText, { color: C.primary }]}>
+              {cities.find((c) => c.id === cityFilter)?.name ?? cityFilter} ✕
+            </Text>
           </Pressable>
         )}
         {DATE_FILTERS.map((df) => (
