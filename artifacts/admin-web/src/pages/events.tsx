@@ -1,6 +1,6 @@
 import { fmtDate } from "@/lib/date";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   useListEvents,
   useCreateEvent,
@@ -55,6 +55,7 @@ type EventForm = {
   description: string;
   descriptionEn: string;
   category: string;
+  cityId: string;
   venueAddress: string;
   capacity: string;
   startsAt: string;
@@ -84,6 +85,7 @@ const emptyForm: EventForm = {
   description: "",
   descriptionEn: "",
   category: "",
+  cityId: "",
   venueAddress: "",
   capacity: "",
   startsAt: "",
@@ -162,6 +164,7 @@ type FormFieldsProps = {
   form: EventForm;
   setForm: React.Dispatch<React.SetStateAction<EventForm>>;
   promoterCompanies: { id: string; companyName: string }[];
+  cities: { id: string; name: string }[];
   mapPickerOpen: boolean;
   setMapPickerOpen: (open: boolean) => void;
   adminOpen: boolean;
@@ -297,6 +300,7 @@ function FormFields({
   form,
   setForm,
   promoterCompanies,
+  cities,
   mapPickerOpen,
   setMapPickerOpen,
   adminOpen,
@@ -402,6 +406,26 @@ function FormFields({
           </SelectContent>
         </Select>
       </div>
+
+      {cities.length > 0 && (
+        <div className="space-y-1">
+          <Label>{t("events.city", "Ciudad")}</Label>
+          <Select
+            value={form.cityId || "__none__"}
+            onValueChange={(v) => setForm((f) => ({ ...f, cityId: v === "__none__" ? "" : v }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t("events.cityPlaceholder", "Sin ciudad asignada")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">{t("events.cityPlaceholder", "Sin ciudad asignada")}</SelectItem>
+              {cities.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <ImageUploadField
@@ -797,6 +821,20 @@ export default function Events() {
   const { data: promoterData } = useListPromoterCompanies();
   const promoterCompanies = promoterData?.companies ?? [];
 
+  const { data: citiesData } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["admin-cities"],
+    queryFn: async () => {
+      const token = localStorage.getItem("tapee_admin_token");
+      const res = await fetch(`${import.meta.env.BASE_URL}_srv/api/cities`, {
+        headers: token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      return (data.cities ?? []) as { id: string; name: string }[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const cities = citiesData ?? [];
+
   const handleManageTicketing = (event: RawEvent) => {
     setEventId(event.id);
     setLocation("/event-ticket-types");
@@ -842,6 +880,7 @@ export default function Events() {
       description: event.description ?? "",
       descriptionEn: (raw as any).descriptionEn ?? "",
       category: (raw as any).category ?? "",
+      cityId: (raw as any).cityId ?? "",
       venueAddress: event.venueAddress ?? "",
       capacity: raw.capacity != null ? String(raw.capacity) : "",
       startsAt: event.startsAt ? toLocalDatetimeInput(event.startsAt) : "",
@@ -900,6 +939,7 @@ export default function Events() {
       nfcChipType: form.nfcChipType || undefined,
       currencyCode: form.currencyCode || "COP",
       category: form.category || undefined,
+      cityId: form.cityId || undefined,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
       ...(hasAdmin ? {
@@ -970,6 +1010,7 @@ export default function Events() {
       nfcChipType: form.nfcChipType || undefined,
       currencyCode: form.currencyCode || undefined,
       category: form.category || null,
+      cityId: form.cityId || null,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
       coverImageUrl: form.coverImageUrl || null,
@@ -1102,6 +1143,7 @@ export default function Events() {
             form={form}
             setForm={setForm}
             promoterCompanies={promoterCompanies}
+            cities={cities}
             mapPickerOpen={mapPickerOpen}
             setMapPickerOpen={setMapPickerOpen}
             adminOpen={adminOpen}
@@ -1128,6 +1170,7 @@ export default function Events() {
             form={form}
             setForm={setForm}
             promoterCompanies={promoterCompanies}
+            cities={cities}
             mapPickerOpen={mapPickerOpen}
             setMapPickerOpen={setMapPickerOpen}
             adminOpen={adminOpen}
