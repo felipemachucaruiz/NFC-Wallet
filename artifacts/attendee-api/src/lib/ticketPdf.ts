@@ -92,9 +92,11 @@ import sharp from "sharp";
   async function renderTicketPage(doc: InstanceType<typeof import("pdfkit")>, data: TicketPdfData): Promise<void> {
     const PAGE_W = 396;
     const PAGE_H = 612;
-    const PAD = 20;
     const COVER_H = 178;
     const CORNER_R = 16;
+
+    // Truncate text to fit a single line in fixed-width columns
+    const trunc = (s: string, max: number) => s.length > max ? s.slice(0, max - 1) + "\u2026" : s;
 
     // ── Extract dominant color from flyer ────────────────────────────────────
     let flyerBuf: Buffer | null = null;
@@ -114,16 +116,21 @@ import sharp from "sharp";
       }
     }
 
-    const darken = (v: number, f: number) => Math.max(0, Math.floor(v * f));
-    const blendW = (v: number, a: number) => Math.min(255, Math.floor(v * (1 - a) + 255 * a));
+    const darken  = (v: number, f: number) => Math.max(0, Math.floor(v * f));
+    const lighten = (v: number, add: number) => Math.min(255, v + add);
     const toHex = (r: number, g: number, b: number) =>
       "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
 
+    // Gradient: top = dominant color, bottom = much darker version
     const colorTop = toHex(dr, dg, db);
-    const colorBot = toHex(darken(dr, 0.42), darken(dg, 0.42), darken(db, 0.42));
-    const cardBg   = toHex(blendW(dr, 0.13), blendW(dg, 0.13), blendW(db, 0.13));
-    const mutedCol = toHex(blendW(dr, 0.42), blendW(dg, 0.42), blendW(db, 0.42));
-    const divColor = toHex(blendW(dr, 0.22), blendW(dg, 0.22), blendW(db, 0.22));
+    const colorBot = toHex(darken(dr, 0.38), darken(dg, 0.38), darken(db, 0.38));
+
+    // Card: noticeably lighter than body gradient mid-point
+    const cardBg = toHex(
+      lighten(darken(dr, 0.70), 40),
+      lighten(darken(dg, 0.70), 40),
+      lighten(darken(db, 0.70), 40),
+    );
 
     // ── Page background ──────────────────────────────────────────────────────
     doc.rect(0, 0, PAGE_W, PAGE_H).fill("#0a0a0a");
@@ -136,14 +143,11 @@ import sharp from "sharp";
     doc.save();
     doc.roundedRect(TX, TY, TW, TH, CORNER_R).clip();
 
-    // ── Body gradient (below cover) ──────────────────────────────────────────
+    // ── Body gradient (covers everything below cover) ────────────────────────
     const bodyGrad = doc.linearGradient(TX, TY + COVER_H, TX, TY + TH);
     bodyGrad.stop(0, colorTop, 1);
     bodyGrad.stop(1, colorBot, 1);
-    doc.rect(TX, TY + COVER_H, TW, TH - COVER_H).fill(bodyGrad);
-
-    // Fill cover area base color (shown if no image)
-    doc.rect(TX, TY, TW, COVER_H + 1).fill(colorTop);
+    doc.rect(TX, TY, TW, TH).fill(bodyGrad);
 
     // ── Cover image ──────────────────────────────────────────────────────────
     if (flyerBuf) {
@@ -164,12 +168,13 @@ import sharp from "sharp";
         logger.warn({ err }, "Failed to embed flyer image in PDF");
       }
     } else {
-      doc.fontSize(26).font("Helvetica-Bold").fillColor("#00f1ff")
+      doc.rect(TX, TY, TW, COVER_H).fill(colorTop);
+      doc.fontSize(26).font("Helvetica-Bold").fillColor("#ffffff")
         .text("tapee", TX, TY + COVER_H / 2 - 18, { width: TW, align: "center" });
     }
 
-    // ── Gradient fade at bottom of cover → body color ────────────────────────
-    const FADE_H = 65;
+    // ── Gradient fade at bottom of cover into body ───────────────────────────
+    const FADE_H = 70;
     const fadeGrad = doc.linearGradient(TX, TY + COVER_H - FADE_H, TX, TY + COVER_H);
     fadeGrad.stop(0, colorTop, 0);
     fadeGrad.stop(1, colorTop, 1);
@@ -178,87 +183,98 @@ import sharp from "sharp";
     doc.restore();
 
     // ── Event name ────────────────────────────────────────────────────────────
+    const PAD_H = 20;  // horizontal padding for text outside card
     let y = TY + COVER_H + 9;
-    const nameLineH = doc.heightOfString(data.eventName, { width: TW - PAD * 2, fontSize: 15 });
+    const nameWidth = TW - PAD_H * 2;
+    const nameH = doc.heightOfString(data.eventName, { width: nameWidth, fontSize: 15 });
     doc.fontSize(15).font("Helvetica-Bold").fillColor("#ffffff")
-      .text(data.eventName, TX + PAD, y, { width: TW - PAD * 2, align: "center" });
-    y += nameLineH + 9;
+      .text(data.eventName, TX + PAD_H, y, { width: nameWidth, align: "center" });
+    y += nameH + 9;
 
     // ── Attendee info card ────────────────────────────────────────────────────
-    const CARD_X = TX + 12;
-    const CARD_W = TW - 24;
+    const CARD_X = TX + 10;
+    const CARD_W = TW - 20;
     const CARD_PAD = 12;
-    const CCX = CARD_X + CARD_PAD;   // card content X
+    const CCX = CARD_X + CARD_PAD;
     const CCW = CARD_W - CARD_PAD * 2;
     const COL_W = CCW / 2;
 
-    const cardStartY = y;
-    let cy = cardStartY + CARD_PAD;
+    // Fixed row heights — all values are single-line (truncated)
+    const LABEL_SZ  = 6;
+    const VAL_SZ    = 9;
+    const LABEL_H   = 7;
+    const VAL_H     = 11;
+    const ROW_GAP   = 7;
+    const NUM_ROWS  = 3;
 
-    // Measure card height before drawing
-    const LABEL_H = 6;
-    const VAL_H = 10;
-    const ROW_GAP = 6;
     const cardH =
       CARD_PAD +
-      LABEL_H + 3 + VAL_H + 8 +           // ASISTENTE + name
-      1 + 8 +                              // divider
-      (LABEL_H + 3 + VAL_H + ROW_GAP) * 2 + // 2 info rows
-      LABEL_H + 3 + VAL_H + 4 +           // 3rd row (smaller gap)
+      LABEL_H + 2 + 13 + 8 +         // ASISTENTE label + name + gap
+      1 + 8 +                          // divider
+      NUM_ROWS * (LABEL_H + 2 + VAL_H + ROW_GAP) - ROW_GAP + // info rows
       CARD_PAD;
 
+    const cardStartY = y;
     doc.roundedRect(CARD_X, cardStartY, CARD_W, cardH, 10).fill(cardBg);
 
-    // ASISTENTE label
-    doc.fontSize(6).font("Helvetica").fillColor(mutedCol)
-      .text("ASISTENTE", CCX, cy, { width: CCW });
-    cy += LABEL_H + 3;
+    let cy = cardStartY + CARD_PAD;
 
-    // Attendee name
-    doc.fontSize(11).font("Helvetica-Bold").fillColor("#ffffff")
-      .text(data.attendeeName, CCX, cy, { width: CCW });
-    cy += VAL_H + 8;
+    // Labels use a fixed light-gray for guaranteed readability on any card bg
+    const LABEL_COLOR = "#c8c8c8";
+    const VALUE_COLOR = "#ffffff";
+    const DIVIDER_COLOR = "#7a7a7a";
+
+    // ASISTENTE
+    doc.fontSize(LABEL_SZ).font("Helvetica").fillColor(LABEL_COLOR)
+      .text("ASISTENTE", CCX, cy, { width: CCW, lineBreak: false });
+    cy += LABEL_H + 2;
+
+    doc.fontSize(12).font("Helvetica-Bold").fillColor(VALUE_COLOR)
+      .text(trunc(data.attendeeName, 42), CCX, cy, { width: CCW, lineBreak: false });
+    cy += 13 + 8;
 
     // Divider
-    doc.strokeColor(divColor).lineWidth(0.5)
+    doc.strokeColor(DIVIDER_COLOR).lineWidth(0.5)
       .moveTo(CARD_X + CARD_PAD, cy).lineTo(CARD_X + CARD_W - CARD_PAD, cy).stroke();
     cy += 1 + 8;
 
-    // Info rows
-    const dateStr = data.eventDates[0] ?? "—";
+    // Info rows — all values truncated to prevent column overflow
+    const dateStr  = data.eventDates[0] ?? "—";
     const priceStr = formatPrice(data.price, data.currencyCode);
     const hasSection = !!(data.sectionName && data.sectionName !== "General" && data.sectionName !== "—");
     const col2row2 = hasSection ? data.sectionName : (data.validDays.length > 0 ? data.validDays.join(", ") : "Todos");
 
     const infoRows: [string, string, string, string][] = [
-      ["FECHA EVENTO", dateStr, "LUGAR", data.venueName],
-      ["PRECIO DE TICKET", priceStr, hasSection ? "SECCIÓN" : "DÍAS VÁLIDOS", col2row2],
-      ["COMPRADO", formatPurchaseDate(data.purchasedAt), "ORDEN #", data.orderId.slice(0, 8).toUpperCase()],
+      ["FECHA EVENTO", trunc(dateStr, 22),   "LUGAR",                       trunc(data.venueName, 26)],
+      ["PRECIO DE TICKET", trunc(priceStr, 22), hasSection ? "SECCIÓN" : "DÍAS VÁLIDOS", trunc(col2row2, 26)],
+      ["COMPRADO",    trunc(formatPurchaseDate(data.purchasedAt), 22), "ORDEN #", data.orderId.slice(0, 8).toUpperCase()],
     ];
 
     for (let ri = 0; ri < infoRows.length; ri++) {
       const [l1, v1, l2, v2] = infoRows[ri];
       const isLast = ri === infoRows.length - 1;
-      doc.fontSize(6).font("Helvetica").fillColor(mutedCol)
-        .text(l1, CCX, cy, { width: COL_W });
-      doc.fontSize(6).font("Helvetica").fillColor(mutedCol)
-        .text(l2, CCX + COL_W, cy, { width: COL_W });
-      cy += LABEL_H + 3;
-      doc.fontSize(9).font("Helvetica-Bold").fillColor("#ffffff")
-        .text(v1, CCX, cy, { width: COL_W });
-      doc.fontSize(9).font("Helvetica-Bold").fillColor("#ffffff")
-        .text(v2, CCX + COL_W, cy, { width: COL_W });
-      cy += VAL_H + (isLast ? 4 : ROW_GAP);
+
+      doc.fontSize(LABEL_SZ).font("Helvetica").fillColor(LABEL_COLOR)
+        .text(l1, CCX,          cy, { width: COL_W, lineBreak: false });
+      doc.fontSize(LABEL_SZ).font("Helvetica").fillColor(LABEL_COLOR)
+        .text(l2, CCX + COL_W, cy, { width: COL_W, lineBreak: false });
+      cy += LABEL_H + 2;
+
+      doc.fontSize(VAL_SZ).font("Helvetica-Bold").fillColor(VALUE_COLOR)
+        .text(v1, CCX,          cy, { width: COL_W, lineBreak: false });
+      doc.fontSize(VAL_SZ).font("Helvetica-Bold").fillColor(VALUE_COLOR)
+        .text(v2, CCX + COL_W, cy, { width: COL_W, lineBreak: false });
+      cy += VAL_H + (isLast ? 0 : ROW_GAP);
     }
 
     y = cardStartY + cardH + 11;
 
     // ── QR code ───────────────────────────────────────────────────────────────
-    const QR_SIZE = 124;
+    const QR_SIZE   = 124;
     const QR_BORDER = 8;
-    const QR_BOX = QR_SIZE + QR_BORDER * 2;
-    const QR_X = TX + (TW - QR_BOX) / 2;
-    const QR_Y = y;
+    const QR_BOX    = QR_SIZE + QR_BORDER * 2;
+    const QR_X      = TX + (TW - QR_BOX) / 2;
+    const QR_Y      = y;
 
     try {
       const qrDataUrl = await QRCode.toDataURL(data.qrCodeToken, {
@@ -272,14 +288,16 @@ import sharp from "sharp";
       doc.image(qrBuffer, QR_X + QR_BORDER, QR_Y + QR_BORDER, { width: QR_SIZE, height: QR_SIZE });
 
       const LOGO_SIZE = 28, LOGO_BG = 38;
-      const logoX = QR_X + QR_BORDER + (QR_SIZE - LOGO_SIZE) / 2;
-      const logoY = QR_Y + QR_BORDER + (QR_SIZE - LOGO_SIZE) / 2;
       doc.roundedRect(
         QR_X + QR_BORDER + (QR_SIZE - LOGO_BG) / 2,
         QR_Y + QR_BORDER + (QR_SIZE - LOGO_BG) / 2,
         LOGO_BG, LOGO_BG, 6
       ).fill("#ffffff");
-      doc.image(tapeeQrLogoBuffer, logoX, logoY, { width: LOGO_SIZE, height: LOGO_SIZE });
+      doc.image(tapeeQrLogoBuffer,
+        QR_X + QR_BORDER + (QR_SIZE - LOGO_SIZE) / 2,
+        QR_Y + QR_BORDER + (QR_SIZE - LOGO_SIZE) / 2,
+        { width: LOGO_SIZE, height: LOGO_SIZE }
+      );
     } catch (err) {
       logger.error({ err }, "Failed to generate QR for PDF");
     }
@@ -287,16 +305,15 @@ import sharp from "sharp";
     y = QR_Y + QR_BOX + 9;
 
     // ── Ticket type ───────────────────────────────────────────────────────────
-    doc.fontSize(15).font("Helvetica-Bold").fillColor("#22c55e")
+    doc.fontSize(16).font("Helvetica-Bold").fillColor("#22c55e")
       .text(data.ticketTypeName.toUpperCase(), TX, y, { width: TW, align: "center" });
 
     // ── Footer ────────────────────────────────────────────────────────────────
     const FOOTER_Y = TY + TH - 34;
-
-    doc.strokeColor(divColor).lineWidth(0.5)
+    doc.strokeColor(DIVIDER_COLOR).lineWidth(0.5)
       .moveTo(TX + 18, FOOTER_Y - 4).lineTo(TX + TW - 18, FOOTER_Y - 4).stroke();
 
-    doc.fontSize(5.5).font("Helvetica").fillColor(mutedCol)
+    doc.fontSize(5.5).font("Helvetica").fillColor(LABEL_COLOR)
       .text("POWERED BY", TX, FOOTER_Y + 1, { width: TW, align: "center" });
 
     const BANNER_W = 58;
