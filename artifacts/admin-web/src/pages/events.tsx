@@ -407,25 +407,23 @@ function FormFields({
         </Select>
       </div>
 
-      {cities.length > 0 && (
-        <div className="space-y-1">
-          <Label>{t("events.city", "Ciudad")}</Label>
-          <Select
-            value={form.cityId || "__none__"}
-            onValueChange={(v) => setForm((f) => ({ ...f, cityId: v === "__none__" ? "" : v }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t("events.cityPlaceholder", "Sin ciudad asignada")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">{t("events.cityPlaceholder", "Sin ciudad asignada")}</SelectItem>
-              {cities.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <div className="space-y-1">
+        <Label>{t("events.city", "Ciudad")}</Label>
+        <Select
+          value={form.cityId || "__none__"}
+          onValueChange={(v) => setForm((f) => ({ ...f, cityId: v === "__none__" ? "" : v }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={t("events.cityPlaceholder", "Sin ciudad asignada")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">{t("events.cityPlaceholder", "Sin ciudad asignada")}</SelectItem>
+            {cities.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <ImageUploadField
