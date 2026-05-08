@@ -12,6 +12,7 @@ import type { EventData, TicketType } from "@/data/types";
 import { VenueMap } from "@/components/VenueMap";
 import { FloatingGraphics } from "@/components/FloatingGraphics";
 import { TicketSelector } from "@/components/TicketSelector";
+import { SEO } from "@/components/SEO";
 import { fetchEventDetail, resolveImageUrl, ApiError, type ApiEventDetail } from "@/lib/api";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyCyI7QJ3J5_Peqnr4bqFXAIqaeac1DuT_c";
@@ -332,8 +333,68 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
     setSelectedSectionName(section?.name || ticket.name);
   };
 
+  const schemaObj = useMemo(() => {
+    if (!event) return null;
+    const eventUrl = `https://tapeetickets.com/event/${params?.id}`;
+    const images = [event.coverImage, event.flyerImage].filter(Boolean);
+    return {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      "name": event.name,
+      "description": event.description?.replace(/<[^>]*>?/gm, '') || event.name,
+      "image": images,
+      "url": eventUrl,
+      "startDate": event.startsAt,
+      "endDate": event.endsAt || event.startsAt,
+      "eventStatus": "https://schema.org/EventScheduled",
+      "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+      "location": {
+        "@type": "Place",
+        "name": event.venueName || "TBD",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": event.venueAddress || "",
+          "addressLocality": event.city || "",
+          "addressCountry": "CO"
+        },
+        ...(event.latitude && event.longitude ? {
+          "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": event.latitude,
+            "longitude": event.longitude
+          }
+        } : {})
+      },
+      "offers": event.ticketTypes.length > 0 ? event.ticketTypes.map(tt => ({
+        "@type": "Offer",
+        "name": tt.name,
+        "price": tt.price,
+        "priceCurrency": event.currencyCode,
+        "availability": tt.status === "sold_out" ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
+        "url": eventUrl,
+        "validFrom": event.startsAt
+      })) : undefined,
+      "organizer": event.promoterCompanyName ? {
+        "@type": "Organization",
+        "name": event.promoterCompanyName,
+        "url": "https://tapeetickets.com"
+      } : undefined
+    };
+  }, [event, params?.id]);
+
+  const schemaStr = schemaObj ? JSON.stringify(schemaObj) : undefined;
+
   return (
     <div className="min-h-screen">
+      {event && (
+        <SEO 
+          title={`${event.name} | Tapee Tickets`}
+          description={event.description?.replace(/<[^>]*>?/gm, '').substring(0, 160) || `Compra boletas para ${event.name}`}
+          image={event.coverImage}
+          url={`https://tapeetickets.com/event/${params?.id}`}
+          schema={schemaStr}
+        />
+      )}
       {/* Full-viewport flyer background */}
       <div
         className="fixed inset-0 z-0"

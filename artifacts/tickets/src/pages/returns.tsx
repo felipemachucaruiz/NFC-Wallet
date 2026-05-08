@@ -1,6 +1,13 @@
+import { SEO } from "@/components/SEO";
+
 export default function Returns() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SEO
+        title="Política de Devoluciones | Tapee Tickets"
+        description="Reglamento de compensación al consumidor y régimen de devoluciones de Tapee Tickets."
+        url="https://tapeetickets.com/devoluciones"
+      />
       <h1 className="text-3xl font-bold mb-2">Política de Devoluciones</h1>
       <p className="text-sm text-muted-foreground mb-8">
         Reglamento de Compensación al Consumidor y Régimen de Devoluciones — TAPEE

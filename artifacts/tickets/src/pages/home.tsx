@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchEvents, fetchAds, resolveImageUrl, type ApiEvent, type ApiAd } from "@/lib/api";
 import { formatPrice, formatDateRange } from "@/lib/format";
+import { SEO } from "@/components/SEO";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -135,8 +136,44 @@ export default function Home() {
 
   const currentHero = heroEvents[heroIndex] || events[0];
 
+  const homeSchema = JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "name": "Tapee Tickets",
+        "url": "https://tapeetickets.com",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://tapeetickets.com/?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "Organization",
+        "name": "Tapee",
+        "url": "https://tapeetickets.com",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://tapeetickets.com/favicon.png"
+        },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "soporte@tapee.app",
+          "areaServed": "CO",
+          "availableLanguage": "Spanish"
+        }
+      }
+    ]
+  });
+
   return (
     <div className="min-h-screen">
+      <SEO schema={homeSchema} />
       {currentHero && (
         <section className="relative h-[420px] md:h-[500px] overflow-hidden">
           {heroEvents.map((evt, i) => (

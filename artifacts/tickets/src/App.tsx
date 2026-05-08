@@ -8,6 +8,7 @@ import { SocialAuthProvider } from "@/context/SocialAuthProvider";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AuthModal } from "@/components/AuthModal";
+import { HelmetProvider } from "react-helmet-async";
 import Home from "@/pages/home";
 import EventDetail from "@/pages/event-detail";
 import Checkout from "@/pages/checkout";
@@ -106,16 +107,18 @@ function App() {
       )}
     >
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <SocialAuthProvider>
-            <TooltipProvider>
+        <HelmetProvider>
+          <AuthProvider>
+            <SocialAuthProvider>
+              <TooltipProvider>
               <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
                 <Router />
               </WouterRouter>
               <Toaster />
-            </TooltipProvider>
-          </SocialAuthProvider>
-        </AuthProvider>
+              </TooltipProvider>
+            </SocialAuthProvider>
+          </AuthProvider>
+        </HelmetProvider>
       </QueryClientProvider>
     </Sentry.ErrorBoundary>
   );

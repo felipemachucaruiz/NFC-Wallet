@@ -1,6 +1,13 @@
+import { SEO } from "@/components/SEO";
+
 export default function Terms() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SEO
+        title="Términos y Condiciones | Tapee Tickets"
+        description="Estatutos de operación y contrato de adhesión de Tapee. Conoce las condiciones de uso de la plataforma de venta de boletas."
+        url="https://tapeetickets.com/terminos"
+      />
       <h1 className="text-3xl font-bold mb-2">Términos y Condiciones</h1>
       <p className="text-sm text-muted-foreground mb-8">
         Estatutos de Operación y Contrato de Adhesión — TAPEE
