@@ -14,10 +14,13 @@ export class ApiError extends Error {
   }
 }
 
-export function resolveImageUrl(path: string | null | undefined): string {
+export function resolveImageUrl(path: string | null | undefined, width = 800): string {
   if (!path) return "";
-  if (path.startsWith("http")) return path;
-  return `${STORAGE_ORIGIN}${path}`;
+  const fullUrl = path.startsWith("http") ? path : `${STORAGE_ORIGIN}${path}`;
+  if (fullUrl.startsWith(`${STORAGE_ORIGIN}/`)) {
+    return `${API_BASE}/public/image?url=${encodeURIComponent(fullUrl)}&w=${width}`;
+  }
+  return fullUrl;
 }
 
 let authToken: string | null = localStorage.getItem("tapee_auth_token");

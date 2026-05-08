@@ -12,9 +12,11 @@ import appleWalletRouter from "./appleWallet";
 import cardsRouter from "./cards";
 import adsRouter from "./ads";
 import citiesRouter from "./cities";
+import imageProxyRouter from "./imageProxy";
 
 const router: IRouter = Router();
 
+router.use(imageProxyRouter);
 router.use(healthRouter);
 router.use(authRouter);
 router.use(attendeeRouter);
