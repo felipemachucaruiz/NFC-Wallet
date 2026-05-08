@@ -39,6 +39,8 @@ const STATUS_LABELS: Record<string, string> = {
   expired: "Expirada",
 };
 
+import { SEO } from "@/components/SEO";
+
 export default function MyOrders() {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading, openAuthModal } = useAuth();
@@ -78,6 +80,7 @@ export default function MyOrders() {
 
   return (
     <div className="min-h-screen">
+      <SEO noindex />
       <div className="max-w-lg mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">{t("myOrders.title", "Mis Órdenes")}</h1>
 

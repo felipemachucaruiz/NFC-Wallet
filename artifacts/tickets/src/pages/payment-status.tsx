@@ -19,6 +19,8 @@ function decodeHtmlEntities(html: string): string {
     .replace(/&nbsp;/g, " ");
 }
 
+import { SEO } from "@/components/SEO";
+
 export default function PaymentStatus() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
@@ -116,6 +118,7 @@ export default function PaymentStatus() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
+      <SEO noindex />
       {is3DsFingerprint && (
         <iframe
           srcDoc={decodeHtmlEntities(threeDsAuth!.three_ds_method_data!)}

@@ -87,6 +87,88 @@ async function fetchEventData(slugOrId) {
   }
 }
 
+async function fetchHomeEvents() {
+  try {
+    const res = await fetch(`${API_BASE}/public/events?limit=20`, {
+      headers: { "User-Agent": "TapeeBot/1.0 (SEO prerender)" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.events || [];
+  } catch {
+    return [];
+  }
+}
+
+function buildHomeHTML(events) {
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "name": "Tapee Tickets",
+        "url": SITE,
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": { "@type": "EntryPoint", "urlTemplate": `${SITE}/?q={search_term_string}` },
+          "query-input": "required name=search_term_string",
+        },
+      },
+      {
+        "@type": "Organization",
+        "name": "Tapee",
+        "url": SITE,
+        "logo": { "@type": "ImageObject", "url": `${SITE}/favicon.png` },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "soporte@tapee.app",
+          "areaServed": "CO",
+        },
+      },
+    ],
+  };
+
+  const eventItems = events
+    .map((e) => {
+      const slug = e.slug || e.id;
+      const img = resolveImageUrl(e.coverImageUrl || e.flyerImageUrl);
+      return `  <li><a href="${SITE}/event/${slug}">${escapeHtml(e.name)}</a>${img ? ` — <img src="${img}" alt="${escapeHtml(e.name)}" loading="lazy" width="400" height="400" />` : ""}</li>`;
+    })
+    .join("\n");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tapee Tickets - Compra boletas para los mejores eventos en Colombia</title>
+  <meta name="description" content="Compra boletas para conciertos, festivales, deportes y teatro en Colombia. Plataforma segura con tecnología NFC." />
+  <link rel="canonical" href="${SITE}/" />
+  <meta property="og:site_name" content="Tapee Tickets" />
+  <meta property="og:locale" content="es_CO" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${SITE}/" />
+  <meta property="og:title" content="Tapee Tickets - Boletas para eventos en Colombia" />
+  <meta property="og:description" content="Descubre y compra boletas para los mejores eventos en Colombia." />
+  <meta property="og:image" content="${SITE}/og-default.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@tapeeapp" />
+  <meta name="twitter:image" content="${SITE}/og-default.jpg" />
+  <script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>
+</head>
+<body>
+  <h1>Tapee Tickets — Boletas para los mejores eventos en Colombia</h1>
+  <p>Compra boletas para conciertos, festivales, deportes y teatro. Plataforma segura con tecnología NFC.</p>
+  ${events.length > 0 ? `<h2>Próximos eventos</h2>\n<ul>\n${eventItems}\n</ul>` : ""}
+  <p><a href="${SITE}">Ver todos los eventos</a></p>
+</body>
+</html>`;
+}
+
 function buildEventHTML(data, slugOrId) {
   const { event, venues, ticketTypes, promoterCompany } = data;
   const venue = venues?.[0];
@@ -242,18 +324,31 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Bot handling for event pages: pre-render with real data + structured markup
-  const eventMatch = pathname.match(/^\/event\/([^/?#]+)/);
-  if (isBot && eventMatch) {
-    const slugOrId = eventMatch[1];
-    const data = await fetchEventData(slugOrId);
-    if (data?.event) {
-      const html = buildEventHTML(data, slugOrId);
+  // Bot handling: pre-render pages with real data + structured markup
+  if (isBot) {
+    const eventMatch = pathname.match(/^\/event\/([^/?#]+)/);
+    if (eventMatch) {
+      const slugOrId = eventMatch[1];
+      const data = await fetchEventData(slugOrId);
+      if (data?.event) {
+        const html = buildEventHTML(data, slugOrId);
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(html);
+        return;
+      }
+      // Event not found → 404 for bots so Google doesn't index dead links
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("Event not found");
+      return;
+    }
+
+    if (pathname === "/" || pathname === "") {
+      const events = await fetchHomeEvents();
+      const html = buildHomeHTML(events);
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(html);
       return;
     }
-    // Fall through to SPA if event not found
   }
 
   // Attempt to serve a real static file

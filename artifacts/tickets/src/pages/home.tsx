@@ -187,6 +187,7 @@ export default function Home() {
                 alt={evt.name}
                 className="w-full h-full object-cover"
                 loading={i === 0 ? "eager" : "lazy"}
+                fetchPriority={i === 0 ? "high" : "auto"}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30" />
             </div>

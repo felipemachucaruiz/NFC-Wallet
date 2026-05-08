@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "prebuild": "node scripts/generate-sitemap.js",
+    "prebuild": "node scripts/generate-og-image.js && node scripts/generate-sitemap.js",
     "build": "vite build --config vite.config.ts",
     "start": "node server.js",
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
@@ -68,6 +68,7 @@
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
     "serve": "^14.2.6",
+    "sharp": "^0.34.5",
     "sonner": "^2.0.7",
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",

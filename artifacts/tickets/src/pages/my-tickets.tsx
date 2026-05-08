@@ -14,6 +14,8 @@ function isArchivedTicket(ticket: ApiTicket) {
   return ticket.status === "used" || ticket.status === "cancelled";
 }
 
+import { SEO } from "@/components/SEO";
+
 export default function MyTickets() {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading, openAuthModal } = useAuth();
@@ -38,6 +40,7 @@ export default function MyTickets() {
   if (authLoading) {
     return (
       <div className="min-h-screen">
+      <SEO noindex />
         <div className="max-w-lg mx-auto px-4 py-8">
           <div className="h-8 w-40 bg-card rounded animate-pulse mb-6" />
           <div className="space-y-4">
@@ -71,6 +74,7 @@ export default function MyTickets() {
   if (isLoading) {
     return (
       <div className="min-h-screen">
+      <SEO noindex />
         <div className="max-w-lg mx-auto px-4 py-8">
           <div className="h-8 w-40 bg-card rounded animate-pulse mb-6" />
           <div className="space-y-4">
@@ -95,6 +99,7 @@ export default function MyTickets() {
 
   return (
     <div className="min-h-screen">
+      <SEO noindex />
       <div className="max-w-lg mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">{t("myTickets.title")}</h1>
 

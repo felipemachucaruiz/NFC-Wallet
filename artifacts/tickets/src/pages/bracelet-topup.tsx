@@ -156,6 +156,8 @@ type PaymentMethod = "nequi" | "pse" | "card" | "bancolombia_transfer" | "davipl
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+import { SEO } from "@/components/SEO";
+
 export default function BraceletTopup() {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading, openAuthModal } = useAuth();
@@ -323,6 +325,7 @@ export default function BraceletTopup() {
 
   return (
     <div className="min-h-screen">
+      <SEO noindex />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center gap-3 mb-6">
           <button

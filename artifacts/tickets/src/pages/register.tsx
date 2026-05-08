@@ -9,6 +9,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useSocialAuth } from "@/context/SocialAuthProvider";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
+import { SEO } from "@/components/SEO";
+
 export default function Register() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
@@ -51,6 +53,7 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <SEO noindex />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4">

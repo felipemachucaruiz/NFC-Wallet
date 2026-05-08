@@ -333,9 +333,11 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
     setSelectedSectionName(section?.name || ticket.name);
   };
 
+  const canonicalSlug = event?.id ? (detail?.event?.slug || params?.id) : params?.id;
+
   const schemaObj = useMemo(() => {
     if (!event) return null;
-    const eventUrl = `https://tapeetickets.com/event/${params?.id}`;
+    const eventUrl = `https://tapeetickets.com/event/${canonicalSlug}`;
     const images = [event.coverImage, event.flyerImage].filter(Boolean);
     return {
       "@context": "https://schema.org",
@@ -380,18 +382,42 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
         "url": "https://tapeetickets.com"
       } : undefined
     };
-  }, [event, params?.id]);
+  }, [event, canonicalSlug]);
 
-  const schemaStr = schemaObj ? JSON.stringify(schemaObj) : undefined;
+  const breadcrumbSchema = useMemo(() => {
+    if (!event) return null;
+    return {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Tapee Tickets",
+          "item": "https://tapeetickets.com"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": event.name,
+          "item": `https://tapeetickets.com/event/${canonicalSlug}`
+        }
+      ]
+    };
+  }, [event, canonicalSlug]);
+
+  const schemaStr = schemaObj && breadcrumbSchema
+    ? JSON.stringify({ "@context": "https://schema.org", "@graph": [schemaObj, breadcrumbSchema] })
+    : schemaObj ? JSON.stringify(schemaObj) : undefined;
 
   return (
     <div className="min-h-screen">
       {event && (
-        <SEO 
+        <SEO
           title={`${event.name} | Tapee Tickets`}
           description={event.description?.replace(/<[^>]*>?/gm, '').substring(0, 160) || `Compra boletas para ${event.name}`}
           image={event.coverImage}
-          url={`https://tapeetickets.com/event/${params?.id}`}
+          url={`https://tapeetickets.com/event/${canonicalSlug}`}
           schema={schemaStr}
         />
       )}
