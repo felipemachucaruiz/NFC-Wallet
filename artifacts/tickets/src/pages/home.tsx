@@ -230,13 +230,17 @@ export default function Home() {
                   )}
                 </div>
                 {heroCount > 1 && (
-                  <div className="flex items-center gap-2 mt-5">
-                    {heroEvents.map((_, i) => (
+                  <div className="flex items-center gap-1 mt-5">
+                    {heroEvents.map((evt, i) => (
                       <button
                         key={i}
                         onClick={() => handleDotClick(i)}
-                        className={`rounded-full transition-all duration-300 ${i === heroIndex ? "w-8 h-2 bg-primary shadow-[0_0_8px_rgba(0,241,255,0.6)]" : "w-2 h-2 bg-white/30 hover:bg-white/50"}`}
-                      />
+                        aria-label={`Ver evento ${evt.name}`}
+                        aria-current={i === heroIndex ? "true" : undefined}
+                        className="p-2 flex items-center justify-center"
+                      >
+                        <span className={`rounded-full transition-all duration-300 block ${i === heroIndex ? "w-8 h-2 bg-primary shadow-[0_0_8px_rgba(0,241,255,0.6)]" : "w-2 h-2 bg-white/30 hover:bg-white/50"}`} />
+                      </button>
                     ))}
                   </div>
                 )}
@@ -270,7 +274,7 @@ export default function Home() {
             />
           </div>
           <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setVisibleCount(ITEMS_PER_PAGE); }}>
-            <SelectTrigger className="w-full md:w-48 bg-card">
+            <SelectTrigger className="w-full md:w-48 bg-card" aria-label={t("home.filters.category", "Categoría")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -282,7 +286,7 @@ export default function Home() {
             </SelectContent>
           </Select>
           <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setVisibleCount(ITEMS_PER_PAGE); }}>
-            <SelectTrigger className="w-full md:w-48 bg-card">
+            <SelectTrigger className="w-full md:w-48 bg-card" aria-label={t("home.filters.city", "Ciudad")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -375,13 +379,17 @@ function AdsBanner({ ads }: { ads: ApiAd[] }) {
         style={{ aspectRatio: "1200/230" }}
       />
       {count > 1 && (
-        <div className="absolute bottom-2 right-3 flex gap-1.5">
-          {ads.map((_, i) => (
+        <div className="absolute bottom-2 right-3 flex gap-0.5">
+          {ads.map((a, i) => (
             <button
               key={i}
               onClick={(e) => { e.preventDefault(); if (timerRef.current) clearInterval(timerRef.current); goTo(i); }}
-              className={`rounded-full transition-all duration-300 ${i === idx ? "w-5 h-2 bg-white" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`}
-            />
+              aria-label={`Ver anuncio ${a.title || i + 1}`}
+              aria-current={i === idx ? "true" : undefined}
+              className="p-2 flex items-center justify-center"
+            >
+              <span className={`rounded-full transition-all duration-300 block ${i === idx ? "w-5 h-2 bg-white" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`} />
+            </button>
           ))}
         </div>
       )}
