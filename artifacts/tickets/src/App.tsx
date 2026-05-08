@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react";
@@ -9,24 +10,25 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AuthModal } from "@/components/AuthModal";
 import { HelmetProvider } from "react-helmet-async";
-import Home from "@/pages/home";
-import EventDetail from "@/pages/event-detail";
-import Checkout from "@/pages/checkout";
-import PaymentStatus from "@/pages/payment-status";
-import PaymentReturn from "@/pages/payment-return";
-import MyTickets from "@/pages/my-tickets";
-import MyOrders from "@/pages/my-orders";
-import Account from "@/pages/account";
-import MyBracelets from "@/pages/my-bracelets";
-import BraceletTopup from "@/pages/bracelet-topup";
-import BraceletPaymentStatus from "@/pages/bracelet-payment-status";
-import BraceletRefund from "@/pages/bracelet-refund";
-import MyTransactions from "@/pages/my-transactions";
-import NotFound from "@/pages/not-found";
-import GuestListPage from "@/pages/guest-list";
-import Terms from "@/pages/terms";
-import Privacy from "@/pages/privacy";
-import Returns from "@/pages/returns";
+
+const Home = lazy(() => import("@/pages/home"));
+const EventDetail = lazy(() => import("@/pages/event-detail"));
+const Checkout = lazy(() => import("@/pages/checkout"));
+const PaymentStatus = lazy(() => import("@/pages/payment-status"));
+const PaymentReturn = lazy(() => import("@/pages/payment-return"));
+const MyTickets = lazy(() => import("@/pages/my-tickets"));
+const MyOrders = lazy(() => import("@/pages/my-orders"));
+const Account = lazy(() => import("@/pages/account"));
+const MyBracelets = lazy(() => import("@/pages/my-bracelets"));
+const BraceletTopup = lazy(() => import("@/pages/bracelet-topup"));
+const BraceletPaymentStatus = lazy(() => import("@/pages/bracelet-payment-status"));
+const BraceletRefund = lazy(() => import("@/pages/bracelet-refund"));
+const MyTransactions = lazy(() => import("@/pages/my-transactions"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+const GuestListPage = lazy(() => import("@/pages/guest-list"));
+const Terms = lazy(() => import("@/pages/terms"));
+const Privacy = lazy(() => import("@/pages/privacy"));
+const Returns = lazy(() => import("@/pages/returns"));
 
 const EXPECTED_ERRORS = /AbortError|NetworkError|cancelled|user denied/i;
 
@@ -61,26 +63,28 @@ function Router() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/event/:id" component={EventDetail} />
-          <Route path="/checkout" component={Checkout} />
-          <Route path="/payment-status" component={PaymentStatus} />
-          <Route path="/payment-return" component={PaymentReturn} />
-          <Route path="/my-tickets" component={MyTickets} />
-          <Route path="/my-orders" component={MyOrders} />
-          <Route path="/my-bracelets" component={MyBracelets} />
-          <Route path="/bracelet-topup" component={BraceletTopup} />
-          <Route path="/bracelet-payment-status" component={BraceletPaymentStatus} />
-          <Route path="/bracelet-refund" component={BraceletRefund} />
-          <Route path="/my-transactions" component={MyTransactions} />
-          <Route path="/account" component={Account} />
-          <Route path="/guest-list/:slug" component={GuestListPage} />
-          <Route path="/terminos" component={Terms} />
-          <Route path="/privacidad" component={Privacy} />
-          <Route path="/devoluciones" component={Returns} />
-          <Route component={NotFound} />
-        </Switch>
+        <Suspense fallback={<div className="min-h-screen" />}>
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/event/:id" component={EventDetail} />
+            <Route path="/checkout" component={Checkout} />
+            <Route path="/payment-status" component={PaymentStatus} />
+            <Route path="/payment-return" component={PaymentReturn} />
+            <Route path="/my-tickets" component={MyTickets} />
+            <Route path="/my-orders" component={MyOrders} />
+            <Route path="/my-bracelets" component={MyBracelets} />
+            <Route path="/bracelet-topup" component={BraceletTopup} />
+            <Route path="/bracelet-payment-status" component={BraceletPaymentStatus} />
+            <Route path="/bracelet-refund" component={BraceletRefund} />
+            <Route path="/my-transactions" component={MyTransactions} />
+            <Route path="/account" component={Account} />
+            <Route path="/guest-list/:slug" component={GuestListPage} />
+            <Route path="/terminos" component={Terms} />
+            <Route path="/privacidad" component={Privacy} />
+            <Route path="/devoluciones" component={Returns} />
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
       </main>
       <Footer />
       <AuthModal />
