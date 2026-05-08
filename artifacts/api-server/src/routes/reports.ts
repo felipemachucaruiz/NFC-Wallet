@@ -932,7 +932,7 @@ router.get(
       })
       .from(transactionLogsTable)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .groupBy(hourExpr);
+      .groupBy(sql`1`);
 
     const byHourMap = new Map<number, { totalAmount: number; transactionCount: number }>();
     for (const row of rows) byHourMap.set(row.hour, { totalAmount: row.totalAmount, transactionCount: row.transactionCount });
@@ -992,7 +992,7 @@ router.get(
       })
       .from(topUpsTable)
       .where(and(...conditions))
-      .groupBy(hourExpr);
+      .groupBy(sql`1`);
 
     const byHourMap = new Map<number, { totalAmount: number; count: number }>();
     for (const row of rows) byHourMap.set(row.hour, { totalAmount: row.totalAmount, count: row.count });
@@ -1143,7 +1143,7 @@ router.get(
         .from(ticketCheckInsTable)
         .innerJoin(ticketsTable, eq(ticketCheckInsTable.ticketId, ticketsTable.id))
         .where(eq(ticketsTable.eventId, scopedEventId))
-        .groupBy(hourExpr),
+        .groupBy(sql`1`),
     ]);
 
     const checkedInIds = new Set(checkinRows.map((r) => r.ticketId));
