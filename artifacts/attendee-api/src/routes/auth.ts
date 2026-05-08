@@ -1097,6 +1097,10 @@ router.get("/login", async (req: Request, res: Response) => {
 });
 
 router.get("/callback", async (req: Request, res: Response) => {
+  if (!(process.env.CLIENT_ID ?? process.env.REPL_ID)) {
+    res.redirect("/");
+    return;
+  }
   const config = await getOidcConfig();
   const callbackUrl = `${getOrigin(req)}/api/callback`;
 

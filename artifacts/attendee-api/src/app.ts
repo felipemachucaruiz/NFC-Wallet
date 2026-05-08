@@ -85,6 +85,7 @@ const allowedOrigins = [
   "https://attendee.tapee.app",
   "https://tapeetickets.com",
   "https://www.tapeetickets.com",
+  "https://tickets.tapee.app",
   ...rawCorsOrigin.split(",").map((o) => o.trim()).filter(Boolean),
 ];
 

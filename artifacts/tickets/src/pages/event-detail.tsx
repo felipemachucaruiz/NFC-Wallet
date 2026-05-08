@@ -279,60 +279,6 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
     setTimeout(() => setHighlightedSectionId(null), 3000);
   }, [event]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen">
-        <div className="h-[300px] md:h-[420px] bg-card/80 animate-pulse" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
-          <div className="h-24 bg-card/80 rounded-xl animate-pulse" />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-4">
-              <div className="h-40 bg-card/80 rounded-xl animate-pulse" />
-              <div className="h-60 bg-card/80 rounded-xl animate-pulse" />
-            </div>
-            <div className="h-80 bg-card/80 rounded-xl animate-pulse" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!event || fetchError) {
-    const is404 = !fetchError || (fetchError instanceof ApiError && fetchError.status === 404);
-    return (
-      <div className="min-h-screen flex items-center justify-center flex-col gap-3">
-        <p className="text-muted-foreground">
-          {is404 ? t("common.eventNotFound") : t("common.somethingWentWrong", "Something went wrong. Please try again later.")}
-        </p>
-        {!is404 && (
-          <button
-            className="text-primary underline text-sm"
-            onClick={() => window.location.reload()}
-          >
-            {t("common.retry", "Retry")}
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  const isSoldOut = event.status === "sold_out";
-  const isEventEnded = event.endsAt ? new Date(event.endsAt) < new Date() : false;
-  const salesNotStarted = event.salesStartAt && new Date(event.salesStartAt) > new Date();
-
-  const handleTicketSelect = (ticket: TicketType, sectionName: string) => {
-    setPreSelectedUnitId(null);
-    setSelectedTicket(ticket);
-    setSelectedSectionName(sectionName);
-  };
-
-  const handleUnitSelect = (ticket: TicketType, unit: { id: string; unitLabel: string }) => {
-    const section = event.sections.find((s) => s.ticketTypes.some((tt) => tt.id === ticket.id));
-    setPreSelectedUnitId(unit.id);
-    setSelectedTicket(ticket);
-    setSelectedSectionName(section?.name || ticket.name);
-  };
-
   const canonicalSlug = event?.id ? (detail?.event?.slug || params?.id) : params?.id;
 
   const schemaObj = useMemo(() => {
@@ -409,6 +355,60 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const schemaStr = schemaObj && breadcrumbSchema
     ? JSON.stringify({ "@context": "https://schema.org", "@graph": [schemaObj, breadcrumbSchema] })
     : schemaObj ? JSON.stringify(schemaObj) : undefined;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <div className="h-[300px] md:h-[420px] bg-card/80 animate-pulse" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
+          <div className="h-24 bg-card/80 rounded-xl animate-pulse" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="h-40 bg-card/80 rounded-xl animate-pulse" />
+              <div className="h-60 bg-card/80 rounded-xl animate-pulse" />
+            </div>
+            <div className="h-80 bg-card/80 rounded-xl animate-pulse" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!event || fetchError) {
+    const is404 = !fetchError || (fetchError instanceof ApiError && fetchError.status === 404);
+    return (
+      <div className="min-h-screen flex items-center justify-center flex-col gap-3">
+        <p className="text-muted-foreground">
+          {is404 ? t("common.eventNotFound") : t("common.somethingWentWrong", "Something went wrong. Please try again later.")}
+        </p>
+        {!is404 && (
+          <button
+            className="text-primary underline text-sm"
+            onClick={() => window.location.reload()}
+          >
+            {t("common.retry", "Retry")}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  const isSoldOut = event.status === "sold_out";
+  const isEventEnded = event.endsAt ? new Date(event.endsAt) < new Date() : false;
+  const salesNotStarted = event.salesStartAt && new Date(event.salesStartAt) > new Date();
+
+  const handleTicketSelect = (ticket: TicketType, sectionName: string) => {
+    setPreSelectedUnitId(null);
+    setSelectedTicket(ticket);
+    setSelectedSectionName(sectionName);
+  };
+
+  const handleUnitSelect = (ticket: TicketType, unit: { id: string; unitLabel: string }) => {
+    const section = event.sections.find((s) => s.ticketTypes.some((tt) => tt.id === ticket.id));
+    setPreSelectedUnitId(unit.id);
+    setSelectedTicket(ticket);
+    setSelectedSectionName(section?.name || ticket.name);
+  };
 
   return (
     <div className="min-h-screen">
