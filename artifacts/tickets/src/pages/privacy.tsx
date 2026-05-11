@@ -26,7 +26,7 @@ export default function Privacy() {
           <h2 className="text-lg font-semibold mb-3 text-primary">II. Identificación y Domicilio del Responsable</h2>
           <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
             <li><span className="font-medium text-foreground">Titular:</span> TAPEE S.A.S. (en adelante, "TAPEE" o el "Responsable").</li>
-            <li><span className="font-medium text-foreground">Identificación Tributaria:</span> 901890734-3</li>
+            <li><span className="font-medium text-foreground">Identificación Tributaria:</span> 902064713-1</li>
             <li><span className="font-medium text-foreground">Domicilio Legal:</span> Medellín, Antioquia, Colombia.</li>
             <li><span className="font-medium text-foreground">Canales de Atención:</span> Correo electrónico <a href="mailto:hola@tapee.app" className="text-primary hover:underline">hola@tapee.app</a> para la recepción de consultas, peticiones, quejas y reclamos (PQR) relacionados con el tratamiento de datos.</li>
           </ul>

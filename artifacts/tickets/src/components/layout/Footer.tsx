@@ -158,7 +158,7 @@ export function Footer() {
 
         <div className="border-t border-border mt-6 pt-5 text-center text-sm text-muted-foreground space-y-1">
           <p>© {year} Tapee. {t("footer.rights")}.</p>
-          <p>TAPEE S.A.S. · NIT: 901890734-3</p>
+          <p>TAPEE S.A.S. · NIT: 902064713-1</p>
         </div>
       </div>
     </footer>
