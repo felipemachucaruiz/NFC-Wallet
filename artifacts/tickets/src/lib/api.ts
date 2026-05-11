@@ -282,7 +282,7 @@ export async function deleteCard(id: string): Promise<{ success: boolean }> {
 
 export interface PurchaseRequest {
   eventId: string;
-  attendees: { name: string; email: string; phone?: string; dateOfBirth?: string; sex?: "male" | "female"; idDocument?: string; ticketTypeId: string; shirtSize?: string }[];
+  attendees: { name: string; email: string; phone?: string; dateOfBirth?: string; sex?: "male" | "female"; idDocument?: string; ticketTypeId: string; shirtSize?: string; bloodType?: string; emergencyContactName?: string; emergencyContactPhone?: string; eps?: string }[];
   unitSelections?: { ticketTypeId: string; unitId: string }[];
   paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia" | "free";
   phoneNumber?: string;

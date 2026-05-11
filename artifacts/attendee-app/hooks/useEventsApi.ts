@@ -371,6 +371,10 @@ export function usePurchaseTickets() {
           sex: (tk.attendee.sex as "male" | "female") || undefined,
           idDocument: tk.attendee.idDocument || undefined,
           shirtSize: tk.attendee.shirtSize || undefined,
+          bloodType: tk.attendee.bloodType || undefined,
+          emergencyContactName: tk.attendee.emergencyContactName || undefined,
+          emergencyContactPhone: tk.attendee.emergencyContactPhone || undefined,
+          eps: tk.attendee.eps || undefined,
         })),
       };
       return apiFetch<TicketPurchaseResult>(

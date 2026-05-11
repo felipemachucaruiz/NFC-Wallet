@@ -96,6 +96,10 @@ export interface AttendeeInfo {
   sex: "male" | "female" | "non_binary" | "";
   idDocument: string;
   shirtSize?: string;
+  bloodType?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  eps?: string;
 }
 
 export interface OrderTicket {

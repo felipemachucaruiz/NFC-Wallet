@@ -433,6 +433,10 @@ const guestAttendeeSchema = z.object({
   phone: z.string().max(30).optional(),
   ticketTypeId: z.string().min(1),
   shirtSize: z.string().max(10).optional(),
+  bloodType: z.string().max(5).optional(),
+  emergencyContactName: z.string().max(255).optional(),
+  emergencyContactPhone: z.string().max(30).optional(),
+  eps: z.string().max(150).optional(),
 });
 
 const guestOrderSchema = z.object({
@@ -514,13 +518,14 @@ router.post(
         res.status(400).json({ error: "Race events allow only 1 ticket per purchase" });
         return;
       }
-      const shirtSize = attendees[0].shirtSize;
-      if (!shirtSize) {
-        res.status(400).json({ error: "Shirt size is required for race events" });
-        return;
-      }
+      const a0 = attendees[0];
+      if (!a0.shirtSize) { res.status(400).json({ error: "Shirt size is required for race events" }); return; }
+      if (!a0.bloodType) { res.status(400).json({ error: "Blood type is required for race events" }); return; }
+      if (!a0.emergencyContactName) { res.status(400).json({ error: "Emergency contact name is required for race events" }); return; }
+      if (!a0.emergencyContactPhone) { res.status(400).json({ error: "Emergency contact phone is required for race events" }); return; }
+      if (!a0.eps) { res.status(400).json({ error: "EPS is required for race events" }); return; }
       const allowedSizes = event.raceConfig?.sizes ?? [];
-      if (allowedSizes.length > 0 && !allowedSizes.includes(shirtSize)) {
+      if (allowedSizes.length > 0 && !allowedSizes.includes(a0.shirtSize)) {
         res.status(400).json({ error: `Invalid shirt size. Allowed: ${allowedSizes.join(", ")}` });
         return;
       }
@@ -854,6 +859,10 @@ router.post(
         attendeeUserId,
         status: "valid",
         shirtSize: attendee.shirtSize ?? null,
+        bloodType: attendee.bloodType ?? null,
+        emergencyContactName: attendee.emergencyContactName ?? null,
+        emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+        eps: attendee.eps ?? null,
       });
     }
 

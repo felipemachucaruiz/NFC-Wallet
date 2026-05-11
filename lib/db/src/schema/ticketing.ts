@@ -147,6 +147,10 @@ export const ticketsTable = pgTable("tickets", {
   unitPrice: integer("unit_price").notNull().default(0),
   serviceFeeAmount: integer("service_fee_amount").notNull().default(0),
   shirtSize: varchar("shirt_size", { length: 10 }),
+  bloodType: varchar("blood_type", { length: 5 }),
+  emergencyContactName: varchar("emergency_contact_name", { length: 255 }),
+  emergencyContactPhone: varchar("emergency_contact_phone", { length: 30 }),
+  eps: varchar("eps", { length: 150 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

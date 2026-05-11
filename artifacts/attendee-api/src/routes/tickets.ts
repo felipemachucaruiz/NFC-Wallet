@@ -85,6 +85,11 @@ const attendeeDataSchema = z.object({
   sex: z.enum(["male", "female", "non_binary"]).optional(),
   idDocument: z.string().max(50).optional(),
   ticketTypeId: z.string().min(1),
+  shirtSize: z.string().max(10).optional(),
+  bloodType: z.string().max(5).optional(),
+  emergencyContactName: z.string().max(255).optional(),
+  emergencyContactPhone: z.string().max(30).optional(),
+  eps: z.string().max(150).optional(),
 });
 
 const legacyTicketSchema = z.object({
@@ -96,6 +101,11 @@ const legacyTicketSchema = z.object({
     dateOfBirth: z.string().max(10).optional(),
     sex: z.enum(["male", "female", "non_binary"]).optional(),
     idDocument: z.string().max(50).optional(),
+    shirtSize: z.string().max(10).optional(),
+    bloodType: z.string().max(5).optional(),
+    emergencyContactName: z.string().max(255).optional(),
+    emergencyContactPhone: z.string().max(30).optional(),
+    eps: z.string().max(150).optional(),
   }),
 });
 
@@ -153,6 +163,11 @@ router.post(
       dateOfBirth: tk.attendee.dateOfBirth,
       sex: tk.attendee.sex,
       idDocument: tk.attendee.idDocument,
+      shirtSize: tk.attendee.shirtSize,
+      bloodType: tk.attendee.bloodType,
+      emergencyContactName: tk.attendee.emergencyContactName,
+      emergencyContactPhone: tk.attendee.emergencyContactPhone,
+      eps: tk.attendee.eps,
     }));
 
     if (!req.isAuthenticated()) {
@@ -229,6 +244,8 @@ router.post(
         salesChannel: eventsTable.salesChannel,
         currencyCode: eventsTable.currencyCode,
         name: eventsTable.name,
+        category: eventsTable.category,
+        raceConfig: eventsTable.raceConfig,
       })
       .from(eventsTable)
       .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
@@ -246,6 +263,27 @@ router.post(
     if (event.salesChannel === "door") {
       res.status(400).json({ error: "Online ticket sales are not available for this event" });
       return;
+    }
+
+    if (event.category === "race") {
+      if (attendees.length !== 1) {
+        res.status(400).json({ error: "Race events allow only 1 ticket per purchase" });
+        return;
+      }
+      const a = attendees[0];
+      if (!a.shirtSize) { res.status(400).json({ error: "Shirt size is required for race events" }); return; }
+      if (!a.bloodType) { res.status(400).json({ error: "Blood type is required for race events" }); return; }
+      if (!a.emergencyContactName) { res.status(400).json({ error: "Emergency contact name is required for race events" }); return; }
+      if (!a.emergencyContactPhone) { res.status(400).json({ error: "Emergency contact phone is required for race events" }); return; }
+      if (!a.eps) { res.status(400).json({ error: "EPS is required for race events" }); return; }
+      const allowedSizes = (event.raceConfig as { sizes: string[] } | null)?.sizes ?? [];
+      if (allowedSizes.length > 0 && !allowedSizes.includes(a.shirtSize)) {
+        res.status(400).json({ error: `Invalid shirt size. Allowed: ${allowedSizes.join(", ")}` });
+        return;
+      }
+      const [existingTicket] = await db.select({ id: ticketsTable.id }).from(ticketsTable)
+        .where(and(eq(ticketsTable.eventId, eventId), eq(ticketsTable.attendeeEmail, a.email.toLowerCase().trim()), sql`${ticketsTable.status} != 'cancelled'`)).limit(1);
+      if (existingTicket) { res.status(409).json({ error: "You already have a ticket for this race" }); return; }
     }
 
     const ticketTypeIds = [...new Set(attendees.map((a) => a.ticketTypeId))];
@@ -527,6 +565,11 @@ router.post(
             status: "valid",
             unitPrice,
             serviceFeeAmount,
+            shirtSize: attendee.shirtSize ?? null,
+            bloodType: attendee.bloodType ?? null,
+            emergencyContactName: attendee.emergencyContactName ?? null,
+            emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+            eps: attendee.eps ?? null,
           });
       }
 
@@ -791,6 +834,11 @@ router.post(
             status: "valid",
             unitPrice,
             serviceFeeAmount,
+            shirtSize: attendee.shirtSize ?? null,
+            bloodType: attendee.bloodType ?? null,
+            emergencyContactName: attendee.emergencyContactName ?? null,
+            emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+            eps: attendee.eps ?? null,
           });
       }
     } catch (postWompiErr) {
@@ -1623,6 +1671,11 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         sex?: string;
         idDocument?: string;
         ticketTypeId: string;
+        shirtSize?: string;
+        bloodType?: string;
+        emergencyContactName?: string;
+        emergencyContactPhone?: string;
+        eps?: string;
       }>;
 
       // Recompute pricing at recovery time (webhook is near-instant after purchase,
@@ -1718,6 +1771,11 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
             status: "valid",
             unitPrice,
             serviceFeeAmount,
+            shirtSize: attendee.shirtSize ?? null,
+            bloodType: attendee.bloodType ?? null,
+            emergencyContactName: attendee.emergencyContactName ?? null,
+            emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+            eps: attendee.eps ?? null,
           })
           .returning();
         existingTickets.push(ticket);
