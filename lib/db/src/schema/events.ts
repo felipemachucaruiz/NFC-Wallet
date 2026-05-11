@@ -49,6 +49,7 @@ export const eventsTable = pgTable("events", {
   longDescription: text("long_description"),
   descriptionEn: text("description_en"),
   category: varchar("category", { length: 100 }),
+  raceConfig: jsonb("race_config").$type<{ sizes: string[] }>(),
   cityId: varchar("city_id"),
   tags: jsonb("tags").$type<string[]>().default(sql`'[]'::jsonb`),
   minAge: integer("min_age"),

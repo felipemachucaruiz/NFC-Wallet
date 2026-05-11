@@ -55,6 +55,7 @@ type EventForm = {
   description: string;
   descriptionEn: string;
   category: string;
+  raceConfig: { sizes: string[] } | null;
   cityId: string;
   venueAddress: string;
   capacity: string;
@@ -80,11 +81,14 @@ type EventForm = {
 
 const emptyAdmin: EventAdminForm = { email: "", password: "", firstName: "", lastName: "" };
 
+const DEFAULT_RACE_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+
 const emptyForm: EventForm = {
   name: "",
   description: "",
   descriptionEn: "",
   category: "",
+  raceConfig: null,
   cityId: "",
   venueAddress: "",
   capacity: "",
@@ -134,6 +138,7 @@ const EVENT_CATEGORY_OPTIONS = [
   { value: "theater", labelKey: "events.categoryTheater" },
   { value: "conference", labelKey: "events.categoryConference" },
   { value: "party", labelKey: "events.categoryParty" },
+  { value: "race", labelKey: "events.categoryRace" },
   { value: "other", labelKey: "events.categoryOther" },
 ];
 
@@ -393,7 +398,16 @@ function FormFields({
         <Label>{t("events.category")}</Label>
         <Select
           value={form.category || "__none__"}
-          onValueChange={(v) => setForm((f) => ({ ...f, category: v === "__none__" ? "" : v }))}
+          onValueChange={(v) => {
+            const newCategory = v === "__none__" ? "" : v;
+            setForm((f) => ({
+              ...f,
+              category: newCategory,
+              raceConfig: newCategory === "race"
+                ? (f.raceConfig ?? { sizes: [...DEFAULT_RACE_SIZES] })
+                : null,
+            }));
+          }}
         >
           <SelectTrigger data-testid="select-event-category">
             <SelectValue placeholder={t("events.categoryPlaceholder")} />
@@ -406,6 +420,48 @@ function FormFields({
           </SelectContent>
         </Select>
       </div>
+
+      {form.category === "race" && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">{t("events.raceConfig", "Configuración de Carrera")}</span>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-2 block">{t("events.raceShirtSizes", "Tallas de camiseta disponibles")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {DEFAULT_RACE_SIZES.map((size) => {
+                const selected = form.raceConfig?.sizes.includes(size) ?? false;
+                return (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => {
+                      setForm((f) => {
+                        const current = f.raceConfig?.sizes ?? [];
+                        const next = selected
+                          ? current.filter((s) => s !== size)
+                          : [...current, size];
+                        return { ...f, raceConfig: { sizes: next } };
+                      });
+                    }}
+                    className={`px-3 py-1 rounded-full border text-sm font-medium transition-colors ${
+                      selected
+                        ? "border-primary bg-primary/20 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                );
+              })}
+            </div>
+            {(form.raceConfig?.sizes.length ?? 0) === 0 && (
+              <p className="text-xs text-destructive mt-2">{t("events.raceNoSizes", "Selecciona al menos una talla.")}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-1">
         <Label>{t("events.city", "Ciudad")}</Label>
@@ -878,6 +934,7 @@ export default function Events() {
       description: event.description ?? "",
       descriptionEn: (raw as any).descriptionEn ?? "",
       category: (raw as any).category ?? "",
+      raceConfig: (raw as any).raceConfig ?? null,
       cityId: (raw as any).cityId ?? "",
       venueAddress: event.venueAddress ?? "",
       capacity: raw.capacity != null ? String(raw.capacity) : "",
@@ -937,6 +994,7 @@ export default function Events() {
       nfcChipType: form.nfcChipType || undefined,
       currencyCode: form.currencyCode || "COP",
       category: form.category || undefined,
+      raceConfig: form.category === "race" ? (form.raceConfig ?? { sizes: [] }) : undefined,
       cityId: form.cityId || undefined,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
@@ -1008,6 +1066,7 @@ export default function Events() {
       nfcChipType: form.nfcChipType || undefined,
       currencyCode: form.currencyCode || undefined,
       category: form.category || null,
+      raceConfig: form.category === "race" ? (form.raceConfig ?? { sizes: [] }) : null,
       cityId: form.cityId || null,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,

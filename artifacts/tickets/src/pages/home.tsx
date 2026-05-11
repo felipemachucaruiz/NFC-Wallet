@@ -14,7 +14,7 @@ import { SEO } from "@/components/SEO";
 const ITEMS_PER_PAGE = 6;
 
 export default function Home() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const rawSearch = useSearch();
   const qParam = new URLSearchParams(rawSearch).get("q") || "";
   const [searchQuery, setSearchQuery] = useState(qParam);
@@ -223,11 +223,11 @@ export default function Home() {
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                   </Link>
-                  {currentHero.priceFrom > 0 && (
-                    <span className="text-base font-semibold text-white">
-                      {t("home.from")} <span className="text-primary">{formatPrice(currentHero.priceFrom)}</span>
-                    </span>
-                  )}
+                  <span className="text-base font-semibold text-white">
+                    {currentHero.priceFrom > 0
+                      ? <>{t("home.from")} <span className="text-primary">{formatPrice(currentHero.priceFrom, "COP", i18n.language)}</span></>
+                      : <span className="text-primary">{formatPrice(0, "COP", i18n.language)}</span>}
+                  </span>
                 </div>
                 {heroCount > 1 && (
                   <div className="flex items-center gap-1 mt-5">
@@ -411,7 +411,7 @@ function AdsBanner({ ads }: { ads: ApiAd[] }) {
 }
 
 function EventCard({ event }: { event: ApiEvent }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <Link href={`/event/${event.slug || event.id}`}>
@@ -467,10 +467,10 @@ function EventCard({ event }: { event: ApiEvent }) {
             <div className="flex items-center justify-between">
               {event.priceFrom > 0 ? (
                 <span className="text-sm text-muted-foreground">
-                  {t("home.from")} <span className="text-primary font-bold">{formatPrice(event.priceFrom)}</span>
+                  {t("home.from")} <span className="text-primary font-bold">{formatPrice(event.priceFrom, "COP", i18n.language)}</span>
                 </span>
               ) : (
-                <span className="text-sm font-medium text-emerald-400">Gratis</span>
+                <span className="text-sm font-bold text-primary">{formatPrice(0, "COP", i18n.language)}</span>
               )}
               <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-200" />
             </div>

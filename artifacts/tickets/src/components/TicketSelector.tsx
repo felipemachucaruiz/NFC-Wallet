@@ -40,9 +40,10 @@ interface TicketSelectorProps {
 }
 
 export function TicketSelector({ event, ticketType, sectionName, onClose, preSelectedUnitId }: TicketSelectorProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
+  const isRace = event.category === "race";
   const isNumbered = ticketType.isNumberedUnits && ticketType.units && ticketType.units.length > 0;
   const [step, setStep] = useState<"quantity" | "unit" | "attendees">(isNumbered ? "unit" : "quantity");
   const [quantity, setQuantity] = useState(isNumbered ? (ticketType.ticketsPerUnit || 1) : 1);
@@ -99,7 +100,10 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
   const validateAttendees = (): boolean => {
     const newErrors: Record<string, string> = {};
     attendees.forEach((a, i) => {
-      if (i === 0 && isAuthenticated && !!user) return;
+      if (i === 0 && isAuthenticated && !!user) {
+        if (isRace && !a.shirtSize) newErrors[`${i}-shirtSize`] = t("ticketSelection.required");
+        return;
+      }
       if (!a.name.trim()) newErrors[`${i}-name`] = t("ticketSelection.required");
       if (!a.email.trim()) newErrors[`${i}-email`] = t("ticketSelection.required");
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email)) newErrors[`${i}-email`] = t("ticketSelection.invalidEmail");
@@ -107,6 +111,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
       if (!a.dateOfBirth.trim()) newErrors[`${i}-dateOfBirth`] = t("ticketSelection.required");
       if (!a.sex) newErrors[`${i}-sex`] = t("ticketSelection.required");
       if (!a.idDocument.trim()) newErrors[`${i}-idDocument`] = t("ticketSelection.required");
+      if (isRace && !a.shirtSize) newErrors[`${i}-shirtSize`] = t("ticketSelection.required");
     });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -156,7 +161,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
           <div className="bg-card rounded-lg border border-border p-4 mb-4">
             <p className="font-semibold">{ticketType.name}</p>
             <p className="text-sm text-muted-foreground">{sectionName} — {ticketType.validDays}</p>
-            <p className="text-primary font-bold mt-1">{formatPrice(ticketType.price, event.currencyCode)}</p>
+            <p className="text-primary font-bold mt-1">{formatPrice(ticketType.price, event.currencyCode, i18n.language)}</p>
           </div>
 
           {step === "unit" && isNumbered ? (
@@ -208,7 +213,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between font-bold text-base">
                   <span>{t("ticketSelection.total")}</span>
-                  <span className="text-primary">{formatPrice(total, event.currencyCode)}</span>
+                  <span className="text-primary">{formatPrice(total, event.currencyCode, i18n.language)}</span>
                 </div>
               </div>
 
@@ -226,28 +231,36 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
             <div className="space-y-6">
               <div>
                 <Label className="mb-2 block">{t("ticketSelection.quantity")}</Label>
-                <p className="text-xs text-muted-foreground mb-3">
-                  {t("ticketSelection.maxPerOrder", { max: maxQty })}
-                </p>
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuantityChange(quantity - 1)}
-                    disabled={quantity <= 1}
-                  >
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                  <span className="text-2xl font-bold w-8 text-center">{quantity}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuantityChange(quantity + 1)}
-                    disabled={quantity >= maxQty}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
+                {isRace ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t("ticketSelection.raceSingleTicket", "Las carreras permiten solo 1 entrada por persona.")}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      {t("ticketSelection.maxPerOrder", { max: maxQty })}
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuantityChange(quantity - 1)}
+                        disabled={quantity <= 1}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="text-2xl font-bold w-8 text-center">{quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuantityChange(quantity + 1)}
+                        disabled={quantity >= maxQty}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
 
               <Separator />
@@ -255,16 +268,16 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t("ticketSelection.subtotal")}</span>
-                  <span>{formatPrice(subtotal, event.currencyCode)}</span>
+                  <span>{formatPrice(subtotal, event.currencyCode, i18n.language)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t("ticketSelection.serviceFee")}</span>
-                  <span>{formatPrice(serviceFee, event.currencyCode)}</span>
+                  <span>{formatPrice(serviceFee, event.currencyCode, i18n.language)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-bold text-base">
                   <span>{t("ticketSelection.total")}</span>
-                  <span className="text-primary">{formatPrice(total, event.currencyCode)}</span>
+                  <span className="text-primary">{formatPrice(total, event.currencyCode, i18n.language)}</span>
                 </div>
               </div>
 
@@ -407,6 +420,36 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         </div>
                       </>
                     )}
+
+                    {isRace && (() => {
+                      const sizes = event.raceConfig?.sizes ?? ["XS", "S", "M", "L", "XL", "XXL"];
+                      return (
+                        <div>
+                          <Label className="text-xs flex items-center gap-1 mb-2">
+                            {t("ticketSelection.shirtSize", "Talla de camiseta")} *
+                          </Label>
+                          <div className="flex flex-wrap gap-2">
+                            {sizes.map((size) => (
+                              <button
+                                key={size}
+                                type="button"
+                                onClick={() => updateAttendee(index, "shirtSize", size)}
+                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                  attendee.shirtSize === size
+                                    ? "border-primary bg-primary/10 text-primary"
+                                    : "border-border text-muted-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {size}
+                              </button>
+                            ))}
+                          </div>
+                          {errors[`${index}-shirtSize`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-shirtSize`]}</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
                 );
@@ -417,7 +460,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between font-bold text-base">
                   <span>{t("ticketSelection.total")}</span>
-                  <span className="text-primary">{formatPrice(total, event.currencyCode)}</span>
+                  <span className="text-primary">{formatPrice(total, event.currencyCode, i18n.language)}</span>
                 </div>
               </div>
 

@@ -370,6 +370,7 @@ export function usePurchaseTickets() {
           dateOfBirth: tk.attendee.dateOfBirth || undefined,
           sex: (tk.attendee.sex as "male" | "female") || undefined,
           idDocument: tk.attendee.idDocument || undefined,
+          shirtSize: tk.attendee.shirtSize || undefined,
         })),
       };
       return apiFetch<TicketPurchaseResult>(

@@ -87,6 +87,7 @@ export interface EventData {
   floatingGraphicUrl?: string | null;
   floatingGraphics?: Array<{ url: string; opacity: number }> | null;
   vimeoUrl?: string | null;
+  raceConfig?: { sizes: string[] } | null;
 }
 
 export interface AttendeeData {
@@ -96,6 +97,7 @@ export interface AttendeeData {
   dateOfBirth: string;
   sex: "male" | "female" | "non_binary" | "";
   idDocument: string;
+  shirtSize?: string;
 }
 
 export interface CartTicket {

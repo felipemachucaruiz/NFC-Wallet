@@ -1,4 +1,5 @@
-export function formatPrice(amount: number, currency: string = "COP"): string {
+export function formatPrice(amount: number, currency: string = "COP", lang?: string): string {
+  if (amount === 0) return lang === "en" ? "FREE" : "GRATIS";
   return new Intl.NumberFormat("es-CO", {
     style: "currency",
     currency,

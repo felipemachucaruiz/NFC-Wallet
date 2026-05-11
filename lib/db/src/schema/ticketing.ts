@@ -146,6 +146,7 @@ export const ticketsTable = pgTable("tickets", {
   status: ticketStatusEnum("status").notNull().default("valid"),
   unitPrice: integer("unit_price").notNull().default(0),
   serviceFeeAmount: integer("service_fee_amount").notNull().default(0),
+  shirtSize: varchar("shirt_size", { length: 10 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

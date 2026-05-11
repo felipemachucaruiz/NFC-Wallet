@@ -155,6 +155,7 @@ router.get(
           floatingGraphics: eventsTable.floatingGraphics,
           vimeoUrl: eventsTable.vimeoUrl,
           category: eventsTable.category,
+          raceConfig: eventsTable.raceConfig,
           tags: eventsTable.tags,
           minAge: eventsTable.minAge,
           venueAddress: eventsTable.venueAddress,
@@ -431,6 +432,7 @@ const guestAttendeeSchema = z.object({
   email: z.string().email(),
   phone: z.string().max(30).optional(),
   ticketTypeId: z.string().min(1),
+  shirtSize: z.string().max(10).optional(),
 });
 
 const guestOrderSchema = z.object({
@@ -488,6 +490,8 @@ router.post(
         salesChannel: eventsTable.salesChannel,
         currencyCode: eventsTable.currencyCode,
         name: eventsTable.name,
+        category: eventsTable.category,
+        raceConfig: eventsTable.raceConfig,
       })
       .from(eventsTable)
       .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
@@ -503,6 +507,36 @@ router.post(
     if (event.salesChannel === "door") {
       res.status(400).json({ error: "Online ticket sales are not available for this event" });
       return;
+    }
+
+    if (event.category === "race") {
+      if (attendees.length !== 1) {
+        res.status(400).json({ error: "Race events allow only 1 ticket per purchase" });
+        return;
+      }
+      const shirtSize = attendees[0].shirtSize;
+      if (!shirtSize) {
+        res.status(400).json({ error: "Shirt size is required for race events" });
+        return;
+      }
+      const allowedSizes = event.raceConfig?.sizes ?? [];
+      if (allowedSizes.length > 0 && !allowedSizes.includes(shirtSize)) {
+        res.status(400).json({ error: `Invalid shirt size. Allowed: ${allowedSizes.join(", ")}` });
+        return;
+      }
+      const [existingTicket] = await db
+        .select({ id: ticketsTable.id })
+        .from(ticketsTable)
+        .where(and(
+          eq(ticketsTable.eventId, eventId),
+          eq(ticketsTable.attendeeEmail, attendees[0].email.toLowerCase().trim()),
+          sql`${ticketsTable.status} != 'cancelled'`,
+        ))
+        .limit(1);
+      if (existingTicket) {
+        res.status(409).json({ error: "You already have a ticket for this race" });
+        return;
+      }
     }
 
     const ticketTypeIds = [...new Set(attendees.map((a) => a.ticketTypeId))];
@@ -819,6 +853,7 @@ router.post(
         attendeePhone: attendee.phone ?? null,
         attendeeUserId,
         status: "valid",
+        shirtSize: attendee.shirtSize ?? null,
       });
     }
 

@@ -239,6 +239,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
       ? event.floatingGraphics.map((g) => ({ url: resolveImageUrl(g.url) || g.url, opacity: g.opacity }))
       : null,
     vimeoUrl: event.vimeoUrl || null,
+    raceConfig: (event as any).raceConfig ?? null,
   };
 }
 
@@ -703,7 +704,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
                     }}
                   >
                     {selectedTicket
-                      ? `${t("event.buyTickets")} — ${formatPrice(selectedTicket.price, event.currencyCode)}`
+                      ? `${t("event.buyTickets")} — ${formatPrice(selectedTicket.price, event.currencyCode, i18n.language)}`
                       : t("event.buyTickets")}
                   </Button>
                 )}
@@ -772,7 +773,7 @@ function SectionTicketGroups({
   onTicketSelect: (ticket: TicketType, sectionName: string) => void;
   onSelectionChange?: (ticket: TicketType | null) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -881,7 +882,7 @@ function SectionTicketGroups({
                     <span className="font-semibold text-sm">{group.sectionName}</span>
                     {!isExpanded && (
                       <span className="text-xs text-muted-foreground ml-2">
-                        {t("event.fromPrice", { price: formatPrice(lowestPrice, event.currencyCode) })}
+                        {t("event.fromPrice", { price: formatPrice(lowestPrice, event.currencyCode, i18n.language) })}
                       </span>
                     )}
                   </div>
@@ -929,15 +930,15 @@ function SectionTicketGroups({
                                   <span className="text-[11px] text-muted-foreground block">{tt.validDays}</span>
                                 </div>
                                 <div className="text-right shrink-0 ml-2">
-                                  <span className="text-primary font-bold text-sm">{formatPrice(tt.price, event.currencyCode)}</span>
+                                  <span className="text-primary font-bold text-sm">{formatPrice(tt.price, event.currencyCode, i18n.language)}</span>
                                   {tt.basePrice !== undefined && tt.basePrice !== tt.price && tt.currentStageName && (
-                                    <span className="text-[10px] text-muted-foreground line-through block">{formatPrice(tt.basePrice, event.currencyCode)}</span>
+                                    <span className="text-[10px] text-muted-foreground line-through block">{formatPrice(tt.basePrice, event.currencyCode, i18n.language)}</span>
                                   )}
                                 </div>
                               </div>
                               {tt.nextStage && (
                                 <p className="text-[10px] text-amber-400 mt-0.5">
-                                  {t("event.nextStage", "Próximo")}: {tt.nextStage.name} — {formatPrice(tt.nextStage.price, event.currencyCode)}
+                                  {t("event.nextStage", "Próximo")}: {tt.nextStage.name} — {formatPrice(tt.nextStage.price, event.currencyCode, i18n.language)}
                                 </p>
                               )}
                             </div>
@@ -973,7 +974,7 @@ function SingleTicketCard({
   isSelected?: boolean;
   onSelect: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <div
       id={`ticket-card-${ticket.id}`}
@@ -996,14 +997,14 @@ function SingleTicketCard({
       )}
       <p className="text-xs text-muted-foreground mb-1 ml-[18px]">{ticket.validDays}</p>
       <div className="flex items-baseline gap-2 ml-[18px]">
-        <p className="text-primary font-bold">{formatPrice(ticket.price, currencyCode)}</p>
+        <p className="text-primary font-bold">{formatPrice(ticket.price, currencyCode, i18n.language)}</p>
         {ticket.basePrice !== undefined && ticket.basePrice !== ticket.price && ticket.currentStageName && (
-          <p className="text-xs text-muted-foreground line-through">{formatPrice(ticket.basePrice, currencyCode)}</p>
+          <p className="text-xs text-muted-foreground line-through">{formatPrice(ticket.basePrice, currencyCode, i18n.language)}</p>
         )}
       </div>
       {ticket.nextStage && (
         <p className="text-[10px] text-amber-400 mt-1 ml-[18px]">
-          {t("event.nextStage", "Próximo")}: {ticket.nextStage.name} — {formatPrice(ticket.nextStage.price, currencyCode)}
+          {t("event.nextStage", "Próximo")}: {ticket.nextStage.name} — {formatPrice(ticket.nextStage.price, currencyCode, i18n.language)}
         </p>
       )}
     </div>

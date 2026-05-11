@@ -287,6 +287,8 @@ export default function EventDetailScreen() {
           ticketsPerUnit: String(tt.ticketsPerUnit ?? 1),
           unitLabel: tt.unitLabel ?? "",
           units: tt.units ? JSON.stringify(tt.units) : "[]",
+          category: event.category ?? "",
+          raceConfig: event.raceConfig ? JSON.stringify(event.raceConfig) : "",
         },
       });
     }

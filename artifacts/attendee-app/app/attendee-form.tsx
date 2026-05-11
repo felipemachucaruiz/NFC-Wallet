@@ -74,6 +74,8 @@ export default function AttendeeFormScreen() {
     sectionName: string;
     validDays: string;
     unitSelections: string;
+    category: string;
+    raceConfig: string;
   }>();
 
   const quantity = parseInt(params.quantity ?? "1", 10);
@@ -83,6 +85,15 @@ export default function AttendeeFormScreen() {
   const validDays = (() => {
     if (!params.validDays) return [];
     try { return JSON.parse(params.validDays) as number[]; } catch { return []; }
+  })();
+
+  const isRace = params.category === "race";
+  const raceSizes: string[] = (() => {
+    if (!params.raceConfig) return ["XS", "S", "M", "L", "XL", "XXL"];
+    try {
+      const cfg = JSON.parse(params.raceConfig) as { sizes: string[] };
+      return cfg.sizes.length > 0 ? cfg.sizes : ["XS", "S", "M", "L", "XL", "XXL"];
+    } catch { return ["XS", "S", "M", "L", "XL", "XXL"]; }
   })();
 
   const firstPhone = user?.phone ? parseStoredPhone(user.phone) : null;
@@ -95,6 +106,7 @@ export default function AttendeeFormScreen() {
       dateOfBirth: i === 0 ? user?.dateOfBirth ?? "" : "",
       sex: i === 0 ? user?.sex ?? "" : "",
       idDocument: i === 0 ? user?.idDocument ?? "" : "",
+      shirtSize: "",
     })),
   );
 
@@ -143,6 +155,7 @@ export default function AttendeeFormScreen() {
       if (!a.dateOfBirth.trim()) newErrors[`${i}_dateOfBirth`] = t("tickets.required");
       if (!a.sex) newErrors[`${i}_sex`] = t("tickets.required");
       if (!a.idDocument.trim()) newErrors[`${i}_idDocument`] = t("tickets.required");
+      if (isRace && !a.shirtSize) newErrors[`${i}_shirtSize`] = t("tickets.required");
     });
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
@@ -381,6 +394,38 @@ export default function AttendeeFormScreen() {
                     <Text style={[styles.errorText, { color: C.danger }]}>
                       {errors[`${index}_idDocument`]}
                     </Text>
+                  )}
+
+                  {isRace && (
+                    <>
+                      <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
+                        {t("tickets.shirtSize", "Talla de camiseta")} *
+                      </Text>
+                      <View style={styles.sexRow}>
+                        {raceSizes.map((size) => (
+                          <Pressable
+                            key={size}
+                            style={[
+                              styles.sexBtn,
+                              {
+                                borderColor: attendees[index]?.shirtSize === size ? C.primary : C.border,
+                                backgroundColor: attendees[index]?.shirtSize === size ? C.primaryLight : C.inputBg,
+                              },
+                            ]}
+                            onPress={() => updateAttendee(index, "shirtSize", size)}
+                          >
+                            <Text style={[styles.sexBtnText, { color: attendees[index]?.shirtSize === size ? C.primary : C.textSecondary }]}>
+                              {size}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      {errors[`${index}_shirtSize`] && (
+                        <Text style={[styles.errorText, { color: C.danger }]}>
+                          {errors[`${index}_shirtSize`]}
+                        </Text>
+                      )}
+                    </>
                   )}
                 </View>
               )}

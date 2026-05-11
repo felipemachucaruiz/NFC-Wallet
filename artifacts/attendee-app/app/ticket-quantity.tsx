@@ -41,6 +41,8 @@ export default function TicketQuantityScreen() {
     ticketsPerUnit: string;
     unitLabel: string;
     units: string;
+    category: string;
+    raceConfig: string;
   }>();
 
   const price = parseInt(params.price ?? "0", 10);
@@ -53,6 +55,7 @@ export default function TicketQuantityScreen() {
   })();
 
   const isNumberedUnits = params.isNumberedUnits === "1";
+  const isRace = params.category === "race";
   const ticketsPerUnit = parseInt(params.ticketsPerUnit ?? "1", 10);
   const unitLabel = params.unitLabel || t("tickets.unit", "Mesa");
   const units: TicketUnit[] = (() => {
@@ -89,6 +92,8 @@ export default function TicketQuantityScreen() {
         sectionName: params.sectionName ?? "",
         validDays: params.validDays ?? "",
         unitSelections,
+        category: params.category ?? "",
+        raceConfig: params.raceConfig ?? "",
       },
     });
   };
@@ -169,6 +174,20 @@ export default function TicketQuantityScreen() {
                 {t("tickets.includedTickets", "Incluye {{n}} entradas", { n: ticketsPerUnit })}
               </Text>
             )}
+          </Card>
+        ) : isRace ? (
+          <Card style={{ gap: 16 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              {t("tickets.quantity").toUpperCase()}
+            </Text>
+            <View style={styles.quantityRow}>
+              <View style={[styles.qtyDisplay, { backgroundColor: C.primaryLight, borderColor: C.primary }]}>
+                <Text style={[styles.qtyText, { color: C.primary }]}>1</Text>
+              </View>
+            </View>
+            <Text style={[styles.maxHint, { color: C.textMuted }]}>
+              {t("tickets.raceOnlyOne", "Las carreras permiten solo 1 entrada por persona")}
+            </Text>
           </Card>
         ) : (
           <Card style={{ gap: 16 }}>
