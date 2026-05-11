@@ -432,6 +432,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                     {isRace && (() => {
                       const sizes = event.raceConfig?.sizes ?? ["XS", "S", "M", "L", "XL", "XXL"];
                       return (
+                        <>
                         <div>
                           <Label className="text-xs flex items-center gap-1 mb-2">
                             {t("ticketSelection.shirtSize", "Talla de camiseta")} *
@@ -522,6 +523,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <p className="text-xs text-destructive mt-1">{errors[`${index}-eps`]}</p>
                           )}
                         </div>
+                        </>
                       );
                     })()}
                   </div>
