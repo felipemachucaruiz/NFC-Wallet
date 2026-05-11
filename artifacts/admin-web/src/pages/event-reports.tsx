@@ -77,6 +77,8 @@ export default function EventReports() {
   const { data: eventData } = useGetEvent(eventId || "");
 
   const currency = (eventData as Record<string, unknown> | undefined)?.currencyCode as string ?? "COP";
+  const ticketingEnabled = (eventData as Record<string, unknown> | undefined)?.ticketingEnabled === true;
+  const nfcBraceletsEnabled = (eventData as Record<string, unknown> | undefined)?.nfcBraceletsEnabled !== false;
 
   type ExtendedSummary = typeof summary & { braceletCount?: number; ticketSales?: number; ticketOrderCount?: number };
   const sum = summary as ExtendedSummary | undefined;
@@ -118,53 +120,57 @@ export default function EventReports() {
         </div>
       </div>
 
-      <Tabs defaultValue="summary">
+      <Tabs defaultValue={!nfcBraceletsEnabled && ticketingEnabled ? "tickets" : "summary"}>
         <TabsList className="mb-4">
-          <TabsTrigger value="summary">{t("reports.tab.summary")}</TabsTrigger>
-          <TabsTrigger value="merchants">{t("reports.tab.merchants")}</TabsTrigger>
-          <TabsTrigger value="tickets">{t("reports.tab.tickets")}</TabsTrigger>
-          <TabsTrigger value="finance">{t("reports.tab.finance")}</TabsTrigger>
+          {(nfcBraceletsEnabled || ticketingEnabled) && <TabsTrigger value="summary">{t("reports.tab.summary")}</TabsTrigger>}
+          {nfcBraceletsEnabled && <TabsTrigger value="merchants">{t("reports.tab.merchants")}</TabsTrigger>}
+          {ticketingEnabled && <TabsTrigger value="tickets">{t("reports.tab.tickets")}</TabsTrigger>}
+          {nfcBraceletsEnabled && <TabsTrigger value="finance">{t("reports.tab.finance")}</TabsTrigger>}
         </TabsList>
 
         {/* ── Tab 1: Resumen Ejecutivo ── */}
         <TabsContent value="summary" className="space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { icon: <TrendingUp className="w-4 h-4" />, label: t("reports.topUps"), value: fmt(sum?.totalTopUps), sub: `${(topUpAvg ?? 0).toLocaleString()} ${t("reports.topUpCount").toLowerCase()}` },
-              { icon: <DollarSign className="w-4 h-4" />, label: t("reports.revenue"), value: fmt(sum?.totalSales), sub: `${(sum?.transactionCount ?? 0).toLocaleString()} ${t("reports.txCount").toLowerCase()}` },
-              { icon: <Droplets className="w-4 h-4" />, label: t("reports.unclaimed"), value: fmt(float?.unclaimed), sub: `${float?.utilizationRate ?? 0}% ${t("reports.utilizationRate2").toLowerCase()}` },
-              { icon: <Users className="w-4 h-4" />, label: t("reports.totalBracelets"), value: (sum?.braceletCount ?? "—").toString(), sub: fmt(avgSpend) + " " + t("reports.avgSpend").toLowerCase() },
-            ].map((item) => (
-              <Card key={item.label}>
+          {nfcBraceletsEnabled && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { icon: <TrendingUp className="w-4 h-4" />, label: t("reports.topUps"), value: fmt(sum?.totalTopUps), sub: `${(topUpAvg ?? 0).toLocaleString()} ${t("reports.topUpCount").toLowerCase()}` },
+                { icon: <DollarSign className="w-4 h-4" />, label: t("reports.revenue"), value: fmt(sum?.totalSales), sub: `${(sum?.transactionCount ?? 0).toLocaleString()} ${t("reports.txCount").toLowerCase()}` },
+                { icon: <Droplets className="w-4 h-4" />, label: t("reports.unclaimed"), value: fmt(float?.unclaimed), sub: `${float?.utilizationRate ?? 0}% ${t("reports.utilizationRate2").toLowerCase()}` },
+                { icon: <Users className="w-4 h-4" />, label: t("reports.totalBracelets"), value: (sum?.braceletCount ?? "—").toString(), sub: fmt(avgSpend) + " " + t("reports.avgSpend").toLowerCase() },
+              ].map((item) => (
+                <Card key={item.label}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      {item.icon} {item.label}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {summaryLoading ? <p className="text-muted-foreground text-sm">{t("common.loading")}</p> : (
+                      <div className="space-y-0.5">
+                        <p className="text-2xl font-bold font-mono">{item.value}</p>
+                        <p className="text-xs text-muted-foreground">{item.sub}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {ticketingEnabled && (
+              <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    {item.icon} {item.label}
+                    <Ticket className="w-4 h-4" /> {t("reports.ticketRevenue")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {summaryLoading ? <p className="text-muted-foreground text-sm">{t("common.loading")}</p> : (
-                    <div className="space-y-0.5">
-                      <p className="text-2xl font-bold font-mono">{item.value}</p>
-                      <p className="text-xs text-muted-foreground">{item.sub}</p>
-                    </div>
-                  )}
+                  <p className="text-2xl font-bold font-mono">{fmt(sum?.ticketSales)}</p>
+                  <p className="text-xs text-muted-foreground">{(sum?.ticketOrderCount ?? 0).toLocaleString()} {t("reports.ticketOrders").toLowerCase()}</p>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Ticket className="w-4 h-4" /> {t("reports.ticketRevenue")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold font-mono">{fmt(sum?.ticketSales)}</p>
-                <p className="text-xs text-muted-foreground">{(sum?.ticketOrderCount ?? 0).toLocaleString()} {t("reports.ticketOrders").toLowerCase()}</p>
-              </CardContent>
-            </Card>
+            )}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -180,22 +186,24 @@ export default function EventReports() {
                 )}
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Wallet className="w-4 h-4" /> {t("reports.pendingBalance")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold font-mono">{fmt(float?.totalLoaded)}</p>
-                <p className="text-xs text-muted-foreground">{t("reports.totalLoaded")}</p>
-              </CardContent>
-            </Card>
+            {nfcBraceletsEnabled && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Wallet className="w-4 h-4" /> {t("reports.pendingBalance")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold font-mono">{fmt(float?.totalLoaded)}</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.totalLoaded")}</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
         {/* ── Tab 2: Ranking de Comerciantes ── */}
-        <TabsContent value="merchants" className="space-y-6">
+        {nfcBraceletsEnabled && <TabsContent value="merchants" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">{t("reports.merchantRanking")}</CardTitle>
@@ -269,10 +277,10 @@ export default function EventReports() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent>}
 
         {/* ── Tab 3: Tickets & Acceso ── */}
-        <TabsContent value="tickets" className="space-y-6">
+        {ticketingEnabled && <TabsContent value="tickets" className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { icon: <Ticket className="w-4 h-4" />, label: t("reports.ticketsSold"), value: (ticketsSummary?.totals.ticketsSold ?? 0).toLocaleString() },
@@ -404,10 +412,10 @@ export default function EventReports() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent>}
 
         {/* ── Tab 4: Finanzas & Liquidación ── */}
-        <TabsContent value="finance" className="space-y-6">
+        {nfcBraceletsEnabled && <TabsContent value="finance" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card data-testid="card-revenue">
               <CardHeader className="pb-2">
@@ -609,7 +617,7 @@ export default function EventReports() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
     </div>
   );

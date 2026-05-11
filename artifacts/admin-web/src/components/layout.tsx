@@ -39,7 +39,6 @@ import {
   AlertCircle,
   FlaskConical,
   Megaphone,
-  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -134,7 +133,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 {(eventRecord?.name as string) || "..."}
               </p>
 
-              <NavItem href="/event-dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
+              <NavItem href={nfcBraceletsEnabled ? "/event-dashboard" : "/event-sales-dashboard"} icon={LayoutDashboard} label={t("nav.dashboard")} />
               <NavItem href="/event-users" icon={Users} label={t("nav.staffUsers")} />
 
               {ticketingEnabled && (
@@ -167,8 +166,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </>
               )}
 
-              <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />
-              <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />
+              {nfcBraceletsEnabled && <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />}
+              {nfcBraceletsEnabled && <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />}
               <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
               <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
             </>
@@ -182,7 +181,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {isEventAdmin && (
             <>
-              <NavItem href="/event-dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
+              <NavItem href={nfcBraceletsEnabled ? "/event-dashboard" : "/event-sales-dashboard"} icon={LayoutDashboard} label={t("nav.dashboard")} />
               <NavItem href="/event-users" icon={Users} label={t("nav.staffUsers")} />
 
               {ticketingEnabled && (
@@ -215,8 +214,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </>
               )}
 
-              <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />
-              <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />
+              {nfcBraceletsEnabled && <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />}
+              {nfcBraceletsEnabled && <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />}
               <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
               <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
             </>
