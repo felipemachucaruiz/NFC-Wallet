@@ -159,7 +159,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{fmt((summary as unknown as Record<string, unknown>)?.braceletCount as number | undefined)}</p>
+            <p className="text-3xl font-bold">{((summary as unknown as Record<string, unknown>)?.braceletCount as number | undefined ?? 0).toLocaleString("es-CO")}</p>
             <p className="text-xs text-muted-foreground mt-1">{t("dashboard.braceletsRegistered")}</p>
           </CardContent>
         </Card>
