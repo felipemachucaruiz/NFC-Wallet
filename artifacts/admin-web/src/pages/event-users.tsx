@@ -11,6 +11,7 @@ import {
   useUnsuspendUser,
   useResetUserPassword,
   useGetCurrentAuthUser,
+  useGetEvent,
   useListMerchants,
   getListUsersQueryKey,
 } from "@workspace/api-client-react";
@@ -28,7 +29,8 @@ import { MoreHorizontal, Plus, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
 
-const EVENT_ROLES = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin"];
+const NFC_ROLES = ["bank", "gate", "merchant_staff", "merchant_admin", "warehouse_admin", "event_admin", "box_office"];
+const TICKETING_ONLY_ROLES = ["event_admin", "box_office"];
 
 export default function EventUsers() {
   const { t } = useTranslation();
@@ -37,9 +39,13 @@ export default function EventUsers() {
   const { data: auth } = useGetCurrentAuthUser();
   const { eventId } = useEventContext();
 
+  const { data: eventData } = useGetEvent(eventId || "", { query: { enabled: !!eventId } });
+  const nfcEnabled = (eventData as Record<string, unknown> | undefined)?.nfcBraceletsEnabled !== false;
+  const availableRoles = nfcEnabled ? NFC_ROLES : TICKETING_ONLY_ROLES;
+
   const { data, isLoading } = useListUsers();
   const allUsers = data?.users ?? [];
-  const users = allUsers.filter((u) => u.eventId === eventId && u.role !== "event_admin");
+  const users = allUsers.filter((u) => u.eventId === eventId && (nfcEnabled ? u.role !== "event_admin" : true));
 
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -48,7 +54,8 @@ export default function EventUsers() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<typeof users[0] | null>(null);
 
-  const [newUser, setNewUser] = useState({ firstName: "", lastName: "", username: "", password: "", role: "bank", merchantId: "" });
+  const defaultRole = nfcEnabled ? "bank" : "event_admin";
+  const [newUser, setNewUser] = useState({ firstName: "", lastName: "", username: "", password: "", role: defaultRole, merchantId: "" });
   const [newRole, setNewRole] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
@@ -88,7 +95,7 @@ export default function EventUsers() {
     createAccount.mutate(
       { data: { firstName: newUser.firstName, lastName: newUser.lastName || undefined, username: newUser.username, password: newUser.password, role: newUser.role as "bank" | "gate" | "merchant_staff" | "merchant_admin" | "warehouse_admin" | "event_admin", eventId, ...(needsMerchant ? { merchantId: newUser.merchantId } : {}) } },
       {
-        onSuccess: () => { toast({ title: t("eventUsers.created") }); setCreateOpen(false); setNewUser({ firstName: "", lastName: "", username: "", password: "", role: "bank", merchantId: "" }); invalidate(); },
+        onSuccess: () => { toast({ title: t("eventUsers.created") }); setCreateOpen(false); setNewUser({ firstName: "", lastName: "", username: "", password: "", role: defaultRole, merchantId: "" }); invalidate(); },
         onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
@@ -240,7 +247,7 @@ export default function EventUsers() {
               <Select value={newUser.role} onValueChange={(v) => setNewUser((u) => ({ ...u, role: v, merchantId: "" }))}>
                 <SelectTrigger data-testid="select-staff-role"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {EVENT_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  {availableRoles.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -270,7 +277,7 @@ export default function EventUsers() {
           <DialogHeader><DialogTitle>{t("eventUsers.changeRoleTitle")} — {selectedUser?.firstName}</DialogTitle></DialogHeader>
           <Select value={newRole} onValueChange={setNewRole}>
             <SelectTrigger data-testid="select-new-role"><SelectValue /></SelectTrigger>
-            <SelectContent>{EVENT_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+            <SelectContent>{availableRoles.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
           </Select>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRoleOpen(false)}>{t("common.cancel")}</Button>
