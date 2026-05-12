@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, Dimensions, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Updates from "expo-updates";
 
 export function UpdateBanner() {
   const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(80)).current;
+  const HIDDEN_Y = Dimensions.get("window").height;
+  const slideAnim = useRef(new Animated.Value(HIDDEN_Y)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   const { isUpdatePending, isDownloading, isChecking } = Updates.useUpdates();
 
@@ -37,13 +39,20 @@ export function UpdateBanner() {
   const isVisible = !__DEV__ && (isUpdatePending || isDownloading || isChecking);
 
   useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: isVisible ? 0 : 80,
-      useNativeDriver: true,
-      speed: 14,
-      bounciness: 4,
-    }).start();
-  }, [isVisible, slideAnim]);
+    Animated.parallel([
+      Animated.spring(slideAnim, {
+        toValue: isVisible ? 0 : HIDDEN_Y,
+        useNativeDriver: true,
+        speed: 14,
+        bounciness: 4,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: isVisible ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [isVisible, slideAnim, opacityAnim, HIDDEN_Y]);
 
   if (__DEV__) return null;
 
@@ -63,7 +72,7 @@ export function UpdateBanner() {
     <Animated.View
       style={[
         styles.wrapper,
-        { bottom: insets.bottom + 8, transform: [{ translateY: slideAnim }] },
+        { bottom: insets.bottom + 8, transform: [{ translateY: slideAnim }], opacity: opacityAnim },
       ]}
       pointerEvents="none"
     >
