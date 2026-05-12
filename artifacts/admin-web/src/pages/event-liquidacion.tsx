@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Download, TrendingUp, Ticket, ReceiptText, BadgePercent, Banknote, HandCoins } from "lucide-react";
+import { Loader2, TrendingUp, Ticket, ReceiptText, BadgePercent, Banknote, HandCoins, FileDown, FileText, Sheet } from "lucide-react";
 import { useEventContext } from "@/contexts/event-context";
 import {
   apiFetchTickets,
@@ -12,7 +12,7 @@ import {
   apiFetchPricingStages,
   apiFetchEvent,
 } from "@/lib/api";
-import { downloadLiquidacionExcel } from "@/lib/export-liquidacion";
+import { downloadLiquidacionCSV, downloadLiquidacionPDF, downloadLiquidacionExcel } from "@/lib/export-liquidacion";
 
 function fmt(amount: number, currency = "COP"): string {
   return new Intl.NumberFormat("es-CO", {
@@ -149,22 +149,44 @@ export default function EventLiquidacion() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Liquidación</h1>
-          <p className="text-muted-foreground mt-1">
-            Resumen financiero de ventas de boletas
-            {eventData?.promoterCompanyName && (
-              <> — <span className="font-medium">{eventData.promoterCompanyName}</span></>
-            )}
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Liquidación</h1>
+        <p className="text-muted-foreground mt-1">
+          Resumen financiero de ventas de boletas
+          {eventData?.promoterCompanyName && (
+            <> — <span className="font-medium">{eventData.promoterCompanyName}</span></>
+          )}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex-1" />
         <Button
-          onClick={() => eventData && downloadLiquidacionExcel(tickets, eventData)}
-          disabled={!eventData || tickets.length === 0}
+          variant="outline"
+          size="sm"
+          disabled={tickets.length === 0 || !eventData}
+          onClick={() => eventData && downloadLiquidacionCSV(tickets, eventData)}
         >
-          <Download className="w-4 h-4 mr-2" />
-          Exportar Excel
+          <FileDown className="w-4 h-4 mr-1.5" />
+          CSV
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={tickets.length === 0 || !eventData}
+          onClick={() => eventData && downloadLiquidacionPDF(tickets, eventData)}
+        >
+          <FileText className="w-4 h-4 mr-1.5" />
+          PDF
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={tickets.length === 0 || !eventData}
+          onClick={() => eventData && downloadLiquidacionExcel(tickets, eventData)}
+        >
+          <Sheet className="w-4 h-4 mr-1.5" />
+          Excel
         </Button>
       </div>
 
