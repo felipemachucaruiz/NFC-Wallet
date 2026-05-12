@@ -202,6 +202,14 @@ function AttendeeDetail({ ticket, ticketTypeName }: { ticket: AdminTicket; ticke
     { icon: <User className="w-4 h-4" />, label: "Sexo", value: ticket.attendeeSex ? (SEX_LABELS[ticket.attendeeSex] ?? ticket.attendeeSex) : null },
   ];
 
+  const raceRows: { label: string; value: string | null | undefined }[] = [
+    { label: "Talla camiseta", value: ticket.shirtSize },
+    { label: "Tipo de sangre", value: ticket.bloodType },
+    { label: "Contacto de emergencia", value: ticket.emergencyContactName },
+    { label: "Tel. emergencia", value: ticket.emergencyContactPhone },
+    { label: "EPS", value: ticket.eps },
+  ].filter(r => r.value);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -222,6 +230,20 @@ function AttendeeDetail({ ticket, ticketTypeName }: { ticket: AdminTicket; ticke
           </div>
         ))}
       </div>
+
+      {raceRows.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Datos carrera</p>
+          <div className="divide-y divide-border rounded-lg border">
+            {raceRows.map(({ label, value }) => (
+              <div key={label} className="flex items-center gap-3 px-4 py-3">
+                <span className="text-sm text-muted-foreground w-36 shrink-0">{label}</span>
+                <span className="text-sm font-medium truncate">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
         <div className="flex gap-2">
