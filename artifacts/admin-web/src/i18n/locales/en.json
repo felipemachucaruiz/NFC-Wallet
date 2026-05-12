@@ -1182,7 +1182,9 @@
     "colTotal": "Total",
     "colDate": "Date",
     "confirmed": "Confirmed",
-    "pending": "Pending"
+    "pending": "Pending",
+    "allDays": "All Days",
+    "noOrders": "No orders yet"
   },
   "orders": {
     "title": "Orders",
