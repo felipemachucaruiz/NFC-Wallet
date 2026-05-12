@@ -9,7 +9,7 @@ export function UpdateBanner() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [shouldRender, setShouldRender] = useState(false);
 
-  const { isUpdatePending, isDownloading, isChecking } = Updates.useUpdates();
+  const { isUpdatePending, isDownloading } = Updates.useUpdates();
 
   useEffect(() => {
     if (__DEV__) return;
@@ -26,7 +26,7 @@ export function UpdateBanner() {
     return () => clearInterval(interval);
   }, []);
 
-  const isVisible = !__DEV__ && (isUpdatePending || isDownloading || isChecking);
+  const isVisible = !__DEV__ && (isUpdatePending || isDownloading);
 
   useEffect(() => {
     if (isVisible) {
@@ -41,17 +41,17 @@ export function UpdateBanner() {
 
   if (__DEV__ || !shouldRender) return null;
 
-  const label = isDownloading || isChecking
+  const label = isDownloading
     ? "Descargando actualización…"
     : "Actualización lista — toca para reiniciar";
 
-  const icon: "download-cloud" | "refresh-cw" = isDownloading || isChecking
+  const icon: "download-cloud" | "refresh-cw" = isDownloading
     ? "download-cloud"
     : "refresh-cw";
 
   return (
     <Animated.View
-      style={[styles.wrapper, { bottom: insets.bottom + 8, opacity: fadeAnim }]}
+      style={[styles.wrapper, { top: insets.top + 8, opacity: fadeAnim }]}
       pointerEvents={isUpdatePending ? "auto" : "none"}
     >
       <Pressable
