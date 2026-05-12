@@ -175,6 +175,8 @@ const updateEventSchema = z.object({
   saleEndsAt: z.string().nullable().optional(),
   vimeoUrl: z.string().max(500).nullable().optional(),
   floatingGraphics: z.array(z.object({ url: z.string(), opacity: z.number().min(0).max(1) })).nullable().optional(),
+  raceNumberStart: z.number().int().positive().nullable().optional(),
+  raceNumberEnd: z.number().int().positive().nullable().optional(),
 });
 
 const SAFE_EVENT_FIELDS = {
@@ -220,6 +222,8 @@ const SAFE_EVENT_FIELDS = {
   floatingGraphicUrl: eventsTable.floatingGraphicUrl,
   floatingGraphics: eventsTable.floatingGraphics,
   vimeoUrl: eventsTable.vimeoUrl,
+  raceNumberStart: eventsTable.raceNumberStart,
+  raceNumberEnd: eventsTable.raceNumberEnd,
   createdAt: eventsTable.createdAt,
   updatedAt: eventsTable.updatedAt,
 };
@@ -446,7 +450,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, descriptionEn, category, raceConfig, cityId, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, descriptionEn, category, raceConfig, cityId, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics, raceNumberStart, raceNumberEnd } = parsed.data;
 
   if (refundDeadline !== undefined && refundDeadline !== null) {
     const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, eventId)))[0]?.endsAt;
@@ -511,6 +515,8 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(saleEndsAt !== undefined && { saleEndsAt: saleEndsAt !== null ? new Date(saleEndsAt) : null }),
     ...(vimeoUrl !== undefined && { vimeoUrl }),
     ...(floatingGraphics !== undefined && { floatingGraphics }),
+    ...(raceNumberStart !== undefined && { raceNumberStart }),
+    ...(raceNumberEnd !== undefined && { raceNumberEnd }),
     updatedAt: new Date(),
   };
 

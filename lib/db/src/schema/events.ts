@@ -53,6 +53,8 @@ export const eventsTable = pgTable("events", {
   cityId: varchar("city_id"),
   tags: jsonb("tags").$type<string[]>().default(sql`'[]'::jsonb`),
   minAge: integer("min_age"),
+  raceNumberStart: integer("race_number_start"),
+  raceNumberEnd: integer("race_number_end"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

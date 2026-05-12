@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
 import { Badge } from "@/components/ui/badge";
 import { DatePickerField } from "@/components/ui/date-picker-field";
+import { EpsSelect } from "@/components/ui/eps-select";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/context/AuthContext";
@@ -67,9 +68,9 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
     const count = isNumbered ? (ticketType.ticketsPerUnit || 1) : quantity;
     const initial: AttendeeData[] = Array.from({ length: count }, (_, i) => {
       if (i === 0 && user) {
-        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: (user.sex || "") as AttendeeData["sex"], idDocument: user.idDocument || "" };
+        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: (user.sex || "") as AttendeeData["sex"], idDocument: user.idDocument || "", eps: "" };
       }
-      return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocument: "" };
+      return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocument: "", eps: "" };
     });
     setAttendees(initial);
     setStep("attendees");
@@ -328,7 +329,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                     ) : (
                       <>
                         <div>
-                          <Label className="text-xs">{t("ticketSelection.name")}</Label>
+                          <Label className="text-xs">{t("ticketSelection.name", "Nombre")}</Label>
                           <Input
                             value={attendee.name}
                             onChange={(e) => updateAttendee(index, "name", e.target.value)}
@@ -425,6 +426,18 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                           {errors[`${index}-idDocument`] && (
                             <p className="text-xs text-destructive mt-1">{errors[`${index}-idDocument`]}</p>
                           )}
+                        </div>
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            EPS{" "}
+                            <span className="text-muted-foreground font-normal">(opcional)</span>
+                          </Label>
+                          <div className="mt-1">
+                            <EpsSelect
+                              value={attendee.eps ?? ""}
+                              onChange={(v) => updateAttendee(index, "eps" as keyof AttendeeData, v)}
+                            />
+                          </div>
                         </div>
                       </>
                     )}

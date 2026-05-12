@@ -980,6 +980,7 @@ router.get(
         emergencyContactName: ticketsTable.emergencyContactName,
         emergencyContactPhone: ticketsTable.emergencyContactPhone,
         eps: ticketsTable.eps,
+        raceNumber: ticketsTable.raceNumber,
         status: ticketsTable.status,
         createdAt: ticketsTable.createdAt,
       })

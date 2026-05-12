@@ -84,6 +84,11 @@ const attendeeDataSchema = z.object({
   dateOfBirth: z.string().max(10).optional(),
   sex: z.enum(["male", "female", "non_binary"]).optional(),
   idDocument: z.string().max(50).optional(),
+  eps: z.string().max(255).optional(),
+  shirtSize: z.string().max(50).optional(),
+  bloodType: z.string().max(10).optional(),
+  emergencyContactName: z.string().max(255).optional(),
+  emergencyContactPhone: z.string().max(30).optional(),
   ticketTypeId: z.string().min(1),
   shirtSize: z.string().max(10).optional(),
   bloodType: z.string().max(5).optional(),
@@ -101,11 +106,11 @@ const legacyTicketSchema = z.object({
     dateOfBirth: z.string().max(10).optional(),
     sex: z.enum(["male", "female", "non_binary"]).optional(),
     idDocument: z.string().max(50).optional(),
-    shirtSize: z.string().max(10).optional(),
-    bloodType: z.string().max(5).optional(),
+    eps: z.string().max(255).optional(),
+    shirtSize: z.string().max(50).optional(),
+    bloodType: z.string().max(10).optional(),
     emergencyContactName: z.string().max(255).optional(),
     emergencyContactPhone: z.string().max(30).optional(),
-    eps: z.string().max(150).optional(),
   }),
 });
 
@@ -246,6 +251,8 @@ router.post(
         name: eventsTable.name,
         category: eventsTable.category,
         raceConfig: eventsTable.raceConfig,
+        raceNumberStart: eventsTable.raceNumberStart,
+        raceNumberEnd: eventsTable.raceNumberEnd,
       })
       .from(eventsTable)
       .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
@@ -519,6 +526,16 @@ router.post(
       }
     }
 
+    // Race number: fetch current max so we can assign sequentially within this order
+    let nextRaceNumber: number | null = null;
+    if (event.raceNumberStart !== null && event.raceNumberStart !== undefined) {
+      const [maxRow] = await db
+        .select({ maxRace: sql<number | null>`MAX(${ticketsTable.raceNumber})` })
+        .from(ticketsTable)
+        .where(eq(ticketsTable.eventId, eventId));
+      nextRaceNumber = (maxRow?.maxRace ?? (event.raceNumberStart - 1)) + 1;
+    }
+
     if (paymentMethod === "free") {
       const insertedCountByType = new Map<string, number>();
       for (const attendee of attendees) {
@@ -548,6 +565,9 @@ router.post(
         }
         insertedCountByType.set(typeId, insertedSoFar + 1);
 
+        const assignedRace = (nextRaceNumber !== null && (event.raceNumberEnd === null || event.raceNumberEnd === undefined || nextRaceNumber <= event.raceNumberEnd))
+          ? nextRaceNumber++ : null;
+
         await db
           .insert(ticketsTable)
           .values({
@@ -562,6 +582,12 @@ router.post(
             attendeeSex: attendee.sex ?? null,
             attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId,
+            eps: (attendee as { eps?: string }).eps ?? null,
+            shirtSize: (attendee as { shirtSize?: string }).shirtSize ?? null,
+            bloodType: (attendee as { bloodType?: string }).bloodType ?? null,
+            emergencyContactName: (attendee as { emergencyContactName?: string }).emergencyContactName ?? null,
+            emergencyContactPhone: (attendee as { emergencyContactPhone?: string }).emergencyContactPhone ?? null,
+            raceNumber: assignedRace,
             status: "valid",
             unitPrice,
             serviceFeeAmount,
@@ -817,6 +843,9 @@ router.post(
         }
         insertedCountByTypePaid.set(typeId, insertedSoFar + 1);
 
+        const assignedRacePaid = (nextRaceNumber !== null && (event.raceNumberEnd === null || event.raceNumberEnd === undefined || nextRaceNumber <= event.raceNumberEnd))
+          ? nextRaceNumber++ : null;
+
         await db
           .insert(ticketsTable)
           .values({
@@ -831,6 +860,12 @@ router.post(
             attendeeSex: attendee.sex ?? null,
             attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId: attendeeUserId,
+            eps: (attendee as { eps?: string }).eps ?? null,
+            shirtSize: (attendee as { shirtSize?: string }).shirtSize ?? null,
+            bloodType: (attendee as { bloodType?: string }).bloodType ?? null,
+            emergencyContactName: (attendee as { emergencyContactName?: string }).emergencyContactName ?? null,
+            emergencyContactPhone: (attendee as { emergencyContactPhone?: string }).emergencyContactPhone ?? null,
+            raceNumber: assignedRacePaid,
             status: "valid",
             unitPrice,
             serviceFeeAmount,
@@ -1683,6 +1718,11 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         dateOfBirth?: string;
         sex?: string;
         idDocument?: string;
+        eps?: string;
+        shirtSize?: string;
+        bloodType?: string;
+        emergencyContactName?: string;
+        emergencyContactPhone?: string;
         ticketTypeId: string;
         shirtSize?: string;
         bloodType?: string;
@@ -1739,6 +1779,16 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         recoveryFeeByType.set(typeId, fee);
       }
 
+      // Race number for recovery path
+      let recoveryNextRaceNumber: number | null = null;
+      if (event?.raceNumberStart !== null && event?.raceNumberStart !== undefined) {
+        const [recoveryMaxRow] = await db
+          .select({ maxRace: sql<number | null>`MAX(${ticketsTable.raceNumber})` })
+          .from(ticketsTable)
+          .where(eq(ticketsTable.eventId, order.eventId));
+        recoveryNextRaceNumber = (recoveryMaxRow?.maxRace ?? (event.raceNumberStart - 1)) + 1;
+      }
+
       const recoveryInsertedCount = new Map<string, number>();
       for (const attendee of storedAttendees) {
         const normalizedEmail = attendee.email.toLowerCase().trim();
@@ -1767,6 +1817,9 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         }
         recoveryInsertedCount.set(typeId, insertedSoFar + 1);
 
+        const assignedRaceRecovery = (recoveryNextRaceNumber !== null && (event?.raceNumberEnd === null || event?.raceNumberEnd === undefined || recoveryNextRaceNumber <= event.raceNumberEnd))
+          ? recoveryNextRaceNumber++ : null;
+
         const [ticket] = await db
           .insert(ticketsTable)
           .values({
@@ -1781,6 +1834,12 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
             attendeeSex: attendee.sex ?? null,
             attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId: attendeeUserId,
+            eps: attendee.eps ?? null,
+            shirtSize: attendee.shirtSize ?? null,
+            bloodType: attendee.bloodType ?? null,
+            emergencyContactName: attendee.emergencyContactName ?? null,
+            emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+            raceNumber: assignedRaceRecovery,
             status: "valid",
             unitPrice,
             serviceFeeAmount,
