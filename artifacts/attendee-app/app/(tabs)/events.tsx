@@ -19,7 +19,7 @@ import { formatCurrency } from "@/utils/format";
 import type { EventListItem, EventCategory } from "@/types/events";
 
 const DATE_FILTERS = ["upcoming", "this_week", "this_month"] as const;
-const CATEGORIES: EventCategory[] = ["concert", "festival", "sports", "theater", "conference", "party"];
+const ALL_CATEGORIES: EventCategory[] = ["race", "concert", "festival", "sports", "theater", "conference", "party", "other"];
 
 const CATEGORY_EMOJIS: Record<EventCategory, string> = {
   concert: "🎵",
@@ -28,6 +28,7 @@ const CATEGORY_EMOJIS: Record<EventCategory, string> = {
   theater: "🎭",
   conference: "🎤",
   party: "🎉",
+  race: "🏃",
   other: "✨",
 };
 
@@ -195,7 +196,20 @@ export default function EventsScreen() {
     dateFilter: dateFilter || undefined,
   });
 
+  const { data: allData } = useEventCatalogue();
+
   const events = useMemo(() => (data as { events?: EventListItem[] } | undefined)?.events ?? [], [data]);
+
+  const sortedCategories = useMemo(() => {
+    const allEvents = (allData as { events?: EventListItem[] } | undefined)?.events ?? [];
+    const counts: Partial<Record<EventCategory, number>> = {};
+    for (const ev of allEvents) {
+      if (ev.category) counts[ev.category] = (counts[ev.category] ?? 0) + 1;
+    }
+    return ALL_CATEGORIES
+      .filter((cat) => (counts[cat] ?? 0) > 0)
+      .sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0));
+  }, [allData]);
 
   const filteredEvents = useMemo(() => {
     if (!search.trim()) return events;
@@ -321,14 +335,14 @@ export default function EventsScreen() {
         ))}
       </View>
 
-      <View style={styles.categoriesSection}>
+      {sortedCategories.length > 0 && <View style={styles.categoriesSection}>
         <Text style={[styles.categoriesTitle, { color: C.text }]}>{t("events.categoriesTitle")}</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoriesScroll}
         >
-          {CATEGORIES.map((cat) => {
+          {sortedCategories.map((cat) => {
             const isActive = categoryFilter === cat;
             return (
               <Pressable
@@ -353,7 +367,7 @@ export default function EventsScreen() {
             );
           })}
         </ScrollView>
-      </View>
+      </View>}
 
       <FlatList
         data={filteredEvents}
