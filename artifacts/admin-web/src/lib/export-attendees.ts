@@ -21,6 +21,7 @@ const COLUMNS = [
   { header: "Fecha registro",   key: "_createdAt",            width: 21 },
   { header: "ID boleta",        key: "_idShort",              width: 16 },
   { header: "Orden",            key: "_orderShort",           width: 16 },
+  { header: "#Corredor",        key: "_raceNumber",           width: 14 },
 ] as const;
 
 type ColKey = typeof COLUMNS[number]["key"];
@@ -43,6 +44,7 @@ function rowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>): 
     _createdAt:            new Date(ticket.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota" }),
     _idShort:              ticket.id ? ticket.id.slice(0, 8) : "—",
     _orderShort:           ticket.orderId ? ticket.orderId.slice(0, 8) : "—",
+    _raceNumber:           ticket.raceNumber != null ? String(ticket.raceNumber) : "—",
   };
 }
 
@@ -64,6 +66,7 @@ const CSV_COLUMNS = [
   { header: "Fecha registro",   key: "_createdAt" },
   { header: "ID boleta",        key: "id" },
   { header: "Orden",            key: "orderId" },
+  { header: "#Corredor",        key: "_raceNumber" },
 ] as const;
 
 type CsvColKey = typeof CSV_COLUMNS[number]["key"];
@@ -86,6 +89,7 @@ function csvRowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>
     _createdAt:            new Date(ticket.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota" }),
     id:                    ticket.id,
     orderId:               ticket.orderId,
+    _raceNumber:           ticket.raceNumber != null ? String(ticket.raceNumber) : "—",
   };
 }
 

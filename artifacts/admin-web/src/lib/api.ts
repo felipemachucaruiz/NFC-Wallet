@@ -244,6 +244,7 @@ export interface AdminTicket {
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   eps?: string | null;
+  raceNumber?: number | null;
   status: string;
   createdAt: string;
 }
@@ -316,6 +317,8 @@ export interface EventSummary {
   startsAt: string | null;
   endsAt: string | null;
   promoterCompanyName: string | null;
+  raceNumberStart?: number | null;
+  raceNumberEnd?: number | null;
 }
 
 export async function apiFetchEvent(eventId: string): Promise<EventSummary> {
