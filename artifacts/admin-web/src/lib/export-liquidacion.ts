@@ -209,10 +209,11 @@ export async function downloadLiquidacionExcel(
   summaryData.forEach(([label, value, bg], i) => {
     const r = 8 + i;
     ws.getRow(r).height = 18;
-    const lc = ws.getCell(r, 1);
-    const vc = ws.getCell(r, 2);
     ws.mergeCells(r, 1, r, 4);
     ws.mergeCells(r, 5, r, DATA_COLS);
+    // Get references AFTER merging so we target the master cells
+    const lc = ws.getCell(r, 1);
+    const vc = ws.getCell(r, 5);
     lc.value = label;
     lc.font = { bold: !!bg, size: 10, name: "Calibri" };
     lc.alignment = { vertical: "middle", indent: 2 };
