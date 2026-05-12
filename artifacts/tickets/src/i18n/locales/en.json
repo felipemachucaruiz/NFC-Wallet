@@ -357,7 +357,16 @@
     "female": "Female",
     "required": "This field is required",
     "invalidEmail": "Invalid email address",
-    "prefilled": "Your details have been pre-filled from your profile."
+    "prefilled": "Your details have been pre-filled from your profile.",
+    "raceSection": "Race information",
+    "shirtSize": "T-shirt size",
+    "bloodType": "Blood type / RH",
+    "eps": "Health insurance (EPS)",
+    "epsPlaceholder": "Search your EPS...",
+    "noEps": "None / Private health insurance",
+    "emergencyContact": "Emergency contact name",
+    "emergencyNamePlaceholder": "Full name",
+    "emergencyPhone": "Emergency contact phone"
   },
   "myBracelets": {
     "title": "My Wristband",

@@ -357,7 +357,16 @@
     "female": "Femenino",
     "required": "Este campo es requerido",
     "invalidEmail": "Correo electrónico inválido",
-    "prefilled": "Tus datos han sido prellenados desde tu perfil."
+    "prefilled": "Tus datos han sido prellenados desde tu perfil.",
+    "raceSection": "Información de carrera",
+    "shirtSize": "Talla de camiseta",
+    "bloodType": "Tipo de sangre / RH",
+    "eps": "EPS (salud)",
+    "epsPlaceholder": "Busca tu EPS...",
+    "noEps": "No tengo / Medicina prepagada",
+    "emergencyContact": "Nombre contacto de emergencia",
+    "emergencyNamePlaceholder": "Nombre completo",
+    "emergencyPhone": "Teléfono contacto de emergencia"
   },
   "myBracelets": {
     "title": "Mi Pulsera",
