@@ -301,8 +301,8 @@ function SummaryCard({
 }) {
   return (
     <Card className={
-      highlight === "red" ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30" :
-      highlight === "green" ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30" :
+      highlight === "red" ? "border-2 border-red-500 dark:border-red-500" :
+      highlight === "green" ? "border-2 border-emerald-500 dark:border-emerald-500" :
       undefined
     }>
       <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0">
