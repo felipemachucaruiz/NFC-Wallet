@@ -701,11 +701,13 @@ function FormFields({
         </div>
       </div>
 
-      <div className="space-y-1">
-        <Label>{t("events.refundDeadline")}</Label>
-        <DateTimePicker value={form.refundDeadline} onChange={(v) => setForm((f) => ({ ...f, refundDeadline: v }))} />
-        <p className="text-xs text-muted-foreground">{t("events.refundDeadlineHint")}</p>
-      </div>
+      {form.nfcBraceletsEnabled && (
+        <div className="space-y-1">
+          <Label>{t("events.refundDeadline")}</Label>
+          <DateTimePicker value={form.refundDeadline} onChange={(v) => setForm((f) => ({ ...f, refundDeadline: v }))} />
+          <p className="text-xs text-muted-foreground">{t("events.refundDeadlineHint")}</p>
+        </div>
+      )}
 
       <div className="space-y-1">
         <Label>{t("events.currency")}</Label>
@@ -787,22 +789,24 @@ function FormFields({
           />
         </div>
 
-        <div className="space-y-1">
-          <Label>{t("events.nfcChipType")}</Label>
-          <Select
-            value={form.nfcChipType}
-            onValueChange={(v) => setForm((f) => ({ ...f, nfcChipType: v }))}
-          >
-            <SelectTrigger data-testid="select-nfc-chip-type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {NFC_CHIP_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {form.nfcBraceletsEnabled && (
+          <div className="space-y-1">
+            <Label>{t("events.nfcChipType")}</Label>
+            <Select
+              value={form.nfcChipType}
+              onValueChange={(v) => setForm((f) => ({ ...f, nfcChipType: v }))}
+            >
+              <SelectTrigger data-testid="select-nfc-chip-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {NFC_CHIP_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {isCreate && (
