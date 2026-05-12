@@ -355,6 +355,7 @@
     "sexLabel": "Género",
     "male": "Masculino",
     "female": "Femenino",
+    "nonBinary": "No binario",
     "required": "Este campo es requerido",
     "invalidEmail": "Correo electrónico inválido",
     "prefilled": "Tus datos han sido prellenados desde tu perfil.",

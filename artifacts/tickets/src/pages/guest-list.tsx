@@ -90,7 +90,7 @@ export default function GuestListPage() {
   const [formPhone, setFormPhone] = useState("");
   const [formIdDocument, setFormIdDocument] = useState("");
   const [formDateOfBirth, setFormDateOfBirth] = useState("");
-  const [formSex, setFormSex] = useState<"male" | "female" | "">("");
+  const [formSex, setFormSex] = useState<"male" | "female" | "non_binary" | "">("");
   // Race fields
   const [formShirtSize, setFormShirtSize] = useState("");
   const [formBloodType, setFormBloodType] = useState("");
@@ -116,7 +116,7 @@ export default function GuestListPage() {
       setFormPhone(user.phone || "");
       setFormIdDocument(user.idDocument || "");
       setFormDateOfBirth(user.dateOfBirth || "");
-      if (user.sex === "male" || user.sex === "female") setFormSex(user.sex);
+      if (user.sex === "male" || user.sex === "female" || user.sex === "non_binary") setFormSex(user.sex);
     }
   }, [isAuthenticated, user]);
 
@@ -127,7 +127,7 @@ export default function GuestListPage() {
       phone: formPhone.trim() || undefined,
       idDocument: formIdDocument.trim() || undefined,
       dateOfBirth: formDateOfBirth.trim() || undefined,
-      sex: formSex || undefined,
+      sex: (formSex as "male" | "female" | "non_binary") || undefined,
       shirtSize: isRace ? formShirtSize || undefined : undefined,
       bloodType: isRace ? formBloodType || undefined : undefined,
       emergencyContactName: isRace ? formEmergencyName.trim() || undefined : undefined,
@@ -384,6 +384,13 @@ export default function GuestListPage() {
                       className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${formSex === "female" ? "border-cyan-500 bg-cyan-500/10 text-cyan-400" : "border-gray-700 text-gray-400 hover:border-cyan-700"}`}
                     >
                       {t("guestList.female")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setFormSex("non_binary"); clearErr("sex"); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${formSex === "non_binary" ? "border-cyan-500 bg-cyan-500/10 text-cyan-400" : "border-gray-700 text-gray-400 hover:border-cyan-700"}`}
+                    >
+                      {t("guestList.nonBinary")}
                     </button>
                   </div>
                   {errors.sex && <p className="text-xs text-destructive mt-1">{errors.sex}</p>}
