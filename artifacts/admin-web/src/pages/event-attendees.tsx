@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Search, Users, Loader2, Phone, Calendar, User, CreditCard, ChevronDown, FileDown, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
-import { apiFetchTickets, apiFetchTicketTypes, type AdminTicket } from "@/lib/api";
+import { apiFetchTickets, apiFetchTicketTypes, apiFetchEvent, type AdminTicket } from "@/lib/api";
 import { downloadAttendeesCSV, downloadAttendeesPDF } from "@/lib/export-attendees";
 
 const SEX_LABELS: Record<string, string> = {
@@ -40,6 +40,12 @@ export default function EventAttendees() {
   const { data: ticketTypesData } = useQuery({
     queryKey: ["ticketTypes", resolvedEventId],
     queryFn: () => apiFetchTicketTypes(resolvedEventId),
+    enabled: !!resolvedEventId,
+  });
+
+  const { data: eventData } = useQuery({
+    queryKey: ["event", resolvedEventId],
+    queryFn: () => apiFetchEvent(resolvedEventId),
     enabled: !!resolvedEventId,
   });
 
@@ -127,8 +133,8 @@ export default function EventAttendees() {
         <Button
           variant="outline"
           size="sm"
-          disabled={filtered.length === 0}
-          onClick={() => downloadAttendeesPDF(filtered, ticketTypeMap, resolvedEventId)}
+          disabled={filtered.length === 0 || !eventData}
+          onClick={() => eventData && downloadAttendeesPDF(filtered, ticketTypeMap, eventData)}
         >
           <FileText className="w-4 h-4 mr-1.5" />
           PDF

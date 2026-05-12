@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { AdminTicket } from "./api";
+import type { AdminTicket, EventSummary } from "./api";
 
 const SEX_LABELS: Record<string, string> = { male: "Masculino", female: "Femenino" };
 
@@ -51,6 +51,31 @@ function escapeCsvCell(value: string): string {
   return value;
 }
 
+function formatEventDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("es-CO", {
+    timeZone: "America/Bogota",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+async function loadImageAsDataUrl(src: string): Promise<string | null> {
+  try {
+    const res = await fetch(src);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export function downloadAttendeesCSV(
   tickets: AdminTicket[],
   ticketTypeMap: Record<string, string>,
@@ -71,26 +96,56 @@ export function downloadAttendeesCSV(
   URL.revokeObjectURL(url);
 }
 
-export function downloadAttendeesPDF(
+export async function downloadAttendeesPDF(
   tickets: AdminTicket[],
   ticketTypeMap: Record<string, string>,
-  eventLabel: string,
+  event: EventSummary,
 ) {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
 
-  doc.setFontSize(14);
-  doc.text(`Asistentes — ${eventLabel}`, 14, 15);
-  doc.setFontSize(9);
-  doc.setTextColor(120);
-  doc.text(
-    `Generado: ${new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" })}   |   Total: ${tickets.length} asistentes`,
-    14,
-    21,
-  );
-  doc.setTextColor(0);
+  // Header background strip
+  doc.setFillColor(10, 10, 10);
+  doc.rect(0, 0, pageWidth, 30, "F");
+
+  // Tapee logo
+  const logoData = await loadImageAsDataUrl("/tapee-logo.png");
+  if (logoData) {
+    doc.addImage(logoData, "PNG", 8, 5, 20, 20);
+  }
+
+  // Event name
+  doc.setFontSize(13);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.text(event.name, 32, 13);
+
+  // Date range
+  const dateRange = event.startsAt
+    ? event.endsAt && event.endsAt !== event.startsAt
+      ? `${formatEventDate(event.startsAt)} — ${formatEventDate(event.endsAt)}`
+      : formatEventDate(event.startsAt)
+    : "—";
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(180, 180, 180);
+  doc.text(dateRange, 32, 19);
+
+  // Promoter
+  if (event.promoterCompanyName) {
+    doc.text(`Promotor: ${event.promoterCompanyName}`, 32, 24);
+  }
+
+  // Generated / count (right-aligned)
+  const meta = `${tickets.length} asistentes · ${new Date().toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}`;
+  doc.setFontSize(7);
+  doc.setTextColor(140, 140, 140);
+  doc.text(meta, pageWidth - 8, 26, { align: "right" });
+
+  doc.setTextColor(0, 0, 0);
 
   autoTable(doc, {
-    startY: 26,
+    startY: 34,
     head: [COLUMNS.map((c) => c.header)],
     body: tickets.map((t) => {
       const vals = rowValues(t, ticketTypeMap);
@@ -102,5 +157,6 @@ export function downloadAttendeesPDF(
     margin: { left: 8, right: 8 },
   });
 
-  doc.save(`asistentes_${eventLabel}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  const slug = event.name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  doc.save(`asistentes_${slug}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
