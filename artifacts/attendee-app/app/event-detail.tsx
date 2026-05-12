@@ -266,7 +266,7 @@ export default function EventDetailScreen() {
   const salesNotStarted = event.salesStartAt && new Date(event.salesStartAt) > new Date();
 
   const handleBuyTickets = () => {
-    if (event.venueMap) {
+    if (event.venueMap && event.venueMap.floorplanImageUrl) {
       router.push({ pathname: "/venue-map", params: { eventId: event.id } });
     } else if (event.ticketTypes.length > 0) {
       const tt = event.ticketTypes.find((x) => x.availability !== "sold_out") ?? event.ticketTypes[0];

@@ -627,7 +627,10 @@ export default function AttendeeFormScreen() {
         transparent
         onRequestClose={() => setEpsModalIndex(null)}
       >
-        <View style={styles.epsModalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.epsModalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={[styles.epsModalSheet, { backgroundColor: C.background, borderColor: C.border }]}>
             <View style={[styles.epsModalHeader, { borderBottomColor: C.border }]}>
               <Text style={[styles.epsModalTitle, { color: C.text }]}>{t("tickets.eps", "EPS")}</Text>
@@ -643,7 +646,6 @@ export default function AttendeeFormScreen() {
                 placeholderTextColor={C.textMuted}
                 value={epsSearch}
                 onChangeText={setEpsSearch}
-                autoFocus
               />
             </View>
             <FlatList
@@ -669,7 +671,7 @@ export default function AttendeeFormScreen() {
               }}
             />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
