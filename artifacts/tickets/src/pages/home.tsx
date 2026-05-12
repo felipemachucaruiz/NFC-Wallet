@@ -263,7 +263,7 @@ export default function Home() {
             {t("home.exploreCities", "Explorar por ciudad")}
           </h2>
           <div
-            className="flex gap-3 overflow-x-auto py-3 px-1"
+            className="flex gap-3 overflow-x-auto py-4 px-3"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
             {/* All cities pill */}
