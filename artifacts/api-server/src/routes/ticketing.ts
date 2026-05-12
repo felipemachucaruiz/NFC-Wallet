@@ -975,6 +975,11 @@ router.get(
         attendeeSex: ticketsTable.attendeeSex,
         attendeeIdDocument: ticketsTable.attendeeIdDocument,
         attendeeUserId: ticketsTable.attendeeUserId,
+        shirtSize: ticketsTable.shirtSize,
+        bloodType: ticketsTable.bloodType,
+        emergencyContactName: ticketsTable.emergencyContactName,
+        emergencyContactPhone: ticketsTable.emergencyContactPhone,
+        eps: ticketsTable.eps,
         status: ticketsTable.status,
         createdAt: ticketsTable.createdAt,
       })
