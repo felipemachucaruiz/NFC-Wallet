@@ -277,12 +277,9 @@ export default function Home() {
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-card to-card" />
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="18" cy="18" r="14" stroke="#6b7280" strokeWidth="1.5" fill="none" />
-                  <ellipse cx="18" cy="18" rx="5.5" ry="14" stroke="#6b7280" strokeWidth="1.5" fill="none" />
-                  <line x1="4" y1="18" x2="32" y2="18" stroke="#6b7280" strokeWidth="1.5" />
-                  <line x1="6" y1="11" x2="30" y2="11" stroke="#6b7280" strokeWidth="1" strokeDasharray="1 1" />
-                  <line x1="6" y1="25" x2="30" y2="25" stroke="#6b7280" strokeWidth="1" strokeDasharray="1 1" />
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 420 420" stroke="#6b7280" fill="none">
+                  <path strokeWidth="26" d="M209,15a195,195 0 1,0 2,0z"/>
+                  <path strokeWidth="18" d="m210,15v390m195-195H15M59,90a260,260 0 0,0 302,0 m0,240 a260,260 0 0,0-302,0M195,20a250,250 0 0,0 0,382 m30,0 a250,250 0 0,0 0-382"/>
                 </svg>
               </div>
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
