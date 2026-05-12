@@ -496,11 +496,10 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
 
                         <div>
                           <Label className="text-xs">{t("ticketSelection.emergencyContactPhone", "Teléfono de emergencia")} *</Label>
-                          <Input
-                            className="mt-1 h-9 text-sm"
-                            placeholder="+57 300 000 0000"
+                          <PhoneField
+                            className="mt-1"
                             value={attendee.emergencyContactPhone ?? ""}
-                            onChange={(e) => updateAttendee(index, "emergencyContactPhone", e.target.value)}
+                            onChange={(v) => updateAttendee(index, "emergencyContactPhone", v)}
                           />
                           {errors[`${index}-emergencyContactPhone`] && (
                             <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactPhone`]}</p>
