@@ -8,11 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Users, Loader2, Phone, Calendar, User, CreditCard, ChevronDown, FileDown, FileText } from "lucide-react";
+import { Search, Users, Loader2, Phone, Calendar, User, CreditCard, ChevronDown, FileDown, FileText, Sheet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEventContext } from "@/contexts/event-context";
 import { apiFetchTickets, apiFetchTicketTypes, apiFetchEvent, type AdminTicket } from "@/lib/api";
-import { downloadAttendeesCSV, downloadAttendeesPDF } from "@/lib/export-attendees";
+import { downloadAttendeesCSV, downloadAttendeesPDF, downloadAttendeesExcel } from "@/lib/export-attendees";
 
 const SEX_LABELS: Record<string, string> = {
   male: "Masculino",
@@ -138,6 +138,15 @@ export default function EventAttendees() {
         >
           <FileText className="w-4 h-4 mr-1.5" />
           PDF
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={filtered.length === 0 || !eventData}
+          onClick={() => eventData && downloadAttendeesExcel(filtered, ticketTypeMap, eventData)}
+        >
+          <Sheet className="w-4 h-4 mr-1.5" />
+          Excel
         </Button>
       </div>
 
