@@ -1,14 +1,13 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, Dimensions, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Updates from "expo-updates";
 
 export function UpdateBanner() {
   const insets = useSafeAreaInsets();
-  const HIDDEN_Y = Dimensions.get("window").height;
-  const slideAnim = useRef(new Animated.Value(HIDDEN_Y)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = useState(false);
 
   const { isUpdatePending, isDownloading, isChecking } = Updates.useUpdates();
 
@@ -39,22 +38,17 @@ export function UpdateBanner() {
   const isVisible = !__DEV__ && (isUpdatePending || isDownloading || isChecking);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(slideAnim, {
-        toValue: isVisible ? 0 : HIDDEN_Y,
-        useNativeDriver: true,
-        speed: 14,
-        bounciness: 4,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: isVisible ? 1 : 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [isVisible, slideAnim, opacityAnim, HIDDEN_Y]);
+    if (isVisible) {
+      setShouldRender(true);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setShouldRender(false);
+      });
+    }
+  }, [isVisible]);
 
-  if (__DEV__) return null;
+  if (__DEV__ || !shouldRender) return null;
 
   const label = isUpdatePending
     ? "Aplicando actualización…"
@@ -70,10 +64,7 @@ export function UpdateBanner() {
 
   return (
     <Animated.View
-      style={[
-        styles.wrapper,
-        { bottom: insets.bottom + 8, transform: [{ translateY: slideAnim }], opacity: opacityAnim },
-      ]}
+      style={[styles.wrapper, { bottom: insets.bottom + 8, opacity: fadeAnim }]}
       pointerEvents="none"
     >
       <View style={styles.banner}>

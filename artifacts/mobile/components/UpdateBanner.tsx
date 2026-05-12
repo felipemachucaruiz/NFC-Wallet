@@ -1,26 +1,16 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, Pressable, StyleSheet, Text, View, Dimensions } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Updates from "expo-updates";
 
-/**
- * Floating banner that:
- * 1. Checks for an OTA update on mount (and then every 5 min).
- * 2. Downloads it silently.
- * 3. Shows a banner asking the user to restart once the download is done.
- *
- * Only active in production builds (__DEV__ === false).
- */
 export function UpdateBanner() {
   const insets = useSafeAreaInsets();
-  const HIDDEN_Y = Dimensions.get("window").height;
-  const slideAnim = useRef(new Animated.Value(HIDDEN_Y)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = useState(false);
 
   const { isUpdatePending, isDownloading, isChecking } = Updates.useUpdates();
 
-  // Check + download on mount and every 5 minutes
   useEffect(() => {
     if (__DEV__) return;
     const run = async () => {
@@ -39,22 +29,17 @@ export function UpdateBanner() {
   const isVisible = !__DEV__ && (isUpdatePending || isDownloading || isChecking);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(slideAnim, {
-        toValue: isVisible ? 0 : HIDDEN_Y,
-        useNativeDriver: true,
-        speed: 14,
-        bounciness: 4,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: isVisible ? 1 : 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [isVisible, slideAnim, opacityAnim, HIDDEN_Y]);
+    if (isVisible) {
+      setShouldRender(true);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setShouldRender(false);
+      });
+    }
+  }, [isVisible]);
 
-  if (__DEV__) return null;
+  if (__DEV__ || !shouldRender) return null;
 
   const label = isDownloading || isChecking
     ? "Descargando actualización…"
@@ -66,10 +51,7 @@ export function UpdateBanner() {
 
   return (
     <Animated.View
-      style={[
-        styles.wrapper,
-        { bottom: insets.bottom + 8, transform: [{ translateY: slideAnim }], opacity: opacityAnim },
-      ]}
+      style={[styles.wrapper, { bottom: insets.bottom + 8, opacity: fadeAnim }]}
       pointerEvents={isUpdatePending ? "auto" : "none"}
     >
       <Pressable
