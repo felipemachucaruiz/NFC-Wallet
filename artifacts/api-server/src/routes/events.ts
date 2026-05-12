@@ -1493,8 +1493,18 @@ router.get(
       ));
     const totalRefunds = Number(refundAgg?.total ?? 0);
 
-    // Net settlement owed to the promoter = gross sales - platform commissions - refunds - activation fees
-    const netSettlement = totals.grossSales - totals.commissions - totalRefunds - totalActivationFees;
+    // Pending chip balances owed to attendees but not yet disbursed
+    const [pendingChipAgg] = await db
+      .select({ total: sum(attendeeRefundRequestsTable.amount) })
+      .from(attendeeRefundRequestsTable)
+      .where(and(
+        eq(attendeeRefundRequestsTable.eventId, eventId),
+        inArray(attendeeRefundRequestsTable.status, ["pending", "disbursement_pending", "disbursement_failed"]),
+      ));
+    const totalPendingChipBalances = Number(pendingChipAgg?.total ?? 0);
+
+    // Net settlement owed to the promoter = gross sales - commissions - refunds - pending chip balances - activation fees
+    const netSettlement = totals.grossSales - totals.commissions - totalRefunds - totalPendingChipBalances - totalActivationFees;
 
     if (format === "csv") {
       const header = "merchantId,merchantName,commissionRatePercent,grossSales,tips,commissions,netPayout,transactionCount\n";
@@ -1539,6 +1549,7 @@ router.get(
       totalTopUps,
       topUpCount,
       totalRefunds,
+      totalPendingChipBalances,
       totalActivationFees,
       activatedBraceletCount,
       netSettlement,

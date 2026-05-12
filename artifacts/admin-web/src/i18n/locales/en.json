@@ -611,10 +611,13 @@
     "activationFeesDesc": "retained by Tapee",
     "activatedBracelets": "{{count}} bracelets activated",
     "netSettlement": "Net Settlement to Promoter",
-    "netSettlementDesc": "gross sales − commissions − refunds − activation fees",
+    "netSettlementDesc": "gross sales − commissions − refunds − pending chip balance refunds − activation fees",
     "totalTopUps": "Total Top-Ups",
     "totalTopUpsDesc": "{{count}} top-ups processed",
-    "totalRefunds": "Total Refunds"
+    "totalRefunds": "Total Refunds",
+    "totalRefundsDesc": "approved refunds",
+    "pendingChipBalances": "Pending chip balances",
+    "pendingChipBalancesDesc": "pending return to attendees"
   },
   "reports": {
     "title": "Reports",
