@@ -925,14 +925,18 @@ router.get(
             const reqLocale = parseAcceptLocale(req.headers["accept-language"]);
             await processTicketOrderPayment(order.id, order.wompiTransactionId!, reqLocale);
             const [updated] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, orderId));
-            res.json({ orderId: updated.id, status: updated.paymentStatus, threeDsAuth: null });
+            const confirmedTickets = await db
+              .select({ id: ticketsTable.id, attendeeEmail: ticketsTable.attendeeEmail })
+              .from(ticketsTable)
+              .where(eq(ticketsTable.orderId, orderId));
+            res.json({ orderId: updated.id, status: updated.paymentStatus, threeDsAuth: null, tickets: confirmedTickets });
             return;
           } else if (["DECLINED", "ERROR", "VOIDED"].includes(wompiData.data.status)) {
             await cancelTicketOrder(order.id);
-            res.json({ orderId, status: "cancelled", threeDsAuth: null });
+            res.json({ orderId, status: "cancelled", threeDsAuth: null, tickets: [] });
             return;
           }
-          res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth });
+          res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth, tickets: [] });
           return;
         }
       } catch (err) {
@@ -940,7 +944,16 @@ router.get(
       }
     }
 
-    res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth: null });
+    if (order.paymentStatus === "confirmed") {
+      const confirmedTickets = await db
+        .select({ id: ticketsTable.id, attendeeEmail: ticketsTable.attendeeEmail })
+        .from(ticketsTable)
+        .where(eq(ticketsTable.orderId, orderId));
+      res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth: null, tickets: confirmedTickets });
+      return;
+    }
+
+    res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth: null, tickets: [] });
   },
 );
 
