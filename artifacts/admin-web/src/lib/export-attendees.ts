@@ -4,6 +4,16 @@ import type { AdminTicket, EventSummary } from "./api";
 
 const SEX_LABELS: Record<string, string> = { male: "Masculino", female: "Femenino" };
 
+function formatDateOfBirth(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  // Normalize YYYY-MM-DD → DD/MM/YYYY
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  return raw; // already DD/MM/YYYY or other user-entered format
+}
+
 const COLUMNS = [
   { header: "Nombre",           key: "attendeeName",          width: 24 },
   { header: "Correo",           key: "attendeeEmail",         width: 28 },
@@ -34,7 +44,7 @@ function rowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>): 
     attendeeIdDocument:    ticket.attendeeIdDocument ?? "—",
     _ticketType:           ticket.ticketTypeId ? (ticketTypeMap[ticket.ticketTypeId] ?? ticket.ticketTypeId.slice(0, 8)) : "—",
     status:                ticket.status,
-    attendeeDateOfBirth:   ticket.attendeeDateOfBirth ?? "—",
+    attendeeDateOfBirth:   formatDateOfBirth(ticket.attendeeDateOfBirth),
     _sex:                  ticket.attendeeSex ? (SEX_LABELS[ticket.attendeeSex] ?? ticket.attendeeSex) : "—",
     shirtSize:             ticket.shirtSize ?? "—",
     bloodType:             ticket.bloodType ?? "—",
@@ -79,7 +89,7 @@ function csvRowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>
     attendeeIdDocument:    ticket.attendeeIdDocument ?? "—",
     _ticketType:           ticket.ticketTypeId ? (ticketTypeMap[ticket.ticketTypeId] ?? ticket.ticketTypeId.slice(0, 8)) : "—",
     status:                ticket.status,
-    attendeeDateOfBirth:   ticket.attendeeDateOfBirth ?? "—",
+    attendeeDateOfBirth:   formatDateOfBirth(ticket.attendeeDateOfBirth),
     _sex:                  ticket.attendeeSex ? (SEX_LABELS[ticket.attendeeSex] ?? ticket.attendeeSex) : "—",
     shirtSize:             ticket.shirtSize ?? "—",
     bloodType:             ticket.bloodType ?? "—",
