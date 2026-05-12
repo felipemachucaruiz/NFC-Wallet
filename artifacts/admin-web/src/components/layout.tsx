@@ -170,6 +170,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
               {nfcBraceletsEnabled && <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />}
               {nfcBraceletsEnabled && <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />}
+              <NavItem href="/event-analytics" icon={BarChart3} label={t("nav.analytics", "Analytics")} />
               <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
               <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
             </>
@@ -219,6 +220,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
               {nfcBraceletsEnabled && <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />}
               {nfcBraceletsEnabled && <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />}
+              <NavItem href="/event-analytics" icon={BarChart3} label={t("nav.analytics", "Analytics")} />
               <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
               <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
             </>

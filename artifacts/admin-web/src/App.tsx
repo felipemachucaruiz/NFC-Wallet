@@ -105,6 +105,7 @@ import EventAttendees from "@/pages/event-attendees";
 import EventLiquidacion from "@/pages/event-liquidacion";
 import EventCheckins from "@/pages/event-checkins";
 import EventGuestLists from "@/pages/event-guest-lists";
+import EventAnalytics from "@/pages/event-analytics";
 import WhatsAppTemplates from "@/pages/whatsapp-templates";
 import AuditorTicketSales from "@/pages/auditor-ticket-sales";
 import Devices from "@/pages/devices";
@@ -347,6 +348,9 @@ function Router() {
       </Route>
       <Route path="/event-guest-lists">
         <ModuleGatedRoute component={EventGuestLists} allowedRoles={["admin", "event_admin"]} requiredModule="ticketing" />
+      </Route>
+      <Route path="/event-analytics">
+        <ProtectedRoute component={EventAnalytics} allowedRoles={["admin", "event_admin"]} />
       </Route>
 
       {/* Auditor Routes */}
