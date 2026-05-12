@@ -375,7 +375,7 @@ function CityCard({ city, selected, onClick }: { city: ApiCity; selected: boolea
   return (
     <button
       onClick={onClick}
-      className={`flex-shrink-0 relative w-32 h-[88px] rounded-2xl overflow-hidden transition-all duration-200 ${
+      className={`flex-shrink-0 relative w-44 h-32 rounded-2xl overflow-hidden transition-all duration-200 ${
         selected
           ? "ring-2 ring-primary shadow-[0_0_16px_rgba(0,241,255,0.45)] scale-[1.03]"
           : "ring-1 ring-border hover:ring-primary/40 hover:scale-[1.02]"
