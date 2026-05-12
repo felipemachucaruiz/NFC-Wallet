@@ -74,8 +74,7 @@ export function TimePicker({ value, onChange, placeholder, className, minuteStep
         <div className="flex">
           <div
             ref={hourRef}
-            className="h-56 w-16 overflow-y-auto border-r"
-            style={{ scrollbarWidth: "none" }}
+            className="h-56 w-16 overflow-y-scroll border-r"
           >
             <div className="p-1">
               {HOURS.map((h) => (
@@ -98,8 +97,7 @@ export function TimePicker({ value, onChange, placeholder, className, minuteStep
           </div>
           <div
             ref={minuteRef}
-            className="h-56 w-16 overflow-y-auto"
-            style={{ scrollbarWidth: "none" }}
+            className="h-56 w-16 overflow-y-scroll"
           >
             <div className="p-1">
               {selectedHour !== null ? (
