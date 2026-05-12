@@ -317,6 +317,7 @@ export interface EventSummary {
   startsAt: string | null;
   endsAt: string | null;
   promoterCompanyName: string | null;
+  category?: string | null;
   raceNumberStart?: number | null;
   raceNumberEnd?: number | null;
 }
