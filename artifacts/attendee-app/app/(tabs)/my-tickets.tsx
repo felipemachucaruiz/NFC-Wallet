@@ -2,6 +2,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -255,26 +256,32 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
           ) : (
             <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
               <View style={[styles.ticketCardModal, { backgroundColor: "#111" }]}>
-                <View style={styles.flyerWrap}>
-                  {ticket.eventCoverImageUrl ? (
-                    <Image
-                      source={{ uri: ticket.eventCoverImageUrl }}
-                      style={styles.flyerImage}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View style={[styles.flyerImage, { backgroundColor: "#1a1a2e", alignItems: "center", justifyContent: "center" }]}>
-                      <Feather name="music" size={48} color="rgba(255,255,255,0.2)" />
-                    </View>
-                  )}
-                  <View style={styles.flyerOverlay} />
-                  {archived && (
-                    <View style={styles.modalArchivedBanner}>
-                      <Feather name="archive" size={14} color="#fff" />
-                      <Text style={styles.modalArchivedBannerText}>{t("tickets.archivedEvent", "Evento archivado")}</Text>
-                    </View>
-                  )}
-                </View>
+                {/* Flyer covers the full upper section of the card, including behind the QR */}
+                {ticket.eventCoverImageUrl ? (
+                  <Image
+                    source={{ uri: ticket.eventCoverImageUrl }}
+                    style={styles.flyerBgImage}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={[styles.flyerBgImage, { backgroundColor: "#1a1a2e", alignItems: "center", justifyContent: "center" }]}>
+                    <Feather name="music" size={48} color="rgba(255,255,255,0.2)" />
+                  </View>
+                )}
+                <View style={styles.flyerDimOverlay} />
+                <LinearGradient
+                  colors={["transparent", "#111"]}
+                  style={styles.flyerFadeGradient}
+                />
+                {archived && (
+                  <View style={styles.modalArchivedBanner}>
+                    <Feather name="archive" size={14} color="#fff" />
+                    <Text style={styles.modalArchivedBannerText}>{t("tickets.archivedEvent", "Evento archivado")}</Text>
+                  </View>
+                )}
+
+                {/* Spacer — exposes the top of the flyer */}
+                <View style={{ height: 160 }} />
 
                 <View style={styles.qrWrap}>
                   {ticket.qrCode ? (
@@ -642,13 +649,13 @@ const styles = StyleSheet.create({
   modalHandle: { width: 40, height: 4, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 2, alignSelf: "center", marginBottom: 16 },
 
   ticketCardModal: { marginHorizontal: 16, borderRadius: 20, overflow: "hidden" },
-  flyerWrap: { height: 260, position: "relative" },
-  flyerImage: { width: "100%", height: "100%" },
-  flyerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.1)" },
+  flyerBgImage: { position: "absolute", top: 0, left: 0, right: 0, height: 390 },
+  flyerDimOverlay: { position: "absolute", top: 0, left: 0, right: 0, height: 390, backgroundColor: "rgba(0,0,0,0.28)" },
+  flyerFadeGradient: { position: "absolute", top: 240, left: 0, right: 0, height: 150 },
 
   modalArchivedBanner: {
     position: "absolute",
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
     flexDirection: "row",
@@ -660,7 +667,7 @@ const styles = StyleSheet.create({
   },
   modalArchivedBannerText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#fff" },
 
-  qrWrap: { alignItems: "center", marginTop: -55, zIndex: 5, paddingBottom: 4 },
+  qrWrap: { alignItems: "center", zIndex: 5, paddingBottom: 4 },
   qrImage: { width: 170, height: 170, borderRadius: 16, backgroundColor: "#fff", shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 16, elevation: 12 },
   qrUsedLabel: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6, marginBottom: 4 },
   qrUsedLabelText: { fontSize: 11, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.4)" },
