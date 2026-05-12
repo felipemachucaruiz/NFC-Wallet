@@ -239,6 +239,11 @@ export interface AdminTicket {
   attendeeSex: string | null;
   attendeeIdDocument: string | null;
   attendeeUserId: string | null;
+  shirtSize?: string | null;
+  bloodType?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  eps?: string | null;
   status: string;
   createdAt: string;
 }
