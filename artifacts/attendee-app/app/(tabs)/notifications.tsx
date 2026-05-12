@@ -1,4 +1,5 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { Feather } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -44,7 +45,7 @@ export default function NotificationsScreen() {
   }, [load]);
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <ScreenBackground style={styles.container}>
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id}
@@ -69,7 +70,7 @@ export default function NotificationsScreen() {
         )}
         renderItem={({ item }) => <NotificationCard notification={item} C={C} t={t} />}
       />
-    </View>
+    </ScreenBackground>
   );
 }
 

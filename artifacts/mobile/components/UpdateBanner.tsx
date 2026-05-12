@@ -1,24 +1,16 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Updates from "expo-updates";
 
-/**
- * Floating banner that:
- * 1. Checks for an OTA update on mount (and then every 5 min).
- * 2. Downloads it silently.
- * 3. Shows a banner asking the user to restart once the download is done.
- *
- * Only active in production builds (__DEV__ === false).
- */
 export function UpdateBanner() {
   const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(80)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = useState(false);
 
-  const { isUpdatePending, isDownloading, isChecking } = Updates.useUpdates();
+  const { isUpdatePending, isDownloading } = Updates.useUpdates();
 
-  // Check + download on mount and every 5 minutes
   useEffect(() => {
     if (__DEV__) return;
     const run = async () => {
@@ -34,33 +26,32 @@ export function UpdateBanner() {
     return () => clearInterval(interval);
   }, []);
 
-  const isVisible = !__DEV__ && (isUpdatePending || isDownloading || isChecking);
+  const isVisible = !__DEV__ && (isUpdatePending || isDownloading);
 
   useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: isVisible ? 0 : 80,
-      useNativeDriver: true,
-      speed: 14,
-      bounciness: 4,
-    }).start();
-  }, [isVisible, slideAnim]);
+    if (isVisible) {
+      setShouldRender(true);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setShouldRender(false);
+      });
+    }
+  }, [isVisible]);
 
-  if (__DEV__) return null;
+  if (__DEV__ || !shouldRender) return null;
 
-  const label = isDownloading || isChecking
+  const label = isDownloading
     ? "Descargando actualización…"
     : "Actualización lista — toca para reiniciar";
 
-  const icon: "download-cloud" | "refresh-cw" = isDownloading || isChecking
+  const icon: "download-cloud" | "refresh-cw" = isDownloading
     ? "download-cloud"
     : "refresh-cw";
 
   return (
     <Animated.View
-      style={[
-        styles.wrapper,
-        { bottom: insets.bottom + 8, transform: [{ translateY: slideAnim }] },
-      ]}
+      style={[styles.wrapper, { top: insets.top + 8, opacity: fadeAnim }]}
       pointerEvents={isUpdatePending ? "auto" : "none"}
     >
       <Pressable

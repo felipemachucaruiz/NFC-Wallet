@@ -1,4 +1,4 @@
-export type EventCategory = "concert" | "festival" | "sports" | "theater" | "conference" | "party" | "other";
+export type EventCategory = "concert" | "festival" | "sports" | "theater" | "conference" | "party" | "other" | "race";
 
 export type TicketAvailability = "available" | "limited" | "sold_out";
 
@@ -85,6 +85,7 @@ export interface EventDetail extends EventListItem {
   promoterCompanyName?: string | null;
   promoterNit?: string | null;
   doorsOpenAt?: string | null;
+  raceConfig?: { sizes: string[] } | null;
 }
 
 export interface AttendeeInfo {
@@ -94,6 +95,11 @@ export interface AttendeeInfo {
   dateOfBirth: string;
   sex: "male" | "female" | "non_binary" | "";
   idDocument: string;
+  shirtSize?: string;
+  bloodType?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  eps?: string;
 }
 
 export interface OrderTicket {
@@ -132,6 +138,8 @@ export interface MyTicket {
   startsAt: string;
   endsAt?: string;
   venueName: string;
+  latitude?: number | null;
+  longitude?: number | null;
   sectionName?: string;
   ticketTypeName: string;
   validDays?: EventDay[];

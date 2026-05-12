@@ -4,19 +4,52 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Loading } from "@/components/ui/Loading";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { Empty } from "@/components/ui/Empty";
 import { useEventCatalogue } from "@/hooks/useEventsApi";
+import { useQuery } from "@tanstack/react-query";
+import { API_BASE_URL } from "@/constants/domain";
 import { formatCurrency } from "@/utils/format";
 import type { EventListItem, EventCategory } from "@/types/events";
 
 const DATE_FILTERS = ["upcoming", "this_week", "this_month"] as const;
-const CATEGORIES: EventCategory[] = ["concert", "festival", "sports", "theater", "conference", "party"];
+const ALL_CATEGORIES: EventCategory[] = ["race", "concert", "festival", "sports", "theater", "conference", "party", "other"];
+
+const CATEGORY_EMOJIS: Record<EventCategory, string> = {
+  concert: "🎵",
+  festival: "🎡",
+  sports: "🏅",
+  theater: "🎭",
+  conference: "🎤",
+  party: "🎉",
+  race: "🏃",
+  other: "✨",
+};
+
+interface CityItem {
+  id: string;
+  name: string;
+  coverImageUrl: string | null;
+}
+
+function useCities() {
+  return useQuery<CityItem[]>({
+    queryKey: ["public-cities"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/public/cities`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.cities ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
 function getDateLocale(lang: string): string {
   return lang === "en" ? "en-US" : "es-CO";
@@ -152,8 +185,9 @@ export default function EventsScreen() {
   const [dateFilter, setDateFilter] = useState<string>("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
-  const [showCityInput, setShowCityInput] = useState(false);
-  const [cityInputValue, setCityInputValue] = useState("");
+
+  const { data: cityData } = useCities();
+  const cities = cityData ?? [];
 
   const { data, isPending, refetch, isError } = useEventCatalogue({
     search: search.trim() || undefined,
@@ -162,7 +196,20 @@ export default function EventsScreen() {
     dateFilter: dateFilter || undefined,
   });
 
+  const { data: allData } = useEventCatalogue();
+
   const events = useMemo(() => (data as { events?: EventListItem[] } | undefined)?.events ?? [], [data]);
+
+  const sortedCategories = useMemo(() => {
+    const allEvents = (allData as { events?: EventListItem[] } | undefined)?.events ?? [];
+    const counts: Partial<Record<EventCategory, number>> = {};
+    for (const ev of allEvents) {
+      if (ev.category) counts[ev.category] = (counts[ev.category] ?? 0) + 1;
+    }
+    return ALL_CATEGORIES
+      .filter((cat) => (counts[cat] ?? 0) > 0)
+      .sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0));
+  }, [allData]);
 
   const filteredEvents = useMemo(() => {
     if (!search.trim()) return events;
@@ -189,7 +236,7 @@ export default function EventsScreen() {
   if (isPending) return <Loading label={t("common.loading")} />;
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <ScreenBackground style={styles.container}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
         <Text style={[styles.title, { color: C.text }]}>{t("events.title")}</Text>
         <Pressable onPress={() => router.push("/my-tickets")} style={styles.ticketsBtn}>
@@ -214,40 +261,58 @@ export default function EventsScreen() {
         )}
       </View>
 
+      {cities.length > 0 && (
+        <View style={styles.citiesSection}>
+          <Text style={[styles.sectionTitle, { color: C.text }]}>{t("events.citiesTitle")}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.citiesScroll}
+          >
+            {cities.map((city) => {
+              const isActive = cityFilter === city.id;
+              return (
+                <Pressable
+                  key={city.id}
+                  onPress={() => setCityFilter(isActive ? "" : city.id)}
+                  style={styles.cityCard}
+                >
+                  <View style={styles.cityCardBg}>
+                    {city.coverImageUrl ? (
+                      <Image
+                        source={{ uri: city.coverImageUrl }}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                      />
+                    ) : null}
+                    <LinearGradient
+                      colors={["transparent", "rgba(0,0,0,0.72)"]}
+                      style={styles.cityCardGradient}
+                    />
+                    {isActive && (
+                      <View style={[styles.cityCardCheck, { backgroundColor: C.primary }]}>
+                        <Feather name="check" size={10} color="#000" />
+                      </View>
+                    )}
+                    <Text style={styles.cityCardName} numberOfLines={1}>{city.name}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.filtersRow}>
         {cityFilter !== "" && (
           <Pressable
             onPress={() => setCityFilter("")}
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor: C.primaryLight,
-                borderColor: C.primary,
-              },
-            ]}
+            style={[styles.filterChip, { backgroundColor: C.primaryLight, borderColor: C.primary }]}
           >
+            <Feather name="map-pin" size={11} color={C.primary} />
             <Text style={[styles.filterChipText, { color: C.primary }]}>
-              {cityFilter} ✕
-            </Text>
-          </Pressable>
-        )}
-        {cityFilter === "" && (
-          <Pressable
-            onPress={() => setShowCityInput(true)}
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor: C.inputBg,
-                borderColor: C.border,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-              },
-            ]}
-          >
-            <Feather name="map-pin" size={12} color={C.textSecondary} />
-            <Text style={[styles.filterChipText, { color: C.textSecondary }]}>
-              {t("events.filterCity")}
+              {cities.find((c) => c.id === cityFilter)?.name ?? cityFilter} ✕
             </Text>
           </Pressable>
         )}
@@ -263,65 +328,46 @@ export default function EventsScreen() {
               },
             ]}
           >
-            <Text
-              style={[
-                styles.filterChipText,
-                { color: dateFilter === df ? C.primary : C.textSecondary },
-              ]}
-            >
+            <Text style={[styles.filterChipText, { color: dateFilter === df ? C.primary : C.textSecondary }]}>
               {t(`events.filter_${df}`)}
-            </Text>
-          </Pressable>
-        ))}
-        {CATEGORIES.map((cat) => (
-          <Pressable
-            key={cat}
-            onPress={() => setCategoryFilter(categoryFilter === cat ? "" : cat)}
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor: categoryFilter === cat ? C.primaryLight : C.inputBg,
-                borderColor: categoryFilter === cat ? C.primary : C.border,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                { color: categoryFilter === cat ? C.primary : C.textSecondary },
-              ]}
-            >
-              {t(`events.category_${cat}`)}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      {showCityInput && (
-        <View style={[styles.cityInputWrap, { backgroundColor: C.inputBg, borderColor: C.border }]}>
-          <Feather name="map-pin" size={16} color={C.textMuted} />
-          <TextInput
-            style={[styles.cityInput, { color: C.text }]}
-            placeholder={t("events.cityPlaceholder")}
-            placeholderTextColor={C.textMuted}
-            value={cityInputValue}
-            onChangeText={setCityInputValue}
-            autoFocus
-            autoCorrect={false}
-            returnKeyType="done"
-            onSubmitEditing={() => {
-              if (cityInputValue.trim()) {
-                setCityFilter(cityInputValue.trim());
-              }
-              setShowCityInput(false);
-              setCityInputValue("");
-            }}
-          />
-          <Pressable onPress={() => { setShowCityInput(false); setCityInputValue(""); }}>
-            <Feather name="x" size={16} color={C.textMuted} />
-          </Pressable>
-        </View>
-      )}
+      {sortedCategories.length > 0 && <View style={styles.categoriesSection}>
+        <Text style={[styles.categoriesTitle, { color: C.text }]}>{t("events.categoriesTitle")}</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesScroll}
+        >
+          {sortedCategories.map((cat) => {
+            const isActive = categoryFilter === cat;
+            return (
+              <Pressable
+                key={cat}
+                onPress={() => setCategoryFilter(isActive ? "" : cat)}
+                style={[
+                  styles.categoryCard,
+                  {
+                    backgroundColor: isActive ? C.primary : C.card,
+                    borderColor: isActive ? C.primary : C.border,
+                  },
+                ]}
+              >
+                <Text style={styles.categoryEmoji}>{CATEGORY_EMOJIS[cat]}</Text>
+                <Text
+                  style={[styles.categoryName, { color: isActive ? "#000" : C.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {t(`events.category_${cat}`)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>}
 
       <FlatList
         data={filteredEvents}
@@ -344,7 +390,7 @@ export default function EventsScreen() {
           />
         }
       />
-    </View>
+    </ScreenBackground>
   );
 }
 
@@ -387,26 +433,64 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   filterChipText: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
   },
-  cityInputWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
-    marginBottom: 4,
+  citiesSection: {
+    marginBottom: 8,
   },
-  cityInput: {
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  citiesScroll: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  cityCard: {
+    width: 140,
+    height: 88,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  cityCardBg: {
     flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "#222",
+    overflow: "hidden",
+    borderRadius: 14,
+  },
+  cityCardGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 60,
+    borderRadius: 14,
+  },
+  cityCardCheck: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cityCardName: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    paddingHorizontal: 10,
+    paddingBottom: 8,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -485,5 +569,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginTop: 6,
+  },
+  categoriesSection: {
+    marginBottom: 8,
+  },
+  categoriesTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  categoriesScroll: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  categoryCard: {
+    width: 88,
+    height: 88,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 6,
+  },
+  categoryEmoji: {
+    fontSize: 28,
+  },
+  categoryName: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
   },
 });

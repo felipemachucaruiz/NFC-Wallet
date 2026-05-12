@@ -55,7 +55,7 @@ export function SearchableSelect({
         onClick={() => setOpen((o) => !o)}
         className={cn(
           "w-full h-9 px-3 flex items-center justify-between gap-2 rounded-md border text-sm transition-colors",
-          "bg-background text-foreground",
+          "bg-transparent text-foreground",
           open
             ? "border-primary ring-2 ring-primary/20"
             : hasError

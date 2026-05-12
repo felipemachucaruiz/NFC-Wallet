@@ -3,12 +3,13 @@ import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Badge } from "@/components/ui/Badge";
 import { Loading } from "@/components/ui/Loading";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { Empty } from "@/components/ui/Empty";
 import { useMyTickets, useTransferTicket, useAddToWallet } from "@/hooks/useEventsApi";
 import QRCode from "react-native-qrcode-svg";
@@ -208,6 +209,23 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
 
   if (!ticket) return null;
 
+  const openMaps = () => {
+    if (!ticket.latitude || !ticket.longitude) return;
+    const lat = ticket.latitude;
+    const lng = ticket.longitude;
+    const label = encodeURIComponent(ticket.venueName);
+    const openGoogle = () => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
+    const openWaze = () => Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
+    const openApple = () => Linking.openURL(`maps://?q=${label}@${lat},${lng}`);
+    const buttons = [
+      { text: "Google Maps", onPress: openGoogle },
+      { text: "Waze", onPress: openWaze },
+      ...(Platform.OS === "ios" ? [{ text: "Apple Maps", onPress: openApple }] : []),
+      { text: t("common.cancel"), style: "cancel" as const },
+    ];
+    Alert.alert(t("events.openMaps", "¿Cómo llegar?"), undefined, buttons);
+  };
+
   const startDate = ticket.startsAt ? new Date(ticket.startsAt) : null;
   const isValidDate = startDate && !isNaN(startDate.getTime());
   const venue = shortVenue(ticket.venueName);
@@ -298,6 +316,13 @@ function TicketModal({ ticket, visible, onClose }: { ticket: MyTicket | null; vi
                       <Feather name="map-pin" size={13} color="rgba(255,255,255,0.45)" />
                       <Text style={styles.detailsLocation}>{venue}</Text>
                     </View>
+                  ) : null}
+
+                  {ticket.latitude && ticket.longitude ? (
+                    <Pressable onPress={openMaps} style={styles.locationBtn}>
+                      <Feather name="navigation" size={13} color="#00f1ff" />
+                      <Text style={styles.locationBtnText}>{t("events.getDirections", "Cómo llegar")}</Text>
+                    </Pressable>
                   ) : null}
 
                   {isValidDate && (
@@ -473,7 +498,7 @@ export default function MyTicketsScreen() {
     : activeTickets;
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <ScreenBackground style={styles.container}>
       <View style={[styles.header, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
         <Text style={[styles.title, { color: C.text }]}>{t("tickets.myTickets")}</Text>
       </View>
@@ -499,7 +524,7 @@ export default function MyTicketsScreen() {
         }}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: isWeb ? 34 : insets.bottom + 24 },
+          { paddingBottom: isWeb ? 34 : insets.bottom + 100 },
           allTickets.length === 0 && { flex: 1 },
         ]}
         refreshControl={
@@ -561,7 +586,7 @@ export default function MyTicketsScreen() {
         visible={!!selectedTicket}
         onClose={() => setSelectedTicket(null)}
       />
-    </View>
+    </ScreenBackground>
   );
 }
 
@@ -617,7 +642,7 @@ const styles = StyleSheet.create({
   modalHandle: { width: 40, height: 4, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 2, alignSelf: "center", marginBottom: 16 },
 
   ticketCardModal: { marginHorizontal: 16, borderRadius: 20, overflow: "hidden" },
-  flyerWrap: { height: 200, position: "relative" },
+  flyerWrap: { height: 260, position: "relative" },
   flyerImage: { width: "100%", height: "100%" },
   flyerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.1)" },
 
@@ -650,6 +675,8 @@ const styles = StyleSheet.create({
   detailsEventName: { fontSize: 19, fontFamily: "Inter_700Bold", color: "#fff" },
   detailsRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   detailsLocation: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.55)", flex: 1 },
+  locationBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: "rgba(0,241,255,0.3)", backgroundColor: "rgba(0,241,255,0.07)" },
+  locationBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#00f1ff" },
   dateGrid: { flexDirection: "row", gap: 24, marginTop: 4 },
   dateItem: { gap: 2 },
   dateLabel: { fontSize: 10, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.6 },

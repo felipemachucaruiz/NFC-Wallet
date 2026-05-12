@@ -1,9 +1,11 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
+  FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -52,6 +54,42 @@ function toDDMMYYYY(d: Date): string {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+const EPS_LIST = [
+  "ALIANSALUD EPS",
+  "ANAS WAYUU EPSI",
+  "ASMET SALUD",
+  "ASOCIACION INDIGENA DEL CAUCA EPSI",
+  "CAJACOPI ATLANTICO",
+  "CAPITAL SALUD EPS-S",
+  "CAPRESOCA",
+  "COMFACHOCO",
+  "COMFAORIENTE",
+  "COMFENALCO VALLE",
+  "COMPENSAR EPS",
+  "COOSALUD EPS-S",
+  "DUSAKAWI EPSI",
+  "EMSSANAR E.S.S.",
+  "EPM - EMPRESAS PUBLICAS DE MEDELLIN",
+  "EPS FAMILIAR DE COLOMBIA",
+  "EPS SANITAS",
+  "EPS SURA",
+  "FAMISANAR",
+  "FONDO DE PASIVO SOCIAL DE FERROCARRILES NACIONALES DE COLOMBIA",
+  "MALLAMAS EPSI",
+  "MUTUAL SER",
+  "NUEVA EPS",
+  "PIJAOS SALUD EPSI",
+  "SALUD BÓLIVAR EPS SAS",
+  "SALUD MIA",
+  "SALUD TOTAL EPS S.A.",
+  "SANIDAD FUERZAS MILITARES",
+  "SAVIA SALUD EPS",
+  "SERVICIO OCCIDENTAL DE SALUD EPS SOS",
+  "OTRA",
+];
+
 export default function AttendeeFormScreen() {
   const { t } = useTranslation();
   const { show: showAlert } = useAlert();
@@ -74,6 +112,8 @@ export default function AttendeeFormScreen() {
     sectionName: string;
     validDays: string;
     unitSelections: string;
+    category: string;
+    raceConfig: string;
   }>();
 
   const quantity = parseInt(params.quantity ?? "1", 10);
@@ -83,6 +123,15 @@ export default function AttendeeFormScreen() {
   const validDays = (() => {
     if (!params.validDays) return [];
     try { return JSON.parse(params.validDays) as number[]; } catch { return []; }
+  })();
+
+  const isRace = params.category === "race";
+  const raceSizes: string[] = (() => {
+    if (!params.raceConfig) return ["XS", "S", "M", "L", "XL", "XXL"];
+    try {
+      const cfg = JSON.parse(params.raceConfig) as { sizes: string[] };
+      return cfg.sizes.length > 0 ? cfg.sizes : ["XS", "S", "M", "L", "XL", "XXL"];
+    } catch { return ["XS", "S", "M", "L", "XL", "XXL"]; }
   })();
 
   const firstPhone = user?.phone ? parseStoredPhone(user.phone) : null;
@@ -95,6 +144,7 @@ export default function AttendeeFormScreen() {
       dateOfBirth: i === 0 ? user?.dateOfBirth ?? "" : "",
       sex: i === 0 ? user?.sex ?? "" : "",
       idDocument: i === 0 ? user?.idDocument ?? "" : "",
+      shirtSize: "",
     })),
   );
 
@@ -110,8 +160,17 @@ export default function AttendeeFormScreen() {
     ),
   );
 
+  const [emergencyPhoneCountries, setEmergencyPhoneCountries] = useState<CountryCode[]>(
+    Array.from({ length: quantity }, () => COUNTRY_CODES[0]),
+  );
+  const [emergencyPhoneLocals, setEmergencyPhoneLocals] = useState<string[]>(
+    Array.from({ length: quantity }, () => ""),
+  );
+
   const [expandedIndex, setExpandedIndex] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [epsModalIndex, setEpsModalIndex] = useState<number | null>(null);
+  const [epsSearch, setEpsSearch] = useState("");
 
   const updatePhone = (index: number, country: CountryCode, local: string) => {
     setPhoneCountries((prev) => { const n = [...prev]; n[index] = country; return n; });
@@ -119,6 +178,18 @@ export default function AttendeeFormScreen() {
     updateAttendee(index, "phone", country.code + local);
     setErrors((prev) => { const n = { ...prev }; delete n[`${index}_phone`]; return n; });
   };
+
+  const updateEmergencyPhone = (index: number, country: CountryCode, local: string) => {
+    setEmergencyPhoneCountries((prev) => { const n = [...prev]; n[index] = country; return n; });
+    setEmergencyPhoneLocals((prev) => { const n = [...prev]; n[index] = local; return n; });
+    updateAttendee(index, "emergencyContactPhone", country.code + local);
+    setErrors((prev) => { const n = { ...prev }; delete n[`${index}_emergencyContactPhone`]; return n; });
+  };
+
+  const filteredEps = useMemo(
+    () => EPS_LIST.filter((e) => e.toLowerCase().includes(epsSearch.toLowerCase())),
+    [epsSearch],
+  );
 
   const updateAttendee = (index: number, field: keyof AttendeeInfo, value: string) => {
     setAttendees((prev) => {
@@ -143,6 +214,11 @@ export default function AttendeeFormScreen() {
       if (!a.dateOfBirth.trim()) newErrors[`${i}_dateOfBirth`] = t("tickets.required");
       if (!a.sex) newErrors[`${i}_sex`] = t("tickets.required");
       if (!a.idDocument.trim()) newErrors[`${i}_idDocument`] = t("tickets.required");
+      if (isRace && !a.shirtSize) newErrors[`${i}_shirtSize`] = t("tickets.required");
+      if (isRace && !a.bloodType) newErrors[`${i}_bloodType`] = t("tickets.required");
+      if (isRace && !emergencyPhoneLocals[i]?.trim()) newErrors[`${i}_emergencyContactPhone`] = t("tickets.required");
+      if (isRace && !a.emergencyContactName?.trim()) newErrors[`${i}_emergencyContactName`] = t("tickets.required");
+      if (isRace && !a.eps) newErrors[`${i}_eps`] = t("tickets.required");
     });
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
@@ -382,6 +458,124 @@ export default function AttendeeFormScreen() {
                       {errors[`${index}_idDocument`]}
                     </Text>
                   )}
+
+                  {isRace && (
+                    <>
+                      <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
+                        {t("tickets.shirtSize", "Talla de camiseta")} *
+                      </Text>
+                      <View style={styles.sexRow}>
+                        {raceSizes.map((size) => (
+                          <Pressable
+                            key={size}
+                            style={[
+                              styles.sexBtn,
+                              {
+                                borderColor: attendees[index]?.shirtSize === size ? C.primary : C.border,
+                                backgroundColor: attendees[index]?.shirtSize === size ? C.primaryLight : C.inputBg,
+                              },
+                            ]}
+                            onPress={() => updateAttendee(index, "shirtSize", size)}
+                          >
+                            <Text style={[styles.sexBtnText, { color: attendees[index]?.shirtSize === size ? C.primary : C.textSecondary }]}>
+                              {size}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      {errors[`${index}_shirtSize`] && (
+                        <Text style={[styles.errorText, { color: C.danger }]}>
+                          {errors[`${index}_shirtSize`]}
+                        </Text>
+                      )}
+
+                      <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
+                        {t("tickets.bloodType", "Tipo de sangre (RH)")} *
+                      </Text>
+                      <View style={styles.sexRow}>
+                        {BLOOD_TYPES.map((bt) => (
+                          <Pressable
+                            key={bt}
+                            style={[
+                              styles.sexBtn,
+                              {
+                                borderColor: attendees[index]?.bloodType === bt ? C.primary : C.border,
+                                backgroundColor: attendees[index]?.bloodType === bt ? C.primaryLight : C.inputBg,
+                                minWidth: 52,
+                                flex: 0,
+                              },
+                            ]}
+                            onPress={() => updateAttendee(index, "bloodType", bt)}
+                          >
+                            <Text style={[styles.sexBtnText, { color: attendees[index]?.bloodType === bt ? C.primary : C.textSecondary }]}>
+                              {bt}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      {errors[`${index}_bloodType`] && (
+                        <Text style={[styles.errorText, { color: C.danger }]}>
+                          {errors[`${index}_bloodType`]}
+                        </Text>
+                      )}
+
+                      <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
+                        {t("tickets.emergencyContactName", "Contacto de emergencia")} *
+                      </Text>
+                      <TextInput
+                        style={inputStyle(`${index}_emergencyContactName`)}
+                        placeholder={t("tickets.namePlaceholder")}
+                        placeholderTextColor={C.textMuted}
+                        value={attendees[index]?.emergencyContactName ?? ""}
+                        onChangeText={(v) => updateAttendee(index, "emergencyContactName", v)}
+                        autoCapitalize="words"
+                      />
+                      {errors[`${index}_emergencyContactName`] && (
+                        <Text style={[styles.errorText, { color: C.danger }]}>
+                          {errors[`${index}_emergencyContactName`]}
+                        </Text>
+                      )}
+
+                      <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
+                        {t("tickets.emergencyContactPhone", "Teléfono de emergencia")} *
+                      </Text>
+                      <PhoneInput
+                        number={emergencyPhoneLocals[index] ?? ""}
+                        country={emergencyPhoneCountries[index] ?? COUNTRY_CODES[0]}
+                        onNumberChange={(v) => updateEmergencyPhone(index, emergencyPhoneCountries[index] ?? COUNTRY_CODES[0], v)}
+                        onCountryChange={(c) => updateEmergencyPhone(index, c, emergencyPhoneLocals[index] ?? "")}
+                        inputStyle={{
+                          borderColor: errors[`${index}_emergencyContactPhone`] ? C.danger : C.border,
+                        }}
+                      />
+                      {errors[`${index}_emergencyContactPhone`] && (
+                        <Text style={[styles.errorText, { color: C.danger }]}>
+                          {errors[`${index}_emergencyContactPhone`]}
+                        </Text>
+                      )}
+
+                      <Text style={[styles.fieldLabel, { color: C.textSecondary }]}>
+                        {t("tickets.eps", "EPS")} *
+                      </Text>
+                      <Pressable
+                        style={[
+                          inputStyle(`${index}_eps`),
+                          styles.epsBtn,
+                        ]}
+                        onPress={() => { setEpsModalIndex(index); setEpsSearch(""); }}
+                      >
+                        <Text style={{ color: attendees[index]?.eps ? C.text : C.textMuted, fontSize: 15, fontFamily: "Inter_400Regular", flex: 1 }} numberOfLines={1}>
+                          {attendees[index]?.eps || t("tickets.selectEps", "Selecciona tu EPS")}
+                        </Text>
+                        <Feather name="chevron-down" size={16} color={C.textSecondary} />
+                      </Pressable>
+                      {errors[`${index}_eps`] && (
+                        <Text style={[styles.errorText, { color: C.danger }]}>
+                          {errors[`${index}_eps`]}
+                        </Text>
+                      )}
+                    </>
+                  )}
                 </View>
               )}
             </Card>
@@ -426,6 +620,59 @@ export default function AttendeeFormScreen() {
         />
       </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={epsModalIndex !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEpsModalIndex(null)}
+      >
+        <KeyboardAvoidingView
+          style={styles.epsModalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={[styles.epsModalSheet, { backgroundColor: C.background, borderColor: C.border }]}>
+            <View style={[styles.epsModalHeader, { borderBottomColor: C.border }]}>
+              <Text style={[styles.epsModalTitle, { color: C.text }]}>{t("tickets.eps", "EPS")}</Text>
+              <Pressable onPress={() => setEpsModalIndex(null)}>
+                <Feather name="x" size={22} color={C.text} />
+              </Pressable>
+            </View>
+            <View style={[styles.epsSearchWrap, { borderBottomColor: C.border }]}>
+              <Feather name="search" size={16} color={C.textMuted} />
+              <TextInput
+                style={[styles.epsSearchInput, { color: C.text }]}
+                placeholder={t("common.search", "Buscar...")}
+                placeholderTextColor={C.textMuted}
+                value={epsSearch}
+                onChangeText={setEpsSearch}
+              />
+            </View>
+            <FlatList
+              data={filteredEps}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => {
+                const selected = epsModalIndex !== null && attendees[epsModalIndex]?.eps === item;
+                return (
+                  <Pressable
+                    style={[styles.epsOption, { borderBottomColor: C.border, backgroundColor: selected ? C.primaryLight : "transparent" }]}
+                    onPress={() => {
+                      if (epsModalIndex !== null) {
+                        updateAttendee(epsModalIndex, "eps", item);
+                        setErrors((prev) => { const n = { ...prev }; delete n[`${epsModalIndex}_eps`]; return n; });
+                      }
+                      setEpsModalIndex(null);
+                    }}
+                  >
+                    <Text style={[styles.epsOptionText, { color: selected ? C.primary : C.text }]} numberOfLines={2}>{item}</Text>
+                    {selected && <Feather name="check" size={16} color={C.primary} />}
+                  </Pressable>
+                );
+              }}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -530,5 +777,60 @@ const styles = StyleSheet.create({
   sexBtnText: {
     fontSize: 13,
     fontFamily: "Inter_500Medium",
+  },
+  epsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  epsModalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  epsModalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    maxHeight: "75%",
+  },
+  epsModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  epsModalTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  epsSearchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  epsSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    paddingVertical: 4,
+  },
+  epsOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  epsOptionText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    flex: 1,
+    paddingRight: 8,
   },
 });

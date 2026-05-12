@@ -69,6 +69,8 @@ function refundBadge(status?: string | null, chipZeroed?: boolean | null) {
   return null;
 }
 
+import { SEO } from "@/components/SEO";
+
 export default function MyTransactions() {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading, openAuthModal } = useAuth();
@@ -135,6 +137,7 @@ export default function MyTransactions() {
 
   return (
     <div className="min-h-screen">
+      <SEO noindex />
       <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">{t("transactions.title")}</h1>

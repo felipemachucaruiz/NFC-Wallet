@@ -32,6 +32,8 @@ function parseIdDocument(stored: string): { idType: string; idNumber: string } {
   return { idType: "CC", idNumber: stored };
 }
 
+import { SEO } from "@/components/SEO";
+
 export default function Account() {
   const { t } = useTranslation();
   const { user, isAuthenticated, openAuthModal, refreshUser, logout } = useAuth();
@@ -158,6 +160,7 @@ export default function Account() {
 
   return (
     <div className="min-h-screen">
+      <SEO noindex />
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
         <h1 className="text-2xl font-bold">{t("account.title")}</h1>
 

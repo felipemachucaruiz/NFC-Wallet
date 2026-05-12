@@ -5,6 +5,8 @@ import { Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fetchTopUpStatus } from "@/lib/api";
 
+import { SEO } from "@/components/SEO";
+
 export default function BraceletPaymentStatus() {
   const { t } = useTranslation();
   const [, navigate] = useLocation();
@@ -72,6 +74,7 @@ export default function BraceletPaymentStatus() {
   if (phase === "polling") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+      <SEO noindex />
         <div className="w-16 h-16 rounded-2xl bg-cyan-500/15 flex items-center justify-center">
           <Clock className="w-8 h-8 text-cyan-400" />
         </div>
@@ -85,6 +88,7 @@ export default function BraceletPaymentStatus() {
   if (phase === "confirmed") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+      <SEO noindex />
         <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 flex items-center justify-center">
           <CheckCircle className="w-8 h-8 text-emerald-400" />
         </div>
@@ -102,6 +106,7 @@ export default function BraceletPaymentStatus() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4">
+      <SEO noindex />
       <div className="w-16 h-16 rounded-2xl bg-red-500/15 flex items-center justify-center">
         <XCircle className="w-8 h-8 text-red-400" />
       </div>

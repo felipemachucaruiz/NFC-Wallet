@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { useAlert } from "@/components/CustomAlert";
 import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
@@ -109,7 +110,7 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose, C }
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <View style={[styles.modalSheet, { backgroundColor: C.card }]} onStartShouldSetResponder={() => true}>
+        <View style={[styles.modalSheet, { backgroundColor: C.background === "#F0F4F8" ? "#ffffff" : "#1c1c1e" }]} onStartShouldSetResponder={() => true}>
           <View style={[styles.modalHandle, { backgroundColor: C.border }]} />
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: C.text }]}>{title}</Text>
@@ -263,7 +264,7 @@ export default function RefundRequestScreen() {
 
   if (isDeadlinePassed && step !== "success") {
     return (
-      <View style={[styles.center, { backgroundColor: C.background }]}>
+      <ScreenBackground style={styles.center}>
         <View style={[styles.iconBox, { backgroundColor: "rgba(239,68,68,0.12)" }]}>
           <Feather name="clock" size={52} color="#ef4444" />
         </View>
@@ -275,13 +276,13 @@ export default function RefundRequestScreen() {
           </Text>
         )}
         <Button title={t("common.back")} onPress={() => router.back()} variant="outline" size="lg" fullWidth />
-      </View>
+      </ScreenBackground>
     );
   }
 
   if (step === "success" || hasPendingRefund) {
     return (
-      <View style={[styles.center, { backgroundColor: C.background }]}>
+      <ScreenBackground style={styles.center}>
         <View style={[styles.iconBox, { backgroundColor: hasPendingRefund ? "rgba(234,179,8,0.15)" : C.successLight }]}>
           <Feather name={hasPendingRefund ? "clock" : "check-circle"} size={52} color={hasPendingRefund ? "#eab308" : C.success} />
         </View>
@@ -292,7 +293,7 @@ export default function RefundRequestScreen() {
           {hasPendingRefund ? t("refund.alreadyPendingMessage") : t("refund.successMessage")}
         </Text>
         <Button title={t("common.back")} onPress={() => router.back()} variant="primary" size="lg" fullWidth />
-      </View>
+      </ScreenBackground>
     );
   }
 
@@ -310,12 +311,13 @@ export default function RefundRequestScreen() {
   ];
 
   return (
+    <ScreenBackground>
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.background }}
+      style={{ flex: 1 }}
       contentContainerStyle={{
         paddingTop: isWeb ? 67 : insets.top + 16,
         paddingBottom: isWeb ? 34 : insets.bottom + 24,
@@ -507,6 +509,7 @@ export default function RefundRequestScreen() {
       />
     </ScrollView>
     </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 }
 

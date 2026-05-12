@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { formatCurrency } from "@/utils/format";
@@ -40,6 +41,8 @@ export default function TicketQuantityScreen() {
     ticketsPerUnit: string;
     unitLabel: string;
     units: string;
+    category: string;
+    raceConfig: string;
   }>();
 
   const price = parseInt(params.price ?? "0", 10);
@@ -52,6 +55,7 @@ export default function TicketQuantityScreen() {
   })();
 
   const isNumberedUnits = params.isNumberedUnits === "1";
+  const isRace = params.category === "race";
   const ticketsPerUnit = parseInt(params.ticketsPerUnit ?? "1", 10);
   const unitLabel = params.unitLabel || t("tickets.unit", "Mesa");
   const units: TicketUnit[] = (() => {
@@ -88,12 +92,14 @@ export default function TicketQuantityScreen() {
         sectionName: params.sectionName ?? "",
         validDays: params.validDays ?? "",
         unitSelections,
+        category: params.category ?? "",
+        raceConfig: params.raceConfig ?? "",
       },
     });
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background, paddingTop: isWeb ? 67 : insets.top + 8 }]}>
+    <ScreenBackground style={{ paddingTop: isWeb ? 67 : insets.top + 8 }}>
       <View style={[styles.header, { paddingHorizontal: 20 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={C.text} />
@@ -169,6 +175,20 @@ export default function TicketQuantityScreen() {
               </Text>
             )}
           </Card>
+        ) : isRace ? (
+          <Card style={{ gap: 16 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              {t("tickets.quantity").toUpperCase()}
+            </Text>
+            <View style={styles.quantityRow}>
+              <View style={[styles.qtyDisplay, { backgroundColor: C.primaryLight, borderColor: C.primary }]}>
+                <Text style={[styles.qtyText, { color: C.primary }]}>1</Text>
+              </View>
+            </View>
+            <Text style={[styles.maxHint, { color: C.textMuted }]}>
+              {t("tickets.raceOnlyOne", "Las carreras permiten solo 1 entrada por persona")}
+            </Text>
+          </Card>
         ) : (
           <Card style={{ gap: 16 }}>
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
@@ -239,7 +259,7 @@ export default function TicketQuantityScreen() {
           disabled={!canContinue}
         />
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }
 

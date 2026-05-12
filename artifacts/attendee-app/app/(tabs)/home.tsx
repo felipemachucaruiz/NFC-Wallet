@@ -1,7 +1,6 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Image } from 'expo-image';
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, AppStateStatus, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +11,7 @@ import { CopAmount } from "@/components/CopAmount";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Loading } from "@/components/ui/Loading";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyBracelets, useLinkBracelet, usePendingWalletBalance, useClaimWalletBalance } from "@/hooks/useAttendeeApi";
@@ -254,17 +254,15 @@ export default function HomeScreen() {
   if (isPending) return <Loading label={t("common.loading")} />;
 
   return (
+    <ScreenBackground>
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.background }}
+      style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: isWeb ? 34 : insets.bottom + 100 }}
       refreshControl={
         <RefreshControl refreshing={manualRefreshing} onRefresh={handleManualRefresh} tintColor={C.primary} />
       }
     >
-      <LinearGradient
-        colors={["#050505", "#0d1117", "#111827"]}
-        style={styles.heroGradient}
-      >
+      <View style={styles.heroGradient}>
         <View style={[styles.topBar, { paddingTop: isWeb ? 67 : insets.top + 8 }]}>
           <View>
             <Text style={[styles.greeting, { color: C.textSecondary }]}>
@@ -362,7 +360,7 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-      </LinearGradient>
+      </View>
 
       <View style={[styles.content, { paddingHorizontal: 20 }]}>
         {/* Email verification banner */}
@@ -754,11 +752,12 @@ export default function HomeScreen() {
         </View>
       </View>
     </ScrollView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  heroGradient: { paddingBottom: 32 },
+  heroGradient: { paddingBottom: 32, backgroundColor: "transparent" },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",

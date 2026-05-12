@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchEvents, fetchAds, resolveImageUrl, type ApiEvent, type ApiAd } from "@/lib/api";
 import { formatPrice, formatDateRange } from "@/lib/format";
+import { SEO } from "@/components/SEO";
 
 const ITEMS_PER_PAGE = 6;
 
 export default function Home() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const rawSearch = useSearch();
   const qParam = new URLSearchParams(rawSearch).get("q") || "";
   const [searchQuery, setSearchQuery] = useState(qParam);
@@ -135,8 +136,44 @@ export default function Home() {
 
   const currentHero = heroEvents[heroIndex] || events[0];
 
+  const homeSchema = JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "name": "Tapee Tickets",
+        "url": "https://tapeetickets.com",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://tapeetickets.com/?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "Organization",
+        "name": "Tapee",
+        "url": "https://tapeetickets.com",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://tapeetickets.com/favicon.png"
+        },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "soporte@tapee.app",
+          "areaServed": "CO",
+          "availableLanguage": "Spanish"
+        }
+      }
+    ]
+  });
+
   return (
     <div className="min-h-screen">
+      <SEO schema={homeSchema} />
       {currentHero && (
         <section className="relative h-[420px] md:h-[500px] overflow-hidden">
           {heroEvents.map((evt, i) => (
@@ -150,6 +187,7 @@ export default function Home() {
                 alt={evt.name}
                 className="w-full h-full object-cover"
                 loading={i === 0 ? "eager" : "lazy"}
+                fetchPriority={i === 0 ? "high" : "auto"}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30" />
             </div>
@@ -185,20 +223,24 @@ export default function Home() {
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                   </Link>
-                  {currentHero.priceFrom > 0 && (
-                    <span className="text-base font-semibold text-white">
-                      {t("home.from")} <span className="text-primary">{formatPrice(currentHero.priceFrom)}</span>
-                    </span>
-                  )}
+                  <span className="text-base font-semibold text-white">
+                    {currentHero.priceFrom > 0
+                      ? <>{t("home.from")} <span className="text-primary">{formatPrice(currentHero.priceFrom, "COP", i18n.language)}</span></>
+                      : <span className="text-primary">{formatPrice(0, "COP", i18n.language)}</span>}
+                  </span>
                 </div>
                 {heroCount > 1 && (
-                  <div className="flex items-center gap-2 mt-5">
-                    {heroEvents.map((_, i) => (
+                  <div className="flex items-center gap-1 mt-5">
+                    {heroEvents.map((evt, i) => (
                       <button
                         key={i}
                         onClick={() => handleDotClick(i)}
-                        className={`rounded-full transition-all duration-300 ${i === heroIndex ? "w-8 h-2 bg-primary shadow-[0_0_8px_rgba(0,241,255,0.6)]" : "w-2 h-2 bg-white/30 hover:bg-white/50"}`}
-                      />
+                        aria-label={`Ver evento ${evt.name}`}
+                        aria-current={i === heroIndex ? "true" : undefined}
+                        className="p-2 flex items-center justify-center"
+                      >
+                        <span className={`rounded-full transition-all duration-300 block ${i === heroIndex ? "w-8 h-2 bg-primary shadow-[0_0_8px_rgba(0,241,255,0.6)]" : "w-2 h-2 bg-white/30 hover:bg-white/50"}`} />
+                      </button>
                     ))}
                   </div>
                 )}
@@ -232,7 +274,7 @@ export default function Home() {
             />
           </div>
           <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setVisibleCount(ITEMS_PER_PAGE); }}>
-            <SelectTrigger className="w-full md:w-48 bg-card">
+            <SelectTrigger className="w-full md:w-48 bg-card" aria-label={t("home.filters.category", "Categoría")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -244,7 +286,7 @@ export default function Home() {
             </SelectContent>
           </Select>
           <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setVisibleCount(ITEMS_PER_PAGE); }}>
-            <SelectTrigger className="w-full md:w-48 bg-card">
+            <SelectTrigger className="w-full md:w-48 bg-card" aria-label={t("home.filters.city", "Ciudad")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -337,13 +379,17 @@ function AdsBanner({ ads }: { ads: ApiAd[] }) {
         style={{ aspectRatio: "1200/230" }}
       />
       {count > 1 && (
-        <div className="absolute bottom-2 right-3 flex gap-1.5">
-          {ads.map((_, i) => (
+        <div className="absolute bottom-2 right-3 flex gap-0.5">
+          {ads.map((a, i) => (
             <button
               key={i}
               onClick={(e) => { e.preventDefault(); if (timerRef.current) clearInterval(timerRef.current); goTo(i); }}
-              className={`rounded-full transition-all duration-300 ${i === idx ? "w-5 h-2 bg-white" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`}
-            />
+              aria-label={`Ver anuncio ${a.title || i + 1}`}
+              aria-current={i === idx ? "true" : undefined}
+              className="p-2 flex items-center justify-center"
+            >
+              <span className={`rounded-full transition-all duration-300 block ${i === idx ? "w-5 h-2 bg-white" : "w-2 h-2 bg-white/50 hover:bg-white/80"}`} />
+            </button>
           ))}
         </div>
       )}
@@ -365,7 +411,7 @@ function AdsBanner({ ads }: { ads: ApiAd[] }) {
 }
 
 function EventCard({ event }: { event: ApiEvent }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <Link href={`/event/${event.slug || event.id}`}>
@@ -421,10 +467,10 @@ function EventCard({ event }: { event: ApiEvent }) {
             <div className="flex items-center justify-between">
               {event.priceFrom > 0 ? (
                 <span className="text-sm text-muted-foreground">
-                  {t("home.from")} <span className="text-primary font-bold">{formatPrice(event.priceFrom)}</span>
+                  {t("home.from")} <span className="text-primary font-bold">{formatPrice(event.priceFrom, "COP", i18n.language)}</span>
                 </span>
               ) : (
-                <span className="text-sm font-medium text-emerald-400">Gratis</span>
+                <span className="text-sm font-bold text-primary">{formatPrice(0, "COP", i18n.language)}</span>
               )}
               <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-200" />
             </div>

@@ -51,7 +51,6 @@ import {
   RefreshCw,
   CheckCircle,
   Flag,
-  Trophy,
 } from "lucide-react";
 
 type NfcChipType = "ntag_21x" | "mifare_classic" | "desfire_ev3" | "mifare_ultralight_c";
@@ -136,10 +135,6 @@ export default function EventSettings() {
   const [activationFeeText, setActivationFeeText] = useState("3000");
   const [isSavingPaymentConfig, setIsSavingPaymentConfig] = useState(false);
 
-  const [raceStartText, setRaceStartText] = useState("");
-  const [raceEndText, setRaceEndText] = useState("");
-  const [isSavingRace, setIsSavingRace] = useState(false);
-
   useEffect(() => {
     if (event) {
       setOfflineSyncLimit(String(event.offlineSyncLimit ?? 500000));
@@ -150,8 +145,6 @@ export default function EventSettings() {
       if (event.boxOfficePaymentMethods) setSelectedBoxOfficeMethods(event.boxOfficePaymentMethods);
       if (event.bankMinTopup !== undefined) setBankMinTopupText(String(event.bankMinTopup));
       if (event.braceletActivationFee !== undefined) setActivationFeeText(String(event.braceletActivationFee));
-      if ((event as { raceNumberStart?: number | null }).raceNumberStart != null) setRaceStartText(String((event as { raceNumberStart?: number | null }).raceNumberStart));
-      if ((event as { raceNumberEnd?: number | null }).raceNumberEnd != null) setRaceEndText(String((event as { raceNumberEnd?: number | null }).raceNumberEnd));
     }
   }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes, event?.bankPaymentMethods, event?.boxOfficePaymentMethods, event?.bankMinTopup, event?.braceletActivationFee]);
 
@@ -191,28 +184,6 @@ export default function EventSettings() {
       toast({ title: t("common.error"), variant: "destructive" });
     } finally {
       setIsSavingPaymentConfig(false);
-    }
-  };
-
-  const handleSaveRaceConfig = async () => {
-    if (!eventId) return;
-    const start = raceStartText.trim() ? parseInt(raceStartText, 10) : null;
-    const end = raceEndText.trim() ? parseInt(raceEndText, 10) : null;
-    if (start !== null && isNaN(start)) { toast({ title: "Número inicial inválido.", variant: "destructive" }); return; }
-    if (end !== null && isNaN(end)) { toast({ title: "Número final inválido.", variant: "destructive" }); return; }
-    if (start !== null && end !== null && end <= start) { toast({ title: "El número final debe ser mayor al inicial.", variant: "destructive" }); return; }
-    setIsSavingRace(true);
-    try {
-      await customFetch(`/api/events/${eventId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ raceNumberStart: start, raceNumberEnd: end }),
-      });
-      refetch();
-      toast({ title: "Configuración de carrera guardada." });
-    } catch {
-      toast({ title: t("common.error"), variant: "destructive" });
-    } finally {
-      setIsSavingRace(false);
     }
   };
 
@@ -767,46 +738,6 @@ export default function EventSettings() {
 
           <Button onClick={handleSavePaymentConfig} disabled={isSavingPaymentConfig}>
             {isSavingPaymentConfig ? t("common.saving") : t("common.save")}
-          </Button>
-        </CardContent>
-      </Card>}
-
-      {ticketingEnabled && <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5" />
-            Numeración de Corredores
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Define el rango de números de corredor. Al confirmar la compra, cada asistente recibirá un número único asignado automáticamente en orden.
-          </p>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Número inicial</Label>
-              <Input
-                type="number"
-                min={1}
-                placeholder="Ej. 1"
-                value={raceStartText}
-                onChange={(e) => setRaceStartText(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Número final</Label>
-              <Input
-                type="number"
-                min={1}
-                placeholder="Ej. 500"
-                value={raceEndText}
-                onChange={(e) => setRaceEndText(e.target.value)}
-              />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">Deja ambos campos vacíos para deshabilitar la numeración de corredores.</p>
-          <Button onClick={handleSaveRaceConfig} disabled={isSavingRace}>
-            {isSavingRace ? t("common.saving") : t("common.save")}
           </Button>
         </CardContent>
       </Card>}

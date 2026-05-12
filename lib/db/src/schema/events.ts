@@ -49,8 +49,12 @@ export const eventsTable = pgTable("events", {
   longDescription: text("long_description"),
   descriptionEn: text("description_en"),
   category: varchar("category", { length: 100 }),
+  raceConfig: jsonb("race_config").$type<{ sizes: string[] }>(),
+  cityId: varchar("city_id"),
   tags: jsonb("tags").$type<string[]>().default(sql`'[]'::jsonb`),
   minAge: integer("min_age"),
+  raceNumberStart: integer("race_number_start"),
+  raceNumberEnd: integer("race_number_end"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

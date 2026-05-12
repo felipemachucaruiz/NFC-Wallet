@@ -37,6 +37,7 @@ import loadTestRouter from "./loadTest";
 import productCategoriesRouter from "./productCategories";
 import localServersRouter from "./localServers";
 import adsRouter from "./ads";
+import citiesRouter from "./cities";
 
 const router: IRouter = Router();
 
@@ -78,5 +79,6 @@ router.use(loadTestRouter);
 router.use(productCategoriesRouter);
 router.use(localServersRouter);
 router.use(adsRouter);
+router.use(citiesRouter);
 
 export default router;

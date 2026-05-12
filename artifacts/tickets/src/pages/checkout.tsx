@@ -90,7 +90,7 @@ interface CheckoutData {
   validDays: string;
   price: number;
   quantity: number;
-  attendees: { name: string; email: string; phone: string; dateOfBirth?: string; sex?: "male" | "female" | ""; idDocument?: string }[];
+  attendees: { name: string; email: string; phone: string; dateOfBirth?: string; sex?: "male" | "female" | ""; idDocumentType?: string; idDocument?: string }[];
   subtotal: number;
   serviceFee: number;
   total: number;
@@ -156,8 +156,10 @@ interface PendingCardSave {
   expiryYear: string;
 }
 
+import { SEO } from "@/components/SEO";
+
 export default function Checkout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [, navigate] = useLocation();
   const [data, setData] = useState<CheckoutData | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia">("nequi");
@@ -254,8 +256,14 @@ export default function Checkout() {
           phone: a.phone || undefined,
           dateOfBirth: a.dateOfBirth || undefined,
           sex: (a.sex as "male" | "female") || undefined,
+          idDocumentType: a.idDocumentType || undefined,
           idDocument: a.idDocument || undefined,
           ticketTypeId: data.ticketTypeId,
+          shirtSize: (a as any).shirtSize || undefined,
+          bloodType: (a as any).bloodType || undefined,
+          emergencyContactName: (a as any).emergencyContactName || undefined,
+          emergencyContactPhone: (a as any).emergencyContactPhone || undefined,
+          eps: (a as any).eps || undefined,
         })),
         unitSelections: data.unitSelections,
         paymentMethod: "free",
@@ -354,8 +362,14 @@ export default function Checkout() {
           phone: a.phone || undefined,
           dateOfBirth: a.dateOfBirth || undefined,
           sex: (a.sex as "male" | "female") || undefined,
+          idDocumentType: a.idDocumentType || undefined,
           idDocument: a.idDocument || undefined,
           ticketTypeId: data.ticketTypeId,
+          shirtSize: (a as any).shirtSize || undefined,
+          bloodType: (a as any).bloodType || undefined,
+          emergencyContactName: (a as any).emergencyContactName || undefined,
+          emergencyContactPhone: (a as any).emergencyContactPhone || undefined,
+          eps: (a as any).eps || undefined,
         })),
         unitSelections: data.unitSelections,
         paymentMethod,
@@ -530,6 +544,7 @@ export default function Checkout() {
 
   return (
     <div className="min-h-screen">
+      <SEO noindex />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold mb-6">{t("checkout.title")}</h1>
 
@@ -550,7 +565,7 @@ export default function Checkout() {
                   <div key={i} className="p-3 bg-muted/30 rounded-lg text-sm">
                     <div className="flex justify-between mb-1">
                       <span className="font-medium">{t("ticketSelection.ticket")} {i + 1}</span>
-                      <span>{formatPrice(data.price, data.currencyCode)}</span>
+                      <span>{formatPrice(data.price, data.currencyCode, i18n.language)}</span>
                     </div>
                     <p className="text-muted-foreground">{data.ticketTypeName} — {data.sectionName}</p>
                     {data.selectedUnitLabel && (
@@ -880,19 +895,19 @@ export default function Checkout() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">{data.ticketTypeName} × {data.quantity}</span>
-                      <span>{formatPrice(data.subtotal, data.currencyCode)}</span>
+                      <span>{formatPrice(data.subtotal, data.currencyCode, i18n.language)}</span>
                     </div>
                     {data.serviceFee > 0 && (
                       <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">{t("checkout.serviceFee")}</span>
-                        <span>{formatPrice(data.serviceFee, data.currencyCode)}</span>
+                        <span>{formatPrice(data.serviceFee, data.currencyCode, i18n.language)}</span>
                       </div>
                     )}
                   </div>
                   <Separator />
                   <div className="flex justify-between items-center">
                     <span className="font-bold">{t("checkout.total")}</span>
-                    <span className="text-primary font-bold text-xl">{formatPrice(data.total, data.currencyCode)}</span>
+                    <span className="text-primary font-bold text-xl">{formatPrice(data.total, data.currencyCode, i18n.language)}</span>
                   </div>
                 </div>
               </div>

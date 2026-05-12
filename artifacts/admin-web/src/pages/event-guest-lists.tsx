@@ -349,7 +349,7 @@ export default function EventGuestLists() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">{t("guestLists.noZone")}</SelectItem>
-                    {allTicketTypes.map((tt) => (
+                    {allTicketTypes.filter((tt) => tt.id).map((tt) => (
                       <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>
                     ))}
                   </SelectContent>

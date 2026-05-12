@@ -79,10 +79,11 @@ if (process.env.TRUSTED_PROXY === "true") {
 }
 
 const rawCorsOrigin = process.env.CORS_ORIGIN ?? "";
-const allowedOrigins = rawCorsOrigin
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  "https://admin.tapee.app",
+  "https://prod.tapee.app",
+  ...rawCorsOrigin.split(",").map((o) => o.trim()).filter(Boolean),
+];
 
 app.use(
   cors({

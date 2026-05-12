@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { CopAmount } from "@/components/CopAmount";
 import { Empty } from "@/components/ui/Empty";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { Loading } from "@/components/ui/Loading";
 import { Badge } from "@/components/ui/Badge";
 import { formatDateTime } from "@/utils/format";
@@ -109,7 +110,7 @@ export default function HistoryScreen() {
   if (isLoading) return <Loading label={t("common.loading")} />;
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background }]}>
+    <ScreenBackground style={styles.container}>
       <FlatList
         data={filteredTransactions}
         keyExtractor={(item) => item.id}
@@ -194,7 +195,7 @@ export default function HistoryScreen() {
         }
         renderItem={({ item }) => <TxCard tx={item} C={C} t={t} showEvent={!!item.eventName} />}
       />
-    </View>
+    </ScreenBackground>
   );
 }
 

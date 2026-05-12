@@ -12,6 +12,7 @@ const CURRENCY_CONFIGS: Record<string, { symbol: string; locale: string; decimal
 
 export function formatCurrency(amount: number | undefined | null, currencyCode: string = "COP"): string {
   if (amount == null) return formatCurrency(0, currencyCode);
+  if (amount === 0) return "GRATIS";
   const config = CURRENCY_CONFIGS[currencyCode] || CURRENCY_CONFIGS.COP;
   const rounded = config.decimals === 0 ? Math.round(amount) : amount;
   return config.symbol + rounded.toLocaleString(config.locale, {

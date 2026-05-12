@@ -122,7 +122,17 @@
     "female": "Femenino",
     "nonBinary": "No binario",
     "idDocument": "Núm. de identificación",
-    "yourTicket": "Tu entrada"
+    "yourTicket": "Tu entrada",
+    "idDocumentType": "Tipo de documento",
+    "raceSingleTicket": "Las carreras permiten solo 1 entrada por persona.",
+    "raceSection": "Datos de carrera",
+    "shirtSize": "Talla de camiseta",
+    "bloodType": "Tipo de sangre",
+    "eps": "EPS",
+    "emergencyContact": "Contacto de emergencia",
+    "emergencyContactNamePlaceholder": "Nombre completo",
+    "emergencyContactPhonePlaceholder": "Teléfono de emergencia",
+    "noEps": "No tengo / Medicina prepagada"
   },
   "auth": {
     "loginTitle": "Iniciar sesión",

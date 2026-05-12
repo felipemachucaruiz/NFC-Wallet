@@ -87,6 +87,7 @@ export interface EventData {
   floatingGraphicUrl?: string | null;
   floatingGraphics?: Array<{ url: string; opacity: number }> | null;
   vimeoUrl?: string | null;
+  raceConfig?: { sizes: string[] } | null;
 }
 
 export interface AttendeeData {
@@ -95,6 +96,7 @@ export interface AttendeeData {
   phone: string;
   dateOfBirth: string;
   sex: "male" | "female" | "non_binary" | "";
+  idDocumentType: string;
   idDocument: string;
   // Race-event fields (only collected when event.category === "race")
   shirtSize?: string;

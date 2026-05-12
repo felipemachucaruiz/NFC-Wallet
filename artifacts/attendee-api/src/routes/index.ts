@@ -11,9 +11,12 @@ import guestListsRouter from "./guestLists";
 import appleWalletRouter from "./appleWallet";
 import cardsRouter from "./cards";
 import adsRouter from "./ads";
+import citiesRouter from "./cities";
+import imageProxyRouter from "./imageProxy";
 
 const router: IRouter = Router();
 
+router.use(imageProxyRouter);
 router.use(healthRouter);
 router.use(authRouter);
 router.use(attendeeRouter);
@@ -26,5 +29,6 @@ router.use(guestListsRouter);
 router.use(appleWalletRouter);
 router.use(cardsRouter);
 router.use(adsRouter);
+router.use(citiesRouter);
 
 export default router;

@@ -27,6 +27,7 @@ import { setStoredLanguage } from "@/i18n";
 import i18n from "@/i18n";
 import { formatDate } from "@/utils/format";
 import { DatePickerInput } from "@/components/ui/DatePickerInput";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 
 function parseStoredPhone(full: string): { country: CountryCode; local: string } {
@@ -242,12 +243,13 @@ export default function ProfileScreen() {
   };
 
   return (
+    <ScreenBackground>
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.background }}
+      style={{ flex: 1 }}
       contentContainerStyle={{
         paddingTop: isWeb ? 67 : insets.top + 16,
         paddingBottom: isWeb ? 34 : insets.bottom + 100,
@@ -418,7 +420,7 @@ export default function ProfileScreen() {
 
               <Modal visible={showIdTypePicker} transparent animationType="slide">
                 <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setShowIdTypePicker(false)} />
-                <View style={[styles.pickerSheet, { backgroundColor: C.card }]}>
+                <View style={[styles.pickerSheet, { backgroundColor: scheme === "dark" ? "#1c1c1e" : "#ffffff" }]}>
                   <View style={[styles.pickerHandle, { backgroundColor: C.border }]} />
                   <Text style={[styles.pickerTitle, { color: C.text }]}>{t("profile.idType")}</Text>
                   <FlatList
@@ -545,7 +547,7 @@ export default function ProfileScreen() {
       <Modal visible={showChangePw} transparent animationType="slide" onRequestClose={() => setShowChangePw(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
           <Pressable style={styles.modalOverlay} onPress={() => setShowChangePw(false)}>
-            <Pressable style={[styles.modalSheet, { backgroundColor: C.card }]} onPress={() => {}}>
+            <Pressable style={[styles.modalSheet, { backgroundColor: scheme === "dark" ? "#1c1c1e" : "#ffffff" }]} onPress={() => {}}>
               <Text style={[styles.modalTitle, { color: C.text }]}>{t("profile.changePassword") || "Cambiar contraseña"}</Text>
               <Text style={[styles.idTypeLabel, { color: C.textSecondary }]}>{t("profile.currentPassword") || "Contraseña actual"}</Text>
               <View style={styles.pwInputWrap}>
@@ -688,6 +690,7 @@ export default function ProfileScreen() {
       )}
     </ScrollView>
     </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 }
 

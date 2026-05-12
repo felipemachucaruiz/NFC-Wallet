@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -6,9 +6,10 @@ import * as Updates from "expo-updates";
 
 export function UpdateBanner() {
   const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(80)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [shouldRender, setShouldRender] = useState(false);
 
-  const { isUpdatePending, isDownloading, isChecking } = Updates.useUpdates();
+  const { isUpdatePending, isDownloading } = Updates.useUpdates();
 
   useEffect(() => {
     if (__DEV__) return;
@@ -34,37 +35,32 @@ export function UpdateBanner() {
     return () => clearTimeout(timer);
   }, [isUpdatePending]);
 
-  const isVisible = !__DEV__ && (isUpdatePending || isDownloading || isChecking);
+  const isVisible = !__DEV__ && (isUpdatePending || isDownloading);
 
   useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: isVisible ? 0 : 80,
-      useNativeDriver: true,
-      speed: 14,
-      bounciness: 4,
-    }).start();
-  }, [isVisible, slideAnim]);
+    if (isVisible) {
+      setShouldRender(true);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setShouldRender(false);
+      });
+    }
+  }, [isVisible]);
 
-  if (__DEV__) return null;
+  if (__DEV__ || !shouldRender) return null;
 
   const label = isUpdatePending
     ? "Aplicando actualización…"
-    : isDownloading
-      ? "Descargando actualización…"
-      : "Buscando actualizaciones…";
+    : "Descargando actualización…";
 
-  const icon: "refresh-cw" | "download-cloud" | "search" = isUpdatePending
+  const icon: "refresh-cw" | "download-cloud" = isUpdatePending
     ? "refresh-cw"
-    : isDownloading
-      ? "download-cloud"
-      : "search";
+    : "download-cloud";
 
   return (
     <Animated.View
-      style={[
-        styles.wrapper,
-        { bottom: insets.bottom + 8, transform: [{ translateY: slideAnim }] },
-      ]}
+      style={[styles.wrapper, { top: insets.top + 8, opacity: fadeAnim }]}
       pointerEvents="none"
     >
       <View style={styles.banner}>

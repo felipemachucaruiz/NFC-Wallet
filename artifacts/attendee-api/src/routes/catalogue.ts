@@ -51,6 +51,9 @@ router.get(
     if (dateTo) {
       conditions.push(lte(eventsTable.startsAt, new Date(dateTo)));
     }
+    if (city) {
+      conditions.push(eq(eventsTable.cityId, city));
+    }
 
     const events = await db
       .select({
@@ -124,23 +127,6 @@ router.get(
       }),
     );
 
-    if (city) {
-      const filteredEvents = [];
-      for (const event of eventsWithPricing) {
-        const [venue] = await db
-          .select({ city: venuesTable.city })
-          .from(venuesTable)
-          .where(and(eq(venuesTable.eventId, event.id), ilike(venuesTable.city, `%${city}%`)))
-          .limit(1);
-        if (venue) filteredEvents.push(event);
-        else if (event.venueAddress && event.venueAddress.toLowerCase().includes(city.toLowerCase())) {
-          filteredEvents.push(event);
-        }
-      }
-      res.json({ events: filteredEvents, page: pageNum, limit: limitNum });
-      return;
-    }
-
     res.json({ events: eventsWithPricing, page: pageNum, limit: limitNum });
   },
 );
@@ -169,6 +155,7 @@ router.get(
           floatingGraphics: eventsTable.floatingGraphics,
           vimeoUrl: eventsTable.vimeoUrl,
           category: eventsTable.category,
+          raceConfig: eventsTable.raceConfig,
           tags: eventsTable.tags,
           minAge: eventsTable.minAge,
           venueAddress: eventsTable.venueAddress,
@@ -445,6 +432,11 @@ const guestAttendeeSchema = z.object({
   email: z.string().email(),
   phone: z.string().max(30).optional(),
   ticketTypeId: z.string().min(1),
+  shirtSize: z.string().max(10).optional(),
+  bloodType: z.string().max(5).optional(),
+  emergencyContactName: z.string().max(255).optional(),
+  emergencyContactPhone: z.string().max(30).optional(),
+  eps: z.string().max(150).optional(),
 });
 
 const guestOrderSchema = z.object({
@@ -502,6 +494,8 @@ router.post(
         salesChannel: eventsTable.salesChannel,
         currencyCode: eventsTable.currencyCode,
         name: eventsTable.name,
+        category: eventsTable.category,
+        raceConfig: eventsTable.raceConfig,
       })
       .from(eventsTable)
       .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
@@ -517,6 +511,37 @@ router.post(
     if (event.salesChannel === "door") {
       res.status(400).json({ error: "Online ticket sales are not available for this event" });
       return;
+    }
+
+    if (event.category === "race") {
+      if (attendees.length !== 1) {
+        res.status(400).json({ error: "Race events allow only 1 ticket per purchase" });
+        return;
+      }
+      const a0 = attendees[0];
+      if (!a0.shirtSize) { res.status(400).json({ error: "Shirt size is required for race events" }); return; }
+      if (!a0.bloodType) { res.status(400).json({ error: "Blood type is required for race events" }); return; }
+      if (!a0.emergencyContactName) { res.status(400).json({ error: "Emergency contact name is required for race events" }); return; }
+      if (!a0.emergencyContactPhone) { res.status(400).json({ error: "Emergency contact phone is required for race events" }); return; }
+      if (!a0.eps) { res.status(400).json({ error: "EPS is required for race events" }); return; }
+      const allowedSizes = event.raceConfig?.sizes ?? [];
+      if (allowedSizes.length > 0 && !allowedSizes.includes(a0.shirtSize)) {
+        res.status(400).json({ error: `Invalid shirt size. Allowed: ${allowedSizes.join(", ")}` });
+        return;
+      }
+      const [existingTicket] = await db
+        .select({ id: ticketsTable.id })
+        .from(ticketsTable)
+        .where(and(
+          eq(ticketsTable.eventId, eventId),
+          eq(ticketsTable.attendeeEmail, attendees[0].email.toLowerCase().trim()),
+          sql`${ticketsTable.status} != 'cancelled'`,
+        ))
+        .limit(1);
+      if (existingTicket) {
+        res.status(409).json({ error: "You already have a ticket for this race" });
+        return;
+      }
     }
 
     const ticketTypeIds = [...new Set(attendees.map((a) => a.ticketTypeId))];
@@ -833,6 +858,11 @@ router.post(
         attendeePhone: attendee.phone ?? null,
         attendeeUserId,
         status: "valid",
+        shirtSize: attendee.shirtSize ?? null,
+        bloodType: attendee.bloodType ?? null,
+        emergencyContactName: attendee.emergencyContactName ?? null,
+        emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+        eps: attendee.eps ?? null,
       });
     }
 

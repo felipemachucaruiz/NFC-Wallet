@@ -6,6 +6,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-n
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -50,7 +51,7 @@ export default function BlockBraceletScreen() {
 
   if (step === "success") {
     return (
-      <View style={[styles.center, { backgroundColor: C.background }]}>
+      <ScreenBackground style={styles.center}>
         <View style={[styles.iconBox, { backgroundColor: C.successLight }]}>
           <Feather name="lock" size={52} color={C.success} />
         </View>
@@ -65,13 +66,14 @@ export default function BlockBraceletScreen() {
           size="lg"
           fullWidth
         />
-      </View>
+      </ScreenBackground>
     );
   }
 
   return (
+    <ScreenBackground>
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.background }}
+      style={{ flex: 1 }}
       contentContainerStyle={{
         paddingTop: isWeb ? 67 : insets.top + 16,
         paddingBottom: isWeb ? 34 : insets.bottom + 24,
@@ -133,6 +135,7 @@ export default function BlockBraceletScreen() {
         testID="block-bracelet-btn"
       />
     </ScrollView>
+    </ScreenBackground>
   );
 }
 

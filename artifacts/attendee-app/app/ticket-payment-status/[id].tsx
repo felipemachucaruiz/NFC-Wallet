@@ -81,9 +81,12 @@ export default function TicketPaymentStatusScreen() {
   const { data: statusData, refetch, isError } = useTicketPaymentStatus(intentId);
 
   const rawStatus = (statusData as { status?: string } | undefined)?.status;
-  const status: Status = (rawStatus as Status) ?? "pending";
+  const status: Status =
+    rawStatus === "confirmed" ? "success" :
+    rawStatus === "cancelled" || rawStatus === "voided" || rawStatus === "expired" ? "failed" :
+    (rawStatus as Status) ?? "pending";
   const confirmedTickets = (
-    statusData as { tickets?: Array<{ qrCode: string; attendeeEmail: string }> } | undefined
+    statusData as { tickets?: Array<{ id: string; attendeeEmail: string }> } | undefined
   )?.tickets;
 
   useEffect(() => {
@@ -284,8 +287,8 @@ export default function TicketPaymentStatusScreen() {
             <Text style={[styles.confirmTitle, { color: C.textSecondary }]}>
               {t("tickets.ticketsSent").toUpperCase()}
             </Text>
-            {confirmedTickets.map((tk, i) => (
-              <View key={i} style={[styles.confirmRow, { borderColor: C.border }]}>
+            {confirmedTickets.map((tk) => (
+              <View key={tk.id} style={[styles.confirmRow, { borderColor: C.border }]}>
                 <Feather name="mail" size={14} color={C.success} />
                 <Text style={[styles.confirmEmail, { color: C.text }]}>{tk.attendeeEmail}</Text>
               </View>
@@ -308,10 +311,18 @@ export default function TicketPaymentStatusScreen() {
         <View style={styles.actions}>
           {status === "success" && (
             <>
+              {confirmedTickets && confirmedTickets.length === 1 && (
+                <Button
+                  title={t("tickets.viewTicket", "Ver mi boleta")}
+                  onPress={() => router.replace({ pathname: "/ticket-detail", params: { ticketId: confirmedTickets[0].id } })}
+                  variant="primary"
+                  fullWidth
+                />
+              )}
               <Button
                 title={t("tickets.viewMyTickets")}
                 onPress={() => router.replace("/my-tickets")}
-                variant="primary"
+                variant={confirmedTickets && confirmedTickets.length === 1 ? "secondary" : "primary"}
                 fullWidth
               />
               <Button

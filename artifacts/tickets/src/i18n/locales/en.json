@@ -122,7 +122,17 @@
     "female": "Female",
     "idDocument": "ID number",
     "nonBinary": "Non-binary",
-    "yourTicket": "Your ticket"
+    "yourTicket": "Your ticket",
+    "idDocumentType": "Document type",
+    "raceSingleTicket": "Races allow only 1 ticket per person.",
+    "raceSection": "Race data",
+    "shirtSize": "Shirt size",
+    "bloodType": "Blood type",
+    "eps": "EPS (health insurer)",
+    "emergencyContact": "Emergency contact",
+    "emergencyContactNamePlaceholder": "Full name",
+    "emergencyContactPhonePlaceholder": "Emergency phone number",
+    "noEps": "None / Private health insurance"
   },
   "auth": {
     "loginTitle": "Log In",

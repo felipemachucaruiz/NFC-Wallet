@@ -99,7 +99,7 @@ router.get("/devices", requireRole("admin"), async (_req: Request, res: ExpressR
     const sfRes = await scalefusionFetch("/api/v2/devices.json?per_page=500");
     if (!sfRes.ok) {
       const body = await sfRes.text();
-      res.status(sfRes.status).json({ error: `Scalefusion error: ${body}` });
+      res.status(502).json({ error: `Scalefusion error: ${body}` });
       return;
     }
     const data = await sfRes.json() as { devices?: unknown[]; data?: unknown[]; results?: unknown[]; device_profiles?: unknown[]; [key: string]: unknown };
@@ -153,7 +153,7 @@ router.get("/devices/:deviceId", requireRole("admin"), async (req: Request, res:
     const sfRes = await scalefusionFetch(`/api/v2/devices/${deviceId}.json`);
     if (!sfRes.ok) {
       const body = await sfRes.text();
-      res.status(sfRes.status).json({ error: `Scalefusion error: ${body}` });
+      res.status(502).json({ error: `Scalefusion error: ${body}` });
       return;
     }
     const data = await sfRes.json() as Record<string, unknown>;
@@ -193,7 +193,7 @@ router.post("/devices/:deviceId/actions", requireRole("admin"), async (req: Requ
 
     if (!sfRes.ok) {
       const body = await sfRes.text();
-      res.status(sfRes.status).json({ error: `Scalefusion error: ${body}` });
+      res.status(502).json({ error: `Scalefusion error: ${body}` });
       return;
     }
 
@@ -222,7 +222,7 @@ router.get("/devices/:deviceId/locations", requireRole("admin"), async (req: Req
     const sfRes = await scalefusionFetch(`/api/v1/devices/${deviceId}/locations.json?date=${encodeURIComponent(date)}`);
     if (!sfRes.ok) {
       const body = await sfRes.text();
-      res.status(sfRes.status).json({ error: `Scalefusion error: ${body}` });
+      res.status(502).json({ error: `Scalefusion error: ${body}` });
       return;
     }
     const raw = await sfRes.json() as Array<{

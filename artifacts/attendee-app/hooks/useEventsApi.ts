@@ -85,6 +85,15 @@ interface PublicEventRaw {
   dayCount?: number;
 }
 
+function proxyImage(url: string | null | undefined, width = 800): string | undefined {
+  if (!url) return undefined;
+  const full = url.startsWith("http") ? url : `${STAFF_API_BASE_URL}${url}`;
+  if (full.startsWith(`${STAFF_API_BASE_URL}/`)) {
+    return `${API_BASE_URL}/api/public/image?url=${encodeURIComponent(full)}&w=${width}`;
+  }
+  return full;
+}
+
 function extractCity(venueAddress?: string): string {
   if (!venueAddress) return "";
   const parts = venueAddress.split(",").map((p) => p.trim());
@@ -95,16 +104,8 @@ function mapPublicEvent(raw: PublicEventRaw): EventListItem {
   return {
     id: raw.id,
     name: raw.name,
-    coverImageUrl: raw.coverImageUrl
-      ? raw.coverImageUrl.startsWith("http")
-        ? raw.coverImageUrl
-        : `${STAFF_API_BASE_URL}${raw.coverImageUrl}`
-      : undefined,
-    flyerImageUrl: raw.flyerImageUrl
-      ? raw.flyerImageUrl.startsWith("http")
-        ? raw.flyerImageUrl
-        : `${STAFF_API_BASE_URL}${raw.flyerImageUrl}`
-      : undefined,
+    coverImageUrl: proxyImage(raw.coverImageUrl),
+    flyerImageUrl: proxyImage(raw.flyerImageUrl, 600),
     startsAt: raw.startsAt,
     endsAt: raw.endsAt,
     venueName: raw.venueAddress?.split(",")[0]?.trim() ?? "",
@@ -240,11 +241,7 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
     };
   });
 
-  const floorplanImageUrl = venue?.floorplanImageUrl
-    ? venue.floorplanImageUrl.startsWith("http")
-      ? venue.floorplanImageUrl
-      : `${STAFF_API_BASE_URL}${venue.floorplanImageUrl}`
-    : undefined;
+  const floorplanImageUrl = proxyImage(venue?.floorplanImageUrl);
 
   let venueMap: EventDetail["venueMap"] | undefined;
   if (raw.sections && raw.sections.length > 0) {
@@ -270,7 +267,7 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
 
   const floatingGraphics = e.floatingGraphics?.length
     ? e.floatingGraphics.map((g) => ({
-        url: g.url.startsWith("http") ? g.url : `${STAFF_API_BASE_URL}${g.url}`,
+        url: proxyImage(g.url, 600) ?? g.url,
         opacity: g.opacity,
       }))
     : null;
@@ -278,12 +275,8 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
   return {
     id: e.id,
     name: e.name,
-    coverImageUrl: e.coverImageUrl
-      ? e.coverImageUrl.startsWith("http") ? e.coverImageUrl : `${STAFF_API_BASE_URL}${e.coverImageUrl}`
-      : undefined,
-    flyerImageUrl: e.flyerImageUrl
-      ? e.flyerImageUrl.startsWith("http") ? e.flyerImageUrl : `${STAFF_API_BASE_URL}${e.flyerImageUrl}`
-      : undefined,
+    coverImageUrl: proxyImage(e.coverImageUrl),
+    flyerImageUrl: proxyImage(e.flyerImageUrl, 600),
     startsAt: e.startsAt,
     endsAt: e.endsAt,
     venueName,
@@ -356,6 +349,7 @@ export function usePurchaseTickets() {
       userLegalIdType?: string;
       userLegalId?: string;
       cardToken?: string;
+      savedCardId?: string;
       browserInfo?: {
         browser_color_depth: string;
         browser_screen_height: string;
@@ -376,6 +370,11 @@ export function usePurchaseTickets() {
           dateOfBirth: tk.attendee.dateOfBirth || undefined,
           sex: (tk.attendee.sex as "male" | "female") || undefined,
           idDocument: tk.attendee.idDocument || undefined,
+          shirtSize: tk.attendee.shirtSize || undefined,
+          bloodType: tk.attendee.bloodType || undefined,
+          emergencyContactName: tk.attendee.emergencyContactName || undefined,
+          emergencyContactPhone: tk.attendee.emergencyContactPhone || undefined,
+          eps: tk.attendee.eps || undefined,
         })),
       };
       return apiFetch<TicketPurchaseResult>(
@@ -419,14 +418,12 @@ export function useMyTickets() {
         id: t.id as string,
         eventId: t.eventId as string,
         eventName: (t.eventName as string) ?? "",
-        eventCoverImageUrl: t.eventCoverImage
-          ? (t.eventCoverImage as string).startsWith("http")
-            ? (t.eventCoverImage as string)
-            : `${STAFF_API_BASE_URL}${t.eventCoverImage}`
-          : undefined,
+        eventCoverImageUrl: proxyImage(t.eventCoverImage as string | undefined, 600),
         startsAt: (t.eventStartsAt as string) ?? "",
         endsAt: (t.eventEndsAt as string) ?? undefined,
         venueName: (t.venueAddress as string) ?? "",
+        latitude: (t.latitude as number | null) ?? null,
+        longitude: (t.longitude as number | null) ?? null,
         ticketTypeName: (t.ticketTypeName as string) ?? "",
         status: (t.status as MyTicket["status"]) ?? "active",
         qrCode: (t.qrCodeToken as string) ?? "",

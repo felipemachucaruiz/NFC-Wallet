@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, Style
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { Card } from "@/components/ui/Card";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { useSavedCards, useUpdateCardAlias, useDeleteCard, type SavedCard } from "@/hooks/useAttendeeApi";
 
 type CardBrand = "visa" | "mastercard" | "amex" | null;
@@ -102,7 +103,7 @@ export default function SavedCardsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background, paddingTop: isWeb ? 67 : insets.top + 8 }]}>
+    <ScreenBackground style={{ paddingTop: isWeb ? 67 : insets.top + 8 }}>
       <View style={[styles.header, { paddingHorizontal: 20 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={C.text} />
@@ -210,7 +211,7 @@ export default function SavedCardsScreen() {
         onRequestClose={() => setEditingCard(null)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { backgroundColor: C.card }]}>
+          <View style={[styles.modalBox, { backgroundColor: scheme === "dark" ? "#1c1c1e" : "#ffffff" }]}>
             <Text style={[styles.modalTitle, { color: C.text }]}>Editar alias</Text>
             {editingCard && (
               <Text style={[styles.modalSub, { color: C.textSecondary }]}>
@@ -248,12 +249,11 @@ export default function SavedCardsScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",

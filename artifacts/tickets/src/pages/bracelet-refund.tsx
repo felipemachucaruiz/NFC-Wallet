@@ -47,6 +47,8 @@ function formatCOP(amount: number) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+import { SEO } from "@/components/SEO";
+
 export default function BraceletRefund() {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading, openAuthModal } = useAuth();
@@ -213,6 +215,7 @@ export default function BraceletRefund() {
 
   return (
     <div className="min-h-screen">
+      <SEO noindex />
       <div className="max-w-lg mx-auto px-4 sm:px-6 py-8 space-y-6">
 
         {/* Header */}

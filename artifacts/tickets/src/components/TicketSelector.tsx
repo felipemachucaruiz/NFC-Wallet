@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { Minus, Plus, X, ChevronRight, Check, Calendar, CreditCard as IdCard, Users, Heart, Phone as PhoneIcon, Shirt, Droplets } from "lucide-react";
+import { Minus, Plus, ChevronRight, Check, Calendar, CreditCard as IdCard, Users, Heart, Phone as PhoneIcon, Shirt, Droplets } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,14 @@ import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/format";
 import type { EventData, TicketType, AttendeeData } from "@/data/types";
 
+const ID_DOCUMENT_TYPES = [
+  { code: "CC", label: "Cédula de ciudadanía" },
+  { code: "CE", label: "Cédula de extranjería" },
+  { code: "PA", label: "Pasaporte" },
+  { code: "TI", label: "Tarjeta de identidad" },
+  { code: "RC", label: "Registro civil" },
+  { code: "DNI", label: "DNI extranjero" },
+];
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 const EPS_LIST = [
@@ -39,7 +47,6 @@ const EPS_LIST = [
   "Sanitas EPS",
   "Savia Salud EPS",
   "Sura EPS",
-  "No tengo / Medicina prepagada",
 ];
 
 function fmtDisplayDate(dateStr: string): string {
@@ -68,11 +75,11 @@ interface TicketSelectorProps {
 }
 
 export function TicketSelector({ event, ticketType, sectionName, onClose, preSelectedUnitId }: TicketSelectorProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
-  const isNumbered = ticketType.isNumberedUnits && ticketType.units && ticketType.units.length > 0;
   const isRace = event.category === "race";
+  const isNumbered = ticketType.isNumberedUnits && ticketType.units && ticketType.units.length > 0;
   const [step, setStep] = useState<"quantity" | "unit" | "attendees">(isNumbered ? "unit" : "quantity");
   const [quantity, setQuantity] = useState(isNumbered ? (ticketType.ticketsPerUnit || 1) : 1);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(preSelectedUnitId ?? null);
@@ -95,9 +102,9 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
     const count = isNumbered ? (ticketType.ticketsPerUnit || 1) : quantity;
     const initial: AttendeeData[] = Array.from({ length: count }, (_, i) => {
       if (i === 0 && user) {
-        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: (user.sex || "") as AttendeeData["sex"], idDocument: user.idDocument || "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
+        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: (user.sex || "") as AttendeeData["sex"], idDocumentType: "", idDocument: user.idDocument || "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
       }
-      return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocument: "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
+      return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocumentType: "", idDocument: "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
     });
     setAttendees(initial);
     setStep("attendees");
@@ -128,13 +135,22 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
   const validateAttendees = (): boolean => {
     const newErrors: Record<string, string> = {};
     attendees.forEach((a, i) => {
-      if (i === 0 && isAuthenticated && !!user) return;
+      if (i === 0 && isAuthenticated && !!user) {
+        if (!a.idDocumentType) newErrors[`${i}-idDocumentType`] = t("ticketSelection.required");
+        if (isRace && !a.shirtSize) newErrors[`${i}-shirtSize`] = t("ticketSelection.required");
+        if (isRace && !a.bloodType) newErrors[`${i}-bloodType`] = t("ticketSelection.required");
+        if (isRace && !a.emergencyContactName?.trim()) newErrors[`${i}-emergencyContactName`] = t("ticketSelection.required");
+        if (isRace && !a.emergencyContactPhone?.trim()) newErrors[`${i}-emergencyContactPhone`] = t("ticketSelection.required");
+        if (isRace && !a.eps) newErrors[`${i}-eps`] = t("ticketSelection.required");
+        return;
+      }
       if (!a.name.trim()) newErrors[`${i}-name`] = t("ticketSelection.required");
       if (!a.email.trim()) newErrors[`${i}-email`] = t("ticketSelection.required");
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email)) newErrors[`${i}-email`] = t("ticketSelection.invalidEmail");
       if (!a.phone.trim()) newErrors[`${i}-phone`] = t("ticketSelection.required");
       if (!a.dateOfBirth.trim()) newErrors[`${i}-dateOfBirth`] = t("ticketSelection.required");
       if (!a.sex) newErrors[`${i}-sex`] = t("ticketSelection.required");
+      if (!a.idDocumentType) newErrors[`${i}-idDocumentType`] = t("ticketSelection.required");
       if (!a.idDocument.trim()) newErrors[`${i}-idDocument`] = t("ticketSelection.required");
       if (isRace) {
         if (!a.shirtSize?.trim()) newErrors[`${i}-shirtSize`] = t("ticketSelection.required");
@@ -192,7 +208,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
           <div className="bg-card rounded-lg border border-border p-4 mb-4">
             <p className="font-semibold">{ticketType.name}</p>
             <p className="text-sm text-muted-foreground">{sectionName} — {ticketType.validDays}</p>
-            <p className="text-primary font-bold mt-1">{formatPrice(ticketType.price, event.currencyCode)}</p>
+            <p className="text-primary font-bold mt-1">{formatPrice(ticketType.price, event.currencyCode, i18n.language)}</p>
           </div>
 
           {step === "unit" && isNumbered ? (
@@ -244,7 +260,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between font-bold text-base">
                   <span>{t("ticketSelection.total")}</span>
-                  <span className="text-primary">{formatPrice(total, event.currencyCode)}</span>
+                  <span className="text-primary">{formatPrice(total, event.currencyCode, i18n.language)}</span>
                 </div>
               </div>
 
@@ -262,28 +278,36 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
             <div className="space-y-6">
               <div>
                 <Label className="mb-2 block">{t("ticketSelection.quantity")}</Label>
-                <p className="text-xs text-muted-foreground mb-3">
-                  {t("ticketSelection.maxPerOrder", { max: maxQty })}
-                </p>
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuantityChange(quantity - 1)}
-                    disabled={quantity <= 1}
-                  >
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                  <span className="text-2xl font-bold w-8 text-center">{quantity}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuantityChange(quantity + 1)}
-                    disabled={quantity >= maxQty}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
+                {isRace ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t("ticketSelection.raceSingleTicket")}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      {t("ticketSelection.maxPerOrder", { max: maxQty })}
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuantityChange(quantity - 1)}
+                        disabled={quantity <= 1}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="text-2xl font-bold w-8 text-center">{quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuantityChange(quantity + 1)}
+                        disabled={quantity >= maxQty}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
 
               <Separator />
@@ -291,16 +315,16 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t("ticketSelection.subtotal")}</span>
-                  <span>{formatPrice(subtotal, event.currencyCode)}</span>
+                  <span>{formatPrice(subtotal, event.currencyCode, i18n.language)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t("ticketSelection.serviceFee")}</span>
-                  <span>{formatPrice(serviceFee, event.currencyCode)}</span>
+                  <span>{formatPrice(serviceFee, event.currencyCode, i18n.language)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-bold text-base">
                   <span>{t("ticketSelection.total")}</span>
-                  <span className="text-primary">{formatPrice(total, event.currencyCode)}</span>
+                  <span className="text-primary">{formatPrice(total, event.currencyCode, i18n.language)}</span>
                 </div>
               </div>
 
@@ -338,12 +362,151 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                           label={t("ticketSelection.sex", "Género")}
                           value={attendee.sex === "male" ? t("ticketSelection.male", "Masculino") : attendee.sex === "female" ? t("ticketSelection.female", "Femenino") : attendee.sex === "non_binary" ? t("ticketSelection.nonBinary", "No binario") : "—"}
                         />
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <IdCard className="w-3 h-3" />
+                            {t("ticketSelection.idDocumentType")} *
+                          </Label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {ID_DOCUMENT_TYPES.map((dt) => (
+                              <button
+                                key={dt.code}
+                                type="button"
+                                onClick={() => updateAttendee(index, "idDocumentType", dt.code)}
+                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                  attendee.idDocumentType === dt.code
+                                    ? "border-primary bg-primary/10 text-primary"
+                                    : "border-border text-muted-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {dt.code}
+                              </button>
+                            ))}
+                          </div>
+                          {attendee.idDocumentType && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {ID_DOCUMENT_TYPES.find(d => d.code === attendee.idDocumentType)?.label}
+                            </p>
+                          )}
+                          {errors[`${index}-idDocumentType`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-idDocumentType`]}</p>
+                          )}
+                        </div>
                         <ReadOnlyField label={t("ticketSelection.idDocument", "Núm. de identificación")} value={attendee.idDocument} />
+
+                        {isRace && (
+                          <>
+                            <Separator className="my-1" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("ticketSelection.raceSection")}</p>
+
+                            {/* Shirt size */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <Shirt className="w-3 h-3" />
+                                {t("ticketSelection.shirtSize")} *
+                              </Label>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {SHIRT_SIZES.map((size) => (
+                                  <button
+                                    key={size}
+                                    type="button"
+                                    onClick={() => updateAttendee(index, "shirtSize", size)}
+                                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                      attendee.shirtSize === size
+                                        ? "border-primary bg-primary/10 text-primary"
+                                        : "border-border text-muted-foreground hover:border-primary/50"
+                                    }`}
+                                  >
+                                    {size}
+                                  </button>
+                                ))}
+                              </div>
+                              {errors[`${index}-shirtSize`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-shirtSize`]}</p>
+                              )}
+                            </div>
+
+                            {/* Blood type */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <Droplets className="w-3 h-3" />
+                                {t("ticketSelection.bloodType")} *
+                              </Label>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {BLOOD_TYPES.map((bt) => (
+                                  <button
+                                    key={bt}
+                                    type="button"
+                                    onClick={() => updateAttendee(index, "bloodType", bt)}
+                                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                      attendee.bloodType === bt
+                                        ? "border-primary bg-primary/10 text-primary"
+                                        : "border-border text-muted-foreground hover:border-primary/50"
+                                    }`}
+                                  >
+                                    {bt}
+                                  </button>
+                                ))}
+                              </div>
+                              {errors[`${index}-bloodType`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-bloodType`]}</p>
+                              )}
+                            </div>
+
+                            {/* EPS */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <Heart className="w-3 h-3" />
+                                {t("ticketSelection.eps")} *
+                              </Label>
+                              <div className="mt-1">
+                                <SearchableSelect
+                                  value={attendee.eps ?? ""}
+                                  onChange={(v) => updateAttendee(index, "eps", v)}
+                                  options={[...EPS_LIST, t("ticketSelection.noEps")]}
+                                  placeholder="Selecciona tu EPS..."
+                                  searchPlaceholder="Buscar EPS..."
+                                  hasError={!!errors[`${index}-eps`]}
+                                />
+                              </div>
+                              {errors[`${index}-eps`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-eps`]}</p>
+                              )}
+                            </div>
+
+                            {/* Emergency contact */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <PhoneIcon className="w-3 h-3" />
+                                {t("ticketSelection.emergencyContact")} *
+                              </Label>
+                              <Input
+                                value={attendee.emergencyContactName ?? ""}
+                                onChange={(e) => updateAttendee(index, "emergencyContactName", e.target.value)}
+                                placeholder={t("ticketSelection.emergencyContactNamePlaceholder")}
+                                className={`mt-1 ${errors[`${index}-emergencyContactName`] ? "border-destructive" : ""}`}
+                              />
+                              {errors[`${index}-emergencyContactName`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactName`]}</p>
+                              )}
+                              <div className="mt-2">
+                                <PhoneField
+                                  value={attendee.emergencyContactPhone ?? ""}
+                                  onChange={(v) => updateAttendee(index, "emergencyContactPhone", v)}
+                                  className={errors[`${index}-emergencyContactPhone`] ? "[&_div]:border-destructive" : ""}
+                                />
+                              </div>
+                              {errors[`${index}-emergencyContactPhone`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactPhone`]}</p>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </>
                     ) : (
                       <>
                         <div>
-                          <Label className="text-xs">{t("ticketSelection.name")}</Label>
+                          <Label className="text-xs">{t("ticketSelection.name")} *</Label>
                           <Input
                             value={attendee.name}
                             onChange={(e) => updateAttendee(index, "name", e.target.value)}
@@ -354,7 +517,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                           )}
                         </div>
                         <div>
-                          <Label className="text-xs">{t("ticketSelection.email")}</Label>
+                          <Label className="text-xs">{t("ticketSelection.email")} *</Label>
                           <Input
                             type="email"
                             value={attendee.email}
@@ -366,7 +529,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                           )}
                         </div>
                         <div>
-                          <Label className="text-xs">{t("ticketSelection.phone")}</Label>
+                          <Label className="text-xs">{t("ticketSelection.phone")} *</Label>
                           <PhoneField
                             value={attendee.phone}
                             onChange={(v) => updateAttendee(index, "phone", v)}
@@ -427,6 +590,36 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         <div>
                           <Label className="text-xs flex items-center gap-1">
                             <IdCard className="w-3 h-3" />
+                            {t("ticketSelection.idDocumentType")} *
+                          </Label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {ID_DOCUMENT_TYPES.map((dt) => (
+                              <button
+                                key={dt.code}
+                                type="button"
+                                onClick={() => updateAttendee(index, "idDocumentType", dt.code)}
+                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                  attendee.idDocumentType === dt.code
+                                    ? "border-primary bg-primary/10 text-primary"
+                                    : "border-border text-muted-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {dt.code}
+                              </button>
+                            ))}
+                          </div>
+                          {attendee.idDocumentType && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {ID_DOCUMENT_TYPES.find(d => d.code === attendee.idDocumentType)?.label}
+                            </p>
+                          )}
+                          {errors[`${index}-idDocumentType`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-idDocumentType`]}</p>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <IdCard className="w-3 h-3" />
                             {t("ticketSelection.idDocument", "Núm. de identificación")} *
                           </Label>
                           <Input
@@ -445,13 +638,13 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         {isRace && (
                           <>
                             <Separator className="my-1" />
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datos de carrera</p>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("ticketSelection.raceSection")}</p>
 
                             {/* Shirt size */}
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <Shirt className="w-3 h-3" />
-                                Talla de camiseta *
+                                {t("ticketSelection.shirtSize")} *
                               </Label>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {SHIRT_SIZES.map((size) => (
@@ -478,7 +671,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <Droplets className="w-3 h-3" />
-                                Tipo de sangre *
+                                {t("ticketSelection.bloodType")} *
                               </Label>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {BLOOD_TYPES.map((bt) => (
@@ -505,13 +698,13 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <Heart className="w-3 h-3" />
-                                EPS *
+                                {t("ticketSelection.eps")} *
                               </Label>
                               <div className="mt-1">
                                 <SearchableSelect
                                   value={attendee.eps ?? ""}
                                   onChange={(v) => updateAttendee(index, "eps", v)}
-                                  options={EPS_LIST}
+                                  options={[...EPS_LIST, t("ticketSelection.noEps")]}
                                   placeholder="Selecciona tu EPS..."
                                   searchPlaceholder="Buscar EPS..."
                                   hasError={!!errors[`${index}-eps`]}
@@ -526,24 +719,24 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <PhoneIcon className="w-3 h-3" />
-                                Contacto de emergencia *
+                                {t("ticketSelection.emergencyContact")} *
                               </Label>
                               <Input
                                 value={attendee.emergencyContactName ?? ""}
                                 onChange={(e) => updateAttendee(index, "emergencyContactName", e.target.value)}
-                                placeholder="Nombre completo"
+                                placeholder={t("ticketSelection.emergencyContactNamePlaceholder")}
                                 className={`mt-1 ${errors[`${index}-emergencyContactName`] ? "border-destructive" : ""}`}
                               />
                               {errors[`${index}-emergencyContactName`] && (
                                 <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactName`]}</p>
                               )}
-                              <Input
-                                type="tel"
-                                value={attendee.emergencyContactPhone ?? ""}
-                                onChange={(e) => updateAttendee(index, "emergencyContactPhone", e.target.value)}
-                                placeholder="Teléfono de emergencia"
-                                className={`mt-2 ${errors[`${index}-emergencyContactPhone`] ? "border-destructive" : ""}`}
-                              />
+                              <div className="mt-2">
+                                <PhoneField
+                                  value={attendee.emergencyContactPhone ?? ""}
+                                  onChange={(v) => updateAttendee(index, "emergencyContactPhone", v)}
+                                  className={errors[`${index}-emergencyContactPhone`] ? "[&_div]:border-destructive" : ""}
+                                />
+                              </div>
                               {errors[`${index}-emergencyContactPhone`] && (
                                 <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactPhone`]}</p>
                               )}
@@ -562,7 +755,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between font-bold text-base">
                   <span>{t("ticketSelection.total")}</span>
-                  <span className="text-primary">{formatPrice(total, event.currencyCode)}</span>
+                  <span className="text-primary">{formatPrice(total, event.currencyCode, i18n.language)}</span>
                 </div>
               </div>
 

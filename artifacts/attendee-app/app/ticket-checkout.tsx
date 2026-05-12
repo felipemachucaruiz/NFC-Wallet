@@ -21,6 +21,7 @@ import { Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, Styl
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
+import { ScreenBackground } from "@/components/ui/ScreenBackground";
 import { useAlert } from "@/components/CustomAlert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -28,7 +29,7 @@ import { formatCurrency } from "@/utils/format";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePurchaseTickets, useTokenizeCard } from "@/hooks/useEventsApi";
-import { usePseBanks } from "@/hooks/useAttendeeApi";
+import { usePseBanks, useSavedCards, type SavedCard } from "@/hooks/useAttendeeApi";
 import type { OrderTicket, PaymentMethod } from "@/types/events";
 
 function safeParseJson<T>(json: string | undefined, fallback: T): T {
@@ -150,6 +151,10 @@ export default function TicketCheckoutScreen() {
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
   const [cardHolder, setCardHolder] = useState("");
+  const [selectedSavedCardId, setSelectedSavedCardId] = useState<string | null>(null);
+
+  const { data: savedCardsData } = useSavedCards();
+  const savedCards = savedCardsData?.cards ?? [];
 
   const { data: pseBanksRaw, isPending: pseBanksLoading } = usePseBanks();
   const pseBanks = (pseBanksRaw ?? []).map((b) => ({
@@ -165,7 +170,7 @@ export default function TicketCheckoutScreen() {
     if (method === "nequi" || method === "daviplata") return phoneNumber.replace(/\D/g, "").length >= 10;
     if (method === "puntoscolombia") return phoneNumber.replace(/\D/g, "").length >= 10 && legalId.trim().length >= 5;
     if (method === "pse") return selectedBank !== null && legalId.trim().length >= 5 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pseEmail.trim());
-    if (method === "card") return cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0;
+    if (method === "card") return selectedSavedCardId !== null || (cardNumber.replace(/\s/g, "").length >= 15 && cardExpiry.length >= 5 && cardCvc.length >= 3 && cardHolder.trim().length > 0);
     if (method === "bancolombia_transfer") return true;
     return false;
   };
@@ -199,21 +204,26 @@ export default function TicketCheckoutScreen() {
       body.pseEmail = pseEmail.trim();
     }
     if (method === "card") {
-      body.browserInfo = collectBrowserInfo();
-      try {
-        const parts = cardExpiry.split("/");
-        const token = await tokenizeCard({
-          number: cardNumber.replace(/\s/g, ""),
-          cvc: cardCvc,
-          expMonth: parts[0] ?? "",
-          expYear: `20${parts[1] ?? ""}`,
-          cardHolder: cardHolder.trim(),
-        });
-        body.cardToken = token;
-      } catch (err: unknown) {
-        const msg = (err as { message?: string }).message ?? t("common.unknownError");
-        showAlert(t("common.error"), msg);
-        return;
+      if (selectedSavedCardId) {
+        body.savedCardId = selectedSavedCardId;
+        body.browserInfo = collectBrowserInfo();
+      } else {
+        body.browserInfo = collectBrowserInfo();
+        try {
+          const parts = cardExpiry.split("/");
+          const token = await tokenizeCard({
+            number: cardNumber.replace(/\s/g, ""),
+            cvc: cardCvc,
+            expMonth: parts[0] ?? "",
+            expYear: `20${parts[1] ?? ""}`,
+            cardHolder: cardHolder.trim(),
+          });
+          body.cardToken = token;
+        } catch (err: unknown) {
+          const msg = (err as { message?: string }).message ?? t("common.unknownError");
+          showAlert(t("common.error"), msg);
+          return;
+        }
       }
     }
 
@@ -243,7 +253,7 @@ export default function TicketCheckoutScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: C.background, paddingTop: isWeb ? 67 : insets.top + 8 }]}>
+    <ScreenBackground style={{ paddingTop: isWeb ? 67 : insets.top + 8 }}>
       <View style={[styles.header, { paddingHorizontal: 20 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={C.text} />
@@ -309,7 +319,7 @@ export default function TicketCheckoutScreen() {
             ] as { id: PaymentMethod; icon: string; label: string }[]).map((m) => (
               <Pressable
                 key={m.id}
-                onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); setShowLegalIdTypePicker(false); setPhoneNumber(""); }}
+                onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); setShowLegalIdTypePicker(false); setPhoneNumber(""); setSelectedSavedCardId(null); }}
                 style={[
                   styles.methodBtn,
                   {
@@ -543,7 +553,58 @@ export default function TicketCheckoutScreen() {
           </Card>
         )}
 
-        {method === "card" && (
+        {method === "card" && savedCards.length > 0 && (
+          <Card style={{ gap: 10 }}>
+            <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
+              {t("tickets.savedCards").toUpperCase()}
+            </Text>
+            {savedCards.map((card: SavedCard) => {
+              const brand = detectCardBrand(card.brand === "visa" ? "4" : card.brand === "mastercard" ? "51" : card.brand === "amex" ? "37" : "");
+              const isSelected = selectedSavedCardId === card.id;
+              return (
+                <Pressable
+                  key={card.id}
+                  onPress={() => setSelectedSavedCardId(isSelected ? null : card.id)}
+                  style={[
+                    styles.savedCardRow,
+                    {
+                      backgroundColor: isSelected ? C.primaryLight : C.inputBg,
+                      borderColor: isSelected ? C.primary : C.border,
+                    },
+                  ]}
+                >
+                  <CardBrandLogo brand={brand} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.savedCardTitle, { color: C.text }]}>
+                      {card.alias || `${card.brand} •••• ${card.lastFour}`}
+                    </Text>
+                    <Text style={[styles.savedCardSub, { color: C.textSecondary }]}>
+                      {card.cardHolderName} · {card.expiryMonth}/{card.expiryYear}
+                    </Text>
+                  </View>
+                  {isSelected && <Feather name="check-circle" size={20} color={C.primary} />}
+                </Pressable>
+              );
+            })}
+            <Pressable
+              onPress={() => setSelectedSavedCardId(null)}
+              style={[
+                styles.savedCardRow,
+                {
+                  backgroundColor: selectedSavedCardId === null ? C.primaryLight : C.inputBg,
+                  borderColor: selectedSavedCardId === null ? C.primary : C.border,
+                },
+              ]}
+            >
+              <Feather name="plus-circle" size={22} color={selectedSavedCardId === null ? C.primary : C.textSecondary} />
+              <Text style={[styles.savedCardTitle, { color: selectedSavedCardId === null ? C.primary : C.text }]}>
+                {t("tickets.newCard")}
+              </Text>
+            </Pressable>
+          </Card>
+        )}
+
+        {method === "card" && selectedSavedCardId === null && (
           <Card style={{ gap: 10 }}>
             <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>
               {t("tickets.cardDetails").toUpperCase()}
@@ -600,15 +661,15 @@ export default function TicketCheckoutScreen() {
         <Button
           title={isPending || isTokenizing ? t("common.processing") : `${t("tickets.confirmPayment")} ${formatCurrency(total, currencyCode)}`}
           onPress={handleConfirm}
-          disabled={!canSubmit() || isPending || isTokenizing}
-          loading={isPending || isTokenizing}
+          disabled={!canSubmit() || isPending || (isTokenizing && selectedSavedCardId === null)}
+          loading={isPending || (isTokenizing && selectedSavedCardId === null)}
           variant="primary"
           fullWidth
           size="lg"
         />
       </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </ScreenBackground>
   );
 }
 
@@ -639,4 +700,14 @@ const styles = StyleSheet.create({
   bankList: { borderWidth: 1, borderRadius: 12, overflow: "hidden" },
   bankItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14, borderBottomWidth: 1 },
   cardRow: { flexDirection: "row", gap: 12 },
+  savedCardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  savedCardTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  savedCardSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

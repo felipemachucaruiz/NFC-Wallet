@@ -83,7 +83,13 @@ const attendeeDataSchema = z.object({
   phone: z.string().max(30).optional(),
   dateOfBirth: z.string().max(10).optional(),
   sex: z.enum(["male", "female", "non_binary"]).optional(),
+  idDocumentType: z.string().max(20).optional(),
   idDocument: z.string().max(50).optional(),
+  eps: z.string().max(150).optional(),
+  shirtSize: z.string().max(10).optional(),
+  bloodType: z.string().max(5).optional(),
+  emergencyContactName: z.string().max(255).optional(),
+  emergencyContactPhone: z.string().max(30).optional(),
   ticketTypeId: z.string().min(1),
 });
 
@@ -95,7 +101,13 @@ const legacyTicketSchema = z.object({
     phone: z.string().max(30).optional(),
     dateOfBirth: z.string().max(10).optional(),
     sex: z.enum(["male", "female", "non_binary"]).optional(),
+    idDocumentType: z.string().max(20).optional(),
     idDocument: z.string().max(50).optional(),
+    eps: z.string().max(150).optional(),
+    shirtSize: z.string().max(10).optional(),
+    bloodType: z.string().max(5).optional(),
+    emergencyContactName: z.string().max(255).optional(),
+    emergencyContactPhone: z.string().max(30).optional(),
   }),
 });
 
@@ -153,6 +165,11 @@ router.post(
       dateOfBirth: tk.attendee.dateOfBirth,
       sex: tk.attendee.sex,
       idDocument: tk.attendee.idDocument,
+      shirtSize: tk.attendee.shirtSize,
+      bloodType: tk.attendee.bloodType,
+      emergencyContactName: tk.attendee.emergencyContactName,
+      emergencyContactPhone: tk.attendee.emergencyContactPhone,
+      eps: tk.attendee.eps,
     }));
 
     if (!req.isAuthenticated()) {
@@ -229,6 +246,10 @@ router.post(
         salesChannel: eventsTable.salesChannel,
         currencyCode: eventsTable.currencyCode,
         name: eventsTable.name,
+        category: eventsTable.category,
+        raceConfig: eventsTable.raceConfig,
+        raceNumberStart: eventsTable.raceNumberStart,
+        raceNumberEnd: eventsTable.raceNumberEnd,
       })
       .from(eventsTable)
       .where(and(eq(eventsTable.id, eventId), eq(eventsTable.active, true)));
@@ -246,6 +267,27 @@ router.post(
     if (event.salesChannel === "door") {
       res.status(400).json({ error: "Online ticket sales are not available for this event" });
       return;
+    }
+
+    if (event.category === "race") {
+      if (attendees.length !== 1) {
+        res.status(400).json({ error: "Race events allow only 1 ticket per purchase" });
+        return;
+      }
+      const a = attendees[0];
+      if (!a.shirtSize) { res.status(400).json({ error: "Shirt size is required for race events" }); return; }
+      if (!a.bloodType) { res.status(400).json({ error: "Blood type is required for race events" }); return; }
+      if (!a.emergencyContactName) { res.status(400).json({ error: "Emergency contact name is required for race events" }); return; }
+      if (!a.emergencyContactPhone) { res.status(400).json({ error: "Emergency contact phone is required for race events" }); return; }
+      if (!a.eps) { res.status(400).json({ error: "EPS is required for race events" }); return; }
+      const allowedSizes = (event.raceConfig as { sizes: string[] } | null)?.sizes ?? [];
+      if (allowedSizes.length > 0 && !allowedSizes.includes(a.shirtSize)) {
+        res.status(400).json({ error: `Invalid shirt size. Allowed: ${allowedSizes.join(", ")}` });
+        return;
+      }
+      const [existingTicket] = await db.select({ id: ticketsTable.id }).from(ticketsTable)
+        .where(and(eq(ticketsTable.eventId, eventId), eq(ticketsTable.attendeeEmail, a.email.toLowerCase().trim()), sql`${ticketsTable.status} != 'cancelled'`)).limit(1);
+      if (existingTicket) { res.status(409).json({ error: "You already have a ticket for this race" }); return; }
     }
 
     const ticketTypeIds = [...new Set(attendees.map((a) => a.ticketTypeId))];
@@ -481,6 +523,16 @@ router.post(
       }
     }
 
+    // Race number: fetch current max so we can assign sequentially within this order
+    let nextRaceNumber: number | null = null;
+    if (event.raceNumberStart !== null && event.raceNumberStart !== undefined) {
+      const [maxRow] = await db
+        .select({ maxRace: sql<number | null>`MAX(${ticketsTable.raceNumber})` })
+        .from(ticketsTable)
+        .where(eq(ticketsTable.eventId, eventId));
+      nextRaceNumber = (maxRow?.maxRace ?? (event.raceNumberStart - 1)) + 1;
+    }
+
     if (paymentMethod === "free") {
       const insertedCountByType = new Map<string, number>();
       for (const attendee of attendees) {
@@ -510,6 +562,9 @@ router.post(
         }
         insertedCountByType.set(typeId, insertedSoFar + 1);
 
+        const assignedRace = (nextRaceNumber !== null && (event.raceNumberEnd === null || event.raceNumberEnd === undefined || nextRaceNumber <= event.raceNumberEnd))
+          ? nextRaceNumber++ : null;
+
         await db
           .insert(ticketsTable)
           .values({
@@ -524,9 +579,20 @@ router.post(
             attendeeSex: attendee.sex ?? null,
             attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId,
+            eps: (attendee as { eps?: string }).eps ?? null,
+            shirtSize: (attendee as { shirtSize?: string }).shirtSize ?? null,
+            bloodType: (attendee as { bloodType?: string }).bloodType ?? null,
+            emergencyContactName: (attendee as { emergencyContactName?: string }).emergencyContactName ?? null,
+            emergencyContactPhone: (attendee as { emergencyContactPhone?: string }).emergencyContactPhone ?? null,
+            raceNumber: assignedRace,
             status: "valid",
             unitPrice,
             serviceFeeAmount,
+            shirtSize: attendee.shirtSize ?? null,
+            bloodType: attendee.bloodType ?? null,
+            emergencyContactName: attendee.emergencyContactName ?? null,
+            emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+            eps: attendee.eps ?? null,
           });
       }
 
@@ -774,6 +840,9 @@ router.post(
         }
         insertedCountByTypePaid.set(typeId, insertedSoFar + 1);
 
+        const assignedRacePaid = (nextRaceNumber !== null && (event.raceNumberEnd === null || event.raceNumberEnd === undefined || nextRaceNumber <= event.raceNumberEnd))
+          ? nextRaceNumber++ : null;
+
         await db
           .insert(ticketsTable)
           .values({
@@ -788,9 +857,20 @@ router.post(
             attendeeSex: attendee.sex ?? null,
             attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId: attendeeUserId,
+            eps: (attendee as { eps?: string }).eps ?? null,
+            shirtSize: (attendee as { shirtSize?: string }).shirtSize ?? null,
+            bloodType: (attendee as { bloodType?: string }).bloodType ?? null,
+            emergencyContactName: (attendee as { emergencyContactName?: string }).emergencyContactName ?? null,
+            emergencyContactPhone: (attendee as { emergencyContactPhone?: string }).emergencyContactPhone ?? null,
+            raceNumber: assignedRacePaid,
             status: "valid",
             unitPrice,
             serviceFeeAmount,
+            shirtSize: attendee.shirtSize ?? null,
+            bloodType: attendee.bloodType ?? null,
+            emergencyContactName: attendee.emergencyContactName ?? null,
+            emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+            eps: attendee.eps ?? null,
           });
       }
     } catch (postWompiErr) {
@@ -877,14 +957,18 @@ router.get(
             const reqLocale = parseAcceptLocale(req.headers["accept-language"]);
             await processTicketOrderPayment(order.id, order.wompiTransactionId!, reqLocale);
             const [updated] = await db.select().from(ticketOrdersTable).where(eq(ticketOrdersTable.id, orderId));
-            res.json({ orderId: updated.id, status: updated.paymentStatus, threeDsAuth: null });
+            const confirmedTickets = await db
+              .select({ id: ticketsTable.id, attendeeEmail: ticketsTable.attendeeEmail })
+              .from(ticketsTable)
+              .where(eq(ticketsTable.orderId, orderId));
+            res.json({ orderId: updated.id, status: updated.paymentStatus, threeDsAuth: null, tickets: confirmedTickets });
             return;
           } else if (["DECLINED", "ERROR", "VOIDED"].includes(wompiData.data.status)) {
             await cancelTicketOrder(order.id);
-            res.json({ orderId, status: "cancelled", threeDsAuth: null });
+            res.json({ orderId, status: "cancelled", threeDsAuth: null, tickets: [] });
             return;
           }
-          res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth });
+          res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth, tickets: [] });
           return;
         }
       } catch (err) {
@@ -892,7 +976,16 @@ router.get(
       }
     }
 
-    res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth: null });
+    if (order.paymentStatus === "confirmed") {
+      const confirmedTickets = await db
+        .select({ id: ticketsTable.id, attendeeEmail: ticketsTable.attendeeEmail })
+        .from(ticketsTable)
+        .where(eq(ticketsTable.orderId, orderId));
+      res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth: null, tickets: confirmedTickets });
+      return;
+    }
+
+    res.json({ orderId: order.id, status: order.paymentStatus, threeDsAuth: null, tickets: [] });
   },
 );
 
@@ -934,7 +1027,7 @@ router.get(
         }
 
         const [event] = await db
-          .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, endsAt: eventsTable.endsAt, flyerImageUrl: eventsTable.flyerImageUrl, coverImageUrl: eventsTable.coverImageUrl, venueAddress: eventsTable.venueAddress, currencyCode: eventsTable.currencyCode })
+          .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, endsAt: eventsTable.endsAt, flyerImageUrl: eventsTable.flyerImageUrl, coverImageUrl: eventsTable.coverImageUrl, venueAddress: eventsTable.venueAddress, currencyCode: eventsTable.currencyCode, latitude: eventsTable.latitude, longitude: eventsTable.longitude })
           .from(eventsTable)
           .where(eq(eventsTable.id, ticket.eventId));
 
@@ -953,6 +1046,8 @@ router.get(
           eventEndsAt: event?.endsAt ?? null,
           eventCoverImage: event?.flyerImageUrl ?? event?.coverImageUrl ?? null,
           venueAddress: event?.venueAddress ?? null,
+          latitude: event?.latitude ?? null,
+          longitude: event?.longitude ?? null,
           ticketTypeName: ticketType?.name ?? null,
           validEventDayIds: ticketType?.validEventDayIds ?? [],
           currencyCode: event?.currencyCode ?? "COP",
@@ -1622,7 +1717,17 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         dateOfBirth?: string;
         sex?: string;
         idDocument?: string;
+        eps?: string;
+        shirtSize?: string;
+        bloodType?: string;
+        emergencyContactName?: string;
+        emergencyContactPhone?: string;
         ticketTypeId: string;
+        shirtSize?: string;
+        bloodType?: string;
+        emergencyContactName?: string;
+        emergencyContactPhone?: string;
+        eps?: string;
       }>;
 
       // Recompute pricing at recovery time (webhook is near-instant after purchase,
@@ -1673,6 +1778,16 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         recoveryFeeByType.set(typeId, fee);
       }
 
+      // Race number for recovery path
+      let recoveryNextRaceNumber: number | null = null;
+      if (event?.raceNumberStart !== null && event?.raceNumberStart !== undefined) {
+        const [recoveryMaxRow] = await db
+          .select({ maxRace: sql<number | null>`MAX(${ticketsTable.raceNumber})` })
+          .from(ticketsTable)
+          .where(eq(ticketsTable.eventId, order.eventId));
+        recoveryNextRaceNumber = (recoveryMaxRow?.maxRace ?? (event.raceNumberStart - 1)) + 1;
+      }
+
       const recoveryInsertedCount = new Map<string, number>();
       for (const attendee of storedAttendees) {
         const normalizedEmail = attendee.email.toLowerCase().trim();
@@ -1701,6 +1816,9 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
         }
         recoveryInsertedCount.set(typeId, insertedSoFar + 1);
 
+        const assignedRaceRecovery = (recoveryNextRaceNumber !== null && (event?.raceNumberEnd === null || event?.raceNumberEnd === undefined || recoveryNextRaceNumber <= event.raceNumberEnd))
+          ? recoveryNextRaceNumber++ : null;
+
         const [ticket] = await db
           .insert(ticketsTable)
           .values({
@@ -1715,9 +1833,20 @@ export async function processTicketOrderPayment(orderId: string, wompiTransactio
             attendeeSex: attendee.sex ?? null,
             attendeeIdDocument: attendee.idDocument ?? null,
             attendeeUserId: attendeeUserId,
+            eps: attendee.eps ?? null,
+            shirtSize: attendee.shirtSize ?? null,
+            bloodType: attendee.bloodType ?? null,
+            emergencyContactName: attendee.emergencyContactName ?? null,
+            emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+            raceNumber: assignedRaceRecovery,
             status: "valid",
             unitPrice,
             serviceFeeAmount,
+            shirtSize: attendee.shirtSize ?? null,
+            bloodType: attendee.bloodType ?? null,
+            emergencyContactName: attendee.emergencyContactName ?? null,
+            emergencyContactPhone: attendee.emergencyContactPhone ?? null,
+            eps: attendee.eps ?? null,
           })
           .returning();
         existingTickets.push(ticket);

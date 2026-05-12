@@ -41,7 +41,9 @@ export function Header() {
               <img
                 src={`${import.meta.env.BASE_URL}tapee-logo.png`}
                 alt="Tapee"
-                className="h-12"
+                className="h-12 w-auto"
+                width="129"
+                height="48"
               />
             </Link>
 
@@ -70,7 +72,7 @@ export function Header() {
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5">
+                <Button variant="ghost" size="sm" className="gap-1.5" aria-label={t("nav.selectLanguage", "Seleccionar idioma")}>
                   <Globe className="w-4 h-4" />
                   <span className="hidden sm:inline text-xs uppercase">{i18n.language}</span>
                 </Button>
@@ -134,6 +136,8 @@ export function Header() {
               variant="ghost"
               size="sm"
               className="md:hidden"
+              aria-label={mobileMenuOpen ? t("nav.closeMenu", "Cerrar menú") : t("nav.openMenu", "Abrir menú")}
+              aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

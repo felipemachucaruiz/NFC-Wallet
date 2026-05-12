@@ -33,7 +33,9 @@ export function Footer() {
               <img
                 src={`${import.meta.env.BASE_URL}tapee-logo.png`}
                 alt="Tapee"
-                className="h-12"
+                className="h-12 w-auto"
+                width="129"
+                height="48"
               />
             </div>
             <p className="text-muted-foreground text-sm max-w-md">
@@ -121,6 +123,8 @@ export function Footer() {
                   src={`${import.meta.env.BASE_URL}googleplay.png`}
                   alt="Disponible en Google Play"
                   className="h-10 w-auto"
+                  width="107"
+                  height="40"
                 />
               </a>
               <a
@@ -133,6 +137,8 @@ export function Footer() {
                   src={`${import.meta.env.BASE_URL}appstore.png`}
                   alt="Disponible en App Store"
                   className="h-10 w-auto"
+                  width="107"
+                  height="40"
                 />
               </a>
             </div>
@@ -144,13 +150,15 @@ export function Footer() {
           <img
             src={`${import.meta.env.BASE_URL}metodos-pago.png`}
             alt="Amex, Visa, Mastercard, Daviplata, Efecty, Nequi, PSE, Puntos Colombia"
-            className="h-11 object-contain"
+            className="h-11 w-auto object-contain"
+            width="330"
+            height="44"
           />
         </div>
 
         <div className="border-t border-border mt-6 pt-5 text-center text-sm text-muted-foreground space-y-1">
           <p>© {year} Tapee. {t("footer.rights")}.</p>
-          <p>TAPEE S.A.S. · NIT: 901890734-3</p>
+          <p>TAPEE S.A.S. · NIT: 902064713-1</p>
         </div>
       </div>
     </footer>

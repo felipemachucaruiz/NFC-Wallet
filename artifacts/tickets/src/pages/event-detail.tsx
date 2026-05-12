@@ -12,6 +12,7 @@ import type { EventData, TicketType } from "@/data/types";
 import { VenueMap } from "@/components/VenueMap";
 import { FloatingGraphics } from "@/components/FloatingGraphics";
 import { TicketSelector } from "@/components/TicketSelector";
+import { SEO } from "@/components/SEO";
 import { fetchEventDetail, resolveImageUrl, ApiError, type ApiEventDetail } from "@/lib/api";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyCyI7QJ3J5_Peqnr4bqFXAIqaeac1DuT_c";
@@ -238,6 +239,7 @@ function mapApiToEventData(detail: ApiEventDetail): EventData {
       ? event.floatingGraphics.map((g) => ({ url: resolveImageUrl(g.url) || g.url, opacity: g.opacity }))
       : null,
     vimeoUrl: event.vimeoUrl || null,
+    raceConfig: (event as any).raceConfig ?? null,
   };
 }
 
@@ -277,6 +279,83 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
     }
     setTimeout(() => setHighlightedSectionId(null), 3000);
   }, [event]);
+
+  const canonicalSlug = event?.id ? (detail?.event?.slug || params?.id) : params?.id;
+
+  const schemaObj = useMemo(() => {
+    if (!event) return null;
+    const eventUrl = `https://tapeetickets.com/event/${canonicalSlug}`;
+    const images = [event.coverImage, event.flyerImage].filter(Boolean);
+    return {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      "name": event.name,
+      "description": event.description?.replace(/<[^>]*>?/gm, '') || event.name,
+      "image": images,
+      "url": eventUrl,
+      "startDate": event.startsAt,
+      "endDate": event.endsAt || event.startsAt,
+      "eventStatus": "https://schema.org/EventScheduled",
+      "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+      "location": {
+        "@type": "Place",
+        "name": event.venueName || "TBD",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": event.venueAddress || "",
+          "addressLocality": event.city || "",
+          "addressCountry": "CO"
+        },
+        ...(event.latitude && event.longitude ? {
+          "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": event.latitude,
+            "longitude": event.longitude
+          }
+        } : {})
+      },
+      "offers": event.ticketTypes.length > 0 ? event.ticketTypes.map(tt => ({
+        "@type": "Offer",
+        "name": tt.name,
+        "price": tt.price,
+        "priceCurrency": event.currencyCode,
+        "availability": tt.status === "sold_out" ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
+        "url": eventUrl,
+        "validFrom": event.startsAt
+      })) : undefined,
+      "organizer": event.promoterCompanyName ? {
+        "@type": "Organization",
+        "name": event.promoterCompanyName,
+        "url": "https://tapeetickets.com"
+      } : undefined
+    };
+  }, [event, canonicalSlug]);
+
+  const breadcrumbSchema = useMemo(() => {
+    if (!event) return null;
+    return {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Tapee Tickets",
+          "item": "https://tapeetickets.com"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": event.name,
+          "item": `https://tapeetickets.com/event/${canonicalSlug}`
+        }
+      ]
+    };
+  }, [event, canonicalSlug]);
+
+  const schemaStr = schemaObj && breadcrumbSchema
+    ? JSON.stringify({ "@context": "https://schema.org", "@graph": [schemaObj, breadcrumbSchema] })
+    : schemaObj ? JSON.stringify(schemaObj) : undefined;
 
   if (isLoading) {
     return (
@@ -334,6 +413,15 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
 
   return (
     <div className="min-h-screen">
+      {event && (
+        <SEO
+          title={`${event.name} | Tapee Tickets`}
+          description={event.description?.replace(/<[^>]*>?/gm, '').substring(0, 160) || `Compra boletas para ${event.name}`}
+          image={event.coverImage}
+          url={`https://tapeetickets.com/event/${canonicalSlug}`}
+          schema={schemaStr}
+        />
+      )}
       {/* Full-viewport flyer background */}
       <div
         className="fixed inset-0 z-0"
@@ -616,7 +704,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
                     }}
                   >
                     {selectedTicket
-                      ? `${t("event.buyTickets")} — ${formatPrice(selectedTicket.price, event.currencyCode)}`
+                      ? `${t("event.buyTickets")} — ${formatPrice(selectedTicket.price, event.currencyCode, i18n.language)}`
                       : t("event.buyTickets")}
                   </Button>
                 )}
@@ -685,7 +773,7 @@ function SectionTicketGroups({
   onTicketSelect: (ticket: TicketType, sectionName: string) => void;
   onSelectionChange?: (ticket: TicketType | null) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -794,7 +882,7 @@ function SectionTicketGroups({
                     <span className="font-semibold text-sm">{group.sectionName}</span>
                     {!isExpanded && (
                       <span className="text-xs text-muted-foreground ml-2">
-                        {t("event.fromPrice", { price: formatPrice(lowestPrice, event.currencyCode) })}
+                        {t("event.fromPrice", { price: formatPrice(lowestPrice, event.currencyCode, i18n.language) })}
                       </span>
                     )}
                   </div>
@@ -842,15 +930,15 @@ function SectionTicketGroups({
                                   <span className="text-[11px] text-muted-foreground block">{tt.validDays}</span>
                                 </div>
                                 <div className="text-right shrink-0 ml-2">
-                                  <span className="text-primary font-bold text-sm">{formatPrice(tt.price, event.currencyCode)}</span>
+                                  <span className="text-primary font-bold text-sm">{formatPrice(tt.price, event.currencyCode, i18n.language)}</span>
                                   {tt.basePrice !== undefined && tt.basePrice !== tt.price && tt.currentStageName && (
-                                    <span className="text-[10px] text-muted-foreground line-through block">{formatPrice(tt.basePrice, event.currencyCode)}</span>
+                                    <span className="text-[10px] text-muted-foreground line-through block">{formatPrice(tt.basePrice, event.currencyCode, i18n.language)}</span>
                                   )}
                                 </div>
                               </div>
                               {tt.nextStage && (
                                 <p className="text-[10px] text-amber-400 mt-0.5">
-                                  {t("event.nextStage", "Próximo")}: {tt.nextStage.name} — {formatPrice(tt.nextStage.price, event.currencyCode)}
+                                  {t("event.nextStage", "Próximo")}: {tt.nextStage.name} — {formatPrice(tt.nextStage.price, event.currencyCode, i18n.language)}
                                 </p>
                               )}
                             </div>
@@ -886,7 +974,7 @@ function SingleTicketCard({
   isSelected?: boolean;
   onSelect: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <div
       id={`ticket-card-${ticket.id}`}
@@ -909,14 +997,14 @@ function SingleTicketCard({
       )}
       <p className="text-xs text-muted-foreground mb-1 ml-[18px]">{ticket.validDays}</p>
       <div className="flex items-baseline gap-2 ml-[18px]">
-        <p className="text-primary font-bold">{formatPrice(ticket.price, currencyCode)}</p>
+        <p className="text-primary font-bold">{formatPrice(ticket.price, currencyCode, i18n.language)}</p>
         {ticket.basePrice !== undefined && ticket.basePrice !== ticket.price && ticket.currentStageName && (
-          <p className="text-xs text-muted-foreground line-through">{formatPrice(ticket.basePrice, currencyCode)}</p>
+          <p className="text-xs text-muted-foreground line-through">{formatPrice(ticket.basePrice, currencyCode, i18n.language)}</p>
         )}
       </div>
       {ticket.nextStage && (
         <p className="text-[10px] text-amber-400 mt-1 ml-[18px]">
-          {t("event.nextStage", "Próximo")}: {ticket.nextStage.name} — {formatPrice(ticket.nextStage.price, currencyCode)}
+          {t("event.nextStage", "Próximo")}: {ticket.nextStage.name} — {formatPrice(ticket.nextStage.price, currencyCode, i18n.language)}
         </p>
       )}
     </div>

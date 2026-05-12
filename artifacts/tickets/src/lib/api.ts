@@ -14,10 +14,13 @@ export class ApiError extends Error {
   }
 }
 
-export function resolveImageUrl(path: string | null | undefined): string {
+export function resolveImageUrl(path: string | null | undefined, width = 800): string {
   if (!path) return "";
-  if (path.startsWith("http")) return path;
-  return `${STORAGE_ORIGIN}${path}`;
+  const fullUrl = path.startsWith("http") ? path : `${STORAGE_ORIGIN}${path}`;
+  if (fullUrl.startsWith(`${STORAGE_ORIGIN}/`)) {
+    return `${API_BASE}/public/image?url=${encodeURIComponent(fullUrl)}&w=${width}`;
+  }
+  return fullUrl;
 }
 
 let authToken: string | null = localStorage.getItem("tapee_auth_token");
@@ -279,7 +282,7 @@ export async function deleteCard(id: string): Promise<{ success: boolean }> {
 
 export interface PurchaseRequest {
   eventId: string;
-  attendees: { name: string; email: string; phone?: string; dateOfBirth?: string; sex?: "male" | "female"; idDocument?: string; ticketTypeId: string }[];
+  attendees: { name: string; email: string; phone?: string; dateOfBirth?: string; sex?: "male" | "female"; idDocument?: string; ticketTypeId: string; shirtSize?: string; bloodType?: string; emergencyContactName?: string; emergencyContactPhone?: string; eps?: string }[];
   unitSelections?: { ticketTypeId: string; unitId: string }[];
   paymentMethod: "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia" | "free";
   phoneNumber?: string;

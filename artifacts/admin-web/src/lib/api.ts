@@ -597,6 +597,67 @@ export async function apiTestReminderSchedule(id: string, body: { phone: string;
   return data;
 }
 
+// ── Analytics ────────────────────────────────────────────────────────────────
+
+export interface AnalyticsSummary {
+  totalTopUps: number;
+  totalSales: number;
+  pendingBalance: number;
+  transactionCount: number;
+  topUpCount: number;
+  braceletCount: number;
+  ticketSales: number;
+  ticketOrderCount: number;
+}
+
+export interface SalesByHourRow { hour: number; day: string; total: number; txCount: number; }
+export interface TopProductRow { productId: string; productName: string; totalUnits: number; totalRevenue: number; totalCogs: number; grossProfit: number; profitMarginPercent: number; }
+export interface TopMerchantRow { merchantId: string; merchantName: string; totalSales: number; totalCommission: number; totalNet: number; totalCogs: number; grossProfit: number; profitMarginPercent: number; txCount: number; }
+export interface HeatmapRow { hour: number; day: string; dayNum: number; txCount: number; total: number; }
+export interface StockAlertRow { inventoryId: string; locationId: string; locationName: string; eventId: string | null; productId: string; productName: string; quantityOnHand: number; restockTrigger: number; restockTargetQty: number; deficit: number; }
+
+export async function apiFetchAnalyticsSummary(eventId: string): Promise<AnalyticsSummary> {
+  const res = await fetch(apiUrl(`/api/analytics/summary?eventId=${encodeURIComponent(eventId)}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch analytics summary");
+  return data as AnalyticsSummary;
+}
+
+export async function apiFetchAnalyticsSalesByHour(eventId: string): Promise<SalesByHourRow[]> {
+  const res = await fetch(apiUrl(`/api/analytics/sales-by-hour?eventId=${encodeURIComponent(eventId)}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch sales by hour");
+  return (data.salesByHour ?? []) as SalesByHourRow[];
+}
+
+export async function apiFetchAnalyticsTopProducts(eventId: string, limit = 10): Promise<TopProductRow[]> {
+  const res = await fetch(apiUrl(`/api/analytics/top-products?eventId=${encodeURIComponent(eventId)}&limit=${limit}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch top products");
+  return (data.topProducts ?? []) as TopProductRow[];
+}
+
+export async function apiFetchAnalyticsTopMerchants(eventId: string, limit = 10): Promise<TopMerchantRow[]> {
+  const res = await fetch(apiUrl(`/api/analytics/top-merchants?eventId=${encodeURIComponent(eventId)}&limit=${limit}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch top merchants");
+  return (data.topMerchants ?? []) as TopMerchantRow[];
+}
+
+export async function apiFetchAnalyticsHeatmap(eventId: string): Promise<HeatmapRow[]> {
+  const res = await fetch(apiUrl(`/api/analytics/heatmap?eventId=${encodeURIComponent(eventId)}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch heatmap");
+  return (data.heatmap ?? []) as HeatmapRow[];
+}
+
+export async function apiFetchAnalyticsStockAlerts(eventId: string): Promise<StockAlertRow[]> {
+  const res = await fetch(apiUrl(`/api/analytics/stock-alerts?eventId=${encodeURIComponent(eventId)}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch stock alerts");
+  return (data.alerts ?? []) as StockAlertRow[];
+}
+
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")
