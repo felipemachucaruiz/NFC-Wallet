@@ -245,6 +245,8 @@ export interface AdminTicket {
   emergencyContactPhone?: string | null;
   eps?: string | null;
   raceNumber?: number | null;
+  unitPrice: number;
+  serviceFeeAmount: number;
   status: string;
   createdAt: string;
 }
@@ -318,6 +320,8 @@ export interface EventSummary {
   endsAt: string | null;
   promoterCompanyName: string | null;
   category?: string | null;
+  currencyCode?: string;
+  platformCommissionRate?: string | null;
   raceNumberStart?: number | null;
   raceNumberEnd?: number | null;
 }
