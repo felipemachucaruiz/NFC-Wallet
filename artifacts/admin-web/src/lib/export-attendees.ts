@@ -203,9 +203,12 @@ export async function downloadAttendeesPDF(
 
   doc.setTextColor(0, 0, 0);
 
-  // Build columnStyles from widths defined in COLUMNS
+  // Scale column widths proportionally so they always fill the usable page width exactly
+  const usableWidth = pageWidth - 16; // 8mm left + 8mm right margin
+  const totalRaw = COLUMNS.reduce((s, c) => s + c.width, 0);
+  const scale = usableWidth / totalRaw;
   const columnStyles: Record<number, { cellWidth: number }> = {};
-  COLUMNS.forEach((col, i) => { columnStyles[i] = { cellWidth: col.width }; });
+  COLUMNS.forEach((col, i) => { columnStyles[i] = { cellWidth: col.width * scale }; });
 
   autoTable(doc, {
     startY: 34,
