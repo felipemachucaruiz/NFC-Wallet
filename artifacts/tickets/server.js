@@ -12,8 +12,19 @@ const API_BASE = "https://attendee.tapee.app/attendee-api/api";
 const STORAGE_ORIGIN = "https://prod.tapee.app";
 const SITE = "https://tapeetickets.com";
 
+const WWW_HOST = "www.tapeetickets.com";
+
 const BOT_RE =
   /Googlebot|AdsBot-Google|Twitterbot|facebookexternalhit|WhatsApp|Slackbot|LinkedInBot|TelegramBot|Discordbot|Pinterest|Bingbot|YandexBot|Applebot|Bytespider|crawler|spider|bot\b/i;
+
+function getClientIP(req) {
+  return (
+    req.headers["cf-connecting-ip"] ||
+    (req.headers["x-forwarded-for"] || "").split(",")[0].trim() ||
+    req.socket.remoteAddress ||
+    ""
+  );
+}
 
 const CSP =
   "default-src 'self'; " +
@@ -302,6 +313,7 @@ function serveFile(res, filePath) {
 function serveIndex(res) {
   const indexPath = path.join(DIST, "index.html");
   const content = fs.readFileSync(indexPath);
+  res.setHeader("Cache-Control", "no-store");
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
   res.end(content);
 }
@@ -313,6 +325,14 @@ const server = http.createServer(async (req, res) => {
   // Apply security headers to all responses
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     res.setHeader(key, value);
+  }
+
+  // Redirect www → apex (belt-and-suspenders in case traffic bypasses Cloudflare)
+  const host = req.headers.host || "";
+  if (host === WWW_HOST || host.startsWith("www.")) {
+    res.writeHead(301, { Location: `${SITE}${req.url}` });
+    res.end();
+    return;
   }
 
   let pathname;
@@ -332,11 +352,14 @@ const server = http.createServer(async (req, res) => {
       const data = await fetchEventData(slugOrId);
       if (data?.event) {
         const html = buildEventHTML(data, slugOrId);
+        // Cache pre-rendered pages at Cloudflare edge for 5 min
+        res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300");
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
         res.end(html);
         return;
       }
       // Event not found → 404 for bots so Google doesn't index dead links
+      res.setHeader("Cache-Control", "no-store");
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Event not found");
       return;
@@ -345,6 +368,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === "/" || pathname === "") {
       const events = await fetchHomeEvents();
       const html = buildHomeHTML(events);
+      // Cache home pre-render for 2 min (event list changes more often)
+      res.setHeader("Cache-Control", "public, max-age=120, s-maxage=120");
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(html);
       return;
