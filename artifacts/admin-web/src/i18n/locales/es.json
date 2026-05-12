@@ -611,10 +611,13 @@
     "activationFeesDesc": "retenidos por Tapee",
     "activatedBracelets": "{{count}} pulseras activadas",
     "netSettlement": "Liquidación Neta al Promotor",
-    "netSettlementDesc": "ventas brutas − comisiones − reembolsos − fees de activación",
+    "netSettlementDesc": "ventas brutas − comisiones − reembolsos − saldos en chips pendientes de devolución − fees de activación",
     "totalTopUps": "Total Recargas",
     "totalTopUpsDesc": "{{count}} recargas procesadas",
-    "totalRefunds": "Total Reembolsos"
+    "totalRefunds": "Total Reembolsos",
+    "totalRefundsDesc": "reembolsos aprobados",
+    "pendingChipBalances": "Saldos en chips pendientes",
+    "pendingChipBalancesDesc": "pendientes de devolución a asistentes"
   },
   "reports": {
     "title": "Reportes",

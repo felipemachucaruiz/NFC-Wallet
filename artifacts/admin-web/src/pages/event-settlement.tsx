@@ -6,7 +6,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, Percent, Receipt, Zap, RefreshCcw, ArrowDownCircle } from "lucide-react";
+import { DollarSign, TrendingUp, Percent, Receipt, Zap, RefreshCcw, ArrowDownCircle, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
 import { useEventContext } from "@/contexts/event-context";
@@ -47,6 +47,7 @@ export default function EventSettlement() {
     totalTopUps?: number;
     topUpCount?: number;
     totalRefunds?: number;
+    totalPendingChipBalances?: number;
     netSettlement?: number;
   };
 
@@ -125,7 +126,7 @@ export default function EventSettlement() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -146,6 +147,19 @@ export default function EventSettlement() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{fmt(r.totalRefunds, currency)}</p>
+            <p className="text-xs text-muted-foreground">{t("settlement.totalRefundsDesc", "reembolsos aprobados")}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-orange-200 dark:border-orange-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-orange-500" /> {t("settlement.pendingChipBalances", "Saldos en chips pendientes")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{fmt(r.totalPendingChipBalances, currency)}</p>
+            <p className="text-xs text-muted-foreground">{t("settlement.pendingChipBalancesDesc", "pendientes de devolución a asistentes")}</p>
           </CardContent>
         </Card>
 
