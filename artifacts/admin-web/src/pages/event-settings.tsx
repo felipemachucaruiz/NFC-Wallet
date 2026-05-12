@@ -61,6 +61,8 @@ type EventDetail = {
   name: string;
   active?: boolean;
   currencyCode?: string;
+  nfcBraceletsEnabled?: boolean;
+  ticketingEnabled?: boolean;
   inventoryMode?: InventoryMode;
   nfcChipType?: NfcChipType;
   allowedNfcTypes?: NfcChipType[];
@@ -96,6 +98,8 @@ export default function EventSettings() {
   });
 
   const event = eventData as EventDetail | undefined;
+  const nfcBraceletsEnabled = event?.nfcBraceletsEnabled !== false;
+  const ticketingEnabled = event?.ticketingEnabled === true;
   const currentMode: InventoryMode = event?.inventoryMode ?? "location_based";
   const currentAllowedTypes: NfcChipType[] = event?.allowedNfcTypes ?? [event?.nfcChipType ?? "ntag_21x"];
 
@@ -390,7 +394,7 @@ export default function EventSettings() {
         <p className="text-muted-foreground mt-1">{t("eventSettings.subtitle")}</p>
       </div>
 
-      <Card>
+      {nfcBraceletsEnabled && <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
@@ -448,9 +452,9 @@ export default function EventSettings() {
             <span>{t("eventSettings.inventoryModeWarning")}</span>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {nfcBraceletsEnabled && <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
@@ -558,9 +562,9 @@ export default function EventSettings() {
             <span>{t("eventSettings.rotateKeyWarning")}</span>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {nfcBraceletsEnabled && <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
@@ -593,9 +597,9 @@ export default function EventSettings() {
             {isSavingLimits ? t("common.saving") : t("common.save")}
           </Button>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {nfcBraceletsEnabled && <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wifi className="h-5 w-5" />
@@ -643,9 +647,9 @@ export default function EventSettings() {
             {isSavingChipTypes ? t("common.saving") : t("common.save")}
           </Button>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <Card>
+      {(nfcBraceletsEnabled || ticketingEnabled) && <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
@@ -653,57 +657,61 @@ export default function EventSettings() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold">Banco — Recargas</h4>
-            {[
-              { value: "cash", label: "Efectivo" },
-              { value: "card_external", label: "Tarjeta (Datafono)" },
-              { value: "nequi_transfer", label: "Nequi" },
-              { value: "bancolombia_transfer", label: "Transferencia" },
-              { value: "other", label: "Otro" },
-            ].map((m) => (
-              <div key={m.value} className="flex items-center gap-2">
-                <Checkbox
-                  id={`bank-${m.value}`}
-                  checked={selectedBankMethods.includes(m.value)}
-                  onCheckedChange={(checked) =>
-                    setSelectedBankMethods((prev) =>
-                      checked
-                        ? [...prev, m.value]
-                        : prev.length > 1 ? prev.filter((x) => x !== m.value) : prev
-                    )
-                  }
-                />
-                <Label htmlFor={`bank-${m.value}`}>{m.label}</Label>
+          {nfcBraceletsEnabled && (
+            <>
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">Banco — Recargas</h4>
+                {[
+                  { value: "cash", label: "Efectivo" },
+                  { value: "card_external", label: "Tarjeta (Datafono)" },
+                  { value: "nequi_transfer", label: "Nequi" },
+                  { value: "bancolombia_transfer", label: "Transferencia" },
+                  { value: "other", label: "Otro" },
+                ].map((m) => (
+                  <div key={m.value} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`bank-${m.value}`}
+                      checked={selectedBankMethods.includes(m.value)}
+                      onCheckedChange={(checked) =>
+                        setSelectedBankMethods((prev) =>
+                          checked
+                            ? [...prev, m.value]
+                            : prev.length > 1 ? prev.filter((x) => x !== m.value) : prev
+                        )
+                      }
+                    />
+                    <Label htmlFor={`bank-${m.value}`}>{m.label}</Label>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="bankMinTopup">Monto mínimo de recarga (COP)</Label>
-            <p className="text-xs text-muted-foreground">0 = sin mínimo adicional (usa el mínimo base de $1.000)</p>
-            <CurrencyInput
-              id="bankMinTopup"
-              value={bankMinTopupText}
-              onValueChange={setBankMinTopupText}
-              placeholder="0"
-              className="max-w-xs"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="bankMinTopup">Monto mínimo de recarga (COP)</Label>
+                <p className="text-xs text-muted-foreground">0 = sin mínimo adicional (usa el mínimo base de $1.000)</p>
+                <CurrencyInput
+                  id="bankMinTopup"
+                  value={bankMinTopupText}
+                  onValueChange={setBankMinTopupText}
+                  placeholder="0"
+                  className="max-w-xs"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="activationFee">Fee de activación del brazalete (COP)</Label>
-            <p className="text-xs text-muted-foreground">Se descuenta de la primera recarga. 0 = sin fee. Por defecto: 3.000</p>
-            <CurrencyInput
-              id="activationFee"
-              value={activationFeeText}
-              onValueChange={setActivationFeeText}
-              placeholder="3000"
-              className="max-w-xs"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="activationFee">Fee de activación del brazalete (COP)</Label>
+                <p className="text-xs text-muted-foreground">Se descuenta de la primera recarga. 0 = sin fee. Por defecto: 3.000</p>
+                <CurrencyInput
+                  id="activationFee"
+                  value={activationFeeText}
+                  onValueChange={setActivationFeeText}
+                  placeholder="3000"
+                  className="max-w-xs"
+                />
+              </div>
+            </>
+          )}
 
-          <div className="space-y-3">
+          {ticketingEnabled && <div className="space-y-3">
             <h4 className="text-sm font-semibold">Boletería — Venta en puerta</h4>
             {[
               { value: "gate_cash", label: "Efectivo" },
@@ -726,13 +734,13 @@ export default function EventSettings() {
                 <Label htmlFor={`bo-${m.value}`}>{m.label}</Label>
               </div>
             ))}
-          </div>
+          </div>}
 
           <Button onClick={handleSavePaymentConfig} disabled={isSavingPaymentConfig}>
             {isSavingPaymentConfig ? t("common.saving") : t("common.save")}
           </Button>
         </CardContent>
-      </Card>
+      </Card>}
 
       <Card className="border-red-500/30">
         <CardHeader>
@@ -760,7 +768,7 @@ export default function EventSettings() {
         </CardContent>
       </Card>
 
-      <Card>
+      {nfcBraceletsEnabled && <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -808,7 +816,7 @@ export default function EventSettings() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       <AlertDialog open={confirmType !== null} onOpenChange={(open) => { if (!open) { setConfirmType(null); setPendingMode(null); } }}>
         <AlertDialogContent>
