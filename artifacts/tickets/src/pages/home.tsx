@@ -266,29 +266,6 @@ export default function Home() {
             className="flex gap-3 overflow-x-auto py-4 px-3"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
-            {/* All cities pill */}
-            <button
-              onClick={() => { setCityId(""); setVisibleCount(ITEMS_PER_PAGE); }}
-              className={`flex-shrink-0 relative w-32 h-[88px] rounded-2xl overflow-hidden transition-all duration-200 ${
-                cityId === ""
-                  ? "ring-2 ring-primary shadow-[0_0_16px_rgba(0,241,255,0.45)]"
-                  : "ring-1 ring-border opacity-60 hover:opacity-90"
-              }`}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-card to-card" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 420 420" stroke="#6b7280" fill="none">
-                  <path strokeWidth="26" d="M209,15a195,195 0 1,0 2,0z"/>
-                  <path strokeWidth="18" d="m210,15v390m195-195H15M59,90a260,260 0 0,0 302,0 m0,240 a260,260 0 0,0-302,0M195,20a250,250 0 0,0 0,382 m30,0 a250,250 0 0,0 0-382"/>
-                </svg>
-              </div>
-              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                <span className="text-[11px] font-bold text-white text-center block leading-tight drop-shadow">
-                  {t("home.filters.allCities")}
-                </span>
-              </div>
-            </button>
-
             {dbCities.map((city) => (
               <CityCard
                 key={city.id}
