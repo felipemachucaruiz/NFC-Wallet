@@ -422,6 +422,8 @@ export function useMyTickets() {
         startsAt: (t.eventStartsAt as string) ?? "",
         endsAt: (t.eventEndsAt as string) ?? undefined,
         venueName: (t.venueAddress as string) ?? "",
+        latitude: (t.latitude as number | null) ?? null,
+        longitude: (t.longitude as number | null) ?? null,
         ticketTypeName: (t.ticketTypeName as string) ?? "",
         status: (t.status as MyTicket["status"]) ?? "active",
         qrCode: (t.qrCodeToken as string) ?? "",

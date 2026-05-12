@@ -138,6 +138,8 @@ export interface MyTicket {
   startsAt: string;
   endsAt?: string;
   venueName: string;
+  latitude?: number | null;
+  longitude?: number | null;
   sectionName?: string;
   ticketTypeName: string;
   validDays?: EventDay[];

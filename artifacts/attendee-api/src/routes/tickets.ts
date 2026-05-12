@@ -1027,7 +1027,7 @@ router.get(
         }
 
         const [event] = await db
-          .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, endsAt: eventsTable.endsAt, flyerImageUrl: eventsTable.flyerImageUrl, coverImageUrl: eventsTable.coverImageUrl, venueAddress: eventsTable.venueAddress, currencyCode: eventsTable.currencyCode })
+          .select({ name: eventsTable.name, startsAt: eventsTable.startsAt, endsAt: eventsTable.endsAt, flyerImageUrl: eventsTable.flyerImageUrl, coverImageUrl: eventsTable.coverImageUrl, venueAddress: eventsTable.venueAddress, currencyCode: eventsTable.currencyCode, latitude: eventsTable.latitude, longitude: eventsTable.longitude })
           .from(eventsTable)
           .where(eq(eventsTable.id, ticket.eventId));
 
@@ -1046,6 +1046,8 @@ router.get(
           eventEndsAt: event?.endsAt ?? null,
           eventCoverImage: event?.flyerImageUrl ?? event?.coverImageUrl ?? null,
           venueAddress: event?.venueAddress ?? null,
+          latitude: event?.latitude ?? null,
+          longitude: event?.longitude ?? null,
           ticketTypeName: ticketType?.name ?? null,
           validEventDayIds: ticketType?.validEventDayIds ?? [],
           currencyCode: event?.currencyCode ?? "COP",
