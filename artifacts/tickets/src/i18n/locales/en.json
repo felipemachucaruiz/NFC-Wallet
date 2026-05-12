@@ -31,6 +31,8 @@
       "theater": "Theater",
       "conference": "Conferences",
       "party": "Party / Club",
+      "race": "Races",
+      "other": "Other",
       "allCities": "All cities",
       "clearFilters": "Clear filters"
     },

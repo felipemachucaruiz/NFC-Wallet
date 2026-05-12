@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearch } from "wouter";
 import { Calendar, MapPin, Search, X, ChevronRight } from "lucide-react";
@@ -21,6 +21,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   conference: "💼",
   party: "🎉",
   race: "🏃",
+  other: "✨",
 };
 
 export default function Home() {
@@ -33,14 +34,15 @@ export default function Home() {
     if (qParam) setSearchQuery(qParam);
   }, [qParam]);
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [cityFilter, setCityFilter] = useState("all");
+  const [cityId, setCityId] = useState("");
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["events", searchQuery, categoryFilter],
+    queryKey: ["events", searchQuery, categoryFilter, cityId],
     queryFn: () => fetchEvents({
       search: searchQuery || undefined,
       category: categoryFilter !== "all" ? categoryFilter : undefined,
+      city: cityId || undefined,
     }),
     staleTime: 30_000,
   });
@@ -61,22 +63,14 @@ export default function Home() {
   const dbCities: ApiCity[] = citiesData?.cities ?? [];
   const events = data?.events ?? [];
 
-  const categories = ["all", "concert", "festival", "sports", "theater", "conference", "party"];
+  const categories = ["all", "concert", "festival", "sports", "theater", "conference", "party", "race", "other"];
 
-  const filteredEvents = useMemo(() => {
-    return events.filter((event) => {
-      if (cityFilter !== "all") {
-        const addr = event.venueAddress || "";
-        if (!addr.toLowerCase().includes(cityFilter.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }, [events, cityFilter]);
+  const filteredEvents = events;
 
   const visibleEvents = filteredEvents.slice(0, visibleCount);
   const heroEvents = events.filter((e) => e.coverImageUrl);
 
-  const hasFilters = searchQuery || categoryFilter !== "all" || cityFilter !== "all";
+  const hasFilters = searchQuery || categoryFilter !== "all" || cityId !== "";
 
   const [heroIndex, setHeroIndex] = useState(0);
   const [heroFade, setHeroFade] = useState(true);
@@ -274,9 +268,9 @@ export default function Home() {
           >
             {/* All cities pill */}
             <button
-              onClick={() => { setCityFilter("all"); setVisibleCount(ITEMS_PER_PAGE); }}
+              onClick={() => { setCityId(""); setVisibleCount(ITEMS_PER_PAGE); }}
               className={`flex-shrink-0 relative w-32 h-[88px] rounded-2xl overflow-hidden transition-all duration-200 ${
-                cityFilter === "all"
+                cityId === ""
                   ? "ring-2 ring-primary shadow-[0_0_16px_rgba(0,241,255,0.45)]"
                   : "ring-1 ring-border opacity-60 hover:opacity-90"
               }`}
@@ -296,9 +290,9 @@ export default function Home() {
               <CityCard
                 key={city.id}
                 city={city}
-                selected={cityFilter === city.name}
+                selected={cityId === city.id}
                 onClick={() => {
-                  setCityFilter(cityFilter === city.name ? "all" : city.name);
+                  setCityId(cityId === city.id ? "" : city.id);
                   setVisibleCount(ITEMS_PER_PAGE);
                 }}
               />
@@ -352,7 +346,7 @@ export default function Home() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { setSearchQuery(""); setCategoryFilter("all"); setCityFilter("all"); setVisibleCount(ITEMS_PER_PAGE); }}
+              onClick={() => { setSearchQuery(""); setCategoryFilter("all"); setCityId(""); setVisibleCount(ITEMS_PER_PAGE); }}
               className="gap-1 shrink-0"
             >
               <X className="w-4 h-4" />

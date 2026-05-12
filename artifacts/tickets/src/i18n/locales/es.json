@@ -31,6 +31,8 @@
       "theater": "Teatro",
       "conference": "Conferencias",
       "party": "Rumba / Fiesta",
+      "race": "Carreras",
+      "other": "Otro",
       "allCities": "Todas las ciudades",
       "clearFilters": "Limpiar filtros"
     },
