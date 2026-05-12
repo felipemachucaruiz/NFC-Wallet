@@ -131,7 +131,8 @@
     "eps": "EPS (health insurer)",
     "emergencyContact": "Emergency contact",
     "emergencyContactNamePlaceholder": "Full name",
-    "emergencyContactPhonePlaceholder": "Emergency phone number"
+    "emergencyContactPhonePlaceholder": "Emergency phone number",
+    "noEps": "None / Private health insurance"
   },
   "auth": {
     "loginTitle": "Log In",

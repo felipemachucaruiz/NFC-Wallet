@@ -131,7 +131,8 @@
     "eps": "EPS",
     "emergencyContact": "Contacto de emergencia",
     "emergencyContactNamePlaceholder": "Nombre completo",
-    "emergencyContactPhonePlaceholder": "Teléfono de emergencia"
+    "emergencyContactPhonePlaceholder": "Teléfono de emergencia",
+    "noEps": "No tengo / Medicina prepagada"
   },
   "auth": {
     "loginTitle": "Iniciar sesión",

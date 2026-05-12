@@ -47,7 +47,6 @@ const EPS_LIST = [
   "Sanitas EPS",
   "Savia Salud EPS",
   "Sura EPS",
-  "No tengo / Medicina prepagada",
 ];
 
 function fmtDisplayDate(dateStr: string): string {
@@ -464,7 +463,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                                 <SearchableSelect
                                   value={attendee.eps ?? ""}
                                   onChange={(v) => updateAttendee(index, "eps", v)}
-                                  options={EPS_LIST}
+                                  options={[...EPS_LIST, t("ticketSelection.noEps")]}
                                   placeholder="Selecciona tu EPS..."
                                   searchPlaceholder="Buscar EPS..."
                                   hasError={!!errors[`${index}-eps`]}
@@ -705,7 +704,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                                 <SearchableSelect
                                   value={attendee.eps ?? ""}
                                   onChange={(v) => updateAttendee(index, "eps", v)}
-                                  options={EPS_LIST}
+                                  options={[...EPS_LIST, t("ticketSelection.noEps")]}
                                   placeholder="Selecciona tu EPS..."
                                   searchPlaceholder="Buscar EPS..."
                                   hasError={!!errors[`${index}-eps`]}
