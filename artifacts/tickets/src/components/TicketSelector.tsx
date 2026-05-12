@@ -506,7 +506,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                     ) : (
                       <>
                         <div>
-                          <Label className="text-xs">{t("ticketSelection.name", "Nombre")}</Label>
+                          <Label className="text-xs">{t("ticketSelection.name")} *</Label>
                           <Input
                             value={attendee.name}
                             onChange={(e) => updateAttendee(index, "name", e.target.value)}
@@ -517,7 +517,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                           )}
                         </div>
                         <div>
-                          <Label className="text-xs">{t("ticketSelection.email")}</Label>
+                          <Label className="text-xs">{t("ticketSelection.email")} *</Label>
                           <Input
                             type="email"
                             value={attendee.email}
@@ -529,7 +529,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                           )}
                         </div>
                         <div>
-                          <Label className="text-xs">{t("ticketSelection.phone")}</Label>
+                          <Label className="text-xs">{t("ticketSelection.phone")} *</Label>
                           <PhoneField
                             value={attendee.phone}
                             onChange={(v) => updateAttendee(index, "phone", v)}
