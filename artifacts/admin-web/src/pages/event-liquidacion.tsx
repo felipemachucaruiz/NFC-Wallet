@@ -306,7 +306,7 @@ function SummaryCard({
       undefined
     }>
       <CardHeader className="flex flex-row items-center justify-between pb-1 space-y-0">
-        <CardTitle className={`text-xs font-medium uppercase tracking-wide ${
+        <CardTitle className={`text-sm font-medium ${
           highlight === "red" ? "text-red-600 dark:text-red-400" :
           highlight === "green" ? "text-emerald-700 dark:text-emerald-400" :
           "text-muted-foreground"
