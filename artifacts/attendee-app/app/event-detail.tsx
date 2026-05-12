@@ -303,9 +303,7 @@ export default function EventDetailScreen() {
     const openGoogle = () =>
       Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
     const openWaze = () =>
-      Linking.openURL(`waze://ul?ll=${lat},${lng}&navigate=yes`).catch(() =>
-        Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`),
-      );
+      Linking.openURL(`https://waze.com/ul?ll=${lat},${lng}&navigate=yes`);
     const openApple = () =>
       Linking.openURL(`maps://?q=${label}@${lat},${lng}`);
 
