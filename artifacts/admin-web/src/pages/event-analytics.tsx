@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
-import { useGetCurrentAuthUser } from "@workspace/api-client-react";
+import { useGetCurrentAuthUser, useGetEvent } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -122,7 +122,7 @@ function RevenueByTypeChart({ ticketTypes }: { ticketTypes: Array<{ id: string; 
 
 // ── Check-in progress ─────────────────────────────────────────────────────────
 
-function CheckinProgressSection({ stats }: { stats: Awaited<ReturnType<typeof apiFetchCheckinStats>> }) {
+function CheckinProgressSection({ stats, t }: { stats: Awaited<ReturnType<typeof apiFetchCheckinStats>>; t: (key: string, opts?: Record<string, string>) => string }) {
   const total = stats.totalTickets ?? 0;
   const totalCheckedIn = stats.days?.reduce((s, d) => s + d.totalCheckins, 0) ?? 0;
   const overallPct = total > 0 ? (totalCheckedIn / total) * 100 : 0;
@@ -132,16 +132,16 @@ function CheckinProgressSection({ stats }: { stats: Awaited<ReturnType<typeof ap
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Checked In</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("analytics.checkins.totalCheckedIn")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{totalCheckedIn.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">of {total.toLocaleString()} tickets</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("analytics.checkins.totalCheckedInSub", { total: total.toLocaleString() })}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Overall Rate</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("analytics.checkins.overallRate")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{overallPct.toFixed(1)}%</p>
@@ -150,18 +150,18 @@ function CheckinProgressSection({ stats }: { stats: Awaited<ReturnType<typeof ap
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">No-shows</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("analytics.checkins.noShows")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{(total - totalCheckedIn).toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">{(100 - overallPct).toFixed(1)}% of tickets</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("analytics.checkins.noShowsSub", { pct: (100 - overallPct).toFixed(1) })}</p>
           </CardContent>
         </Card>
       </div>
 
       {stats.days && stats.days.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Check-ins by Day</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("analytics.checkins.byDay")}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={stats.days.map((d) => ({ label: d.dayLabel || d.date, checkins: d.totalCheckins, total: d.totalTickets }))} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
@@ -179,7 +179,7 @@ function CheckinProgressSection({ stats }: { stats: Awaited<ReturnType<typeof ap
 
       {stats.sections && stats.sections.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">By Section</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{t("analytics.checkins.bySection")}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-3">
               {stats.sections.map((sec) => {
@@ -336,7 +336,7 @@ function TopMerchantsChart({ merchants }: { merchants: Array<{ merchantName: str
 
 // ── Demographics ──────────────────────────────────────────────────────────────
 
-function DemographicsSection({ tickets }: { tickets: Array<{ attendeeSex: string | null; attendeeDateOfBirth: string | null }> }) {
+function DemographicsSection({ tickets, t }: { tickets: Array<{ attendeeSex: string | null; attendeeDateOfBirth: string | null }>; t: (key: string) => string }) {
   const sexCounts = useMemo(() => {
     const map: Record<string, number> = { male: 0, female: 0, non_binary: 0, unknown: 0 };
     for (const t of tickets) {
@@ -368,13 +368,13 @@ function DemographicsSection({ tickets }: { tickets: Array<{ attendeeSex: string
   }, [tickets]);
 
   if (tickets.length === 0) {
-    return <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No attendee data</div>;
+    return <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">{t("analytics.demographics.noData")}</div>;
   }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card>
-        <CardHeader><CardTitle className="text-base">Sex Distribution</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t("analytics.demographics.sexDistribution")}</CardTitle></CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
@@ -388,7 +388,7 @@ function DemographicsSection({ tickets }: { tickets: Array<{ attendeeSex: string
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Age Distribution</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t("analytics.demographics.ageDistribution")}</CardTitle></CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={ageData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
@@ -409,21 +409,21 @@ function DemographicsSection({ tickets }: { tickets: Array<{ attendeeSex: string
 
 // ── Top Ticket Sales Product ──────────────────────────────────────────────────
 
-function TopTicketTypesTable({ ticketTypes }: { ticketTypes: Array<{ id: string; name: string; price: number; serviceFee: number; quantity: number; soldCount: number; sectionName?: string | null }> }) {
+function TopTicketTypesTable({ ticketTypes, t }: { ticketTypes: Array<{ id: string; name: string; price: number; serviceFee: number; quantity: number; soldCount: number; sectionName?: string | null }>; t: (key: string) => string }) {
   const sorted = [...ticketTypes].sort((a, b) => b.soldCount - a.soldCount);
-  if (!sorted.length) return <div className="text-muted-foreground text-sm py-4 text-center">No data</div>;
+  if (!sorted.length) return <div className="text-muted-foreground text-sm py-4 text-center">{t("analytics.tickets.noTypeData")}</div>;
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>#</TableHead>
-          <TableHead>Ticket Type</TableHead>
-          <TableHead>Section</TableHead>
-          <TableHead className="text-right">Price</TableHead>
-          <TableHead className="text-right">Sold</TableHead>
-          <TableHead className="text-right">Capacity</TableHead>
-          <TableHead className="text-right">Revenue</TableHead>
-          <TableHead className="text-right">Fill %</TableHead>
+          <TableHead>{t("analytics.tickets.columns.rank")}</TableHead>
+          <TableHead>{t("analytics.tickets.columns.ticketType")}</TableHead>
+          <TableHead>{t("analytics.tickets.columns.section")}</TableHead>
+          <TableHead className="text-right">{t("analytics.tickets.columns.price")}</TableHead>
+          <TableHead className="text-right">{t("analytics.tickets.columns.sold")}</TableHead>
+          <TableHead className="text-right">{t("analytics.tickets.columns.capacity")}</TableHead>
+          <TableHead className="text-right">{t("analytics.tickets.columns.revenue")}</TableHead>
+          <TableHead className="text-right">{t("analytics.tickets.columns.fill")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -457,18 +457,18 @@ function TopTicketTypesTable({ ticketTypes }: { ticketTypes: Array<{ id: string;
 
 // ── Stock Alerts Table ────────────────────────────────────────────────────────
 
-function StockAlertsTable({ alerts }: { alerts: Array<{ inventoryId: string; locationName: string; productName: string; quantityOnHand: number; restockTrigger: number; deficit: number }> }) {
-  if (!alerts.length) return <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">No stock alerts</div>;
+function StockAlertsTable({ alerts, t }: { alerts: Array<{ inventoryId: string; locationName: string; productName: string; quantityOnHand: number; restockTrigger: number; deficit: number }>; t: (key: string) => string }) {
+  if (!alerts.length) return <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">{t("analytics.stock.noAlerts")}</div>;
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Product</TableHead>
-          <TableHead>Location</TableHead>
-          <TableHead className="text-right">On Hand</TableHead>
-          <TableHead className="text-right">Restock At</TableHead>
-          <TableHead className="text-right">Deficit</TableHead>
-          <TableHead>Status</TableHead>
+          <TableHead>{t("analytics.stock.columns.product")}</TableHead>
+          <TableHead>{t("analytics.stock.columns.location")}</TableHead>
+          <TableHead className="text-right">{t("analytics.stock.columns.onHand")}</TableHead>
+          <TableHead className="text-right">{t("analytics.stock.columns.restockAt")}</TableHead>
+          <TableHead className="text-right">{t("analytics.stock.columns.deficit")}</TableHead>
+          <TableHead>{t("analytics.stock.columns.status")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -481,7 +481,7 @@ function StockAlertsTable({ alerts }: { alerts: Array<{ inventoryId: string; loc
             <TableCell className="text-right font-mono text-red-500">{a.deficit}</TableCell>
             <TableCell>
               <Badge variant={a.quantityOnHand <= 0 ? "destructive" : "secondary"}>
-                {a.quantityOnHand <= 0 ? "Out of stock" : "Low stock"}
+                {a.quantityOnHand <= 0 ? t("analytics.stock.outOfStock") : t("analytics.stock.lowStock")}
               </Badge>
             </TableCell>
           </TableRow>
@@ -500,6 +500,12 @@ export default function EventAnalytics() {
   const eventId = auth?.user?.role === "admin" ? ctxEventId : (auth?.user?.eventId ?? "");
 
   const enabled = !!eventId;
+
+  const { data: eventData } = useGetEvent(eventId || "", { query: { enabled } });
+  const eventRecord = eventData as Record<string, unknown> | undefined;
+  const ticketingEnabled = eventRecord?.ticketingEnabled === true;
+  const nfcBraceletsEnabled = eventRecord?.nfcBraceletsEnabled !== false;
+  const defaultTab = ticketingEnabled ? "tickets" : "cashless";
 
   const [
     summaryQ,
@@ -545,7 +551,7 @@ export default function EventAnalytics() {
   if (!eventId) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <p>Select an event to view analytics.</p>
+        <p>{t("analytics.selectEvent", "Select an event to view analytics.")}</p>
       </div>
     );
   }
@@ -555,221 +561,235 @@ export default function EventAnalytics() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <BarChart3 className="w-7 h-7" />
-          {t("analytics.title", "Analytics")}
+          {t("analytics.title")}
         </h1>
-        <p className="text-muted-foreground mt-1">{t("analytics.subtitle", "Full-event reporting: tickets, check-ins, cashless, demographics")}</p>
+        <p className="text-muted-foreground mt-1">{t("analytics.subtitle")}</p>
       </div>
 
-      <Tabs defaultValue="tickets">
+      <Tabs defaultValue={defaultTab}>
         <TabsList className="flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="tickets"><Ticket className="w-4 h-4 mr-1" />Tickets</TabsTrigger>
-          <TabsTrigger value="checkins"><Users className="w-4 h-4 mr-1" />Check-ins</TabsTrigger>
-          <TabsTrigger value="cashless"><Zap className="w-4 h-4 mr-1" />Cashless NFC</TabsTrigger>
-          <TabsTrigger value="products"><ShoppingBag className="w-4 h-4 mr-1" />Products</TabsTrigger>
-          <TabsTrigger value="merchants"><Store className="w-4 h-4 mr-1" />Merchants</TabsTrigger>
-          <TabsTrigger value="demographics"><Activity className="w-4 h-4 mr-1" />Demographics</TabsTrigger>
-          <TabsTrigger value="stock"><AlertTriangle className="w-4 h-4 mr-1" />Stock</TabsTrigger>
+          {ticketingEnabled && <TabsTrigger value="tickets"><Ticket className="w-4 h-4 mr-1" />{t("analytics.tabs.tickets")}</TabsTrigger>}
+          {ticketingEnabled && <TabsTrigger value="checkins"><Users className="w-4 h-4 mr-1" />{t("analytics.tabs.checkins")}</TabsTrigger>}
+          {nfcBraceletsEnabled && <TabsTrigger value="cashless"><Zap className="w-4 h-4 mr-1" />{t("analytics.tabs.cashless")}</TabsTrigger>}
+          {nfcBraceletsEnabled && <TabsTrigger value="products"><ShoppingBag className="w-4 h-4 mr-1" />{t("analytics.tabs.products")}</TabsTrigger>}
+          {nfcBraceletsEnabled && <TabsTrigger value="merchants"><Store className="w-4 h-4 mr-1" />{t("analytics.tabs.merchants")}</TabsTrigger>}
+          {ticketingEnabled && <TabsTrigger value="demographics"><Activity className="w-4 h-4 mr-1" />{t("analytics.tabs.demographics")}</TabsTrigger>}
+          {nfcBraceletsEnabled && <TabsTrigger value="stock"><AlertTriangle className="w-4 h-4 mr-1" />{t("analytics.tabs.stock")}</TabsTrigger>}
         </TabsList>
 
         {/* ── TICKETS TAB ─────────────────────────────────────────────────── */}
-        <TabsContent value="tickets" className="space-y-6 mt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard icon={Ticket} label="Tickets Sold" value={ticketTypes.length ? totalTicketSold.toLocaleString() : "—"} sub={`of ${totalCapacity.toLocaleString()} capacity`} />
-            <StatCard icon={DollarSign} label="Ticket Revenue" value={ticketTypes.length ? fmt(totalTicketRevenue) : "—"} sub="from confirmed orders" />
-            <StatCard icon={TrendingUp} label="Fill Rate" value={totalCapacity > 0 ? `${((totalTicketSold / totalCapacity) * 100).toFixed(1)}%` : "—"} sub="of total capacity" />
-            <StatCard icon={Activity} label="Orders" value={orders.filter((o) => o.paymentStatus === "confirmed" || o.paymentStatus === "paid").length.toLocaleString()} sub="confirmed orders" />
-          </div>
+        {ticketingEnabled && (
+          <TabsContent value="tickets" className="space-y-6 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatCard icon={Ticket} label={t("analytics.tickets.sold")} value={ticketTypes.length ? totalTicketSold.toLocaleString() : "—"} sub={t("analytics.tickets.soldSub", { total: totalCapacity.toLocaleString() })} />
+              <StatCard icon={DollarSign} label={t("analytics.tickets.revenue")} value={ticketTypes.length ? fmt(totalTicketRevenue) : "—"} sub={t("analytics.tickets.revenueSub")} />
+              <StatCard icon={TrendingUp} label={t("analytics.tickets.fillRate")} value={totalCapacity > 0 ? `${((totalTicketSold / totalCapacity) * 100).toFixed(1)}%` : "—"} sub={t("analytics.tickets.fillRateSub")} />
+              <StatCard icon={Activity} label={t("analytics.tickets.orders")} value={orders.filter((o) => o.paymentStatus === "confirmed" || o.paymentStatus === "paid").length.toLocaleString()} sub={t("analytics.tickets.ordersSub")} />
+            </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="w-4 h-4" /> Sales Velocity</CardTitle></CardHeader>
-            <CardContent>
-              {ordersQ.isLoading ? <ChartSkeleton h={260} /> : <SalesVelocityChart orders={orders} />}
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="w-4 h-4" /> {t("analytics.tickets.salesVelocity")}</CardTitle></CardHeader>
+              <CardContent>
+                {ordersQ.isLoading ? <ChartSkeleton h={260} /> : <SalesVelocityChart orders={orders} />}
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Revenue by Ticket Type</CardTitle></CardHeader>
-            <CardContent>
-              {ticketTypesQ.isLoading ? <ChartSkeleton h={260} /> : <RevenueByTypeChart ticketTypes={ticketTypes} />}
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="w-4 h-4" /> {t("analytics.tickets.revenueByType")}</CardTitle></CardHeader>
+              <CardContent>
+                {ticketTypesQ.isLoading ? <ChartSkeleton h={260} /> : <RevenueByTypeChart ticketTypes={ticketTypes} />}
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Ticket className="w-4 h-4" /> Top Ticket Sales Product</CardTitle></CardHeader>
-            <CardContent className="p-0">
-              {ticketTypesQ.isLoading ? <div className="p-4"><ChartSkeleton h={120} /></div> : <TopTicketTypesTable ticketTypes={ticketTypes} />}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Ticket className="w-4 h-4" /> {t("analytics.tickets.topProduct")}</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                {ticketTypesQ.isLoading ? <div className="p-4"><ChartSkeleton h={120} /></div> : <TopTicketTypesTable ticketTypes={ticketTypes} t={t} />}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* ── CHECK-INS TAB ────────────────────────────────────────────────── */}
-        <TabsContent value="checkins" className="mt-4">
-          {checkinsQ.isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => <ChartSkeleton key={i} h={100} />)}
-            </div>
-          ) : checkins ? (
-            <CheckinProgressSection stats={checkins} />
-          ) : (
-            <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No check-in data</div>
-          )}
-        </TabsContent>
+        {ticketingEnabled && (
+          <TabsContent value="checkins" className="mt-4">
+            {checkinsQ.isLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => <ChartSkeleton key={i} h={100} />)}
+              </div>
+            ) : checkins ? (
+              <CheckinProgressSection stats={checkins} t={t} />
+            ) : (
+              <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">{t("analytics.checkins.noData")}</div>
+            )}
+          </TabsContent>
+        )}
 
         {/* ── CASHLESS NFC TAB ─────────────────────────────────────────────── */}
-        <TabsContent value="cashless" className="space-y-6 mt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard icon={Zap} label="Total Sales" value={summary ? fmt(summary.totalSales) : "—"} sub={`${summary?.transactionCount?.toLocaleString() ?? "—"} transactions`} />
-            <StatCard icon={DollarSign} label="Total Top-ups" value={summary ? fmt(summary.totalTopUps) : "—"} sub={`${summary?.topUpCount?.toLocaleString() ?? "—"} recharges`} />
-            <StatCard icon={Activity} label="Pending Balance" value={summary ? fmt(summary.pendingBalance) : "—"} sub={`${summary?.braceletCount?.toLocaleString() ?? "—"} bracelets`} />
-            <StatCard icon={Ticket} label="Bracelets" value={summary?.braceletCount?.toLocaleString() ?? "—"} sub="activated" />
-          </div>
+        {nfcBraceletsEnabled && (
+          <TabsContent value="cashless" className="space-y-6 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatCard icon={Zap} label={t("analytics.cashless.totalSales")} value={summary ? fmt(summary.totalSales) : "—"} sub={t("analytics.cashless.totalSalesSub", { count: summary?.transactionCount?.toLocaleString() ?? "—" })} />
+              <StatCard icon={DollarSign} label={t("analytics.cashless.totalTopups")} value={summary ? fmt(summary.totalTopUps) : "—"} sub={t("analytics.cashless.totalTopupsSub", { count: summary?.topUpCount?.toLocaleString() ?? "—" })} />
+              <StatCard icon={Activity} label={t("analytics.cashless.pendingBalance")} value={summary ? fmt(summary.pendingBalance) : "—"} sub={t("analytics.cashless.pendingBalanceSub", { count: summary?.braceletCount?.toLocaleString() ?? "—" })} />
+              <StatCard icon={Ticket} label={t("analytics.cashless.bracelets")} value={summary?.braceletCount?.toLocaleString() ?? "—"} sub={t("analytics.cashless.braceletsSub")} />
+            </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Activity className="w-4 h-4" /> Transactions by Hour</CardTitle></CardHeader>
-              <CardContent>
-                {salesByHourQ.isLoading ? <ChartSkeleton h={240} /> : <SalesByHourChart rows={salesByHour} />}
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Activity className="w-4 h-4" /> {t("analytics.cashless.byHour")}</CardTitle></CardHeader>
+                <CardContent>
+                  {salesByHourQ.isLoading ? <ChartSkeleton h={240} /> : <SalesByHourChart rows={salesByHour} />}
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader><CardTitle className="text-base">Transaction Heatmap (Day × Hour)</CardTitle></CardHeader>
-              <CardContent>
-                {heatmapQ.isLoading ? <ChartSkeleton h={180} /> : <NfcHeatmap rows={heatmap} />}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+              <Card>
+                <CardHeader><CardTitle className="text-base">{t("analytics.cashless.heatmap")}</CardTitle></CardHeader>
+                <CardContent>
+                  {heatmapQ.isLoading ? <ChartSkeleton h={180} /> : <NfcHeatmap rows={heatmap} />}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        )}
 
         {/* ── PRODUCTS TAB ─────────────────────────────────────────────────── */}
-        <TabsContent value="products" className="space-y-6 mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><ShoppingBag className="w-4 h-4" /> Top NFC Products (by units sold)</CardTitle></CardHeader>
-            <CardContent>
-              {topProductsQ.isLoading ? <ChartSkeleton h={300} /> : <TopProductsChart products={topProducts} />}
-            </CardContent>
-          </Card>
-
-          {topProducts.length > 0 && (
+        {nfcBraceletsEnabled && (
+          <TabsContent value="products" className="space-y-6 mt-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Product Detail</CardTitle></CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="text-right">Units</TableHead>
-                      <TableHead className="text-right">Revenue</TableHead>
-                      <TableHead className="text-right">COGS</TableHead>
-                      <TableHead className="text-right">Gross Profit</TableHead>
-                      <TableHead className="text-right">Margin</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {topProducts.map((p, i) => (
-                      <TableRow key={p.productId} className={i === 0 ? "font-medium bg-primary/5" : ""}>
-                        <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell>
-                          {p.productName}
-                          {i === 0 && <Badge className="ml-2 text-xs" variant="default">Top</Badge>}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">{p.totalUnits.toLocaleString()}</TableCell>
-                        <TableCell className="text-right font-mono">{fmt(p.totalRevenue)}</TableCell>
-                        <TableCell className="text-right font-mono text-muted-foreground">{fmt(p.totalCogs)}</TableCell>
-                        <TableCell className="text-right font-mono text-green-600">{fmt(p.grossProfit)}</TableCell>
-                        <TableCell className="text-right">
-                          <span className={p.profitMarginPercent >= 50 ? "text-green-500" : p.profitMarginPercent >= 25 ? "text-yellow-500" : "text-red-500"}>
-                            {p.profitMarginPercent.toFixed(1)}%
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><ShoppingBag className="w-4 h-4" /> {t("analytics.products.topChart")}</CardTitle></CardHeader>
+              <CardContent>
+                {topProductsQ.isLoading ? <ChartSkeleton h={300} /> : <TopProductsChart products={topProducts} />}
               </CardContent>
             </Card>
-          )}
-        </TabsContent>
+
+            {topProducts.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle className="text-base">{t("analytics.products.detail")}</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("analytics.products.columns.rank")}</TableHead>
+                        <TableHead>{t("analytics.products.columns.product")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.products.columns.units")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.products.columns.revenue")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.products.columns.cogs")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.products.columns.grossProfit")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.products.columns.margin")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {topProducts.map((p, i) => (
+                        <TableRow key={p.productId} className={i === 0 ? "font-medium bg-primary/5" : ""}>
+                          <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                          <TableCell>
+                            {p.productName}
+                            {i === 0 && <Badge className="ml-2 text-xs" variant="default">Top</Badge>}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">{p.totalUnits.toLocaleString()}</TableCell>
+                          <TableCell className="text-right font-mono">{fmt(p.totalRevenue)}</TableCell>
+                          <TableCell className="text-right font-mono text-muted-foreground">{fmt(p.totalCogs)}</TableCell>
+                          <TableCell className="text-right font-mono text-green-600">{fmt(p.grossProfit)}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={p.profitMarginPercent >= 50 ? "text-green-500" : p.profitMarginPercent >= 25 ? "text-yellow-500" : "text-red-500"}>
+                              {p.profitMarginPercent.toFixed(1)}%
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        )}
 
         {/* ── MERCHANTS TAB ────────────────────────────────────────────────── */}
-        <TabsContent value="merchants" className="space-y-6 mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Store className="w-4 h-4" /> Top Merchants (by sales)</CardTitle></CardHeader>
-            <CardContent>
-              {topMerchantsQ.isLoading ? <ChartSkeleton h={300} /> : <TopMerchantsChart merchants={topMerchants} />}
-            </CardContent>
-          </Card>
-
-          {topMerchants.length > 0 && (
+        {nfcBraceletsEnabled && (
+          <TabsContent value="merchants" className="space-y-6 mt-4">
             <Card>
-              <CardHeader><CardTitle className="text-base">Merchant Detail</CardTitle></CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>Merchant</TableHead>
-                      <TableHead className="text-right">Sales</TableHead>
-                      <TableHead className="text-right">Commission</TableHead>
-                      <TableHead className="text-right">Net</TableHead>
-                      <TableHead className="text-right">Transactions</TableHead>
-                      <TableHead className="text-right">Margin</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {topMerchants.map((m, i) => (
-                      <TableRow key={m.merchantId} className={i === 0 ? "font-medium bg-primary/5" : ""}>
-                        <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        <TableCell>
-                          {m.merchantName}
-                          {i === 0 && <Badge className="ml-2 text-xs" variant="default">Top</Badge>}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">{fmt(m.totalSales)}</TableCell>
-                        <TableCell className="text-right font-mono text-muted-foreground">{fmt(m.totalCommission)}</TableCell>
-                        <TableCell className="text-right font-mono">{fmt(m.totalNet)}</TableCell>
-                        <TableCell className="text-right">{m.txCount.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">
-                          <span className={m.profitMarginPercent >= 50 ? "text-green-500" : m.profitMarginPercent >= 25 ? "text-yellow-500" : "text-red-500"}>
-                            {m.profitMarginPercent.toFixed(1)}%
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Store className="w-4 h-4" /> {t("analytics.merchants.topChart")}</CardTitle></CardHeader>
+              <CardContent>
+                {topMerchantsQ.isLoading ? <ChartSkeleton h={300} /> : <TopMerchantsChart merchants={topMerchants} />}
               </CardContent>
             </Card>
-          )}
-        </TabsContent>
+
+            {topMerchants.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle className="text-base">{t("analytics.merchants.detail")}</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("analytics.merchants.columns.rank")}</TableHead>
+                        <TableHead>{t("analytics.merchants.columns.merchant")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.merchants.columns.sales")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.merchants.columns.commission")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.merchants.columns.net")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.merchants.columns.transactions")}</TableHead>
+                        <TableHead className="text-right">{t("analytics.merchants.columns.margin")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {topMerchants.map((m, i) => (
+                        <TableRow key={m.merchantId} className={i === 0 ? "font-medium bg-primary/5" : ""}>
+                          <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                          <TableCell>
+                            {m.merchantName}
+                            {i === 0 && <Badge className="ml-2 text-xs" variant="default">Top</Badge>}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">{fmt(m.totalSales)}</TableCell>
+                          <TableCell className="text-right font-mono text-muted-foreground">{fmt(m.totalCommission)}</TableCell>
+                          <TableCell className="text-right font-mono">{fmt(m.totalNet)}</TableCell>
+                          <TableCell className="text-right">{m.txCount.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={m.profitMarginPercent >= 50 ? "text-green-500" : m.profitMarginPercent >= 25 ? "text-yellow-500" : "text-red-500"}>
+                              {m.profitMarginPercent.toFixed(1)}%
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        )}
 
         {/* ── DEMOGRAPHICS TAB ─────────────────────────────────────────────── */}
-        <TabsContent value="demographics" className="mt-4">
-          {ticketsQ.isLoading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ChartSkeleton h={260} />
-              <ChartSkeleton h={260} />
-            </div>
-          ) : (
-            <DemographicsSection tickets={tickets} />
-          )}
-        </TabsContent>
+        {ticketingEnabled && (
+          <TabsContent value="demographics" className="mt-4">
+            {ticketsQ.isLoading ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ChartSkeleton h={260} />
+                <ChartSkeleton h={260} />
+              </div>
+            ) : (
+              <DemographicsSection tickets={tickets} t={t} />
+            )}
+          </TabsContent>
+        )}
 
         {/* ── STOCK ALERTS TAB ─────────────────────────────────────────────── */}
-        <TabsContent value="stock" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                Stock Alerts
-                {stockAlerts.length > 0 && <Badge variant="destructive">{stockAlerts.length}</Badge>}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {stockAlertsQ.isLoading ? <div className="p-4"><ChartSkeleton h={120} /></div> : <StockAlertsTable alerts={stockAlerts} />}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {nfcBraceletsEnabled && (
+          <TabsContent value="stock" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                  {t("analytics.stock.alerts")}
+                  {stockAlerts.length > 0 && <Badge variant="destructive">{stockAlerts.length}</Badge>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {stockAlertsQ.isLoading ? <div className="p-4"><ChartSkeleton h={120} /></div> : <StockAlertsTable alerts={stockAlerts} t={t} />}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
