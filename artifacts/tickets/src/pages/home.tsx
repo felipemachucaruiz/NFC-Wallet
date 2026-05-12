@@ -6,12 +6,22 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fetchEvents, fetchAds, resolveImageUrl, type ApiEvent, type ApiAd } from "@/lib/api";
+import { fetchEvents, fetchAds, fetchCities, resolveImageUrl, type ApiEvent, type ApiAd, type ApiCity } from "@/lib/api";
 import { formatPrice, formatDateRange } from "@/lib/format";
 import { SEO } from "@/components/SEO";
 
 const ITEMS_PER_PAGE = 6;
+
+const CATEGORY_ICONS: Record<string, string> = {
+  all: "✦",
+  concert: "🎵",
+  festival: "🎪",
+  sports: "⚽",
+  theater: "🎭",
+  conference: "💼",
+  party: "🎉",
+  race: "🏃",
+};
 
 export default function Home() {
   const { t, i18n } = useTranslation();
@@ -40,30 +50,18 @@ export default function Home() {
     queryFn: fetchAds,
     staleTime: 60_000,
   });
-  const ads = adsData?.ads ?? [];
 
+  const { data: citiesData } = useQuery({
+    queryKey: ["cities"],
+    queryFn: fetchCities,
+    staleTime: 5 * 60_000,
+  });
+
+  const ads = adsData?.ads ?? [];
+  const dbCities: ApiCity[] = citiesData?.cities ?? [];
   const events = data?.events ?? [];
 
   const categories = ["all", "concert", "festival", "sports", "theater", "conference", "party"];
-  const cities = useMemo(() => {
-    const c = new Set<string>();
-    const countryNames = new Set(["colombia", "argentina", "mexico", "méxico", "brasil", "brazil", "chile", "peru", "perú", "ecuador", "usa", "united states", "venezuela", "panamá", "panama"]);
-    const colombianDepts = new Set(["antioquia", "cundinamarca", "valle del cauca", "atlántico", "atlantico", "santander", "boyacá", "boyaca", "bolívar", "bolivar", "nariño", "narino", "tolima", "huila", "caldas", "risaralda", "quindío", "quindio", "meta", "cesar", "magdalena", "córdoba", "cordoba", "cauca", "sucre"]);
-    events.forEach((e) => {
-      if (e.venueAddress) {
-        const parts = e.venueAddress.split(",").map((p) => p.trim()).filter(Boolean);
-        if (parts.length >= 2 && countryNames.has(parts[parts.length - 1].toLowerCase())) {
-          parts.pop();
-        }
-        if (parts.length >= 2 && colombianDepts.has(parts[parts.length - 1].toLowerCase())) {
-          parts.pop();
-        }
-        const cityPart = parts[parts.length - 1];
-        if (cityPart) c.add(cityPart);
-      }
-    });
-    return ["all", ...Array.from(c).sort()];
-  }, [events]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -112,11 +110,12 @@ export default function Home() {
       <div className="min-h-screen">
         <div className="h-[420px] md:h-[500px] bg-card animate-pulse" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex gap-3 mb-6">
-            <div className="h-10 flex-1 rounded-lg bg-card animate-pulse" />
-            <div className="h-10 w-48 rounded-lg bg-card animate-pulse" />
-            <div className="h-10 w-48 rounded-lg bg-card animate-pulse" />
+          <div className="flex gap-3 mb-4 overflow-x-auto pb-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-9 w-28 flex-shrink-0 rounded-full bg-card animate-pulse" />
+            ))}
           </div>
+          <div className="h-10 rounded-lg bg-card animate-pulse mb-6" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-card rounded-xl overflow-hidden border border-border animate-pulse">
@@ -174,6 +173,8 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <SEO schema={homeSchema} />
+
+      {/* ── Hero carousel ─────────────────────────────────────────────────── */}
       {currentHero && (
         <section className="relative h-[420px] md:h-[500px] overflow-hidden">
           {heroEvents.map((evt, i) => (
@@ -261,8 +262,82 @@ export default function Home() {
 
       {ads.length > 0 && <AdsBanner ads={ads} />}
 
+      {/* ── Cities row ────────────────────────────────────────────────────── */}
+      {dbCities.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+            {t("home.exploreCities", "Explorar por ciudad")}
+          </h2>
+          <div
+            className="flex gap-3 overflow-x-auto pb-1"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {/* All cities pill */}
+            <button
+              onClick={() => { setCityFilter("all"); setVisibleCount(ITEMS_PER_PAGE); }}
+              className={`flex-shrink-0 relative w-32 h-[88px] rounded-2xl overflow-hidden transition-all duration-200 ${
+                cityFilter === "all"
+                  ? "ring-2 ring-primary shadow-[0_0_16px_rgba(0,241,255,0.45)]"
+                  : "ring-1 ring-border opacity-60 hover:opacity-90"
+              }`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-card to-card" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                <span className="text-2xl">🌎</span>
+              </div>
+              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                <span className="text-[11px] font-bold text-white text-center block leading-tight drop-shadow">
+                  {t("home.filters.allCities")}
+                </span>
+              </div>
+            </button>
+
+            {dbCities.map((city) => (
+              <CityCard
+                key={city.id}
+                city={city}
+                selected={cityFilter === city.name}
+                onClick={() => {
+                  setCityFilter(cityFilter === city.name ? "all" : city.name);
+                  setVisibleCount(ITEMS_PER_PAGE);
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Filters + Events ─────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row gap-3 mb-6">
+
+        {/* Category pills */}
+        <div className="mb-5">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+            {t("home.categories", "Categorías")}
+          </p>
+          <div
+            className="flex gap-2 overflow-x-auto pb-1"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => { setCategoryFilter(cat); setVisibleCount(ITEMS_PER_PAGE); }}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                  categoryFilter === cat
+                    ? "bg-primary text-primary-foreground shadow-[0_0_12px_rgba(0,241,255,0.35)]"
+                    : "bg-card border border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                }`}
+              >
+                <span>{CATEGORY_ICONS[cat] ?? "✦"}</span>
+                {cat === "all" ? t("home.filters.all") : t(`home.filters.${cat}`, cat)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="flex gap-3 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -273,36 +348,12 @@ export default function Home() {
               onChange={(e) => { setSearchQuery(e.target.value); setVisibleCount(ITEMS_PER_PAGE); }}
             />
           </div>
-          <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setVisibleCount(ITEMS_PER_PAGE); }}>
-            <SelectTrigger className="w-full md:w-48 bg-card" aria-label={t("home.filters.category", "Categoría")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c === "all" ? t("home.filters.all") : t(`home.filters.${c}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setVisibleCount(ITEMS_PER_PAGE); }}>
-            <SelectTrigger className="w-full md:w-48 bg-card" aria-label={t("home.filters.city", "Ciudad")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {cities.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c === "all" ? t("home.filters.allCities") : c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           {hasFilters && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => { setSearchQuery(""); setCategoryFilter("all"); setCityFilter("all"); setVisibleCount(ITEMS_PER_PAGE); }}
-              className="gap-1"
+              className="gap-1 shrink-0"
             >
               <X className="w-4 h-4" />
               {t("home.filters.clearFilters")}
@@ -343,6 +394,36 @@ export default function Home() {
         )}
       </section>
     </div>
+  );
+}
+
+function CityCard({ city, selected, onClick }: { city: ApiCity; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-shrink-0 relative w-32 h-[88px] rounded-2xl overflow-hidden transition-all duration-200 ${
+        selected
+          ? "ring-2 ring-primary shadow-[0_0_16px_rgba(0,241,255,0.45)] scale-[1.03]"
+          : "ring-1 ring-border hover:ring-primary/40 hover:scale-[1.02]"
+      }`}
+    >
+      {city.coverImageUrl ? (
+        <img
+          src={resolveImageUrl(city.coverImageUrl, 320)}
+          alt={city.name}
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-muted" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+      <div className="absolute bottom-0 inset-x-0 p-2">
+        <span className="text-[11px] font-bold text-white text-center block leading-tight drop-shadow">
+          {city.name}
+        </span>
+      </div>
+    </button>
   );
 }
 

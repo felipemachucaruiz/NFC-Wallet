@@ -34,6 +34,8 @@
       "allCities": "Todas las ciudades",
       "clearFilters": "Limpiar filtros"
     },
+    "exploreCities": "Explorar por ciudad",
+    "categories": "Categorías",
     "events": "Eventos",
     "noEvents": "No se encontraron eventos",
     "noEventsDesc": "Intenta con otros filtros o busca un evento diferente",

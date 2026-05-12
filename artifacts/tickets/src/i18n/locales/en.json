@@ -34,6 +34,8 @@
       "allCities": "All cities",
       "clearFilters": "Clear filters"
     },
+    "exploreCities": "Explore by city",
+    "categories": "Categories",
     "events": "Events",
     "noEvents": "No events found",
     "noEventsDesc": "Try different filters or search for another event",

@@ -458,6 +458,18 @@ export async function fetchAds(): Promise<{ ads: ApiAd[] }> {
   return apiFetch("/public/ads");
 }
 
+export interface ApiCity {
+  id: string;
+  name: string;
+  country: string;
+  coverImageUrl: string | null;
+  displayOrder: number;
+}
+
+export async function fetchCities(): Promise<{ cities: ApiCity[] }> {
+  return apiFetch("/public/cities");
+}
+
 // ─── Bracelets ────────────────────────────────────────────────────────────────
 
 export interface ApiBracelet {
