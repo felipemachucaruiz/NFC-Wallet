@@ -87,7 +87,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isTicketingAuditor = role === "ticketing_auditor";
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground">
+    <div className="h-screen overflow-hidden flex bg-background text-foreground">
       <aside className="w-64 border-r border-border bg-sidebar flex flex-col">
         <div className="p-5 border-b border-border">
           <TapeeLogo className="h-8 mb-2" />
