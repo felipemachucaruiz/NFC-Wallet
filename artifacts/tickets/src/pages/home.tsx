@@ -277,7 +277,13 @@ export default function Home() {
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-card to-card" />
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                <span className="text-2xl">🌎</span>
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="18" cy="18" r="14" stroke="#6b7280" strokeWidth="1.5" fill="none" />
+                  <ellipse cx="18" cy="18" rx="5.5" ry="14" stroke="#6b7280" strokeWidth="1.5" fill="none" />
+                  <line x1="4" y1="18" x2="32" y2="18" stroke="#6b7280" strokeWidth="1.5" />
+                  <line x1="6" y1="11" x2="30" y2="11" stroke="#6b7280" strokeWidth="1" strokeDasharray="1 1" />
+                  <line x1="6" y1="25" x2="30" y2="25" stroke="#6b7280" strokeWidth="1" strokeDasharray="1 1" />
+                </svg>
               </div>
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
                 <span className="text-[11px] font-bold text-white text-center block leading-tight drop-shadow">
