@@ -69,7 +69,8 @@
     "manageTicketing": "Gestionar Boletería",
     "ticketing": "Boletería",
     "whatsappTemplates": "WhatsApp",
-    "devices": "Dispositivos"
+    "devices": "Dispositivos",
+    "analytics": "Analíticas"
   },
   "ticketingHub": {
     "title": "Boletería",
@@ -1395,5 +1396,114 @@
     "viewTable": "Lista",
     "viewMap": "Mapa",
     "mapNoLocation": "No hay datos GPS disponibles para los dispositivos registrados."
+  },
+  "analytics": {
+    "title": "Analíticas",
+    "subtitle": "Reporte completo del evento: boletas, check-ins, cashless, demografía",
+    "selectEvent": "Selecciona un evento para ver las analíticas.",
+    "tabs": {
+      "tickets": "Boletas",
+      "checkins": "Check-ins",
+      "cashless": "Cashless NFC",
+      "products": "Productos",
+      "merchants": "Comerciantes",
+      "demographics": "Demografía",
+      "stock": "Inventario"
+    },
+    "tickets": {
+      "sold": "Boletas Vendidas",
+      "soldSub": "de {{total}} cupos",
+      "revenue": "Ingresos por Boletas",
+      "revenueSub": "de órdenes confirmadas",
+      "fillRate": "Ocupación",
+      "fillRateSub": "del total de cupos",
+      "orders": "Órdenes",
+      "ordersSub": "órdenes confirmadas",
+      "salesVelocity": "Velocidad de Ventas",
+      "revenueByType": "Ingresos por Tipo de Boleta",
+      "topProduct": "Producto de Venta de Boletas Top",
+      "noSalesData": "Sin datos de ventas aún",
+      "noTypeData": "Sin datos de tipos de boleta",
+      "columns": {
+        "rank": "#",
+        "ticketType": "Tipo de Boleta",
+        "section": "Sección",
+        "price": "Precio",
+        "sold": "Vendidas",
+        "capacity": "Cupo",
+        "revenue": "Ingresos",
+        "fill": "Ocupación %"
+      }
+    },
+    "checkins": {
+      "totalCheckedIn": "Total Ingresados",
+      "totalCheckedInSub": "de {{total}} boletas",
+      "overallRate": "Tasa de Ingreso",
+      "noShows": "No presentados",
+      "noShowsSub": "{{pct}}% de las boletas",
+      "byDay": "Check-ins por Día",
+      "bySection": "Por Sección",
+      "noData": "Sin datos de check-in"
+    },
+    "cashless": {
+      "totalSales": "Ventas Totales",
+      "totalSalesSub": "{{count}} transacciones",
+      "totalTopups": "Recargas Totales",
+      "totalTopupsSub": "{{count}} recargas",
+      "pendingBalance": "Saldo Pendiente",
+      "pendingBalanceSub": "{{count}} brazaletes",
+      "bracelets": "Brazaletes",
+      "braceletsSub": "activados",
+      "byHour": "Transacciones por Hora",
+      "heatmap": "Mapa de Calor (Día × Hora)",
+      "noData": "Sin datos de transacciones"
+    },
+    "products": {
+      "topChart": "Productos NFC Top (por unidades vendidas)",
+      "detail": "Detalle de Productos",
+      "noData": "Sin datos de productos",
+      "columns": {
+        "rank": "#",
+        "product": "Producto",
+        "units": "Unidades",
+        "revenue": "Ingresos",
+        "cogs": "Costo",
+        "grossProfit": "Utilidad Bruta",
+        "margin": "Margen"
+      }
+    },
+    "merchants": {
+      "topChart": "Comerciantes Top (por ventas)",
+      "detail": "Detalle de Comerciantes",
+      "noData": "Sin datos de comerciantes",
+      "columns": {
+        "rank": "#",
+        "merchant": "Comerciante",
+        "sales": "Ventas",
+        "commission": "Comisión",
+        "net": "Neto",
+        "transactions": "Transacciones",
+        "margin": "Margen"
+      }
+    },
+    "demographics": {
+      "sexDistribution": "Distribución por Sexo",
+      "ageDistribution": "Distribución por Edad",
+      "noData": "Sin datos de asistentes"
+    },
+    "stock": {
+      "alerts": "Alertas de Inventario",
+      "noAlerts": "Sin alertas de inventario",
+      "outOfStock": "Sin stock",
+      "lowStock": "Stock bajo",
+      "columns": {
+        "product": "Producto",
+        "location": "Ubicación",
+        "onHand": "En bodega",
+        "restockAt": "Reponer en",
+        "deficit": "Déficit",
+        "status": "Estado"
+      }
+    }
   }
 }
