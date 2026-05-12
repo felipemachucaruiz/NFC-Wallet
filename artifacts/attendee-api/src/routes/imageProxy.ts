@@ -40,7 +40,7 @@ router.get("/public/image", async (req, res) => {
   }
 
   const width = Math.min(Math.max(parseInt(String(w ?? "800"), 10) || 800, 50), 2000);
-  const quality = Math.min(Math.max(parseInt(String(q ?? "80"), 10) || 80, 10), 100);
+  const quality = Math.min(Math.max(parseInt(String(q ?? "85"), 10) || 85, 10), 100);
 
   const key = cacheKey(url, width, quality);
   const cached = cache.get(key);
@@ -61,8 +61,8 @@ router.get("/public/image", async (req, res) => {
     const inputBuffer = Buffer.from(await upstream.arrayBuffer());
 
     const output = await sharp(inputBuffer)
-      .resize(width, undefined, { withoutEnlargement: true })
-      .webp({ quality })
+      .resize(width, undefined, { withoutEnlargement: true, kernel: sharp.kernel.lanczos3 })
+      .webp({ quality, effort: 6, smartSubsample: true })
       .toBuffer();
 
     evictIfNeeded();

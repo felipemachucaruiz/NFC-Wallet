@@ -383,7 +383,7 @@ function CityCard({ city, selected, onClick }: { city: ApiCity; selected: boolea
     >
       {city.coverImageUrl ? (
         <img
-          src={resolveImageUrl(city.coverImageUrl, 320)}
+          src={resolveImageUrl(city.coverImageUrl, 400)}
           alt={city.name}
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
