@@ -322,7 +322,7 @@ export async function apiFetchEvent(eventId: string): Promise<EventSummary> {
   const res = await fetch(apiUrl(`/api/events/${eventId}`), { headers: authHeaders() });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to fetch event");
-  return data.event as EventSummary;
+  return data as EventSummary;
 }
 
 export async function apiUpdateEvent(eventId: string, body: Record<string, unknown>) {
