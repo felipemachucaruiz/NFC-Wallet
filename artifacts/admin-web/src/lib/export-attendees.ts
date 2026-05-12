@@ -11,10 +11,26 @@ function formatDateOfBirth(raw: string | null | undefined): string {
     const [y, m, d] = raw.split("-");
     return `${d}/${m}/${y}`;
   }
-  return raw; // already DD/MM/YYYY or other user-entered format
+  return raw;
 }
 
-const COLUMNS = [
+interface Column { header: string; key: string; width: number; }
+
+const BASE_COLUMNS: Column[] = [
+  { header: "Nombre",           key: "attendeeName",          width: 24 },
+  { header: "Correo",           key: "attendeeEmail",         width: 28 },
+  { header: "Teléfono",         key: "attendeePhone",         width: 19 },
+  { header: "Documento",        key: "attendeeIdDocument",    width: 18 },
+  { header: "Tipo boleta",      key: "_ticketType",           width: 18 },
+  { header: "Estado",           key: "status",                width: 13 },
+  { header: "Fecha nac.",       key: "attendeeDateOfBirth",   width: 16 },
+  { header: "Sexo",             key: "_sex",                  width: 15 },
+  { header: "Fecha registro",   key: "_createdAt",            width: 21 },
+  { header: "ID boleta",        key: "_idShort",              width: 16 },
+  { header: "Orden",            key: "_orderShort",           width: 16 },
+];
+
+const RACE_COLUMNS: Column[] = [
   { header: "Nombre",           key: "attendeeName",          width: 24 },
   { header: "Correo",           key: "attendeeEmail",         width: 28 },
   { header: "Teléfono",         key: "attendeePhone",         width: 19 },
@@ -32,11 +48,13 @@ const COLUMNS = [
   { header: "ID boleta",        key: "_idShort",              width: 16 },
   { header: "Orden",            key: "_orderShort",           width: 16 },
   { header: "#Corredor",        key: "_raceNumber",           width: 14 },
-] as const;
+];
 
-type ColKey = typeof COLUMNS[number]["key"];
+function getColumns(event: EventSummary): Column[] {
+  return event.category === "race" ? RACE_COLUMNS : BASE_COLUMNS;
+}
 
-function rowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>): Record<ColKey, string> {
+function rowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>): Record<string, string> {
   return {
     attendeeName:          ticket.attendeeName ?? "—",
     attendeeEmail:         ticket.attendeeEmail ?? "—",
@@ -54,51 +72,6 @@ function rowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>): 
     _createdAt:            new Date(ticket.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota" }),
     _idShort:              ticket.id ? ticket.id.slice(0, 8) : "—",
     _orderShort:           ticket.orderId ? ticket.orderId.slice(0, 8) : "—",
-    _raceNumber:           ticket.raceNumber != null ? String(ticket.raceNumber) : "—",
-  };
-}
-
-// Full values for CSV (uses original id/orderId keys)
-const CSV_COLUMNS = [
-  { header: "Nombre",           key: "attendeeName" },
-  { header: "Correo",           key: "attendeeEmail" },
-  { header: "Teléfono",         key: "attendeePhone" },
-  { header: "Documento",        key: "attendeeIdDocument" },
-  { header: "Tipo boleta",      key: "_ticketType" },
-  { header: "Estado",           key: "status" },
-  { header: "Fecha nac.",       key: "attendeeDateOfBirth" },
-  { header: "Sexo",             key: "_sex" },
-  { header: "Talla camiseta",   key: "shirtSize" },
-  { header: "Tipo de sangre",   key: "bloodType" },
-  { header: "Contacto emerg.",  key: "emergencyContactName" },
-  { header: "Tel. emergencia",  key: "emergencyContactPhone" },
-  { header: "EPS",              key: "eps" },
-  { header: "Fecha registro",   key: "_createdAt" },
-  { header: "ID boleta",        key: "id" },
-  { header: "Orden",            key: "orderId" },
-  { header: "#Corredor",        key: "_raceNumber" },
-] as const;
-
-type CsvColKey = typeof CSV_COLUMNS[number]["key"];
-
-function csvRowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>): Record<CsvColKey, string> {
-  return {
-    attendeeName:          ticket.attendeeName ?? "—",
-    attendeeEmail:         ticket.attendeeEmail ?? "—",
-    attendeePhone:         ticket.attendeePhone ?? "—",
-    attendeeIdDocument:    ticket.attendeeIdDocument ?? "—",
-    _ticketType:           ticket.ticketTypeId ? (ticketTypeMap[ticket.ticketTypeId] ?? ticket.ticketTypeId.slice(0, 8)) : "—",
-    status:                ticket.status,
-    attendeeDateOfBirth:   formatDateOfBirth(ticket.attendeeDateOfBirth),
-    _sex:                  ticket.attendeeSex ? (SEX_LABELS[ticket.attendeeSex] ?? ticket.attendeeSex) : "—",
-    shirtSize:             ticket.shirtSize ?? "—",
-    bloodType:             ticket.bloodType ?? "—",
-    emergencyContactName:  ticket.emergencyContactName ?? "—",
-    emergencyContactPhone: ticket.emergencyContactPhone ?? "—",
-    eps:                   ticket.eps ?? "—",
-    _createdAt:            new Date(ticket.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota" }),
-    id:                    ticket.id,
-    orderId:               ticket.orderId,
     _raceNumber:           ticket.raceNumber != null ? String(ticket.raceNumber) : "—",
   };
 }
@@ -143,19 +116,21 @@ async function loadImageAsDataUrl(src: string): Promise<{ dataUrl: string; width
 export function downloadAttendeesCSV(
   tickets: AdminTicket[],
   ticketTypeMap: Record<string, string>,
-  eventLabel: string,
+  event: EventSummary,
 ) {
-  const headers = CSV_COLUMNS.map((c) => c.header).join(",");
+  const columns = getColumns(event);
+  const headers = columns.map((c) => c.header).join(",");
   const rows = tickets.map((t) => {
-    const vals = csvRowValues(t, ticketTypeMap);
-    return CSV_COLUMNS.map((c) => escapeCsvCell(vals[c.key])).join(",");
+    const vals = rowValues(t, ticketTypeMap);
+    return columns.map((c) => escapeCsvCell(vals[c.key] ?? "—")).join(",");
   });
   const csv = [headers, ...rows].join("\r\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `asistentes_${eventLabel}_${new Date().toISOString().slice(0, 10)}.csv`;
+  const slug = event.name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  a.download = `asistentes_${slug}_${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -165,6 +140,7 @@ export async function downloadAttendeesPDF(
   ticketTypeMap: Record<string, string>,
   event: EventSummary,
 ) {
+  const columns = getColumns(event);
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -215,17 +191,17 @@ export async function downloadAttendeesPDF(
 
   // Scale column widths proportionally so they always fill the usable page width exactly
   const usableWidth = pageWidth - 16; // 8mm left + 8mm right margin
-  const totalRaw = COLUMNS.reduce((s, c) => s + c.width, 0);
+  const totalRaw = columns.reduce((s, c) => s + c.width, 0);
   const scale = usableWidth / totalRaw;
   const columnStyles: Record<number, { cellWidth: number }> = {};
-  COLUMNS.forEach((col, i) => { columnStyles[i] = { cellWidth: col.width * scale }; });
+  columns.forEach((col, i) => { columnStyles[i] = { cellWidth: col.width * scale }; });
 
   autoTable(doc, {
     startY: 34,
-    head: [COLUMNS.map((c) => c.header)],
+    head: [columns.map((c) => c.header)],
     body: tickets.map((t) => {
       const vals = rowValues(t, ticketTypeMap);
-      return COLUMNS.map((c) => vals[c.key]);
+      return columns.map((c) => vals[c.key] ?? "—");
     }),
     styles: {
       fontSize: 7,

@@ -124,8 +124,8 @@ export default function EventAttendees() {
         <Button
           variant="outline"
           size="sm"
-          disabled={filtered.length === 0}
-          onClick={() => downloadAttendeesCSV(filtered, ticketTypeMap, resolvedEventId)}
+          disabled={filtered.length === 0 || !eventData}
+          onClick={() => eventData && downloadAttendeesCSV(filtered, ticketTypeMap, eventData)}
         >
           <FileDown className="w-4 h-4 mr-1.5" />
           CSV
