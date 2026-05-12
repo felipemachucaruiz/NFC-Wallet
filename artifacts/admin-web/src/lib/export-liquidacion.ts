@@ -154,14 +154,14 @@ export async function downloadLiquidacionExcel(
   logoCell.value = "TAPEE  ·  Liquidación de Ventas";
   logoCell.font = { bold: true, color: { argb: "FF" + TEAL }, size: 13, name: "Calibri" };
   logoCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
-  ws.getRow(1).height = 32;
+  ws.getRow(1).height = 38;
 
   try {
     const res = await fetch("/tapee-logo.png");
     const buf = await res.arrayBuffer();
     const imgId = wb.addImage({ buffer: buf, extension: "png" });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ws.addImage(imgId, { tl: { col: 0.1, row: 0.1 } as any, ext: { width: 110, height: 26 }, editAs: "oneCell" });
+    ws.addImage(imgId, { tl: { col: 0.1, row: 0.1 } as any, ext: { width: 110, height: 42 }, editAs: "oneCell" });
     logoCell.value = "";
   } catch { /* text fallback */ }
 

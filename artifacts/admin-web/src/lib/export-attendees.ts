@@ -247,7 +247,7 @@ export async function downloadAttendeesExcel(
   logoCell.value = "TAPEE";
   logoCell.font = { bold: true, color: { argb: "FF" + TEAL }, size: 14, name: "Calibri" };
   logoCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
-  ws.getRow(1).height = 32;
+  ws.getRow(1).height = 38;
 
   // Try to embed the actual logo image
   try {
@@ -255,7 +255,7 @@ export async function downloadAttendeesExcel(
     const buf = await res.arrayBuffer();
     const imgId = wb.addImage({ buffer: buf, extension: "png" });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ws.addImage(imgId, { tl: { col: 0.1, row: 0.1 } as any, ext: { width: 110, height: 26 }, editAs: "oneCell" });
+    ws.addImage(imgId, { tl: { col: 0.1, row: 0.1 } as any, ext: { width: 110, height: 42 }, editAs: "oneCell" });
     logoCell.value = ""; // image covers it
   } catch { /* logo fetch failed, text fallback stays */ }
 
