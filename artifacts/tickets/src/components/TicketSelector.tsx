@@ -281,7 +281,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                 <Label className="mb-2 block">{t("ticketSelection.quantity")}</Label>
                 {isRace ? (
                   <p className="text-xs text-muted-foreground">
-                    {t("ticketSelection.raceSingleTicket", "Las carreras permiten solo 1 entrada por persona.")}
+                    {t("ticketSelection.raceSingleTicket")}
                   </p>
                 ) : (
                   <>
@@ -366,7 +366,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         <div>
                           <Label className="text-xs flex items-center gap-1">
                             <IdCard className="w-3 h-3" />
-                            {t("ticketSelection.idDocumentType", "Tipo de documento")} *
+                            {t("ticketSelection.idDocumentType")} *
                           </Label>
                           <div className="flex flex-wrap gap-2 mt-1">
                             {ID_DOCUMENT_TYPES.map((dt) => (
@@ -398,13 +398,13 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         {isRace && (
                           <>
                             <Separator className="my-1" />
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datos de carrera</p>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("ticketSelection.raceSection")}</p>
 
                             {/* Shirt size */}
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <Shirt className="w-3 h-3" />
-                                Talla de camiseta *
+                                {t("ticketSelection.shirtSize")} *
                               </Label>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {SHIRT_SIZES.map((size) => (
@@ -431,7 +431,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <Droplets className="w-3 h-3" />
-                                Tipo de sangre *
+                                {t("ticketSelection.bloodType")} *
                               </Label>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {BLOOD_TYPES.map((bt) => (
@@ -458,7 +458,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <Heart className="w-3 h-3" />
-                                EPS *
+                                {t("ticketSelection.eps")} *
                               </Label>
                               <div className="mt-1">
                                 <SearchableSelect
@@ -479,24 +479,24 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <PhoneIcon className="w-3 h-3" />
-                                Contacto de emergencia *
+                                {t("ticketSelection.emergencyContact")} *
                               </Label>
                               <Input
                                 value={attendee.emergencyContactName ?? ""}
                                 onChange={(e) => updateAttendee(index, "emergencyContactName", e.target.value)}
-                                placeholder="Nombre completo"
+                                placeholder={t("ticketSelection.emergencyContactNamePlaceholder")}
                                 className={`mt-1 ${errors[`${index}-emergencyContactName`] ? "border-destructive" : ""}`}
                               />
                               {errors[`${index}-emergencyContactName`] && (
                                 <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactName`]}</p>
                               )}
-                              <Input
-                                type="tel"
-                                value={attendee.emergencyContactPhone ?? ""}
-                                onChange={(e) => updateAttendee(index, "emergencyContactPhone", e.target.value)}
-                                placeholder="Teléfono de emergencia"
-                                className={`mt-2 ${errors[`${index}-emergencyContactPhone`] ? "border-destructive" : ""}`}
-                              />
+                              <div className="mt-2">
+                                <PhoneField
+                                  value={attendee.emergencyContactPhone ?? ""}
+                                  onChange={(v) => updateAttendee(index, "emergencyContactPhone", v)}
+                                  className={errors[`${index}-emergencyContactPhone`] ? "[&_div]:border-destructive" : ""}
+                                />
+                              </div>
                               {errors[`${index}-emergencyContactPhone`] && (
                                 <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactPhone`]}</p>
                               )}
@@ -591,7 +591,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         <div>
                           <Label className="text-xs flex items-center gap-1">
                             <IdCard className="w-3 h-3" />
-                            {t("ticketSelection.idDocumentType", "Tipo de documento")} *
+                            {t("ticketSelection.idDocumentType")} *
                           </Label>
                           <div className="flex flex-wrap gap-2 mt-1">
                             {ID_DOCUMENT_TYPES.map((dt) => (
@@ -639,13 +639,13 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                         {isRace && (
                           <>
                             <Separator className="my-1" />
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datos de carrera</p>
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("ticketSelection.raceSection")}</p>
 
                             {/* Shirt size */}
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <Shirt className="w-3 h-3" />
-                                Talla de camiseta *
+                                {t("ticketSelection.shirtSize")} *
                               </Label>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {SHIRT_SIZES.map((size) => (
@@ -672,7 +672,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <Droplets className="w-3 h-3" />
-                                Tipo de sangre *
+                                {t("ticketSelection.bloodType")} *
                               </Label>
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {BLOOD_TYPES.map((bt) => (
@@ -699,7 +699,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <Heart className="w-3 h-3" />
-                                EPS *
+                                {t("ticketSelection.eps")} *
                               </Label>
                               <div className="mt-1">
                                 <SearchableSelect
@@ -720,24 +720,24 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <div>
                               <Label className="text-xs flex items-center gap-1">
                                 <PhoneIcon className="w-3 h-3" />
-                                Contacto de emergencia *
+                                {t("ticketSelection.emergencyContact")} *
                               </Label>
                               <Input
                                 value={attendee.emergencyContactName ?? ""}
                                 onChange={(e) => updateAttendee(index, "emergencyContactName", e.target.value)}
-                                placeholder="Nombre completo"
+                                placeholder={t("ticketSelection.emergencyContactNamePlaceholder")}
                                 className={`mt-1 ${errors[`${index}-emergencyContactName`] ? "border-destructive" : ""}`}
                               />
                               {errors[`${index}-emergencyContactName`] && (
                                 <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactName`]}</p>
                               )}
-                              <Input
-                                type="tel"
-                                value={attendee.emergencyContactPhone ?? ""}
-                                onChange={(e) => updateAttendee(index, "emergencyContactPhone", e.target.value)}
-                                placeholder="Teléfono de emergencia"
-                                className={`mt-2 ${errors[`${index}-emergencyContactPhone`] ? "border-destructive" : ""}`}
-                              />
+                              <div className="mt-2">
+                                <PhoneField
+                                  value={attendee.emergencyContactPhone ?? ""}
+                                  onChange={(v) => updateAttendee(index, "emergencyContactPhone", v)}
+                                  className={errors[`${index}-emergencyContactPhone`] ? "[&_div]:border-destructive" : ""}
+                                />
+                              </div>
                               {errors[`${index}-emergencyContactPhone`] && (
                                 <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactPhone`]}</p>
                               )}
