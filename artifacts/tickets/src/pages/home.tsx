@@ -263,7 +263,7 @@ export default function Home() {
             {t("home.exploreCities", "Explorar por ciudad")}
           </h2>
           <div
-            className="flex gap-3 overflow-x-auto pb-1"
+            className="flex gap-3 overflow-x-auto py-3 px-1"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
             {/* All cities pill */}
@@ -310,7 +310,7 @@ export default function Home() {
             {t("home.categories", "Categorías")}
           </p>
           <div
-            className="flex gap-2 overflow-x-auto pb-1"
+            className="flex gap-2 overflow-x-auto py-2 px-1"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
             {categories.map((cat) => (
