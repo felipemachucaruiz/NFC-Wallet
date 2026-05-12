@@ -15,6 +15,14 @@ import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/format";
 import type { EventData, TicketType, AttendeeData } from "@/data/types";
 
+const ID_DOCUMENT_TYPES = [
+  { code: "CC", label: "Cédula de ciudadanía" },
+  { code: "CE", label: "Cédula de extranjería" },
+  { code: "PA", label: "Pasaporte" },
+  { code: "TI", label: "Tarjeta de identidad" },
+  { code: "RC", label: "Registro civil" },
+  { code: "DNI", label: "DNI extranjero" },
+];
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 const EPS_LIST = [
@@ -95,9 +103,9 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
     const count = isNumbered ? (ticketType.ticketsPerUnit || 1) : quantity;
     const initial: AttendeeData[] = Array.from({ length: count }, (_, i) => {
       if (i === 0 && user) {
-        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: (user.sex || "") as AttendeeData["sex"], idDocument: user.idDocument || "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
+        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: (user.sex || "") as AttendeeData["sex"], idDocumentType: "", idDocument: user.idDocument || "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
       }
-      return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocument: "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
+      return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocumentType: "", idDocument: "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
     });
     setAttendees(initial);
     setStep("attendees");
@@ -129,6 +137,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
     const newErrors: Record<string, string> = {};
     attendees.forEach((a, i) => {
       if (i === 0 && isAuthenticated && !!user) {
+        if (!a.idDocumentType) newErrors[`${i}-idDocumentType`] = t("ticketSelection.required");
         if (isRace && !a.shirtSize) newErrors[`${i}-shirtSize`] = t("ticketSelection.required");
         if (isRace && !a.bloodType) newErrors[`${i}-bloodType`] = t("ticketSelection.required");
         if (isRace && !a.emergencyContactName?.trim()) newErrors[`${i}-emergencyContactName`] = t("ticketSelection.required");
@@ -142,6 +151,7 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
       if (!a.phone.trim()) newErrors[`${i}-phone`] = t("ticketSelection.required");
       if (!a.dateOfBirth.trim()) newErrors[`${i}-dateOfBirth`] = t("ticketSelection.required");
       if (!a.sex) newErrors[`${i}-sex`] = t("ticketSelection.required");
+      if (!a.idDocumentType) newErrors[`${i}-idDocumentType`] = t("ticketSelection.required");
       if (!a.idDocument.trim()) newErrors[`${i}-idDocument`] = t("ticketSelection.required");
       if (isRace) {
         if (!a.shirtSize?.trim()) newErrors[`${i}-shirtSize`] = t("ticketSelection.required");
@@ -353,6 +363,36 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                           label={t("ticketSelection.sex", "Género")}
                           value={attendee.sex === "male" ? t("ticketSelection.male", "Masculino") : attendee.sex === "female" ? t("ticketSelection.female", "Femenino") : attendee.sex === "non_binary" ? t("ticketSelection.nonBinary", "No binario") : "—"}
                         />
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <IdCard className="w-3 h-3" />
+                            {t("ticketSelection.idDocumentType", "Tipo de documento")} *
+                          </Label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {ID_DOCUMENT_TYPES.map((dt) => (
+                              <button
+                                key={dt.code}
+                                type="button"
+                                onClick={() => updateAttendee(index, "idDocumentType", dt.code)}
+                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                  attendee.idDocumentType === dt.code
+                                    ? "border-primary bg-primary/10 text-primary"
+                                    : "border-border text-muted-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {dt.code}
+                              </button>
+                            ))}
+                          </div>
+                          {attendee.idDocumentType && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {ID_DOCUMENT_TYPES.find(d => d.code === attendee.idDocumentType)?.label}
+                            </p>
+                          )}
+                          {errors[`${index}-idDocumentType`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-idDocumentType`]}</p>
+                          )}
+                        </div>
                         <ReadOnlyField label={t("ticketSelection.idDocument", "Núm. de identificación")} value={attendee.idDocument} />
 
                         {isRace && (
@@ -546,6 +586,36 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                           </div>
                           {errors[`${index}-sex`] && (
                             <p className="text-xs text-destructive mt-1">{errors[`${index}-sex`]}</p>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <IdCard className="w-3 h-3" />
+                            {t("ticketSelection.idDocumentType", "Tipo de documento")} *
+                          </Label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {ID_DOCUMENT_TYPES.map((dt) => (
+                              <button
+                                key={dt.code}
+                                type="button"
+                                onClick={() => updateAttendee(index, "idDocumentType", dt.code)}
+                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                  attendee.idDocumentType === dt.code
+                                    ? "border-primary bg-primary/10 text-primary"
+                                    : "border-border text-muted-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {dt.code}
+                              </button>
+                            ))}
+                          </div>
+                          {attendee.idDocumentType && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {ID_DOCUMENT_TYPES.find(d => d.code === attendee.idDocumentType)?.label}
+                            </p>
+                          )}
+                          {errors[`${index}-idDocumentType`] && (
+                            <p className="text-xs text-destructive mt-1">{errors[`${index}-idDocumentType`]}</p>
                           )}
                         </div>
                         <div>

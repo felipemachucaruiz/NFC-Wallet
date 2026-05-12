@@ -90,7 +90,7 @@ interface CheckoutData {
   validDays: string;
   price: number;
   quantity: number;
-  attendees: { name: string; email: string; phone: string; dateOfBirth?: string; sex?: "male" | "female" | ""; idDocument?: string }[];
+  attendees: { name: string; email: string; phone: string; dateOfBirth?: string; sex?: "male" | "female" | ""; idDocumentType?: string; idDocument?: string }[];
   subtotal: number;
   serviceFee: number;
   total: number;
@@ -256,6 +256,7 @@ export default function Checkout() {
           phone: a.phone || undefined,
           dateOfBirth: a.dateOfBirth || undefined,
           sex: (a.sex as "male" | "female") || undefined,
+          idDocumentType: a.idDocumentType || undefined,
           idDocument: a.idDocument || undefined,
           ticketTypeId: data.ticketTypeId,
           shirtSize: (a as any).shirtSize || undefined,
@@ -361,6 +362,7 @@ export default function Checkout() {
           phone: a.phone || undefined,
           dateOfBirth: a.dateOfBirth || undefined,
           sex: (a.sex as "male" | "female") || undefined,
+          idDocumentType: a.idDocumentType || undefined,
           idDocument: a.idDocument || undefined,
           ticketTypeId: data.ticketTypeId,
           shirtSize: (a as any).shirtSize || undefined,
