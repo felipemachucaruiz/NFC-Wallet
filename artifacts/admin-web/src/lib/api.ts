@@ -310,6 +310,21 @@ export async function apiDeletePricingStage(eventId: string, typeId: string, sta
   return data;
 }
 
+export interface EventSummary {
+  id: string;
+  name: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  promoterCompanyName: string | null;
+}
+
+export async function apiFetchEvent(eventId: string): Promise<EventSummary> {
+  const res = await fetch(apiUrl(`/api/events/${eventId}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch event");
+  return data.event as EventSummary;
+}
+
 export async function apiUpdateEvent(eventId: string, body: Record<string, unknown>) {
   const res = await fetch(apiUrl(`/api/events/${eventId}`), { method: "PATCH", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json();
