@@ -5,6 +5,49 @@ import type { AdminTicket, EventSummary } from "./api";
 const SEX_LABELS: Record<string, string> = { male: "Masculino", female: "Femenino" };
 
 const COLUMNS = [
+  { header: "Nombre",           key: "attendeeName",          width: 24 },
+  { header: "Correo",           key: "attendeeEmail",         width: 28 },
+  { header: "Teléfono",         key: "attendeePhone",         width: 19 },
+  { header: "Documento",        key: "attendeeIdDocument",    width: 18 },
+  { header: "Tipo boleta",      key: "_ticketType",           width: 18 },
+  { header: "Estado",           key: "status",                width: 13 },
+  { header: "Fecha nac.",       key: "attendeeDateOfBirth",   width: 16 },
+  { header: "Sexo",             key: "_sex",                  width: 15 },
+  { header: "Talla",            key: "shirtSize",             width: 11 },
+  { header: "Sangre",           key: "bloodType",             width: 12 },
+  { header: "Contacto emerg.",  key: "emergencyContactName",  width: 20 },
+  { header: "Tel. emerg.",      key: "emergencyContactPhone", width: 19 },
+  { header: "EPS",              key: "eps",                   width: 14 },
+  { header: "Fecha registro",   key: "_createdAt",            width: 21 },
+  { header: "ID boleta",        key: "_idShort",              width: 16 },
+  { header: "Orden",            key: "_orderShort",           width: 16 },
+] as const;
+
+type ColKey = typeof COLUMNS[number]["key"];
+
+function rowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>): Record<ColKey, string> {
+  return {
+    attendeeName:          ticket.attendeeName ?? "—",
+    attendeeEmail:         ticket.attendeeEmail ?? "—",
+    attendeePhone:         ticket.attendeePhone ?? "—",
+    attendeeIdDocument:    ticket.attendeeIdDocument ?? "—",
+    _ticketType:           ticket.ticketTypeId ? (ticketTypeMap[ticket.ticketTypeId] ?? ticket.ticketTypeId.slice(0, 8)) : "—",
+    status:                ticket.status,
+    attendeeDateOfBirth:   ticket.attendeeDateOfBirth ?? "—",
+    _sex:                  ticket.attendeeSex ? (SEX_LABELS[ticket.attendeeSex] ?? ticket.attendeeSex) : "—",
+    shirtSize:             ticket.shirtSize ?? "—",
+    bloodType:             ticket.bloodType ?? "—",
+    emergencyContactName:  ticket.emergencyContactName ?? "—",
+    emergencyContactPhone: ticket.emergencyContactPhone ?? "—",
+    eps:                   ticket.eps ?? "—",
+    _createdAt:            new Date(ticket.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota" }),
+    _idShort:              ticket.id ? ticket.id.slice(0, 8) : "—",
+    _orderShort:           ticket.orderId ? ticket.orderId.slice(0, 8) : "—",
+  };
+}
+
+// Full values for CSV (uses original id/orderId keys)
+const CSV_COLUMNS = [
   { header: "Nombre",           key: "attendeeName" },
   { header: "Correo",           key: "attendeeEmail" },
   { header: "Teléfono",         key: "attendeePhone" },
@@ -23,9 +66,9 @@ const COLUMNS = [
   { header: "Orden",            key: "orderId" },
 ] as const;
 
-type ColKey = typeof COLUMNS[number]["key"];
+type CsvColKey = typeof CSV_COLUMNS[number]["key"];
 
-function rowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>): Record<ColKey, string> {
+function csvRowValues(ticket: AdminTicket, ticketTypeMap: Record<string, string>): Record<CsvColKey, string> {
   return {
     attendeeName:          ticket.attendeeName ?? "—",
     attendeeEmail:         ticket.attendeeEmail ?? "—",
@@ -61,16 +104,23 @@ function formatEventDate(iso: string | null): string {
   });
 }
 
-async function loadImageAsDataUrl(src: string): Promise<string | null> {
+async function loadImageAsDataUrl(src: string): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
     const res = await fetch(src);
     const blob = await res.blob();
-    return new Promise((resolve) => {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
+      reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+    const dims = await new Promise<{ width: number; height: number }>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve({ width: 129, height: 48 });
+      img.src = dataUrl;
+    });
+    return { dataUrl, ...dims };
   } catch {
     return null;
   }
@@ -81,10 +131,10 @@ export function downloadAttendeesCSV(
   ticketTypeMap: Record<string, string>,
   eventLabel: string,
 ) {
-  const headers = COLUMNS.map((c) => c.header).join(",");
+  const headers = CSV_COLUMNS.map((c) => c.header).join(",");
   const rows = tickets.map((t) => {
-    const vals = rowValues(t, ticketTypeMap);
-    return COLUMNS.map((c) => escapeCsvCell(vals[c.key])).join(",");
+    const vals = csvRowValues(t, ticketTypeMap);
+    return CSV_COLUMNS.map((c) => escapeCsvCell(vals[c.key])).join(",");
   });
   const csv = [headers, ...rows].join("\r\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -108,17 +158,22 @@ export async function downloadAttendeesPDF(
   doc.setFillColor(10, 10, 10);
   doc.rect(0, 0, pageWidth, 30, "F");
 
-  // Tapee logo
-  const logoData = await loadImageAsDataUrl("/tapee-logo.png");
-  if (logoData) {
-    doc.addImage(logoData, "PNG", 8, 5, 20, 20);
+  // Tapee logo — maintain aspect ratio
+  const logo = await loadImageAsDataUrl("/tapee-logo.png");
+  let eventNameX = 12;
+  if (logo) {
+    const logoH = 12;
+    const logoW = logoH * (logo.width / logo.height);
+    const logoY = (30 - logoH) / 2;
+    doc.addImage(logo.dataUrl, "PNG", 8, logoY, logoW, logoH);
+    eventNameX = 8 + logoW + 5;
   }
 
   // Event name
   doc.setFontSize(13);
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.text(event.name, 32, 13);
+  doc.text(event.name, eventNameX, 13);
 
   // Date range
   const dateRange = event.startsAt
@@ -129,11 +184,11 @@ export async function downloadAttendeesPDF(
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(180, 180, 180);
-  doc.text(dateRange, 32, 19);
+  doc.text(dateRange, eventNameX, 19);
 
   // Promoter
   if (event.promoterCompanyName) {
-    doc.text(`Promotor: ${event.promoterCompanyName}`, 32, 24);
+    doc.text(`Promotor: ${event.promoterCompanyName}`, eventNameX, 24);
   }
 
   // Generated / count (right-aligned)
@@ -144,6 +199,10 @@ export async function downloadAttendeesPDF(
 
   doc.setTextColor(0, 0, 0);
 
+  // Build columnStyles from widths defined in COLUMNS
+  const columnStyles: Record<number, { cellWidth: number }> = {};
+  COLUMNS.forEach((col, i) => { columnStyles[i] = { cellWidth: col.width }; });
+
   autoTable(doc, {
     startY: 34,
     head: [COLUMNS.map((c) => c.header)],
@@ -151,9 +210,16 @@ export async function downloadAttendeesPDF(
       const vals = rowValues(t, ticketTypeMap);
       return COLUMNS.map((c) => vals[c.key]);
     }),
-    styles: { fontSize: 7, cellPadding: 1.5, overflow: "linebreak" },
+    styles: {
+      fontSize: 7,
+      cellPadding: 1.5,
+      overflow: "linebreak",
+      lineColor: [220, 220, 220],
+      lineWidth: 0.1,
+    },
     headStyles: { fillColor: [0, 190, 200], textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [245, 245, 245] },
+    columnStyles,
     margin: { left: 8, right: 8 },
   });
 
