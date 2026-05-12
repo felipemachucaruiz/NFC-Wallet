@@ -1182,7 +1182,9 @@
     "colTotal": "Total",
     "colDate": "Fecha",
     "confirmed": "Confirmado",
-    "pending": "Pendiente"
+    "pending": "Pendiente",
+    "allDays": "Todos los Días",
+    "noOrders": "Sin órdenes aún"
   },
   "orders": {
     "title": "Órdenes",
