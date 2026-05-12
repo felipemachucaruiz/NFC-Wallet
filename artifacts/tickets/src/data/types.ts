@@ -97,6 +97,7 @@ export interface AttendeeData {
   dateOfBirth: string;
   sex: "male" | "female" | "non_binary" | "";
   idDocument: string;
+  // Race-event fields (only collected when event.category === "race")
   shirtSize?: string;
   bloodType?: string;
   emergencyContactName?: string;

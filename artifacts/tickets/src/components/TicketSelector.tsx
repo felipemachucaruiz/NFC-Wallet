@@ -1,19 +1,46 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
-import { Minus, Plus, X, ChevronRight, Check, Calendar, CreditCard as IdCard, Users } from "lucide-react";
+import { Minus, Plus, ChevronRight, Check, Calendar, CreditCard as IdCard, Users, Heart, Phone as PhoneIcon, Shirt, Droplets } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
 import { Badge } from "@/components/ui/badge";
 import { DatePickerField } from "@/components/ui/date-picker-field";
-import { EpsSelect } from "@/components/ui/eps-select";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/lib/format";
 import type { EventData, TicketType, AttendeeData } from "@/data/types";
+
+const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
+const EPS_LIST = [
+  "Aliansalud EPS",
+  "Anas Wayuu",
+  "Asmet Salud",
+  "Capresoca EPS",
+  "Coosalud EPS",
+  "Compensar EPS",
+  "Comfamiliar Huila",
+  "Comfenalco Valle",
+  "Dusakawi EPSI",
+  "Emssanar EPS",
+  "Famisanar EPS",
+  "Mallamas EPSI",
+  "Medimás EPS",
+  "Mutual Ser EPS",
+  "Nueva EPS",
+  "Pijaos Salud EPSI",
+  "Salud MIA",
+  "Salud Total EPS",
+  "Sanitas EPS",
+  "Savia Salud EPS",
+  "Sura EPS",
+  "No tengo / Medicina prepagada",
+];
 
 function fmtDisplayDate(dateStr: string): string {
   if (!dateStr) return "—";
@@ -68,9 +95,9 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
     const count = isNumbered ? (ticketType.ticketsPerUnit || 1) : quantity;
     const initial: AttendeeData[] = Array.from({ length: count }, (_, i) => {
       if (i === 0 && user) {
-        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: (user.sex || "") as AttendeeData["sex"], idDocument: user.idDocument || "", eps: "" };
+        return { name: `${user.firstName} ${user.lastName}`.trim(), email: user.email, phone: user.phone, dateOfBirth: user.dateOfBirth || "", sex: (user.sex || "") as AttendeeData["sex"], idDocument: user.idDocument || "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
       }
-      return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocument: "", eps: "" };
+      return { name: "", email: "", phone: "", dateOfBirth: "", sex: "", idDocument: "", shirtSize: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "", eps: "" };
     });
     setAttendees(initial);
     setStep("attendees");
@@ -116,11 +143,13 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
       if (!a.dateOfBirth.trim()) newErrors[`${i}-dateOfBirth`] = t("ticketSelection.required");
       if (!a.sex) newErrors[`${i}-sex`] = t("ticketSelection.required");
       if (!a.idDocument.trim()) newErrors[`${i}-idDocument`] = t("ticketSelection.required");
-      if (isRace && !a.shirtSize) newErrors[`${i}-shirtSize`] = t("ticketSelection.required");
-      if (isRace && !a.bloodType) newErrors[`${i}-bloodType`] = t("ticketSelection.required");
-      if (isRace && !a.emergencyContactName?.trim()) newErrors[`${i}-emergencyContactName`] = t("ticketSelection.required");
-      if (isRace && !a.emergencyContactPhone?.trim()) newErrors[`${i}-emergencyContactPhone`] = t("ticketSelection.required");
-      if (isRace && !a.eps) newErrors[`${i}-eps`] = t("ticketSelection.required");
+      if (isRace) {
+        if (!a.shirtSize?.trim()) newErrors[`${i}-shirtSize`] = t("ticketSelection.required");
+        if (!a.bloodType?.trim()) newErrors[`${i}-bloodType`] = t("ticketSelection.required");
+        if (!a.eps?.trim()) newErrors[`${i}-eps`] = t("ticketSelection.required");
+        if (!a.emergencyContactName?.trim()) newErrors[`${i}-emergencyContactName`] = t("ticketSelection.required");
+        if (!a.emergencyContactPhone?.trim()) newErrors[`${i}-emergencyContactPhone`] = t("ticketSelection.required");
+      }
     });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -325,6 +354,115 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                           value={attendee.sex === "male" ? t("ticketSelection.male", "Masculino") : attendee.sex === "female" ? t("ticketSelection.female", "Femenino") : attendee.sex === "non_binary" ? t("ticketSelection.nonBinary", "No binario") : "—"}
                         />
                         <ReadOnlyField label={t("ticketSelection.idDocument", "Núm. de identificación")} value={attendee.idDocument} />
+
+                        {isRace && (
+                          <>
+                            <Separator className="my-1" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datos de carrera</p>
+
+                            {/* Shirt size */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <Shirt className="w-3 h-3" />
+                                Talla de camiseta *
+                              </Label>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {SHIRT_SIZES.map((size) => (
+                                  <button
+                                    key={size}
+                                    type="button"
+                                    onClick={() => updateAttendee(index, "shirtSize", size)}
+                                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                      attendee.shirtSize === size
+                                        ? "border-primary bg-primary/10 text-primary"
+                                        : "border-border text-muted-foreground hover:border-primary/50"
+                                    }`}
+                                  >
+                                    {size}
+                                  </button>
+                                ))}
+                              </div>
+                              {errors[`${index}-shirtSize`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-shirtSize`]}</p>
+                              )}
+                            </div>
+
+                            {/* Blood type */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <Droplets className="w-3 h-3" />
+                                Tipo de sangre *
+                              </Label>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {BLOOD_TYPES.map((bt) => (
+                                  <button
+                                    key={bt}
+                                    type="button"
+                                    onClick={() => updateAttendee(index, "bloodType", bt)}
+                                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                      attendee.bloodType === bt
+                                        ? "border-primary bg-primary/10 text-primary"
+                                        : "border-border text-muted-foreground hover:border-primary/50"
+                                    }`}
+                                  >
+                                    {bt}
+                                  </button>
+                                ))}
+                              </div>
+                              {errors[`${index}-bloodType`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-bloodType`]}</p>
+                              )}
+                            </div>
+
+                            {/* EPS */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <Heart className="w-3 h-3" />
+                                EPS *
+                              </Label>
+                              <div className="mt-1">
+                                <SearchableSelect
+                                  value={attendee.eps ?? ""}
+                                  onChange={(v) => updateAttendee(index, "eps", v)}
+                                  options={EPS_LIST}
+                                  placeholder="Selecciona tu EPS..."
+                                  searchPlaceholder="Buscar EPS..."
+                                  hasError={!!errors[`${index}-eps`]}
+                                />
+                              </div>
+                              {errors[`${index}-eps`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-eps`]}</p>
+                              )}
+                            </div>
+
+                            {/* Emergency contact */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <PhoneIcon className="w-3 h-3" />
+                                Contacto de emergencia *
+                              </Label>
+                              <Input
+                                value={attendee.emergencyContactName ?? ""}
+                                onChange={(e) => updateAttendee(index, "emergencyContactName", e.target.value)}
+                                placeholder="Nombre completo"
+                                className={`mt-1 ${errors[`${index}-emergencyContactName`] ? "border-destructive" : ""}`}
+                              />
+                              {errors[`${index}-emergencyContactName`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactName`]}</p>
+                              )}
+                              <Input
+                                type="tel"
+                                value={attendee.emergencyContactPhone ?? ""}
+                                onChange={(e) => updateAttendee(index, "emergencyContactPhone", e.target.value)}
+                                placeholder="Teléfono de emergencia"
+                                className={`mt-2 ${errors[`${index}-emergencyContactPhone`] ? "border-destructive" : ""}`}
+                              />
+                              {errors[`${index}-emergencyContactPhone`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactPhone`]}</p>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </>
                     ) : (
                       <>
@@ -427,117 +565,117 @@ export function TicketSelector({ event, ticketType, sectionName, onClose, preSel
                             <p className="text-xs text-destructive mt-1">{errors[`${index}-idDocument`]}</p>
                           )}
                         </div>
-                        <div>
-                          <Label className="text-xs flex items-center gap-1">
-                            EPS{" "}
-                            <span className="text-muted-foreground font-normal">(opcional)</span>
-                          </Label>
-                          <div className="mt-1">
-                            <EpsSelect
-                              value={attendee.eps ?? ""}
-                              onChange={(v) => updateAttendee(index, "eps" as keyof AttendeeData, v)}
-                            />
-                          </div>
-                        </div>
+
+                        {isRace && (
+                          <>
+                            <Separator className="my-1" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datos de carrera</p>
+
+                            {/* Shirt size */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <Shirt className="w-3 h-3" />
+                                Talla de camiseta *
+                              </Label>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {SHIRT_SIZES.map((size) => (
+                                  <button
+                                    key={size}
+                                    type="button"
+                                    onClick={() => updateAttendee(index, "shirtSize", size)}
+                                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                      attendee.shirtSize === size
+                                        ? "border-primary bg-primary/10 text-primary"
+                                        : "border-border text-muted-foreground hover:border-primary/50"
+                                    }`}
+                                  >
+                                    {size}
+                                  </button>
+                                ))}
+                              </div>
+                              {errors[`${index}-shirtSize`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-shirtSize`]}</p>
+                              )}
+                            </div>
+
+                            {/* Blood type */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <Droplets className="w-3 h-3" />
+                                Tipo de sangre *
+                              </Label>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {BLOOD_TYPES.map((bt) => (
+                                  <button
+                                    key={bt}
+                                    type="button"
+                                    onClick={() => updateAttendee(index, "bloodType", bt)}
+                                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                      attendee.bloodType === bt
+                                        ? "border-primary bg-primary/10 text-primary"
+                                        : "border-border text-muted-foreground hover:border-primary/50"
+                                    }`}
+                                  >
+                                    {bt}
+                                  </button>
+                                ))}
+                              </div>
+                              {errors[`${index}-bloodType`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-bloodType`]}</p>
+                              )}
+                            </div>
+
+                            {/* EPS */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <Heart className="w-3 h-3" />
+                                EPS *
+                              </Label>
+                              <div className="mt-1">
+                                <SearchableSelect
+                                  value={attendee.eps ?? ""}
+                                  onChange={(v) => updateAttendee(index, "eps", v)}
+                                  options={EPS_LIST}
+                                  placeholder="Selecciona tu EPS..."
+                                  searchPlaceholder="Buscar EPS..."
+                                  hasError={!!errors[`${index}-eps`]}
+                                />
+                              </div>
+                              {errors[`${index}-eps`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-eps`]}</p>
+                              )}
+                            </div>
+
+                            {/* Emergency contact */}
+                            <div>
+                              <Label className="text-xs flex items-center gap-1">
+                                <PhoneIcon className="w-3 h-3" />
+                                Contacto de emergencia *
+                              </Label>
+                              <Input
+                                value={attendee.emergencyContactName ?? ""}
+                                onChange={(e) => updateAttendee(index, "emergencyContactName", e.target.value)}
+                                placeholder="Nombre completo"
+                                className={`mt-1 ${errors[`${index}-emergencyContactName`] ? "border-destructive" : ""}`}
+                              />
+                              {errors[`${index}-emergencyContactName`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactName`]}</p>
+                              )}
+                              <Input
+                                type="tel"
+                                value={attendee.emergencyContactPhone ?? ""}
+                                onChange={(e) => updateAttendee(index, "emergencyContactPhone", e.target.value)}
+                                placeholder="Teléfono de emergencia"
+                                className={`mt-2 ${errors[`${index}-emergencyContactPhone`] ? "border-destructive" : ""}`}
+                              />
+                              {errors[`${index}-emergencyContactPhone`] && (
+                                <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactPhone`]}</p>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
-
-                    {isRace && (() => {
-                      const sizes = event.raceConfig?.sizes ?? ["XS", "S", "M", "L", "XL", "XXL"];
-                      return (
-                        <>
-                        <div>
-                          <Label className="text-xs flex items-center gap-1 mb-2">
-                            {t("ticketSelection.shirtSize", "Talla de camiseta")} *
-                          </Label>
-                          <div className="flex flex-wrap gap-2">
-                            {sizes.map((size) => (
-                              <button
-                                key={size}
-                                type="button"
-                                onClick={() => updateAttendee(index, "shirtSize", size)}
-                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-                                  attendee.shirtSize === size
-                                    ? "border-primary bg-primary/10 text-primary"
-                                    : "border-border text-muted-foreground hover:border-primary/50"
-                                }`}
-                              >
-                                {size}
-                              </button>
-                            ))}
-                          </div>
-                          {errors[`${index}-shirtSize`] && (
-                            <p className="text-xs text-destructive mt-1">{errors[`${index}-shirtSize`]}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label className="text-xs">{t("ticketSelection.bloodType", "Tipo de sangre (RH)")} *</Label>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map((bt) => (
-                              <button
-                                key={bt}
-                                type="button"
-                                onClick={() => updateAttendee(index, "bloodType", bt)}
-                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-                                  attendee.bloodType === bt
-                                    ? "border-primary bg-primary/10 text-primary"
-                                    : "border-border text-muted-foreground hover:border-primary/50"
-                                }`}
-                              >
-                                {bt}
-                              </button>
-                            ))}
-                          </div>
-                          {errors[`${index}-bloodType`] && (
-                            <p className="text-xs text-destructive mt-1">{errors[`${index}-bloodType`]}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label className="text-xs">{t("ticketSelection.emergencyContactName", "Contacto de emergencia")} *</Label>
-                          <Input
-                            className="mt-1 h-9 text-sm"
-                            placeholder={t("ticketSelection.namePlaceholder", "Nombre completo")}
-                            value={attendee.emergencyContactName ?? ""}
-                            onChange={(e) => updateAttendee(index, "emergencyContactName", e.target.value)}
-                          />
-                          {errors[`${index}-emergencyContactName`] && (
-                            <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactName`]}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label className="text-xs">{t("ticketSelection.emergencyContactPhone", "Teléfono de emergencia")} *</Label>
-                          <PhoneField
-                            className="mt-1"
-                            value={attendee.emergencyContactPhone ?? ""}
-                            onChange={(v) => updateAttendee(index, "emergencyContactPhone", v)}
-                          />
-                          {errors[`${index}-emergencyContactPhone`] && (
-                            <p className="text-xs text-destructive mt-1">{errors[`${index}-emergencyContactPhone`]}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <Label className="text-xs">{t("ticketSelection.eps", "EPS")} *</Label>
-                          <select
-                            className={`mt-1 w-full h-9 rounded-md border px-3 text-sm bg-background ${errors[`${index}-eps`] ? "border-destructive" : "border-input"}`}
-                            value={attendee.eps ?? ""}
-                            onChange={(e) => updateAttendee(index, "eps", e.target.value)}
-                          >
-                            <option value="">{t("ticketSelection.selectEps", "Selecciona tu EPS")}</option>
-                            {["ALIANSALUD EPS","ANAS WAYUU EPSI","ASMET SALUD","ASOCIACION INDIGENA DEL CAUCA EPSI","CAJACOPI ATLANTICO","CAPITAL SALUD EPS-S","CAPRESOCA","COMFACHOCO","COMFAORIENTE","COMFENALCO VALLE","COMPENSAR EPS","COOSALUD EPS-S","DUSAKAWI EPSI","EMSSANAR E.S.S.","EPM - EMPRESAS PUBLICAS DE MEDELLIN","EPS FAMILIAR DE COLOMBIA","EPS SANITAS","EPS SURA","FAMISANAR","FONDO DE PASIVO SOCIAL DE FERROCARRILES NACIONALES DE COLOMBIA","MALLAMAS EPSI","MUTUAL SER","NUEVA EPS","PIJAOS SALUD EPSI","SALUD BÓLIVAR EPS SAS","SALUD MIA","SALUD TOTAL EPS S.A.","SANIDAD FUERZAS MILITARES","SAVIA SALUD EPS","SERVICIO OCCIDENTAL DE SALUD EPS SOS","OTRA"].map((eps) => (
-                              <option key={eps} value={eps}>{eps}</option>
-                            ))}
-                          </select>
-                          {errors[`${index}-eps`] && (
-                            <p className="text-xs text-destructive mt-1">{errors[`${index}-eps`]}</p>
-                          )}
-                        </div>
-                        </>
-                      );
-                    })()}
                   </div>
                 </div>
                 );
