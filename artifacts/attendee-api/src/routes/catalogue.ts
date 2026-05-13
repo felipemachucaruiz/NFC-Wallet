@@ -7,13 +7,14 @@ import { findOrCreateAttendeeAccount } from "../lib/attendeeAccounts";
 
 const router: IRouter = Router();
 
-function resolveActiveStage(stages: { price: number; startsAt: Date; endsAt: Date; name: string; displayOrder: number }[]) {
+function resolveActiveStage(stages: { price: number; startsAt: Date; endsAt: Date; name: string; displayOrder: number; quantity: number | null; soldCount: number }[]) {
   const now = new Date();
   const sorted = [...stages].sort((a, b) => a.displayOrder - b.displayOrder || a.startsAt.getTime() - b.startsAt.getTime());
-  const active = sorted.find((s) => now >= s.startsAt && now <= s.endsAt);
+  // A stage is active only if within its time window AND not sold out
+  const active = sorted.find((s) => now >= s.startsAt && now <= s.endsAt && (s.quantity === null || s.soldCount < s.quantity));
   const nextStage = active
-    ? sorted.find((s) => s.startsAt > active.endsAt)
-    : sorted.find((s) => s.startsAt > now);
+    ? sorted.find((s) => s.startsAt > active.endsAt && (s.quantity === null || s.soldCount < s.quantity))
+    : sorted.find((s) => s.startsAt > now && (s.quantity === null || s.soldCount < s.quantity));
   return { active, nextStage };
 }
 
@@ -271,6 +272,8 @@ router.get(
               ticketTypeId: ticketPricingStagesTable.ticketTypeId,
               name: ticketPricingStagesTable.name,
               price: ticketPricingStagesTable.price,
+              quantity: ticketPricingStagesTable.quantity,
+              soldCount: ticketPricingStagesTable.soldCount,
               startsAt: ticketPricingStagesTable.startsAt,
               endsAt: ticketPricingStagesTable.endsAt,
               displayOrder: ticketPricingStagesTable.displayOrder,

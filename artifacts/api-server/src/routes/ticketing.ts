@@ -680,6 +680,7 @@ router.patch(
 const pricingStageSchema = z.object({
   name: z.string().min(1).max(255),
   price: z.number().int().min(0),
+  quantity: z.number().int().min(1).nullable().optional(),
   startsAt: z.string().min(1),
   endsAt: z.string().min(1),
   displayOrder: z.number().int().optional(),
@@ -737,7 +738,7 @@ router.post(
       return;
     }
 
-    const { name, price, startsAt, endsAt, displayOrder } = parsed.data;
+    const { name, price, quantity, startsAt, endsAt, displayOrder } = parsed.data;
 
     const [stage] = await db
       .insert(ticketPricingStagesTable)
@@ -745,6 +746,7 @@ router.post(
         ticketTypeId: typeId,
         name,
         price,
+        quantity: quantity ?? null,
         startsAt: new Date(startsAt),
         endsAt: new Date(endsAt),
         displayOrder: displayOrder ?? 0,
@@ -776,6 +778,7 @@ router.patch(
     const updates: Record<string, unknown> = {};
     if (body.name !== undefined) updates.name = body.name;
     if (body.price !== undefined) updates.price = body.price;
+    if (body.quantity !== undefined) updates.quantity = body.quantity === null ? null : Number(body.quantity);
     if (body.startsAt !== undefined) updates.startsAt = new Date(body.startsAt as string);
     if (body.endsAt !== undefined) updates.endsAt = new Date(body.endsAt as string);
     if (body.displayOrder !== undefined) updates.displayOrder = body.displayOrder;

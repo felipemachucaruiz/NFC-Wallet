@@ -289,10 +289,10 @@ export async function apiFetchPricingStages(eventId: string, typeId: string) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types/${typeId}/pricing-stages`), { headers: authHeaders() });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to fetch pricing stages");
-  return data.stages as Array<{ id: string; ticketTypeId: string; name: string; price: number; startsAt: string; endsAt: string; displayOrder: number; createdAt: string }>;
+  return data.stages as Array<{ id: string; ticketTypeId: string; name: string; price: number; quantity: number | null; soldCount: number; startsAt: string; endsAt: string; displayOrder: number; createdAt: string }>;
 }
 
-export async function apiCreatePricingStage(eventId: string, typeId: string, body: { name: string; price: number; startsAt: string; endsAt: string; displayOrder?: number }) {
+export async function apiCreatePricingStage(eventId: string, typeId: string, body: { name: string; price: number; quantity?: number | null; startsAt: string; endsAt: string; displayOrder?: number }) {
   const res = await fetch(apiUrl(`/api/events/${eventId}/ticket-types/${typeId}/pricing-stages`), { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Failed to create pricing stage");
