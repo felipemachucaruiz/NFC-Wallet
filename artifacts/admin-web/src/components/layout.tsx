@@ -162,6 +162,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <NavItem href="/event-bracelets" icon={Ticket} label={t("nav.wristbands")} />
                   <NavItem href="/event-access-zones" icon={MapPin} label={t("nav.accessZones")} />
                   <NavItem href="/event-transactions" icon={Receipt} label={t("nav.transactions")} />
+                  <NavItem href="/event-split-sessions" icon={Users} label={t("nav.splitSessions", "Pagos divididos")} />
                   <NavItem href="/event-inventory" icon={Package} label={t("nav.inventory")} />
                   <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
                   <NavItem href="/event-payouts" icon={CreditCard} label={t("nav.payouts")} />
@@ -212,6 +213,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <NavItem href="/event-bracelets" icon={Ticket} label={t("nav.wristbands")} />
                   <NavItem href="/event-access-zones" icon={MapPin} label={t("nav.accessZones")} />
                   <NavItem href="/event-transactions" icon={Receipt} label={t("nav.transactions")} />
+                  <NavItem href="/event-split-sessions" icon={Users} label={t("nav.splitSessions", "Pagos divididos")} />
                   <NavItem href="/event-inventory" icon={Package} label={t("nav.inventory")} />
                   <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
                   <NavItem href="/event-payouts" icon={CreditCard} label={t("nav.payouts")} />

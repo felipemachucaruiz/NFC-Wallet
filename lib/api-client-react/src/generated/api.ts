@@ -33,6 +33,8 @@ import type {
   BlockUser200,
   BlockUserBody,
   Bracelet,
+  ChargeSplitSessionBody,
+  ChargeSplitSessionResult,
   ConflictResponse,
   CreateAccessZoneBody,
   CreateAccountBody,
@@ -105,6 +107,8 @@ import type {
   ListPromoterCompanies200,
   ListRestockOrders200,
   ListRestockOrdersParams,
+  ListSplitSessions200,
+  ListSplitSessionsParams,
   ListStockMovements200,
   ListStockMovementsParams,
   ListUsers200,
@@ -123,6 +127,7 @@ import type {
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   NotFoundResponse,
+  OpenSplitSessionBody,
   PatchFraudAlertBody,
   PayoutTransactionsResponse,
   Product,
@@ -141,6 +146,7 @@ import type {
   ShiftTopUpSummary,
   SigningKeyResponse,
   SnapshotExport,
+  SplitPaymentSession,
   StockMovement,
   SuccessEnvelope,
   SuccessResponse,
@@ -6433,6 +6439,463 @@ export const useSyncTransactions = <
   TContext
 > => {
   return useMutation(getSyncTransactionsMutationOptions(options));
+};
+
+/**
+ * @summary List split payment sessions (filterable by event/merchant/location/status)
+ */
+export const getListSplitSessionsUrl = (params?: ListSplitSessionsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/split-sessions?${stringifiedParams}`
+    : `/api/split-sessions`;
+};
+
+export const listSplitSessions = async (
+  params?: ListSplitSessionsParams,
+  options?: RequestInit,
+): Promise<ListSplitSessions200> => {
+  return customFetch<ListSplitSessions200>(getListSplitSessionsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListSplitSessionsQueryKey = (
+  params?: ListSplitSessionsParams,
+) => {
+  return [`/api/split-sessions`, ...(params ? [params] : [])] as const;
+};
+
+export const getListSplitSessionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSplitSessions>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: ListSplitSessionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSplitSessions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListSplitSessionsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSplitSessions>>
+  > = ({ signal }) => listSplitSessions(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSplitSessions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSplitSessionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSplitSessions>>
+>;
+export type ListSplitSessionsQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary List split payment sessions (filterable by event/merchant/location/status)
+ */
+
+export function useListSplitSessions<
+  TData = Awaited<ReturnType<typeof listSplitSessions>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: ListSplitSessionsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSplitSessions>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSplitSessionsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Open a new split payment session (merchant_staff or merchant_admin)
+ */
+export const getOpenSplitSessionUrl = () => {
+  return `/api/split-sessions`;
+};
+
+export const openSplitSession = async (
+  openSplitSessionBody: OpenSplitSessionBody,
+  options?: RequestInit,
+): Promise<SplitPaymentSession> => {
+  return customFetch<SplitPaymentSession>(getOpenSplitSessionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(openSplitSessionBody),
+  });
+};
+
+export const getOpenSplitSessionMutationOptions = <
+  TError = ErrorType<
+    BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof openSplitSession>>,
+    TError,
+    { data: BodyType<OpenSplitSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof openSplitSession>>,
+  TError,
+  { data: BodyType<OpenSplitSessionBody> },
+  TContext
+> => {
+  const mutationKey = ["openSplitSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof openSplitSession>>,
+    { data: BodyType<OpenSplitSessionBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return openSplitSession(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type OpenSplitSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof openSplitSession>>
+>;
+export type OpenSplitSessionMutationBody = BodyType<OpenSplitSessionBody>;
+export type OpenSplitSessionMutationError = ErrorType<
+  BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Open a new split payment session (merchant_staff or merchant_admin)
+ */
+export const useOpenSplitSession = <
+  TError = ErrorType<
+    BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof openSplitSession>>,
+    TError,
+    { data: BodyType<OpenSplitSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof openSplitSession>>,
+  TError,
+  { data: BodyType<OpenSplitSessionBody> },
+  TContext
+> => {
+  return useMutation(getOpenSplitSessionMutationOptions(options));
+};
+
+/**
+ * @summary Get split session details (with items and transactions)
+ */
+export const getGetSplitSessionUrl = (sessionId: string) => {
+  return `/api/split-sessions/${sessionId}`;
+};
+
+export const getSplitSession = async (
+  sessionId: string,
+  options?: RequestInit,
+): Promise<SplitPaymentSession> => {
+  return customFetch<SplitPaymentSession>(getGetSplitSessionUrl(sessionId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSplitSessionQueryKey = (sessionId: string) => {
+  return [`/api/split-sessions/${sessionId}`] as const;
+};
+
+export const getGetSplitSessionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSplitSession>>,
+  TError = ErrorType<NotFoundResponse>,
+>(
+  sessionId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSplitSession>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetSplitSessionQueryKey(sessionId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSplitSession>>> = ({
+    signal,
+  }) => getSplitSession(sessionId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!sessionId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSplitSession>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSplitSessionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSplitSession>>
+>;
+export type GetSplitSessionQueryError = ErrorType<NotFoundResponse>;
+
+/**
+ * @summary Get split session details (with items and transactions)
+ */
+
+export function useGetSplitSession<
+  TData = Awaited<ReturnType<typeof getSplitSession>>,
+  TError = ErrorType<NotFoundResponse>,
+>(
+  sessionId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSplitSession>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSplitSessionQueryOptions(sessionId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Charge a partial amount to a bracelet for this split session
+ */
+export const getChargeSplitSessionUrl = (sessionId: string) => {
+  return `/api/split-sessions/${sessionId}/charge`;
+};
+
+export const chargeSplitSession = async (
+  sessionId: string,
+  chargeSplitSessionBody: ChargeSplitSessionBody,
+  options?: RequestInit,
+): Promise<ChargeSplitSessionResult> => {
+  return customFetch<ChargeSplitSessionResult>(
+    getChargeSplitSessionUrl(sessionId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(chargeSplitSessionBody),
+    },
+  );
+};
+
+export const getChargeSplitSessionMutationOptions = <
+  TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof chargeSplitSession>>,
+    TError,
+    { sessionId: string; data: BodyType<ChargeSplitSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof chargeSplitSession>>,
+  TError,
+  { sessionId: string; data: BodyType<ChargeSplitSessionBody> },
+  TContext
+> => {
+  const mutationKey = ["chargeSplitSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof chargeSplitSession>>,
+    { sessionId: string; data: BodyType<ChargeSplitSessionBody> }
+  > = (props) => {
+    const { sessionId, data } = props ?? {};
+
+    return chargeSplitSession(sessionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ChargeSplitSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof chargeSplitSession>>
+>;
+export type ChargeSplitSessionMutationBody = BodyType<ChargeSplitSessionBody>;
+export type ChargeSplitSessionMutationError = ErrorType<
+  BadRequestResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Charge a partial amount to a bracelet for this split session
+ */
+export const useChargeSplitSession = <
+  TError = ErrorType<BadRequestResponse | NotFoundResponse | ConflictResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof chargeSplitSession>>,
+    TError,
+    { sessionId: string; data: BodyType<ChargeSplitSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof chargeSplitSession>>,
+  TError,
+  { sessionId: string; data: BodyType<ChargeSplitSessionBody> },
+  TContext
+> => {
+  return useMutation(getChargeSplitSessionMutationOptions(options));
+};
+
+/**
+ * @summary Cancel an open split session (only allowed if paid_amount = 0)
+ */
+export const getCancelSplitSessionUrl = (sessionId: string) => {
+  return `/api/split-sessions/${sessionId}/cancel`;
+};
+
+export const cancelSplitSession = async (
+  sessionId: string,
+  options?: RequestInit,
+): Promise<SplitPaymentSession> => {
+  return customFetch<SplitPaymentSession>(getCancelSplitSessionUrl(sessionId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCancelSplitSessionMutationOptions = <
+  TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelSplitSession>>,
+    TError,
+    { sessionId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cancelSplitSession>>,
+  TError,
+  { sessionId: string },
+  TContext
+> => {
+  const mutationKey = ["cancelSplitSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cancelSplitSession>>,
+    { sessionId: string }
+  > = (props) => {
+    const { sessionId } = props ?? {};
+
+    return cancelSplitSession(sessionId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CancelSplitSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cancelSplitSession>>
+>;
+
+export type CancelSplitSessionMutationError = ErrorType<
+  BadRequestResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Cancel an open split session (only allowed if paid_amount = 0)
+ */
+export const useCancelSplitSession = <
+  TError = ErrorType<BadRequestResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelSplitSession>>,
+    TError,
+    { sessionId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cancelSplitSession>>,
+  TError,
+  { sessionId: string },
+  TContext
+> => {
+  return useMutation(getCancelSplitSessionMutationOptions(options));
 };
 
 /**

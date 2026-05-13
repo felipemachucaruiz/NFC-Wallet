@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { eventsTable } from "./events";
 import { merchantsTable, locationsTable, productsTable } from "./merchants";
 import { usersTable } from "./auth";
+import { splitPaymentSessionsTable } from "./splitPayments";
 
 export const paymentMethodEnum = pgEnum("payment_method", [
   "cash",
@@ -43,6 +44,7 @@ export const transactionLogsTable = pgTable("transaction_logs", {
   newBalance: integer("new_balance").notNull(),
   counter: integer("counter").notNull(),
   performedByUserId: varchar("performed_by_user_id").references(() => usersTable.id),
+  splitSessionId: varchar("split_session_id").references(() => splitPaymentSessionsTable.id),
   syncedAt: timestamp("synced_at", { withTimezone: true }),
   offlineCreatedAt: timestamp("offline_created_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

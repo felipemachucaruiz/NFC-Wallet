@@ -1747,6 +1747,198 @@ export const SyncTransactionsResponse = zod.object({
 });
 
 /**
+ * @summary List split payment sessions (filterable by event/merchant/location/status)
+ */
+export const ListSplitSessionsQueryParams = zod.object({
+  eventId: zod.coerce.string().optional(),
+  merchantId: zod.coerce.string().optional(),
+  locationId: zod.coerce.string().optional(),
+  status: zod.enum(["open", "completed", "cancelled"]).optional(),
+});
+
+export const ListSplitSessionsResponse = zod.object({
+  sessions: zod.array(
+    zod.object({
+      id: zod.string(),
+      eventId: zod.string(),
+      merchantId: zod.string(),
+      locationId: zod.string(),
+      totalAmount: zod.number(),
+      paidAmount: zod.number(),
+      tipAmount: zod.number(),
+      status: zod.enum(["open", "completed", "cancelled"]),
+      openedByUserId: zod.string(),
+      createdAt: zod.date(),
+      updatedAt: zod.date().optional(),
+      completedAt: zod.date().nullish(),
+      cancelledAt: zod.date().nullish(),
+      items: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            sessionId: zod.string(),
+            productId: zod.string().nullish(),
+            productNameSnapshot: zod.string(),
+            unitPriceSnapshot: zod.number(),
+            unitCostSnapshot: zod.number().optional(),
+            quantity: zod.number(),
+          }),
+        )
+        .optional(),
+      payments: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            braceletUid: zod.string(),
+            grossAmount: zod.number(),
+            commissionAmount: zod.number().optional(),
+            netAmount: zod.number().optional(),
+            newBalance: zod.number().optional(),
+            createdAt: zod.date(),
+          }),
+        )
+        .optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Open a new split payment session (merchant_staff or merchant_admin)
+ */
+export const openSplitSessionBodyTipAmountMin = 0;
+
+export const OpenSplitSessionBody = zod.object({
+  locationId: zod.string(),
+  tipAmount: zod.number().min(openSplitSessionBodyTipAmountMin),
+  lineItems: zod
+    .array(
+      zod.object({
+        productId: zod.string(),
+        quantity: zod.number().min(1),
+      }),
+    )
+    .min(1),
+});
+
+/**
+ * @summary Get split session details (with items and transactions)
+ */
+export const GetSplitSessionParams = zod.object({
+  sessionId: zod.coerce.string(),
+});
+
+export const GetSplitSessionResponse = zod.object({
+  id: zod.string(),
+  eventId: zod.string(),
+  merchantId: zod.string(),
+  locationId: zod.string(),
+  totalAmount: zod.number(),
+  paidAmount: zod.number(),
+  tipAmount: zod.number(),
+  status: zod.enum(["open", "completed", "cancelled"]),
+  openedByUserId: zod.string(),
+  createdAt: zod.date(),
+  updatedAt: zod.date().optional(),
+  completedAt: zod.date().nullish(),
+  cancelledAt: zod.date().nullish(),
+  items: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        sessionId: zod.string(),
+        productId: zod.string().nullish(),
+        productNameSnapshot: zod.string(),
+        unitPriceSnapshot: zod.number(),
+        unitCostSnapshot: zod.number().optional(),
+        quantity: zod.number(),
+      }),
+    )
+    .optional(),
+  payments: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        braceletUid: zod.string(),
+        grossAmount: zod.number(),
+        commissionAmount: zod.number().optional(),
+        netAmount: zod.number().optional(),
+        newBalance: zod.number().optional(),
+        createdAt: zod.date(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Charge a partial amount to a bracelet for this split session
+ */
+export const ChargeSplitSessionParams = zod.object({
+  sessionId: zod.coerce.string(),
+});
+
+export const chargeSplitSessionBodyNewBalanceMin = 0;
+
+export const chargeSplitSessionBodyCounterMin = 0;
+
+export const ChargeSplitSessionBody = zod.object({
+  idempotencyKey: zod.string().min(1),
+  nfcUid: zod.string().min(1),
+  amount: zod.number().min(1),
+  newBalance: zod.number().min(chargeSplitSessionBodyNewBalanceMin),
+  counter: zod.number().min(chargeSplitSessionBodyCounterMin),
+  hmac: zod.string().optional(),
+});
+
+/**
+ * @summary Cancel an open split session (only allowed if paid_amount = 0)
+ */
+export const CancelSplitSessionParams = zod.object({
+  sessionId: zod.coerce.string(),
+});
+
+export const CancelSplitSessionResponse = zod.object({
+  id: zod.string(),
+  eventId: zod.string(),
+  merchantId: zod.string(),
+  locationId: zod.string(),
+  totalAmount: zod.number(),
+  paidAmount: zod.number(),
+  tipAmount: zod.number(),
+  status: zod.enum(["open", "completed", "cancelled"]),
+  openedByUserId: zod.string(),
+  createdAt: zod.date(),
+  updatedAt: zod.date().optional(),
+  completedAt: zod.date().nullish(),
+  cancelledAt: zod.date().nullish(),
+  items: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        sessionId: zod.string(),
+        productId: zod.string().nullish(),
+        productNameSnapshot: zod.string(),
+        unitPriceSnapshot: zod.number(),
+        unitCostSnapshot: zod.number().optional(),
+        quantity: zod.number(),
+      }),
+    )
+    .optional(),
+  payments: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        braceletUid: zod.string(),
+        grossAmount: zod.number(),
+        commissionAmount: zod.number().optional(),
+        netAmount: zod.number().optional(),
+        newBalance: zod.number().optional(),
+        createdAt: zod.date(),
+      }),
+    )
+    .optional(),
+});
+
+/**
  * @summary List payouts (admin sees all; merchant_admin sees own)
  */
 export const ListPayoutsQueryParams = zod.object({
