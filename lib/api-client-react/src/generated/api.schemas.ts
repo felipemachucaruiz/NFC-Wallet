@@ -974,6 +974,83 @@ export interface SyncTransactionsResult {
   results: SyncTransactionsResultResultsItem[];
 }
 
+export type SplitPaymentStatus =
+  (typeof SplitPaymentStatus)[keyof typeof SplitPaymentStatus];
+
+export const SplitPaymentStatus = {
+  open: "open",
+  completed: "completed",
+  cancelled: "cancelled",
+} as const;
+
+export interface SplitPaymentSessionItem {
+  id: string;
+  sessionId: string;
+  /** @nullable */
+  productId?: string | null;
+  productNameSnapshot: string;
+  unitPriceSnapshot: number;
+  unitCostSnapshot?: number;
+  quantity: number;
+}
+
+export interface SplitPaymentSessionPayment {
+  id: string;
+  braceletUid: string;
+  grossAmount: number;
+  commissionAmount?: number;
+  netAmount?: number;
+  newBalance?: number;
+  createdAt: string;
+}
+
+export interface SplitPaymentSession {
+  id: string;
+  eventId: string;
+  merchantId: string;
+  locationId: string;
+  totalAmount: number;
+  paidAmount: number;
+  tipAmount: number;
+  status: SplitPaymentStatus;
+  openedByUserId: string;
+  createdAt: string;
+  updatedAt?: string;
+  /** @nullable */
+  completedAt?: string | null;
+  /** @nullable */
+  cancelledAt?: string | null;
+  items?: SplitPaymentSessionItem[];
+  payments?: SplitPaymentSessionPayment[];
+}
+
+export interface OpenSplitSessionBody {
+  locationId: string;
+  /** @minimum 0 */
+  tipAmount: number;
+  /** @minItems 1 */
+  lineItems: TransactionLineItemInput[];
+}
+
+export interface ChargeSplitSessionBody {
+  /** @minLength 1 */
+  idempotencyKey: string;
+  /** @minLength 1 */
+  nfcUid: string;
+  /** @minimum 1 */
+  amount: number;
+  /** @minimum 0 */
+  newBalance: number;
+  /** @minimum 0 */
+  counter: number;
+  hmac?: string;
+}
+
+export interface ChargeSplitSessionResult {
+  session: SplitPaymentSession;
+  transaction: TransactionLog;
+}
+
 export interface CreatePayoutBody {
   merchantId: string;
   eventId: string;
@@ -1769,6 +1846,26 @@ export const ListRestockOrdersStatus = {
 
 export type ListRestockOrders200 = {
   orders: RestockOrder[];
+};
+
+export type ListSplitSessionsParams = {
+  eventId?: string;
+  merchantId?: string;
+  locationId?: string;
+  status?: ListSplitSessionsStatus;
+};
+
+export type ListSplitSessionsStatus =
+  (typeof ListSplitSessionsStatus)[keyof typeof ListSplitSessionsStatus];
+
+export const ListSplitSessionsStatus = {
+  open: "open",
+  completed: "completed",
+  cancelled: "cancelled",
+} as const;
+
+export type ListSplitSessions200 = {
+  sessions: SplitPaymentSession[];
 };
 
 export type ListPayoutsParams = {

@@ -110,6 +110,12 @@ if [[ -z "${SKIP_ENV:-}" ]]; then
   info "DEMO_SECRET enables the demo login panel in the mobile app (optional)."
   DEMO_SECRET=$(prompt DEMO_SECRET "DEMO_SECRET (leave blank to disable)" "")
 
+  # LOCAL_SERVER_NAME — optional, shown in admin console
+  echo ""
+  info "LOCAL_SERVER_NAME is the display name shown in the admin console for this server."
+  info "If left blank, the Docker container ID will be used (not recommended)."
+  LOCAL_SERVER_NAME=$(prompt LOCAL_SERVER_NAME "LOCAL_SERVER_NAME (e.g. Tapee Medellín, Bar Principal)" "")
+
   # RAILWAY_SYNC_URL — optional but recommended
   echo ""
   warn "RAILWAY_SYNC_URL enables automatic sync of event data and balances from Railway."
@@ -121,6 +127,7 @@ SESSION_SECRET=${SESSION_SECRET}
 HMAC_SECRET=${HMAC_SECRET}
 HMAC_MASTER_KEY=${HMAC_MASTER_KEY}
 DEMO_SECRET=${DEMO_SECRET}
+LOCAL_SERVER_NAME=${LOCAL_SERVER_NAME}
 RAILWAY_SYNC_URL=${RAILWAY_SYNC_URL}
 EOF
 

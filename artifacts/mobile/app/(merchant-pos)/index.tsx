@@ -364,13 +364,23 @@ export default function MerchantPosScreen() {
             <Text style={[styles.checkoutLabel, { color: C.textSecondary }]}>{t("common.total")}</Text>
             <CopAmount amount={total} size={22} />
           </View>
-          <Button
-            title={`${t("pos.charge")} ${fmt(total)}`}
-            onPress={() => router.push({ pathname: "/(merchant-pos)/charge", params: { locationId: selectedLocationId } })}
-            variant="primary"
-            size="lg"
-            testID="checkout-btn"
-          />
+          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: "/(merchant-pos)/split-charge", params: { locationId: selectedLocationId } })}
+              style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.primary }}
+              testID="split-checkout-btn"
+            >
+              <Feather name="users" size={16} color={C.primary} />
+              <Text style={{ color: C.primary, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>{t("pos.splitPayment", "Dividir")}</Text>
+            </TouchableOpacity>
+            <Button
+              title={`${t("pos.charge")} ${fmt(total)}`}
+              onPress={() => router.push({ pathname: "/(merchant-pos)/charge", params: { locationId: selectedLocationId } })}
+              variant="primary"
+              size="lg"
+              testID="checkout-btn"
+            />
+          </View>
         </View>
       )}
     </View>

@@ -91,6 +91,7 @@ import EventReports from "@/pages/event-reports";
 import EventProducts from "@/pages/event-products";
 import EventLocations from "@/pages/event-locations";
 import EventTransactions from "@/pages/event-transactions";
+import EventSplitSessions from "@/pages/event-split-sessions";
 import EventInventory from "@/pages/event-inventory";
 import EventRefundRequests from "@/pages/event-refund-requests";
 import EventSettlement from "@/pages/event-settlement";
@@ -304,6 +305,9 @@ function Router() {
       </Route>
       <Route path="/event-transactions">
         <ProtectedRoute component={EventTransactions} allowedRoles={["event_admin", "admin"]} />
+      </Route>
+      <Route path="/event-split-sessions">
+        <ProtectedRoute component={EventSplitSessions} allowedRoles={["event_admin", "admin"]} />
       </Route>
       <Route path="/event-inventory">
         <ProtectedRoute component={EventInventory} allowedRoles={["event_admin", "admin"]} />
