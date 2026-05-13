@@ -15,10 +15,10 @@ const ITEMS_PER_PAGE = 6;
 const CATEGORY_ICONS: Record<string, string> = {
   all: "✦",
   concert: "🎵",
-  festival: "🎪",
-  sports: "⚽",
+  festival: "🎡",
+  sports: "🏅",
   theater: "🎭",
-  conference: "💼",
+  conference: "🎤",
   party: "🎉",
   race: "🏃",
   other: "✨",
