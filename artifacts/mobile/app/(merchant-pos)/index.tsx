@@ -360,26 +360,28 @@ export default function MerchantPosScreen() {
           borderTopColor: C.border,
           paddingBottom: isWeb ? 34 : insets.bottom + 8,
         }]}>
-          <View>
+          <View style={styles.checkoutTotalWrap}>
             <Text style={[styles.checkoutLabel, { color: C.textSecondary }]}>{t("common.total")}</Text>
-            <CopAmount amount={total} size={22} />
+            <CopAmount amount={total} size={26} />
           </View>
-          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+          <View style={styles.checkoutBtnRow}>
             <TouchableOpacity
               onPress={() => router.push({ pathname: "/(merchant-pos)/split-charge", params: { locationId: selectedLocationId } })}
-              style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.primary }}
+              style={[styles.splitBtn, { borderColor: C.primary }]}
               testID="split-checkout-btn"
             >
               <Feather name="users" size={16} color={C.primary} />
-              <Text style={{ color: C.primary, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>{t("pos.splitPayment", "Dividir")}</Text>
+              <Text style={{ color: C.primary, fontSize: 14, fontFamily: "Inter_600SemiBold" }}>{t("pos.splitPayment", "Dividir")}</Text>
             </TouchableOpacity>
-            <Button
-              title={`${t("pos.charge")} ${fmt(total)}`}
-              onPress={() => router.push({ pathname: "/(merchant-pos)/charge", params: { locationId: selectedLocationId } })}
-              variant="primary"
-              size="lg"
-              testID="checkout-btn"
-            />
+            <View style={{ flex: 1 }}>
+              <Button
+                title={t("pos.charge")}
+                onPress={() => router.push({ pathname: "/(merchant-pos)/charge", params: { locationId: selectedLocationId } })}
+                variant="primary"
+                size="lg"
+                testID="checkout-btn"
+              />
+            </View>
           </View>
         </View>
       )}
@@ -415,6 +417,9 @@ const styles = StyleSheet.create({
   qtyText: { fontSize: 15, fontFamily: "Inter_600SemiBold", minWidth: 24, textAlign: "center" },
   cartItem: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 12, padding: 14 },
   cartItemName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  checkoutBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1 },
-  checkoutLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  checkoutBar: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: 1, gap: 10 },
+  checkoutTotalWrap: { alignItems: "center", gap: 2 },
+  checkoutLabel: { fontSize: 12, fontFamily: "Inter_500Medium", textTransform: "uppercase", letterSpacing: 0.5 },
+  checkoutBtnRow: { flexDirection: "row", gap: 8, alignItems: "stretch" },
+  splitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1.5 },
 });
