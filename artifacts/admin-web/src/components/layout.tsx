@@ -96,7 +96,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {isGlobalAdmin && !managingEvent && (
             <>
               <NavItem href="/dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
