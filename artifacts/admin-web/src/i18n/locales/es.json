@@ -1510,6 +1510,17 @@
         "status": "Estado"
       }
     },
+    "chart": {
+      "ticketsPerDay": "Boletas/día",
+      "cumulative": "Acumulado",
+      "revenue": "Ingresos",
+      "unitsSold": "Unidades vendidas",
+      "checkedIn": "Ingresados",
+      "totalTickets": "Total boletas",
+      "transactions": "Transacciones",
+      "sales": "Ventas",
+      "attendees": "Asistentes"
+    },
     "wallet": {
       "activationRate": "Tasa de Activación",
       "activationRateSub": "{{active}} de {{total}} brazaletes gastaron",

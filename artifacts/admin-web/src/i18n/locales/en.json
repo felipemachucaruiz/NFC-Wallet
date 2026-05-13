@@ -1510,6 +1510,17 @@
         "status": "Status"
       }
     },
+    "chart": {
+      "ticketsPerDay": "Tickets/day",
+      "cumulative": "Cumulative",
+      "revenue": "Revenue",
+      "unitsSold": "Units sold",
+      "checkedIn": "Checked in",
+      "totalTickets": "Total tickets",
+      "transactions": "Transactions",
+      "sales": "Sales",
+      "attendees": "Attendees"
+    },
     "wallet": {
       "activationRate": "Activation Rate",
       "activationRateSub": "{{active}} of {{total}} bracelets spent",

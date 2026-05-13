@@ -63,7 +63,7 @@ function ChartSkeleton({ h = 280 }: { h?: number }) {
 
 // ── Sales Velocity ────────────────────────────────────────────────────────────
 
-function SalesVelocityChart({ orders }: { orders: Array<{ createdAt: string; totalAmount: number; ticketCount: number; paymentStatus: string }> }) {
+function SalesVelocityChart({ orders, t }: { orders: Array<{ createdAt: string; totalAmount: number; ticketCount: number; paymentStatus: string }>; t: (k: string) => string }) {
   const confirmed = orders.filter((o) => o.paymentStatus === "confirmed" || o.paymentStatus === "paid");
   const byDate = new Map<string, { tickets: number; revenue: number }>();
   for (const o of confirmed) {
@@ -91,9 +91,9 @@ function SalesVelocityChart({ orders }: { orders: Array<{ createdAt: string; tot
         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={fmtK} />
         <Tooltip formatter={(val, name) => name === "revenue" ? fmt(Number(val)) : val} />
         <Legend />
-        <Line yAxisId="left" type="monotone" dataKey="tickets" stroke={CHART_COLORS[0]} dot={false} name="Tickets/day" strokeWidth={2} />
-        <Line yAxisId="left" type="monotone" dataKey="cumulative" stroke={CHART_COLORS[2]} dot={false} name="Cumulative" strokeWidth={1} strokeDasharray="5 3" />
-        <Line yAxisId="right" type="monotone" dataKey="revenue" stroke={CHART_COLORS[1]} dot={false} name="Revenue" strokeWidth={1.5} />
+        <Line yAxisId="left" type="monotone" dataKey="tickets" stroke={CHART_COLORS[0]} dot={false} name={t("analytics.chart.ticketsPerDay")} strokeWidth={2} />
+        <Line yAxisId="left" type="monotone" dataKey="cumulative" stroke={CHART_COLORS[2]} dot={false} name={t("analytics.chart.cumulative")} strokeWidth={1} strokeDasharray="5 3" />
+        <Line yAxisId="right" type="monotone" dataKey="revenue" stroke={CHART_COLORS[1]} dot={false} name={t("analytics.chart.revenue")} strokeWidth={1.5} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -101,7 +101,7 @@ function SalesVelocityChart({ orders }: { orders: Array<{ createdAt: string; tot
 
 // ── Revenue by ticket type ────────────────────────────────────────────────────
 
-function RevenueByTypeChart({ ticketTypes }: { ticketTypes: Array<{ id: string; name: string; price: number; soldCount: number; sectionName?: string | null }> }) {
+function RevenueByTypeChart({ ticketTypes, t }: { ticketTypes: Array<{ id: string; name: string; price: number; soldCount: number; sectionName?: string | null }>; t: (k: string) => string }) {
   const data = ticketTypes
     .filter((tt) => tt.soldCount > 0)
     .map((tt) => ({ name: tt.name.length > 20 ? tt.name.slice(0, 18) + "…" : tt.name, units: tt.soldCount, revenue: tt.soldCount * tt.price }))
@@ -117,8 +117,8 @@ function RevenueByTypeChart({ ticketTypes }: { ticketTypes: Array<{ id: string; 
         <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={110} />
         <Tooltip formatter={(val, name) => name === "revenue" ? fmt(Number(val)) : val} />
         <Legend />
-        <Bar dataKey="units" name="Units sold" fill={CHART_COLORS[0]} radius={[0, 3, 3, 0]} />
-        <Bar dataKey="revenue" name="Revenue" fill={CHART_COLORS[1]} radius={[0, 3, 3, 0]} />
+        <Bar dataKey="units" name={t("analytics.chart.unitsSold")} fill={CHART_COLORS[0]} radius={[0, 3, 3, 0]} />
+        <Bar dataKey="revenue" name={t("analytics.chart.revenue")} fill={CHART_COLORS[1]} radius={[0, 3, 3, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -173,8 +173,8 @@ function CheckinProgressSection({ stats, t }: { stats: Awaited<ReturnType<typeof
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="checkins" name="Checked in" fill={CHART_COLORS[0]} radius={[3, 3, 0, 0]} />
-                <Bar dataKey="total" name="Total tickets" fill={CHART_COLORS[2]} radius={[3, 3, 0, 0]} opacity={0.4} />
+                <Bar dataKey="checkins" name={t("analytics.chart.checkedIn")} fill={CHART_COLORS[0]} radius={[3, 3, 0, 0]} />
+                <Bar dataKey="total" name={t("analytics.chart.totalTickets")} fill={CHART_COLORS[2]} radius={[3, 3, 0, 0]} opacity={0.4} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -262,7 +262,7 @@ function NfcHeatmap({ rows }: { rows: Array<{ hour: number; day: string; dayNum:
 
 // ── Sales by Hour ─────────────────────────────────────────────────────────────
 
-function SalesByHourChart({ rows }: { rows: Array<{ hour: number; total: number; txCount: number }> }) {
+function SalesByHourChart({ rows, t }: { rows: Array<{ hour: number; total: number; txCount: number }>; t: (k: string) => string }) {
   const byHour = new Map<number, { total: number; txCount: number }>();
   for (const r of rows) {
     const cur = byHour.get(r.hour) ?? { total: 0, txCount: 0 };
@@ -280,8 +280,8 @@ function SalesByHourChart({ rows }: { rows: Array<{ hour: number; total: number;
         <YAxis tick={{ fontSize: 11 }} tickFormatter={fmtK} />
         <Tooltip formatter={(val, name) => name === "total" ? fmt(Number(val)) : val} />
         <Legend />
-        <Bar dataKey="txCount" name="Transactions" fill={CHART_COLORS[0]} radius={[3, 3, 0, 0]} />
-        <Bar dataKey="total" name="Revenue" fill={CHART_COLORS[1]} radius={[3, 3, 0, 0]} />
+        <Bar dataKey="txCount" name={t("analytics.chart.transactions")} fill={CHART_COLORS[0]} radius={[3, 3, 0, 0]} />
+        <Bar dataKey="total" name={t("analytics.chart.revenue")} fill={CHART_COLORS[1]} radius={[3, 3, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -289,7 +289,7 @@ function SalesByHourChart({ rows }: { rows: Array<{ hour: number; total: number;
 
 // ── Top Products bar ──────────────────────────────────────────────────────────
 
-function TopProductsChart({ products }: { products: Array<{ productName: string; totalUnits: number; totalRevenue: number; grossProfit: number; profitMarginPercent: number }> }) {
+function TopProductsChart({ products, t }: { products: Array<{ productName: string; totalUnits: number; totalRevenue: number; grossProfit: number; profitMarginPercent: number }>; t: (k: string) => string }) {
   if (!products.length) return <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No product data</div>;
   const data = products.slice(0, 10).map((p) => ({
     name: p.productName.length > 22 ? p.productName.slice(0, 20) + "…" : p.productName,
@@ -306,8 +306,8 @@ function TopProductsChart({ products }: { products: Array<{ productName: string;
         <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
         <Tooltip formatter={(val, name) => name === "revenue" ? fmt(Number(val)) : val} />
         <Legend />
-        <Bar dataKey="units" name="Units sold" fill={CHART_COLORS[0]} radius={[0, 3, 3, 0]} />
-        <Bar dataKey="revenue" name="Revenue" fill={CHART_COLORS[1]} radius={[0, 3, 3, 0]} />
+        <Bar dataKey="units" name={t("analytics.chart.unitsSold")} fill={CHART_COLORS[0]} radius={[0, 3, 3, 0]} />
+        <Bar dataKey="revenue" name={t("analytics.chart.revenue")} fill={CHART_COLORS[1]} radius={[0, 3, 3, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -315,7 +315,7 @@ function TopProductsChart({ products }: { products: Array<{ productName: string;
 
 // ── Top Merchants bar ─────────────────────────────────────────────────────────
 
-function TopMerchantsChart({ merchants }: { merchants: Array<{ merchantName: string; totalSales: number; txCount: number; profitMarginPercent: number }> }) {
+function TopMerchantsChart({ merchants, t }: { merchants: Array<{ merchantName: string; totalSales: number; txCount: number; profitMarginPercent: number }>; t: (k: string) => string }) {
   if (!merchants.length) return <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No merchant data</div>;
   const data = merchants.slice(0, 10).map((m) => ({
     name: m.merchantName.length > 22 ? m.merchantName.slice(0, 20) + "…" : m.merchantName,
@@ -331,8 +331,8 @@ function TopMerchantsChart({ merchants }: { merchants: Array<{ merchantName: str
         <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
         <Tooltip formatter={(val, name) => name === "sales" ? fmt(Number(val)) : val} />
         <Legend />
-        <Bar dataKey="sales" name="Sales" fill={CHART_COLORS[2]} radius={[0, 3, 3, 0]} />
-        <Bar dataKey="txCount" name="Transactions" fill={CHART_COLORS[0]} radius={[0, 3, 3, 0]} />
+        <Bar dataKey="sales" name={t("analytics.chart.sales")} fill={CHART_COLORS[2]} radius={[0, 3, 3, 0]} />
+        <Bar dataKey="txCount" name={t("analytics.chart.transactions")} fill={CHART_COLORS[0]} radius={[0, 3, 3, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -400,7 +400,7 @@ function DemographicsSection({ tickets, t }: { tickets: Array<{ attendeeSex: str
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="count" name="Attendees" fill={CHART_COLORS[4]} radius={[3, 3, 0, 0]}>
+              <Bar dataKey="count" name={t("analytics.chart.attendees")} fill={CHART_COLORS[4]} radius={[3, 3, 0, 0]}>
                 {ageData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Bar>
             </BarChart>
@@ -695,14 +695,14 @@ export default function EventAnalytics() {
             <Card>
               <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="w-4 h-4" /> {t("analytics.tickets.salesVelocity")}</CardTitle></CardHeader>
               <CardContent>
-                {ordersQ.isLoading ? <ChartSkeleton h={260} /> : <SalesVelocityChart orders={orders} />}
+                {ordersQ.isLoading ? <ChartSkeleton h={260} /> : <SalesVelocityChart orders={orders} t={t} />}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="w-4 h-4" /> {t("analytics.tickets.revenueByType")}</CardTitle></CardHeader>
               <CardContent>
-                {ticketTypesQ.isLoading ? <ChartSkeleton h={260} /> : <RevenueByTypeChart ticketTypes={ticketTypes} />}
+                {ticketTypesQ.isLoading ? <ChartSkeleton h={260} /> : <RevenueByTypeChart ticketTypes={ticketTypes} t={t} />}
               </CardContent>
             </Card>
 
@@ -744,7 +744,7 @@ export default function EventAnalytics() {
               <Card>
                 <CardHeader><CardTitle className="text-base flex items-center gap-2"><Activity className="w-4 h-4" /> {t("analytics.cashless.byHour")}</CardTitle></CardHeader>
                 <CardContent>
-                  {salesByHourQ.isLoading ? <ChartSkeleton h={240} /> : <SalesByHourChart rows={salesByHour} />}
+                  {salesByHourQ.isLoading ? <ChartSkeleton h={240} /> : <SalesByHourChart rows={salesByHour} t={t} />}
                 </CardContent>
               </Card>
 
@@ -764,7 +764,7 @@ export default function EventAnalytics() {
             <Card>
               <CardHeader><CardTitle className="text-base flex items-center gap-2"><ShoppingBag className="w-4 h-4" /> {t("analytics.products.topChart")}</CardTitle></CardHeader>
               <CardContent>
-                {topProductsQ.isLoading ? <ChartSkeleton h={300} /> : <TopProductsChart products={topProducts} />}
+                {topProductsQ.isLoading ? <ChartSkeleton h={300} /> : <TopProductsChart products={topProducts} t={t} />}
               </CardContent>
             </Card>
 
@@ -817,7 +817,7 @@ export default function EventAnalytics() {
             <Card>
               <CardHeader><CardTitle className="text-base flex items-center gap-2"><Store className="w-4 h-4" /> {t("analytics.merchants.topChart")}</CardTitle></CardHeader>
               <CardContent>
-                {topMerchantsQ.isLoading ? <ChartSkeleton h={300} /> : <TopMerchantsChart merchants={topMerchants} />}
+                {topMerchantsQ.isLoading ? <ChartSkeleton h={300} /> : <TopMerchantsChart merchants={topMerchants} t={t} />}
               </CardContent>
             </Card>
 
