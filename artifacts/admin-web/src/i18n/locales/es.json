@@ -1408,6 +1408,8 @@
       "products": "Productos",
       "merchants": "Comerciantes",
       "demographics": "Demografía",
+      "wallet": "Billetera",
+      "live": "En Vivo",
       "stock": "Inventario"
     },
     "tickets": {
@@ -1502,6 +1504,47 @@
         "onHand": "En bodega",
         "restockAt": "Reponer en",
         "deficit": "Déficit",
+        "status": "Estado"
+      }
+    },
+    "wallet": {
+      "activationRate": "Tasa de Activación",
+      "activationRateSub": "{{active}} de {{total}} brazaletes gastaron",
+      "reloadRate": "Tasa de Recarga",
+      "reloadRateSub": "{{count}} brazaletes recargaron",
+      "avgSpend": "Gasto Promedio / Brazalete",
+      "avgSpendSub": "solo brazaletes activos",
+      "avgTopup": "Recarga Promedio",
+      "avgTopupSub": "por evento de recarga",
+      "topupsByHour": "Recargas por Hora",
+      "recharges": "Recargas",
+      "amount": "Monto",
+      "spendConcentration": "Concentración de Gasto (Pareto)",
+      "spendConcentrationSub": "Cuánto del ingreso total generan el top X% de gastadores",
+      "revenueShare": "Participación en ingresos",
+      "perfectEquality": "Distribución equitativa",
+      "topSpenders": "Top gastadores",
+      "top": "Top",
+      "ofSpenders": "de gastadores",
+      "noTopupData": "Sin datos de recargas aún",
+      "noSpendData": "Sin datos de gasto aún"
+    },
+    "live": {
+      "title": "Monitor en Vivo de Comerciantes",
+      "subtitle": "Se actualiza cada 30 segundos",
+      "autoRefresh": "Auto-refresco 30s",
+      "merchantHealth": "Estado de Comerciantes",
+      "noMerchants": "Sin actividad de comerciantes aún",
+      "statusActive": "Activo",
+      "statusIdle": "Inactivo",
+      "statusOffline": "Desconectado",
+      "justNow": "ahora mismo",
+      "ago": "atrás",
+      "columns": {
+        "merchant": "Comerciante",
+        "lastSale": "Última Venta",
+        "last30min": "Txns (30 min)",
+        "totalTx": "Txns Totales",
         "status": "Estado"
       }
     }

@@ -467,4 +467,167 @@ router.get(
   },
 );
 
+router.get(
+  "/analytics/wallet-behavior",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId } = req.query as Record<string, string | undefined>;
+    const eventIds = await resolveEventIds(req, eventId);
+
+    if (eventIds !== null && eventIds.length === 0) {
+      res.json({ activeBracelets: 0, totalBracelets: 0, activationRate: 0, reloadedBracelets: 0, reloadRate: 0, avgSpend: 0, avgTopUp: 0, topupsByHour: [], spendConcentration: [] });
+      return;
+    }
+
+    const effectiveEventId = eventId ?? (eventIds?.length === 1 ? eventIds[0] : undefined);
+
+    let tz = "UTC";
+    if (effectiveEventId) {
+      const [ev] = await db.select({ timezone: eventsTable.timezone }).from(eventsTable).where(eq(eventsTable.id, effectiveEventId));
+      if (ev?.timezone) tz = ev.timezone;
+    }
+
+    const braceletCond = eventIds !== null ? inArray(braceletsTable.eventId, eventIds) : undefined;
+
+    const [braceletAgg] = await db
+      .select({ total: sql<number>`COUNT(*)`.mapWith(Number) })
+      .from(braceletsTable)
+      .where(braceletCond);
+
+    const totalBracelets = braceletAgg?.total ?? 0;
+
+    const txCond = eventIds !== null ? inArray(transactionLogsTable.eventId, eventIds) : undefined;
+
+    const [activeAgg] = await db
+      .select({ activeBracelets: sql<number>`COUNT(DISTINCT ${transactionLogsTable.braceletUid})`.mapWith(Number) })
+      .from(transactionLogsTable)
+      .where(txCond);
+
+    const activeBracelets = activeAgg?.activeBracelets ?? 0;
+
+    const braceletUids = eventIds !== null
+      ? (await db.select({ uid: braceletsTable.nfcUid }).from(braceletsTable).where(braceletCond!)).map((r) => r.uid)
+      : null;
+
+    let reloadedBracelets = 0;
+    let totalTopUpAmount = 0;
+    let topupsByHour: { hour: number; amount: number; count: number }[] = [];
+
+    if (braceletUids === null || braceletUids.length > 0) {
+      const topUpCond = braceletUids !== null ? inArray(topUpsTable.braceletUid, braceletUids) : undefined;
+
+      const [reloadAgg] = await db
+        .select({ count: sql<number>`COUNT(DISTINCT ${topUpsTable.braceletUid})`.mapWith(Number), total: sql<number>`COALESCE(SUM(${topUpsTable.amount}), 0)`.mapWith(Number) })
+        .from(topUpsTable)
+        .where(topUpCond);
+
+      reloadedBracelets = reloadAgg?.count ?? 0;
+      totalTopUpAmount = reloadAgg?.total ?? 0;
+
+      const localTs = sql`(${topUpsTable.createdAt} AT TIME ZONE ${tz})`;
+      const hourRows = await db
+        .select({
+          hour: sql<number>`EXTRACT(HOUR FROM ${localTs})`.as("hour"),
+          amount: sql<number>`SUM(${topUpsTable.amount})`.as("amount"),
+          count: sql<number>`COUNT(*)`.as("count"),
+        })
+        .from(topUpsTable)
+        .where(topUpCond)
+        .groupBy(sql`1`)
+        .orderBy(sql`1`);
+
+      topupsByHour = hourRows.map((r) => ({ hour: Number(r.hour), amount: Number(r.amount), count: Number(r.count) }));
+    }
+
+    const [totalSalesAgg] = await db
+      .select({ total: sql<number>`COALESCE(SUM(${transactionLogsTable.grossAmount}), 0)`.mapWith(Number) })
+      .from(transactionLogsTable)
+      .where(txCond);
+
+    const totalSales = totalSalesAgg?.total ?? 0;
+    const avgSpend = activeBracelets > 0 ? totalSales / activeBracelets : 0;
+    const avgTopUp = reloadedBracelets > 0 ? totalTopUpAmount / reloadedBracelets : 0;
+    const activationRate = totalBracelets > 0 ? activeBracelets / totalBracelets : 0;
+    const reloadRate = totalBracelets > 0 ? reloadedBracelets / totalBracelets : 0;
+
+    // Pareto: per-bracelet spend sorted descending, compute concentration at 10%…100%
+    const spendRows = await db
+      .select({
+        braceletUid: transactionLogsTable.braceletUid,
+        spend: sql<number>`SUM(${transactionLogsTable.grossAmount})`.as("spend"),
+      })
+      .from(transactionLogsTable)
+      .where(txCond)
+      .groupBy(transactionLogsTable.braceletUid)
+      .orderBy(sql`SUM(${transactionLogsTable.grossAmount}) DESC`);
+
+    const spends = spendRows.map((r) => Number(r.spend));
+    const spendTotal = spends.reduce((a, b) => a + b, 0);
+    const spendConcentration: { pct: number; revShare: number }[] = [];
+    if (spends.length > 0 && spendTotal > 0) {
+      let cumulative = 0;
+      for (const pct of [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]) {
+        const topN = Math.max(1, Math.round((pct / 100) * spends.length));
+        cumulative = spends.slice(0, topN).reduce((a, b) => a + b, 0);
+        spendConcentration.push({ pct, revShare: Math.round((cumulative / spendTotal) * 1000) / 10 });
+      }
+    }
+
+    res.json({ activeBracelets, totalBracelets, activationRate, reloadedBracelets, reloadRate, avgSpend, avgTopUp, topupsByHour, spendConcentration });
+  },
+);
+
+router.get(
+  "/analytics/merchant-health",
+  requireRole("admin", "event_admin"),
+  async (req: Request, res: Response) => {
+    const { eventId } = req.query as Record<string, string | undefined>;
+    const eventIds = await resolveEventIds(req, eventId);
+
+    if (eventIds !== null && eventIds.length === 0) {
+      res.json({ merchants: [] });
+      return;
+    }
+
+    const txCond = eventIds !== null ? inArray(transactionLogsTable.eventId, eventIds) : undefined;
+    const now = new Date();
+    const thirtyMinAgo = new Date(now.getTime() - 30 * 60 * 1000);
+
+    const rows = await db
+      .select({
+        merchantId: transactionLogsTable.merchantId,
+        lastTransactionAt: sql<string>`MAX(${transactionLogsTable.createdAt})`.as("last_tx"),
+        totalTx: sql<number>`COUNT(*)`.mapWith(Number),
+        recentTx: sql<number>`COUNT(*) FILTER (WHERE ${transactionLogsTable.createdAt} >= ${thirtyMinAgo})`.mapWith(Number),
+      })
+      .from(transactionLogsTable)
+      .where(txCond)
+      .groupBy(transactionLogsTable.merchantId)
+      .orderBy(sql`MAX(${transactionLogsTable.createdAt}) DESC`);
+
+    const merchantIds = rows.map((r) => r.merchantId);
+    let merchantNames: { id: string; name: string }[] = [];
+    if (merchantIds.length > 0) {
+      merchantNames = await db.select({ id: merchantsTable.id, name: merchantsTable.name }).from(merchantsTable).where(inArray(merchantsTable.id, merchantIds));
+    }
+    const nameMap = new Map(merchantNames.map((m) => [m.id, m.name]));
+
+    const merchants = rows.map((r) => {
+      const lastAt = new Date(r.lastTransactionAt);
+      const minutesSince = Math.floor((now.getTime() - lastAt.getTime()) / 60000);
+      return {
+        merchantId: r.merchantId,
+        merchantName: nameMap.get(r.merchantId) ?? r.merchantId,
+        lastTransactionAt: r.lastTransactionAt,
+        minutesSince,
+        recentTx: Number(r.recentTx),
+        totalTx: Number(r.totalTx),
+      };
+    });
+
+    res.json({ merchants });
+  },
+);
+
 export default router;
+

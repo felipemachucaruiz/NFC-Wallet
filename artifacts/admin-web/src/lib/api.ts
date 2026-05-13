@@ -658,6 +658,41 @@ export async function apiFetchAnalyticsStockAlerts(eventId: string): Promise<Sto
   return (data.alerts ?? []) as StockAlertRow[];
 }
 
+export interface WalletBehavior {
+  activeBracelets: number;
+  totalBracelets: number;
+  activationRate: number;
+  reloadedBracelets: number;
+  reloadRate: number;
+  avgSpend: number;
+  avgTopUp: number;
+  topupsByHour: { hour: number; amount: number; count: number }[];
+  spendConcentration: { pct: number; revShare: number }[];
+}
+
+export async function apiFetchAnalyticsWalletBehavior(eventId: string): Promise<WalletBehavior> {
+  const res = await fetch(apiUrl(`/api/analytics/wallet-behavior?eventId=${encodeURIComponent(eventId)}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch wallet behavior");
+  return data as WalletBehavior;
+}
+
+export interface MerchantHealthRow {
+  merchantId: string;
+  merchantName: string;
+  lastTransactionAt: string;
+  minutesSince: number;
+  recentTx: number;
+  totalTx: number;
+}
+
+export async function apiFetchMerchantHealth(eventId: string): Promise<MerchantHealthRow[]> {
+  const res = await fetch(apiUrl(`/api/analytics/merchant-health?eventId=${encodeURIComponent(eventId)}`), { headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch merchant health");
+  return (data.merchants ?? []) as MerchantHealthRow[];
+}
+
 export async function apiResetPassword(token: string, password: string, source: "admin" | "attendee"): Promise<void> {
   const url = source === "attendee"
     ? attendeeApiUrl("/api/auth/reset-password")

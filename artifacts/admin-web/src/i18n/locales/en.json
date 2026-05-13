@@ -1408,6 +1408,8 @@
       "products": "Products",
       "merchants": "Merchants",
       "demographics": "Demographics",
+      "wallet": "Wallet",
+      "live": "Live",
       "stock": "Stock"
     },
     "tickets": {
@@ -1502,6 +1504,47 @@
         "onHand": "On Hand",
         "restockAt": "Restock At",
         "deficit": "Deficit",
+        "status": "Status"
+      }
+    },
+    "wallet": {
+      "activationRate": "Activation Rate",
+      "activationRateSub": "{{active}} of {{total}} bracelets spent",
+      "reloadRate": "Reload Rate",
+      "reloadRateSub": "{{count}} bracelets recharged",
+      "avgSpend": "Avg Spend / Bracelet",
+      "avgSpendSub": "active bracelets only",
+      "avgTopup": "Avg Top-up",
+      "avgTopupSub": "per reload event",
+      "topupsByHour": "Top-ups by Hour",
+      "recharges": "Recharges",
+      "amount": "Amount",
+      "spendConcentration": "Spend Concentration (Pareto)",
+      "spendConcentrationSub": "How much of total revenue is driven by the top X% of spenders",
+      "revenueShare": "Revenue share",
+      "perfectEquality": "Equal distribution",
+      "topSpenders": "Top spenders",
+      "top": "Top",
+      "ofSpenders": "of spenders",
+      "noTopupData": "No top-up data yet",
+      "noSpendData": "No spend data yet"
+    },
+    "live": {
+      "title": "Live Merchant Monitor",
+      "subtitle": "Refreshes every 30 seconds",
+      "autoRefresh": "Auto-refresh 30s",
+      "merchantHealth": "Merchant Health",
+      "noMerchants": "No merchant activity yet",
+      "statusActive": "Active",
+      "statusIdle": "Idle",
+      "statusOffline": "Offline",
+      "justNow": "just now",
+      "ago": "ago",
+      "columns": {
+        "merchant": "Merchant",
+        "lastSale": "Last Sale",
+        "last30min": "Txns (30 min)",
+        "totalTx": "Total Txns",
         "status": "Status"
       }
     }

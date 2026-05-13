@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, Users, Ticket, DollarSign, Activity, Store,
-  ShoppingBag, AlertTriangle, Zap, BarChart3,
+  ShoppingBag, AlertTriangle, Zap, BarChart3, Wallet, Radio, CheckCircle2, Clock, XCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
@@ -29,6 +29,10 @@ import {
   apiFetchAnalyticsTopMerchants,
   apiFetchAnalyticsHeatmap,
   apiFetchAnalyticsStockAlerts,
+  apiFetchAnalyticsWalletBehavior,
+  apiFetchMerchantHealth,
+  type WalletBehavior,
+  type MerchantHealthRow,
 } from "@/lib/api";
 
 const CHART_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#ec4899", "#14b8a6", "#84cc16"];
@@ -491,6 +495,99 @@ function StockAlertsTable({ alerts, t }: { alerts: Array<{ inventoryId: string; 
   );
 }
 
+// ── Topups by Hour ────────────────────────────────────────────────────────────
+
+function TopupsByHourChart({ rows, t }: { rows: { hour: number; amount: number; count: number }[]; t: (k: string) => string }) {
+  const data = Array.from({ length: 24 }, (_, h) => {
+    const row = rows.find((r) => r.hour === h);
+    return { hour: `${h}h`, amount: row?.amount ?? 0, count: row?.count ?? 0 };
+  });
+  if (!rows.length) return <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">{t("analytics.wallet.noTopupData")}</div>;
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <BarChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <XAxis dataKey="hour" tick={{ fontSize: 10 }} interval={2} />
+        <YAxis tick={{ fontSize: 11 }} tickFormatter={fmtK} />
+        <Tooltip formatter={(val, name) => name === "amount" ? fmt(Number(val)) : val} />
+        <Legend />
+        <Bar dataKey="count" name={t("analytics.wallet.recharges")} fill={CHART_COLORS[5]} radius={[3, 3, 0, 0]} />
+        <Bar dataKey="amount" name={t("analytics.wallet.amount")} fill={CHART_COLORS[1]} radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Spend Concentration (Pareto) ──────────────────────────────────────────────
+
+function SpendConcentrationChart({ data, t }: { data: { pct: number; revShare: number }[]; t: (k: string) => string }) {
+  if (!data.length) return <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">{t("analytics.wallet.noSpendData")}</div>;
+  const equalLine = data.map((d) => ({ ...d, equal: d.pct }));
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <LineChart data={equalLine} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <XAxis dataKey="pct" tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} label={{ value: t("analytics.wallet.topSpenders"), position: "insideBottom", offset: -2, fontSize: 11 }} />
+        <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} domain={[0, 100]} />
+        <Tooltip formatter={(val) => `${val}%`} labelFormatter={(l) => `${t("analytics.wallet.top")} ${l}% ${t("analytics.wallet.ofSpenders")}`} />
+        <Legend />
+        <Line type="monotone" dataKey="revShare" name={t("analytics.wallet.revenueShare")} stroke={CHART_COLORS[0]} strokeWidth={2.5} dot={{ r: 3 }} />
+        <Line type="monotone" dataKey="equal" name={t("analytics.wallet.perfectEquality")} stroke={CHART_COLORS[9]} strokeWidth={1} strokeDasharray="4 3" dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Merchant Health Table ─────────────────────────────────────────────────────
+
+function MerchantHealthTable({ merchants, t }: { merchants: MerchantHealthRow[]; t: (k: string) => string }) {
+  if (!merchants.length) return <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">{t("analytics.live.noMerchants")}</div>;
+
+  function statusInfo(min: number, recentTx: number) {
+    if (recentTx > 0) return { label: t("analytics.live.statusActive"), color: "text-green-500", Icon: CheckCircle2 };
+    if (min <= 15) return { label: t("analytics.live.statusIdle"), color: "text-yellow-500", Icon: Clock };
+    return { label: t("analytics.live.statusOffline"), color: "text-red-500", Icon: XCircle };
+  }
+
+  function fmtAgo(min: number) {
+    if (min < 1) return t("analytics.live.justNow");
+    if (min < 60) return `${min}m ${t("analytics.live.ago")}`;
+    return `${Math.floor(min / 60)}h ${min % 60}m ${t("analytics.live.ago")}`;
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t("analytics.live.columns.merchant")}</TableHead>
+          <TableHead className="text-right">{t("analytics.live.columns.lastSale")}</TableHead>
+          <TableHead className="text-right">{t("analytics.live.columns.last30min")}</TableHead>
+          <TableHead className="text-right">{t("analytics.live.columns.totalTx")}</TableHead>
+          <TableHead>{t("analytics.live.columns.status")}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {merchants.map((m) => {
+          const { label, color, Icon } = statusInfo(m.minutesSince, m.recentTx);
+          return (
+            <TableRow key={m.merchantId}>
+              <TableCell className="font-medium">{m.merchantName}</TableCell>
+              <TableCell className="text-right text-muted-foreground font-mono text-sm">{fmtAgo(m.minutesSince)}</TableCell>
+              <TableCell className="text-right font-mono">{m.recentTx}</TableCell>
+              <TableCell className="text-right font-mono text-muted-foreground">{m.totalTx.toLocaleString()}</TableCell>
+              <TableCell>
+                <span className={`flex items-center gap-1 text-sm font-medium ${color}`}>
+                  <Icon className="w-3.5 h-3.5" /> {label}
+                </span>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function EventAnalytics() {
@@ -518,6 +615,8 @@ export default function EventAnalytics() {
     topMerchantsQ,
     heatmapQ,
     stockAlertsQ,
+    walletQ,
+    merchantHealthQ,
   ] = useQueries({
     queries: [
       { queryKey: ["analyticsSummary", eventId], queryFn: () => apiFetchAnalyticsSummary(eventId), enabled },
@@ -530,6 +629,8 @@ export default function EventAnalytics() {
       { queryKey: ["analyticsTopMerchants", eventId], queryFn: () => apiFetchAnalyticsTopMerchants(eventId), enabled },
       { queryKey: ["analyticsHeatmap", eventId], queryFn: () => apiFetchAnalyticsHeatmap(eventId), enabled },
       { queryKey: ["analyticsStockAlerts", eventId], queryFn: () => apiFetchAnalyticsStockAlerts(eventId), enabled },
+      { queryKey: ["analyticsWallet", eventId], queryFn: () => apiFetchAnalyticsWalletBehavior(eventId), enabled },
+      { queryKey: ["merchantHealth", eventId], queryFn: () => apiFetchMerchantHealth(eventId), enabled, refetchInterval: 30_000 },
     ],
   });
 
@@ -543,6 +644,8 @@ export default function EventAnalytics() {
   const topMerchants = topMerchantsQ.data ?? [];
   const heatmap = heatmapQ.data ?? [];
   const stockAlerts = stockAlertsQ.data ?? [];
+  const wallet = walletQ.data as WalletBehavior | undefined;
+  const merchantHealth = merchantHealthQ.data ?? [];
 
   const totalTicketSold = ticketTypes.reduce((s, tt) => s + tt.soldCount, 0);
   const totalTicketRevenue = ticketTypes.reduce((s, tt) => s + tt.soldCount * tt.price, 0);
@@ -574,6 +677,8 @@ export default function EventAnalytics() {
           {nfcBraceletsEnabled && <TabsTrigger value="products"><ShoppingBag className="w-4 h-4 mr-1" />{t("analytics.tabs.products")}</TabsTrigger>}
           {nfcBraceletsEnabled && <TabsTrigger value="merchants"><Store className="w-4 h-4 mr-1" />{t("analytics.tabs.merchants")}</TabsTrigger>}
           {ticketingEnabled && <TabsTrigger value="demographics"><Activity className="w-4 h-4 mr-1" />{t("analytics.tabs.demographics")}</TabsTrigger>}
+          {nfcBraceletsEnabled && <TabsTrigger value="wallet"><Wallet className="w-4 h-4 mr-1" />{t("analytics.tabs.wallet")}</TabsTrigger>}
+          {nfcBraceletsEnabled && <TabsTrigger value="live"><Radio className="w-4 h-4 mr-1" />{t("analytics.tabs.live")}</TabsTrigger>}
           {nfcBraceletsEnabled && <TabsTrigger value="stock"><AlertTriangle className="w-4 h-4 mr-1" />{t("analytics.tabs.stock")}</TabsTrigger>}
         </TabsList>
 
@@ -770,6 +875,83 @@ export default function EventAnalytics() {
             ) : (
               <DemographicsSection tickets={tickets} t={t} />
             )}
+          </TabsContent>
+        )}
+
+        {/* ── WALLET BEHAVIOR TAB ──────────────────────────────────────────── */}
+        {nfcBraceletsEnabled && (
+          <TabsContent value="wallet" className="space-y-6 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatCard
+                icon={Zap}
+                label={t("analytics.wallet.activationRate")}
+                value={wallet ? `${(wallet.activationRate * 100).toFixed(1)}%` : "—"}
+                sub={wallet ? t("analytics.wallet.activationRateSub", { active: wallet.activeBracelets.toLocaleString(), total: wallet.totalBracelets.toLocaleString() }) : undefined}
+              />
+              <StatCard
+                icon={TrendingUp}
+                label={t("analytics.wallet.reloadRate")}
+                value={wallet ? `${(wallet.reloadRate * 100).toFixed(1)}%` : "—"}
+                sub={wallet ? t("analytics.wallet.reloadRateSub", { count: wallet.reloadedBracelets.toLocaleString() }) : undefined}
+              />
+              <StatCard
+                icon={DollarSign}
+                label={t("analytics.wallet.avgSpend")}
+                value={wallet ? fmt(wallet.avgSpend) : "—"}
+                sub={t("analytics.wallet.avgSpendSub")}
+              />
+              <StatCard
+                icon={Activity}
+                label={t("analytics.wallet.avgTopup")}
+                value={wallet ? fmt(wallet.avgTopUp) : "—"}
+                sub={t("analytics.wallet.avgTopupSub")}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="w-4 h-4" />{t("analytics.wallet.topupsByHour")}</CardTitle></CardHeader>
+                <CardContent>
+                  {walletQ.isLoading ? <ChartSkeleton h={240} /> : <TopupsByHourChart rows={wallet?.topupsByHour ?? []} t={t} />}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2"><BarChart3 className="w-4 h-4" />{t("analytics.wallet.spendConcentration")}</CardTitle>
+                  <p className="text-xs text-muted-foreground">{t("analytics.wallet.spendConcentrationSub")}</p>
+                </CardHeader>
+                <CardContent>
+                  {walletQ.isLoading ? <ChartSkeleton h={260} /> : <SpendConcentrationChart data={wallet?.spendConcentration ?? []} t={t} />}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        )}
+
+        {/* ── LIVE / MERCHANT HEALTH TAB ───────────────────────────────────── */}
+        {nfcBraceletsEnabled && (
+          <TabsContent value="live" className="space-y-6 mt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">{t("analytics.live.title")}</h2>
+                <p className="text-xs text-muted-foreground">{t("analytics.live.subtitle")}</p>
+              </div>
+              <Badge variant="outline" className="text-xs gap-1">
+                <Radio className="w-3 h-3 text-green-500" /> {t("analytics.live.autoRefresh")}
+              </Badge>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Store className="w-4 h-4" />{t("analytics.live.merchantHealth")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {merchantHealthQ.isLoading ? <div className="p-4"><ChartSkeleton h={120} /></div> : <MerchantHealthTable merchants={merchantHealth} t={t} />}
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
 
