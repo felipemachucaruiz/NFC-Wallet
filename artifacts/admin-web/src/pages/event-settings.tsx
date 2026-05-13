@@ -51,6 +51,7 @@ import {
   RefreshCw,
   CheckCircle,
   Flag,
+  ExternalLink,
 } from "lucide-react";
 
 type NfcChipType = "ntag_21x" | "mifare_classic" | "desfire_ev3" | "mifare_ultralight_c";
@@ -63,6 +64,8 @@ type EventDetail = {
   currencyCode?: string;
   nfcBraceletsEnabled?: boolean;
   ticketingEnabled?: boolean;
+  externalTicketingUrl?: string | null;
+  externalTicketingVendorName?: string | null;
   inventoryMode?: InventoryMode;
   nfcChipType?: NfcChipType;
   allowedNfcTypes?: NfcChipType[];
@@ -129,6 +132,10 @@ export default function EventSettings() {
   const [selectedChipType, setSelectedChipType] = useState<NfcChipType>("ntag_21x");
   const [isSavingChipTypes, setIsSavingChipTypes] = useState(false);
 
+  const [externalUrlText, setExternalUrlText] = useState("");
+  const [externalVendorText, setExternalVendorText] = useState("");
+  const [isSavingExternal, setIsSavingExternal] = useState(false);
+
   const [selectedBankMethods, setSelectedBankMethods] = useState<string[]>(["cash", "card_external", "nequi_transfer", "bancolombia_transfer", "other"]);
   const [selectedBoxOfficeMethods, setSelectedBoxOfficeMethods] = useState<string[]>(["gate_cash", "gate_transfer", "gate_card", "gate_nequi"]);
   const [bankMinTopupText, setBankMinTopupText] = useState("0");
@@ -145,8 +152,10 @@ export default function EventSettings() {
       if (event.boxOfficePaymentMethods) setSelectedBoxOfficeMethods(event.boxOfficePaymentMethods);
       if (event.bankMinTopup !== undefined) setBankMinTopupText(String(event.bankMinTopup));
       if (event.braceletActivationFee !== undefined) setActivationFeeText(String(event.braceletActivationFee));
+      setExternalUrlText(event.externalTicketingUrl ?? "");
+      setExternalVendorText(event.externalTicketingVendorName ?? "");
     }
-  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes, event?.bankPaymentMethods, event?.boxOfficePaymentMethods, event?.bankMinTopup, event?.braceletActivationFee]);
+  }, [event?.offlineSyncLimit, event?.maxOfflineSpendPerBracelet, event?.nfcChipType, event?.allowedNfcTypes, event?.bankPaymentMethods, event?.boxOfficePaymentMethods, event?.bankMinTopup, event?.braceletActivationFee, event?.externalTicketingUrl, event?.externalTicketingVendorName]);
 
   const updateEvent = useUpdateEvent();
   const unflagBracelet = useUnflagBracelet();
@@ -184,6 +193,37 @@ export default function EventSettings() {
       toast({ title: t("common.error"), variant: "destructive" });
     } finally {
       setIsSavingPaymentConfig(false);
+    }
+  };
+
+  const handleSaveExternalTicketing = async () => {
+    if (!eventId) return;
+    const trimmedUrl = externalUrlText.trim();
+    const trimmedVendor = externalVendorText.trim();
+    if (trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)) {
+      toast({ title: "URL inválida — debe empezar con http:// o https://", variant: "destructive" });
+      return;
+    }
+    setIsSavingExternal(true);
+    try {
+      await customFetch(`/api/events/${eventId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          externalTicketingUrl: trimmedUrl || null,
+          externalTicketingVendorName: trimmedVendor || null,
+        }),
+      });
+      refetch();
+      toast({ title: trimmedUrl ? "Boletería externa activada." : "Boletería externa desactivada." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("EXTERNAL_TICKETING_HAS_TICKETS")) {
+        toast({ title: "Para activar boletería externa primero elimina los tipos de boleta del evento.", variant: "destructive" });
+      } else {
+        toast({ title: t("common.error"), variant: "destructive" });
+      }
+    } finally {
+      setIsSavingExternal(false);
     }
   };
 
@@ -393,6 +433,62 @@ export default function EventSettings() {
         <h1 className="text-3xl font-bold tracking-tight">{t("eventSettings.title")}</h1>
         <p className="text-muted-foreground mt-1">{t("eventSettings.subtitle")}</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ExternalLink className="h-5 w-5" />
+            Boletería externa
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Si las boletas de este evento se venden en otra plataforma, ingresa el link aquí. Tapee Tickets mostrará el evento pero redirigirá la compra al tercero. <strong>Al activar esto se ocultan las opciones de boletería interna del menú.</strong>
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="ext-vendor">Nombre del vendedor</Label>
+              <Input
+                id="ext-vendor"
+                placeholder="Tu Boleta, Eventbrite, …"
+                value={externalVendorText}
+                onChange={(e) => setExternalVendorText(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ext-url">URL de compra</Label>
+              <Input
+                id="ext-url"
+                placeholder="https://..."
+                value={externalUrlText}
+                onChange={(e) => setExternalUrlText(e.target.value)}
+                type="url"
+              />
+            </div>
+          </div>
+          {event?.externalTicketingUrl && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-blue-500/10 border border-blue-500/30 text-sm">
+              <ExternalLink className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+              <span>Este evento usa boletería externa. El menú lateral solo muestra Configuración del evento mientras esté activa.</span>
+            </div>
+          )}
+          <div className="flex gap-2 justify-end">
+            {event?.externalTicketingUrl && (
+              <Button
+                variant="outline"
+                onClick={() => { setExternalUrlText(""); setExternalVendorText(""); }}
+                disabled={isSavingExternal}
+              >
+                Limpiar campos
+              </Button>
+            )}
+            <Button onClick={handleSaveExternalTicketing} disabled={isSavingExternal}>
+              {isSavingExternal ? t("common.saving", "Guardando…") : t("common.save", "Guardar")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {nfcBraceletsEnabled && <Card>
         <CardHeader>

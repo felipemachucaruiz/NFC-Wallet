@@ -219,9 +219,17 @@ export default function Home() {
                     </Button>
                   </Link>
                   <span className="text-base font-semibold text-white">
-                    {currentHero.priceFrom > 0
-                      ? <>{t("home.from")} <span className="text-primary">{formatPrice(currentHero.priceFrom, "COP", i18n.language)}</span></>
-                      : <span className="text-primary">{formatPrice(0, "COP", i18n.language)}</span>}
+                    {currentHero.externalTicketingUrl ? (
+                      <span className="text-primary">
+                        {currentHero.externalTicketingVendorName
+                          ? t("home.soldBy", { vendor: currentHero.externalTicketingVendorName, defaultValue: `Vendido por ${currentHero.externalTicketingVendorName}` })
+                          : t("home.externalSales", "Venta externa")}
+                      </span>
+                    ) : currentHero.priceFrom > 0 ? (
+                      <>{t("home.from")} <span className="text-primary">{formatPrice(currentHero.priceFrom, "COP", i18n.language)}</span></>
+                    ) : (
+                      <span className="text-primary">{formatPrice(0, "COP", i18n.language)}</span>
+                    )}
                   </span>
                 </div>
                 {heroCount > 1 && (
@@ -520,7 +528,13 @@ function EventCard({ event }: { event: ApiEvent }) {
               {event.name}
             </h3>
             <div className="flex items-center justify-between">
-              {event.priceFrom > 0 ? (
+              {event.externalTicketingUrl ? (
+                <span className="text-xs font-semibold text-primary uppercase tracking-wide truncate">
+                  {event.externalTicketingVendorName
+                    ? t("home.soldBy", { vendor: event.externalTicketingVendorName, defaultValue: `Vendido por ${event.externalTicketingVendorName}` })
+                    : t("home.externalSales", "Venta externa")}
+                </span>
+              ) : event.priceFrom > 0 ? (
                 <span className="text-sm text-muted-foreground">
                   {t("home.from")} <span className="text-primary font-bold">{formatPrice(event.priceFrom, "COP", i18n.language)}</span>
                 </span>

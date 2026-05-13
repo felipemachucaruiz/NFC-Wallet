@@ -56,8 +56,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const eventId = role === "admin" ? ctxEventId : (user?.user?.eventId ?? "");
   const { data: eventData } = useGetEvent(eventId || "", { query: { enabled: !!eventId } });
   const eventRecord = eventData as Record<string, unknown> | undefined;
-  const ticketingEnabled = eventRecord?.ticketingEnabled === true;
-  const nfcBraceletsEnabled = eventRecord?.nfcBraceletsEnabled !== false;
+  const isExternalTicketing = typeof eventRecord?.externalTicketingUrl === "string" && (eventRecord?.externalTicketingUrl as string).length > 0;
+  const ticketingEnabled = eventRecord?.ticketingEnabled === true && !isExternalTicketing;
+  const nfcBraceletsEnabled = eventRecord?.nfcBraceletsEnabled !== false && !isExternalTicketing;
   const managingEvent = role === "admin" && eventId;
 
   const handleLogout = async () => {
@@ -134,7 +135,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 {(eventRecord?.name as string) || "..."}
               </p>
 
-              <NavItem href={nfcBraceletsEnabled ? "/event-dashboard" : "/event-sales-dashboard"} icon={LayoutDashboard} label={t("nav.dashboard")} />
+              {!isExternalTicketing && <NavItem href={nfcBraceletsEnabled ? "/event-dashboard" : "/event-sales-dashboard"} icon={LayoutDashboard} label={t("nav.dashboard")} />}
               <NavItem href="/event-users" icon={Users} label={t("nav.staffUsers")} />
 
               {ticketingEnabled && (
@@ -185,7 +186,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {isEventAdmin && (
             <>
-              <NavItem href={nfcBraceletsEnabled ? "/event-dashboard" : "/event-sales-dashboard"} icon={LayoutDashboard} label={t("nav.dashboard")} />
+              {!isExternalTicketing && <NavItem href={nfcBraceletsEnabled ? "/event-dashboard" : "/event-sales-dashboard"} icon={LayoutDashboard} label={t("nav.dashboard")} />}
               <NavItem href="/event-users" icon={Users} label={t("nav.staffUsers")} />
 
               {ticketingEnabled && (

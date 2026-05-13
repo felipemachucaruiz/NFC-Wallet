@@ -335,6 +335,9 @@ export const ListEventsResponse = zod.object({
       inventoryMode: zod
         .enum(["location_based", "centralized_warehouse"])
         .optional(),
+      ticketingEnabled: zod.boolean().optional(),
+      externalTicketingUrl: zod.string().nullish(),
+      externalTicketingVendorName: zod.string().nullish(),
       createdAt: zod.date(),
     }),
   ),
@@ -383,6 +386,9 @@ export const GetEventResponse = zod.object({
   inventoryMode: zod
     .enum(["location_based", "centralized_warehouse"])
     .optional(),
+  ticketingEnabled: zod.boolean().optional(),
+  externalTicketingUrl: zod.string().nullish(),
+  externalTicketingVendorName: zod.string().nullish(),
   createdAt: zod.date(),
 });
 
@@ -406,6 +412,8 @@ export const UpdateEventBody = zod.object({
   inventoryMode: zod
     .enum(["location_based", "centralized_warehouse"])
     .optional(),
+  externalTicketingUrl: zod.string().nullish(),
+  externalTicketingVendorName: zod.string().nullish(),
 });
 
 export const updateEventResponseCurrencyCodeDefault = `COP`;
@@ -424,6 +432,9 @@ export const UpdateEventResponse = zod.object({
   inventoryMode: zod
     .enum(["location_based", "centralized_warehouse"])
     .optional(),
+  ticketingEnabled: zod.boolean().optional(),
+  externalTicketingUrl: zod.string().nullish(),
+  externalTicketingVendorName: zod.string().nullish(),
   createdAt: zod.date(),
 });
 
@@ -2487,6 +2498,9 @@ export const GetSnapshotResponse = zod.object({
       inventoryMode: zod
         .enum(["location_based", "centralized_warehouse"])
         .optional(),
+      ticketingEnabled: zod.boolean().optional(),
+      externalTicketingUrl: zod.string().nullish(),
+      externalTicketingVendorName: zod.string().nullish(),
       createdAt: zod.date(),
     })
     .optional(),

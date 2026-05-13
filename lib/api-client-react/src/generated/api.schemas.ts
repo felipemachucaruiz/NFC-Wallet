@@ -229,6 +229,11 @@ export interface Event {
   active: boolean;
   currencyCode: EventCurrencyCode;
   inventoryMode?: InventoryMode;
+  ticketingEnabled?: boolean;
+  /** @nullable */
+  externalTicketingUrl?: string | null;
+  /** @nullable */
+  externalTicketingVendorName?: string | null;
   createdAt: string;
 }
 
@@ -283,6 +288,10 @@ export interface UpdateEventBody {
   endsAt?: string;
   active?: boolean;
   inventoryMode?: InventoryMode;
+  /** @nullable */
+  externalTicketingUrl?: string | null;
+  /** @nullable */
+  externalTicketingVendorName?: string | null;
 }
 
 export interface Bracelet {

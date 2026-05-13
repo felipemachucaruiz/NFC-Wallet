@@ -3743,6 +3743,12 @@ components:
           default: COP
         inventoryMode:
           $ref: '#/components/schemas/InventoryMode'
+        ticketingEnabled:
+          type: boolean
+        externalTicketingUrl:
+          type: [string, 'null']
+        externalTicketingVendorName:
+          type: [string, 'null']
         createdAt:
           type: string
           format: date-time
@@ -3794,6 +3800,10 @@ components:
           type: boolean
         inventoryMode:
           $ref: '#/components/schemas/InventoryMode'
+        externalTicketingUrl:
+          type: [string, 'null']
+        externalTicketingVendorName:
+          type: [string, 'null']
 
     # ── Bracelets ─────────────────────────────────────────────────────────────
     Bracelet:
