@@ -36,6 +36,8 @@ export const eventsTable = pgTable("events", {
   bankMinTopup: integer("bank_min_topup").notNull().default(0),
   braceletActivationFee: integer("bracelet_activation_fee").notNull().default(3000),
   ticketingEnabled: boolean("ticketing_enabled").notNull().default(false),
+  externalTicketingUrl: varchar("external_ticketing_url", { length: 1000 }),
+  externalTicketingVendorName: varchar("external_ticketing_vendor_name", { length: 100 }),
   nfcBraceletsEnabled: boolean("nfc_bracelets_enabled").notNull().default(true),
   salesChannel: varchar("sales_channel", { length: 20 }).notNull().default("both"),
   saleStartsAt: timestamp("sale_starts_at", { withTimezone: true }),

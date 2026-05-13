@@ -3,7 +3,7 @@ import { hashPassword } from "../lib/bcryptWorker";
 import crypto, { randomUUID } from "crypto";
 import multer from "multer";
 import { Storage } from "@google-cloud/storage";
-import { db, eventsTable, eventDaysTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable, venuesTable, convertToCOP, getExchangeRatesForDisplay } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, usersTable, promoterCompaniesTable, braceletsTable, transactionLogsTable, transactionLineItemsTable, merchantsTable, locationsTable, attendeeRefundRequestsTable, topUpsTable, venuesTable, ticketTypesTable, convertToCOP, getExchangeRatesForDisplay } from "@workspace/db";
 import { eq, sql, and, ilike, or, count, sum, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/requireRole";
 import { uploadObject, isBucketConfigured } from "../lib/objectStorage";
@@ -124,6 +124,8 @@ const createEventSchema = z.object({
   tags: z.array(z.string()).optional(),
   minAge: z.number().int().min(0).nullable().optional(),
   ticketingEnabled: z.boolean().optional(),
+  externalTicketingUrl: z.string().url().nullable().optional(),
+  externalTicketingVendorName: z.string().max(100).nullable().optional(),
   nfcBraceletsEnabled: z.boolean().optional(),
   salesChannel: z.enum(["online", "door", "both"]).optional(),
   eventAdmin: z.object({
@@ -169,6 +171,8 @@ const updateEventSchema = z.object({
   tags: z.array(z.string()).optional(),
   minAge: z.number().int().min(0).nullable().optional(),
   ticketingEnabled: z.boolean().optional(),
+  externalTicketingUrl: z.string().url().nullable().optional(),
+  externalTicketingVendorName: z.string().max(100).nullable().optional(),
   nfcBraceletsEnabled: z.boolean().optional(),
   salesChannel: z.enum(["online", "door", "both"]).optional(),
   saleStartsAt: z.string().nullable().optional(),
@@ -215,6 +219,8 @@ const SAFE_EVENT_FIELDS = {
   tags: eventsTable.tags,
   minAge: eventsTable.minAge,
   ticketingEnabled: eventsTable.ticketingEnabled,
+  externalTicketingUrl: eventsTable.externalTicketingUrl,
+  externalTicketingVendorName: eventsTable.externalTicketingVendorName,
   nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled,
   salesChannel: eventsTable.salesChannel,
   saleStartsAt: eventsTable.saleStartsAt,
@@ -450,7 +456,16 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, descriptionEn, category, raceConfig, cityId, tags, minAge, ticketingEnabled, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics, raceNumberStart, raceNumberEnd } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, descriptionEn, category, raceConfig, cityId, tags, minAge, ticketingEnabled, externalTicketingUrl, externalTicketingVendorName, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics, raceNumberStart, raceNumberEnd } = parsed.data;
+
+  // Guard: cannot activate external ticketing while event still has ticket types
+  if (externalTicketingUrl !== undefined && externalTicketingUrl !== null) {
+    const existing = await db.select({ id: ticketTypesTable.id }).from(ticketTypesTable).where(eq(ticketTypesTable.eventId, eventId));
+    if (existing.length > 0) {
+      res.status(400).json({ error: "EXTERNAL_TICKETING_HAS_TICKETS: Para activar boletería externa primero elimina los tipos de boleta del evento." });
+      return;
+    }
+  }
 
   if (refundDeadline !== undefined && refundDeadline !== null) {
     const resolvedEndsAt = endsAt ?? (await db.select({ endsAt: eventsTable.endsAt }).from(eventsTable).where(eq(eventsTable.id, eventId)))[0]?.endsAt;
@@ -509,6 +524,8 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(tags !== undefined && { tags }),
     ...(minAge !== undefined && { minAge }),
     ...(ticketingEnabled !== undefined && { ticketingEnabled }),
+    ...(externalTicketingUrl !== undefined && { externalTicketingUrl }),
+    ...(externalTicketingVendorName !== undefined && { externalTicketingVendorName }),
     ...(nfcBraceletsEnabled !== undefined && { nfcBraceletsEnabled }),
     ...(salesChannel !== undefined && { salesChannel }),
     ...(saleStartsAt !== undefined && { saleStartsAt: saleStartsAt !== null ? new Date(saleStartsAt) : null }),

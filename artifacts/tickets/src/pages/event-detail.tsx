@@ -662,6 +662,28 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
 
           <div className="lg:col-span-1">
             <div className="sticky top-20 space-y-6">
+              {detail?.event.externalTicketingUrl ? (
+                <div className="bg-card/80 rounded-xl border border-border p-5">
+                  <h2 className="text-lg font-semibold mb-2">{t("event.buyTickets", "Comprar boletas")}</h2>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {detail.event.externalTicketingVendorName
+                      ? t("event.externalVendorIntro", { vendor: detail.event.externalTicketingVendorName, defaultValue: `Las boletas para este evento se venden en ${detail.event.externalTicketingVendorName}.` })
+                      : t("event.externalVendorIntroGeneric", "Las boletas para este evento se venden en otra plataforma.")}
+                  </p>
+                  <Button
+                    asChild
+                    size="lg"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(0,241,255,0.25)] hover:shadow-[0_0_28px_rgba(0,241,255,0.4)] transition-shadow"
+                  >
+                    <a href={detail.event.externalTicketingUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      {detail.event.externalTicketingVendorName
+                        ? t("event.buyOnVendor", { vendor: detail.event.externalTicketingVendorName, defaultValue: `Comprar en ${detail.event.externalTicketingVendorName}` })
+                        : t("event.buyExternal", "Comprar en sitio externo")}
+                    </a>
+                  </Button>
+                </div>
+              ) : (
               <div className="bg-card/80 rounded-xl border border-border p-5">
                 <h2 className="text-lg font-semibold mb-4">{t("event.pricing")}</h2>
                 <SectionTicketGroups
@@ -709,6 +731,7 @@ const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
                   </Button>
                 )}
               </div>
+              )}
 
               {detail?.guestLists && detail.guestLists.length > 0 && (
                 <div className="bg-card/80 rounded-xl border border-border p-5 mt-6">

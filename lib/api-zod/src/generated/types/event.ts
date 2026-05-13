@@ -22,5 +22,10 @@ export interface Event {
   active: boolean;
   currencyCode: EventCurrencyCode;
   inventoryMode?: InventoryMode;
+  ticketingEnabled?: boolean;
+  /** @nullable */
+  externalTicketingUrl?: string | null;
+  /** @nullable */
+  externalTicketingVendorName?: string | null;
   createdAt: Date;
 }

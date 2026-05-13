@@ -18,4 +18,8 @@ export interface UpdateEventBody {
   endsAt?: Date;
   active?: boolean;
   inventoryMode?: InventoryMode;
+  /** @nullable */
+  externalTicketingUrl?: string | null;
+  /** @nullable */
+  externalTicketingVendorName?: string | null;
 }

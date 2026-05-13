@@ -37,7 +37,8 @@ router.get(
 
     const conditions = [
       eq(eventsTable.active, true),
-      eq(eventsTable.ticketingEnabled, true),
+      // Show events that either sell tickets on Tapee OR are linked to an external vendor
+      sql`(${eventsTable.ticketingEnabled} = true OR ${eventsTable.externalTicketingUrl} IS NOT NULL)`,
     ];
 
     if (search) {
@@ -73,6 +74,8 @@ router.get(
         latitude: eventsTable.latitude,
         longitude: eventsTable.longitude,
         salesChannel: eventsTable.salesChannel,
+        externalTicketingUrl: eventsTable.externalTicketingUrl,
+        externalTicketingVendorName: eventsTable.externalTicketingVendorName,
       })
       .from(eventsTable)
       .where(and(...conditions))
@@ -166,6 +169,8 @@ router.get(
           longitude: eventsTable.longitude,
           salesChannel: eventsTable.salesChannel,
           ticketingEnabled: eventsTable.ticketingEnabled,
+          externalTicketingUrl: eventsTable.externalTicketingUrl,
+          externalTicketingVendorName: eventsTable.externalTicketingVendorName,
           currencyCode: eventsTable.currencyCode,
           promoterCompanyId: eventsTable.promoterCompanyId,
           pulepId: eventsTable.pulepId,
@@ -178,7 +183,7 @@ router.get(
         return;
       }
 
-      if (!event.ticketingEnabled) {
+      if (!event.ticketingEnabled && !event.externalTicketingUrl) {
         res.status(404).json({ error: "Ticketing is not enabled for this event" });
         return;
       }

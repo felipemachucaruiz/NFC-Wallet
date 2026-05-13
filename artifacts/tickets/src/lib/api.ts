@@ -75,6 +75,8 @@ export interface ApiEvent {
   salesChannel: string | null;
   priceFrom: number;
   priceTo: number;
+  externalTicketingUrl: string | null;
+  externalTicketingVendorName: string | null;
   eventDays: { id: string; date: string; label: string | null }[];
   dayCount: number;
 }
@@ -102,6 +104,8 @@ export interface ApiEventDetail {
     longitude: string | null;
     salesChannel: string | null;
     ticketingEnabled: boolean;
+    externalTicketingUrl: string | null;
+    externalTicketingVendorName: string | null;
     currencyCode: string;
     pulepId?: string | null;
   };
