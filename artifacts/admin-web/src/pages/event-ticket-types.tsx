@@ -66,11 +66,12 @@ const emptyForm: TicketForm = {
 type StageForm = {
   name: string;
   price: string;
+  quantity: string;
   startsAt: string;
   endsAt: string;
 };
 
-const emptyStageForm: StageForm = { name: "", price: "", startsAt: "", endsAt: "" };
+const emptyStageForm: StageForm = { name: "", price: "", quantity: "", startsAt: "", endsAt: "" };
 
 export default function EventTicketTypes() {
   const { t } = useTranslation();
@@ -612,6 +613,7 @@ function PricingStagesDialog({ eventId, typeId, typeName, open, onOpenChange }: 
     setForm({
       name: stage.name,
       price: String(stage.price),
+      quantity: stage.quantity !== null && stage.quantity !== undefined ? String(stage.quantity) : "",
       startsAt: toLocalDatetime(stage.startsAt),
       endsAt: toLocalDatetime(stage.endsAt),
     });
@@ -631,6 +633,7 @@ function PricingStagesDialog({ eventId, typeId, typeName, open, onOpenChange }: 
     const body = {
       name: form.name,
       price: parseInt(form.price, 10),
+      quantity: form.quantity ? parseInt(form.quantity, 10) : null,
       startsAt: new Date(form.startsAt).toISOString(),
       endsAt: new Date(form.endsAt).toISOString(),
       displayOrder: editingStageId
@@ -706,6 +709,11 @@ function PricingStagesDialog({ eventId, typeId, typeName, open, onOpenChange }: 
                         <p className="text-xs text-muted-foreground">
                           {formatDate(stage.startsAt)} → {formatDate(stage.endsAt)}
                         </p>
+                        {stage.quantity !== null && stage.quantity !== undefined && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {t("ticketTypes.stageCapacity")}: <span className={stage.soldCount >= stage.quantity ? "text-red-500 font-medium" : "text-foreground font-medium"}>{stage.soldCount}/{stage.quantity}</span>
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -744,6 +752,16 @@ function PricingStagesDialog({ eventId, typeId, typeName, open, onOpenChange }: 
                     onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
                   />
                 </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">{t("ticketTypes.stageQuantity")}</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={form.quantity}
+                  onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                  placeholder={t("ticketTypes.stageQuantityPlaceholder")}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">

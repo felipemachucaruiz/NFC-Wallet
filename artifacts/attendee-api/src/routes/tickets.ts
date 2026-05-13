@@ -16,13 +16,19 @@ import { captureError } from "../lib/captureError";
 
 const router: IRouter = Router();
 
-function resolveActiveStagePrice(
-  stages: { price: number; startsAt: Date; endsAt: Date; displayOrder: number }[],
-  fallback: number,
-): number {
+function resolveActiveStage<T extends { id: string; price: number; startsAt: Date; endsAt: Date; displayOrder: number; quantity: number | null; soldCount: number }>(
+  stages: T[],
+): T | undefined {
   const now = new Date();
   const sorted = [...stages].sort((a, b) => a.displayOrder - b.displayOrder || a.startsAt.getTime() - b.startsAt.getTime());
-  const active = sorted.find((s) => now >= s.startsAt && now <= s.endsAt);
+  return sorted.find((s) => now >= s.startsAt && now <= s.endsAt && (s.quantity === null || s.soldCount < s.quantity));
+}
+
+function resolveActiveStagePrice(
+  stages: { id: string; price: number; startsAt: Date; endsAt: Date; displayOrder: number; quantity: number | null; soldCount: number }[],
+  fallback: number,
+): number {
+  const active = resolveActiveStage(stages);
   return active ? active.price : fallback;
 }
 
@@ -368,8 +374,11 @@ router.post(
     const allStages = ticketTypeIds.length > 0
       ? await db
           .select({
+            id: ticketPricingStagesTable.id,
             ticketTypeId: ticketPricingStagesTable.ticketTypeId,
             price: ticketPricingStagesTable.price,
+            quantity: ticketPricingStagesTable.quantity,
+            soldCount: ticketPricingStagesTable.soldCount,
             startsAt: ticketPricingStagesTable.startsAt,
             endsAt: ticketPricingStagesTable.endsAt,
             displayOrder: ticketPricingStagesTable.displayOrder,
@@ -388,9 +397,25 @@ router.post(
 
     // currentPriceByType: the price actually charged per unit, respecting active stage
     const currentPriceByType = new Map<string, number>();
+    const activeStageByType = new Map<string, (typeof allStages)[0]>();
     for (const tt of ticketTypes) {
       const stages = stagesByType.get(tt.id) ?? [];
-      currentPriceByType.set(tt.id, resolveActiveStagePrice(stages, Number(tt.price)));
+      const active = resolveActiveStage(stages);
+      if (active) activeStageByType.set(tt.id, active);
+      currentPriceByType.set(tt.id, active ? active.price : Number(tt.price));
+    }
+
+    // Pre-flight: check stage capacity (in addition to ticket type capacity already checked above)
+    for (const [typeId, qty] of quantityByType) {
+      const stage = activeStageByType.get(typeId);
+      if (stage && stage.quantity !== null) {
+        const remaining = stage.quantity - stage.soldCount;
+        if (remaining < qty) {
+          const tt = ticketTypeMap.get(typeId)!;
+          res.status(409).json({ error: `Not enough tickets in the current stage for ${tt.name}. Stage remaining: ${remaining}` });
+          return;
+        }
+      }
     }
 
     let totalAmount = 0;
@@ -443,6 +468,24 @@ router.post(
               updatedAt: new Date(),
             })
             .where(eq(ticketTypesTable.id, typeId));
+
+          // Increment stage soldCount for numbered unit (counts as 1 unit)
+          const activeStage = activeStageByType.get(typeId);
+          if (activeStage) {
+            const stageUpdated = await tx
+              .update(ticketPricingStagesTable)
+              .set({ soldCount: sql`${ticketPricingStagesTable.soldCount} + 1` })
+              .where(and(
+                eq(ticketPricingStagesTable.id, activeStage.id),
+                activeStage.quantity !== null
+                  ? sql`${ticketPricingStagesTable.soldCount} + 1 <= ${activeStage.quantity}`
+                  : sql`true`,
+              ))
+              .returning({ id: ticketPricingStagesTable.id });
+            if (activeStage.quantity !== null && stageUpdated.length === 0) {
+              throw new Error(`STAGE_SOLD_OUT:${tt.name}`);
+            }
+          }
         } else {
           const updated = await tx
             .update(ticketTypesTable)
@@ -458,6 +501,24 @@ router.post(
 
           if (updated.length === 0) {
             throw new Error(`SOLD_OUT:${tt.name}`);
+          }
+
+          // Increment stage soldCount atomically
+          const activeStage = activeStageByType.get(typeId);
+          if (activeStage) {
+            const stageUpdated = await tx
+              .update(ticketPricingStagesTable)
+              .set({ soldCount: sql`${ticketPricingStagesTable.soldCount} + ${qty}` })
+              .where(and(
+                eq(ticketPricingStagesTable.id, activeStage.id),
+                activeStage.quantity !== null
+                  ? sql`${ticketPricingStagesTable.soldCount} + ${qty} <= ${activeStage.quantity}`
+                  : sql`true`,
+              ))
+              .returning({ id: ticketPricingStagesTable.id });
+            if (activeStage.quantity !== null && stageUpdated.length === 0) {
+              throw new Error(`STAGE_SOLD_OUT:${tt.name}`);
+            }
           }
         }
       }
@@ -487,8 +548,8 @@ router.post(
 
       return order;
     }).catch((err) => {
-      if (err.message?.startsWith("SOLD_OUT:") || err.message?.startsWith("UNIT_TAKEN:")) {
-        const name = err.message.replace(/^(SOLD_OUT|UNIT_TAKEN):/, "");
+      if (err.message?.startsWith("SOLD_OUT:") || err.message?.startsWith("UNIT_TAKEN:") || err.message?.startsWith("STAGE_SOLD_OUT:")) {
+        const name = err.message.replace(/^(SOLD_OUT|UNIT_TAKEN|STAGE_SOLD_OUT):/, "");
         res.status(409).json({ error: `Tickets for ${name} are sold out` });
         return null;
       }

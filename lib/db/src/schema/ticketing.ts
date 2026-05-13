@@ -166,6 +166,8 @@ export const ticketPricingStagesTable = pgTable("ticket_pricing_stages", {
   ticketTypeId: varchar("ticket_type_id").notNull().references(() => ticketTypesTable.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(),
   price: integer("price").notNull(),
+  quantity: integer("quantity"),
+  soldCount: integer("sold_count").notNull().default(0),
   startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
   endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
   displayOrder: integer("display_order").notNull().default(0),
