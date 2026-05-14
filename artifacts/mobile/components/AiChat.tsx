@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   ActivityIndicator,
   Animated,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -79,8 +79,26 @@ export function AiChat() {
   const [streaming, setStreaming] = useState(false);
   const [partial, setPartial] = useState("");
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  // Track keyboard height — KeyboardAvoidingView inside Modal is unreliable on Android,
+  // so we listen to native events directly and translate the input bar up.
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Load history when event changes
   useEffect(() => {
@@ -249,10 +267,7 @@ export function AiChat() {
       </Animated.View>
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}
-        >
+        <View style={[styles.container, { backgroundColor: C.background, paddingTop: insets.top }]}>
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: C.border, backgroundColor: C.card }]}>
             <View style={styles.headerLeft}>
@@ -330,8 +345,20 @@ export function AiChat() {
             )}
           </ScrollView>
 
-          {/* Input */}
-          <View style={[styles.inputBar, { borderTopColor: C.border, backgroundColor: C.card, paddingBottom: Math.max(insets.bottom, 12) }]}>
+          {/* Input — paddingBottom adapts to keyboard so it never gets covered */}
+          <View
+            style={[
+              styles.inputBar,
+              {
+                borderTopColor: C.border,
+                backgroundColor: C.card,
+                paddingBottom: keyboardHeight > 0
+                  ? (Platform.OS === "ios" ? keyboardHeight : 12)
+                  : Math.max(insets.bottom, 12),
+                marginBottom: Platform.OS === "android" && keyboardHeight > 0 ? keyboardHeight : 0,
+              },
+            ]}
+          >
             <TextInput
               value={input}
               onChangeText={setInput}
@@ -357,7 +384,7 @@ export function AiChat() {
               </Pressable>
             )}
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </>
   );
