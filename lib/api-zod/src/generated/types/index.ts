@@ -7,6 +7,9 @@
  */
 
 export * from "./accessZone";
+export * from "./aiChatBody";
+export * from "./aiChatMessage";
+export * from "./aiChatMessageRole";
 export * from "./analyticsHeatmap";
 export * from "./analyticsHeatmapItem";
 export * from "./analyticsSalesByHour";

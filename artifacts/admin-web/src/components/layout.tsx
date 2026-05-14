@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { LANGUAGE_KEY } from "@/i18n";
 import { useEventContext } from "@/contexts/event-context";
+import { AiChat } from "@/components/ai-chat";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
@@ -269,6 +270,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+
+      <AiChat />
     </div>
   );
 }

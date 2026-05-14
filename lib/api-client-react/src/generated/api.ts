@@ -18,6 +18,7 @@ import type {
 
 import type {
   AccessZone,
+  AiChatBody,
   AnalyticsHeatmap,
   AnalyticsSalesByHour,
   AnalyticsStockAlerts,
@@ -6896,6 +6897,100 @@ export const useCancelSplitSession = <
   TContext
 > => {
   return useMutation(getCancelSplitSessionMutationOptions(options));
+};
+
+/**
+ * Streams a response using `text/event-stream`. Events emitted:
+- `data: {"type":"text","content":"..."}` — partial assistant text
+- `data: {"type":"tool","name":"..."}` — when the model invokes a tool
+- `data: {"type":"done"}` — final marker
+- `data: {"type":"error","message":"..."}` — error
+
+ * @summary Chat with the AI assistant about a live event (Server-Sent Events stream)
+ */
+export const getAiChatUrl = () => {
+  return `/api/ai/chat`;
+};
+
+export const aiChat = async (
+  aiChatBody: AiChatBody,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getAiChatUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiChatBody),
+  });
+};
+
+export const getAiChatMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiChat>>,
+    TError,
+    { data: BodyType<AiChatBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aiChat>>,
+  TError,
+  { data: BodyType<AiChatBody> },
+  TContext
+> => {
+  const mutationKey = ["aiChat"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aiChat>>,
+    { data: BodyType<AiChatBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return aiChat(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AiChatMutationResult = NonNullable<
+  Awaited<ReturnType<typeof aiChat>>
+>;
+export type AiChatMutationBody = BodyType<AiChatBody>;
+export type AiChatMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | ErrorEnvelope
+>;
+
+/**
+ * @summary Chat with the AI assistant about a live event (Server-Sent Events stream)
+ */
+export const useAiChat = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiChat>>,
+    TError,
+    { data: BodyType<AiChatBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof aiChat>>,
+  TError,
+  { data: BodyType<AiChatBody> },
+  TContext
+> => {
+  return useMutation(getAiChatMutationOptions(options));
 };
 
 /**

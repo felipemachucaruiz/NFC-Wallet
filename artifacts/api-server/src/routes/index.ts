@@ -39,6 +39,7 @@ import productCategoriesRouter from "./productCategories";
 import localServersRouter from "./localServers";
 import adsRouter from "./ads";
 import citiesRouter from "./cities";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -82,5 +83,6 @@ router.use(productCategoriesRouter);
 router.use(localServersRouter);
 router.use(adsRouter);
 router.use(citiesRouter);
+router.use(aiRouter);
 
 export default router;

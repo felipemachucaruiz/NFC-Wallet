@@ -1060,6 +1060,29 @@ export interface ChargeSplitSessionResult {
   transaction: TransactionLog;
 }
 
+export type AiChatMessageRole =
+  (typeof AiChatMessageRole)[keyof typeof AiChatMessageRole];
+
+export const AiChatMessageRole = {
+  user: "user",
+  assistant: "assistant",
+} as const;
+
+export interface AiChatMessage {
+  role: AiChatMessageRole;
+  content: string;
+}
+
+export interface AiChatBody {
+  /** Event scope; required for admin role, ignored for event_admin (uses their assigned event) */
+  eventId?: string;
+  /**
+   * @minItems 1
+   * @maxItems 40
+   */
+  messages: AiChatMessage[];
+}
+
 export interface CreatePayoutBody {
   merchantId: string;
   eventId: string;
