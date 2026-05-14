@@ -329,7 +329,7 @@ function NavItem({ href, icon: Icon, label }: { href: string; icon: React.Elemen
     <Link href={href} className={cn(
       "flex items-center gap-3 px-3 py-1.5 rounded-md text-[10px] font-semibold transition-colors uppercase tracking-wider",
       isActive
-        ? "bg-sidebar-accent text-sidebar-accent-foreground"
+        ? "bg-primary text-black"
         : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
     )}>
       <Icon className="h-3.5 w-3.5 shrink-0" />
