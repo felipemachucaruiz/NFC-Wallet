@@ -8,7 +8,7 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
-const adUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const adUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 const AdSchema = z.object({
   title: z.string().min(1).max(255),

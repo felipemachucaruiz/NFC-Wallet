@@ -8,7 +8,7 @@ import { z } from "zod";
 
 const router: IRouter = Router();
 
-const cityUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const cityUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 const CitySchema = z.object({
   name: z.string().min(1).max(255),
