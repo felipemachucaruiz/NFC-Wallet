@@ -181,6 +181,9 @@ const updateEventSchema = z.object({
   floatingGraphics: z.array(z.object({ url: z.string(), opacity: z.number().min(0).max(1) })).nullable().optional(),
   raceNumberStart: z.number().int().positive().nullable().optional(),
   raceNumberEnd: z.number().int().positive().nullable().optional(),
+  cardReaderTopupFeePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  appTopupFeePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  onlineTicketFeePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
 });
 
 const SAFE_EVENT_FIELDS = {
@@ -221,6 +224,9 @@ const SAFE_EVENT_FIELDS = {
   ticketingEnabled: eventsTable.ticketingEnabled,
   externalTicketingUrl: eventsTable.externalTicketingUrl,
   externalTicketingVendorName: eventsTable.externalTicketingVendorName,
+  cardReaderTopupFeePercent: eventsTable.cardReaderTopupFeePercent,
+  appTopupFeePercent: eventsTable.appTopupFeePercent,
+  onlineTicketFeePercent: eventsTable.onlineTicketFeePercent,
   nfcBraceletsEnabled: eventsTable.nfcBraceletsEnabled,
   salesChannel: eventsTable.salesChannel,
   saleStartsAt: eventsTable.saleStartsAt,
@@ -456,7 +462,7 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, descriptionEn, category, raceConfig, cityId, tags, minAge, ticketingEnabled, externalTicketingUrl, externalTicketingVendorName, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics, raceNumberStart, raceNumberEnd } = parsed.data;
+  const { name, description, venueAddress, currencyCode, startsAt, endsAt, refundDeadline, active, platformCommissionRate, capacity, promoterCompanyId, pulepId, inventoryMode, nfcChipType, allowedNfcTypes, offlineSyncLimit, maxOfflineSpendPerBracelet, bankPaymentMethods, boxOfficePaymentMethods, bankMinTopup, braceletActivationFee, ultralightCDesKey, latitude, longitude, coverImageUrl, flyerImageUrl, longDescription, descriptionEn, category, raceConfig, cityId, tags, minAge, ticketingEnabled, externalTicketingUrl, externalTicketingVendorName, nfcBraceletsEnabled, salesChannel, saleStartsAt, saleEndsAt, vimeoUrl, floatingGraphics, raceNumberStart, raceNumberEnd, cardReaderTopupFeePercent, appTopupFeePercent, onlineTicketFeePercent } = parsed.data;
 
   // Guard: cannot activate external ticketing while event still has ticket types
   if (externalTicketingUrl !== undefined && externalTicketingUrl !== null) {
@@ -534,6 +540,9 @@ router.patch("/events/:eventId", requireRole("admin", "event_admin"), async (req
     ...(floatingGraphics !== undefined && { floatingGraphics }),
     ...(raceNumberStart !== undefined && { raceNumberStart }),
     ...(raceNumberEnd !== undefined && { raceNumberEnd }),
+    ...(cardReaderTopupFeePercent !== undefined && { cardReaderTopupFeePercent }),
+    ...(appTopupFeePercent !== undefined && { appTopupFeePercent }),
+    ...(onlineTicketFeePercent !== undefined && { onlineTicketFeePercent }),
     updatedAt: new Date(),
   };
 

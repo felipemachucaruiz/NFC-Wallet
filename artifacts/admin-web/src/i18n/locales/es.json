@@ -262,7 +262,12 @@
     "flyerImage": "Imagen del Flyer",
     "flyerImageHint": "1080×1920px recomendado",
     "clickToUpload": "Clic para subir",
-    "imageUploaded": "Imagen subida"
+    "imageUploaded": "Imagen subida",
+    "gatewayFeesSection": "Cargos de Pasarela de Pago",
+    "gatewayFeesHint": "% de cargo que se suma al valor base y lo paga el usuario final. Dejar en 0 para no aplicar.",
+    "cardReaderTopupFee": "% comisión recarga datafono",
+    "appTopupFee": "% comisión recarga por app (Nequi / tarjeta / PSE)",
+    "onlineTicketFee": "% comisión compra online de tickets"
   },
   "products": {
     "title": "Productos",

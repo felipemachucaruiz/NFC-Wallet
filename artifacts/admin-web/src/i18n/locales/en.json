@@ -262,7 +262,12 @@
     "flyerImage": "Flyer Image",
     "flyerImageHint": "1080×1920px recommended",
     "clickToUpload": "Click to upload",
-    "imageUploaded": "Image uploaded"
+    "imageUploaded": "Image uploaded",
+    "gatewayFeesSection": "Payment Gateway Surcharges",
+    "gatewayFeesHint": "Surcharge % added on top of the base amount and paid by the end user. Set to 0 to disable.",
+    "cardReaderTopupFee": "Card reader top-up fee",
+    "appTopupFee": "App top-up fee (Nequi / card / PSE)",
+    "onlineTicketFee": "Online ticket purchase fee"
   },
   "products": {
     "title": "Products",
