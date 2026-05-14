@@ -310,7 +310,7 @@ function NavSection({
     <div className="mt-1">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs uppercase tracking-wider font-semibold text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-semibold text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors"
       >
         <Icon className="h-3.5 w-3.5 shrink-0" />
         <span className="flex-1 text-left">{label}</span>
@@ -327,12 +327,12 @@ function NavItem({ href, icon: Icon, label }: { href: string; icon: React.Elemen
 
   return (
     <Link href={href} className={cn(
-      "flex items-center gap-3 px-3 py-2 rounded-md text-xs font-semibold transition-colors uppercase tracking-wider",
+      "flex items-center gap-3 px-3 py-1.5 rounded-md text-[10px] font-semibold transition-colors uppercase tracking-wider",
       isActive
         ? "bg-sidebar-accent text-sidebar-accent-foreground"
         : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
     )}>
-      <Icon className="h-4 w-4" />
+      <Icon className="h-3.5 w-3.5 shrink-0" />
       {label}
     </Link>
   );
