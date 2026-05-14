@@ -74,6 +74,9 @@ type EventForm = {
   nfcBraceletsEnabled: boolean;
   externalTicketingUrl: string;
   externalTicketingVendorName: string;
+  cardReaderTopupFeePercent: string;
+  appTopupFeePercent: string;
+  onlineTicketFeePercent: string;
   coverImageUrl: string;
   flyerImageUrl: string;
   floatingGraphics: Array<{ url: string; opacity: number }>;
@@ -109,6 +112,9 @@ const emptyForm: EventForm = {
   nfcBraceletsEnabled: true,
   externalTicketingUrl: "",
   externalTicketingVendorName: "",
+  cardReaderTopupFeePercent: "0",
+  appTopupFeePercent: "0",
+  onlineTicketFeePercent: "0",
   coverImageUrl: "",
   flyerImageUrl: "",
   floatingGraphics: [],
@@ -162,6 +168,9 @@ type RawEvent = Event & {
   nfcBraceletsEnabled?: boolean;
   externalTicketingUrl?: string | null;
   externalTicketingVendorName?: string | null;
+  cardReaderTopupFeePercent?: string | null;
+  appTopupFeePercent?: string | null;
+  onlineTicketFeePercent?: string | null;
   coverImageUrl?: string | null;
   flyerImageUrl?: string | null;
   descriptionEn?: string | null;
@@ -363,6 +372,60 @@ function FormFields({
           <p className="text-xs text-destructive">{t("events.atLeastOneModule")}</p>
         )}
       </div>
+
+      {!isCreate && (
+        <div className="border rounded-md p-3 space-y-3">
+          <Label className="text-sm font-semibold">{t("events.gatewayFeesSection")}</Label>
+          <p className="text-xs text-muted-foreground">{t("events.gatewayFeesHint")}</p>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">{t("events.cardReaderTopupFee")}</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={form.cardReaderTopupFeePercent}
+                  onChange={(e) => setForm((f) => ({ ...f, cardReaderTopupFeePercent: e.target.value }))}
+                  className="pr-7"
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t("events.appTopupFee")}</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={form.appTopupFeePercent}
+                  onChange={(e) => setForm((f) => ({ ...f, appTopupFeePercent: e.target.value }))}
+                  className="pr-7"
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t("events.onlineTicketFee")}</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={form.onlineTicketFeePercent}
+                  onChange={(e) => setForm((f) => ({ ...f, onlineTicketFeePercent: e.target.value }))}
+                  className="pr-7"
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isCreate && (
         <div className="border rounded-md p-3 space-y-3">
@@ -992,6 +1055,9 @@ export default function Events() {
       nfcBraceletsEnabled: raw.nfcBraceletsEnabled ?? true,
       externalTicketingUrl: raw.externalTicketingUrl ?? "",
       externalTicketingVendorName: raw.externalTicketingVendorName ?? "",
+      cardReaderTopupFeePercent: raw.cardReaderTopupFeePercent ?? "0",
+      appTopupFeePercent: raw.appTopupFeePercent ?? "0",
+      onlineTicketFeePercent: raw.onlineTicketFeePercent ?? "0",
       coverImageUrl: raw.coverImageUrl ?? "",
       flyerImageUrl: raw.flyerImageUrl ?? "",
       floatingGraphics: raw.floatingGraphics?.length
@@ -1113,6 +1179,9 @@ export default function Events() {
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
       externalTicketingUrl: form.externalTicketingUrl.trim() || null,
       externalTicketingVendorName: form.externalTicketingVendorName.trim() || null,
+      cardReaderTopupFeePercent: form.cardReaderTopupFeePercent || "0",
+      appTopupFeePercent: form.appTopupFeePercent || "0",
+      onlineTicketFeePercent: form.onlineTicketFeePercent || "0",
       coverImageUrl: form.coverImageUrl || null,
       flyerImageUrl: form.flyerImageUrl || null,
       vimeoUrl: form.vimeoUrl || null,
