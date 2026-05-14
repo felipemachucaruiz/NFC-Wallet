@@ -81,6 +81,8 @@ interface PublicEventRaw {
   salesChannel?: string;
   priceFrom?: number;
   priceTo?: number;
+  externalTicketingUrl?: string | null;
+  externalTicketingVendorName?: string | null;
   eventDays?: Array<{ id: string; date: string; label: string }>;
   dayCount?: number;
 }
@@ -118,6 +120,8 @@ function mapPublicEvent(raw: PublicEventRaw): EventListItem {
     soldOut: false,
     multiDay: (raw.dayCount ?? 1) > 1,
     days: raw.eventDays?.map((d, i) => ({ dayNumber: i + 1, label: d.label, date: d.date })),
+    externalTicketingUrl: raw.externalTicketingUrl ?? null,
+    externalTicketingVendorName: raw.externalTicketingVendorName ?? null,
   };
 }
 
@@ -286,6 +290,8 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
     minPrice: e.priceFrom ?? 0,
     maxPrice: e.priceTo ?? 0,
     currencyCode: e.currencyCode ?? "COP",
+    externalTicketingUrl: e.externalTicketingUrl ?? null,
+    externalTicketingVendorName: e.externalTicketingVendorName ?? null,
     soldOut: ticketTypes.every((tt) => tt.availability === "sold_out"),
     multiDay: (days?.length ?? 0) > 1,
     days: days?.map((d, i) => ({ dayNumber: d.dayNumber ?? i + 1, label: d.label, date: d.date })),

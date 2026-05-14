@@ -119,7 +119,15 @@ function EventCard({ event }: { event: EventListItem }) {
               </Text>
             </View>
             <View style={styles.heroBadges}>
-              {event.minPrice != null && (
+              {event.externalTicketingUrl ? (
+                <Badge
+                  label={event.externalTicketingVendorName
+                    ? t("events.soldBy", { vendor: event.externalTicketingVendorName, defaultValue: `Vendido por ${event.externalTicketingVendorName}` })
+                    : t("events.externalSales", "Venta externa")}
+                  variant="info"
+                  size="sm"
+                />
+              ) : event.minPrice != null && (
                 <Badge
                   label={`${t("events.from")} ${formatCurrency(event.minPrice, event.currencyCode)}`}
                   variant="info"
@@ -156,7 +164,15 @@ function EventCard({ event }: { event: EventListItem }) {
               </Text>
             </View>
             <View style={styles.heroBadges}>
-              {event.minPrice != null && (
+              {event.externalTicketingUrl ? (
+                <Badge
+                  label={event.externalTicketingVendorName
+                    ? t("events.soldBy", { vendor: event.externalTicketingVendorName, defaultValue: `Vendido por ${event.externalTicketingVendorName}` })
+                    : t("events.externalSales", "Venta externa")}
+                  variant="info"
+                  size="sm"
+                />
+              ) : event.minPrice != null && (
                 <Badge
                   label={`${t("events.from")} ${formatCurrency(event.minPrice, event.currencyCode)}`}
                   variant="info"
