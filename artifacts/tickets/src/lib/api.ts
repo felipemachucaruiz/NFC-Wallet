@@ -14,7 +14,7 @@ export class ApiError extends Error {
   }
 }
 
-export function resolveImageUrl(path: string | null | undefined, width = 800): string {
+export function resolveImageUrl(path: string | null | undefined, width = 1200): string {
   if (!path) return "";
   const fullUrl = path.startsWith("http") ? path : `${STORAGE_ORIGIN}${path}`;
   if (fullUrl.startsWith(`${STORAGE_ORIGIN}/`)) {

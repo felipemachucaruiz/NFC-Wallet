@@ -197,7 +197,7 @@ export default function Home() {
               style={{ opacity: i === heroIndex && heroFade ? 1 : 0, zIndex: i === heroIndex ? 1 : 0 }}
             >
               <img
-                src={resolveImageUrl(evt.coverImageUrl)}
+                src={resolveImageUrl(evt.coverImageUrl, 2000)}
                 alt={evt.name}
                 className="w-full h-full object-cover"
                 loading={i === 0 ? "eager" : "lazy"}
@@ -271,7 +271,7 @@ export default function Home() {
             {resolveImageUrl(currentHero.flyerImageUrl) && (
               <div className="hidden md:block flex-shrink-0 ml-8">
                 <img
-                  src={resolveImageUrl(currentHero.flyerImageUrl)}
+                  src={resolveImageUrl(currentHero.flyerImageUrl, 800)}
                   alt={`${currentHero.name} flyer`}
                   className="h-[340px] w-auto rounded-xl shadow-2xl shadow-black/50 object-contain border border-white/10"
                 />

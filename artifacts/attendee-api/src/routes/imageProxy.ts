@@ -39,8 +39,8 @@ router.get("/public/image", async (req, res) => {
     return;
   }
 
-  const width = Math.min(Math.max(parseInt(String(w ?? "800"), 10) || 800, 50), 2000);
-  const quality = Math.min(Math.max(parseInt(String(q ?? "85"), 10) || 85, 10), 100);
+  const width = Math.min(Math.max(parseInt(String(w ?? "1200"), 10) || 1200, 50), 2400);
+  const quality = Math.min(Math.max(parseInt(String(q ?? "88"), 10) || 88, 10), 100);
 
   const key = cacheKey(url, width, quality);
   const cached = cache.get(key);
