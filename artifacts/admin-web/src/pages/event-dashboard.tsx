@@ -59,7 +59,7 @@ export default function EventDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{fmt(summary?.transactionCount)}</p>
+            <p className="text-3xl font-bold">{summary?.transactionCount ?? 0}</p>
             <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.totalProcessed")}</p>
           </CardContent>
         </Card>
@@ -83,7 +83,7 @@ export default function EventDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{fmt(summary?.braceletCount)}</p>
+            <p className="text-3xl font-bold">{summary?.braceletCount ?? 0}</p>
             <p className="text-xs text-muted-foreground mt-1">{t("eventDashboard.activeWristbands")}</p>
           </CardContent>
         </Card>
