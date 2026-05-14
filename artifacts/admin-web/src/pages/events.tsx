@@ -72,6 +72,8 @@ type EventForm = {
   minAge: string;
   ticketingEnabled: boolean;
   nfcBraceletsEnabled: boolean;
+  externalTicketingUrl: string;
+  externalTicketingVendorName: string;
   coverImageUrl: string;
   flyerImageUrl: string;
   floatingGraphics: Array<{ url: string; opacity: number }>;
@@ -105,6 +107,8 @@ const emptyForm: EventForm = {
   minAge: "",
   ticketingEnabled: false,
   nfcBraceletsEnabled: true,
+  externalTicketingUrl: "",
+  externalTicketingVendorName: "",
   coverImageUrl: "",
   flyerImageUrl: "",
   floatingGraphics: [],
@@ -156,6 +160,8 @@ type RawEvent = Event & {
   minAge?: number | null;
   ticketingEnabled?: boolean;
   nfcBraceletsEnabled?: boolean;
+  externalTicketingUrl?: string | null;
+  externalTicketingVendorName?: string | null;
   coverImageUrl?: string | null;
   flyerImageUrl?: string | null;
   descriptionEn?: string | null;
@@ -357,6 +363,35 @@ function FormFields({
           <p className="text-xs text-destructive">{t("events.atLeastOneModule")}</p>
         )}
       </div>
+
+      {!isCreate && (
+        <div className="border rounded-md p-3 space-y-3">
+          <Label className="text-sm font-semibold">Boletería externa (opcional)</Label>
+          <p className="text-xs text-muted-foreground">
+            Si las boletas se venden en otra plataforma (Tu Boleta, Eventbrite, …), ingresa la URL y el nombre del vendedor. El evento aparecerá en Tapee Tickets pero el botón de compra redirigirá al tercero. <strong>Solo se puede activar si el evento no tiene tipos de boleta creados.</strong>
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Nombre del vendedor</Label>
+              <Input
+                placeholder="Tu Boleta, Eventbrite, …"
+                value={form.externalTicketingVendorName}
+                onChange={(e) => setForm((f) => ({ ...f, externalTicketingVendorName: e.target.value }))}
+                maxLength={100}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>URL de compra</Label>
+              <Input
+                placeholder="https://..."
+                type="url"
+                value={form.externalTicketingUrl}
+                onChange={(e) => setForm((f) => ({ ...f, externalTicketingUrl: e.target.value }))}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-1">
         <div className="flex items-center justify-between">
@@ -955,6 +990,8 @@ export default function Events() {
       minAge: raw.minAge != null ? String(raw.minAge) : "",
       ticketingEnabled: raw.ticketingEnabled ?? false,
       nfcBraceletsEnabled: raw.nfcBraceletsEnabled ?? true,
+      externalTicketingUrl: raw.externalTicketingUrl ?? "",
+      externalTicketingVendorName: raw.externalTicketingVendorName ?? "",
       coverImageUrl: raw.coverImageUrl ?? "",
       flyerImageUrl: raw.flyerImageUrl ?? "",
       floatingGraphics: raw.floatingGraphics?.length
@@ -1074,6 +1111,8 @@ export default function Events() {
       cityId: form.cityId || null,
       ticketingEnabled: form.ticketingEnabled,
       nfcBraceletsEnabled: form.nfcBraceletsEnabled,
+      externalTicketingUrl: form.externalTicketingUrl.trim() || null,
+      externalTicketingVendorName: form.externalTicketingVendorName.trim() || null,
       coverImageUrl: form.coverImageUrl || null,
       flyerImageUrl: form.flyerImageUrl || null,
       vimeoUrl: form.vimeoUrl || null,
