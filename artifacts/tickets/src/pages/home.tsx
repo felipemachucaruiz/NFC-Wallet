@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearch } from "wouter";
 import { Calendar, MapPin, Search, X, ChevronRight } from "lucide-react";
@@ -47,6 +47,13 @@ export default function Home() {
     staleTime: 30_000,
   });
 
+  // Unfiltered events — used to compute which categories are populated
+  const { data: allData } = useQuery({
+    queryKey: ["events", "all"],
+    queryFn: () => fetchEvents({}),
+    staleTime: 60_000,
+  });
+
   const { data: adsData } = useQuery({
     queryKey: ["ads"],
     queryFn: fetchAds,
@@ -63,7 +70,19 @@ export default function Home() {
   const dbCities: ApiCity[] = citiesData?.cities ?? [];
   const events = data?.events ?? [];
 
-  const categories = ["all", "concert", "festival", "sports", "theater", "conference", "party", "race", "other"];
+  // Order of categories matches attendee app — used as tiebreaker after sort by count
+  const ALL_CATEGORIES = ["race", "concert", "festival", "sports", "theater", "conference", "party", "other"];
+  const sortedCategories = useMemo(() => {
+    const allEvents = allData?.events ?? [];
+    const counts: Record<string, number> = {};
+    for (const ev of allEvents) {
+      if (ev.category) counts[ev.category] = (counts[ev.category] ?? 0) + 1;
+    }
+    const populated = ALL_CATEGORIES
+      .filter((cat) => (counts[cat] ?? 0) > 0)
+      .sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0));
+    return ["all", ...populated];
+  }, [allData]);
 
   const filteredEvents = events;
 
@@ -301,7 +320,7 @@ export default function Home() {
             className="flex gap-2 overflow-x-auto py-4 px-3"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
-            {categories.map((cat) => (
+            {sortedCategories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => { setCategoryFilter(cat); setVisibleCount(ITEMS_PER_PAGE); }}
