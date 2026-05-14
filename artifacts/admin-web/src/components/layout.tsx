@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import TapeeLogo from "@/components/TapeeLogo";
 import { useGetCurrentAuthUser, useGetEvent, customFetch, setAuthTokenGetter } from "@workspace/api-client-react";
@@ -40,6 +41,8 @@ import {
   FlaskConical,
   Megaphone,
   HandCoins,
+  ChevronDown,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -140,8 +143,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/event-users" icon={Users} label={t("nav.staffUsers")} />
 
               {ticketingEnabled && (
-                <>
-                  <NavSectionLabel label={t("nav.ticketingSection")} />
+                <NavSection
+                  label={t("nav.ticketingSection")}
+                  icon={TicketCheck}
+                  activeHrefs={["/event-days", "/event-venue-map", "/event-ticket-types", "/event-sales-config", "/event-sales-dashboard", "/event-orders", "/event-attendees", "/event-liquidacion", "/event-checkins", "/event-guest-lists"]}
+                >
                   <NavItem href="/event-days" icon={CalendarDays} label={t("nav.eventDays")} />
                   <NavItem href="/event-venue-map" icon={Map} label={t("nav.venueMap")} />
                   <NavItem href="/event-ticket-types" icon={Ticket} label={t("nav.ticketTypes")} />
@@ -152,12 +158,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <NavItem href="/event-liquidacion" icon={HandCoins} label="Liquidación" />
                   <NavItem href="/event-checkins" icon={UserCheck} label={t("nav.checkins")} />
                   <NavItem href="/event-guest-lists" icon={ListChecks} label={t("nav.guestLists")} />
-                </>
+                </NavSection>
               )}
 
               {nfcBraceletsEnabled && (
-                <>
-                  <NavSectionLabel label={t("nav.cashlessSection")} />
+                <NavSection
+                  label={t("nav.cashlessSection")}
+                  icon={Wallet}
+                  activeHrefs={["/event-merchants", "/event-products", "/event-locations", "/event-bracelets", "/event-access-zones", "/event-transactions", "/event-split-sessions", "/event-inventory", "/event-refund-requests", "/event-payouts", "/sync-issues", "/event-settlement"]}
+                >
                   <NavItem href="/event-merchants" icon={Store} label={t("nav.merchants")} />
                   <NavItem href="/event-products" icon={ShoppingBag} label={t("nav.products")} />
                   <NavItem href="/event-locations" icon={MapPinned} label={t("nav.locations")} />
@@ -168,11 +177,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <NavItem href="/event-inventory" icon={Package} label={t("nav.inventory")} />
                   <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
                   <NavItem href="/event-payouts" icon={CreditCard} label={t("nav.payouts")} />
-                </>
+                  <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />
+                  <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />
+                </NavSection>
               )}
 
-              {nfcBraceletsEnabled && <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />}
-              {nfcBraceletsEnabled && <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />}
               <NavItem href="/event-analytics" icon={BarChart3} label={t("nav.analytics", "Analytics")} />
               <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
               <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
@@ -191,8 +200,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/event-users" icon={Users} label={t("nav.staffUsers")} />
 
               {ticketingEnabled && (
-                <>
-                  <NavSectionLabel label={t("nav.ticketingSection")} />
+                <NavSection
+                  label={t("nav.ticketingSection")}
+                  icon={TicketCheck}
+                  activeHrefs={["/event-days", "/event-venue-map", "/event-ticket-types", "/event-sales-config", "/event-sales-dashboard", "/event-orders", "/event-attendees", "/event-liquidacion", "/event-checkins", "/event-guest-lists"]}
+                >
                   <NavItem href="/event-days" icon={CalendarDays} label={t("nav.eventDays")} />
                   <NavItem href="/event-venue-map" icon={Map} label={t("nav.venueMap")} />
                   <NavItem href="/event-ticket-types" icon={Ticket} label={t("nav.ticketTypes")} />
@@ -203,12 +215,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <NavItem href="/event-liquidacion" icon={HandCoins} label="Liquidación" />
                   <NavItem href="/event-checkins" icon={UserCheck} label={t("nav.checkins")} />
                   <NavItem href="/event-guest-lists" icon={ListChecks} label={t("nav.guestLists")} />
-                </>
+                </NavSection>
               )}
 
               {nfcBraceletsEnabled && (
-                <>
-                  <NavSectionLabel label={t("nav.cashlessSection")} />
+                <NavSection
+                  label={t("nav.cashlessSection")}
+                  icon={Wallet}
+                  activeHrefs={["/event-merchants", "/event-products", "/event-locations", "/event-bracelets", "/event-access-zones", "/event-transactions", "/event-split-sessions", "/event-inventory", "/event-refund-requests", "/event-payouts", "/sync-issues", "/event-settlement"]}
+                >
                   <NavItem href="/event-merchants" icon={Store} label={t("nav.merchants")} />
                   <NavItem href="/event-products" icon={ShoppingBag} label={t("nav.products")} />
                   <NavItem href="/event-locations" icon={MapPinned} label={t("nav.locations")} />
@@ -219,11 +234,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <NavItem href="/event-inventory" icon={Package} label={t("nav.inventory")} />
                   <NavItem href="/event-refund-requests" icon={RefreshCcw} label={t("nav.refunds")} />
                   <NavItem href="/event-payouts" icon={CreditCard} label={t("nav.payouts")} />
-                </>
+                  <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />
+                  <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />
+                </NavSection>
               )}
 
-              {nfcBraceletsEnabled && <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />}
-              {nfcBraceletsEnabled && <NavItem href="/event-settlement" icon={FileBarChart} label={t("nav.settlement")} />}
               <NavItem href="/event-analytics" icon={BarChart3} label={t("nav.analytics", "Analytics")} />
               <NavItem href="/event-settings" icon={Settings} label={t("nav.settings")} />
               <NavItem href="/event-reports" icon={FileText} label={t("nav.reports")} />
@@ -276,11 +291,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function NavSectionLabel({ label }: { label: string }) {
+function NavSection({
+  label,
+  icon: Icon,
+  children,
+  activeHrefs,
+}: {
+  label: string;
+  icon: React.ElementType;
+  children: React.ReactNode;
+  activeHrefs: string[];
+}) {
+  const [location] = useLocation();
+  const isChildActive = activeHrefs.some((h) => location === h || location.startsWith(`${h}/`));
+  const [open, setOpen] = useState(isChildActive);
+
   return (
-    <p className="text-xs uppercase tracking-wider text-sidebar-foreground/50 font-semibold pt-3 pb-1 px-3">
-      {label}
-    </p>
+    <div className="mt-1">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs uppercase tracking-wider font-semibold text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors"
+      >
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        <span className="flex-1 text-left">{label}</span>
+        <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", open && "rotate-180")} />
+      </button>
+      {open && <div className="mt-0.5">{children}</div>}
+    </div>
   );
 }
 
