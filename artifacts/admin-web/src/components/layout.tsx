@@ -327,7 +327,7 @@ function NavItem({ href, icon: Icon, label }: { href: string; icon: React.Elemen
 
   return (
     <Link href={href} className={cn(
-      "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+      "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors uppercase tracking-wide",
       isActive
         ? "bg-sidebar-accent text-sidebar-accent-foreground"
         : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
