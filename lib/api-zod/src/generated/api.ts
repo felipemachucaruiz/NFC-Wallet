@@ -1950,6 +1950,35 @@ export const CancelSplitSessionResponse = zod.object({
 });
 
 /**
+ * Streams a response using `text/event-stream`. Events emitted:
+- `data: {"type":"text","content":"..."}` — partial assistant text
+- `data: {"type":"tool","name":"..."}` — when the model invokes a tool
+- `data: {"type":"done"}` — final marker
+- `data: {"type":"error","message":"..."}` — error
+
+ * @summary Chat with the AI assistant about a live event (Server-Sent Events stream)
+ */
+export const aiChatBodyMessagesMax = 40;
+
+export const AiChatBody = zod.object({
+  eventId: zod
+    .string()
+    .optional()
+    .describe(
+      "Event scope; required for admin role, ignored for event_admin (uses their assigned event)",
+    ),
+  messages: zod
+    .array(
+      zod.object({
+        role: zod.enum(["user", "assistant"]),
+        content: zod.string(),
+      }),
+    )
+    .min(1)
+    .max(aiChatBodyMessagesMax),
+});
+
+/**
  * @summary List payouts (admin sees all; merchant_admin sees own)
  */
 export const ListPayoutsQueryParams = zod.object({

@@ -45,6 +45,8 @@ tags:
     description: Real-time analytics dashboards for event admins and platform admins.
   - name: SplitPayments
     description: Group orders paid by multiple bracelets (split payment sessions).
+  - name: AI
+    description: AI assistant for event admins (chat over live event data).
 
 paths:
   /healthz:
@@ -1976,6 +1978,42 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  # ── AI Chat ──────────────────────────────────────────────────────────────────
+  /ai/chat:
+    post:
+      tags: [AI]
+      operationId: aiChat
+      summary: Chat with the AI assistant about a live event (Server-Sent Events stream)
+      description: |
+        Streams a response using `text/event-stream`. Events emitted:
+        - `data: {"type":"text","content":"..."}` — partial assistant text
+        - `data: {"type":"tool","name":"..."}` — when the model invokes a tool
+        - `data: {"type":"done"}` — final marker
+        - `data: {"type":"error","message":"..."}` — error
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiChatBody'
+      responses:
+        '200':
+          description: Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
 
   # ── Payouts ──────────────────────────────────────────────────────────────────
   /payouts:
@@ -4920,6 +4958,31 @@ components:
           $ref: '#/components/schemas/SplitPaymentSession'
         transaction:
           $ref: '#/components/schemas/TransactionLog'
+
+    # ── AI Chat ───────────────────────────────────────────────────────────────
+    AiChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+
+    AiChatBody:
+      type: object
+      required: [messages]
+      properties:
+        eventId:
+          type: string
+          description: Event scope; required for admin role, ignored for event_admin (uses their assigned event)
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items:
+            $ref: '#/components/schemas/AiChatMessage'
 
     # ── Payouts ───────────────────────────────────────────────────────────────
     PayoutPaymentMethod:
