@@ -134,13 +134,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Page header */}
-      <div className="px-8 py-5 flex items-center">
-        <TapeeLogo className="h-7" />
-      </div>
-
       {/* Center content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 gap-8">
+        <TapeeLogo className="h-14" />
         <div className="w-full max-w-sm">
           <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl">
             {step === "credentials" ? (
