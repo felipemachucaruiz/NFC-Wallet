@@ -53,6 +53,7 @@ import { useTranslation } from "react-i18next";
 import { LANGUAGE_KEY } from "@/i18n";
 import { useEventContext } from "@/contexts/event-context";
 import { AiChat } from "@/components/ai-chat";
+import { setDateLocale } from "@/lib/date";
 
 const NavSearchContext = createContext("");
 
@@ -83,6 +84,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     const next = i18n.language === "es" ? "en" : "es";
     i18n.changeLanguage(next);
     localStorage.setItem(LANGUAGE_KEY, next);
+    setDateLocale(next);
   };
 
   if (isLoading) {
@@ -283,10 +285,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
             <div className="flex items-center gap-2 mb-1">
               <LifeBuoy className="h-3.5 w-3.5 text-primary" />
-              <span className="text-[11px] font-semibold text-foreground">Help & Support</span>
+              <span className="text-[11px] font-semibold text-foreground">{t("nav.helpSupport")}</span>
             </div>
             <p className="text-[10px] text-muted-foreground leading-relaxed">
-              Need help? Contact your Tapee administrator.
+              {t("nav.helpText")}
             </p>
           </div>
           <button
@@ -295,7 +297,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
           >
             <Languages className="h-3.5 w-3.5 shrink-0" />
-            {i18n.language === "es" ? "Switch to EN" : "Cambiar a ES"}
+            {i18n.language === "es" ? t("nav.switchToEn") : t("nav.switchToEs")}
           </button>
         </div>
       </aside>
@@ -322,12 +324,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </PopoverTrigger>
               <PopoverContent align="end" className="w-72 p-0">
                 <div className="px-4 py-3 border-b border-border">
-                  <p className="text-sm font-semibold">Notificaciones</p>
+                  <p className="text-sm font-semibold">{t("nav.notifications")}</p>
                 </div>
                 <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
                   <BellOff className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">Sin notificaciones</p>
-                  <p className="text-xs text-muted-foreground/60">Estás al día.</p>
+                  <p className="text-sm text-muted-foreground">{t("nav.noNotifications")}</p>
+                  <p className="text-xs text-muted-foreground/60">{t("nav.upToDate")}</p>
                 </div>
               </PopoverContent>
             </Popover>
