@@ -328,7 +328,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Redirect www → apex (belt-and-suspenders in case traffic bypasses Cloudflare)
-  const host = req.headers.host || "";
+  const host = req.headers["x-forwarded-host"] || req.headers.host || "";
   if (host === WWW_HOST || host.startsWith("www.")) {
     res.writeHead(301, { Location: `${SITE}${req.url}` });
     res.end();
