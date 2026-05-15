@@ -3,7 +3,6 @@ import { Link, useLocation } from "wouter";
 import TapeeLogo from "@/components/TapeeLogo";
 import { useGetCurrentAuthUser, useGetEvent, customFetch, setAuthTokenGetter } from "@workspace/api-client-react";
 import { AUTH_TOKEN_KEY } from "@/pages/login";
-import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Calendar,
@@ -43,6 +42,9 @@ import {
   HandCoins,
   ChevronDown,
   Wallet,
+  Bell,
+  Search,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -91,17 +93,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isEventAdmin = role === "event_admin";
   const isTicketingAuditor = role === "ticketing_auditor";
 
+  const userInitial = user.user.firstName?.charAt(0) || user.user.email?.charAt(0) || "U";
+  const userName = [user.user.firstName, user.user.lastName].filter(Boolean).join(" ") || user.user.email || "";
+
   return (
     <div className="h-screen overflow-hidden flex bg-background text-foreground">
-      <aside className="w-64 border-r border-border bg-sidebar flex flex-col">
-        <div className="p-5 border-b border-border">
-          <TapeeLogo className="h-8 mb-2" />
-          <p className="text-xs text-primary/80 uppercase tracking-wider font-semibold">
+      {/* ── Sidebar ── */}
+      <aside className="w-60 border-r border-border bg-sidebar flex flex-col shrink-0">
+        {/* Logo */}
+        <div className="px-5 py-4 border-b border-border">
+          <TapeeLogo className="h-7 mb-1.5" />
+          <p className="text-[10px] text-primary/70 uppercase tracking-widest font-semibold">
             {isGlobalAdmin ? t("nav.globalCommand") : isTicketingAuditor ? "Auditoría" : t("nav.eventControl")}
           </p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Search */}
+        <div className="px-3 py-2.5 border-b border-border">
+          <div className="flex items-center gap-2 bg-muted/60 rounded-md px-2.5 py-1.5">
+            <Search className="h-3 w-3 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              placeholder={t("common.search")}
+              className="bg-transparent text-[11px] outline-none w-full text-foreground placeholder:text-muted-foreground/60 min-w-0"
+            />
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {isGlobalAdmin && !managingEvent && (
             <>
               <NavItem href="/dashboard" icon={LayoutDashboard} label={t("nav.dashboard")} />
@@ -130,12 +150,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <>
               <button
                 onClick={() => { setEventId(""); setLocation("/events"); }}
-                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-primary hover:bg-sidebar-accent/50 w-full text-left mb-1"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-[10px] font-semibold text-primary hover:bg-sidebar-accent/50 w-full text-left mb-1 uppercase tracking-wider"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft className="h-3.5 w-3.5" />
                 {t("nav.backToEvents")}
               </button>
-              <p className="text-xs px-3 py-1 text-sidebar-foreground/60 truncate mb-2">
+              <p className="text-[10px] px-3 py-1 text-sidebar-foreground/50 truncate mb-1">
                 {(eventRecord?.name as string) || "..."}
               </p>
 
@@ -189,9 +209,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           )}
 
           {isTicketingAuditor && (
-            <>
-              <NavItem href="/auditor-ticket-sales" icon={TicketCheck} label="Ventas de Boletas" />
-            </>
+            <NavItem href="/auditor-ticket-sales" icon={TicketCheck} label="Ventas de Boletas" />
           )}
 
           {isEventAdmin && (
@@ -246,42 +264,78 @@ export function Layout({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3 px-3 py-2 mb-3 rounded-md bg-sidebar-accent/50">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-              {user.user.firstName?.charAt(0) || user.user.email?.charAt(0) || "U"}
+        {/* Help card + actions */}
+        <div className="p-3 border-t border-border space-y-2">
+          <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <LifeBuoy className="h-3.5 w-3.5 text-primary" />
+              <span className="text-[11px] font-semibold text-foreground">Help & Support</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-sidebar-foreground">
-                {user.user.firstName} {user.user.lastName}
-              </p>
-              <p className="text-xs truncate text-sidebar-foreground/60">{user.user.email}</p>
-            </div>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Need help? Contact your Tapee administrator.
+            </p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground mb-1"
+          <button
             onClick={toggleLanguage}
             data-testid="button-toggle-language"
+            className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
           >
-            <Languages className="mr-2 h-4 w-4" />
-            {i18n.language === "es" ? "EN" : "ES"}
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            onClick={handleLogout}
-            data-testid="button-logout"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            {t("nav.signOut")}
-          </Button>
+            <Languages className="h-3.5 w-3.5 shrink-0" />
+            {i18n.language === "es" ? "Switch to EN" : "Cambiar a ES"}
+          </button>
         </div>
       </aside>
 
+      {/* ── Main area ── */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden bg-background">
-        <div className="flex-1 overflow-y-auto p-8">
+        {/* Top header */}
+        <header className="h-13 border-b border-border bg-background shrink-0 flex items-center justify-between px-6">
+          <div className="flex items-center gap-2">
+            {managingEvent && eventRecord?.name && (
+              <span className="text-xs text-muted-foreground font-medium truncate max-w-xs">
+                {eventRecord.name as string}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Notification bell */}
+            <button className="relative p-2 rounded-md hover:bg-muted transition-colors">
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full" />
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-5 bg-border mx-1" />
+
+            {/* User info */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                {userInitial}
+              </div>
+              <div className="hidden sm:block leading-none">
+                <p className="text-xs font-semibold text-foreground">{userName}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider">{user.user.role}</p>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-5 bg-border mx-1" />
+
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
+              data-testid="button-logout"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t("nav.signOut")}</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <div className="flex-1 overflow-y-auto p-6">
           {children}
         </div>
       </main>
@@ -310,13 +364,13 @@ function NavSection({
     <div className="mt-1">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-semibold text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors"
+        className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-semibold text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/30 transition-colors"
       >
         <Icon className="h-3.5 w-3.5 shrink-0" />
         <span className="flex-1 text-left">{label}</span>
         <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", open && "rotate-180")} />
       </button>
-      {open && <div className="mt-0.5">{children}</div>}
+      {open && <div className="mt-0.5 pl-1">{children}</div>}
     </div>
   );
 }
@@ -327,10 +381,10 @@ function NavItem({ href, icon: Icon, label }: { href: string; icon: React.Elemen
 
   return (
     <Link href={href} className={cn(
-      "flex items-center gap-3 px-3 py-1.5 rounded-md text-[10px] font-semibold transition-colors uppercase tracking-wider",
+      "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[10px] font-semibold transition-colors uppercase tracking-wider",
       isActive
         ? "bg-primary text-black"
-        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+        : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
     )}>
       <Icon className="h-3.5 w-3.5 shrink-0" />
       {label}
