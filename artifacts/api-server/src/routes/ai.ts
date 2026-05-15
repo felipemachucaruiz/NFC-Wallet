@@ -12,13 +12,14 @@ const router: IRouter = Router();
 
 const chatBodySchema = z.object({
   eventId: z.string().optional(),
+  language: z.enum(["es", "en"]).optional().default("es"),
   messages: z.array(z.object({
     role: z.enum(["user", "assistant"]),
     content: z.string().min(1).max(10_000),
   })).min(1).max(40),
 });
 
-const SYSTEM_PROMPT = `Eres el Asistente Tapee — un copiloto de datos para administradores de eventos en vivo en Colombia.
+const SYSTEM_PROMPT_ES = `Eres el Asistente Tapee — un copiloto de datos para administradores de eventos en vivo en Colombia.
 
 Tu rol:
 - Responder preguntas sobre ventas, inventario, asistencia, salud operativa y métricas del evento del usuario.
@@ -39,6 +40,28 @@ Recomendaciones / sugerencias de negocio:
 Limitaciones:
 - No tienes acceso a información personal de asistentes (nombres, correos, teléfonos). Si te lo piden, declina educadamente.
 - No puedes ejecutar acciones (aprobar reembolsos, cerrar bares, etc.) — solo consultar y recomendar.`;
+
+const SYSTEM_PROMPT_EN = `You are Tapee Assistant — a data copilot for live event administrators.
+
+Your role:
+- Answer questions about sales, inventory, attendance, operational health, and event metrics.
+- Be concise. Give concrete numbers (e.g. "You've billed $12,450,000 across 348 transactions") rather than long explanations.
+- Use Markdown formatting: bold for key figures, bullet lists when there are multiple items.
+- Speak in English, informal but professional.
+- Format currency with thousands separators and include the currency code when relevant.
+
+When to use tools:
+- If the answer is in the EVENT SNAPSHOT you receive at the start, answer directly WITHOUT calling tools.
+- Call tools ONLY when you need data not in the snapshot (projections, specific breakdowns, deep dives on a product/bar).
+- Never invent numbers. If you don't have the data, say so or call the appropriate tool.
+
+Business recommendations:
+- When asked "what do you recommend to increase sales?" or similar, base recommendations on REAL data from snapshot/tools: idle bars, top products, peak hours, etc.
+- Be direct and actionable: "El Tigre hasn't sold in 45 min — verify it's open" rather than "you could check El Tigre".
+
+Limitations:
+- You do not have access to attendee personal information (names, emails, phone numbers). If asked, decline politely.
+- You cannot execute actions (approve refunds, close bars, etc.) — only query and recommend.`;
 
 function writeSSE(res: Response, payload: Record<string, unknown>) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
@@ -101,8 +124,9 @@ router.post(
       const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
       // Conversation messages
+      const systemPrompt = parsed.data.language === "en" ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_ES;
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-        { role: "system", content: `${SYSTEM_PROMPT}\n\n${snapshotPrompt}` },
+        { role: "system", content: `${systemPrompt}\n\n${snapshotPrompt}` },
         ...parsed.data.messages.map((m) => ({ role: m.role, content: m.content } as OpenAI.Chat.ChatCompletionMessageParam)),
       ];
 
