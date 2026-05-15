@@ -156,8 +156,10 @@
     "verify": "Verify",
     "backToLogin": "Back to login",
     "unauthorizedRole": "Your account does not have access to the admin portal.",
-    "loginFailed": "Login failed",
-    "twoFaFailed": "2FA verification failed"
+    "loginFailed": "Login failed. Please try again.",
+    "invalidCredentials": "Invalid credentials. Please check your email and password.",
+    "twoFaFailed": "Invalid or expired verification code.",
+    "verifying": "Verifying..."
   },
   "forgotPassword": {
     "title": "Admin Portal",

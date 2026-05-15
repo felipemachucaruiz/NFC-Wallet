@@ -32,6 +32,15 @@ export default function Login() {
 
   const totpCode = digits.join("");
 
+  const getAuthError = (err: unknown, fallbackKey: string): string => {
+    const msg = err instanceof Error ? err.message : "";
+    const lower = msg.toLowerCase();
+    if (lower.includes("invalid credentials") || lower.includes("incorrect password") || lower.includes("user not found")) {
+      return t("login.invalidCredentials");
+    }
+    return t(fallbackKey);
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "unauthorized_role") {
@@ -72,7 +81,7 @@ export default function Login() {
         await finishLogin(result.token);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("login.loginFailed"));
+      setError(getAuthError(err, "login.loginFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +96,7 @@ export default function Login() {
       const result = await apiVerify2FA(partialToken, totpCode);
       await finishLogin(result.token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("login.twoFaFailed"));
+      setError(getAuthError(err, "login.twoFaFailed"));
       setDigits(["", "", "", "", "", ""]);
       digitRefs.current[0]?.focus();
     } finally {

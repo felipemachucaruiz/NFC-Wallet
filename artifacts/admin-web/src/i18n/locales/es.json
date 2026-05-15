@@ -156,8 +156,10 @@
     "verify": "Verificar",
     "backToLogin": "Volver al inicio de sesión",
     "unauthorizedRole": "Tu cuenta no tiene acceso al portal de administración.",
-    "loginFailed": "Error al iniciar sesión",
-    "twoFaFailed": "Error de verificación 2FA"
+    "loginFailed": "Error al iniciar sesión. Por favor intenta de nuevo.",
+    "invalidCredentials": "Credenciales incorrectas. Verifica tu correo y contraseña.",
+    "twoFaFailed": "Código de verificación inválido o expirado.",
+    "verifying": "Verificando..."
   },
   "forgotPassword": {
     "title": "Portal Admin",
