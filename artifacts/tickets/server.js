@@ -112,6 +112,80 @@ async function fetchHomeEvents() {
   }
 }
 
+// --- Dynamic sitemap with 1-hour in-memory cache ---
+let _sitemapXml = null;
+let _sitemapBuiltAt = 0;
+const SITEMAP_TTL_MS = 60 * 60 * 1000;
+
+async function buildSitemap() {
+  const now = Date.now();
+  if (_sitemapXml && now - _sitemapBuiltAt < SITEMAP_TTL_MS) return _sitemapXml;
+
+  const today = new Date().toISOString().split("T")[0];
+  let events = [];
+  try {
+    const res = await fetch(`${API_BASE}/public/events?limit=1000`, {
+      headers: { "User-Agent": "TapeeBot/1.0 (sitemap)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      events = data.events || [];
+    }
+  } catch { /* serve with static pages only on API failure */ }
+
+  const staticPages = [
+    { url: "/",           priority: "1.0", changefreq: "daily"   },
+    { url: "/terminos",   priority: "0.3", changefreq: "monthly" },
+    { url: "/privacidad", priority: "0.3", changefreq: "monthly" },
+    { url: "/devoluciones", priority: "0.3", changefreq: "monthly" },
+  ];
+
+  let xml =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n` +
+    `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
+
+  for (const page of staticPages) {
+    xml += `  <url>\n`;
+    xml += `    <loc>${SITE}${page.url}</loc>\n`;
+    xml += `    <lastmod>${today}</lastmod>\n`;
+    xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+    xml += `    <priority>${page.priority}</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  for (const event of events) {
+    const slugOrId = event.slug || event.id;
+    const lastmod = (event.updatedAt || event.startsAt || today).split("T")[0];
+
+    xml += `  <url>\n`;
+    xml += `    <loc>${SITE}/event/${encodeURIComponent(slugOrId)}</loc>\n`;
+    xml += `    <lastmod>${lastmod}</lastmod>\n`;
+    xml += `    <changefreq>daily</changefreq>\n`;
+    xml += `    <priority>0.8</priority>\n`;
+
+    const coverUrl = resolveImageUrl(event.coverImageUrl);
+    const flyerUrl = resolveImageUrl(event.flyerImageUrl);
+    const seen = new Set();
+    for (const imgUrl of [coverUrl, flyerUrl]) {
+      if (imgUrl && !seen.has(imgUrl)) {
+        seen.add(imgUrl);
+        xml += `    <image:image>\n`;
+        xml += `      <image:loc>${escapeHtml(imgUrl)}</image:loc>\n`;
+        xml += `      <image:title>${escapeHtml(event.name)}</image:title>\n`;
+        xml += `    </image:image>\n`;
+      }
+    }
+    xml += `  </url>\n`;
+  }
+
+  xml += `</urlset>`;
+  _sitemapXml = xml;
+  _sitemapBuiltAt = now;
+  return xml;
+}
+
 function buildHomeHTML(events) {
   const websiteSchema = {
     "@context": "https://schema.org",
@@ -184,17 +258,19 @@ function buildEventHTML(data, slugOrId) {
   const { event, venues, ticketTypes, promoterCompany } = data;
   const venue = venues?.[0];
   const image = resolveImageUrl(event.coverImageUrl || event.flyerImageUrl);
-  const rawDesc =
+  const fullDesc =
     (event.longDescription || event.description || "")
       .replace(/<[^>]*>?/gm, "")
-      .trim()
-      .substring(0, 160) || `Compra boletas para ${event.name}`;
+      .trim() || `Compra boletas para ${event.name} en Tapee Tickets.`;
+  const metaDesc = fullDesc.substring(0, 160);
   const url = `${SITE}/event/${slugOrId}`;
+  const isPast = event.endsAt ? new Date(event.endsAt) < new Date() : false;
 
   const priceFrom =
     ticketTypes?.length > 0
       ? Math.min(...ticketTypes.map((tt) => tt.currentPrice ?? tt.basePrice ?? 0))
       : 0;
+  const currency = event.currencyCode || "COP";
 
   const images = [
     resolveImageUrl(event.coverImageUrl),
@@ -205,7 +281,7 @@ function buildEventHTML(data, slugOrId) {
     "@context": "https://schema.org",
     "@type": "Event",
     name: event.name,
-    description: rawDesc,
+    description: fullDesc.substring(0, 500),
     image: images.length ? images : undefined,
     url,
     startDate: event.startsAt,
@@ -237,7 +313,7 @@ function buildEventHTML(data, slugOrId) {
             "@type": "Offer",
             name: tt.name,
             price: tt.currentPrice ?? tt.basePrice ?? 0,
-            priceCurrency: event.currencyCode || "COP",
+            priceCurrency: currency,
             availability:
               tt.available === 0
                 ? "https://schema.org/SoldOut"
@@ -266,36 +342,55 @@ function buildEventHTML(data, slugOrId) {
       })
     : "";
 
+  const ticketListHtml = ticketTypes?.length > 0
+    ? `<ul>${ticketTypes.map((tt) => {
+        const price = tt.currentPrice ?? tt.basePrice ?? 0;
+        const avail = tt.available === 0 ? " (Agotado)" : "";
+        return `<li>${escapeHtml(tt.name)} — $${price.toLocaleString("es-CO")} ${escapeHtml(currency)}${avail}</li>`;
+      }).join("")}</ul>`
+    : "";
+
+  const venueStr = [event.venueAddress || venue?.address, venue?.city].filter(Boolean).join(", ");
+  const promoterStr = promoterCompany?.companyName || "";
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(event.name)} | Tapee Tickets</title>
-  <meta name="description" content="${escapeHtml(rawDesc)}" />
+  <meta name="description" content="${escapeHtml(metaDesc)}" />
+  <meta name="robots" content="${isPast ? "noindex, follow" : "index, follow"}" />
   <link rel="canonical" href="${url}" />
   <meta property="og:site_name" content="Tapee Tickets" />
   <meta property="og:locale" content="es_CO" />
-  <meta property="og:type" content="website" />
+  <meta property="og:type" content="event" />
   <meta property="og:url" content="${url}" />
   <meta property="og:title" content="${escapeHtml(event.name)} | Tapee Tickets" />
-  <meta property="og:description" content="${escapeHtml(rawDesc)}" />
+  <meta property="og:description" content="${escapeHtml(metaDesc)}" />
   ${image ? `<meta property="og:image" content="${image}" />\n  <meta property="og:image:width" content="1200" />\n  <meta property="og:image:height" content="630" />` : ""}
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@tapeeapp" />
   <meta name="twitter:title" content="${escapeHtml(event.name)} | Tapee Tickets" />
-  <meta name="twitter:description" content="${escapeHtml(rawDesc)}" />
+  <meta name="twitter:description" content="${escapeHtml(metaDesc)}" />
   ${image ? `<meta name="twitter:image" content="${image}" />` : ""}
   <script type="application/ld+json">${JSON.stringify(schema)}</script>
 </head>
 <body>
-  <h1>${escapeHtml(event.name)}</h1>
-  <p>${escapeHtml(rawDesc)}</p>
-  ${image ? `<img src="${image}" alt="${escapeHtml(event.name)}" width="1200" height="630" />` : ""}
-  ${dateStr ? `<p>Fecha: ${escapeHtml(dateStr)}</p>` : ""}
-  ${event.venueAddress || venue?.address ? `<p>Lugar: ${escapeHtml(event.venueAddress || venue?.address || "")}</p>` : ""}
-  ${priceFrom > 0 ? `<p>Desde $${priceFrom.toLocaleString("es-CO")} ${escapeHtml(event.currencyCode || "COP")}</p>` : ""}
-  <p><a href="${url}">Ver y comprar boletas en Tapee Tickets</a></p>
+  <header>
+    <p><a href="${SITE}">← Tapee Tickets — Todos los eventos</a></p>
+  </header>
+  <main>
+    <h1>${escapeHtml(event.name)}</h1>
+    ${image ? `<img src="${image}" alt="${escapeHtml(event.name)}" width="1200" height="630" />` : ""}
+    ${dateStr ? `<p><strong>Fecha:</strong> ${escapeHtml(dateStr)}</p>` : ""}
+    ${venueStr ? `<p><strong>Lugar:</strong> ${escapeHtml(venueStr)}</p>` : ""}
+    ${promoterStr ? `<p><strong>Organiza:</strong> ${escapeHtml(promoterStr)}</p>` : ""}
+    ${priceFrom > 0 ? `<p><strong>Desde:</strong> $${priceFrom.toLocaleString("es-CO")} ${escapeHtml(currency)}</p>` : ""}
+    ${ticketListHtml ? `<h2>Tipos de boleta</h2>${ticketListHtml}` : ""}
+    ${fullDesc ? `<h2>Acerca del evento</h2><p>${escapeHtml(fullDesc)}</p>` : ""}
+    <p><a href="${url}">Comprar boletas en Tapee Tickets</a></p>
+  </main>
 </body>
 </html>`;
 }
@@ -341,6 +436,15 @@ const server = http.createServer(async (req, res) => {
   } catch {
     res.writeHead(400);
     res.end("Bad request");
+    return;
+  }
+
+  // Dynamic sitemap — served to everyone, cached 1 hour at edge
+  if (pathname === "/sitemap.xml") {
+    const xml = await buildSitemap();
+    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    res.writeHead(200, { "Content-Type": "application/xml; charset=utf-8" });
+    res.end(xml);
     return;
   }
 
