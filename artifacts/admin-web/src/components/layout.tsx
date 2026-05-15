@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
 import TapeeLogo from "@/components/TapeeLogo";
 import { useGetCurrentAuthUser, useGetEvent, customFetch, setAuthTokenGetter } from "@workspace/api-client-react";
@@ -45,18 +45,23 @@ import {
   Bell,
   Search,
   LifeBuoy,
+  BellOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTranslation } from "react-i18next";
 import { LANGUAGE_KEY } from "@/i18n";
 import { useEventContext } from "@/contexts/event-context";
 import { AiChat } from "@/components/ai-chat";
+
+const NavSearchContext = createContext("");
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { t, i18n } = useTranslation();
   const { data: user, isLoading } = useGetCurrentAuthUser();
   const [, setLocation] = useLocation();
 
+  const [navSearch, setNavSearch] = useState("");
   const { eventId: ctxEventId, setEventId } = useEventContext();
   const role = user?.user?.role;
   const eventId = role === "admin" ? ctxEventId : (user?.user?.eventId ?? "");
@@ -114,13 +119,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Search className="h-3 w-3 text-muted-foreground shrink-0" />
             <input
               type="text"
+              value={navSearch}
+              onChange={(e) => setNavSearch(e.target.value)}
               placeholder={t("common.search")}
               className="bg-transparent text-[11px] outline-none w-full text-foreground placeholder:text-muted-foreground/60 min-w-0"
             />
+            {navSearch && (
+              <button onClick={() => setNavSearch("")} className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
+                <span className="text-xs leading-none">✕</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Nav */}
+        <NavSearchContext.Provider value={navSearch}>
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {isGlobalAdmin && !managingEvent && (
             <>
@@ -263,6 +276,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </>
           )}
         </nav>
+        </NavSearchContext.Provider>
 
         {/* Help card + actions */}
         <div className="p-3 border-t border-border space-y-2">
@@ -300,10 +314,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-2">
             {/* Notification bell */}
-            <button className="relative p-2 rounded-md hover:bg-muted transition-colors">
-              <Bell className="h-4 w-4 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full" />
-            </button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="p-2 rounded-md hover:bg-muted transition-colors">
+                  <Bell className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-0">
+                <div className="px-4 py-3 border-b border-border">
+                  <p className="text-sm font-semibold">Notificaciones</p>
+                </div>
+                <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                  <BellOff className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">Sin notificaciones</p>
+                  <p className="text-xs text-muted-foreground/60">Estás al día.</p>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             {/* Divider */}
             <div className="w-px h-5 bg-border mx-1" />
@@ -377,7 +404,10 @@ function NavSection({
 
 function NavItem({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
   const [location] = useLocation();
+  const search = useContext(NavSearchContext);
   const isActive = location === href || location.startsWith(`${href}/`);
+
+  if (search && !label.toLowerCase().includes(search.toLowerCase())) return null;
 
   return (
     <Link href={href} className={cn(
