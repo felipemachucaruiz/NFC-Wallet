@@ -80,6 +80,13 @@
     "noNotifications": "Sin notificaciones",
     "upToDate": "Estás al día."
   },
+  "authFooter": {
+    "copyright": "© 2026 Tapee S.A.S Nit: 902064713-1 - Todos los derechos reservados.",
+    "privacy": "Política de Privacidad",
+    "terms": "Términos y Condiciones",
+    "help": "Solicitar Ayuda",
+    "switchLang": "English"
+  },
   "aiChat": {
     "buttonLabel": "Asistente IA",
     "title": "Asistente Tapee",

@@ -80,6 +80,13 @@
     "noNotifications": "No notifications",
     "upToDate": "You're all caught up."
   },
+  "authFooter": {
+    "copyright": "© 2026 Tapee S.A.S Nit: 902064713-1 - All rights reserved.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms & Conditions",
+    "help": "Get Help",
+    "switchLang": "Español"
+  },
   "aiChat": {
     "buttonLabel": "AI Assistant",
     "title": "Tapee Assistant",

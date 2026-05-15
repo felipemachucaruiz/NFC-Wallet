@@ -9,23 +9,11 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { getGetCurrentAuthUserQueryKey, getGetCurrentAuthUserQueryOptions, setAuthTokenGetter } from "@workspace/api-client-react";
 import { apiLogin, apiVerify2FA } from "@/lib/api";
 import { useTranslation } from "react-i18next";
+import { AuthFooter } from "@/components/auth-footer";
 
 export const AUTH_TOKEN_KEY = "tapee_admin_token";
 
 type Step = "credentials" | "totp";
-
-function AuthFooter() {
-  return (
-    <footer className="px-6 py-4 flex items-center justify-between text-[11px] text-muted-foreground/60 border-t border-border">
-      <span>© 2025 Tapee. All rights reserved.</span>
-      <div className="flex items-center gap-4">
-        <span className="hover:text-muted-foreground cursor-pointer transition-colors">Privacy</span>
-        <span className="hover:text-muted-foreground cursor-pointer transition-colors">Terms</span>
-        <span className="hover:text-muted-foreground cursor-pointer transition-colors">Get help</span>
-      </div>
-    </footer>
-  );
-}
 
 export default function Login() {
   const { t } = useTranslation();
