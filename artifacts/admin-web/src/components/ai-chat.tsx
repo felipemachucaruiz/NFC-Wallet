@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEventContext } from "@/contexts/event-context";
 import { useGetCurrentAuthUser } from "@workspace/api-client-react";
+import { useTranslation } from "react-i18next";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -19,35 +20,26 @@ type StreamEvent =
   | { type: "done" }
   | { type: "error"; message: string };
 
-const SUGGESTIONS = [
-  "¿Cuánto hemos facturado en total?",
-  "¿Qué productos están por agotarse?",
-  "¿Cuántas personas han ingresado y cuántas faltan?",
-  "¿Qué bares están idle o no han vendido?",
-  "Compara la última hora vs la hora anterior",
-  "¿Cuándo se acabará la cerveza Pilsen?",
-];
-
-const TOOL_LABELS: Record<string, string> = {
-  get_sales_summary: "Calculando ventas…",
-  get_sales_by_merchant: "Buscando por bar…",
-  get_sales_by_hour: "Analizando curva horaria…",
-  compare_to_previous_hour: "Comparando con la hora anterior…",
-  get_top_products: "Buscando top productos…",
-  get_payment_method_breakdown: "Desglosando métodos de pago…",
-  forecast_stockout: "Proyectando agotamiento…",
-  list_low_stock_products: "Buscando productos con poco stock…",
-  get_product_performance: "Analizando producto…",
-  get_merchant_health: "Revisando salud de bares…",
-  get_merchant_performance: "Analizando bar…",
-  get_checkin_breakdown: "Contando ingresos…",
-  get_event_capacity_status: "Revisando aforo…",
-  get_event_revenue_projection: "Proyectando facturación…",
-  get_wallet_behavior_snapshot: "Analizando billeteras…",
-  get_unclaimed_balances: "Calculando saldos sin gastar…",
-  list_flagged_bracelets: "Buscando pulseras marcadas…",
-  get_ticket_sales_summary: "Revisando boletería…",
-  list_pending_refund_requests: "Buscando reembolsos pendientes…",
+const TOOL_KEYS: Record<string, string> = {
+  get_sales_summary: "aiChat.tools.get_sales_summary",
+  get_sales_by_merchant: "aiChat.tools.get_sales_by_merchant",
+  get_sales_by_hour: "aiChat.tools.get_sales_by_hour",
+  compare_to_previous_hour: "aiChat.tools.compare_to_previous_hour",
+  get_top_products: "aiChat.tools.get_top_products",
+  get_payment_method_breakdown: "aiChat.tools.get_payment_method_breakdown",
+  forecast_stockout: "aiChat.tools.forecast_stockout",
+  list_low_stock_products: "aiChat.tools.list_low_stock_products",
+  get_product_performance: "aiChat.tools.get_product_performance",
+  get_merchant_health: "aiChat.tools.get_merchant_health",
+  get_merchant_performance: "aiChat.tools.get_merchant_performance",
+  get_checkin_breakdown: "aiChat.tools.get_checkin_breakdown",
+  get_event_capacity_status: "aiChat.tools.get_event_capacity_status",
+  get_event_revenue_projection: "aiChat.tools.get_event_revenue_projection",
+  get_wallet_behavior_snapshot: "aiChat.tools.get_wallet_behavior_snapshot",
+  get_unclaimed_balances: "aiChat.tools.get_unclaimed_balances",
+  list_flagged_bracelets: "aiChat.tools.list_flagged_bracelets",
+  get_ticket_sales_summary: "aiChat.tools.get_ticket_sales_summary",
+  list_pending_refund_requests: "aiChat.tools.list_pending_refund_requests",
 };
 
 function storageKey(eventId: string) {
@@ -71,9 +63,11 @@ function saveHistory(eventId: string, messages: ChatMessage[]) {
 }
 
 export function AiChat() {
+  const { t } = useTranslation();
   const { eventId: ctxEventId } = useEventContext();
   const { data: auth } = useGetCurrentAuthUser();
   const role = auth?.user?.role;
+  const suggestions = (t("aiChat.suggestions", { returnObjects: true }) as string[]);
   const eventId = role === "admin" ? ctxEventId : (auth?.user?.eventId ?? "");
   const visible = !!eventId && (role === "admin" || role === "event_admin");
 
@@ -218,10 +212,10 @@ export function AiChat() {
           onClick={() => setOpen(true)}
           className="fixed bottom-6 right-6 z-50 group flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-foreground shadow-[0_0_24px_rgba(0,241,255,0.4)] hover:shadow-[0_0_32px_rgba(0,241,255,0.6)] transition-all hover:scale-105"
           data-testid="ai-chat-fab"
-          aria-label="Abrir asistente IA"
+          aria-label={t("aiChat.buttonLabel")}
         >
           <Sparkles className="h-5 w-5" />
-          <span className="text-sm font-semibold pr-1">Asistente IA</span>
+          <span className="text-sm font-semibold pr-1">{t("aiChat.buttonLabel")}</span>
         </button>
       )}
 
@@ -235,15 +229,15 @@ export function AiChat() {
                 <Sparkles className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold leading-tight">Asistente Tapee</p>
-                <p className="text-xs text-muted-foreground leading-tight">Pregunta lo que quieras</p>
+                <p className="text-sm font-semibold leading-tight">{t("aiChat.title")}</p>
+                <p className="text-xs text-muted-foreground leading-tight">{t("aiChat.subtitle")}</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" onClick={clearHistory} title="Limpiar conversación" disabled={messages.length === 0}>
+              <Button variant="ghost" size="icon" onClick={clearHistory} title={t("aiChat.clearTitle")} disabled={messages.length === 0}>
                 <Trash2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setOpen(false)} title="Cerrar">
+              <Button variant="ghost" size="icon" onClick={() => setOpen(false)} title={t("aiChat.closeTitle")}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -254,10 +248,10 @@ export function AiChat() {
             {messages.length === 0 && !streaming && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Hola 👋 Pregúntame sobre las ventas, inventario, asistencia o salud operativa del evento. Algunas ideas:
+                  {t("aiChat.greeting")}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {SUGGESTIONS.map((s) => (
+                  {suggestions.map((s) => (
                     <button
                       key={s}
                       onClick={() => sendMessage(s)}
@@ -279,7 +273,7 @@ export function AiChat() {
                 {activeTool && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground px-3 py-2 rounded-lg bg-muted/40 border border-border w-fit">
                     <Wrench className="h-3 w-3 text-primary animate-pulse" />
-                    {TOOL_LABELS[activeTool] ?? `Ejecutando ${activeTool}…`}
+                    {TOOL_KEYS[activeTool] ? t(TOOL_KEYS[activeTool]) : t("aiChat.executingTool", { name: activeTool })}
                   </div>
                 )}
                 {partial && (
@@ -287,7 +281,7 @@ export function AiChat() {
                 )}
                 {!partial && !activeTool && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Pensando…
+                    <Loader2 className="h-3 w-3 animate-spin" /> {t("aiChat.thinking")}
                   </div>
                 )}
               </div>
@@ -309,7 +303,7 @@ export function AiChat() {
                     sendMessage(input);
                   }
                 }}
-                placeholder="Pregunta cualquier cosa sobre el evento…"
+                placeholder={t("aiChat.placeholder")}
                 rows={1}
                 className="flex-1 resize-none bg-muted/40 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 max-h-28"
                 style={{ minHeight: "38px" }}
@@ -317,7 +311,7 @@ export function AiChat() {
                 data-testid="ai-chat-input"
               />
               {streaming ? (
-                <Button type="button" size="icon" variant="outline" onClick={stopStreaming} title="Detener">
+                <Button type="button" size="icon" variant="outline" onClick={stopStreaming} title={t("aiChat.stopTitle")}>
                   <span className="h-3 w-3 bg-current rounded-sm" />
                 </Button>
               ) : (
@@ -327,7 +321,7 @@ export function AiChat() {
               )}
             </form>
             <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
-              La IA puede equivocarse. Verifica decisiones críticas.
+              {t("aiChat.disclaimer")}
             </p>
           </div>
         </div>
