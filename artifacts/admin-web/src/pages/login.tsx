@@ -121,12 +121,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div
+      className="min-h-screen flex flex-col bg-background relative"
+      style={{ backgroundImage: `url('${import.meta.env.BASE_URL}login-bg.jpg')`, backgroundSize: "cover", backgroundPosition: "center bottom" }}
+    >
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-black/65 pointer-events-none" />
+
       {/* Center content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 gap-8">
-        <TapeeLogo className="h-14" />
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8 gap-8">
+        <TapeeLogo className="h-16 drop-shadow-[0_0_18px_rgba(0,241,255,0.5)]" />
         <div className="w-full max-w-sm">
-          <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl">
+          <div className="bg-card/80 backdrop-blur-md border border-border/60 rounded-2xl p-8 shadow-2xl">
             {step === "credentials" ? (
               <>
                 <div className="flex justify-center mb-5">
@@ -254,7 +260,9 @@ export default function Login() {
         </div>
       </div>
 
-      <AuthFooter />
+      <div className="relative z-10">
+        <AuthFooter />
+      </div>
     </div>
   );
 }
