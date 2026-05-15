@@ -63,7 +63,7 @@ function saveHistory(eventId: string, messages: ChatMessage[]) {
 }
 
 export function AiChat() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { eventId: ctxEventId } = useEventContext();
   const { data: auth } = useGetCurrentAuthUser();
   const role = auth?.user?.role;
@@ -123,6 +123,7 @@ export function AiChat() {
         },
         body: JSON.stringify({
           eventId,
+          language: i18n.language === "en" ? "en" : "es",
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
         }),
         signal: controller.signal,
