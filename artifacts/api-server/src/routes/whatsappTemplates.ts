@@ -93,7 +93,7 @@ router.get("/whatsapp-templates/wati", requireAuth, requireRole("admin"), async 
     }
 
     const templates = rawList.map((t: Record<string, unknown>) => ({
-      id: watiStr(t.id) || watiStr(t.elementName),
+      id: watiStr(t.elementName),  // elementName is what WATI requires in template_name when sending
       elementName: watiStr(t.elementName),
       category: watiStr(t.category),
       languageCode: watiStr(t.language ?? t.languageCode),
