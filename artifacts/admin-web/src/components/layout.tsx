@@ -157,6 +157,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <NavItem href="/cities" icon={MapPin} label="Ciudades" />
               <NavItem href="/devices" icon={Tablet} label={t("nav.devices")} />
               <NavItem href="/sync-issues" icon={AlertCircle} label="Sync Issues POS" />
+              <NavItem href="/platform-config" icon={CreditCard} label={t("nav.paymentMethods")} />
               <NavItem href="/load-test" icon={FlaskConical} label={t("nav.loadTest")} />
             </>
           )}

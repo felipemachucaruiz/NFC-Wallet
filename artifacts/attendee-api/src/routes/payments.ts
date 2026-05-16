@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
 import * as Sentry from "@sentry/node";
 import { logger } from "../lib/logger";
-import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable, eventsTable, ticketOrdersTable, ticketTypesTable, ticketsTable, savedCardsTable } from "@workspace/db";
+import { db, braceletsTable, topUpsTable, wompiPaymentIntentsTable, usersTable, eventsTable, ticketOrdersTable, ticketTypesTable, ticketsTable, savedCardsTable, platformConfigTable } from "@workspace/db";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { requireRole } from "../middlewares/requireRole";
 import { z } from "zod";
@@ -90,6 +90,14 @@ router.post(
     }
 
     const parsed = initiatePaymentSchema.safeParse(req.body);
+    if (parsed.success) {
+      const [config] = await db.select({ enabledPaymentMethods: platformConfigTable.enabledPaymentMethods }).from(platformConfigTable).limit(1);
+      const enabled: string[] = config?.enabledPaymentMethods ?? ["nequi", "pse", "card", "bancolombia_transfer", "daviplata", "puntoscolombia"];
+      if (!enabled.includes(parsed.data.paymentMethod)) {
+        res.status(400).json({ error: "Payment method not available" });
+        return;
+      }
+    }
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;

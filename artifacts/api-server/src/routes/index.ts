@@ -40,6 +40,7 @@ import localServersRouter from "./localServers";
 import adsRouter from "./ads";
 import citiesRouter from "./cities";
 import aiRouter from "./ai";
+import platformConfigRouter from "./platformConfig";
 
 const router: IRouter = Router();
 
@@ -84,5 +85,6 @@ router.use(localServersRouter);
 router.use(adsRouter);
 router.use(citiesRouter);
 router.use(aiRouter);
+router.use(platformConfigRouter);
 
 export default router;

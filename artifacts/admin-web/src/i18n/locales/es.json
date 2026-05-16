@@ -72,6 +72,7 @@
     "devices": "Dispositivos",
     "analytics": "Analíticas",
     "loadTest": "Simulador Pre-Evento",
+    "paymentMethods": "Métodos de Pago",
     "helpSupport": "Ayuda y Soporte",
     "helpText": "¿Necesitas ayuda? Contacta a tu administrador Tapee.",
     "switchToEn": "Cambiar a EN",
@@ -79,6 +80,17 @@
     "notifications": "Notificaciones",
     "noNotifications": "Sin notificaciones",
     "upToDate": "Estás al día."
+  },
+  "platformConfig": {
+    "title": "Métodos de Pago",
+    "subtitle": "Configura qué métodos de pago en línea están disponibles para los asistentes en toda la plataforma.",
+    "methodsTitle": "Métodos de pago en línea (Wompi)",
+    "methodsDesc": "Los métodos deshabilitados no aparecerán en los flujos de recarga ni de compra de boletas. Al menos uno debe permanecer activo.",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "saved": "Configuración guardada",
+    "minOneRequired": "Al menos un método de pago debe permanecer activo",
+    "activeCount": "{{count}} de {{total}} métodos activos"
   },
   "authFooter": {
     "copyright": "© 2026 Tapee S.A.S Nit: 902064713-1 - Todos los derechos reservados.",

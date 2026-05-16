@@ -28,7 +28,7 @@ import { Card } from "@/components/ui/Card";
 import { formatCOP } from "@/utils/format";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
-import { useInitiateTopUp, useMyBracelets, usePseBanks, useSavedCards, useSaveCard, type SavedCard } from "@/hooks/useAttendeeApi";
+import { useInitiateTopUp, useMyBracelets, usePseBanks, useSavedCards, useSaveCard, type SavedCard, useEnabledPaymentMethods } from "@/hooks/useAttendeeApi";
 import { useTokenizeCard } from "@/hooks/useEventsApi";
 
 type DigitalMethod = "nequi" | "pse" | "card" | "bancolombia_transfer" | "daviplata" | "puntoscolombia";
@@ -126,6 +126,8 @@ export default function TopUpScreen() {
   const [braceletUid, setBraceletUid] = useState(params.braceletUid ?? "");
 
   const { data } = useMyBracelets();
+  const { data: pmData } = useEnabledPaymentMethods();
+  const enabledMethods: DigitalMethod[] = (pmData as { enabledPaymentMethods?: DigitalMethod[] } | undefined)?.enabledPaymentMethods ?? ["nequi", "daviplata", "pse", "card", "bancolombia_transfer", "puntoscolombia"];
   type Bracelet = { uid: string; balance: number; flagged: boolean; pendingRefund?: boolean; refundStatus?: string | null; event?: { name: string } | null };
   const allBracelets = ((data as { bracelets?: Bracelet[] } | undefined)?.bracelets ?? []);
   const bracelets = allBracelets; // show all, but disable ones with pending refund
@@ -540,7 +542,7 @@ export default function TopUpScreen() {
               { id: "card", icon: "credit-card", label: t("tickets.creditCard") },
               { id: "bancolombia_transfer", icon: "repeat", label: "Bancolombia" },
               { id: "puntoscolombia", icon: "star", label: "Puntos Col." },
-            ] as { id: DigitalMethod; icon: string; label: string }[]).map((m) => (
+            ] as { id: DigitalMethod; icon: string; label: string }[]).filter((m) => enabledMethods.includes(m.id)).map((m) => (
               <Pressable
                 key={m.id}
                 onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); setPhoneNumber(""); }}
