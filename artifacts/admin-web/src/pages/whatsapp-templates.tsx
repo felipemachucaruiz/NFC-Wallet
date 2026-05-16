@@ -24,7 +24,7 @@ import {
   apiCreateWhatsAppTriggerMapping,
   apiUpdateWhatsAppTriggerMapping,
   apiDeleteWhatsAppTriggerMapping,
-  apiFetchGupshupTemplates,
+  apiFetchWatiTemplates,
   apiFetchMessageLog,
   apiFetchMessageLogStats,
   apiResendMessage,
@@ -35,7 +35,7 @@ import {
   apiTestReminderSchedule,
   type WhatsAppTemplate,
   type WhatsAppTriggerMapping,
-  type GupshupTemplate,
+  type WatiTemplate,
   type ReminderSchedule,
 } from "@/lib/api";
 
@@ -101,7 +101,7 @@ export default function WhatsAppTemplates() {
   const [editingMapping, setEditingMapping] = useState<WhatsAppTriggerMapping | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: "template" | "mapping"; id: string } | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [selectedGupshupId, setSelectedGupshupId] = useState("");
+  const [selectedWatiId, setSelectedWatiId] = useState("");
   const [reminderEventId, setReminderEventId] = useState("");
   const [showAddDayDialog, setShowAddDayDialog] = useState(false);
   const [newDaysBefore, setNewDaysBefore] = useState("");
@@ -145,9 +145,9 @@ export default function WhatsAppTemplates() {
     queryFn: apiFetchWhatsAppTriggerMappings,
   });
 
-  const { data: gupshupTemplates = [], isLoading: gupshupLoading, refetch: refetchGupshup } = useQuery({
-    queryKey: ["gupshup-templates"],
-    queryFn: apiFetchGupshupTemplates,
+  const { data: watiTemplates = [], isLoading: watiLoading, refetch: refetchWati } = useQuery({
+    queryKey: ["wati-templates"],
+    queryFn: apiFetchWatiTemplates,
     enabled: showImportDialog,
   });
 
@@ -216,7 +216,7 @@ export default function WhatsAppTemplates() {
       const dest = (data as Record<string, unknown>).dest as string | undefined;
       toast({
         title: "Mensaje de prueba enviado",
-        description: `Gupshup aceptó el mensaje${dest ? ` → +${dest}` : ""}. Revisa el log si no llega.`,
+        description: `WATI aceptó el mensaje${dest ? ` → +${dest}` : ""}. Revisa el log si no llega.`,
       });
       setShowTestDialog(false);
       setTestPhone("");
@@ -386,7 +386,7 @@ export default function WhatsAppTemplates() {
   }
 
   function handleImportTemplate() {
-    const sel = gupshupTemplates.find((g: GupshupTemplate) => g.id === selectedGupshupId);
+    const sel = watiTemplates.find((g: WatiTemplate) => g.id === selectedWatiId);
     if (!sel) return;
 
     const bodyText = sel.data || "";
@@ -395,7 +395,7 @@ export default function WhatsAppTemplates() {
     createTemplateMut.mutate({
       name: sel.elementName,
       gupshupTemplateId: sel.id,
-      description: `Imported from Gupshup (${sel.category})`,
+      description: `Imported from WATI (${sel.category})`,
       language: sel.languageCode || "es",
       category: (["UTILITY", "MARKETING", "AUTHENTICATION"].includes(sel.category) ? sel.category : "UTILITY") as any,
       status: "active",
@@ -403,7 +403,7 @@ export default function WhatsAppTemplates() {
       parameters: params,
     } as any);
     setShowImportDialog(false);
-    setSelectedGupshupId("");
+    setSelectedWatiId("");
   }
 
   function addParam() {
@@ -481,9 +481,9 @@ export default function WhatsAppTemplates() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">{t("whatsapp.templatesTab")}</h2>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setShowImportDialog(true); setSelectedGupshupId(""); }}>
+                  <Button variant="outline" size="sm" onClick={() => { setShowImportDialog(true); setSelectedWatiId(""); }}>
                     <Download className="h-4 w-4 mr-2" />
-                    {t("whatsapp.importFromGupshup", "Importar de Gupshup")}
+                    {t("whatsapp.importFromGupshup", "Importar de WATI")}
                   </Button>
                   <Button onClick={openNewTemplate} size="sm">
                     <Plus className="h-4 w-4 mr-2" />
@@ -750,7 +750,7 @@ export default function WhatsAppTemplates() {
                                     {msg.orderId && <div><span className="font-semibold">{t("whatsapp.logOrderId", "Orden")}:</span> <span className="font-mono">{msg.orderId}</span></div>}
                                     {msg.ticketId && <div><span className="font-semibold">{t("whatsapp.logTicketId", "Ticket")}:</span> <span className="font-mono">{msg.ticketId}</span></div>}
                                     {msg.eventId && <div><span className="font-semibold">{t("whatsapp.logEventId", "Evento")}:</span> <span className="font-mono">{msg.eventId}</span></div>}
-                                    {msg.gupshupMessageId && <div><span className="font-semibold">Gupshup ID:</span> <span className="font-mono">{msg.gupshupMessageId}</span></div>}
+                                    {msg.gupshupMessageId && <div><span className="font-semibold">WATI ID:</span> <span className="font-mono">{msg.gupshupMessageId}</span></div>}
                                     {msg.errorMessage && (
                                       <div className="col-span-2">
                                         <span className="font-semibold text-destructive">{t("whatsapp.logError", "Error")}:</span>
@@ -1297,7 +1297,7 @@ export default function WhatsAppTemplates() {
               </div>
               <p className="text-xs text-muted-foreground mb-2">
                 Botones de llamada a la acción. El botón URL envía al usuario a Google Maps con las coordenadas del evento.
-                Registra la URL base estática en Gupshup (ej: <span className="font-mono">https://maps.google.com/</span>) y el sufijo dinámico se mapea en el recordatorio.
+                Registra el nombre de plantilla WATI (ej: <span className="font-mono">https://maps.google.com/</span>) y el sufijo dinámico se mapea en el recordatorio.
               </p>
               {tplForm.buttons.length > 0 && (
                 <div className="space-y-2">
@@ -1504,22 +1504,22 @@ export default function WhatsAppTemplates() {
       <Dialog open={showImportDialog} onOpenChange={(open) => { if (!open) setShowImportDialog(false); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("whatsapp.importFromGupshup", "Importar de Gupshup")}</DialogTitle>
+            <DialogTitle>{t("whatsapp.importFromGupshup", "Importar de WATI")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              {t("whatsapp.importDescription", "Selecciona una plantilla aprobada de tu cuenta Gupshup para importarla.")}
+              {t("whatsapp.importDescription", "Selecciona una plantilla aprobada de tu cuenta WATI para importarla.")}
             </p>
 
-            {gupshupLoading ? (
+            {watiLoading ? (
               <div className="flex items-center justify-center py-8 gap-2">
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">{t("whatsapp.fetchingTemplates", "Cargando plantillas de Gupshup...")}</span>
+                <span className="text-sm text-muted-foreground">{t("whatsapp.fetchingTemplates", "Cargando plantillas de WATI...")}</span>
               </div>
-            ) : gupshupTemplates.length === 0 ? (
+            ) : watiTemplates.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-muted-foreground text-sm">{t("whatsapp.noGupshupTemplates", "No se encontraron plantillas en Gupshup")}</p>
-                <Button variant="outline" size="sm" className="mt-2" onClick={() => refetchGupshup()}>
+                <p className="text-muted-foreground text-sm">{t("whatsapp.noWatiTemplates", "No se encontraron plantillas en WATI")}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => refetchWati()}>
                   <RefreshCw className="h-4 w-4 mr-2" />
                   {t("common.retry", "Reintentar")}
                 </Button>
@@ -1527,15 +1527,15 @@ export default function WhatsAppTemplates() {
             ) : (
               <>
                 <div>
-                  <Label>{t("whatsapp.selectGupshupTemplate", "Plantilla Gupshup")}</Label>
-                  <Select value={selectedGupshupId} onValueChange={setSelectedGupshupId}>
+                  <Label>{t("whatsapp.selectWatiTemplate", "Plantilla WATI")}</Label>
+                  <Select value={selectedWatiId} onValueChange={setSelectedWatiId}>
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder={t("whatsapp.selectTemplatePlaceholder", "Selecciona una plantilla...")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {gupshupTemplates
-                        .filter((g: GupshupTemplate) => g.status === "APPROVED")
-                        .map((g: GupshupTemplate) => {
+                      {watiTemplates
+                        .filter((g: WatiTemplate) => g.status === "APPROVED")
+                        .map((g: WatiTemplate) => {
                           const alreadyExists = templates.some((t: WhatsAppTemplate) => t.gupshupTemplateId === g.id);
                           return (
                             <SelectItem key={g.id} value={g.id} disabled={alreadyExists}>
@@ -1547,8 +1547,8 @@ export default function WhatsAppTemplates() {
                   </Select>
                 </div>
 
-                {selectedGupshupId && (() => {
-                  const sel = gupshupTemplates.find((g: GupshupTemplate) => g.id === selectedGupshupId);
+                {selectedWatiId && (() => {
+                  const sel = watiTemplates.find((g: WatiTemplate) => g.id === selectedWatiId);
                   if (!sel) return null;
                   return (
                     <div className="bg-muted/30 rounded-lg border border-border p-4 space-y-2">
@@ -1568,9 +1568,9 @@ export default function WhatsAppTemplates() {
                   );
                 })()}
 
-                {gupshupTemplates.filter((g: GupshupTemplate) => g.status !== "APPROVED").length > 0 && (
+                {watiTemplates.filter((g: WatiTemplate) => g.status !== "APPROVED").length > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    {t("whatsapp.pendingTemplatesNote", `${gupshupTemplates.filter((g: GupshupTemplate) => g.status !== "APPROVED").length} plantilla(s) pendientes de aprobación no se muestran`)}
+                    {t("whatsapp.pendingTemplatesNote", `${watiTemplates.filter((g: WatiTemplate) => g.status !== "APPROVED").length} plantilla(s) pendientes de aprobación no se muestran`)}
                   </p>
                 )}
               </>
@@ -1578,7 +1578,7 @@ export default function WhatsAppTemplates() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowImportDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handleImportTemplate} disabled={!selectedGupshupId}>
+            <Button onClick={handleImportTemplate} disabled={!selectedWatiId}>
               <Download className="h-4 w-4 mr-2" />
               {t("whatsapp.importTemplate", "Importar")}
             </Button>
