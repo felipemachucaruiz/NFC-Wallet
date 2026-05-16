@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /checkout
+Disallow: /order/
+Disallow: /my-tickets
+Disallow: /profile
+Disallow: /payment/
 
 Sitemap: https://tapeetickets.com/sitemap.xml
