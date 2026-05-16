@@ -47,35 +47,49 @@ const updateMappingSchema = createMappingSchema.partial();
 
 router.get("/whatsapp-templates/wati", requireAuth, requireRole("admin"), async (_req, res) => {
   const apiKey = process.env.WATI_API_KEY;
-  const apiUrl = process.env.WATI_API_URL;
+  const rawApiUrl = process.env.WATI_API_URL;
 
-  if (!apiKey || !apiUrl) {
+  if (!apiKey || !rawApiUrl) {
     res.status(503).json({ error: "WATI not configured", templates: [] });
     return;
   }
 
+  const apiUrl = rawApiUrl.replace(/\/$/, ""); // strip trailing slash
+
   try {
     const watiRes = await fetch(
-      `${apiUrl}/api/v1/getMessageTemplates`,
+      `${apiUrl}/api/v1/getMessageTemplates?pageSize=100&pageIndex=0`,
       { headers: { Authorization: `Bearer ${apiKey}` } },
     );
 
+    const responseText = await watiRes.text();
+
     if (!watiRes.ok) {
-      const text = await watiRes.text();
-      console.error("WATI template list error:", watiRes.status, text);
-      res.status(502).json({ error: "Failed to fetch from WATI" });
+      console.error("WATI template list error:", watiRes.status, responseText);
+      res.status(502).json({ error: "Failed to fetch from WATI", detail: responseText.slice(0, 300) });
       return;
     }
 
-    const data = await watiRes.json() as { result?: boolean; messageTemplates?: Array<Record<string, unknown>> };
-    const templates = (data.messageTemplates ?? []).map((t: Record<string, unknown>) => ({
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(responseText); } catch {}
+
+    console.log("[WATI templates] raw keys:", Object.keys(data), "count:", data.count);
+
+    // Handle both possible response shapes
+    const rawList = (
+      (data.messageTemplates as Array<Record<string, unknown>> | undefined) ??
+      (data.templates as Array<Record<string, unknown>> | undefined) ??
+      []
+    );
+
+    const templates = rawList.map((t: Record<string, unknown>) => ({
       id: t.id,
       elementName: t.elementName,
       category: t.category,
-      languageCode: t.language,
+      languageCode: t.language ?? t.languageCode,
       status: t.status,
       templateType: t.templateType,
-      data: t.body,
+      data: t.body ?? t.data,
       meta: t.meta,
     }));
 
@@ -374,7 +388,7 @@ router.post("/whatsapp-message-log/:id/resend", requireAuth, requireRole("admin"
     }
 
     const WATI_API_KEY = process.env.WATI_API_KEY;
-    const WATI_API_URL = process.env.WATI_API_URL;
+    const WATI_API_URL = process.env.WATI_API_URL?.replace(/\/$/, "");
 
     if (!WATI_API_KEY || !WATI_API_URL) {
       res.status(503).json({ error: "WhatsApp not configured" });
@@ -518,7 +532,7 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
   if (!phone) { res.status(400).json({ error: "phone is required" }); return; }
 
   const WATI_API_KEY = process.env.WATI_API_KEY;
-  const WATI_API_URL = process.env.WATI_API_URL;
+  const WATI_API_URL = process.env.WATI_API_URL?.replace(/\/$/, "");
   if (!WATI_API_KEY || !WATI_API_URL) {
     res.status(503).json({ error: "WhatsApp not configured" });
     return;

@@ -3,7 +3,7 @@ import { db, whatsappMessageLogTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const WATI_API_KEY = process.env.WATI_API_KEY;
-const WATI_API_URL = process.env.WATI_API_URL; // e.g. https://app-server.wati.io
+const WATI_API_URL = process.env.WATI_API_URL?.replace(/\/$/, ""); // e.g. https://app-server.wati.io
 
 function isConfigured(): boolean {
   return !!(WATI_API_KEY && WATI_API_URL);

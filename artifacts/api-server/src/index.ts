@@ -936,7 +936,7 @@ function startEventReminderJob(): void {
 
   const runReminders = async () => {
     const WATI_API_KEY = process.env.WATI_API_KEY;
-    const WATI_API_URL = process.env.WATI_API_URL;
+    const WATI_API_URL = process.env.WATI_API_URL?.replace(/\/$/, "");
     if (!WATI_API_KEY || !WATI_API_URL) return;
 
     try {
