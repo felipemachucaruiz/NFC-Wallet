@@ -178,4 +178,125 @@ router.get("/wati/events", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/wati/catalog.csv
+ *
+ * Meta WhatsApp Business Catalog data feed (CSV format).
+ * Point Meta Business Manager → Commerce Manager → Data Feed to this URL.
+ * Meta will pull it automatically on the configured schedule (hourly/daily).
+ *
+ * Required columns per Meta spec:
+ * id, title, description, availability, condition, price, link, image_link, brand
+ */
+router.get("/wati/catalog.csv", async (_req: Request, res: Response) => {
+  try {
+    const now = new Date();
+
+    const events = await db
+      .select({
+        id: eventsTable.id,
+        name: eventsTable.name,
+        slug: eventsTable.slug,
+        description: eventsTable.description,
+        longDescription: eventsTable.longDescription,
+        venueAddress: eventsTable.venueAddress,
+        startsAt: eventsTable.startsAt,
+        endsAt: eventsTable.endsAt,
+        coverImageUrl: eventsTable.coverImageUrl,
+        flyerImageUrl: eventsTable.flyerImageUrl,
+        saleStartsAt: eventsTable.saleStartsAt,
+        saleEndsAt: eventsTable.saleEndsAt,
+        active: eventsTable.active,
+        ticketingEnabled: eventsTable.ticketingEnabled,
+      })
+      .from(eventsTable)
+      .where(and(eq(eventsTable.active, true), eq(eventsTable.ticketingEnabled, true)))
+      .orderBy(asc(eventsTable.startsAt));
+
+    // Get cheapest available ticket type per event
+    const eventIds = events.map((e) => e.id);
+    const allTicketTypes = eventIds.length > 0
+      ? await db
+        .select({
+          eventId: ticketTypesTable.eventId,
+          price: ticketTypesTable.price,
+          serviceFee: ticketTypesTable.serviceFee,
+          serviceFeeType: ticketTypesTable.serviceFeeType,
+          quantity: ticketTypesTable.quantity,
+          soldCount: ticketTypesTable.soldCount,
+        })
+        .from(ticketTypesTable)
+        .where(
+          sql`${ticketTypesTable.eventId} = ANY(ARRAY[${sql.join(eventIds.map((id) => sql`${id}::varchar`), sql`, `)}]::varchar[])`,
+        )
+        .orderBy(asc(ticketTypesTable.price))
+      : [];
+
+    function csvEscape(val: string): string {
+      if (val.includes('"') || val.includes(',') || val.includes('\n')) {
+        return `"${val.replace(/"/g, '""')}"`;
+      }
+      return val;
+    }
+
+    const headers = ["id", "title", "description", "availability", "condition", "price", "link", "image_link", "brand", "google_product_category"];
+    const rows: string[] = [headers.join(",")];
+
+    for (const event of events) {
+      const eventTickets = allTicketTypes.filter((t) => t.eventId === event.id);
+      const cheapest = eventTickets[0];
+
+      const saleOpen = (
+        (!event.saleStartsAt || now >= new Date(event.saleStartsAt)) &&
+        (!event.saleEndsAt || now <= new Date(event.saleEndsAt)) &&
+        !!event.startsAt && now <= new Date(event.startsAt)
+      );
+      const hasSoldOut = cheapest && cheapest.quantity !== null && cheapest.soldCount >= cheapest.quantity;
+      const availability = (saleOpen && !hasSoldOut) ? "in stock" : "out of stock";
+
+      // Price in "AMOUNT CURRENCY" format Meta requires
+      let priceStr = "0 COP";
+      if (cheapest) {
+        const fee = cheapest.serviceFeeType === "percent"
+          ? Math.round(cheapest.price * (cheapest.serviceFee / 100))
+          : cheapest.serviceFee;
+        const totalCents = cheapest.price + fee;
+        // Meta wants price in major currency units (not cents), with 2 decimals
+        priceStr = `${(totalCents / 100).toFixed(2)} COP`;
+      }
+
+      const dateStr = event.startsAt ? formatDate(event.startsAt) : "";
+      const description = [
+        event.description ?? "",
+        dateStr ? `📅 ${dateStr}` : "",
+        event.venueAddress ? `📍 ${event.venueAddress}` : "",
+      ].filter(Boolean).join(" · ").slice(0, 9999);
+
+      const imageUrl = event.coverImageUrl || event.flyerImageUrl || "";
+      const link = `https://tapeetickets.com/events/${event.slug}`;
+
+      const row = [
+        csvEscape(event.id),
+        csvEscape(event.name),
+        csvEscape(description),
+        csvEscape(availability),
+        "new",
+        csvEscape(priceStr),
+        csvEscape(link),
+        csvEscape(imageUrl),
+        "Tapee",
+        "1",   // Arts & Entertainment
+      ];
+      rows.push(row.join(","));
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "inline; filename=\"tapee-catalog.csv\"");
+    res.send(rows.join("\n"));
+  } catch (err) {
+    logger.error({ err }, "WATI catalog feed error");
+    res.status(500).send("Internal error");
+  }
+});
+
 export default router;
