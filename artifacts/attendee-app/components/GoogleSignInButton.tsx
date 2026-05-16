@@ -8,6 +8,7 @@ import { API_BASE_URL } from "@/constants/domain";
 
 interface Props {
   onError?: (msg: string) => void;
+  compact?: boolean;
 }
 
 const DEEP_LINK_PREFIX = "tapee-attendee://auth/done";
@@ -31,7 +32,7 @@ function GoogleIcon() {
   );
 }
 
-export function GoogleSignInButton({ onError }: Props) {
+export function GoogleSignInButton({ onError, compact }: Props) {
   const { t } = useTranslation();
   const { googleClientId, loginWithSessionToken } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -80,6 +81,18 @@ export function GoogleSignInButton({ onError }: Props) {
     }
   };
 
+  if (compact) {
+    return (
+      <Pressable
+        onPress={handlePress}
+        disabled={loading}
+        style={({ pressed }) => [styles.circle, pressed && styles.pressed, loading && styles.disabled]}
+      >
+        {loading ? <ActivityIndicator color="rgba(255,255,255,0.8)" size="small" /> : <GoogleIcon />}
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable
       onPress={handlePress}
@@ -103,6 +116,16 @@ export function GoogleSignInButton({ onError }: Props) {
 }
 
 const styles = StyleSheet.create({
+  circle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   button: {
     flexDirection: "row",
     alignItems: "center",
