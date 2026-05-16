@@ -127,9 +127,9 @@ router.get("/wati/events", async (req: Request, res: Response) => {
 
           return {
             name: tt.name,
-            price: formatCOP(currentPrice),
+            price: totalPrice === 0 ? "Gratis" : formatCOP(currentPrice),
             serviceFee: fee > 0 ? formatCOP(fee) : null,
-            totalPrice: formatCOP(totalPrice),
+            totalPrice: totalPrice === 0 ? "Gratis" : formatCOP(totalPrice),
             available: available === null ? "Disponible" : available > 0 ? `${available} disponibles` : "Agotado",
             stageName: activeStage?.name ?? null,
           };
@@ -161,20 +161,27 @@ router.get("/wati/events", async (req: Request, res: Response) => {
       }),
     );
 
-    // Also provide a flat text list useful for WATI template variables
+
     const textList = result
-      .map((e, i) => `${i + 1}. *${e.name}*\n   📅 ${e.date} a las ${e.time}\n   📍 ${e.venue}\n   🎟️ Desde ${e.ticketTypes[0]?.totalPrice ?? "Ver sitio"}\n   🔗 ${e.link}`)
+      .map((e, i) => {
+        const firstTicket = e.ticketTypes[0];
+        const priceLabel = !firstTicket ? "Ver sitio" : firstTicket.totalPrice === "Gratis" ? "Gratis" : `Desde ${firstTicket.totalPrice}`;
+        return `${i + 1}. *${e.name}*\n📅 ${e.date} a las ${e.time}\n📍 ${e.venue}\n🎟️ ${priceLabel}\n🔗 ${e.link}`;
+      })
       .join("\n\n");
+
+    const eventsListText = textList || "No hay eventos disponibles por el momento.";
 
     res.json({
       count: result.length,
       events: result,
-      // Convenience field: ready-to-paste text for a WATI text message
-      eventsText: textList || "No hay eventos disponibles por el momento.",
+      eventsText: eventsListText,
+      // Named to match the WATI custom variable — map this field directly in the WATI API node
+      eventos_lista: eventsListText,
     });
   } catch (err) {
     logger.error({ err }, "WATI events webhook error");
-    res.status(500).json({ error: "Internal error", events: [], eventsText: "No hay eventos disponibles en este momento." });
+    res.status(500).json({ error: "Internal error", events: [], eventsText: "No hay eventos disponibles.", eventos_lista: "No hay eventos disponibles." });
   }
 });
 
