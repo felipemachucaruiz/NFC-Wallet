@@ -82,14 +82,24 @@ router.get("/whatsapp-templates/wati", requireAuth, requireRole("admin"), async 
       []
     );
 
+    // WATI sometimes returns enum-like fields as {key, value, text} objects instead of strings
+    function watiStr(v: unknown): string {
+      if (typeof v === "string") return v;
+      if (v && typeof v === "object") {
+        const o = v as Record<string, unknown>;
+        return String(o.key ?? o.value ?? o.text ?? "");
+      }
+      return v == null ? "" : String(v);
+    }
+
     const templates = rawList.map((t: Record<string, unknown>) => ({
-      id: t.id,
-      elementName: t.elementName,
-      category: t.category,
-      languageCode: t.language ?? t.languageCode,
-      status: t.status,
-      templateType: t.templateType,
-      data: t.body ?? t.data,
+      id: watiStr(t.id) || watiStr(t.elementName),
+      elementName: watiStr(t.elementName),
+      category: watiStr(t.category),
+      languageCode: watiStr(t.language ?? t.languageCode),
+      status: watiStr(t.status),
+      templateType: watiStr(t.templateType),
+      data: watiStr(t.body ?? t.data),
       meta: t.meta,
     }));
 
