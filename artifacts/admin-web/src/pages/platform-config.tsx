@@ -137,7 +137,7 @@ export default function PlatformConfig() {
                       style={{ backgroundColor: isOn ? `${meta.color}18` : "transparent", border: `1px solid ${isOn ? meta.color + "40" : "transparent"}` }}
                     >
                       <span
-                        className="w-5 h-5 block"
+                        className="w-5 h-5 block [&>svg]:w-full [&>svg]:h-full"
                         style={{ color: isOn ? meta.color : "var(--muted-foreground)" }}
                         dangerouslySetInnerHTML={{ __html: meta.svg }}
                       />

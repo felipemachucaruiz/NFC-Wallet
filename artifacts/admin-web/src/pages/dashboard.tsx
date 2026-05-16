@@ -6,6 +6,7 @@ import {
   useListPromoterCompanies,
 } from "@workspace/api-client-react";
 import type { Event } from "@workspace/api-client-react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ShieldAlert, DollarSign, Building, TrendingUp, MapPin, Nfc } from "lucide-react";
@@ -128,65 +129,55 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-        <Card data-testid="card-events">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Calendar className="w-4 h-4" /> {t("dashboard.events")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{events.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.activeEvents", { count: activeEvents.length })}</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-promoters">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Building className="w-4 h-4" /> {t("dashboard.promoters")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{companies.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.companiesRegistered")}</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-bracelets" className={summaryLoading ? "opacity-60" : ""}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Nfc className="w-4 h-4" /> {t("dashboard.bracelets")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{fmt((summary as unknown as Record<string, unknown>)?.braceletCount as number | undefined)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.braceletsRegistered")}</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-revenue" className={summaryLoading ? "opacity-60" : ""}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="w-4 h-4" /> {t("dashboard.revenue")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{fmt(summary?.totalSales)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.totalSales")}</p>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-fraud-alerts" className={alerts.length > 0 ? "border-destructive/50" : ""}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ShieldAlert className={`w-4 h-4 ${alerts.length > 0 ? "text-destructive" : ""}`} /> {t("dashboard.fraudAlerts")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={`text-3xl font-bold ${alerts.length > 0 ? "text-destructive" : ""}`}>{alerts.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t("dashboard.openAlerts")}</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          data-testid="card-events"
+          icon={Calendar}
+          iconColor="text-primary"
+          iconBg="bg-primary/10"
+          label={t("dashboard.events")}
+          value={events.length}
+          sub={t("dashboard.activeEvents", { count: activeEvents.length })}
+        />
+        <StatCard
+          data-testid="card-promoters"
+          icon={Building}
+          iconColor="text-blue-400"
+          iconBg="bg-blue-400/10"
+          label={t("dashboard.promoters")}
+          value={companies.length}
+          sub={t("dashboard.companiesRegistered")}
+        />
+        <StatCard
+          data-testid="card-bracelets"
+          loading={summaryLoading}
+          icon={Nfc}
+          iconColor="text-violet-400"
+          iconBg="bg-violet-400/10"
+          label={t("dashboard.bracelets")}
+          value={fmt((summary as unknown as Record<string, unknown>)?.braceletCount as number | undefined)}
+          sub={t("dashboard.braceletsRegistered")}
+        />
+        <StatCard
+          data-testid="card-revenue"
+          loading={summaryLoading}
+          icon={DollarSign}
+          iconColor="text-emerald-400"
+          iconBg="bg-emerald-400/10"
+          label={t("dashboard.revenue")}
+          value={fmt(summary?.totalSales)}
+          sub={t("dashboard.totalSales")}
+        />
+        <StatCard
+          data-testid="card-fraud-alerts"
+          icon={ShieldAlert}
+          iconColor={alerts.length > 0 ? "text-destructive" : "text-amber-400"}
+          iconBg={alerts.length > 0 ? "bg-destructive/10" : "bg-amber-400/10"}
+          label={t("dashboard.fraudAlerts")}
+          value={alerts.length}
+          sub={t("dashboard.openAlerts")}
+          valueColor={alerts.length > 0 ? "text-destructive" : undefined}
+          cardClass={alerts.length > 0 ? "border-destructive/50" : ""}
+        />
       </div>
 
       <Card>
@@ -305,5 +296,46 @@ export default function Dashboard() {
         </Card>
       )}
     </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  iconColor,
+  iconBg,
+  label,
+  value,
+  sub,
+  loading,
+  valueColor,
+  cardClass = "",
+  "data-testid": testId,
+}: {
+  icon: React.ElementType;
+  iconColor: string;
+  iconBg: string;
+  label: string;
+  value: string | number;
+  sub: string;
+  loading?: boolean;
+  valueColor?: string;
+  cardClass?: string;
+  "data-testid"?: string;
+}) {
+  return (
+    <Card data-testid={testId} className={`${loading ? "opacity-60" : ""} ${cardClass}`}>
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">{label}</p>
+            <p className={`text-2xl font-bold mt-1.5 tracking-tight ${valueColor ?? ""}`}>{value}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{sub}</p>
+          </div>
+          <div className={`w-9 h-9 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
+            <Icon className={`w-4 h-4 ${iconColor}`} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
