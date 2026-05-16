@@ -935,10 +935,9 @@ function startEventReminderJob(): void {
   const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
   const runReminders = async () => {
-    const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
-    const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
-    const GUPSHUP_SOURCE = process.env.GUPSHUP_SOURCE_NUMBER;
-    if (!GUPSHUP_API_KEY || !GUPSHUP_APP_NAME || !GUPSHUP_SOURCE) return;
+    const WATI_API_KEY = process.env.WATI_API_KEY;
+    const WATI_API_URL = process.env.WATI_API_URL;
+    if (!WATI_API_KEY || !WATI_API_URL) return;
 
     try {
       type DueSchedule = {
@@ -989,44 +988,34 @@ function startEventReminderJob(): void {
 
       for (const schedule of dueSchedules) {
         try {
-          // Resolve template: prefer template_id (direct), fall back to template_mapping_id
-          let gupshupTemplateId: string | null = null;
+          // Resolve template — gupshup_template_id column now stores the WATI template_name
+          let watiTemplateName: string | null = null;
           let paramMappings: Array<{ position: number; field: string }> = [];
-          let bodyParamCount = 0;
-          let templateButtons: Array<{ type: string; text: string }> = [];
 
           if (schedule.template_id) {
             const { rows: tplRows } = await pool.query<{
               gupshup_template_id: string;
-              parameters: Array<{ name: string }> | null;
-              buttons: Array<{ type: string; text: string }> | null;
             }>(
-              `SELECT gupshup_template_id, parameters, buttons FROM whatsapp_templates WHERE id = $1 AND status = 'active'`,
+              `SELECT gupshup_template_id FROM whatsapp_templates WHERE id = $1 AND status = 'active'`,
               [schedule.template_id],
             );
             if (tplRows[0]) {
-              gupshupTemplateId = tplRows[0].gupshup_template_id;
+              watiTemplateName = tplRows[0].gupshup_template_id;
               paramMappings = schedule.param_mappings ?? [];
-              bodyParamCount = tplRows[0].parameters?.length ?? 0;
-              templateButtons = tplRows[0].buttons ?? [];
             }
           } else if (schedule.template_mapping_id) {
             const { rows: mappingRows } = await pool.query<{
               gupshup_template_id: string;
               parameter_mappings: Array<{ position: number; field: string }>;
-              parameters: Array<{ name: string }> | null;
-              buttons: Array<{ type: string; text: string }> | null;
             }>(`
-              SELECT t.gupshup_template_id, m.parameter_mappings, t.parameters, t.buttons
+              SELECT t.gupshup_template_id, m.parameter_mappings
               FROM whatsapp_trigger_mappings m
               JOIN whatsapp_templates t ON t.id = m.template_id
               WHERE m.id = $1 AND m.active = true AND t.status = 'active'
             `, [schedule.template_mapping_id]);
             if (mappingRows[0]) {
-              gupshupTemplateId = mappingRows[0].gupshup_template_id;
+              watiTemplateName = mappingRows[0].gupshup_template_id;
               paramMappings = mappingRows[0].parameter_mappings ?? [];
-              bodyParamCount = mappingRows[0].parameters?.length ?? 0;
-              templateButtons = mappingRows[0].buttons ?? [];
             }
           }
 
@@ -1055,14 +1044,11 @@ function startEventReminderJob(): void {
           let failed = 0;
 
           for (const attendee of attendees) {
-            if (!gupshupTemplateId) continue;
+            if (!watiTemplateName) continue;
 
-            // Build params from mapping fields
             const daysRemainingText = schedule.days_before === 0
               ? "HOY"
               : `en ${schedule.days_before} día${schedule.days_before > 1 ? "s" : ""}`;
-            // Gupshup URL button templates define the base URL (https://maps.google.com/)
-            // statically; the variable is only the suffix sent at runtime.
             const venueMapUrl = schedule.latitude && schedule.longitude
               ? `https://maps.google.com/?q=${schedule.latitude},${schedule.longitude}`
               : schedule.venue_address
@@ -1077,32 +1063,14 @@ function startEventReminderJob(): void {
               eventDate,
               daysRemainingText,
             };
-            // Split: positions 1..bodyParamCount → body params; beyond → CTA URL button suffixes
-            const bodyMappings = templateButtons.length > 0
-              ? paramMappings.filter((m) => m.position <= bodyParamCount)
-              : paramMappings;
-            const buttonMappings = templateButtons.length > 0
-              ? paramMappings.filter((m) => m.position > bodyParamCount)
-              : [];
-            const maxBodyPos = bodyMappings.length > 0
-              ? Math.max(...bodyMappings.map((m) => m.position))
-              : 0;
-            const params: string[] = Array(maxBodyPos).fill("");
-            for (const mapping of bodyMappings) {
-              params[mapping.position - 1] = context[mapping.field] ?? "";
-            }
-            let ctaButtons = buttonMappings
-              .map((m, btnIdx) => ({
-                type: templateButtons[btnIdx]?.type ?? "url",
-                parameter: context[m.field] ?? "",
-              }))
-              .filter((b) => b.parameter);
 
-            // Fallback: auto-include venueMapUrl as CTA URL button when
-            // no explicit button mapping is configured but the URL is available.
-            if (ctaButtons.length === 0 && venueMapUrl) {
-              ctaButtons = [{ type: "url", parameter: venueMapUrl }];
+            // Build positional WATI parameters
+            const maxPos = paramMappings.length > 0 ? Math.max(...paramMappings.map((m) => m.position)) : 0;
+            const paramValues: string[] = Array(maxPos).fill("");
+            for (const mapping of paramMappings) {
+              paramValues[mapping.position - 1] = context[mapping.field] ?? "";
             }
+            const parameters = paramValues.map((value, i) => ({ name: String(i + 1), value }));
 
             // Normalize phone
             let phone = attendee.attendee_phone.replace(/[\s\-()]/g, "");
@@ -1117,7 +1085,7 @@ function startEventReminderJob(): void {
             `, [
               phone,
               schedule.template_mapping_id,
-              JSON.stringify({ templateId: gupshupTemplateId, params }),
+              JSON.stringify({ templateName: watiTemplateName, params: parameters }),
               schedule.event_id,
               attendee.ticket_id,
               attendee.order_id,
@@ -1125,25 +1093,19 @@ function startEventReminderJob(): void {
             ]);
             const logId = logRows[0]?.id;
 
-            // Send via Gupshup
-            const formBody = new URLSearchParams();
-            formBody.append("channel", "whatsapp");
-            formBody.append("source", GUPSHUP_SOURCE);
-            formBody.append("destination", phone);
-            formBody.append("src.name", GUPSHUP_APP_NAME);
-            const templatePayload: Record<string, unknown> = { id: gupshupTemplateId, params };
-            if (ctaButtons.length > 0) templatePayload.buttons = ctaButtons;
-            formBody.append("template", JSON.stringify(templatePayload));
-
-            const gupshupRes = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded", apikey: GUPSHUP_API_KEY },
-              body: formBody.toString(),
-            });
-            const responseText = await gupshupRes.text();
+            // Send via WATI
+            const watiRes = await fetch(
+              `${WATI_API_URL}/api/v1/sendTemplateMessage?whatsappNumber=${phone}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${WATI_API_KEY}` },
+                body: JSON.stringify({ template_name: watiTemplateName, broadcast_name: watiTemplateName, parameters }),
+              },
+            );
+            const responseText = await watiRes.text();
             let parsed: Record<string, unknown> = {};
             try { parsed = JSON.parse(responseText); } catch {}
-            const success = gupshupRes.ok && parsed.status !== "error";
+            const success = watiRes.ok && parsed.result !== false;
 
             if (logId) {
               await pool.query(`
@@ -1152,8 +1114,8 @@ function startEventReminderJob(): void {
                 WHERE id = $4
               `, [
                 success ? "sent" : "failed",
-                success ? null : (parsed.message as string || responseText),
-                success ? (parsed.messageId as string || null) : null,
+                success ? null : ((parsed.info as string) || responseText),
+                success ? ((parsed.id as string) || null) : null,
                 logId,
               ]);
             }

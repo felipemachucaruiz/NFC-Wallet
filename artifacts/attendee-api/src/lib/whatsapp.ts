@@ -2,14 +2,11 @@ import { logger } from "./logger";
 import { db, whatsappMessageLogTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
-const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
-const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
-const GUPSHUP_SOURCE = process.env.GUPSHUP_SOURCE_NUMBER;
-const GUPSHUP_MSG_URL = "https://api.gupshup.io/wa/api/v1/msg";
-const GUPSHUP_TEMPLATE_URL = "https://api.gupshup.io/wa/api/v1/template/msg";
+const WATI_API_KEY = process.env.WATI_API_KEY;
+const WATI_API_URL = process.env.WATI_API_URL; // e.g. https://app-server.wati.io
 
 function isConfigured(): boolean {
-  return !!(GUPSHUP_API_KEY && GUPSHUP_APP_NAME && GUPSHUP_SOURCE);
+  return !!(WATI_API_KEY && WATI_API_URL);
 }
 
 function normalizePhone(phone: string): string {
@@ -35,7 +32,7 @@ async function logMessage(
   payload: Record<string, unknown>,
   context?: MessageLogContext,
   errorMessage?: string,
-  gupshupMessageId?: string,
+  watiMessageId?: string,
 ): Promise<string | null> {
   try {
     const [row] = await db.insert(whatsappMessageLogTable).values({
@@ -51,7 +48,7 @@ async function logMessage(
       ticketId: context?.ticketId || null,
       eventId: context?.eventId || null,
       attendeeName: context?.attendeeName || null,
-      gupshupMessageId: gupshupMessageId || null,
+      gupshupMessageId: watiMessageId || null,
     }).returning();
     return row?.id || null;
   } catch (err) {
@@ -64,14 +61,14 @@ async function updateLogStatus(
   logId: string,
   status: "sent" | "failed",
   errorMessage?: string,
-  gupshupMessageId?: string,
+  watiMessageId?: string,
 ): Promise<void> {
   try {
     await db.update(whatsappMessageLogTable)
       .set({
         status,
         errorMessage: errorMessage || null,
-        gupshupMessageId: gupshupMessageId || null,
+        gupshupMessageId: watiMessageId || null,
         updatedAt: new Date(),
       })
       .where(eq(whatsappMessageLogTable.id, logId));
@@ -90,43 +87,49 @@ export function clearMessageLogContext() {
   _currentLogContext = undefined;
 }
 
-async function sendGupshupSessionMessage(
+async function sendWatiTemplateMessage(
   destination: string,
-  message: Record<string, unknown>,
+  templateName: string,
+  params: Array<{ name: string; value: string }>,
   logContext?: MessageLogContext,
 ): Promise<boolean> {
   if (!isConfigured()) {
-    logger.warn("Gupshup WhatsApp not configured — skipping send");
+    logger.warn("WATI WhatsApp not configured — skipping send");
     return false;
   }
 
   const phone = normalizePhone(destination);
   const ctx = logContext || _currentLogContext;
-  const msgType = (message.type as string) === "file" ? "document" : (message.type as "text" | "image") || "text";
 
-  const logId = await logMessage(destination, msgType, "pending", message, ctx);
-
-  const body = new URLSearchParams();
-  body.append("channel", "whatsapp");
-  body.append("source", GUPSHUP_SOURCE!);
-  body.append("destination", phone);
-  body.append("message", JSON.stringify(message));
-  body.append("src.name", GUPSHUP_APP_NAME!);
+  const logId = await logMessage(
+    destination,
+    "template",
+    "pending",
+    { templateName, params },
+    ctx,
+  );
 
   try {
-    const res = await fetch(GUPSHUP_MSG_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        apikey: GUPSHUP_API_KEY!,
+    const res = await fetch(
+      `${WATI_API_URL}/api/v1/sendTemplateMessage?whatsappNumber=${phone}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${WATI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          template_name: templateName,
+          broadcast_name: templateName,
+          parameters: params,
+        }),
       },
-      body: body.toString(),
-    });
+    );
 
     const responseText = await res.text();
 
     if (!res.ok) {
-      logger.error({ status: res.status, body: responseText }, "Gupshup session message send failed");
+      logger.error({ status: res.status, body: responseText, templateName }, "WATI template send failed");
       if (logId) await updateLogStatus(logId, "failed", responseText);
       return false;
     }
@@ -134,66 +137,53 @@ async function sendGupshupSessionMessage(
     let parsed: Record<string, unknown> = {};
     try { parsed = JSON.parse(responseText); } catch {}
 
-    if (parsed.status === "error") {
-      logger.error({ response: parsed }, "Gupshup session message returned error");
-      if (logId) await updateLogStatus(logId, "failed", parsed.message as string);
+    if (parsed.result === false) {
+      logger.error({ response: parsed, templateName }, "WATI template returned error");
+      if (logId) await updateLogStatus(logId, "failed", (parsed.info as string) || JSON.stringify(parsed));
       return false;
     }
 
-    logger.info({ destination: phone, messageType: message.type }, "WhatsApp session message sent successfully");
-    if (logId) await updateLogStatus(logId, "sent", undefined, parsed.messageId as string);
+    logger.info({ destination: phone, templateName }, "WhatsApp template sent successfully");
+    if (logId) await updateLogStatus(logId, "sent", undefined, parsed.id as string);
     return true;
   } catch (err) {
-    logger.error({ err }, "Gupshup session message send error");
+    logger.error({ err, templateName }, "WATI template send error");
     if (logId) await updateLogStatus(logId, "failed", (err as Error).message);
     return false;
   }
 }
 
-async function sendGupshupTemplateMessage(
+async function sendWatiSessionText(
   destination: string,
-  templateId: string,
-  params: string[],
+  text: string,
   logContext?: MessageLogContext,
 ): Promise<boolean> {
   if (!isConfigured()) {
-    logger.warn("Gupshup WhatsApp not configured — skipping send");
+    logger.warn("WATI WhatsApp not configured — skipping send");
     return false;
   }
 
   const phone = normalizePhone(destination);
   const ctx = logContext || _currentLogContext;
+  const logId = await logMessage(destination, "text", "pending", { type: "text", text }, ctx);
 
-  const templatePayload = { id: templateId, params };
-  const logId = await logMessage(
-    destination,
-    "template",
-    "pending",
-    { templateId, params },
-    ctx,
-  );
-
-  const body = new URLSearchParams();
-  body.append("channel", "whatsapp");
-  body.append("source", GUPSHUP_SOURCE!);
-  body.append("destination", phone);
-  body.append("template", JSON.stringify(templatePayload));
-  body.append("src.name", GUPSHUP_APP_NAME!);
+  const formData = new FormData();
+  formData.append("messageText", text);
 
   try {
-    const res = await fetch(GUPSHUP_TEMPLATE_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        apikey: GUPSHUP_API_KEY!,
+    const res = await fetch(
+      `${WATI_API_URL}/api/v1/sendSessionMessage/${phone}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${WATI_API_KEY}` },
+        body: formData,
       },
-      body: body.toString(),
-    });
+    );
 
     const responseText = await res.text();
 
     if (!res.ok) {
-      logger.error({ status: res.status, body: responseText, templateId }, "Gupshup template send failed");
+      logger.error({ status: res.status, body: responseText }, "WATI session message send failed");
       if (logId) await updateLogStatus(logId, "failed", responseText);
       return false;
     }
@@ -201,17 +191,85 @@ async function sendGupshupTemplateMessage(
     let parsed: Record<string, unknown> = {};
     try { parsed = JSON.parse(responseText); } catch {}
 
-    if (parsed.status === "error") {
-      logger.error({ response: parsed, templateId }, "Gupshup template returned error");
-      if (logId) await updateLogStatus(logId, "failed", parsed.message as string);
+    if (parsed.result === false) {
+      logger.error({ response: parsed }, "WATI session message returned error");
+      if (logId) await updateLogStatus(logId, "failed", (parsed.info as string) || JSON.stringify(parsed));
       return false;
     }
 
-    logger.info({ destination: phone, templateId }, "WhatsApp template sent successfully");
-    if (logId) await updateLogStatus(logId, "sent", undefined, parsed.messageId as string);
+    logger.info({ destination: phone }, "WhatsApp session message sent successfully");
+    if (logId) await updateLogStatus(logId, "sent", undefined, parsed.id as string);
     return true;
   } catch (err) {
-    logger.error({ err, templateId }, "Gupshup template send error");
+    logger.error({ err }, "WATI session message send error");
+    if (logId) await updateLogStatus(logId, "failed", (err as Error).message);
+    return false;
+  }
+}
+
+async function sendWatiSessionFile(
+  destination: string,
+  fileUrl: string,
+  filename: string,
+  mimeType: string,
+  messageType: "document" | "image",
+  caption?: string,
+  logContext?: MessageLogContext,
+): Promise<boolean> {
+  if (!isConfigured()) {
+    logger.warn("WATI WhatsApp not configured — skipping send");
+    return false;
+  }
+
+  const phone = normalizePhone(destination);
+  const ctx = logContext || _currentLogContext;
+  const logId = await logMessage(destination, messageType, "pending", { type: messageType, url: fileUrl, filename, caption }, ctx);
+
+  try {
+    const fileRes = await fetch(fileUrl);
+    if (!fileRes.ok) {
+      logger.error({ status: fileRes.status, url: fileUrl }, "Failed to download file for WATI send");
+      if (logId) await updateLogStatus(logId, "failed", `Failed to download: HTTP ${fileRes.status}`);
+      return false;
+    }
+
+    const fileBuffer = await fileRes.arrayBuffer();
+    const blob = new Blob([fileBuffer], { type: mimeType });
+    const formData = new FormData();
+    formData.append("file", blob, filename);
+    if (caption) formData.append("caption", caption);
+
+    const res = await fetch(
+      `${WATI_API_URL}/api/v1/sendSessionFile/${phone}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${WATI_API_KEY}` },
+        body: formData,
+      },
+    );
+
+    const responseText = await res.text();
+
+    if (!res.ok) {
+      logger.error({ status: res.status, body: responseText, filename }, "WATI file send failed");
+      if (logId) await updateLogStatus(logId, "failed", responseText);
+      return false;
+    }
+
+    let parsed: Record<string, unknown> = {};
+    try { parsed = JSON.parse(responseText); } catch {}
+
+    if (parsed.result === false) {
+      logger.error({ response: parsed, filename }, "WATI file send returned error");
+      if (logId) await updateLogStatus(logId, "failed", (parsed.info as string) || JSON.stringify(parsed));
+      return false;
+    }
+
+    logger.info({ destination: phone, filename, messageType }, "WhatsApp file sent successfully via WATI");
+    if (logId) await updateLogStatus(logId, "sent", undefined, parsed.id as string);
+    return true;
+  } catch (err) {
+    logger.error({ err, filename }, "WATI file send error");
     if (logId) await updateLogStatus(logId, "failed", (err as Error).message);
     return false;
   }
@@ -222,7 +280,7 @@ export async function sendWhatsAppText(
   text: string,
   logContext?: MessageLogContext,
 ): Promise<boolean> {
-  return sendGupshupSessionMessage(destination, { type: "text", text }, logContext);
+  return sendWatiSessionText(destination, text, logContext);
 }
 
 export interface TemplateParam {
@@ -232,19 +290,13 @@ export interface TemplateParam {
 
 export async function sendWhatsAppTemplate(
   destination: string,
-  templateId: string,
+  templateName: string,
   params: TemplateParam[],
-  isAuthentication?: boolean,
+  _isAuthentication?: boolean,
   logContext?: MessageLogContext,
 ): Promise<boolean> {
-  const paramStrings = params.map((p) => p.text);
-
-  if (isAuthentication) {
-    const otpCode = paramStrings[0] || "";
-    return sendGupshupTemplateMessage(destination, templateId, [otpCode, otpCode], logContext);
-  }
-
-  return sendGupshupTemplateMessage(destination, templateId, paramStrings, logContext);
+  const watiParams = params.map((p, i) => ({ name: String(i + 1), value: p.text }));
+  return sendWatiTemplateMessage(destination, templateName, watiParams, logContext);
 }
 
 export async function sendWhatsAppDocument(
@@ -254,12 +306,7 @@ export async function sendWhatsAppDocument(
   caption?: string,
   logContext?: MessageLogContext,
 ): Promise<boolean> {
-  return sendGupshupSessionMessage(destination, {
-    type: "file",
-    url: documentUrl,
-    filename,
-    caption: caption || "",
-  }, logContext);
+  return sendWatiSessionFile(destination, documentUrl, filename, "application/pdf", "document", caption, logContext);
 }
 
 export async function sendWhatsAppImage(
@@ -268,12 +315,11 @@ export async function sendWhatsAppImage(
   caption?: string,
   logContext?: MessageLogContext,
 ): Promise<boolean> {
-  return sendGupshupSessionMessage(destination, {
-    type: "image",
-    originalUrl: imageUrl,
-    previewUrl: imageUrl,
-    caption: caption || "",
-  }, logContext);
+  const ext = imageUrl.split("?")[0].split(".").pop()?.toLowerCase() ?? "jpg";
+  const mimeMap: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" };
+  const mime = mimeMap[ext] ?? "image/jpeg";
+  const filename = `image.${ext}`;
+  return sendWatiSessionFile(destination, imageUrl, filename, mime, "image", caption, logContext);
 }
 
 export function isWhatsAppConfigured(): boolean {

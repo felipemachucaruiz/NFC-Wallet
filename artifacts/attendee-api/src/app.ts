@@ -135,7 +135,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Mount WhatsApp webhook BEFORE rate limiters so Gupshup is never rate-blocked
+// Mount WhatsApp webhook BEFORE rate limiters so WATI is never rate-blocked
 app.use("/api", whatsappWebhookRouter);
 app.use("/attendee-api/api", whatsappWebhookRouter);
 

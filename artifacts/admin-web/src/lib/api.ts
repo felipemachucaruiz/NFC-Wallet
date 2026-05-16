@@ -430,7 +430,7 @@ export interface WhatsAppTriggerMapping {
   templateGupshupId: string | null;
 }
 
-export interface GupshupTemplate {
+export interface WatiTemplate {
   id: string;
   elementName: string;
   category: string;
@@ -441,13 +441,19 @@ export interface GupshupTemplate {
   meta: string;
 }
 
-export async function apiFetchGupshupTemplates(): Promise<GupshupTemplate[]> {
-  const res = await fetch(apiUrl("/api/whatsapp-templates/gupshup"), { headers: authHeaders() });
+/** @deprecated Use WatiTemplate */
+export type GupshupTemplate = WatiTemplate;
+
+export async function apiFetchWatiTemplates(): Promise<WatiTemplate[]> {
+  const res = await fetch(apiUrl("/api/whatsapp-templates/wati"), { headers: authHeaders() });
   const data = await res.json();
-  if (res.status === 503) return []; // Gupshup not configured — return empty, don't throw
-  if (!res.ok) throw new Error(data.error ?? "Failed to fetch Gupshup templates");
+  if (res.status === 503) return []; // WATI not configured — return empty, don't throw
+  if (!res.ok) throw new Error(data.error ?? "Failed to fetch WATI templates");
   return data.templates;
 }
+
+/** @deprecated Use apiFetchWatiTemplates */
+export const apiFetchGupshupTemplates = apiFetchWatiTemplates;
 
 export async function apiFetchWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
   const res = await fetch(apiUrl("/api/whatsapp-templates"), { headers: authHeaders() });
@@ -586,7 +592,7 @@ export async function apiDeleteReminderSchedule(id: string): Promise<void> {
   if (!res.ok) { const data = await res.json(); throw new Error(data.error ?? "Failed to delete schedule"); }
 }
 
-export async function apiTestReminderSchedule(id: string, body: { phone: string; attendeeName?: string; eventId?: string }): Promise<{ ok: boolean; messageId?: string; gupshupStatus?: string; dest?: string }> {
+export async function apiTestReminderSchedule(id: string, body: { phone: string; attendeeName?: string; eventId?: string }): Promise<{ ok: boolean; messageId?: string; dest?: string }> {
   const res = await fetch(apiUrl(`/api/whatsapp-reminder-schedules/${id}/test`), {
     method: "POST",
     headers: { ...authHeaders(), "Content-Type": "application/json" },
