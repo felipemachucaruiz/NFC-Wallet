@@ -13,10 +13,12 @@ import cardsRouter from "./cards";
 import adsRouter from "./ads";
 import citiesRouter from "./cities";
 import imageProxyRouter from "./imageProxy";
+import watiWebhookRouter from "./watiWebhook";
 
 const router: IRouter = Router();
 
 router.use(imageProxyRouter);
+router.use(watiWebhookRouter);
 router.use(healthRouter);
 router.use(authRouter);
 router.use(attendeeRouter);
