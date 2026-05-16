@@ -380,6 +380,18 @@ export function useDeleteAccount() {
   });
 }
 
+export function useEnabledPaymentMethods() {
+  return useQuery({
+    queryKey: ["public", "payment-methods"],
+    queryFn: async () => {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/api/public/payment-methods`, { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch payment methods");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useChangePassword() {
   const headers = useAuthHeaders();
   const apiFetch = useApiFetch();

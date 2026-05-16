@@ -114,6 +114,7 @@ import SyncIssues from "@/pages/sync-issues";
 import LoadTest from "@/pages/load-test";
 import Ads from "@/pages/ads";
 import Cities from "@/pages/cities";
+import PlatformConfig from "@/pages/platform-config";
 
 function handleGlobal401() {
   localStorage.removeItem(AUTH_TOKEN_KEY);
@@ -273,6 +274,9 @@ function Router() {
       </Route>
       <Route path="/cities">
         <ProtectedRoute component={Cities} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/platform-config">
+        <ProtectedRoute component={PlatformConfig} allowedRoles={["admin"]} />
       </Route>
 
       {/* Event Admin Routes — also accessible to admin in managingEvent mode */}

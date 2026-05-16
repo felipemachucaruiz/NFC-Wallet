@@ -29,7 +29,7 @@ import { formatCurrency } from "@/utils/format";
 import { PhoneInput, COUNTRY_CODES, type CountryCode } from "@/components/PhoneInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePurchaseTickets, useTokenizeCard } from "@/hooks/useEventsApi";
-import { usePseBanks, useSavedCards, type SavedCard } from "@/hooks/useAttendeeApi";
+import { usePseBanks, useSavedCards, useEnabledPaymentMethods, type SavedCard } from "@/hooks/useAttendeeApi";
 import type { OrderTicket, PaymentMethod } from "@/types/events";
 
 function safeParseJson<T>(json: string | undefined, fallback: T): T {
@@ -155,6 +155,9 @@ export default function TicketCheckoutScreen() {
 
   const { data: savedCardsData } = useSavedCards();
   const savedCards = savedCardsData?.cards ?? [];
+
+  const { data: pmData } = useEnabledPaymentMethods();
+  const enabledMethods: PaymentMethod[] = (pmData as { enabledPaymentMethods?: PaymentMethod[] } | undefined)?.enabledPaymentMethods ?? ["nequi", "pse", "card", "bancolombia_transfer", "daviplata", "puntoscolombia"];
 
   const { data: pseBanksRaw, isPending: pseBanksLoading } = usePseBanks();
   const pseBanks = (pseBanksRaw ?? []).map((b) => ({
@@ -316,7 +319,7 @@ export default function TicketCheckoutScreen() {
               { id: "bancolombia_transfer", icon: "repeat", label: "Bancolombia" },
               { id: "daviplata", icon: "smartphone", label: "Daviplata" },
               { id: "puntoscolombia", icon: "star", label: "Puntos Col." },
-            ] as { id: PaymentMethod; icon: string; label: string }[]).map((m) => (
+            ] as { id: PaymentMethod; icon: string; label: string }[]).filter((m) => enabledMethods.includes(m.id)).map((m) => (
               <Pressable
                 key={m.id}
                 onPress={() => { setMethod(m.id); setSelectedBank(null); setShowBankPicker(false); setShowLegalIdTypePicker(false); setPhoneNumber(""); setSelectedSavedCardId(null); }}

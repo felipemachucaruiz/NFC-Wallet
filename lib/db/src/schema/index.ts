@@ -17,3 +17,4 @@ export * from "./ticketCheckins";
 export * from "./whatsapp";
 export * from "./ads";
 export * from "./cityCoverPhotos";
+export * from "./platformConfig";

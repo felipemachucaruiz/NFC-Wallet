@@ -72,6 +72,7 @@
     "devices": "Devices",
     "analytics": "Analytics",
     "loadTest": "Pre-Event Simulator",
+    "paymentMethods": "Payment Methods",
     "helpSupport": "Help & Support",
     "helpText": "Need help? Contact your Tapee administrator.",
     "switchToEn": "Switch to EN",
@@ -79,6 +80,17 @@
     "notifications": "Notifications",
     "noNotifications": "No notifications",
     "upToDate": "You're all caught up."
+  },
+  "platformConfig": {
+    "title": "Payment Methods",
+    "subtitle": "Configure which online payment methods are available to attendees platform-wide.",
+    "methodsTitle": "Online payment methods (Wompi)",
+    "methodsDesc": "Disabled methods will not appear in the top-up or ticket checkout flows. At least one must remain active.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "saved": "Configuration saved",
+    "minOneRequired": "At least one payment method must remain active",
+    "activeCount": "{{count}} of {{total}} methods active"
   },
   "authFooter": {
     "copyright": "© 2026 Tapee S.A.S Nit: 902064713-1 - All rights reserved.",

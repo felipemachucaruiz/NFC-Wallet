@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketPricingStagesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable, guestListsTable, promoterCompaniesTable } from "@workspace/db";
+import { db, eventsTable, eventDaysTable, venuesTable, venueSectionsTable, ticketTypesTable, ticketTypeUnitsTable, ticketPricingStagesTable, ticketOrdersTable, ticketsTable, wompiPaymentIntentsTable, usersTable, guestListsTable, promoterCompaniesTable, platformConfigTable, ALL_WOMPI_PAYMENT_METHODS } from "@workspace/db";
 import { eq, and, sql, ilike, gte, lte, asc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { logger } from "../lib/logger";
@@ -913,6 +913,15 @@ router.get(
       ticketCount: order.ticketCount,
       totalAmount: order.totalAmount,
     });
+  },
+);
+
+router.get(
+  "/public/payment-methods",
+  async (_req: Request, res: Response) => {
+    const [config] = await db.select({ enabledPaymentMethods: platformConfigTable.enabledPaymentMethods }).from(platformConfigTable).limit(1);
+    const enabled = config?.enabledPaymentMethods ?? [...ALL_WOMPI_PAYMENT_METHODS];
+    res.json({ enabledPaymentMethods: enabled });
   },
 );
 
