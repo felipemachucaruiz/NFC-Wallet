@@ -210,7 +210,7 @@ router.get("/wati/catalog.csv", async (_req: Request, res: Response) => {
         ticketingEnabled: eventsTable.ticketingEnabled,
       })
       .from(eventsTable)
-      .where(and(eq(eventsTable.active, true), eq(eventsTable.ticketingEnabled, true)))
+      .where(and(eq(eventsTable.active, true), eq(eventsTable.ticketingEnabled, true), gte(eventsTable.startsAt, now)))
       .orderBy(asc(eventsTable.startsAt));
 
     // Get cheapest available ticket type per event
@@ -272,7 +272,12 @@ router.get("/wati/catalog.csv", async (_req: Request, res: Response) => {
         event.venueAddress ? `📍 ${event.venueAddress}` : "",
       ].filter(Boolean).join(" · ").slice(0, 9999);
 
-      const imageUrl = event.coverImageUrl || event.flyerImageUrl || "";
+      const makeAbsolute = (path: string | null) => {
+        if (!path) return "";
+        if (path.startsWith("http")) return path;
+        return `https://attendee.tapee.app/attendee-api${path}`;
+      };
+      const imageUrl = makeAbsolute(event.coverImageUrl || event.flyerImageUrl || "");
       const link = `https://tapeetickets.com/events/${event.slug}`;
 
       const row = [
