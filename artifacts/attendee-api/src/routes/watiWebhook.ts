@@ -149,7 +149,7 @@ router.get("/wati/events", async (req: Request, res: Response) => {
           date: formatDate(event.startsAt),
           time: formatTime(event.startsAt),
           endDate: event.endsAt ? formatDate(event.endsAt) : null,
-          link: `https://tapeetickets.com/events/${event.slug}`,
+          link: `https://tapeetickets.com/event/${event.slug}`,
           coverImageUrl: event.coverImageUrl ?? null,
           onSale: saleOpen,
           ticketTypes: formattedTypes,
@@ -295,7 +295,7 @@ router.get("/wati/catalog.csv", async (_req: Request, res: Response) => {
         return `https://attendee.tapee.app/attendee-api${path}`;
       };
       const imageUrl = makeAbsolute(event.coverImageUrl || event.flyerImageUrl || "");
-      const link = `https://tapeetickets.com/events/${event.slug}`;
+      const link = `https://tapeetickets.com/event/${event.slug}`;
 
       const row = [
         csvEscape(event.id),
