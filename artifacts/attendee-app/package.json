@@ -76,6 +76,7 @@
     "expo-updates": "^29.0.16",
     "i18next": "^25.10.9",
     "react-i18next": "^16.6.5",
+    "nfc-hce": "file:./modules/nfc-hce",
     "react-native-nfc-manager": "^3.17.2",
     "react-native-qrcode-svg": "^6.3.21",
     "react-native-webview": "^13.16.1",

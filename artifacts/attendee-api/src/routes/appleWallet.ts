@@ -7,8 +7,57 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { PKPass } from "passkit-generator";
+import { mintVASToken, encodeVASToken, loadSigningPrivateKey } from "../utils/vasToken.js";
 
 const router: IRouter = Router();
+
+// ─── VAS NFC field builder ────────────────────────────────────────────────────
+
+/**
+ * Build the `nfc` field for pass.json.
+ *
+ * message: base64url-encoded SignedVASToken (ECDSA P-256).
+ *   - uid derived from ticketId + eventSlug (scoped, not raw UUID)
+ *   - bal: 0 (tickets are not cashless passes — for cashless passes use a bracelet ID + real balance)
+ *   - seq: 0 (minted fresh)
+ *
+ * encryptionPublicKeyPoint: compressed X9.62 hex of the POS terminal's ECIES key.
+ *   iOS will ECIES-encrypt `message` before sending it to the terminal, so only
+ *   terminals holding the matching private key (in Android Keystore) can read it.
+ *
+ * Returns {} (empty) if env vars are not configured — pass generation still succeeds,
+ * the pass just won't support VAS NFC reading.
+ */
+function buildVASNfcField(ticketId: string, eventSlug: string): Record<string, unknown> {
+  const eciesKeyHex = process.env.VAS_ECIES_PUBLIC_KEY_HEX;
+  if (!eciesKeyHex) return {};
+
+  let privKey: string;
+  try {
+    privKey = loadSigningPrivateKey();
+  } catch {
+    return {};
+  }
+
+  try {
+    const uid   = crypto.createHmac("sha256", eventSlug).update(ticketId).digest("hex").slice(0, 16);
+    const token = mintVASToken(
+      { uid, bal: 0, seq: 0, ts: Math.floor(Date.now() / 1000), eid: eventSlug },
+      privKey,
+    );
+    const message = encodeVASToken(token);
+
+    return {
+      nfc: {
+        message,
+        encryptionPublicKeyPoint: eciesKeyHex, // 33-byte compressed X9.62 hex
+        requiresAuthentication: false,         // true = requires Face ID / Touch ID before NFC
+      },
+    };
+  } catch {
+    return {};
+  }
+}
 
 const API_SERVER_URL = (process.env.API_SERVER_URL ?? "https://prod.tapee.app").replace(/\/$/, "");
 
@@ -235,6 +284,14 @@ router.get(
           format: "PKBarcodeFormatQR",
           messageEncoding: "iso-8859-1",
         },
+        // ── Apple VAS (Value Added Services) — Digital Wallet Cashless ──────
+        // encryptionPublicKeyPoint: compressed X9.62 P-256 public key of the
+        // POS terminal. iOS encrypts the message with this key via ECIES before
+        // transmitting, so only our terminals can decrypt it.
+        // message: signed VAS token (ECDSA P-256 by backend) encoded as base64url.
+        // Requires: VAS_ECIES_PUBLIC_KEY_HEX + VAS_SIGNING_PRIVATE_KEY_B64 env vars.
+        // Also requires the pass type to be enrolled in Apple VAS (merchantId).
+        ...buildVASNfcField(ticket.id, event?.slug ?? "tapee"),
       };
 
       const buffers: Record<string, Buffer> = {

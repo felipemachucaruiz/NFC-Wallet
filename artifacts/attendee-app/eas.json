@@ -30,7 +30,6 @@
     "production-apk": {
       "distribution": "internal",
       "channel": "production",
-      "resourceClass": "large",
       "credentialsSource": "remote",
       "prebuildCommand": "npx expo prebuild --clean --no-install",
       "android": {

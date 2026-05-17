@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { useAlert } from "@/components/CustomAlert";
 import { useAddToWallet, useTicketDetail, useTransferTicket } from "@/hooks/useEventsApi";
 import { useOfflinePdf } from "@/hooks/useOfflinePdf";
+import { setNfcTicketToken, clearNfcTicketToken } from "nfc-hce/src";
 import { Loading } from "@/components/ui/Loading";
 import type { MyTicket } from "@/types/events";
 
@@ -110,6 +111,13 @@ export default function TicketDetailScreen() {
       extractDominantColorFromCanvas(ticket.eventCoverImageUrl, setDominantColor);
     }
   }, [ticket?.eventCoverImageUrl]);
+
+  // Activate HCE so gate PDA can read ticket token via NFC tap (Android only)
+  useEffect(() => {
+    if (!ticket?.qrCode || Platform.OS !== "android") return;
+    setNfcTicketToken(ticket.qrCode).catch(() => {});
+    return () => { clearNfcTicketToken().catch(() => {}); };
+  }, [ticket?.qrCode]);
 
   if (isFetching && !ticket) {
     return <Loading label={t("common.loading")} />;

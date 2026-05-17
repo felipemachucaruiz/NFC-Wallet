@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
-import { cancelNfc, scanAndWriteBracelet, isNfcSupported, type BraceletPayload } from "@/utils/nfc";
+import { cancelNfc, scanAndWriteBracelet, isNfcSupported, tryReadTicketFromPhone, type BraceletPayload } from "@/utils/nfc";
 import { computeHmac } from "@/utils/hmac";
 import { useZoneCache } from "@/contexts/ZoneCacheContext";
 import { useGetSigningKey } from "@workspace/api-client-react";
@@ -673,6 +673,27 @@ export default function EntranceCheckinScreen() {
 
   const isMultiDay = ticketInfo ? ticketInfo.validDays.length > 1 : false;
 
+  const [nfcPhoneScanning, setNfcPhoneScanning] = useState(false);
+
+  const handlePhoneNfcScan = useCallback(async () => {
+    if (nfcPhoneScanning || !isNfcSupported()) return;
+    setNfcPhoneScanning(true);
+    try {
+      const token = await tryReadTicketFromPhone();
+      if (token) {
+        validateTicket(token);
+      } else {
+        setErrorMsg(t("gate.nfcPhoneNotFound", "No se encontró tiquete NFC. Asegúrate de que el asistente tenga su entrada abierta."));
+        setPageState("error");
+      }
+    } catch {
+      setErrorMsg(t("common.unknownError"));
+      setPageState("error");
+    } finally {
+      setNfcPhoneScanning(false);
+    }
+  }, [nfcPhoneScanning, validateTicket, t]);
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: C.background }}
@@ -1070,6 +1091,39 @@ export default function EntranceCheckinScreen() {
                     </Text>
                   </View>
                   <Feather name="arrow-right" size={20} color="rgba(255,255,255,0.7)" />
+                </Pressable>
+              </>
+            )}
+
+            {Platform.OS === "android" && isNfcSupported() && (
+              <>
+                <Text style={[styles.orDivider, { color: C.textMuted }]}>
+                  {t("gate.orNfcPhone", "o NFC")}
+                </Text>
+                <Pressable
+                  style={[styles.cameraScanBtn, { backgroundColor: "#0d9488", opacity: nfcPhoneScanning ? 0.7 : 1 }]}
+                  onPress={handlePhoneNfcScan}
+                  disabled={nfcPhoneScanning}
+                >
+                  <View style={[styles.cameraScanIconWrap, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+                    {nfcPhoneScanning
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Feather name="wifi" size={24} color="#fff" />
+                    }
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cameraScanBtnTitle, { color: "#fff" }]}>
+                      {nfcPhoneScanning
+                        ? t("gate.nfcPhoneReading", "Leyendo NFC...")
+                        : t("gate.nfcPhoneScan", "Ticket NFC del teléfono")}
+                    </Text>
+                    <Text style={[styles.cameraScanBtnSub, { color: "rgba(255,255,255,0.75)" }]}>
+                      {t("gate.nfcPhoneHint", "Acerca el teléfono del asistente")}
+                    </Text>
+                  </View>
+                  {!nfcPhoneScanning && (
+                    <Feather name="arrow-right" size={20} color="rgba(255,255,255,0.7)" />
+                  )}
                 </Pressable>
               </>
             )}
