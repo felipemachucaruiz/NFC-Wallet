@@ -9,6 +9,19 @@ function isConfigured(): boolean {
   return !!(WATI_API_KEY && WATI_API_URL);
 }
 
+// Log all WATI templates on startup for diagnostics
+if (WATI_API_KEY && WATI_API_URL) {
+  fetch(`${WATI_API_URL}/api/v1/getTemplates`, {
+    headers: { Authorization: `Bearer ${WATI_API_KEY}` },
+  })
+    .then((r) => r.json())
+    .then((data) => {
+      const templates = (data as any)?.messageTemplates ?? data;
+      logger.info({ watiTemplates: templates }, "WATI templates loaded on startup");
+    })
+    .catch((err) => logger.warn({ err }, "Could not fetch WATI templates on startup"));
+}
+
 function normalizePhone(phone: string): string {
   let cleaned = phone.replace(/[\s\-\(\)]/g, "");
   if (cleaned.startsWith("+")) cleaned = cleaned.slice(1);

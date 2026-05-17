@@ -54,30 +54,6 @@ function extractSenderPhone(body: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
-// GET — list WATI templates for debugging (protected by DEMO_SECRET)
-router.get("/whatsapp/templates", async (req: Request, res: Response) => {
-  const secret = process.env.DEMO_SECRET;
-  if (!secret || req.query.secret !== secret) {
-    res.status(403).json({ error: "forbidden" });
-    return;
-  }
-  const WATI_API_KEY = process.env.WATI_API_KEY;
-  const WATI_API_URL = process.env.WATI_API_URL?.replace(/\/$/, "");
-  if (!WATI_API_KEY || !WATI_API_URL) {
-    res.status(500).json({ error: "WATI not configured" });
-    return;
-  }
-  try {
-    const r = await fetch(`${WATI_API_URL}/api/v1/getTemplates`, {
-      headers: { Authorization: `Bearer ${WATI_API_KEY}` },
-    });
-    const data = await r.json();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: String(err) });
-  }
-});
-
 // GET — WATI and other providers may verify the endpoint with a GET request
 router.get("/whatsapp/webhook", (req: Request, res: Response) => {
   logger.info({ query: req.query }, "WhatsApp webhook GET verification request received");

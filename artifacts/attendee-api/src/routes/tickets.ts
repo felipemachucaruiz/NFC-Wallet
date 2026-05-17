@@ -1602,7 +1602,7 @@ async function sendTicketWhatsApp(data: {
 
   let textSent = templateResult.sent;
 
-  if (!templateResult.usedTemplate) {
+  if (!templateResult.usedTemplate || (!templateResult.sent && templateResult.usedTemplate)) {
     const message = [
       `*Tu entrada para ${data.eventName}*`,
       ``,
@@ -1615,12 +1615,12 @@ async function sendTicketWhatsApp(data: {
       `*Dias validos:* ${validDaysStr}`,
       `*Orden:* ${data.orderId.slice(0, 8)}`,
       ``,
-      `Presenta el codigo QR adjunto en la puerta del evento.`,
+      `Confírmame si deseas que te envíe tus entradas aquí.`,
       ``,
       `-- Tapee`,
     ].filter(Boolean).join("\n");
 
-    textSent = await sendWhatsAppText(data.attendeePhone, message);
+    textSent = await sendWhatsAppText(data.attendeePhone, message, logContext);
   }
 
   return textSent;
