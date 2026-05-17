@@ -172,12 +172,22 @@ router.get("/wati/events", async (req: Request, res: Response) => {
 
     const eventsListText = textList || "No hay eventos disponibles por el momento.";
 
+    // Single-line fields for WATI variables (newlines break WATI variable substitution)
+    const first = result[0];
+    const primerEvento = first
+      ? `${first.name} · ${first.date} · ${first.venue} · ${first.ticketTypes[0]?.totalPrice ?? "Ver sitio"} · ${first.link}`
+      : "No hay eventos disponibles.";
+
     res.json({
       count: result.length,
       events: result,
       eventsText: eventsListText,
-      // Named to match the WATI custom variable — map this field directly in the WATI API node
       eventos_lista: eventsListText,
+      // Single-line fallbacks — use these if eventos_lista doesn't render in WATI
+      primer_evento: primerEvento,
+      primer_evento_nombre: first?.name ?? "",
+      primer_evento_fecha: first?.date ?? "",
+      primer_evento_link: first?.link ?? "",
     });
   } catch (err) {
     logger.error({ err }, "WATI events webhook error");
