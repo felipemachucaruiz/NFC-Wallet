@@ -10,6 +10,14 @@ import { PKPass } from "passkit-generator";
 
 const router: IRouter = Router();
 
+const API_SERVER_URL = (process.env.API_SERVER_URL ?? "https://prod.tapee.app").replace(/\/$/, "");
+
+function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${API_SERVER_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 const HMAC_SECRET = process.env.HMAC_SECRET;
 const PASS_TYPE_ID = process.env.APPLE_PASS_TYPE_ID || "pass.tapee.tickets";
 const TEAM_ID = process.env.APPLE_TEAM_ID || "F9V84KM292";
@@ -167,7 +175,8 @@ router.get(
     }
 
     const eventName = event?.name ?? "Evento Tapee";
-    const eventDate = formatDate(event?.startsAt);
+    const startsAt = event?.startsAt ? new Date(event.startsAt) : null;
+    const eventDateIso = startsAt ? startsAt.toISOString() : null;
     const venue = event?.venueAddress ?? "";
     const attendeeName = ticket.attendeeName ?? order?.buyerName ?? "Asistente";
     const qrMessage = ticket.qrCodeToken ?? ticketId;
@@ -185,19 +194,32 @@ router.get(
         description: `${eventName} — ${ticketTypeName}`,
         backgroundColor: "rgb(0, 0, 0)",
         foregroundColor: "rgb(255, 255, 255)",
-        labelColor: "rgb(200, 200, 200)",
+        labelColor: "rgb(180, 180, 180)",
         eventTicket: {
           headerFields: [
-            { key: "event", value: eventName, label: "EVENTO" },
+            ...(eventDateIso ? [{
+              key: "date",
+              value: eventDateIso,
+              label: "FECHA",
+              dateStyle: "short",
+              timeStyle: "none",
+            }] : []),
           ],
           primaryFields: [
-            { key: "name", value: attendeeName, label: "ASISTENTE" },
+            { key: "name", value: attendeeName, label: "NOMBRE" },
           ],
           secondaryFields: [
             { key: "type", value: sectionName ? `${ticketTypeName} – ${sectionName}` : ticketTypeName, label: "TIPO" },
-            ...(eventDate ? [{ key: "date", value: eventDate, label: "FECHA" }] : []),
+            ...(eventDateIso ? [{
+              key: "time",
+              value: eventDateIso,
+              label: "HORA",
+              dateStyle: "none",
+              timeStyle: "short",
+            }] : []),
           ],
           auxiliaryFields: [
+            { key: "event", value: eventName, label: "EVENTO" },
             ...(venue ? [{ key: "venue", value: venue, label: "LUGAR" }] : []),
           ],
         },
@@ -229,8 +251,9 @@ router.get(
         buffers["logo@2x.png"] = _cachedLogo;
       }
 
-      // Background image: prefer flyerImageUrl, fall back to coverImageUrl
-      const flyerUrl = event?.flyerImageUrl ?? event?.coverImageUrl ?? null;
+      // Background image: resolve relative URLs then download + blur + dark gradient
+      const rawFlyerUrl = event?.flyerImageUrl ?? event?.coverImageUrl ?? null;
+      const flyerUrl = resolveImageUrl(rawFlyerUrl);
       if (flyerUrl) {
         try {
           const flyerRes = await fetch(flyerUrl, { signal: AbortSignal.timeout(8000) });
@@ -242,9 +265,9 @@ router.get(
                 `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
                   <defs>
                     <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="#000000" stop-opacity="0.20"/>
-                      <stop offset="70%" stop-color="#000000" stop-opacity="0.40"/>
-                      <stop offset="100%" stop-color="#000000" stop-opacity="0.75"/>
+                      <stop offset="0%" stop-color="#000000" stop-opacity="0.15"/>
+                      <stop offset="60%" stop-color="#000000" stop-opacity="0.45"/>
+                      <stop offset="100%" stop-color="#000000" stop-opacity="0.80"/>
                     </linearGradient>
                   </defs>
                   <rect width="${w}" height="${h}" fill="url(#g)"/>
@@ -252,6 +275,7 @@ router.get(
               );
               return sharp(flyerBuf)
                 .resize(w, h, { fit: "cover", position: "center" })
+                .blur(6)
                 .composite([{ input: gradientSvg, blend: "over" }])
                 .png()
                 .toBuffer();
@@ -259,6 +283,8 @@ router.get(
             buffers["background.png"] = await makeBackground(180, 220);
             buffers["background@2x.png"] = await makeBackground(360, 440);
             buffers["background@3x.png"] = await makeBackground(540, 660);
+          } else {
+            console.warn(`[appleWallet] Flyer fetch returned ${flyerRes.status} for ${flyerUrl}`);
           }
         } catch (err) {
           console.warn("[appleWallet] Skipping flyer background — fetch/process failed:", err);
