@@ -336,13 +336,13 @@ function buildHomeHTML(events) {
   <meta property="og:url" content="${SITE}/" />
   <meta property="og:title" content="Tapee Tickets - Boletas para eventos en Colombia" />
   <meta property="og:description" content="Descubre y compra boletas para los mejores eventos en Colombia." />
-  <meta property="og:image" content="${SITE}/og-default.jpg" />
+  <meta property="og:image" content="${SITE}/og-tapee.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Tapee Tickets — Boletas para eventos en Colombia" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@tapeeapp" />
-  <meta name="twitter:image" content="${SITE}/og-default.jpg" />
+  <meta name="twitter:image" content="${SITE}/og-tapee.jpg" />
   <meta name="twitter:image:alt" content="Tapee Tickets — Boletas para eventos en Colombia" />
   <script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>
 </head>
