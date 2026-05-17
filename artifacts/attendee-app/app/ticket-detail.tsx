@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAlert } from "@/components/CustomAlert";
 import { useAddToWallet, useTicketDetail, useTransferTicket } from "@/hooks/useEventsApi";
+import { useOfflinePdf } from "@/hooks/useOfflinePdf";
 import { Loading } from "@/components/ui/Loading";
 import type { MyTicket } from "@/types/events";
 
@@ -96,6 +97,7 @@ export default function TicketDetailScreen() {
 
   const { mutate: addToWallet, isPending: walletLoading } = useAddToWallet();
   const { mutate: transferTicket, isPending: transferLoading } = useTransferTicket();
+  const { isAvailableOffline, isDownloading: pdfDownloading, open: openPdf, download: downloadPdf } = useOfflinePdf(ticket?.id);
   const [qrExpanded, setQrExpanded] = useState(false);
   const [dominantColor, setDominantColor] = useState("rgba(90,50,180,0.35)");
   const [showTransfer, setShowTransfer] = useState(false);
@@ -376,6 +378,31 @@ export default function TicketDetailScreen() {
                 contentFit="contain"
               />
             )}
+          </Pressable>
+        )}
+
+        {Platform.OS !== "web" && (
+          <Pressable
+            onPress={isAvailableOffline ? openPdf : downloadPdf}
+            disabled={pdfDownloading}
+            style={[styles.transferBtn, { borderColor: "rgba(255,255,255,0.15)", marginTop: 8 }]}
+          >
+            {pdfDownloading ? (
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
+            ) : (
+              <Feather
+                name={isAvailableOffline ? "file-text" : "download"}
+                size={16}
+                color="rgba(255,255,255,0.7)"
+              />
+            )}
+            <Text style={styles.transferBtnText}>
+              {pdfDownloading
+                ? t("tickets.downloadingPdf", "Descargando PDF…")
+                : isAvailableOffline
+                  ? t("tickets.openPdf", "Abrir PDF (guardado)")
+                  : t("tickets.downloadPdf", "Descargar PDF")}
+            </Text>
           </Pressable>
         )}
 

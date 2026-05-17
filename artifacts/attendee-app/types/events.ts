@@ -154,4 +154,5 @@ export interface MyTicket {
   purchasedByMe: boolean;
   currencyCode: string;
   price: number;
+  orderId?: string;
 }

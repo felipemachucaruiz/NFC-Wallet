@@ -5,7 +5,10 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
+import { QueryClient, MutationCache, QueryCache } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
@@ -93,6 +96,8 @@ function reportToSentry(error: unknown, context?: Record<string, unknown>) {
   });
 }
 
+const SEVEN_DAYS = 1000 * 60 * 60 * 24 * 7;
+
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
@@ -109,8 +114,16 @@ const queryClient = new QueryClient({
     },
   }),
   defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
+    queries: { retry: 1, staleTime: 30_000, gcTime: SEVEN_DAYS },
   },
+});
+
+const persister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: "tapee-query-cache",
+  throttleTime: 3000,
+  serialize: (data) => JSON.stringify(data),
+  deserialize: (data) => JSON.parse(data),
 });
 
 function RootLayoutNav() {
@@ -273,7 +286,19 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <I18nextProvider i18n={i18n}>
-          <QueryClientProvider client={queryClient}>
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{
+              persister,
+              maxAge: SEVEN_DAYS,
+              dehydrateOptions: {
+                shouldDehydrateQuery: (query) => {
+                  const key = query.queryKey[0] as string;
+                  return ["tickets", "events"].includes(key) && query.state.status === "success";
+                },
+              },
+            }}
+          >
             <AuthProvider>
               <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
                 <KeyboardProvider>
@@ -286,7 +311,7 @@ export default function RootLayout() {
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </AuthProvider>
-          </QueryClientProvider>
+          </PersistQueryClientProvider>
         </I18nextProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

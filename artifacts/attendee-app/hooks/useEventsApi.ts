@@ -439,11 +439,28 @@ export function useMyTickets() {
         purchasedByMe: true,
         currencyCode: (t.currencyCode as string) ?? "COP",
         price: 0,
+        orderId: (t.orderId as string) ?? undefined,
       }));
       return { tickets: mapped };
     },
     enabled: !!headers.Authorization,
     staleTime: 30_000,
+  });
+}
+
+export function useTicketPdfUrl(ticketId: string | undefined) {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useQuery({
+    queryKey: ["tickets", "pdf-url", ticketId],
+    queryFn: () =>
+      apiFetch<{ url: string }>(
+        `${API_BASE_URL}/api/attendee/me/tickets/${ticketId}/pdf-url`,
+        headers,
+      ),
+    enabled: !!ticketId && !!headers.Authorization,
+    staleTime: 50 * 60 * 1000,
+    gcTime: 0,
   });
 }
 
