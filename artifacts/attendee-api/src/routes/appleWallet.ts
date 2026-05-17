@@ -197,26 +197,25 @@ router.get(
         labelColor: "rgb(180, 180, 180)",
         eventTicket: {
           headerFields: [
+            // Combined date + time in one compact header field (top-right strip)
             ...(eventDateIso ? [{
-              key: "date",
+              key: "datetime",
               value: eventDateIso,
               label: "FECHA",
               dateStyle: "PKDateStyleShort",
-              timeStyle: "PKDateStyleNone",
+              timeStyle: "PKDateStyleShort",
             }] : []),
           ],
           primaryFields: [
-            { key: "name", value: attendeeName, label: "NOMBRE" },
+            { key: "name", value: attendeeName, label: "ASISTENTE" },
           ],
           secondaryFields: [
-            { key: "ticket_type", value: sectionName ? `${ticketTypeName} – ${sectionName}` : ticketTypeName, label: "TIPO" },
-            ...(eventDateIso ? [{
-              key: "time",
-              value: eventDateIso,
-              label: "HORA",
-              dateStyle: "PKDateStyleNone",
-              timeStyle: "PKDateStyleShort",
-            }] : []),
+            // Full-width row — ticket type gets all the space so long names aren't truncated
+            {
+              key: "ticket_type",
+              value: sectionName ? `${ticketTypeName} – ${sectionName}` : ticketTypeName,
+              label: "TIPO DE ENTRADA",
+            },
           ],
           auxiliaryFields: [
             { key: "event", value: eventName, label: "EVENTO" },
