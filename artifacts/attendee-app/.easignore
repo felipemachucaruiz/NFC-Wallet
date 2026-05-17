@@ -3,6 +3,8 @@ node_modules
 dist
 *.log
 .git
+artifacts/attendee-app/android
+artifacts/attendee-app/ios
 attached_assets
 artifacts/admin-web/node_modules
 artifacts/admin-web/dist
