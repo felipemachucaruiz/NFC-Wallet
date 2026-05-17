@@ -358,7 +358,7 @@ function buildHomeHTML(events) {
 function buildEventHTML(data, slugOrId) {
   const { event, venues, ticketTypes, promoterCompany } = data;
   const venue = venues?.[0];
-  const image = resolveImageUrl(event.coverImageUrl || event.flyerImageUrl);
+  const image = resolveImageUrl(event.flyerImageUrl || event.coverImageUrl);
   const fullDesc =
     (event.longDescription || event.description || "")
       .replace(/<[^>]*>?/gm, "")
