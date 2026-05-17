@@ -697,13 +697,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Temporary debug endpoint — remove after diagnosis
-  if (pathname === "/_debug_bot") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ua, isBot, pathname, host }));
-    return;
-  }
-
   // Dynamic sitemap — served to everyone, cached 1 hour at edge
   if (pathname === "/sitemap.xml") {
     const xml = await buildSitemap();
