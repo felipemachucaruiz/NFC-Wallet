@@ -3,5 +3,5 @@ buildCommand = "pnpm install && pnpm run build"
 
 [deploy]
 startCommand = "node server.js"
-healthcheckPath = "/_debug_bot"
+healthcheckPath = "/sitemap.xml"
 healthcheckTimeout = 30
