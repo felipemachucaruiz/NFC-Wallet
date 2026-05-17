@@ -671,6 +671,43 @@ function serveIndex(res) {
   res.end(content);
 }
 
+// Inject event-specific OG tags into the SPA index.html.
+// This serves the full React app to users AND correct OG tags to crawlers —
+// no User-Agent detection required.
+function serveEventIndex(res, event, slugOrId) {
+  const indexPath = path.join(DIST, "index.html");
+  let content;
+  try {
+    content = fs.readFileSync(indexPath, "utf-8");
+  } catch {
+    serveIndex(res);
+    return;
+  }
+
+  const image = resolveImageUrl(event.flyerImageUrl || event.coverImageUrl);
+  const title = escapeHtml(event.name);
+  const rawDesc = (event.longDescription || event.description || "")
+    .replace(/<[^>]*>?/gm, "").trim();
+  const metaDesc = escapeHtml(
+    rawDesc.substring(0, 160) || `Compra boletas para ${event.name} en Tapee Tickets.`,
+  );
+  const url = `${SITE}/event/${slugOrId}`;
+
+  content = content
+    .replace(/<title>[^<]*<\/title>/, `<title>${title} — Boletas | Tapee Tickets</title>`)
+    .replace(/<meta property="og:title"[^>]*\/?>/, `<meta property="og:title" content="${title} — Tapee Tickets" />`)
+    .replace(/<meta property="og:description"[^>]*\/?>/, `<meta property="og:description" content="${metaDesc}" />`)
+    .replace(/<meta property="og:url"[^>]*\/?>/, `<meta property="og:url" content="${url}" />`);
+
+  if (image) {
+    content = content.replace(/<meta property="og:image"[^>]*\/?>/, `<meta property="og:image" content="${image}" />`);
+  }
+
+  res.setHeader("Cache-Control", "no-store");
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(content);
+}
+
 const server = http.createServer(async (req, res) => {
   const ua = req.headers["user-agent"] || "";
   const isBot = BOT_RE.test(ua);
@@ -679,7 +716,6 @@ const server = http.createServer(async (req, res) => {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     res.setHeader(key, value);
   }
-  res.setHeader("X-Tapee-Server", "v2-ssr");
 
   // Redirect www → apex (belt-and-suspenders in case traffic bypasses Cloudflare)
   const host = req.headers["x-forwarded-host"] || req.headers.host || "";
@@ -698,13 +734,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Debug: echo headers (temp)
-  if (pathname === "/_debug_headers") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ua, isBot, headers: req.headers }));
-    return;
-  }
-
   // Dynamic sitemap — served to everyone, cached 1 hour at edge
   if (pathname === "/sitemap.xml") {
     const xml = await buildSitemap();
@@ -714,25 +743,22 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Bot handling: pre-render pages with real data + structured markup
-  if (isBot) {
-    const eventMatch = pathname.match(/^\/event\/([^/?#]+)/);
-    if (eventMatch) {
-      const slugOrId = decodeURIComponent(eventMatch[1]);
-      const data = await fetchEventData(slugOrId);
-      if (data?.event) {
-        const html = buildEventHTML(data, slugOrId);
-        res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300");
-        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(html);
-        return;
-      }
-      res.setHeader("Cache-Control", "no-store");
-      res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("Event not found");
-      return;
+  // Universal event pages: inject event OG tags into SPA index.html for ALL visitors.
+  // Bots read the OG tags; real users get the full React app. No UA detection needed.
+  const eventMatch = pathname.match(/^\/event\/([^/?#]+)/);
+  if (eventMatch) {
+    const slugOrId = decodeURIComponent(eventMatch[1]);
+    const data = await fetchEventData(slugOrId);
+    if (data?.event) {
+      serveEventIndex(res, data.event, slugOrId);
+    } else {
+      serveIndex(res);
     }
+    return;
+  }
 
+  // Bot-only SSR for guest lists and home page
+  if (isBot) {
     const guestListMatch = pathname.match(/^\/guest-list\/([^/?#]+)/);
     if (guestListMatch) {
       const slug = decodeURIComponent(guestListMatch[1]);
@@ -744,10 +770,6 @@ const server = http.createServer(async (req, res) => {
         res.end(html);
         return;
       }
-      res.setHeader("Cache-Control", "no-store");
-      res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("Guest list not found");
-      return;
     }
 
     if (pathname === "/" || pathname === "") {
