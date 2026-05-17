@@ -181,6 +181,11 @@ router.get(
     const attendeeName = ticket.attendeeName ?? order?.buyerName ?? "Asistente";
     const qrMessage = ticket.qrCodeToken ?? ticketId;
 
+    // Location-based lock screen notification — decimal columns come back as strings
+    const lat = event?.latitude != null ? parseFloat(String(event.latitude)) : null;
+    const lng = event?.longitude != null ? parseFloat(String(event.longitude)) : null;
+    const hasLocation = lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng);
+
     try {
       loadAssets();
       const { signerCert, signerKey } = extractCerts();
@@ -195,6 +200,12 @@ router.get(
         backgroundColor: "rgb(0, 0, 0)",
         foregroundColor: "rgb(255, 255, 255)",
         labelColor: "rgb(180, 180, 180)",
+        // Show pass on lock screen when near the venue
+        ...(hasLocation ? {
+          locations: [{ latitude: lat!, longitude: lng!, relevantText: `Tu entrada para ${eventName} está lista` }],
+        } : {}),
+        // Also surface the pass at event time
+        ...(eventDateIso ? { relevantDate: eventDateIso } : {}),
         eventTicket: {
           headerFields: [
             // Combined date + time in one compact header field (top-right strip)
