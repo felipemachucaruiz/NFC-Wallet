@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   s.license        = package['license']
   s.homepage       = package['homepage']
   s.authors        = package['author']
-  s.source         = { git: '' }
+  s.source         = { git: 'https://github.com/tapee/nfc-hce', tag: s.version.to_s }
   s.platforms      = { ios: '15.1' }
   s.swift_version  = '5.4'
   s.source_files   = 'ios/**/*.{h,m,mm,swift}'

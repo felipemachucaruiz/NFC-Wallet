@@ -3,5 +3,7 @@
   "version": "1.0.0",
   "description": "Android HCE module for emitting ticket QR tokens via NFC",
   "main": "src/index.ts",
-  "license": "MIT"
+  "license": "MIT",
+  "homepage": "https://tapeetickets.com",
+  "author": "Tapee"
 }
