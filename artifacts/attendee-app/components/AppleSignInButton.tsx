@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
   onError?: (msg: string) => void;
+  compact?: boolean;
 }
 
 function AppleIcon() {
@@ -20,7 +21,7 @@ function AppleIcon() {
   );
 }
 
-export function AppleSignInButton({ onError }: Props) {
+export function AppleSignInButton({ onError, compact }: Props) {
   const { t } = useTranslation();
   const { loginWithApple } = useAuth();
   const [loading, setLoading] = React.useState(false);
@@ -64,6 +65,18 @@ export function AppleSignInButton({ onError }: Props) {
     }
   };
 
+  if (compact) {
+    return (
+      <Pressable
+        onPress={handlePress}
+        disabled={loading}
+        style={({ pressed }) => [styles.circle, pressed && styles.pressed, loading && styles.disabled]}
+      >
+        {loading ? <ActivityIndicator color="rgba(255,255,255,0.8)" size="small" /> : <AppleIcon />}
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable
       onPress={handlePress}
@@ -87,6 +100,16 @@ export function AppleSignInButton({ onError }: Props) {
 }
 
 const styles = StyleSheet.create({
+  circle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   button: {
     flexDirection: "row",
     alignItems: "center",

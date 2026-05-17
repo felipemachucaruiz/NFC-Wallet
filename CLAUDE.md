@@ -109,7 +109,7 @@ No agregar bloques `<pin-set>` en configuraciones NSC. El archivo `withNetworkSe
 - `prod.tapee.app` → Staff API (`artifacts/api-server`)
 - `attendee.tapee.app` → Attendee API (`artifacts/attendee-api`)
 - `admin.tapee.app` → Web Admin (`artifacts/admin-web`)
-- `tickets.tapee.app` → Ticket storefront (`artifacts/tickets`)
+- `tapeetickets.com` → Ticket storefront (`artifacts/tickets`)
 
 **Ramas de despliegue — CRÍTICO:**
 - `master` → Todo excepto Web Admin (APIs, apps móviles, tickets storefront)

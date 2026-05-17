@@ -8,7 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Dimensions, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Dimensions, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
@@ -137,10 +137,18 @@ export default function LoginScreen() {
 
       <View style={styles.overlay} />
 
-      <KeyboardAvoidingView
-        style={styles.inner}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={{ flex: 1 }}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
+            <ScrollView
+              contentContainerStyle={styles.inner}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              showsVerticalScrollIndicator={false}
+            >
         <View style={styles.logoSection}>
           <TapeeLogo
             width={Math.min(SCREEN_W * 0.78, 300)}
@@ -317,17 +325,16 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <GoogleSignInButton onError={(msg) => setError(msg)} />
-
-            <AppleSignInButton onError={(msg) => setError(msg)} />
-
-            <Pressable
-              onPress={() => setShowWhatsApp(true)}
-              style={({ pressed }) => [styles.whatsappBtn, pressed && { opacity: 0.75 }]}
-            >
-              <WhatsAppIcon size={20} />
-              <Text style={styles.whatsappBtnText}>{t("auth.whatsappLogin")}</Text>
-            </Pressable>
+            <View style={styles.socialRow}>
+              <GoogleSignInButton onError={(msg) => setError(msg)} compact />
+              <AppleSignInButton onError={(msg) => setError(msg)} compact />
+              <Pressable
+                onPress={() => setShowWhatsApp(true)}
+                style={({ pressed }) => [styles.socialCircle, pressed && { opacity: 0.75 }]}
+              >
+                <WhatsAppIcon size={24} />
+              </Pressable>
+            </View>
           </View>
         )}
 
@@ -345,7 +352,10 @@ export default function LoginScreen() {
             </View>
           ))}
         </View>
-      </KeyboardAvoidingView>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </TouchableWithoutFeedback>
 
       <WhatsAppOtpModal visible={showWhatsApp} onClose={() => setShowWhatsApp(false)} />
 
@@ -398,7 +408,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.88)",
   },
   inner: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingVertical: 16,
     justifyContent: "center",
@@ -542,7 +552,22 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
   socialSection: {
-    gap: 10,
+    gap: 14,
+  },
+  socialRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+  },
+  socialCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "rgba(37,211,102,0.3)",
+    backgroundColor: "rgba(37,211,102,0.07)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   dividerRow: {
     flexDirection: "row",
@@ -558,24 +583,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     color: "rgba(255,255,255,0.35)",
-  },
-  whatsappBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(37,211,102,0.25)",
-    backgroundColor: "rgba(37,211,102,0.06)",
-    paddingVertical: 13,
-    paddingHorizontal: 20,
-    minHeight: 48,
-  },
-  whatsappBtnText: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    color: "rgba(255,255,255,0.9)",
   },
   modalOverlay: {
     flex: 1,

@@ -1,0 +1,7 @@
+[build]
+buildCommand = "pnpm install && pnpm run build"
+
+[deploy]
+startCommand = "node server.js"
+healthcheckPath = "/sitemap.xml"
+healthcheckTimeout = 30

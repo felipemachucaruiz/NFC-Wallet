@@ -1120,6 +1120,24 @@ router.get(
   },
 );
 
+router.get(
+  "/attendee/me/tickets/:ticketId/pdf-url",
+  requireRole("attendee"),
+  async (req: Request, res: Response) => {
+    const { ticketId } = req.params as { ticketId: string };
+    const [ticket] = await db
+      .select({ orderId: ticketsTable.orderId, attendeeUserId: ticketsTable.attendeeUserId })
+      .from(ticketsTable)
+      .where(and(eq(ticketsTable.id, ticketId), eq(ticketsTable.attendeeUserId, req.user!.id)));
+    if (!ticket) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const url = buildOrderPdfUrl(ticket.orderId);
+    res.json({ url });
+  },
+);
+
 const PDF_TOKEN_SECRET = process.env.HMAC_SECRET || process.env.TICKET_QR_SECRET;
 if (!PDF_TOKEN_SECRET) {
   console.warn("[tickets] WARNING: HMAC_SECRET / TICKET_QR_SECRET not set — PDF download endpoint will reject all requests");
@@ -1602,7 +1620,7 @@ async function sendTicketWhatsApp(data: {
 
   let textSent = templateResult.sent;
 
-  if (!templateResult.usedTemplate) {
+  if (!templateResult.usedTemplate || (!templateResult.sent && templateResult.usedTemplate)) {
     const message = [
       `*Tu entrada para ${data.eventName}*`,
       ``,
@@ -1615,12 +1633,12 @@ async function sendTicketWhatsApp(data: {
       `*Dias validos:* ${validDaysStr}`,
       `*Orden:* ${data.orderId.slice(0, 8)}`,
       ``,
-      `Presenta el codigo QR adjunto en la puerta del evento.`,
+      `Confírmame si deseas que te envíe tus entradas aquí.`,
       ``,
       `-- Tapee`,
     ].filter(Boolean).join("\n");
 
-    textSent = await sendWhatsAppText(data.attendeePhone, message);
+    textSent = await sendWhatsAppText(data.attendeePhone, message, logContext);
   }
 
   return textSent;

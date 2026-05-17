@@ -67,6 +67,8 @@ export interface EventListItem {
   soldOut: boolean;
   multiDay: boolean;
   days?: EventDay[];
+  externalTicketingUrl?: string | null;
+  externalTicketingVendorName?: string | null;
 }
 
 export interface EventDetail extends EventListItem {
@@ -152,4 +154,5 @@ export interface MyTicket {
   purchasedByMe: boolean;
   currencyCode: string;
   price: number;
+  orderId?: string;
 }

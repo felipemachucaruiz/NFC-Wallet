@@ -27,6 +27,14 @@ import { generateGoogleWalletSaveLink } from "../lib/walletPasses";
 
 const router: IRouter = Router();
 
+const API_SERVER_URL = (process.env.API_SERVER_URL ?? "https://prod.tapee.app").replace(/\/$/, "");
+
+function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return `${API_SERVER_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 router.get(
   "/attendee/me/bracelets",
   requireRole("attendee"),
@@ -908,7 +916,7 @@ router.post(
 
     if (platform === "google") {
       const [event] = ticket.orderId
-        ? await db.select({ name: eventsTable.name, startsAt: eventsTable.startsAt, venueAddress: eventsTable.venueAddress, coverImageUrl: eventsTable.coverImageUrl })
+        ? await db.select({ name: eventsTable.name, startsAt: eventsTable.startsAt, venueAddress: eventsTable.venueAddress, coverImageUrl: eventsTable.coverImageUrl, flyerImageUrl: eventsTable.flyerImageUrl })
             .from(eventsTable)
             .innerJoin(ticketOrdersTable, eq(ticketOrdersTable.eventId, eventsTable.id))
             .where(eq(ticketOrdersTable.id, ticket.orderId!))
@@ -944,7 +952,7 @@ router.post(
         attendeeName: ticket.attendeeName ?? "Asistente",
         qrCodeToken: ticket.qrCodeToken ?? ticket.id,
         validDays,
-        flyerUrl: event?.coverImageUrl ?? null,
+        flyerUrl: resolveImageUrl(event?.flyerImageUrl ?? event?.coverImageUrl),
       });
 
       if (!passUrl) {

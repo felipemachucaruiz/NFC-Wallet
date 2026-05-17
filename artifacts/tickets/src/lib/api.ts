@@ -14,7 +14,7 @@ export class ApiError extends Error {
   }
 }
 
-export function resolveImageUrl(path: string | null | undefined, width = 800): string {
+export function resolveImageUrl(path: string | null | undefined, width = 1200): string {
   if (!path) return "";
   const fullUrl = path.startsWith("http") ? path : `${STORAGE_ORIGIN}${path}`;
   if (fullUrl.startsWith(`${STORAGE_ORIGIN}/`)) {
@@ -460,6 +460,18 @@ export interface ApiAd {
 
 export async function fetchAds(): Promise<{ ads: ApiAd[] }> {
   return apiFetch("/public/ads");
+}
+
+export interface ApiCity {
+  id: string;
+  name: string;
+  country: string;
+  coverImageUrl: string | null;
+  displayOrder: number;
+}
+
+export async function fetchCities(): Promise<{ cities: ApiCity[] }> {
+  return apiFetch("/public/cities");
 }
 
 // ─── Bracelets ────────────────────────────────────────────────────────────────

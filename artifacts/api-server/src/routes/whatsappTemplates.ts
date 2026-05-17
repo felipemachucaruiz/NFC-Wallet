@@ -45,49 +45,68 @@ const createMappingSchema = z.object({
 
 const updateMappingSchema = createMappingSchema.partial();
 
-router.get("/whatsapp-templates/gupshup", requireAuth, requireRole("admin"), async (req, res) => {
-  const apiKey = process.env.GUPSHUP_API_KEY;
-  const appId = process.env.GUPSHUP_APP_ID;
+router.get("/whatsapp-templates/wati", requireAuth, requireRole("admin"), async (_req, res) => {
+  const apiKey = process.env.WATI_API_KEY;
+  const rawApiUrl = process.env.WATI_API_URL;
 
-  if (!apiKey || !appId) {
-    res.status(503).json({ error: "Gupshup not configured", templates: [] });
+  if (!apiKey || !rawApiUrl) {
+    res.status(503).json({ error: "WATI not configured", templates: [] });
     return;
   }
 
-  try {
-    const params = new URLSearchParams();
-    params.set("pageSize", "100");
-    const status = req.query.templateStatus as string | undefined;
-    if (status) params.set("templateStatus", status);
+  const apiUrl = rawApiUrl.replace(/\/$/, ""); // strip trailing slash
 
-    const gupshupRes = await fetch(
-      `https://api.gupshup.io/wa/app/${encodeURIComponent(appId)}/template?${params.toString()}`,
-      { headers: { apikey: apiKey } },
+  try {
+    const watiRes = await fetch(
+      `${apiUrl}/api/v1/getMessageTemplates?pageSize=100&pageIndex=0`,
+      { headers: { Authorization: `Bearer ${apiKey}` } },
     );
 
-    if (!gupshupRes.ok) {
-      const text = await gupshupRes.text();
-      console.error("Gupshup template list error:", gupshupRes.status, text);
-      res.status(502).json({ error: "Failed to fetch from Gupshup" });
+    const responseText = await watiRes.text();
+
+    if (!watiRes.ok) {
+      console.error("WATI template list error:", watiRes.status, responseText);
+      res.status(502).json({ error: "Failed to fetch from WATI", detail: responseText.slice(0, 300) });
       return;
     }
 
-    const data = await gupshupRes.json() as { status: string; templates?: Array<Record<string, unknown>> };
-    const templates = (data.templates ?? []).map((t: Record<string, unknown>) => ({
-      id: t.id,
-      elementName: t.elementName,
-      category: t.category,
-      languageCode: t.languageCode,
-      status: t.status,
-      templateType: t.templateType,
-      data: t.data,
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(responseText); } catch {}
+
+    console.log("[WATI templates] raw keys:", Object.keys(data), "count:", data.count);
+
+    // Handle both possible response shapes
+    const rawList = (
+      (data.messageTemplates as Array<Record<string, unknown>> | undefined) ??
+      (data.templates as Array<Record<string, unknown>> | undefined) ??
+      []
+    );
+
+    // WATI sometimes returns enum-like fields as {key, value, text} objects instead of strings
+    function watiStr(v: unknown): string {
+      if (typeof v === "string") return v;
+      if (v && typeof v === "object") {
+        const o = v as Record<string, unknown>;
+        return String(o.key ?? o.value ?? o.text ?? "");
+      }
+      return v == null ? "" : String(v);
+    }
+
+    const templates = rawList.map((t: Record<string, unknown>) => ({
+      id: watiStr(t.elementName),  // elementName is what WATI requires in template_name when sending
+      elementName: watiStr(t.elementName),
+      category: watiStr(t.category),
+      languageCode: watiStr(t.language ?? t.languageCode),
+      status: watiStr(t.status),
+      templateType: watiStr(t.templateType),
+      data: watiStr(t.body ?? t.data),
       meta: t.meta,
     }));
 
     res.json({ templates });
   } catch (err) {
-    console.error("Failed to fetch Gupshup templates:", err);
-    res.status(502).json({ error: "Failed to fetch from Gupshup" });
+    console.error("Failed to fetch WATI templates:", err);
+    res.status(502).json({ error: "Failed to fetch from WATI" });
   }
 });
 
@@ -378,60 +397,66 @@ router.post("/whatsapp-message-log/:id/resend", requireAuth, requireRole("admin"
       return;
     }
 
-    const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
-    const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
-    const GUPSHUP_SOURCE = process.env.GUPSHUP_SOURCE_NUMBER;
+    const WATI_API_KEY = process.env.WATI_API_KEY;
+    const WATI_API_URL = process.env.WATI_API_URL?.replace(/\/$/, "");
 
-    if (!GUPSHUP_API_KEY || !GUPSHUP_APP_NAME || !GUPSHUP_SOURCE) {
+    if (!WATI_API_KEY || !WATI_API_URL) {
       res.status(503).json({ error: "WhatsApp not configured" });
       return;
     }
 
-    let url: string;
-    const body = new URLSearchParams();
-    body.append("channel", "whatsapp");
-    body.append("source", GUPSHUP_SOURCE);
-    body.append("destination", message.destination);
-    body.append("src.name", GUPSHUP_APP_NAME);
+    let watiRes: Response;
 
     if (message.messageType === "template") {
-      url = "https://api.gupshup.io/wa/api/v1/template/msg";
-      const templatePayload = { id: payload.templateId, params: payload.params };
-      body.append("template", JSON.stringify(templatePayload));
+      // Normalise params: old messages stored string[], new ones store {name,value}[]
+      const rawParams = payload.params as Array<string | { name: string; value: string }> | undefined;
+      const parameters: Array<{ name: string; value: string }> = (rawParams ?? []).map((p, i) =>
+        typeof p === "string" ? { name: String(i + 1), value: p } : p,
+      );
+      const templateName = (payload.templateName as string) || (payload.templateId as string) || "";
+
+      watiRes = await fetch(
+        `${WATI_API_URL}/api/v1/sendTemplateMessage?whatsappNumber=${message.destination}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${WATI_API_KEY}` },
+          body: JSON.stringify({ template_name: templateName, broadcast_name: templateName, parameters }),
+        },
+      );
     } else {
-      url = "https://api.gupshup.io/wa/api/v1/msg";
-      body.append("message", JSON.stringify(payload));
+      const text = (payload.text as string) || JSON.stringify(payload);
+      const formData = new FormData();
+      formData.append("messageText", text);
+      watiRes = await fetch(
+        `${WATI_API_URL}/api/v1/sendSessionMessage/${message.destination}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${WATI_API_KEY}` },
+          body: formData,
+        },
+      );
     }
 
-    const gupshupRes = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        apikey: GUPSHUP_API_KEY,
-      },
-      body: body.toString(),
-    });
-
-    const responseText = await gupshupRes.text();
+    const responseText = await watiRes.text();
     let parsed: Record<string, unknown> = {};
     try { parsed = JSON.parse(responseText); } catch {}
 
-    const success = gupshupRes.ok && parsed.status !== "error";
+    const success = watiRes.ok && parsed.result !== false;
 
     await db.update(whatsappMessageLogTable)
       .set({
         status: success ? "sent" : "failed",
-        errorMessage: success ? null : (parsed.message as string || responseText),
+        errorMessage: success ? null : ((parsed.info as string) || responseText),
         retryCount: sql`${whatsappMessageLogTable.retryCount} + 1`,
-        gupshupMessageId: success ? (parsed.messageId as string || null) : message.gupshupMessageId,
+        gupshupMessageId: success ? ((parsed.id as string) || null) : message.gupshupMessageId,
         updatedAt: new Date(),
       })
       .where(eq(whatsappMessageLogTable.id, id));
 
     if (success) {
-      res.json({ success: true, messageId: parsed.messageId });
+      res.json({ success: true, messageId: parsed.id });
     } else {
-      res.status(502).json({ success: false, error: parsed.message || responseText });
+      res.status(502).json({ success: false, error: (parsed.info as string) || responseText });
     }
   } catch (err) {
     console.error("Failed to resend message:", err);
@@ -516,10 +541,9 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
   const { phone, attendeeName, eventId: testEventId } = req.body as { phone?: string; attendeeName?: string; eventId?: string };
   if (!phone) { res.status(400).json({ error: "phone is required" }); return; }
 
-  const GUPSHUP_API_KEY = process.env.GUPSHUP_API_KEY;
-  const GUPSHUP_APP_NAME = process.env.GUPSHUP_APP_NAME;
-  const GUPSHUP_SOURCE = process.env.GUPSHUP_SOURCE_NUMBER;
-  if (!GUPSHUP_API_KEY || !GUPSHUP_APP_NAME || !GUPSHUP_SOURCE) {
+  const WATI_API_KEY = process.env.WATI_API_KEY;
+  const WATI_API_URL = process.env.WATI_API_URL?.replace(/\/$/, "");
+  if (!WATI_API_KEY || !WATI_API_URL) {
     res.status(503).json({ error: "WhatsApp not configured" });
     return;
   }
@@ -547,50 +571,41 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
     if (!rows[0]) { res.status(404).json({ error: "Schedule not found" }); return; }
     const sched = rows[0];
 
-    // Resolve template
-    let gupshupTemplateId: string | null = null;
+    // Resolve template — gupshup_template_id column now stores the WATI template_name
+    let watiTemplateName: string | null = null;
     let resolvedTemplateId: string | null = sched.template_id;
     let paramMappings: Array<{ position: number; field: string }> = [];
-    let bodyParamCount = 0;
-    let templateButtons: Array<{ type: string; text: string }> = [];
 
     if (sched.template_id) {
       const { rows: tplRows } = await pool.query<{
         gupshup_template_id: string;
         parameters: Array<{ name: string }> | null;
-        buttons: Array<{ type: string; text: string }> | null;
-      }>(`SELECT gupshup_template_id, parameters, buttons FROM whatsapp_templates WHERE id = $1 AND status = 'active'`, [sched.template_id]);
+      }>(`SELECT gupshup_template_id, parameters FROM whatsapp_templates WHERE id = $1 AND status = 'active'`, [sched.template_id]);
       if (tplRows[0]) {
-        gupshupTemplateId = tplRows[0].gupshup_template_id;
+        watiTemplateName = tplRows[0].gupshup_template_id;
         paramMappings = sched.param_mappings ?? [];
-        bodyParamCount = tplRows[0].parameters?.length ?? 0;
-        templateButtons = tplRows[0].buttons ?? [];
       }
     } else if (sched.template_mapping_id) {
       const { rows: mRows } = await pool.query<{
         gupshup_template_id: string;
         template_id: string;
         parameter_mappings: Array<{ position: number; field: string }>;
-        parameters: Array<{ name: string }> | null;
-        buttons: Array<{ type: string; text: string }> | null;
       }>(`
-        SELECT t.gupshup_template_id, t.id AS template_id, m.parameter_mappings, t.parameters, t.buttons
+        SELECT t.gupshup_template_id, t.id AS template_id, m.parameter_mappings
         FROM whatsapp_trigger_mappings m
         JOIN whatsapp_templates t ON t.id = m.template_id
         WHERE m.id = $1 AND m.active = true AND t.status = 'active'
       `, [sched.template_mapping_id]);
       if (mRows[0]) {
-        gupshupTemplateId = mRows[0].gupshup_template_id;
+        watiTemplateName = mRows[0].gupshup_template_id;
         resolvedTemplateId = mRows[0].template_id;
         paramMappings = mRows[0].parameter_mappings ?? [];
-        bodyParamCount = mRows[0].parameters?.length ?? 0;
-        templateButtons = mRows[0].buttons ?? [];
       }
     }
 
-    if (!gupshupTemplateId) { res.status(400).json({ error: "No active template configured for this schedule" }); return; }
+    if (!watiTemplateName) { res.status(400).json({ error: "No active template configured for this schedule" }); return; }
 
-    // If a specific event was requested for the test, fetch its data
+    // Optionally override event data for the test
     let eventName = sched.event_name;
     let venueAddress = sched.venue_address;
     let latitude = sched.latitude;
@@ -629,56 +644,34 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
       daysRemainingText,
     };
 
-    const bodyMappings = templateButtons.length > 0 ? paramMappings.filter((m) => m.position <= bodyParamCount) : paramMappings;
-    const buttonMappings = templateButtons.length > 0 ? paramMappings.filter((m) => m.position > bodyParamCount) : [];
-    const maxBodyPos = bodyMappings.length > 0 ? Math.max(...bodyMappings.map((m) => m.position)) : 0;
-    const params: string[] = Array(maxBodyPos).fill("");
-    for (const mapping of bodyMappings) params[mapping.position - 1] = context[mapping.field] ?? "";
-    let ctaButtons = buttonMappings
-      .map((m, i) => ({ type: templateButtons[i]?.type ?? "url", parameter: context[m.field] ?? "" }))
-      .filter((b) => b.parameter);
-
-    // Fallback: if the template has URL buttons but no explicit button mapping was
-    // configured (or all button params resolved to empty), auto-include venueMapUrl
-    // as the URL button suffix so the Google Maps CTA always works.
-    if (ctaButtons.length === 0 && venueMapUrl) {
-      const btnType = templateButtons.find((b) => b.type === "url") ? "url" : null;
-      if (btnType || templateButtons.length === 0) {
-        ctaButtons = [{ type: "url", parameter: venueMapUrl }];
-        console.log("[WA test] Auto-injecting venueMapUrl as CTA button (no explicit button mapping found)");
-      }
-    }
+    // Build positional params for WATI
+    const maxPos = paramMappings.length > 0 ? Math.max(...paramMappings.map((m) => m.position)) : 0;
+    const paramValues: string[] = Array(maxPos).fill("");
+    for (const mapping of paramMappings) paramValues[mapping.position - 1] = context[mapping.field] ?? "";
+    const parameters = paramValues.map((value, i) => ({ name: String(i + 1), value }));
 
     // Normalize phone
     let dest = phone.replace(/[\s\-()]/g, "");
     if (/^\d{10}$/.test(dest)) dest = `57${dest}`;
     dest = dest.replace(/^\+/, "");
 
-    const templatePayload: Record<string, unknown> = { id: gupshupTemplateId, params };
-    if (ctaButtons.length > 0) templatePayload.buttons = ctaButtons;
+    console.log("[WA test] dest=%s template=%s params=%j", dest, watiTemplateName, parameters);
 
-    const formBody = new URLSearchParams();
-    formBody.append("channel", "whatsapp");
-    formBody.append("source", GUPSHUP_SOURCE);
-    formBody.append("destination", dest);
-    formBody.append("src.name", GUPSHUP_APP_NAME);
-    formBody.append("template", JSON.stringify(templatePayload));
-
-    console.log("[WA test] dest=%s template=%s params=%j buttons=%j", dest, gupshupTemplateId, params, ctaButtons);
-
-    const gupshupRes = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", apikey: GUPSHUP_API_KEY },
-      body: formBody.toString(),
-    });
-    const responseText = await gupshupRes.text();
-    console.log("[WA test] Gupshup HTTP %d: %s", gupshupRes.status, responseText);
+    const watiRes = await fetch(
+      `${WATI_API_URL}/api/v1/sendTemplateMessage?whatsappNumber=${dest}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${WATI_API_KEY}` },
+        body: JSON.stringify({ template_name: watiTemplateName, broadcast_name: watiTemplateName, parameters }),
+      },
+    );
+    const responseText = await watiRes.text();
+    console.log("[WA test] WATI HTTP %d: %s", watiRes.status, responseText);
 
     let parsed: Record<string, unknown> = {};
     try { parsed = JSON.parse(responseText); } catch {}
-    const success = gupshupRes.ok && parsed.status !== "error";
+    const success = watiRes.ok && parsed.result !== false;
 
-    // Always log to message log so failures are visible in the admin UI
     await pool.query(`
       INSERT INTO whatsapp_message_log
         (destination, message_type, template_id, template_name, trigger_type, status, payload, attendee_name, error_message, gupshup_message_id)
@@ -686,18 +679,18 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
     `, [
       dest,
       resolvedTemplateId,
-      gupshupTemplateId,
+      watiTemplateName,
       success ? "sent" : "failed",
-      JSON.stringify({ templateId: gupshupTemplateId, params, buttons: ctaButtons, test: true }),
+      JSON.stringify({ templateName: watiTemplateName, params: parameters, test: true }),
       attendeeName || "Test",
-      success ? null : (parsed.message as string || responseText),
-      success ? (parsed.messageId as string || null) : null,
+      success ? null : ((parsed.info as string) || responseText),
+      success ? ((parsed.id as string) || null) : null,
     ]);
 
     if (success) {
-      res.json({ ok: true, messageId: parsed.messageId, gupshupStatus: parsed.status, dest });
+      res.json({ ok: true, messageId: parsed.id, dest });
     } else {
-      res.status(502).json({ ok: false, error: parsed.message as string || responseText, gupshupStatus: parsed.status, dest });
+      res.status(502).json({ ok: false, error: (parsed.info as string) || responseText, dest });
     }
   } catch (err) {
     console.error("[WA test] Unexpected error:", err);

@@ -118,7 +118,7 @@ export function SearchAutocomplete({ className, onNavigate }: SearchAutocomplete
               onClick={() => goToEvent(event.id)}
             >
               <img
-                src={resolveImageUrl(event.coverImageUrl)}
+                src={resolveImageUrl(event.coverImageUrl, 200)}
                 alt=""
                 className="w-12 h-12 rounded-lg object-cover shrink-0"
               />

@@ -81,6 +81,8 @@ interface PublicEventRaw {
   salesChannel?: string;
   priceFrom?: number;
   priceTo?: number;
+  externalTicketingUrl?: string | null;
+  externalTicketingVendorName?: string | null;
   eventDays?: Array<{ id: string; date: string; label: string }>;
   dayCount?: number;
 }
@@ -118,6 +120,8 @@ function mapPublicEvent(raw: PublicEventRaw): EventListItem {
     soldOut: false,
     multiDay: (raw.dayCount ?? 1) > 1,
     days: raw.eventDays?.map((d, i) => ({ dayNumber: i + 1, label: d.label, date: d.date })),
+    externalTicketingUrl: raw.externalTicketingUrl ?? null,
+    externalTicketingVendorName: raw.externalTicketingVendorName ?? null,
   };
 }
 
@@ -286,6 +290,8 @@ function mapPublicEventDetail(raw: PublicEventDetailRaw, days: PublicEventDetail
     minPrice: e.priceFrom ?? 0,
     maxPrice: e.priceTo ?? 0,
     currencyCode: e.currencyCode ?? "COP",
+    externalTicketingUrl: e.externalTicketingUrl ?? null,
+    externalTicketingVendorName: e.externalTicketingVendorName ?? null,
     soldOut: ticketTypes.every((tt) => tt.availability === "sold_out"),
     multiDay: (days?.length ?? 0) > 1,
     days: days?.map((d, i) => ({ dayNumber: d.dayNumber ?? i + 1, label: d.label, date: d.date })),
@@ -433,11 +439,28 @@ export function useMyTickets() {
         purchasedByMe: true,
         currencyCode: (t.currencyCode as string) ?? "COP",
         price: 0,
+        orderId: (t.orderId as string) ?? undefined,
       }));
       return { tickets: mapped };
     },
     enabled: !!headers.Authorization,
     staleTime: 30_000,
+  });
+}
+
+export function useTicketPdfUrl(ticketId: string | undefined) {
+  const headers = useAuthHeaders();
+  const apiFetch = useApiFetch();
+  return useQuery({
+    queryKey: ["tickets", "pdf-url", ticketId],
+    queryFn: () =>
+      apiFetch<{ url: string }>(
+        `${API_BASE_URL}/api/attendee/me/tickets/${ticketId}/pdf-url`,
+        headers,
+      ),
+    enabled: !!ticketId && !!headers.Authorization,
+    staleTime: 50 * 60 * 1000,
+    gcTime: 0,
   });
 }
 
@@ -461,6 +484,12 @@ export function useTokenizeCard() {
       expYear: string;
       cardHolder: string;
     }) => {
+      // Wompi exige exp_month e exp_year como exactamente 2 dígitos (^\d{2}$).
+      // Aceptamos "1/26" o "1/2026" del usuario y lo normalizamos antes de tokenizar.
+      const expMonth = data.expMonth.replace(/\D/g, "").padStart(2, "0").slice(-2);
+      const expYearRaw = data.expYear.replace(/\D/g, "");
+      const expYear = expYearRaw.length === 4 ? expYearRaw.slice(-2) : expYearRaw.padStart(2, "0").slice(-2);
+
       const res = await fetch(`${WOMPI_BASE_URL}/tokens/cards`, {
         method: "POST",
         headers: {
@@ -468,18 +497,24 @@ export function useTokenizeCard() {
           Authorization: `Bearer ${WOMPI_PUBLIC_KEY}`,
         },
         body: JSON.stringify({
-          number: data.number,
-          cvc: data.cvc,
-          exp_month: data.expMonth,
-          exp_year: data.expYear,
-          card_holder: data.cardHolder,
+          number: data.number.replace(/\s/g, ""),
+          cvc: data.cvc.replace(/\D/g, ""),
+          exp_month: expMonth,
+          exp_year: expYear,
+          card_holder: data.cardHolder.trim(),
         }),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error((body as { error?: { messages?: Record<string, string[]> } }).error?.messages
-          ? "Datos de tarjeta inválidos"
-          : `Error ${res.status}`);
+        const body = await res.json().catch(() => ({})) as { error?: { messages?: Record<string, string[]> } };
+        const messages = body.error?.messages;
+        if (messages) {
+          // Surface Wompi's field-level messages so the user knows what's wrong
+          const flat = Object.entries(messages)
+            .map(([field, msgs]) => `${field}: ${msgs.join(", ")}`)
+            .join("\n");
+          throw new Error(flat || "Datos de tarjeta inválidos");
+        }
+        throw new Error(`Error ${res.status}`);
       }
       const body = await res.json() as { data: { id: string } };
       return body.data.id;

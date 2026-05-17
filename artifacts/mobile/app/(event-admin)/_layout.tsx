@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import Colors from "@/constants/colors";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
 import { EventProvider } from "@/contexts/EventContext";
+import { AiChat } from "@/components/AiChat";
 
 function ClassicTabLayout() {
   const { t } = useTranslation();
@@ -116,6 +117,7 @@ export default function EventAdminLayout() {
   return (
     <EventProvider>
       <ClassicTabLayout />
+      <AiChat />
     </EventProvider>
   );
 }

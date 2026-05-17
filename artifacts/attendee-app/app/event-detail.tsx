@@ -506,8 +506,8 @@ export default function EventDetailScreen() {
             </Pressable>
           )}
 
-          {/* Ticket pricing */}
-          {event.ticketTypes.length > 0 && (
+          {/* Ticket pricing (hidden for external-ticketing events) */}
+          {!event.externalTicketingUrl && event.ticketTypes.length > 0 && (
             <View style={styles.glassCard}>
               <Text style={styles.sectionLabel}>{t("events.pricing").toUpperCase()}</Text>
               {event.ticketTypes.map((tt) => (
@@ -533,11 +533,35 @@ export default function EventDetailScreen() {
               ))}
             </View>
           )}
+
+          {/* External ticketing notice */}
+          {event.externalTicketingUrl && (
+            <View style={styles.glassCard}>
+              <Text style={styles.sectionLabel}>{t("events.buyTickets").toUpperCase()}</Text>
+              <Text style={{ color: TEXT_MUTED, fontSize: 14, lineHeight: 20 }}>
+                {event.externalTicketingVendorName
+                  ? t("events.externalVendorIntro", { vendor: event.externalTicketingVendorName, defaultValue: `Las boletas para este evento se venden en ${event.externalTicketingVendorName}.` })
+                  : t("events.externalVendorIntroGeneric", "Las boletas para este evento se venden en otra plataforma.")}
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
       {/* ── Fixed CTA ── */}
-      {!salesNotStarted && (
+      {event.externalTicketingUrl ? (
+        <View style={[styles.ctaBar, { paddingBottom: insets.bottom + 16, zIndex: 3 }]}>
+          <Button
+            title={event.externalTicketingVendorName
+              ? t("events.buyOnVendor", { vendor: event.externalTicketingVendorName, defaultValue: `Comprar en ${event.externalTicketingVendorName}` })
+              : t("events.buyExternal", "Comprar en sitio externo")}
+            onPress={() => Linking.openURL(event.externalTicketingUrl!)}
+            variant="primary"
+            fullWidth
+            size="lg"
+          />
+        </View>
+      ) : !salesNotStarted && (
         <View style={[styles.ctaBar, { paddingBottom: insets.bottom + 16, zIndex: 3 }]}>
           <Button
             title={allSoldOut ? t("events.soldOut") : t("events.buyTickets")}

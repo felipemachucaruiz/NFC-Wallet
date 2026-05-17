@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneField } from "@/components/ui/phone-input";
 import { DatePickerField } from "@/components/ui/date-picker-field";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, MapPin, Users, CheckCircle, Loader2, AlertCircle, CreditCard as IdCard } from "lucide-react";
+import { Calendar, MapPin, Users, CheckCircle, Loader2, AlertCircle, CreditCard as IdCard, Heart, Shirt, Phone } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { resolveImageUrl } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -17,6 +18,16 @@ const PROD_ORIGIN = "https://attendee.tapee.app";
 const API_BASE = import.meta.env.PROD
   ? `${PROD_ORIGIN}/attendee-api/api`
   : "/tickets/prod-api";
+
+const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
+const EPS_LIST = [
+  "Aliansalud EPS", "Anas Wayuu", "Asmet Salud", "Capresoca EPS",
+  "Coosalud EPS", "Compensar EPS", "Comfamiliar Huila", "Comfenalco Valle",
+  "Dusakawi EPSI", "Emssanar EPS", "Famisanar EPS", "Mallamas EPSI",
+  "Medimás EPS", "Mutual Ser EPS", "Nueva EPS", "Pijaos Salud EPSI",
+  "Salud MIA", "Salud Total EPS", "Sanitas EPS", "Savia Salud EPS", "Sura EPS",
+];
 
 async function fetchGuestListInfo(slug: string) {
   const res = await fetch(`${API_BASE}/guest-list/${slug}`);
@@ -34,6 +45,11 @@ interface SignupBody {
   idDocument?: string;
   dateOfBirth?: string;
   sex?: "male" | "female";
+  shirtSize?: string;
+  bloodType?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  eps?: string;
 }
 
 async function submitGuestListSignup(slug: string, body: SignupBody) {
@@ -47,6 +63,22 @@ async function submitGuestListSignup(slug: string, body: SignupBody) {
   return data;
 }
 
+function PillButton({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+        selected
+          ? "border-cyan-500 bg-cyan-500/10 text-cyan-400"
+          : "border-gray-700 text-gray-400 hover:border-cyan-700"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function GuestListPage() {
   const { t } = useTranslation();
   const [, params] = useRoute("/guest-list/:slug");
@@ -58,9 +90,24 @@ export default function GuestListPage() {
   const [formPhone, setFormPhone] = useState("");
   const [formIdDocument, setFormIdDocument] = useState("");
   const [formDateOfBirth, setFormDateOfBirth] = useState("");
-  const [formSex, setFormSex] = useState<"male" | "female" | "">("");
+  const [formSex, setFormSex] = useState<"male" | "female" | "non_binary" | "">("");
+  // Race fields
+  const [formShirtSize, setFormShirtSize] = useState("");
+  const [formBloodType, setFormBloodType] = useState("");
+  const [formEps, setFormEps] = useState("");
+  const [formEmergencyName, setFormEmergencyName] = useState("");
+  const [formEmergencyPhone, setFormEmergencyPhone] = useState("");
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [signupResult, setSignupResult] = useState<{ ticket: { id: string; qrCodeToken: string }; event: { name: string; venueAddress: string; startsAt: string } } | null>(null);
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["guest-list", slug],
+    queryFn: () => fetchGuestListInfo(slug),
+    enabled: !!slug,
+  });
+
+  const isRace = data?.event?.category === "race";
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -69,15 +116,9 @@ export default function GuestListPage() {
       setFormPhone(user.phone || "");
       setFormIdDocument(user.idDocument || "");
       setFormDateOfBirth(user.dateOfBirth || "");
-      if (user.sex === "male" || user.sex === "female") setFormSex(user.sex);
+      if (user.sex === "male" || user.sex === "female" || user.sex === "non_binary") setFormSex(user.sex);
     }
   }, [isAuthenticated, user]);
-
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["guest-list", slug],
-    queryFn: () => fetchGuestListInfo(slug),
-    enabled: !!slug,
-  });
 
   const signupMutation = useMutation({
     mutationFn: () => submitGuestListSignup(slug, {
@@ -86,12 +127,21 @@ export default function GuestListPage() {
       phone: formPhone.trim() || undefined,
       idDocument: formIdDocument.trim() || undefined,
       dateOfBirth: formDateOfBirth.trim() || undefined,
-      sex: formSex || undefined,
+      sex: (formSex as "male" | "female" | "non_binary") || undefined,
+      shirtSize: isRace ? formShirtSize || undefined : undefined,
+      bloodType: isRace ? formBloodType || undefined : undefined,
+      emergencyContactName: isRace ? formEmergencyName.trim() || undefined : undefined,
+      emergencyContactPhone: isRace ? formEmergencyPhone.trim() || undefined : undefined,
+      eps: isRace ? formEps || undefined : undefined,
     }),
     onSuccess: (result) => {
       setSignupResult(result);
     },
   });
+
+  function clearErr(key: string) {
+    setErrors((p) => { const n = { ...p }; delete n[key]; return n; });
+  }
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
@@ -101,6 +151,12 @@ export default function GuestListPage() {
     if (!formIdDocument.trim()) newErrors.idDocument = t("guestList.required");
     if (!formDateOfBirth.trim()) newErrors.dateOfBirth = t("guestList.required");
     if (!formSex) newErrors.sex = t("guestList.required");
+    if (isRace) {
+      if (!formShirtSize) newErrors.shirtSize = t("guestList.required");
+      if (!formBloodType) newErrors.bloodType = t("guestList.required");
+      if (!formEmergencyName.trim()) newErrors.emergencyName = t("guestList.required");
+      if (!formEmergencyPhone.trim()) newErrors.emergencyPhone = t("guestList.required");
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -176,7 +232,6 @@ export default function GuestListPage() {
               <div className="text-center">
                 <p className="text-sm text-gray-400">{t("guestList.qrInstructions")}</p>
               </div>
-
               <div className="text-center text-sm text-gray-500 mt-4">
                 <p>{t("guestList.emailSent")}</p>
               </div>
@@ -245,11 +300,12 @@ export default function GuestListPage() {
                   </p>
                 )}
 
+                {/* ── Basic fields ── */}
                 <div>
                   <Label className="text-gray-300">{t("guestList.nameLabel")} *</Label>
                   <Input
                     value={formName}
-                    onChange={(e) => { setFormName(e.target.value); setErrors((p) => { const n = {...p}; delete n.name; return n; }); }}
+                    onChange={(e) => { setFormName(e.target.value); clearErr("name"); }}
                     placeholder={t("guestList.namePlaceholder")}
                     className={`bg-gray-800 border-gray-700 text-white mt-1 ${errors.name ? "border-destructive" : ""} ${isLoggedIn && formName ? "opacity-70" : ""}`}
                     readOnly={isLoggedIn && !!formName}
@@ -262,7 +318,7 @@ export default function GuestListPage() {
                   <Input
                     type="email"
                     value={formEmail}
-                    onChange={(e) => { setFormEmail(e.target.value); setErrors((p) => { const n = {...p}; delete n.email; return n; }); }}
+                    onChange={(e) => { setFormEmail(e.target.value); clearErr("email"); }}
                     placeholder={t("guestList.emailPlaceholder")}
                     className={`bg-gray-800 border-gray-700 text-white mt-1 ${errors.email ? "border-destructive" : ""} ${isLoggedIn && formEmail ? "opacity-70" : ""}`}
                     readOnly={isLoggedIn && !!formEmail}
@@ -273,10 +329,7 @@ export default function GuestListPage() {
                 <div>
                   <Label className="text-gray-300">{t("guestList.phoneLabel")}</Label>
                   <div className={`mt-1 ${isLoggedIn && formPhone ? "opacity-70 pointer-events-none" : ""}`}>
-                    <PhoneField
-                      value={formPhone}
-                      onChange={setFormPhone}
-                    />
+                    <PhoneField value={formPhone} onChange={setFormPhone} />
                   </div>
                 </div>
 
@@ -289,7 +342,7 @@ export default function GuestListPage() {
                     type="text"
                     inputMode="numeric"
                     value={formIdDocument}
-                    onChange={(e) => { setFormIdDocument(e.target.value.replace(/\D/g, "")); setErrors((p) => { const n = {...p}; delete n.idDocument; return n; }); }}
+                    onChange={(e) => { setFormIdDocument(e.target.value.replace(/\D/g, "")); clearErr("idDocument"); }}
                     placeholder="1234567890"
                     className={`bg-gray-800 border-gray-700 text-white mt-1 ${errors.idDocument ? "border-destructive" : ""} ${isLoggedIn && formIdDocument ? "opacity-70" : ""}`}
                     readOnly={isLoggedIn && !!formIdDocument}
@@ -305,7 +358,7 @@ export default function GuestListPage() {
                   <div className={`mt-1 ${isLoggedIn && formDateOfBirth ? "opacity-70 pointer-events-none" : ""}`}>
                     <DatePickerField
                       value={formDateOfBirth}
-                      onChange={(v) => { setFormDateOfBirth(v); setErrors((p) => { const n = {...p}; delete n.dateOfBirth; return n; }); }}
+                      onChange={(v) => { setFormDateOfBirth(v); clearErr("dateOfBirth"); }}
                       hasError={!!errors.dateOfBirth}
                     />
                   </div>
@@ -320,21 +373,100 @@ export default function GuestListPage() {
                   <div className={`flex gap-2 mt-1 ${isLoggedIn && formSex ? "opacity-70 pointer-events-none" : ""}`}>
                     <button
                       type="button"
-                      onClick={() => { setFormSex("male"); setErrors((p) => { const n = {...p}; delete n.sex; return n; }); }}
+                      onClick={() => { setFormSex("male"); clearErr("sex"); }}
                       className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${formSex === "male" ? "border-cyan-500 bg-cyan-500/10 text-cyan-400" : "border-gray-700 text-gray-400 hover:border-cyan-700"}`}
                     >
                       {t("guestList.male")}
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setFormSex("female"); setErrors((p) => { const n = {...p}; delete n.sex; return n; }); }}
+                      onClick={() => { setFormSex("female"); clearErr("sex"); }}
                       className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${formSex === "female" ? "border-cyan-500 bg-cyan-500/10 text-cyan-400" : "border-gray-700 text-gray-400 hover:border-cyan-700"}`}
                     >
                       {t("guestList.female")}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => { setFormSex("non_binary"); clearErr("sex"); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${formSex === "non_binary" ? "border-cyan-500 bg-cyan-500/10 text-cyan-400" : "border-gray-700 text-gray-400 hover:border-cyan-700"}`}
+                    >
+                      {t("guestList.nonBinary")}
+                    </button>
                   </div>
                   {errors.sex && <p className="text-xs text-destructive mt-1">{errors.sex}</p>}
                 </div>
+
+                {/* ── Race-only fields ── */}
+                {isRace && (
+                  <div className="space-y-4 pt-2 border-t border-gray-700/60">
+                    <p className="text-xs text-cyan-400/80 font-semibold uppercase tracking-wider pt-1">
+                      {t("guestList.raceSection")}
+                    </p>
+
+                    <div>
+                      <Label className="text-gray-300 flex items-center gap-1">
+                        <Shirt className="w-3.5 h-3.5" />
+                        {t("guestList.shirtSize")} *
+                      </Label>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {SHIRT_SIZES.map((s) => (
+                          <PillButton key={s} label={s} selected={formShirtSize === s} onClick={() => { setFormShirtSize(s); clearErr("shirtSize"); }} />
+                        ))}
+                      </div>
+                      {errors.shirtSize && <p className="text-xs text-destructive mt-1">{errors.shirtSize}</p>}
+                    </div>
+
+                    <div>
+                      <Label className="text-gray-300 flex items-center gap-1">
+                        <Heart className="w-3.5 h-3.5" />
+                        {t("guestList.bloodType")} *
+                      </Label>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {BLOOD_TYPES.map((bt) => (
+                          <PillButton key={bt} label={bt} selected={formBloodType === bt} onClick={() => { setFormBloodType(bt); clearErr("bloodType"); }} />
+                        ))}
+                      </div>
+                      {errors.bloodType && <p className="text-xs text-destructive mt-1">{errors.bloodType}</p>}
+                    </div>
+
+                    <div>
+                      <Label className="text-gray-300">{t("guestList.eps")}</Label>
+                      <div className="mt-1">
+                        <SearchableSelect
+                          value={formEps}
+                          onChange={setFormEps}
+                          options={[...EPS_LIST, t("guestList.noEps")]}
+                          placeholder={t("guestList.epsPlaceholder")}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-gray-300 flex items-center gap-1">
+                        <Phone className="w-3.5 h-3.5" />
+                        {t("guestList.emergencyContact")} *
+                      </Label>
+                      <Input
+                        value={formEmergencyName}
+                        onChange={(e) => { setFormEmergencyName(e.target.value); clearErr("emergencyName"); }}
+                        placeholder={t("guestList.emergencyNamePlaceholder")}
+                        className={`bg-gray-800 border-gray-700 text-white mt-1 ${errors.emergencyName ? "border-destructive" : ""}`}
+                      />
+                      {errors.emergencyName && <p className="text-xs text-destructive mt-1">{errors.emergencyName}</p>}
+                    </div>
+
+                    <div>
+                      <Label className="text-gray-300">{t("guestList.emergencyPhone")} *</Label>
+                      <div className="mt-1">
+                        <PhoneField
+                          value={formEmergencyPhone}
+                          onChange={(v) => { setFormEmergencyPhone(v); clearErr("emergencyPhone"); }}
+                        />
+                      </div>
+                      {errors.emergencyPhone && <p className="text-xs text-destructive mt-1">{errors.emergencyPhone}</p>}
+                    </div>
+                  </div>
+                )}
 
                 {signupMutation.isError && (
                   <p className="text-red-400 text-sm">{(signupMutation.error as Error)?.message}</p>

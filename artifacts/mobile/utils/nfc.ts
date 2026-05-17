@@ -1072,6 +1072,56 @@ export async function cancelNfc(): Promise<void> {
   } catch {}
 }
 
+// AID for the attendee-app HCE ticket service
+const TAPEE_AID = [0xF0, 0x54, 0x41, 0x50, 0x45, 0x45, 0x54, 0x01];
+const SELECT_AID_APDU = [
+  0x00, 0xA4, 0x04, 0x00,
+  TAPEE_AID.length,
+  ...TAPEE_AID,
+  0x00,
+];
+const GET_TOKEN_APDU = [0x00, 0xCA, 0x00, 0x00, 0x00];
+
+/**
+ * Try to read a ticket QR token from an Android phone acting as HCE card.
+ * Returns the token string, or null if the tag is not a Tapee HCE phone.
+ * Leaves the NFC session open so the caller can fall back to wristband read.
+ */
+export async function tryReadTicketFromPhone(): Promise<string | null> {
+  if (!NfcManager || !NfcTech || Platform.OS !== "android") return null;
+
+  try {
+    await NfcManager.requestTechnology(NfcTech.IsoDep);
+    const tag = await NfcManager.getTag();
+    if (!tag) return null;
+
+    const techTypes = getTagTechTypes(tag);
+    if (!hasTech(techTypes, "IsoDep")) return null;
+
+    const mgr = NfcManager as unknown as AnyRecord;
+    const isoDepHandler = mgr["isoDepHandlerAndroid"] as { transceive?: (data: number[]) => Promise<number[]> } | null;
+    const transceive = isoDepHandler?.transceive?.bind(isoDepHandler);
+    if (!transceive) return null;
+
+    // SELECT AID — if rejected, this is not a Tapee HCE phone
+    const selectResp = await transceive(SELECT_AID_APDU);
+    if (!selectResp || selectResp.length < 2) return null;
+    if (selectResp[selectResp.length - 2] !== 0x90 || selectResp[selectResp.length - 1] !== 0x00) return null;
+
+    // GET TOKEN
+    const dataResp = await transceive(GET_TOKEN_APDU);
+    if (!dataResp || dataResp.length < 3) return null;
+    if (dataResp[dataResp.length - 2] !== 0x90) return null;
+
+    const tokenBytes = new Uint8Array(dataResp.slice(0, -2));
+    return new TextDecoder().decode(tokenBytes);
+  } catch {
+    return null;
+  } finally {
+    await NfcManager.cancelTechnologyRequest().catch(() => {});
+  }
+}
+
 /**
  * Authenticate with an old key, wipe user data (pages 4-39), and set a new key.
  * Used to re-initialize bracelets that were previously used in another event.

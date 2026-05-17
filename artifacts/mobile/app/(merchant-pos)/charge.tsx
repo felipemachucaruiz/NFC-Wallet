@@ -15,6 +15,7 @@ import { useOfflineQueue } from "@/contexts/OfflineQueueContext";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { isNfcSupported, scanAndWriteBracelet, cancelNfc, type TagInfo, type TagType } from "@/utils/nfc";
 import { scanAndWriteDesfireBracelet, type DesfireTagInfo } from "@/utils/desfire";
+import { readWalletToken, type VASReadError } from "@/utils/vasNfc";
 import { verifyHmac, computeHmac } from "@/utils/hmac";
 import { formatCurrency } from "@/utils/format";
 import { SuspiciousReportModal } from "@/components/SuspiciousReportModal";
@@ -553,6 +554,105 @@ export default function ChargeScreen() {
     }
   };
 
+  const [walletScanning, setWalletScanning] = useState(false);
+
+  const handleWalletCharge = useCallback(async () => {
+    if (walletScanning || scanningRef.current || !isNfcSupported()) return;
+    setWalletScanning(true);
+    setNfcModalVisible(true);
+    setStep("reading");
+
+    try {
+      // merchantIdHashHex: SHA-256 of your Apple VAS merchant ID (set to empty → HCE only for now)
+      const vasResult = await readWalletToken(process.env.EXPO_PUBLIC_VAS_MERCHANT_ID_HASH ?? "");
+
+      if (vasResult.source === "none") {
+        showAlert(t("common.error"), t("pos.walletNotFound", "No se encontró wallet digital. Verifica que el asistente abra su pase."));
+        setStep("waiting");
+        setNfcModalVisible(false);
+        return;
+      }
+
+      if (vasResult.source === "apple_vas") {
+        // Apple VAS: needs native ECIES decryption — not yet implemented in RN layer
+        showAlert(t("common.error"), t("pos.appleVasNotReady", "Apple Wallet VAS requiere módulo nativo. Usa el QR por ahora."));
+        setStep("waiting");
+        setNfcModalVisible(false);
+        return;
+      }
+
+      // HCE path: encodedToken is the raw base64url VASToken from the attendee's phone
+      const { encodedToken } = vasResult;
+
+      setStep("verifying");
+
+      // Send to server for authoritative debit (server verifies ECDSA + checks DB balance)
+      let result: { newBalance: number; newSeq: number } | null = null;
+      try {
+        result = await customFetch("/api/pos/wallet-charge", {
+          method: "POST",
+          body: JSON.stringify({ encodedToken, amountCents: chargeTotal, locationId }),
+        }) as { newBalance: number; newSeq: number };
+      } catch (err: unknown) {
+        const msg = extractErrorMessage(err, "");
+        if (msg.includes("INSUFFICIENT_BALANCE")) {
+          // Parse available from error if possible
+          setStep("insufficient");
+          setBraceletBalance(0);
+          setBraceletUid("wallet");
+          setNfcModalVisible(false);
+          return;
+        }
+        if (msg.includes("TOKEN_EXPIRED")) {
+          showAlert(t("common.error"), t("pos.walletTokenExpired", "Pase expirado. Pide al asistente que sincronice su app."));
+          setStep("waiting");
+          setNfcModalVisible(false);
+          return;
+        }
+        // Offline fallback: enqueue with uid from token (best-effort, no ECDSA verify in RN)
+        try {
+          await enqueue({
+            locationId,
+            nfcUid: `wallet:${encodedToken.slice(0, 16)}`,
+            newBalance: 0,
+            counter: 0,
+            lineItems: snapshotItems.map((i) => ({ productId: i.productId, quantity: i.quantity, unitPrice: i.price, unitCost: i.cost })),
+            grossAmount: total,
+            tipAmount: confirmedTipAmountRef.current,
+          });
+        } catch {}
+        clearCart();
+        setStep("success");
+        setBraceletBalance(0);
+        setBraceletUid("wallet");
+        setNfcModalVisible(false);
+        return;
+      }
+
+      if (!result) {
+        showAlert(t("common.error"), t("common.unknownError"));
+        setStep("waiting");
+        setNfcModalVisible(false);
+        return;
+      }
+
+      clearCart();
+      setStep("success");
+      setBraceletBalance(result.newBalance);
+      setBraceletUid("wallet");
+      setNfcModalVisible(false);
+    } catch (e: unknown) {
+      const code = e as VASReadError;
+      if (code !== "CANCELLED") {
+        showAlert(t("common.error"), t("pos.readError"));
+      }
+      setStep("waiting");
+      setNfcModalVisible(false);
+    } finally {
+      setWalletScanning(false);
+    }
+  }, [walletScanning, chargeTotal, locationId, enqueue, clearCart, snapshotItems, total, confirmedTipAmountRef, t, showAlert]);
+
   const stepRef = useRef(step);
   stepRef.current = step;
 
@@ -790,18 +890,29 @@ export default function ChargeScreen() {
           />
         )}
         {step === "waiting" && isNfcSupported() && (
-          <Button
-            title={t("pos.tapBracelet")}
-            onPress={() => {
-              setNfcModalVisible(true);
-              scanningRef.current = false;
-              startNfcScan(chargeTotal);
-            }}
-            variant="primary"
-            size="lg"
-            fullWidth
-            testID="charge-tap-btn"
-          />
+          <View style={{ gap: 10 }}>
+            <Button
+              title={t("pos.tapBracelet")}
+              onPress={() => {
+                setNfcModalVisible(true);
+                scanningRef.current = false;
+                startNfcScan(chargeTotal);
+              }}
+              variant="primary"
+              size="lg"
+              fullWidth
+              testID="charge-tap-btn"
+            />
+            <Button
+              title={walletScanning ? t("pos.reading") : t("pos.chargeWallet", "Cobrar con Wallet")}
+              onPress={handleWalletCharge}
+              variant="secondary"
+              size="md"
+              fullWidth
+              loading={walletScanning}
+              icon="smartphone"
+            />
+          </View>
         )}
         {isNfcActiveStep && !nfcModalVisible && (
           <Button title={t("common.loading")} onPress={() => {}} loading variant="primary" size="lg" fullWidth />

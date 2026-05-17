@@ -43,6 +43,7 @@ router.get(
         startsAt: eventsTable.startsAt,
         endsAt: eventsTable.endsAt,
         currencyCode: eventsTable.currencyCode,
+        category: eventsTable.category,
       })
       .from(eventsTable)
       .where(eq(eventsTable.id, list.eventId));
@@ -74,6 +75,7 @@ router.get(
         venueAddress: event.venueAddress,
         startsAt: event.startsAt,
         endsAt: event.endsAt,
+        category: event.category,
       },
     });
   },
@@ -86,6 +88,11 @@ const signupSchema = z.object({
   idDocument: z.string().max(50).optional(),
   dateOfBirth: z.string().max(10).optional(),
   sex: z.enum(["male", "female", "non_binary"]).optional(),
+  shirtSize: z.string().max(20).optional(),
+  bloodType: z.string().max(10).optional(),
+  emergencyContactName: z.string().max(255).optional(),
+  emergencyContactPhone: z.string().max(30).optional(),
+  eps: z.string().max(255).optional(),
 });
 
 router.post(
@@ -99,7 +106,7 @@ router.post(
       return;
     }
 
-    const { name, email, phone, idDocument, dateOfBirth, sex } = parsed.data;
+    const { name, email, phone, idDocument, dateOfBirth, sex, shirtSize, bloodType, emergencyContactName, emergencyContactPhone, eps } = parsed.data;
     const normalizedEmail = email.toLowerCase();
 
     try {
@@ -170,6 +177,11 @@ router.post(
             attendeeIdDocument: idDocument || null,
             attendeeDateOfBirth: dateOfBirth || null,
             attendeeSex: sex || null,
+            shirtSize: shirtSize || null,
+            bloodType: bloodType || null,
+            emergencyContactName: emergencyContactName || null,
+            emergencyContactPhone: emergencyContactPhone || null,
+            eps: eps || null,
             qrCodeToken: qrToken,
             status: "valid",
           })
