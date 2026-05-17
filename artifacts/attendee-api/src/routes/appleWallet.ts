@@ -201,21 +201,21 @@ router.get(
               key: "date",
               value: eventDateIso,
               label: "FECHA",
-              dateStyle: "short",
-              timeStyle: "none",
+              dateStyle: "PKDateStyleShort",
+              timeStyle: "PKDateStyleNone",
             }] : []),
           ],
           primaryFields: [
             { key: "name", value: attendeeName, label: "NOMBRE" },
           ],
           secondaryFields: [
-            { key: "type", value: sectionName ? `${ticketTypeName} – ${sectionName}` : ticketTypeName, label: "TIPO" },
+            { key: "ticket_type", value: sectionName ? `${ticketTypeName} – ${sectionName}` : ticketTypeName, label: "TIPO" },
             ...(eventDateIso ? [{
               key: "time",
               value: eventDateIso,
               label: "HORA",
-              dateStyle: "none",
-              timeStyle: "short",
+              dateStyle: "PKDateStyleNone",
+              timeStyle: "PKDateStyleShort",
             }] : []),
           ],
           auxiliaryFields: [
