@@ -1,0 +1,15 @@
+diff --git a/ios/FileSystemUtilities/FileSystemUtilities.swift b/ios/FileSystemUtilities/FileSystemUtilities.swift
+index 6d3ad44994534e7fae84d6a8ea4606f4aedd0a77..783f309c9aba9f957d313f4dc6a6c0aaff00b0a9 100644
+--- a/ios/FileSystemUtilities/FileSystemUtilities.swift
++++ b/ios/FileSystemUtilities/FileSystemUtilities.swift
+@@ -34,6 +34,10 @@ public struct FileSystemUtilities {
+     return dirPath.appendingPathComponent(fileName).path
+   }
+ 
++  public static func isReadableFile(_ appContext: AppContext?, _ url: URL) -> Bool {
++    return permissions(appContext, for: url).contains(.read)
++  }
++
+   public static func permissions(_ appContext: AppContext?, for uri: URL) -> [FileSystemPermissionFlags] {
+     guard let scheme = uri.scheme else {
+       return [.none]
