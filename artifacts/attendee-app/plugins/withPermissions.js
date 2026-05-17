@@ -21,6 +21,12 @@ module.exports = function withPermissions(config) {
   return withAndroidManifest(config, (cfg) => {
     const manifest = cfg.modResults.manifest;
 
+    // Ensure tools namespace is present so tools:replace is valid
+    manifest.$ = {
+      ...manifest.$,
+      "xmlns:tools": "http://schemas.android.com/tools",
+    };
+
     if (!Array.isArray(manifest["uses-permission"])) {
       return cfg;
     }
@@ -36,8 +42,15 @@ module.exports = function withPermissions(config) {
       }
 
       if (name === "android.permission.WRITE_EXTERNAL_STORAGE") {
-        perm.$ = { ...perm.$, "android:maxSdkVersion": "28" };
-        console.log("[withPermissions] Restricted WRITE_EXTERNAL_STORAGE with maxSdkVersion=28");
+        // tools:replace tells the manifest merger that our value (28) wins over
+        // any library declaring a different maxSdkVersion (e.g. expo-file-system@55
+        // declares 32, which conflicts without this override).
+        perm.$ = {
+          ...perm.$,
+          "android:maxSdkVersion": "28",
+          "tools:replace": "android:maxSdkVersion",
+        };
+        console.log("[withPermissions] Restricted WRITE_EXTERNAL_STORAGE with maxSdkVersion=28 (tools:replace)");
       }
 
       filtered.push(perm);
