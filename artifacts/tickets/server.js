@@ -33,12 +33,12 @@ function getClientIP(req) {
 
 const CSP =
   "default-src 'self'; " +
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; " +
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://maps.googleapis.com https://maps.gstatic.com; " +
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://maps.googleapis.com; " +
   "font-src 'self' https://fonts.gstatic.com; " +
-  "img-src 'self' data: blob: https://images.unsplash.com https://prod.tapee.app https://flagcdn.com https://*.basemaps.cartocdn.com https://api.qrserver.com https://attendee.tapee.app; " +
-  "frame-src 'self' https://challenges.cloudflare.com https://wompi.co https://checkout.wompi.co https://*.wompi.co; " +
-  "connect-src 'self' https://attendee.tapee.app https://prod.tapee.app https://wompi.co https://checkout.wompi.co https://*.wompi.co https://*.sentry.io https://sentry.io https://accounts.google.com; " +
+  "img-src 'self' data: blob: https://images.unsplash.com https://prod.tapee.app https://flagcdn.com https://*.basemaps.cartocdn.com https://api.qrserver.com https://attendee.tapee.app https://maps.gstatic.com https://*.googleapis.com; " +
+  "frame-src 'self' https://challenges.cloudflare.com https://wompi.co https://checkout.wompi.co https://*.wompi.co https://player.vimeo.com https://vimeo.com; " +
+  "connect-src 'self' https://attendee.tapee.app https://prod.tapee.app https://wompi.co https://checkout.wompi.co https://*.wompi.co https://*.sentry.io https://sentry.io https://accounts.google.com https://maps.googleapis.com https://vimeo.com https://api.vimeo.com; " +
   "object-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests; block-all-mixed-content";
 
 const SECURITY_HEADERS = {

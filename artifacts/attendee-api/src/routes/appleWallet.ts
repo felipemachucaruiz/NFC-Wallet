@@ -29,29 +29,19 @@ const router: IRouter = Router();
  * the pass just won't support VAS NFC reading.
  */
 function buildVASNfcField(ticketId: string, eventSlug: string): Record<string, unknown> {
-  const eciesKeyHex = process.env.VAS_ECIES_PUBLIC_KEY_HEX;
-  if (!eciesKeyHex) return {};
-
-  let privKey: string;
   try {
-    privKey = loadSigningPrivateKey();
-  } catch {
-    return {};
-  }
-
-  try {
-    const uid   = crypto.createHmac("sha256", eventSlug).update(ticketId).digest("hex").slice(0, 16);
-    const token = mintVASToken(
+    const eciesKeyHex = process.env.VAS_ECIES_PUBLIC_KEY_HEX;
+    if (!eciesKeyHex) return {};
+    const privKey = loadSigningPrivateKey();
+    const uid     = crypto.createHmac("sha256", eventSlug).update(ticketId).digest("hex").slice(0, 16);
+    const token   = mintVASToken(
       { uid, bal: 0, seq: 0, ts: Math.floor(Date.now() / 1000), eid: eventSlug },
       privKey,
     );
-    const message = encodeVASToken(token);
-
     return {
       nfc: {
-        message,
-        encryptionPublicKeyPoint: eciesKeyHex, // 33-byte compressed X9.62 hex
-        requiresAuthentication: false,         // true = requires Face ID / Touch ID before NFC
+        message: encodeVASToken(token),
+        encryptionPublicKeyPoint: eciesKeyHex,
       },
     };
   } catch {
