@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetCurrentAuthUser,
@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Tags, X, Check } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Tags, X, Check, ImageIcon, Upload } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/currency";
@@ -34,6 +34,12 @@ function apiUrl(path: string): string { return `${_API_BASE}${path}`; }
 function authHeaders(): HeadersInit {
   const token = localStorage.getItem("tapee_admin_token");
   return { ...(token ? { Authorization: `Bearer ${token}` } : {}), "Content-Type": "application/json" };
+}
+function authToken(): string | null { return localStorage.getItem("tapee_admin_token"); }
+function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("/api/")) return apiUrl(url);
+  return url;
 }
 
 type ProductCategory = { id: string; name: string; eventId: string; createdAt: string };
@@ -152,6 +158,15 @@ export default function EventProducts() {
   const [selected, setSelected] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
 
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [createImageFile, setCreateImageFile] = useState<File | null>(null);
+  const [createImagePreview, setCreateImagePreview] = useState<string | null>(null);
+  const createFileInputRef = useRef<HTMLInputElement>(null);
+
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -181,7 +196,64 @@ export default function EventProducts() {
       ivaExento: product.ivaExento ?? false,
       active: product.active,
     });
+    setCurrentImageUrl((product as Product & { imageUrl?: string | null }).imageUrl ?? null);
+    setImageFile(null);
+    setImagePreview(null);
     setEditOpen(true);
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = async () => {
+    if (!selected || !imageFile) return;
+    setImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", imageFile);
+      const token = authToken();
+      const res = await fetch(apiUrl(`/api/products/${selected.id}/image`), {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) {
+        const json = await res.json() as { error?: string };
+        throw new Error(json.error ?? "Upload failed");
+      }
+      const json = await res.json() as { imageUrl: string };
+      setCurrentImageUrl(json.imageUrl);
+      setImageFile(null);
+      setImagePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      toast({ title: t("products.imageUploaded") });
+      invalidate();
+    } catch (e: unknown) {
+      toast({ title: t("common.error"), description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleCreateImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCreateImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setCreateImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const resetCreateImage = () => {
+    setCreateImageFile(null);
+    setCreateImagePreview(null);
+    if (createFileInputRef.current) createFileInputRef.current.value = "";
   };
 
   const handleCreate = () => {
@@ -200,7 +272,33 @@ export default function EventProducts() {
         },
       },
       {
-        onSuccess: () => { toast({ title: t("products.created") }); setCreateOpen(false); setForm(emptyForm); invalidate(); },
+        onSuccess: async (data) => {
+          let imageUploadFailed = false;
+          if (createImageFile && data?.id) {
+            setImageUploading(true);
+            try {
+              const fd = new FormData();
+              fd.append("image", createImageFile);
+              const token = authToken();
+              const res = await fetch(apiUrl(`/api/products/${data.id}/image`), {
+                method: "POST",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                body: fd,
+              });
+              if (!res.ok) throw new Error();
+            } catch {
+              imageUploadFailed = true;
+              toast({ title: t("products.created"), description: t("products.imageUploadFailed", "La imagen no pudo subirse — edita el producto para intentarlo de nuevo."), variant: "destructive" });
+            } finally {
+              setImageUploading(false);
+            }
+          }
+          if (!imageUploadFailed) toast({ title: t("products.created") });
+          setCreateOpen(false);
+          setForm(emptyForm);
+          resetCreateImage();
+          invalidate();
+        },
         onError: (e: unknown) => toast({ title: t("common.error"), description: (e as { message?: string }).message, variant: "destructive" }),
       }
     );
@@ -476,23 +574,74 @@ export default function EventProducts() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-md">
+      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetCreateImage(); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("products.addProductTitle")}</DialogTitle></DialogHeader>
           {productFormFields}
+          <div className="space-y-2 pt-1 border-t border-border">
+            <Label>{t("products.productImage")}</Label>
+            <div className="flex items-start gap-3">
+              <div className="w-16 h-16 rounded-lg border border-border bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {createImagePreview ? (
+                  <img src={createImagePreview} alt="preview" className="w-full h-full object-cover" />
+                ) : (
+                  <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex-1 flex items-center gap-2">
+                <Input ref={createFileInputRef} type="file" accept="image/*" className="text-sm cursor-pointer" onChange={handleCreateImageFileChange} />
+                {createImageFile && (
+                  <Button variant="ghost" size="icon" onClick={resetCreateImage}><X className="w-4 h-4" /></Button>
+                )}
+              </div>
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
-            <Button data-testid="button-submit-product" onClick={handleCreate} disabled={createProduct.isPending || !form.name || !form.price || !form.merchantId}>
-              {createProduct.isPending ? t("products.creating") : t("common.create")}
+            <Button variant="outline" onClick={() => { setCreateOpen(false); resetCreateImage(); }}>{t("common.cancel")}</Button>
+            <Button data-testid="button-submit-product" onClick={handleCreate} disabled={createProduct.isPending || imageUploading || !form.name || !form.price || !form.merchantId}>
+              {imageUploading ? t("products.uploading") : createProduct.isPending ? t("products.creating") : t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("products.editTitle")} — {selected?.name}</DialogTitle></DialogHeader>
           {productFormFields}
+          <div className="space-y-2 pt-1 border-t border-border">
+            <Label>{t("products.productImage")}</Label>
+            <div className="flex items-start gap-3">
+              <div className="w-20 h-20 rounded-lg border border-border bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {imagePreview ? (
+                  <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+                ) : currentImageUrl ? (
+                  <img src={resolveImageUrl(currentImageUrl) ?? ""} alt={form.name} className="w-full h-full object-cover" />
+                ) : (
+                  <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input ref={fileInputRef} type="file" accept="image/*" className="text-sm cursor-pointer" onChange={handleImageFileChange} />
+                  {imageFile && (
+                    <Button variant="ghost" size="icon" onClick={() => { setImageFile(null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                {imageFile && (
+                  <Button size="sm" onClick={handleImageUpload} disabled={imageUploading} className="w-full">
+                    <Upload className="w-3 h-3 mr-1.5" />
+                    {imageUploading ? t("products.uploading") : t("products.uploadImage")}
+                  </Button>
+                )}
+                {currentImageUrl && !imageFile && (
+                  <p className="text-xs text-muted-foreground">{t("products.imageSet")}</p>
+                )}
+              </div>
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>{t("common.cancel")}</Button>
             <Button data-testid="button-submit-edit-product" onClick={handleUpdate} disabled={updateProduct.isPending || !form.name || !form.price}>
