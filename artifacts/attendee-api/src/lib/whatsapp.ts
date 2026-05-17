@@ -226,7 +226,7 @@ async function sendWatiSessionFile(
   destination: string,
   fileUrl: string,
   filename: string,
-  mimeType: string,
+  _mimeType: string,
   messageType: "document" | "image",
   caption?: string,
   logContext?: MessageLogContext,
@@ -241,25 +241,17 @@ async function sendWatiSessionFile(
   const logId = await logMessage(destination, messageType, "pending", { type: messageType, url: fileUrl, filename, caption }, ctx);
 
   try {
-    const fileRes = await fetch(fileUrl);
-    if (!fileRes.ok) {
-      logger.error({ status: fileRes.status, url: fileUrl }, "Failed to download file for WATI send");
-      if (logId) await updateLogStatus(logId, "failed", `Failed to download: HTTP ${fileRes.status}`);
-      return false;
-    }
-
-    const fileBuffer = await fileRes.arrayBuffer();
-    const blob = new Blob([fileBuffer], { type: mimeType });
-    const formData = new FormData();
-    formData.append("file", blob, filename);
-    if (caption) formData.append("caption", caption);
+    // Use sendSessionFileViaUrl — WATI fetches the file directly from the URL.
+    // This avoids downloading + re-uploading and works with publicly accessible URLs.
+    const qs = new URLSearchParams({ fileUrl });
+    if (caption) qs.set("caption", caption);
+    if (WATI_CHANNEL_NUMBER) qs.set("channelPhoneNumber", WATI_CHANNEL_NUMBER);
 
     const res = await fetch(
-      `${WATI_API_URL}/api/v1/sendSessionFile/${phone}`,
+      `${WATI_API_URL}/api/v1/sendSessionFileViaUrl/${phone}?${qs.toString()}`,
       {
         method: "POST",
         headers: { Authorization: `Bearer ${WATI_API_KEY}` },
-        body: formData,
       },
     );
 
@@ -274,14 +266,17 @@ async function sendWatiSessionFile(
     let parsed: Record<string, unknown> = {};
     try { parsed = JSON.parse(responseText); } catch {}
 
-    if (parsed.result === false) {
+    // sendSessionFileViaUrl responds with { ok: true, result: "success" } on success
+    const success = res.ok && (parsed.ok === true || parsed.result === "success");
+    if (!success) {
       logger.error({ response: parsed, filename }, "WATI file send returned error");
       if (logId) await updateLogStatus(logId, "failed", (parsed.info as string) || JSON.stringify(parsed));
       return false;
     }
 
+    const msgId = (parsed.message as Record<string, unknown>)?.whatsappMessageId as string | undefined;
     logger.info({ destination: phone, filename, messageType }, "WhatsApp file sent successfully via WATI");
-    if (logId) await updateLogStatus(logId, "sent", undefined, parsed.id as string);
+    if (logId) await updateLogStatus(logId, "sent", undefined, msgId);
     return true;
   } catch (err) {
     logger.error({ err, filename }, "WATI file send error");
