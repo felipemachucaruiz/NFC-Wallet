@@ -10,44 +10,6 @@ import { PKPass } from "passkit-generator";
 
 const router: IRouter = Router();
 
-// ─── VAS NFC field builder ────────────────────────────────────────────────────
-
-/**
- * Build the `nfc` field for pass.json.
- *
- * message: base64url-encoded SignedVASToken (ECDSA P-256).
- *   - uid derived from ticketId + eventSlug (scoped, not raw UUID)
- *   - bal: 0 (tickets are not cashless passes — for cashless passes use a bracelet ID + real balance)
- *   - seq: 0 (minted fresh)
- *
- * encryptionPublicKeyPoint: compressed X9.62 hex of the POS terminal's ECIES key.
- *   iOS will ECIES-encrypt `message` before sending it to the terminal, so only
- *   terminals holding the matching private key (in Android Keystore) can read it.
- *
- * Returns {} (empty) if env vars are not configured — pass generation still succeeds,
- * the pass just won't support VAS NFC reading.
- */
-function buildVASNfcField(ticketId: string, eventSlug: string): Record<string, unknown> {
-  try {
-    const eciesKeyHex = process.env.VAS_ECIES_PUBLIC_KEY_HEX;
-    if (!eciesKeyHex) return {};
-    const privKey = loadSigningPrivateKey();
-    const uid     = crypto.createHmac("sha256", eventSlug).update(ticketId).digest("hex").slice(0, 16);
-    const token   = mintVASToken(
-      { uid, bal: 0, seq: 0, ts: Math.floor(Date.now() / 1000), eid: eventSlug },
-      privKey,
-    );
-    return {
-      nfc: {
-        message: encodeVASToken(token),
-        encryptionPublicKeyPoint: eciesKeyHex,
-      },
-    };
-  } catch {
-    return {};
-  }
-}
-
 const API_SERVER_URL = (process.env.API_SERVER_URL ?? "https://prod.tapee.app").replace(/\/$/, "");
 
 function resolveImageUrl(url: string | null | undefined): string | null {
