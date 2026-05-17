@@ -120,6 +120,17 @@ function resolveImageUrl(p) {
   return `${STORAGE_ORIGIN}${p}`;
 }
 
+const IMAGE_PROXY = "https://attendee.tapee.app/attendee-api/api/public/image";
+
+function resolveOgImageUrl(p) {
+  const raw = resolveImageUrl(p);
+  if (!raw) return "";
+  if (raw.startsWith("https://prod.tapee.app")) {
+    return `${IMAGE_PROXY}?url=${encodeURIComponent(raw)}&w=1200&q=85`;
+  }
+  return raw;
+}
+
 function escapeHtml(str) {
   if (!str) return "";
   return String(str)
@@ -684,7 +695,7 @@ function serveEventIndex(res, event, slugOrId) {
     return;
   }
 
-  const image = resolveImageUrl(event.flyerImageUrl || event.coverImageUrl);
+  const image = resolveOgImageUrl(event.flyerImageUrl || event.coverImageUrl);
   const title = escapeHtml(event.name);
   const rawDesc = (event.longDescription || event.description || "")
     .replace(/<[^>]*>?/gm, "").trim();
