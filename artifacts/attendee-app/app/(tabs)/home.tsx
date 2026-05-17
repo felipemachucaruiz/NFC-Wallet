@@ -19,7 +19,7 @@ import { useAlert } from "@/components/CustomAlert";
 import { isNfcSupported, scanBraceletUID } from "@/utils/nfc";
 import { API_BASE_URL } from "@/constants/domain";
 
-const NFC_TAG_IMAGE = require("@/assets/images/tapee-nfc-tag.png");
+const NFC_TAG_IMAGE = require("@/assets/images/tapee-uid.png");
 
 type BraceletItem = {
   uid: string;
