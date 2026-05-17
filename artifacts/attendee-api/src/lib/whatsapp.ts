@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 
 const WATI_API_KEY = process.env.WATI_API_KEY;
 const WATI_API_URL = process.env.WATI_API_URL?.replace(/\/$/, ""); // e.g. https://app-server.wati.io
+const WATI_CHANNEL_NUMBER = process.env.WATI_CHANNEL_NUMBER ?? ""; // WhatsApp Business phone number (required by WATI API)
 
 function isConfigured(): boolean {
   return !!(WATI_API_KEY && WATI_API_URL);
@@ -135,6 +136,7 @@ async function sendWatiTemplateMessage(
           template_name: templateName,
           broadcast_name: templateName,
           parameters: params,
+          channel_number: WATI_CHANNEL_NUMBER,
         }),
       },
     );

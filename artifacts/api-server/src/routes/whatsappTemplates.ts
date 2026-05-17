@@ -399,6 +399,7 @@ router.post("/whatsapp-message-log/:id/resend", requireAuth, requireRole("admin"
 
     const WATI_API_KEY = process.env.WATI_API_KEY;
     const WATI_API_URL = process.env.WATI_API_URL?.replace(/\/$/, "");
+    const WATI_CHANNEL_NUMBER = process.env.WATI_CHANNEL_NUMBER ?? "";
 
     if (!WATI_API_KEY || !WATI_API_URL) {
       res.status(503).json({ error: "WhatsApp not configured" });
@@ -421,7 +422,7 @@ router.post("/whatsapp-message-log/:id/resend", requireAuth, requireRole("admin"
         {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${WATI_API_KEY}` },
-          body: JSON.stringify({ template_name: templateName, broadcast_name: templateName, parameters }),
+          body: JSON.stringify({ template_name: templateName, broadcast_name: templateName, parameters, channel_number: WATI_CHANNEL_NUMBER }),
         },
       );
     } else {
@@ -645,11 +646,11 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
       daysRemainingText,
     };
 
-    // Build positional params for WATI
+    // Build positional params for WATI (value must not be empty — minLength:1 per WATI API spec)
     const maxPos = paramMappings.length > 0 ? Math.max(...paramMappings.map((m) => m.position)) : 0;
-    const paramValues: string[] = Array(maxPos).fill("");
-    for (const mapping of paramMappings) paramValues[mapping.position - 1] = context[mapping.field] ?? "";
-    const parameters = paramValues.map((value, i) => ({ name: String(i + 1), value }));
+    const paramValues: string[] = Array(maxPos).fill("—");
+    for (const mapping of paramMappings) paramValues[mapping.position - 1] = context[mapping.field] || "—";
+    const parameters = paramValues.map((value, i) => ({ name: String(i + 1), value: value || "—" }));
 
     // Normalize phone
     let dest = phone.replace(/[\s\-()]/g, "");
@@ -663,7 +664,7 @@ router.post("/whatsapp-reminder-schedules/:id/test", requireAuth, requireRole("a
       {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${WATI_API_KEY}` },
-        body: JSON.stringify({ template_name: watiTemplateName, broadcast_name: watiTemplateName, parameters }),
+        body: JSON.stringify({ template_name: watiTemplateName, broadcast_name: watiTemplateName, parameters, channel_number: WATI_API_URL ? (process.env.WATI_CHANNEL_NUMBER ?? "") : "" }),
       },
     );
     const responseText = await watiRes.text();
