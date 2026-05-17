@@ -679,6 +679,7 @@ const server = http.createServer(async (req, res) => {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     res.setHeader(key, value);
   }
+  res.setHeader("X-Tapee-Server", "v2-ssr");
 
   // Redirect www → apex (belt-and-suspenders in case traffic bypasses Cloudflare)
   const host = req.headers["x-forwarded-host"] || req.headers.host || "";
