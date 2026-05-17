@@ -241,8 +241,7 @@ async function sendWatiSessionFile(
   const logId = await logMessage(destination, messageType, "pending", { type: messageType, url: fileUrl, filename, caption }, ctx);
 
   try {
-    // Use sendSessionFileViaUrl — WATI fetches the file directly from the URL.
-    // This avoids downloading + re-uploading and works with publicly accessible URLs.
+    // Primary: sendSessionFileViaUrl — WATI fetches the file directly from the URL.
     const qs = new URLSearchParams({ fileUrl });
     if (caption) qs.set("caption", caption);
     if (WATI_CHANNEL_NUMBER) qs.set("channelPhoneNumber", WATI_CHANNEL_NUMBER);
@@ -256,27 +255,59 @@ async function sendWatiSessionFile(
     );
 
     const responseText = await res.text();
-
-    if (!res.ok) {
-      logger.error({ status: res.status, body: responseText, filename }, "WATI file send failed");
-      if (logId) await updateLogStatus(logId, "failed", responseText);
-      return false;
-    }
-
     let parsed: Record<string, unknown> = {};
     try { parsed = JSON.parse(responseText); } catch {}
 
-    // sendSessionFileViaUrl responds with { ok: true, result: "success" } on success
-    const success = res.ok && (parsed.ok === true || parsed.result === "success");
-    if (!success) {
-      logger.error({ response: parsed, filename }, "WATI file send returned error");
-      if (logId) await updateLogStatus(logId, "failed", (parsed.info as string) || JSON.stringify(parsed));
+    const urlSuccess = res.ok && (parsed.ok === true || parsed.result === "success");
+    if (urlSuccess) {
+      const msgId = (parsed.message as Record<string, unknown>)?.whatsappMessageId as string | undefined;
+      logger.info({ destination: phone, filename, messageType }, "WhatsApp file sent via WATI URL");
+      if (logId) await updateLogStatus(logId, "sent", undefined, msgId);
+      return true;
+    }
+
+    logger.warn({ status: res.status, body: responseText, filename }, "WATI sendSessionFileViaUrl failed — falling back to binary upload");
+
+    // Fallback: download the file and upload it as multipart binary.
+    const fileRes = await fetch(fileUrl);
+    if (!fileRes.ok) {
+      const msg = `Binary fallback: could not download file (${fileRes.status})`;
+      logger.error({ filename, fileUrl }, msg);
+      if (logId) await updateLogStatus(logId, "failed", msg);
+      return false;
+    }
+    const fileBlob = await fileRes.blob();
+
+    const formData = new FormData();
+    formData.append("file", fileBlob, filename);
+
+    const binaryQs = new URLSearchParams();
+    if (caption) binaryQs.set("caption", caption);
+    const binaryQsStr = binaryQs.toString();
+
+    const binaryRes = await fetch(
+      `${WATI_API_URL}/api/v1/sendSessionFile/${phone}${binaryQsStr ? `?${binaryQsStr}` : ""}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${WATI_API_KEY}` },
+        body: formData,
+      },
+    );
+
+    const binaryText = await binaryRes.text();
+    let binaryParsed: Record<string, unknown> = {};
+    try { binaryParsed = JSON.parse(binaryText); } catch {}
+
+    const binarySuccess = binaryRes.ok && (binaryParsed.ok === true || binaryParsed.result === "success");
+    if (!binarySuccess) {
+      logger.error({ status: binaryRes.status, body: binaryText, filename }, "WATI binary file send failed");
+      if (logId) await updateLogStatus(logId, "failed", binaryText);
       return false;
     }
 
-    const msgId = (parsed.message as Record<string, unknown>)?.whatsappMessageId as string | undefined;
-    logger.info({ destination: phone, filename, messageType }, "WhatsApp file sent successfully via WATI");
-    if (logId) await updateLogStatus(logId, "sent", undefined, msgId);
+    const binaryMsgId = (binaryParsed.message as Record<string, unknown>)?.whatsappMessageId as string | undefined;
+    logger.info({ destination: phone, filename, messageType }, "WhatsApp file sent via WATI binary upload");
+    if (logId) await updateLogStatus(logId, "sent", undefined, binaryMsgId);
     return true;
   } catch (err) {
     logger.error({ err, filename }, "WATI file send error");
