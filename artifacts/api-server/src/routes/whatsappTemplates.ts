@@ -410,9 +410,10 @@ router.post("/whatsapp-message-log/:id/resend", requireAuth, requireRole("admin"
     if (message.messageType === "template") {
       // Normalise params: old messages stored string[], new ones store {name,value}[]
       const rawParams = payload.params as Array<string | { name: string; value: string }> | undefined;
-      const parameters: Array<{ name: string; value: string }> = (rawParams ?? []).map((p, i) =>
-        typeof p === "string" ? { name: String(i + 1), value: p } : p,
-      );
+      const parameters: Array<{ name: string; value: string }> = (rawParams ?? []).map((p, i) => {
+        const base = typeof p === "string" ? { name: String(i + 1), value: p } : p;
+        return { ...base, value: base.value || "—" };
+      });
       const templateName = (payload.templateName as string) || (payload.templateId as string) || "";
 
       watiRes = await fetch(

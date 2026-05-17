@@ -81,13 +81,12 @@ export function buildParamsFromMappings(
 
   for (let pos = 1; pos <= highestMappedPos; pos++) {
     const mapping = mappings.find((m) => m.position === pos);
-    if (mapping && context[mapping.field] !== undefined) {
-      result.push(context[mapping.field]);
-    } else if (fallbackValues[pos - 1] !== undefined) {
-      result.push(fallbackValues[pos - 1]);
-    } else {
-      result.push("");
-    }
+    const contextVal = mapping ? context[mapping.field] : undefined;
+    const fallbackVal = fallbackValues[pos - 1];
+    // Prefer context value if non-empty, then fallback if non-empty, then a placeholder
+    // Never send "" — WATI rejects blank parameter values with a template error
+    const value = (contextVal || fallbackVal || "—");
+    result.push(value);
   }
 
   return result;
